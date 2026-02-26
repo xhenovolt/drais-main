@@ -27,7 +27,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           </div>
         </main>
         <footer className="py-6 text-center text-xs text-gray-600 dark:text-gray-400">
-          © {new Date().getFullYear()} DRAIS School Management.
+          © {new Date().getFullYear()} Ibun Baz Girls Secondary School Management.
         </footer>
       </div>
     );

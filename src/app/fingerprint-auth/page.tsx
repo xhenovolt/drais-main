@@ -28,7 +28,7 @@ const FingerprintAuthPage: React.FC = () => {
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge: new Uint8Array(32), // Random challenge
-          rp: { name: "DRAIS School" },
+          rp: { name: "Ibun Baz Girls Secondary School" },
           user: {
             id: new Uint8Array(16), // Random user ID
             name: `student-${studentId}`,

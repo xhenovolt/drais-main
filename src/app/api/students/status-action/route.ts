@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    const schoolName = 'School Name';
-    const schoolAddress = 'School Address • Phone: 000-000-000';
+    const schoolName = 'Ibun Baz Girls Secondary School';
+    const schoolAddress = 'Kampala, Uganda';
     const logoUrl = '/uploads/logo.png';
 
     const html = `<!doctype html>

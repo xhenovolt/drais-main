@@ -235,9 +235,23 @@ export async function POST(req: NextRequest) {
         await updateConnection.end();
       }
       
+      // Get school name from database
+      let schoolName = 'Ibun Baz Girls Secondary School';
+      let schoolAddress = 'Kampala, Uganda';
+      try {
+        const [schoolRows] = await connection.execute(
+          'SELECT name, address FROM schools WHERE id = ? LIMIT 1',
+          [1]
+        );
+        if (schoolRows && (schoolRows as any[]).length > 0) {
+          schoolName = (schoolRows as any[])[0].name || schoolName;
+          schoolAddress = (schoolRows as any[])[0].address || schoolAddress;
+        }
+      } catch (schoolError) {
+        console.error('Error fetching school name:', schoolError);
+      }
+      
       // Generate PDF admission form
-      const schoolName = body.school_name || 'DRAIS School';
-      const schoolAddress = body.school_address || 'P.O. Box 1234, Kampala, Uganda';
       const pdfHtml = `
         <html>
         <head>
@@ -267,7 +281,7 @@ export async function POST(req: NextRequest) {
           
           <div class="section">
             <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            <p><strong>Ref:</strong> DRAIS/ADM/${admission_no}/2025</p>
+            <p><strong>Ref:</strong> HILLSIDEWAYS/ADM/${admission_no}/2025</p>
           </div>
           
           <div class="section">
@@ -348,7 +362,7 @@ export async function POST(req: NextRequest) {
       const pdfPath = path.join(pdfDir, `admission_${student_id}.pdf`);
       
       try {
-        const browser = await puppeteer.launch({ headless: 'new' });
+        const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
         await page.setContent(pdfHtml, { waitUntil: 'networkidle0' });
         await page.pdf({ path: pdfPath, format: 'A4', printBackground: true });

@@ -1,8 +1,8 @@
-# DRAIS Authentication System Integration Guide
+# Excel Islamic School Authentication System Integration Guide
 
 ## Overview
 
-The DRAIS authentication system provides enterprise-grade security with support for:
+The Excel Islamic School authentication system provides enterprise-grade security with support for:
 - Password-based authentication
 - Biometric authentication (WebAuthn)
 - Session management

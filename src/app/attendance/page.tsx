@@ -1,11 +1,12 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, UserCheck, UserX, Clock, Fingerprint, Search, Filter, Download, Smartphone, Shield } from 'lucide-react';
+import { Calendar, Users, UserCheck, UserX, Clock, Fingerprint, Search, Filter, Download, Smartphone, Shield, Server } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
 import { fetcher } from '@/utils/fetcher';
 import BiometricModal from '@/components/attendance/BiometricModal';
+import DeviceConnectionModal from '@/components/attendance/DeviceConnectionModal';
 import AttendanceCard from '@/components/attendance/AttendanceCard';
 import AttendanceStats from '@/components/attendance/AttendanceStats';
 import clsx from 'clsx';
@@ -16,6 +17,7 @@ const AttendancePage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [biometricModalOpen, setBiometricModalOpen] = useState(false);
+  const [deviceModalOpen, setDeviceModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
   // Fetch attendance data
@@ -104,13 +106,22 @@ const AttendancePage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            📊 Smart Attendance System
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Hybrid manual and biometric attendance tracking
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              📊 Smart Attendance System
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Hybrid manual and biometric attendance tracking
+            </p>
+          </div>
+          <button
+            onClick={() => setDeviceModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg"
+          >
+            <Server className="w-5 h-5" />
+            Connect Device
+          </button>
         </div>
 
         {/* Controls */}
@@ -219,6 +230,15 @@ const AttendancePage: React.FC = () => {
         student={selectedStudent}
         date={selectedDate}
         onSuccess={handleBiometricSuccess}
+      />
+
+      {/* Device Connection Modal */}
+      <DeviceConnectionModal
+        open={deviceModalOpen}
+        onClose={() => setDeviceModalOpen(false)}
+        onSuccess={() => {
+          // Refresh device list if needed
+        }}
       />
     </div>
   );

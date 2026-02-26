@@ -315,35 +315,67 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
         id: 'pdf-toast'
       });
 
+      // Fetch school info dynamically
+      let schoolInfo = {
+        school_name: 'Albayan Quran Memorization Centre Nursery and Primary School',
+        school_address: 'Bugumba, Iganga Municipality',
+        school_contact: '+256 700 123 456',
+        school_email: 'info@albayan.ac.ug',
+        principal_name: 'Headteacher'
+      };
+
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api';
+        const response = await fetch(`${API_BASE_URL}/school-info`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.data) {
+            schoolInfo = {
+              school_name: result.data.school_name || schoolInfo.school_name,
+              school_address: result.data.school_address || schoolInfo.school_address,
+              school_contact: result.data.school_contact || schoolInfo.school_contact,
+              school_email: result.data.school_email || schoolInfo.school_email,
+              principal_name: result.data.principal_name || schoolInfo.principal_name
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch school info, using defaults:', err);
+      }
+
       const doc = new jsPDF('portrait', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-      // School Header
-      doc.setFontSize(20);
+      // School Header - Using dynamic school name
+      doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text('IBUN BAZ GIRLS SECONDARY SCHOOL', pageWidth / 2, 25, { align: 'center' });
+      doc.text(schoolInfo.school_name, pageWidth / 2, 25, { align: 'center' });
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
-      doc.text('Excellence in Islamic and Academic Education', pageWidth / 2, 32, { align: 'center' });
-      doc.text('P.O. Box 1234, BUSEI, IGANGA, UGANDA | Tel: +256 702 387 803 | Email: info@ibunbazschool.ac.ug', pageWidth / 2, 38, { align: 'center' });
+      doc.text(schoolInfo.school_address, pageWidth / 2, 32, { align: 'center' });
+      doc.text(schoolInfo.school_contact, pageWidth / 2, 38, { align: 'center' });
+      if (schoolInfo.school_email) {
+        doc.text(`Email: ${schoolInfo.school_email}`, pageWidth / 2, 44, { align: 'center' });
+      }
 
       // Decorative line
       doc.setLineWidth(0.5);
-      doc.line(20, 45, pageWidth - 20, 45);
+      doc.line(20, 52, pageWidth - 20, 52);
 
       // Document Title
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('OFFICIAL ADMISSION LETTER', pageWidth / 2, 60, { align: 'center' });
+      doc.text('OFFICIAL ADMISSION LETTER', pageWidth / 2, 65, { align: 'center' });
 
       // Date and Reference
       const currentDate = new Date().toLocaleDateString('en-GB');
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Date: ${currentDate}`, 20, 75);
-      doc.text(`Ref: IBUN/ADM/${studentData.admission_no || 'TBD'}/2025`, 20, 80);
+      const admissionNum = studentData.admission_no ? studentData.admission_no.toString().split('/').pop() || '001' : '001';
+      doc.text(`Ref: ${admissionNum}/${new Date().getFullYear()}`, 20, 80);
 
       // Admission Details Section
       let yPosition = 95;
@@ -428,7 +460,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
       // Admission Statement
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      const admissionText = `We are pleased to inform you that ${studentData.first_name} ${studentData.last_name} has been officially admitted to DRAIS School for the academic year ${yearSel?.name || new Date().getFullYear()}. This admission is subject to the terms and conditions outlined in our school handbook.`;
+      const admissionText = `We are pleased to inform you that ${studentData.first_name} ${studentData.last_name} has been officially admitted to ${schoolInfo.school_name} for the academic year ${yearSel?.name || new Date().getFullYear()}. This admission is subject to the terms and conditions outlined in our school handbook.`;
       
       const splitText = doc.splitTextToSize(admissionText, pageWidth - 40);
       doc.text(splitText, 20, yPosition);
@@ -503,11 +535,11 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
       // Footer
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
-      doc.text('This is an official document from IBUN BAZ GIRLS SECONDARY SCHOOL. Please keep this letter for your records.', pageWidth / 2, pageHeight - 15, { align: 'center' });
+      doc.text(`This is an official document from ${schoolInfo.school_name}. Please keep this letter for your records.`, pageWidth / 2, pageHeight - 15, { align: 'center' });
 
       // Generate and download
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-      const filename = `IBUN_Admission_Letter_${studentData.first_name}_${studentData.last_name}_${timestamp}.pdf`;
+      const filename = `Admission_Letter_${studentData.first_name}_${studentData.last_name}_${timestamp}.pdf`;
 
       doc.save(filename);
       
@@ -625,7 +657,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
           title: 'Student Admitted Successfully!',
           html: `
             <div class="text-center">
-              <p><strong>${responseData?.admission_no || 'Student'}</strong> has been admitted to IBUN BAZ GIRLS SECONDARY SCHOOL.</p>
+              <p><strong>${responseData?.admission_no || 'Student'}</strong> has been admitted to EXCEL ISLAMIC NURSERY & PRIMARY SCHOOL.</p>
               <p class="mt-2 text-sm text-gray-600">The admission form has been automatically downloaded to your device.</p>
               <div class="mt-3 p-3 bg-green-50 rounded-lg">
                 <div class="flex items-center justify-center gap-2">

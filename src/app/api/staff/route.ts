@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         p.photo_url
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      WHERE s.school_id = ? AND (s.deleted_at IS NULL OR s.deleted_at = '')
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY p.first_name, p.last_name
       LIMIT ? OFFSET ?
     `, [schoolId, limit, offset]);
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
       SELECT COUNT(*) as total
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      WHERE s.school_id = ? AND (s.deleted_at IS NULL OR s.deleted_at = '')
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
     `, [schoolId]);
 
     const total = Array.isArray(countRows) ? countRows[0]?.total || 0 : 0;

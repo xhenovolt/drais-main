@@ -1,4 +1,4 @@
-# DRAIS Database Setup Guide
+# Excel Islamic School Database Setup Guide
 
 ## Execution Order
 
@@ -23,7 +23,7 @@ mysql -u root -p < production_init.sql
 
 ## Existing Installation Upgrade
 
-For existing DRAIS installations, run patches in order:
+For existing Excel Islamic School installations, run patches in order:
 ```bash
 mysql -u root -p drais_school < fixes/staff_table_fixes.sql
 mysql -u root -p drais_school < add_school_id.sql
@@ -44,6 +44,6 @@ SELECT COUNT(*) FROM users WHERE role = 'superadmin';
 
 - Username: `admin`
 - Password: `admin123`
-- Email: `admin@drais.edu`
+- Email: `admin@excellslamicschool.edu`
 
 **Change these immediately in production!**

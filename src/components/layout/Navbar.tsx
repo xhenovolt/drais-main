@@ -1,13 +1,17 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, Menu, User, Globe, Sun, Moon, Settings, ChevronDown, Check } from 'lucide-react';
+import { Bell, Search, Menu, User, Globe, Sun, Moon, Settings, ChevronDown, Check, Loader } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { useThemeStore } from '@/hooks/useThemeStore';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
+import useSWR from 'swr';
 import BellClient from '@/components/notifications/BellClient';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api';
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -22,6 +26,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
   const [languageOpen, setLanguageOpen] = useState(false);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  // Fetch school info
+  const { data: schoolData } = useSWR(
+    `${API_BASE}/school-info`,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  );
+  const schoolName = schoolData?.data?.school_name || 'Ibun Baz Girls Secondary School';
 
   // Language options
   const languages = [
@@ -110,14 +122,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
               <div className="absolute inset-0 rounded-lg bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             </button>
 
-            {/* Logo/Brand */}
+            {/* Logo/Brand with School Name */}
             <div className="flex items-center space-x-3 rtl:space-x-reverse">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-primary)] to-purple-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-primary)] to-purple-600 flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-sm">D</span>
               </div>
-              <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-[var(--color-primary)] to-purple-600 bg-clip-text text-transparent">
-                DRAIS
-              </h1>
+              <div className="hidden sm:flex flex-col">
+                <h1 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  School
+                </h1>
+                <h2 className="text-sm font-bold bg-gradient-to-r from-[var(--color-primary)] to-purple-600 bg-clip-text text-transparent max-w-xs truncate" title={schoolName}>
+                  {schoolName}
+                </h2>
+              </div>
+              <div className="sm:hidden">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-[var(--color-primary)] to-purple-600 bg-clip-text text-transparent">
+                  DRAIS
+                </h1>
+              </div>
             </div>
           </div>
 

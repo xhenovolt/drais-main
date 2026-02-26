@@ -41,7 +41,7 @@ export const useWebAuthn = () => {
       const credentialCreationOptions: PublicKeyCredentialCreationOptions = {
         challenge: crypto.getRandomValues(new Uint8Array(32)),
         rp: {
-          name: "DRAIS School Management System",
+          name: "Ibun Baz Girls Secondary School",
           id: window.location.hostname,
         },
         user: {

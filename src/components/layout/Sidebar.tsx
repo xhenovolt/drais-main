@@ -37,6 +37,8 @@ import {
   Receipt,
   Wallet,
   TrendingUp,
+  TrendingDown,
+  Scale,
   BarChart3,
   FileBarChart,
   UserCog,
@@ -56,6 +58,7 @@ import {
   Coins,
   Landmark,
   BadgeDollarSign,
+  Percent,
   FilePlus2,
   FileStack,
   FileCog,
@@ -63,7 +66,10 @@ import {
   ChartBar,
   Palette,
   Activity,
+  Fingerprint,
   Book,
+  Server,
+  FileSearch,
 } from 'lucide-react';
 import NewBadge from '@/components/ui/NewBadge';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
@@ -194,6 +200,7 @@ const Sidebar: React.FC = () => {
         { key: 'staff-list', label: t('nav.staff.list'), icon: <UserCog className="w-4 h-4" />, href: '/staff/list' },
         { key: 'staff-add', label: t('nav.staff.add'), icon: <UserPlus className="w-4 h-4" />, href: '/staff/add' },
         { key: 'staff-attendance', label: t('nav.staff.attendance'), icon: <UserCheck className="w-4 h-4" />, href: '/staff/attendance' },
+        { key: 'staff-roles', label: 'Roles', icon: <Shield className="w-4 h-4" />, href: '/staff/roles' },
         { key: 'departments', label: t('nav.staff.departments'), icon: <Building className="w-4 h-4" />, href: '/departments' },
         { key: 'workplans', label: t('nav.staff.workplans'), icon: <Clipboard className="w-4 h-4" />, href: '/work-plans' }
       ]
@@ -211,6 +218,25 @@ const Sidebar: React.FC = () => {
         { key: 'terms', label: t('nav.academics.terms'), icon: <Clock className="w-4 h-4" />, href: '/terms/list' },
         { key: 'curriculums', label: t('nav.academics.curriculums'), icon: <BookMarked className="w-4 h-4" />, href: '/academics/curriculums' }
       ]
+    },
+    {
+      key: 'attendance',
+      label: t('nav.attendance._') || 'Attendance',
+      icon: <UserCheck className="w-5 h-5" />,
+      children: [
+        { key: 'attendance-dashboard', label: t('nav.attendance.dashboard') || 'Attendance Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, href: '/attendance' },
+        { key: 'attendance-sessions', label: t('nav.attendance.sessions') || 'Sessions', icon: <Calendar className="w-4 h-4" />, href: '/attendance/sessions' },
+        { key: 'attendance-reports', label: t('nav.attendance.reports') || 'Reports', icon: <BarChart3 className="w-4 h-4" />, href: '/attendance/reports' },
+        { key: 'attendance-dahua', label: t('nav.attendance.dahua') || 'Dahua Devices', icon: <Fingerprint className="w-4 h-4" />, href: '/attendance/dahua' },
+        { key: 'attendance-device-logs', label: 'Device Logs', icon: <FileSearch className="w-4 h-4" />, href: '/attendance/devices' },
+        { key: 'attendance-reconcile', label: t('nav.attendance.reconcile') || 'Reconciliation', icon: <Activity className="w-4 h-4" />, href: '/attendance/reconcile' }
+      ]
+    },
+    {
+      key: 'promotions',
+      label: t('nav.promotions._') || 'Promotions',
+      icon: <TrendingUp className="w-5 h-5" />,
+      href: '/promotions'
     },
     {
       key: 'tahfiz',
@@ -295,10 +321,16 @@ const Sidebar: React.FC = () => {
       label: t('nav.finance._'),
       icon: <Wallet className="w-5 h-5" />,
       children: [
+        { key: 'learners-fees', label: 'Learners Fees Overview', icon: <Users className="w-4 h-4" />, href: '/finance/learners-fees' },
         { key: 'wallets', label: t('nav.finance.wallets'), icon: <Wallet className="w-4 h-4" />, href: '/finance/wallets' },
         { key: 'fees', label: t('nav.finance.fees'), icon: <CreditCard className="w-4 h-4" />, href: '/finance/fees' },
+        { key: 'fees-ledger', label: t('nav.finance.fees_ledger'), icon: <FileBarChart className="w-4 h-4" />, href: '/finance/ledger/fees' },
         { key: 'payments', label: t('nav.finance.payments'), icon: <Receipt className="w-4 h-4" />, href: '/finance/payments' },
-        { key: 'ledger', label: t('nav.finance.ledger'), icon: <FileBarChart className="w-4 h-4" />, href: '/finance/ledger' },
+        { key: 'ledger', label: t('nav.finance.ledger'), icon: <FileText className="w-4 h-4" />, href: '/finance/ledger' },
+        { key: 'waivers', label: t('nav.finance.waivers'), icon: <Percent className="w-4 h-4" />, href: '/finance/waivers' },
+        { key: 'expenditures', label: t('nav.finance.expenditures'), icon: <TrendingDown className="w-4 h-4" />, href: '/finance/expenditures' },
+        { key: 'reports-income', label: t('nav.finance.income_statement'), icon: <FileBarChart className="w-4 h-4" />, href: '/finance/reports/income-statement' },
+        { key: 'reports-balance', label: t('nav.finance.balance_sheet'), icon: <Scale className="w-4 h-4" />, href: '/finance/reports/balance-sheet' },
         { key: 'categories', label: t('nav.finance.categories'), icon: <PieChart className="w-4 h-4" />, href: '/finance/categories' }
       ]
     },
@@ -391,7 +423,7 @@ const Sidebar: React.FC = () => {
       label: t('nav.settings._'),
       icon: <Settings className="w-5 h-5" />,
       children: [
-        { key: 'school-settings', label: t('nav.settings.school'), icon: <School className="w-4 h-4" />, href: '/settings/school' },
+        { key: 'school-settings', label: t('nav.settings.school') || 'School Information', icon: <School className="w-4 h-4" />, href: '/settings' },
         { key: 'theme-settings', label: t('nav.settings.theme'), icon: <Palette className="w-4 h-4" />, href: '/settings/theme' },
         { key: 'system-settings', label: t('nav.settings.system'), icon: <Cog className="w-4 h-4" />, href: '/settings/system' },
         { key: 'profile', label: t('nav.settings.profile'), icon: <UserCog className="w-4 h-4" />, href: '/settings/profile' }
@@ -801,7 +833,7 @@ const Sidebar: React.FC = () => {
             {/* Mobile Footer */}
             <div className="p-4 border-t border-white/10 bg-gradient-to-r from-blue-500/5 to-purple-500/5">
               <div className="text-xs text-gray-400 text-center">
-                DRAIS School Management System
+                Ibun Baz Girls Secondary School Management System
               </div>
             </div>
           </motion.aside>

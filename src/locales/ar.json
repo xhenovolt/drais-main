@@ -1,6 +1,6 @@
 {
   "app": { "name": "درايس" },
-  "footer": { "rights": "جميع الحقوق محفوظة." },
+  "footer": { "rights": "جميع الحقوق محفوظة.", "docs": "التوثيق", "privacy": "الخصوصية", "terms": "الشروط" },
   "banner": { "welcome": "مرحبًا بك في درايس", "subtitle": "منصة إدارة المدرسة الموحدة" },
   "ui": { "search": "بحث" },
   "actions": { "logout": "تسجيل خروج", "reset": "إعادة التهيئة" },
@@ -64,9 +64,14 @@
       "_": "المالية", 
       "wallets": "المحافظ", 
       "fees": "الرسوم", 
+      "fees_ledger": "سجل الرسوم",
       "payments": "المدفوعات", 
       "ledger": "دفتر الأستاذ",
-      "categories": "فئات المالية"
+      "waivers": "الإعفاءات والخصومات",
+      "expenditures": "المصروفات",
+      "income_statement": "قائمة الدخل",
+      "balance_sheet": "الميزانية العمومية",
+      "categories": "الفئات"
     },
     "payroll": { 
       "_": "الرواتب", 
@@ -127,6 +132,8 @@
       "system": "إعدادات النظام",
       "profile": "الملف الشخصي"
     },
+    "attendance": { "_": "الحضور", "daily": "الحضور اليومي", "sessions": "الجلسات", "reports": "التقارير", "biometric": "الأجهزة البيومترية", "dahua": "أجهزة داهوا", "dahuaDevices": "أجهزة حضور داهوا", "reconcile": "المطابقة", "dashboard": "لوحة تحكم الحضور", "logs": "سجلات الحضور", "manual": "إدخال يدوي" },
+    "promotions": { "_": "الترقيات", "overview": "نظرة عامة على الترقيات", "manage": "إدارة الترقيات" },
     "help": "المساعدة والدعم",
     "profile": "الملف الشخصي",
     "terms": "الفصول",
@@ -428,7 +435,7 @@
   "academics.grade": "التقدير",
   "academics.remarks": "ملاحظات",
   "academics.no_results": "لا توجد نتائج",
-  "nav.attendance": "الحضور",
+      "promotions": { "_": "الترقيات", "overview": "نظرة عامة على الترقيات", "manage": "إدارة الترقيات" },
   "nav.academics": "الأكاديميات",
   "nav.workplans": "خطط العمل",
   "nav.events": "الفعاليات",
@@ -528,7 +535,13 @@
     "optional": "اختياري",
     "submit": "إرسال",
     "reset": "إعادة تعيين",
-    "clear": "مسح"
+    "clear": "مسح",
+    "school_management_system": "نظام إدارة المدارس",
+    "go_back": "العودة",
+    "try_again": "حاول مرة أخرى",
+    "contact_support": "اتصل بالدعم",
+    "search_placeholder": "ابحث عن الطلاب، الفصول، التقارير...",
+    "back_to_list": "العودة للقائمة"
   },
   "navigation": {
     "dashboard": "لوحة التحكم",

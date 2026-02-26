@@ -42,7 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       // Fallback photo
-      const photoUrl = row.photo_url || '/schoollogo.png';
+      const photoUrl = row.photo_url || '/logo.png';
 
       return NextResponse.json({
         ...row,

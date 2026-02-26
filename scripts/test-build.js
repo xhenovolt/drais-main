@@ -1,6 +1,6 @@
 const { execSync } = require('child_process');
 
-console.log('🔧 Testing DRAIS build for runtime compatibility...');
+console.log('🔧 Testing Excel Islamic School build for runtime compatibility...');
 
 try {
   // Test build

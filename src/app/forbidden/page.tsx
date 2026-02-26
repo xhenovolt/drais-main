@@ -189,7 +189,7 @@ export default function ForbiddenPage() {
             transition={{ delay: 1.3, duration: 0.5 }}
             className="text-xs text-gray-400 dark:text-gray-500"
           >
-            © 2025 DRAIS School Management System. All rights reserved.
+            © 2025 Ibun Baz Girls Secondary School Management System. All rights reserved.
           </motion.div>
         </motion.div>
       </div>

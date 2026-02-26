@@ -163,18 +163,18 @@ const ReportsPage = () => {
 
   // School info (static for all reports)
   const schoolInfo: SchoolInfo = {
-    name: 'ALBAYAN QURAN MEMORIZATION CENTER & PRIMARY SCHOOL',
-    address: 'BUGUMBA, IGANGA MUNICPALITY',
-    po_box: 'P.O. BOX 662, IGANGA MUNICIPALITY',
-    logo_url: '/schoollogo.png',
-    contact: 'Tel: 0702-667-010 / 0772-453-691/ 0742-667-010',
-    center_no: 'UNEB CENTRE No: 080461',
-    registration_no: 'Reg no: PPS/N/297',
-    arabic_name: 'مركز البيان لتحفيظ القرآن والمدرسة الابتدائية',
-    arabic_address: 'بوغومبا، بلدية إغانغا',
-    arabic_contact: 'هاتف: 0702-667-010 / 0772-453-691/ 0742-667-010',
-    arabic_center_no: 'رقم مركز الامتحانات (UNEB): 080461',
-    arabic_registration_no: 'رقم التسجيل: PPS/N/297',
+    name: 'EXCEL ISLAMIC NURSERY & PRIMARY SCHOOL',
+    address: 'Bugumba, Iganga Municipality',
+    po_box: 'P.O. BOX, Bugumba, Iganga',
+    logo_url: '/logo.png',
+    contact: 'Tel: 0706 074 179 / 0785 680 091 / 0701 962 984',
+    center_no: 'UNEB CENTRE No: TBD',
+    registration_no: 'Reg no: TBD',
+    arabic_name: 'مدرسة إكسيل الإسلامية للروضة والابتدائية',
+    arabic_address: 'بوجومبا، بلدية إيكانغا',
+    arabic_contact: 'هاتف: 0706 074 179 / 0785 680 091 / 0701 962 984',
+    arabic_center_no: 'رقم مركز الامتحانات (UNEB): سيحدد لاحقاً',
+    arabic_registration_no: 'رقم التسجيل: سيحدد لاحقاً',
   };
 
   // Add Arabic-Indic digits converter (strip dash characters before mapping)
@@ -923,7 +923,7 @@ const ReportsPage = () => {
                           <span style={styles.barcodeVertical}>{student.student_id}</span>
                         </div>
                         <Image
-                          src={`${student.photo || '/schoollogo.png'}`}
+                          src={`${student.photo || '/logo.png'}`}
                           alt={`${student.first_name} ${student.last_name}`}
                           width={100}
                           height={115}

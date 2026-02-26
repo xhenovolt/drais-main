@@ -1,6 +1,6 @@
-# DRAIS Notifications System
+# Excel Islamic School Notifications System
 
-A comprehensive real-time notifications system for DRAIS with support for multiple channels, templates, and conversational triggers.
+A comprehensive real-time notifications system for Excel Islamic School with support for multiple channels, templates, and conversational triggers.
 
 ## Features
 

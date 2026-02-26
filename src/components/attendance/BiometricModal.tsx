@@ -41,7 +41,7 @@ const BiometricModal: React.FC<BiometricModalProps> = ({
         publicKey: {
           challenge: new Uint8Array(32),
           rp: {
-            name: "DRAIS School",
+            name: "Ibun Baz Girls Secondary School",
             id: window.location.hostname,
           },
           user: {

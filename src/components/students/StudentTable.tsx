@@ -879,7 +879,7 @@ export const StudentTable: React.FC = () => {
       // Add header
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text('DRAIS SCHOOL - STUDENT LIST', 20, 20);
+      doc.text('Ibun Baz Girls Secondary School - STUDENT LIST', 20, 20);
       
       // Add generation date
       doc.setFontSize(10);
@@ -966,7 +966,7 @@ export const StudentTable: React.FC = () => {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.text(`Page ${i} of ${pageCount}`, 280, 200, { align: 'right' });
-        doc.text('DRAIS School Management System', 20, 200);
+        doc.text('Ibun Baz Girls Secondary School Management System', 20, 200);
       }
 
       // Save the PDF

@@ -81,12 +81,35 @@ export default function ClassResultsManager() {
   const [editValue, setEditValue] = useState<string>('');
 
   // Fetch lookup data (terms, classes, subjects, result types)
-  const loadMeta = ()=> Promise.all([
-    fetch(`${API_BASE}/terms`).then(r=>r.json()).catch(()=>({})),
-    fetch(`${API_BASE}/classes`).then(r=>r.json()).catch(()=>({})),
-    fetch(`${API_BASE}/subjects`).then(r=>r.json()).catch(()=>({})),
-    fetch(`${API_BASE}/result_types`).then(r=>r.json()).catch(()=>({}))
-  ]).then(([te,cl,su,rt])=>{ setTerms(te.data||[]); setClasses(cl.data||[]); setSubjects(su.data||[]); setTypes(rt.data||[]); });
+  const loadMeta = async () => {
+    try {
+      const [te, cl, su, rt] = await Promise.all([
+        fetch(`${API_BASE}/terms`).then(r => {
+          if (!r.ok) throw new Error(`Failed to fetch terms: ${r.status}`);
+          return r.json();
+        }),
+        fetch(`${API_BASE}/classes`).then(r => {
+          if (!r.ok) throw new Error(`Failed to fetch classes: ${r.status}`);
+          return r.json();
+        }),
+        fetch(`${API_BASE}/subjects`).then(r => {
+          if (!r.ok) throw new Error(`Failed to fetch subjects: ${r.status}`);
+          return r.json();
+        }),
+        fetch(`${API_BASE}/result_types`).then(r => {
+          if (!r.ok) throw new Error(`Failed to fetch result types: ${r.status}`);
+          return r.json();
+        })
+      ]);
+      setTerms(te.data || []);
+      setClasses(cl.data || []);
+      setSubjects(su.data || []);
+      setTypes(rt.data || []);
+    } catch (error) {
+      console.error('Error loading metadata:', error);
+      setMessage('Failed to load form data');
+    }
+  };
 
   useEffect(() => { loadMeta(); }, []);
 
@@ -101,9 +124,12 @@ export default function ClassResultsManager() {
     });
     setListLoading(true);
     fetch(`${API_BASE}/class-results/list?${qs.toString()}`)
-      .then(r=>r.json())
-      .then(d=>{
-        if(d.error) setMessage(d.error);
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error: ${r.status}`);
+        return r.json();
+      })
+      .then(d => {
+        if (d.error) setMessage(d.error);
         else {
           let filteredResults = d.data || [];
           // Apply client-side search filter
@@ -117,8 +143,11 @@ export default function ClassResultsManager() {
           setListTotal(filteredResults.length);
         }
       })
-      .catch(e=>setMessage(e.message))
-      .finally(()=>setListLoading(false));
+      .catch(e => {
+        console.error('Error loading results:', e);
+        setMessage(e.message || 'Failed to load results');
+      })
+      .finally(() => setListLoading(false));
   }, [filters.class_id, filters.subject_id, filters.result_type_id, filters.term_id, filters.search]);
 
   // Update score with optimistic UI
@@ -150,6 +179,10 @@ export default function ClassResultsManager() {
           body: JSON.stringify({ [field]: value, actor_user_id: 1 })
         });
 
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
 
         if (data.success) {
@@ -169,12 +202,16 @@ export default function ClassResultsManager() {
           const { search, ...apiFilters } = filters;
           const qs = new URLSearchParams(apiFilters);
           fetch(`${API_BASE}/class-results/list?${qs.toString()}`)
-            .then(r=>r.json())
-            .then(d=>setList(d.data||[]));
+            .then(r => {
+              if (!r.ok) throw new Error(`Server error: ${r.status}`);
+              return r.json();
+            })
+            .then(d => setList(d.data || []));
         }
       } catch (error) {
         toast.dismiss(savingToast);
         toast.error('Network error - please try again');
+        console.error('Error updating score:', error);
       }
     });
   };
@@ -204,6 +241,9 @@ export default function ClassResultsManager() {
     const qs = new URLSearchParams(bulkFilters);
     try {
       const res = await fetch(`${API_MISSING}?${qs.toString()}`);
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status} ${res.statusText}`);
+      }
       const data = await res.json();
       if (!data.success) setMessage(data.error || 'Error loading missing learners');
       else {
@@ -231,7 +271,8 @@ export default function ClassResultsManager() {
         setRows(unique.map((r: any) => ({ ...r, score: null, grade: null, remarks: null })));
       }
     } catch (e: any) {
-      setMessage(e.message);
+      setMessage(e.message || 'Failed to fetch data');
+      console.error('Error fetching missing rows:', e);
     } finally {
       setLoading(false);
     }
@@ -257,6 +298,11 @@ export default function ClassResultsManager() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status} ${res.statusText}`);
+      }
+      
       const data = await res.json();
       if (data.error) {
         setMessage(data.error);
@@ -268,13 +314,21 @@ export default function ClassResultsManager() {
         const { search, ...apiFilters } = filters;
         const qs = new URLSearchParams(apiFilters);
         fetch(`${API_BASE}/class-results/list?${qs.toString()}`)
-          .then(r=>r.json())
-          .then(d=>setList(d.data||[]));
+          .then(r => {
+            if (!r.ok) throw new Error(`Server error: ${r.status}`);
+            return r.json();
+          })
+          .then(d => setList(d.data || []))
+          .catch(err => {
+            console.error('Error refreshing list:', err);
+            setMessage(err.message || 'Failed to refresh list');
+          });
         setOpen(false);
       }
     } catch (e: any) {
-      setMessage(e.message);
-      toast.error(e.message);
+      setMessage(e.message || 'Failed to submit results');
+      toast.error(e.message || 'Failed to submit results');
+      console.error('Error submitting results:', e);
     } finally {
       setSaving(false);
     }

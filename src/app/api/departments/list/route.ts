@@ -10,12 +10,23 @@ export async function GET(req: NextRequest) {
 
     connection = await getConnection();
 
-    const [departments] = await connection.execute(`
-      SELECT id, name, description
-      FROM departments 
-      WHERE school_id = ? AND deleted_at IS NULL
-      ORDER BY name
-    `, [schoolId]);
+    // Check if deleted_at column exists in departments table
+    const [columns] = await connection.execute(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'departments' AND COLUMN_NAME = 'deleted_at'
+    `);
+    
+    const hasDeletedAt = (columns as any[]).length > 0;
+    
+    let query = 'SELECT id, name, description FROM departments WHERE school_id = ?';
+    if (hasDeletedAt) {
+      query += ' AND deleted_at IS NULL';
+    }
+    query += ' ORDER BY name';
+
+    const [departments] = await connection.execute(query, [schoolId]);
 
     return NextResponse.json({
       success: true,

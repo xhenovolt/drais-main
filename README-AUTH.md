@@ -1,8 +1,8 @@
-# DRAIS Authentication System
+# Excel Islamic School Authentication System
 
 ## Overview
 
-The DRAIS Authentication System provides a secure and flexible way to manage user identities, roles, and permissions. It is designed to support various authentication methods, including password-based and biometric authentication, and to integrate seamlessly with the DRAIS platform.
+The Excel Islamic School Authentication System provides a secure and flexible way to manage user identities, roles, and permissions. It is designed to support various authentication methods, including password-based and biometric authentication, and to integrate seamlessly with the Excel Islamic School platform.
 
 ## Features
 
@@ -71,7 +71,7 @@ The authentication system requires the following database tables:
 
 ## Security
 
-The DRAIS Authentication System implements several security measures:
+The Excel Islamic School Authentication System implements several security measures:
 
 - **Password Security**: Passwords are hashed using bcryptjs with a cost factor of 10. Passwords must be at least 8 characters long.
 - **JWT Security**: JSON Web Tokens (JWTs) are used for access and refresh tokens. Secrets for signing tokens should be long and random.

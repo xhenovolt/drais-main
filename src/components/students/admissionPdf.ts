@@ -11,7 +11,7 @@ export interface AdmissionPdfOptions {
 }
 
 export function generateAdmissionPdf(student: any, form: any, opts: AdmissionPdfOptions = {}) {
-  const { schoolName='Bugembe Islamic Institute', schoolNameAr='معهد بوجيمبي الإسلامي', lang='bilingual' } = opts;
+  const { schoolName='Ibun Baz Girls Secondary School', schoolNameAr='مدرسة هيلسايدوايز للروضة والابتدائية', lang='bilingual' } = opts;
   try {
     const now = new Date();
     const sections: { titleEn: string; titleAr: string; rows: [string,string,string?][] }[] = [];

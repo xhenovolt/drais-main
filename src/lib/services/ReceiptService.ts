@@ -35,7 +35,7 @@ export async function generateReceiptPDF(paymentData: PaymentData): Promise<Buff
       doc.on('end', () => resolve(Buffer.concat(chunks)));
 
       // Header with school info
-      doc.fontSize(20).text(paymentData.school_name || 'DRAIS School', 50, 50);
+      doc.fontSize(20).text(paymentData.school_name || 'Ibun Baz Girls Secondary School', 50, 50);
       if (paymentData.legal_name) {
         doc.fontSize(12).text(paymentData.legal_name, 50, 75);
       }

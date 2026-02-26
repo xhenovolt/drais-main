@@ -44,7 +44,7 @@ export class FingerprintCapture {
       const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
         challenge,
         rp: {
-          name: "DRAIS Fingerprint System",
+          name: "Hillsideways Fingerprint System",
           id: window.location.hostname,
         },
         user: {

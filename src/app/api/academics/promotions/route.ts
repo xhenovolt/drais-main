@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Verify it's 3rd term
     const [termInfo] = await connection.execute(
-      `SELECT id, name, term_number FROM terms WHERE id = ?`,
+      `SELECT id, name, term_number, academic_year_id FROM terms WHERE id = ?`,
       [termId]
     );
 
@@ -31,9 +31,10 @@ export async function GET(request: NextRequest) {
     }
 
     const term = (termInfo as any[])[0];
+    const academicYearId = term.academic_year_id;
     const isThirdTerm = term.term_number === 3 || term.name.toLowerCase().includes('3');
 
-    // Fetch all students with their results
+    // Fetch all students with their results - PROPERLY FILTERED BY ACADEMIC YEAR
     let sql = `
       SELECT 
         s.id as student_id,
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
       INNER JOIN classes c ON s.class_id = c.id
       LEFT JOIN class_results cr ON s.id = cr.student_id 
         AND cr.term_id = ?
+        AND cr.academic_year_id = ?
         ${classId ? 'AND cr.class_id = ?' : ''}
       WHERE s.school_id = ?
         AND s.deleted_at IS NULL
@@ -68,9 +70,9 @@ export async function GET(request: NextRequest) {
       ORDER BY c.name, average_marks DESC
     `;
 
-    const params: any[] = [termId, schoolId];
+    const params: any[] = [termId, academicYearId, schoolId];
     if (classId) {
-      params.splice(1, 0, classId);
+      params.splice(2, 0, classId);
       params.push(classId);
     }
 

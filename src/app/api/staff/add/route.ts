@@ -58,21 +58,69 @@ export async function POST(req: NextRequest) {
     await connection.beginTransaction();
 
     try {
-      // Ensure staff table has the required columns
-      await connection.execute(`
-        ALTER TABLE staff 
-        ADD COLUMN IF NOT EXISTS branch_id BIGINT DEFAULT 1 AFTER school_id,
-        ADD COLUMN IF NOT EXISTS department_id BIGINT DEFAULT NULL AFTER staff_no,
-        ADD COLUMN IF NOT EXISTS role_id BIGINT DEFAULT NULL AFTER department_id,
-        ADD COLUMN IF NOT EXISTS employment_type ENUM('permanent','contract','volunteer','part-time') DEFAULT 'permanent' AFTER position,
-        ADD COLUMN IF NOT EXISTS qualification VARCHAR(255) DEFAULT NULL AFTER employment_type,
-        ADD COLUMN IF NOT EXISTS experience_years INT DEFAULT 0 AFTER qualification,
-        ADD COLUMN IF NOT EXISTS salary DECIMAL(14,2) DEFAULT NULL AFTER hire_date,
-        ADD COLUMN IF NOT EXISTS bank_name VARCHAR(150) DEFAULT NULL AFTER salary,
-        ADD COLUMN IF NOT EXISTS bank_account_no VARCHAR(100) DEFAULT NULL AFTER bank_name,
-        ADD COLUMN IF NOT EXISTS nssf_no VARCHAR(100) DEFAULT NULL AFTER bank_account_no,
-        ADD COLUMN IF NOT EXISTS tin_no VARCHAR(100) DEFAULT NULL AFTER nssf_no
+      // Check which columns exist in the staff table
+      const [columnsResult] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'staff'
       `);
+      const existingColumns = (columnsResult as any[]).map(col => col.COLUMN_NAME);
+
+      // Fix: Ensure staff table has AUTO_INCREMENT on id and PRIMARY KEY
+      // This handles the case where the database schema was created without AUTO_INCREMENT
+      try {
+        // Check if id column has AUTO_INCREMENT
+        const [autoIncResult] = await connection.execute(`
+          SELECT AUTO_INCREMENT 
+          FROM INFORMATION_SCHEMA.TABLES 
+          WHERE TABLE_SCHEMA = DATABASE() 
+          AND TABLE_NAME = 'staff'
+        `);
+        const autoIncrement = (autoIncResult as any[])[0]?.AUTO_INCREMENT;
+        
+        if (!autoIncrement) {
+          // Get current max id to set next auto increment value
+          const [maxIdResult] = await connection.execute(`SELECT COALESCE(MAX(id), 0) as maxId FROM staff`);
+          const maxId = ((maxIdResult as any[])[0]?.maxId || 0) + 1;
+          
+          // Add PRIMARY KEY if not exists
+          await connection.execute(`ALTER TABLE staff ADD PRIMARY KEY (id)`);
+          
+          // Modify column to be AUTO_INCREMENT (MariaDB syntax)
+          await connection.execute(`ALTER TABLE staff MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT`);
+          
+          // Set the auto increment value
+          await connection.execute(`ALTER TABLE staff AUTO_INCREMENT = ?`, [maxId]);
+        }
+      } catch (autoIncError) {
+        // Ignore if already exists or other error - table may already be fixed
+      }
+
+      // Add columns one by one if they don't exist - MySQL compatible way
+      const columnsToAdd = [
+        { name: 'branch_id', def: 'BIGINT DEFAULT 1 AFTER school_id' },
+        { name: 'department_id', def: 'BIGINT DEFAULT NULL AFTER staff_no' },
+        { name: 'role_id', def: 'BIGINT DEFAULT NULL AFTER department_id' },
+        { name: 'employment_type', def: "ENUM('permanent','contract','volunteer','part-time') DEFAULT 'permanent' AFTER position" },
+        { name: 'qualification', def: 'VARCHAR(255) DEFAULT NULL AFTER employment_type' },
+        { name: 'experience_years', def: 'INT DEFAULT 0 AFTER qualification' },
+        { name: 'salary', def: 'DECIMAL(14,2) DEFAULT NULL AFTER hire_date' },
+        { name: 'bank_name', def: 'VARCHAR(150) DEFAULT NULL AFTER salary' },
+        { name: 'bank_account_no', def: 'VARCHAR(100) DEFAULT NULL AFTER bank_name' },
+        { name: 'nssf_no', def: 'VARCHAR(100) DEFAULT NULL AFTER bank_account_no' },
+        { name: 'tin_no', def: 'VARCHAR(100) DEFAULT NULL AFTER nssf_no' }
+      ];
+
+      for (const col of columnsToAdd) {
+        if (!existingColumns.includes(col.name)) {
+          try {
+            await connection.execute(`ALTER TABLE staff ADD COLUMN ${col.name} ${col.def}`);
+          } catch (e) {
+            // Ignore errors - column might have been added by another request
+          }
+        }
+      }
 
       // Handle photo upload if provided
       let photoUrl = null;
@@ -100,17 +148,7 @@ export async function POST(req: NextRequest) {
       // Generate staff number if not provided
       const finalStaffNo = staffData.staff_no || `STAFF${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
-      // Check which columns exist in the staff table
-      const [columns] = await connection.execute(`
-        SELECT COLUMN_NAME 
-        FROM INFORMATION_SCHEMA.COLUMNS 
-        WHERE TABLE_SCHEMA = DATABASE() 
-        AND TABLE_NAME = 'staff'
-      `);
-      
-      const existingColumns = (columns as any[]).map(col => col.COLUMN_NAME);
-      
-      // Build dynamic insert query based on existing columns
+      // Build dynamic insert query based on existing columns (reuse columns check from above)
       const baseColumns = ['school_id', 'person_id', 'staff_no', 'position', 'status'];
       const baseValues = [staffData.school_id, personId, finalStaffNo, staffData.position, 'active'];
       

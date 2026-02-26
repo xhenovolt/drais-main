@@ -155,10 +155,17 @@ CREATE TABLE IF NOT EXISTS students (
   village_id BIGINT DEFAULT NULL,
   admission_date VARCHAR(255) DEFAULT NULL,
   status VARCHAR(20) DEFAULT 'active',
+  promotion_status VARCHAR(50) DEFAULT 'pending',
+  last_promoted_at TIMESTAMP NULL,
+  previous_class_id BIGINT DEFAULT NULL,
+  previous_year_id BIGINT DEFAULT NULL,
   notes TEXT DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at VARCHAR(255) DEFAULT NULL,
-  deleted_at VARCHAR(255) DEFAULT NULL
+  deleted_at VARCHAR(255) DEFAULT NULL,
+  INDEX idx_promotion_status (promotion_status),
+  INDEX idx_last_promoted_at (last_promoted_at),
+  INDEX idx_school_status_promotion (school_id, status, promotion_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS contacts (
@@ -378,13 +385,16 @@ CREATE TABLE IF NOT EXISTS class_results (
   class_id BIGINT NOT NULL,
   subject_id BIGINT NOT NULL,
   term_id BIGINT DEFAULT NULL,
+  academic_year_id BIGINT DEFAULT NULL,
   result_type_id BIGINT NOT NULL,
   score DECIMAL(5,2) DEFAULT NULL,
   grade VARCHAR(10) DEFAULT NULL,
   remarks TEXT DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at VARCHAR(255) DEFAULT NULL,
-  UNIQUE KEY uq_class_result (student_id,class_id,subject_id,term_id,result_type_id)
+  UNIQUE KEY uq_class_result (student_id,class_id,subject_id,term_id,result_type_id,academic_year_id),
+  INDEX idx_academic_year (academic_year_id),
+  INDEX idx_student_year (student_id, academic_year_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS report_cards (
@@ -395,6 +405,27 @@ CREATE TABLE IF NOT EXISTS report_cards (
   class_teacher_comment TEXT DEFAULT NULL,
   headteacher_comment TEXT DEFAULT NULL,
   dos_comment TEXT DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS promotions (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id BIGINT DEFAULT NULL,
+  student_id BIGINT NOT NULL,
+  from_class_id BIGINT NOT NULL,
+  to_class_id BIGINT NOT NULL,
+  from_academic_year_id BIGINT DEFAULT NULL,
+  to_academic_year_id BIGINT DEFAULT NULL,
+  promotion_status VARCHAR(50) NOT NULL,
+  term_used VARCHAR(100) DEFAULT NULL,
+  promotion_reason VARCHAR(100) DEFAULT 'manual',
+  criteria_used TEXT DEFAULT NULL,
+  promotion_notes TEXT DEFAULT NULL,
+  promoted_by BIGINT DEFAULT NULL,
+  promoted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_student_year_promotion (student_id, to_academic_year_id),
+  INDEX idx_student_id (student_id),
+  INDEX idx_from_to_class (from_class_id, to_class_id),
+  INDEX idx_promoted_at (promoted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================

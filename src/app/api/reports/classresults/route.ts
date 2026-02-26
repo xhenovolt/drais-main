@@ -16,7 +16,7 @@ export async function GET() {
     // Fetch school info
     const [schoolRows] = await connection.execute<RowDataPacket[]>(
       'SELECT name, address FROM schools WHERE name = ? LIMIT 1',
-      ['Bugembe Islamic Institute']
+      ['Ibun Baz Girls Secondary School']
     );
     const schoolInfo = schoolRows[0] as { name: string; address: string };
 

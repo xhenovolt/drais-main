@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         p.date_of_birth
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      WHERE s.school_id = ? AND (s.deleted_at IS NULL OR s.deleted_at = '')
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY p.first_name, p.last_name
     `, [schoolId]);
 

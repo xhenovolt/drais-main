@@ -11,3 +11,6 @@
 
 # Clean up old notifications (older than 90 days) weekly
 0 2 * * 0 cd /path/to/drais && mysql -u username -p password drais_school -e "DELETE FROM notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY) AND deleted_at IS NOT NULL;" >> /var/log/drais-cleanup.log 2>&1
+
+# Sync biometric device logs every 5 minutes
+*/5 * * * * cd /path/to/drais && node workers/syncDeviceLogs.js >> /var/log/drais-device-sync.log 2>&1
