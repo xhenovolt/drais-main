@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     connection = await getConnection();
 
     const [result] = await connection.execute(
-      'SELECT id, method, is_active, created_at, last_used_at FROM student_fingerprints WHERE student_id = ?',
+      'SELECT id, is_active, created_at, updated_at FROM student_fingerprints WHERE student_id = ? AND is_active = 1',
       [studentId]
     );
 
@@ -42,14 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const resolvedParams = await params;
     const studentId = resolvedParams.id;
     const body = await req.json();
-    const { credential_id, public_key, method = 'passkey' } = body;
-
-    if (!credential_id || !public_key) {
-      return NextResponse.json({
-        success: false,
-        error: 'credential_id and public_key are required'
-      }, { status: 400 });
-    }
+    const { finger_position = 'unknown', hand = 'right', template_format = 'passkey', biometric_uuid, quality_score = 0, notes = 'Passkey-based authentication' } = body;
 
     connection = await getConnection();
 
@@ -66,17 +59,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }, { status: 404 });
     }
 
-    // Insert or update fingerprint
+    // Insert fingerprint record
     await connection.execute(
-      `INSERT INTO student_fingerprints (student_id, method, credential_id, public_key)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-         method = VALUES(method),
-         credential_id = VALUES(credential_id),
-         public_key = VALUES(public_key),
-         is_active = 1,
-         created_at = CURRENT_TIMESTAMP`,
-      [studentId, method, credential_id, public_key]
+      `INSERT INTO student_fingerprints 
+       (student_id, finger_position, hand, template_format, biometric_uuid, quality_score, is_active, status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, 1, 'active', ?)`,
+      [studentId, finger_position, hand, template_format, biometric_uuid || null, quality_score, notes]
     );
 
     return NextResponse.json({

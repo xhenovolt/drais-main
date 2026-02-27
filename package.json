@@ -1,5 +1,5 @@
 {
-  "name": "Excel-Islamic-School",
+  "name": "DRAIS",
   "version": "0.0.0036",
   "private": true,
   "scripts": {
@@ -52,7 +52,7 @@
     "lucide-react": "^0.541.0",
     "multer": "^2.0.2",
     "mysql2": "^3.14.3",
-    "next": "^15.5.0",
+    "next": "^15.5.1",
     "next-auth": "^4.24.11",
     "next-i18next": "^15.4.2",
     "next-pwa": "^5.6.0",
@@ -88,7 +88,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.0",
+    "eslint-config-next": "15.5.1",
     "tailwindcss": "^4.1.12",
     "typescript": "^5"
   }

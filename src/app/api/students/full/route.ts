@@ -267,7 +267,6 @@ export async function POST(req: NextRequest) {
         }
       }
       await connection.commit();
-      await connection.end();
       
       // Use the generated admission number
       const finalAdmissionNo = admission_no;
@@ -402,6 +401,7 @@ export async function POST(req: NextRequest) {
       await fs.mkdir(pdfDir, { recursive: true });
       const pdfPath = path.join(pdfDir, `admission_${student_id}.pdf`);
       
+      let pdfUrl = null;
       try {
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
@@ -409,31 +409,36 @@ export async function POST(req: NextRequest) {
         await page.pdf({ path: pdfPath, format: 'A4', printBackground: true });
         await browser.close();
         
-        const pdfUrl = `/admissions/admission_${student_id}.pdf`;
-        
-        return NextResponse.json({ 
-          success: true, 
-          student_id, 
-          person_id, 
-          admission_no,
-          pdf_url: pdfUrl 
-        }, { status: 201 });
+        pdfUrl = `/admissions/admission_${student_id}.pdf`;
       } catch (pdfError) {
         console.error('PDF generation failed:', pdfError);
-        // Return success even if PDF fails
-        return NextResponse.json({ 
-          success: true, 
-          student_id, 
-          person_id, 
-          admission_no,
-          pdf_url: null,
-          pdf_error: 'PDF generation failed but student was created successfully'
-        }, { status: 201 });
       }
       
-    } catch (e: any) {
-      await connection.rollback();
+      // Close connection before sending response
       await connection.end();
+      
+      return NextResponse.json({ 
+        success: true, 
+        student_id, 
+        person_id, 
+        admission_no,
+        pdf_url: pdfUrl,
+        message: pdfUrl ? 'Student admitted successfully' : 'Student admitted but PDF generation failed'
+      }, { status: 201 });
+      
+    } catch (e: any) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error('Rollback error:', rollbackError);
+        }
+        try {
+          await connection.end();
+        } catch (closeError) {
+          console.error('Close error:', closeError);
+        }
+      }
       return NextResponse.json({ error: e.message }, { status: 500 });
     }
   } catch (e: any) {
