@@ -178,19 +178,34 @@ export async function POST(req: NextRequest) {
     const connection = await getConnection();
     try {
       await connection.beginTransaction();
-      const [personRes] = await connection.execute(
-        'INSERT INTO people (school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [1, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
+      
+      // Get next person_id (since AUTO_INCREMENT may not be set)
+      const [maxPersonId]: any = await connection.execute('SELECT MAX(id) as max_id FROM people');
+      const newPersonId = (maxPersonId[0]?.max_id || 0) + 1;
+      
+      // Insert person with explicit ID
+      await connection.execute(
+        'INSERT INTO people (id, school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [newPersonId, 1, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
       );
-      const person_id = (personRes as any).insertId;
-      const [studentRes] = await connection.execute(
-        'INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [1, person_id, safe(body.admission_no), safe(body.village_id), safe(body.admission_date), safe(body.status), safe(body.notes)]
+      
+      // Get next student_id
+      const [maxStudentId]: any = await connection.execute('SELECT MAX(id) as max_id FROM students');
+      const newStudentId = (maxStudentId[0]?.max_id || 0) + 1;
+      
+      // Generate admission number if not provided
+      const admission_no = body.admission_no || `XHN/${newStudentId.toString().padStart(4, '0')}/${new Date().getFullYear()}`;
+      
+      // Insert student with explicit ID
+      await connection.execute(
+        'INSERT INTO students (id, school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [newStudentId, 1, newPersonId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
       );
-      const student_id = (studentRes as any).insertId;
+      
+      // Insert enrollment
       await connection.execute(
         'INSERT INTO enrollments (student_id, class_id, theology_class_id, stream_id, academic_year_id, term_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [student_id, safe(body.class_id), safe(body.theology_class_id), safe(body.stream_id), safe(body.academic_year_id), safe(body.term_id), 'active']
+        [newStudentId, safe(body.class_id), safe(body.theology_class_id), safe(body.stream_id), safe(body.academic_year_id), safe(body.term_id), 'active']
       );
       // Seed fee items for learner from fee_structures if class & term provided
       if(body.class_id && body.term_id){
@@ -199,7 +214,7 @@ export async function POST(req: NextRequest) {
           const values: any[] = [];
             // columns: student_id, term_id, item, amount, discount, paid
           for(const s of structs){
-            values.push(student_id, body.term_id, s.item, s.amount, 0, 0);
+            values.push(newStudentId, body.term_id, s.item, s.amount, 0, 0);
           }
           const placeholders = structs.map(()=>'(?,?,?,?,?,?)').join(',');
           await connection.execute(`INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, paid) VALUES ${placeholders}`, values);
@@ -208,32 +223,34 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(body.contacts)) {
         for (const c of body.contacts) {
           Object.keys(c).forEach(k => { c[k] = safe(c[k]); });
-          const [contactRes] = await connection.execute(
-            'INSERT INTO contacts (school_id, person_id, contact_type, occupation, alive_status, date_of_death) VALUES (?, ?, ?, ?, ?, ?)',
-            [1, person_id, safe(c.contact_type), safe(c.occupation), safe(c.alive_status), safe(c.date_of_death)]
-          );
-          const contact_id = (contactRes as any).insertId;
+          // Get next contact_id
+          const [maxContactId]: any = await connection.execute('SELECT MAX(id) as max_id FROM contacts');
+          const newContactId = (maxContactId[0]?.max_id || 0) + 1;
+          
           await connection.execute(
-            'INSERT INTO student_contacts (student_id, contact_id, relationship, is_primary) VALUES (?, ?, ?, ?)',
-            [student_id, contact_id, safe(c.relationship), safe(c.is_primary)]
+            'INSERT INTO contacts (id, school_id, person_id, contact_type, occupation, alive_status, date_of_death) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [newContactId, 1, newPersonId, safe(c.contact_type), safe(c.occupation), safe(c.alive_status), safe(c.date_of_death)]
+          );
+          
+          // Get next student_contact_id
+          const [maxSCId]: any = await connection.execute('SELECT MAX(id) as max_id FROM student_contacts');
+          const newSCId = (maxSCId[0]?.max_id || 0) + 1;
+          
+          await connection.execute(
+            'INSERT INTO student_contacts (id, student_id, contact_id, relationship, is_primary) VALUES (?, ?, ?, ?, ?)',
+            [newSCId, newStudentId, newContactId, safe(c.relationship), safe(c.is_primary)]
           );
         }
       }
       await connection.commit();
       await connection.end();
       
-      // Generate admission number if not provided
-      const admission_no = body.admission_no || `XHN/${student_id.toString().padStart(4, '0')}/2025`;
+      // Use the generated admission number
+      const finalAdmissionNo = admission_no;
       
-      // Update student with admission number
-      if (!body.admission_no) {
-        const updateConnection = await getConnection();
-        await updateConnection.execute(
-          'UPDATE students SET admission_no = ? WHERE id = ?',
-          [admission_no, student_id]
-        );
-        await updateConnection.end();
-      }
+      // Use newStudentId and newPersonId consistently
+      const student_id = newStudentId;
+      const person_id = newPersonId;
       
       // Get school name from database
       let schoolName = 'Ibun Baz Girls Secondary School';

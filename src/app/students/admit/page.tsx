@@ -74,12 +74,12 @@ export default function AdmitStudentPage(){
   return (
     <div className="p-6">
       <button onClick={()=>setOpen(true)} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white shadow-lg hover:brightness-110"><Plus className="w-4 h-4"/>Admit Student</button>
-      <AdmissionModal open={open} onClose={()=>setOpen(false)} {...{first,last,gender,dob,classes,years,acyear,setAcyear,secularClass,setSecularClass,theologyClass,setTheologyClass,setFirst,setLast,setGender,setDob,submit,loading,result}} />
+      <AdmissionModal open={open} onClose={()=>setOpen(false)} {...{first,last,gender,dob,classes,years,acyear,setAcyear,secularClass,setSecularClass,theologyClass,setTheologyClass,setFirst,setLast,setGender,setDob,submit,loading,result,error}} />
     </div>
   );
 }
 
-const AdmissionModal:React.FC<any> = ({open,onClose,first,last,gender,dob,setFirst,setLast,setGender,setDob,classes,years,acyear,setAcyear,secularClass,setSecularClass,theologyClass,setTheologyClass,submit,loading,result})=>{
+const AdmissionModal:React.FC<any> = ({open,onClose,first,last,gender,dob,setFirst,setLast,setGender,setDob,classes,years,acyear,setAcyear,secularClass,setSecularClass,theologyClass,setTheologyClass,submit,loading,result,error})=>{
   return <Transition appear show={open} as={Fragment}>
     <Dialog as="div" className="relative z-50" onClose={onClose}>
       <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
