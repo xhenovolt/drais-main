@@ -179,28 +179,22 @@ export async function POST(req: NextRequest) {
     try {
       await connection.beginTransaction();
       
-      // Get next person_id (since AUTO_INCREMENT may not be set)
-      const [maxPersonId]: any = await connection.execute('SELECT MAX(id) as max_id FROM people');
-      const newPersonId = (maxPersonId[0]?.max_id || 0) + 1;
-      
-      // Insert person with explicit ID
-      await connection.execute(
-        'INSERT INTO people (id, school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [newPersonId, 1, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
+      // Insert person - let database handle AUTO_INCREMENT
+      const [personResult]: any = await connection.execute(
+        'INSERT INTO people (school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [1, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
       );
-      
-      // Get next student_id
-      const [maxStudentId]: any = await connection.execute('SELECT MAX(id) as max_id FROM students');
-      const newStudentId = (maxStudentId[0]?.max_id || 0) + 1;
+      const newPersonId = personResult.insertId;
       
       // Generate admission number if not provided
-      const admission_no = body.admission_no || `XHN/${newStudentId.toString().padStart(4, '0')}/${new Date().getFullYear()}`;
+      const admission_no = body.admission_no || `XHN/${newPersonId.toString().padStart(4, '0')}/${new Date().getFullYear()}`;
       
-      // Insert student with explicit ID
-      await connection.execute(
-        'INSERT INTO students (id, school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [newStudentId, 1, newPersonId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
+      // Insert student - let database handle AUTO_INCREMENT
+      const [studentResult]: any = await connection.execute(
+        'INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [1, newPersonId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
       );
+      const newStudentId = studentResult.insertId;
       
       // Insert enrollment
       await connection.execute(
