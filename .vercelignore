@@ -1,0 +1,69 @@
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Scripts and docs
+/scripts
+*.md
+DAHUA_*
+DATABASE_*
+PROMOTION_*
+ATTENDANCE_*
+FINANCE_*
+ENHANCED_*
+IMPLEMENTATION_*
+ISSUES_*
+MIGRATION_*
+NOTIFICATIONS_*
+PHASE4_*
+QUICK_*
+README_*
+FIXES_*
+DATABASE_*
+FIX_*
+ESLINT_*
+FEATURE_*
+FINAL_*
+
+# Database files
+database/*.sql
+mysql/
+
+# Test files
+test-*.sh
+crontab.example

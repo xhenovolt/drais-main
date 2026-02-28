@@ -14,6 +14,16 @@ interface Curriculum {
   name: string;
 }
 
+interface Teacher {
+  id: number;
+  staff_no: string | null;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  position: string | null;
+  department_id: number | null;
+}
+
 interface ClassRec {
   id: number;
   name: string;
@@ -140,7 +150,7 @@ function CurriculumModal({ open, onClose, onSave, edit }: { open: boolean; onClo
   );
 }
 
-function ClassModal({ open, onClose, onSave, edit, curriculums }: { open: boolean; onClose: () => void; onSave: (v: Partial<ClassRec>) => void; edit?: ClassRec; curriculums: Curriculum[] }) {
+function ClassModal({ open, onClose, onSave, edit, curriculums, teachers }: { open: boolean; onClose: () => void; onSave: (v: Partial<ClassRec>) => void; edit?: ClassRec; curriculums: Curriculum[]; teachers: Teacher[] }) {
   const [name, setName] = useState('');
   const [level, setLevel] = useState('');
   const [head, setHead] = useState('');
@@ -228,14 +238,16 @@ function ClassModal({ open, onClose, onSave, edit, curriculums }: { open: boolea
                       </div>
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide mb-1">
-                          {t('academics.head_teacher_id', 'Head Teacher ID')}
+                          {t('academics.class_teacher', 'Class Teacher')}
                         </label>
-                        <input
-                          value={head}
-                          onChange={(e) => setHead(e.target.value)}
-                          className={fieldBase}
-                          placeholder="123"
-                        />
+                        <select value={head} onChange={(e) => setHead(e.target.value)} className={fieldBase}>
+                          <option value="">{t('academics.none', '-- None --')}</option>
+                          {teachers.map((teacher) => (
+                            <option key={teacher.id} value={teacher.id}>
+                              {teacher.first_name} {teacher.last_name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                     <div>
@@ -281,10 +293,13 @@ export default function ClassesCurriculumsPage() {
   // Defensive data parsing
   const currSWR = useSWR(`${API_BASE}/curriculums`, fetcher);
   const classSWR = useSWR(`${API_BASE}/classes`, fetcher);
+  const teacherSWR = useSWR(`${API_BASE}/teachers`, fetcher);
   const rawCurr = currSWR.data;
   const rawClass = classSWR.data;
+  const rawTeachers = teacherSWR.data;
   const curriculums: Curriculum[] = Array.isArray(rawCurr) ? rawCurr : rawCurr?.data || [];
   const classes: ClassRec[] = Array.isArray(rawClass) ? rawClass : rawClass?.data || [];
+  const teachers: Teacher[] = Array.isArray(rawTeachers) ? rawTeachers : rawTeachers?.data || [];
   const loadingCurr = !currSWR.error && !currSWR.data;
   const loadingClass = !classSWR.error && !classSWR.data;
   const [currModal, setCurrModal] = useState<{ open: boolean; edit?: Curriculum }>({ open: false });
@@ -388,7 +403,7 @@ export default function ClassesCurriculumsPage() {
                       <th className="px-3 py-2 text-left font-semibold">{t('academics.id', 'ID')}</th>
                       <th className="px-3 py-2 text-left font-semibold">{t('academics.name', 'Name')}</th>
                       <th className="px-3 py-2 text-left font-semibold">{t('academics.level', 'Level')}</th>
-                      <th className="px-3 py-2 text-left font-semibold">{t('academics.head_teacher', 'Head Teacher')}</th>
+                      <th className="px-3 py-2 text-left font-semibold">{t('academics.class_teacher', 'Class Teacher')}</th>
                       <th className="px-3 py-2 text-left font-semibold">{t('academics.curriculum', 'Curriculum')}</th>
                       <th className="px-3 py-2 text-right font-semibold">{t('academics.actions', 'Actions')}</th>
                     </tr>
@@ -397,12 +412,13 @@ export default function ClassesCurriculumsPage() {
                     {loadingClass && [...Array(4)].map((_, i) => (<tr key={i} className="animate-pulse"><td colSpan={6} className="px-3 py-3"><div className="h-5 rounded bg-slate-200/70 dark:bg-slate-700/40" /></td></tr>))}
                     {!loadingClass && classes.map(c => {
                       const cur = curriculums.find(cc => cc.id === c.curriculum_id);
+                      const teacher = teachers.find(t => t.id === c.head_teacher_id);
                       return (
                         <tr key={c.id} className="hover:bg-indigo-50/60 dark:hover:bg-slate-800/70 transition">
                           <td className="px-3 py-2 font-mono text-[11px] text-slate-500 dark:text-slate-400">{c.id}</td>
                           <td className="px-3 py-2 font-medium">{c.name}</td>
                           <td className="px-3 py-2">{c.class_level ?? '-'}</td>
-                          <td className="px-3 py-2">{c.head_teacher_id ?? '-'}</td>
+                          <td className="px-3 py-2">{teacher ? `${teacher.first_name} ${teacher.last_name}` : '-'}</td>
                           <td className="px-3 py-2">{cur ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-fuchsia-600/10 text-fuchsia-600 dark:text-fuchsia-400 dark:bg-fuchsia-400/10">{cur.code}<span className="opacity-60">{cur.name.length > 10 ? cur.name.slice(0, 9) + '…' : cur.name}</span></span> : '-'}</td>
                           <td className="px-3 py-2"><div className="flex justify-end gap-2"><button onClick={() => setClassModal({ open: true, edit: c })} className="p-1.5 rounded-md bg-amber-500/15 text-amber-600 hover:bg-amber-500/25" title={t('academics.edit', 'Edit')}><Pencil className="w-4 h-4" /></button><button onClick={() => deleteClass(c.id)} className="p-1.5 rounded-md bg-red-500/15 text-red-600 hover:bg-red-500/25" title={t('academics.delete', 'Delete')}><Trash2 className="w-4 h-4" /></button></div></td>
                         </tr>
@@ -417,7 +433,7 @@ export default function ClassesCurriculumsPage() {
         </Tab.Panels>
       </Tab.Group>
       <CurriculumModal open={currModal.open} onClose={() => setCurrModal({ open: false })} onSave={saveCurriculum} edit={currModal.edit} />
-      <ClassModal open={classModal.open} onClose={() => setClassModal({ open: false })} onSave={saveClass} edit={classModal.edit} curriculums={curriculums} />
+      <ClassModal open={classModal.open} onClose={() => setClassModal({ open: false })} onSave={saveClass} edit={classModal.edit} curriculums={curriculums} teachers={teachers} />
     </div>
   );
 }
