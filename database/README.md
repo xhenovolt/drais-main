@@ -1,4 +1,4 @@
-# Excel Islamic School Database Setup Guide
+# IBUN BAZ Database Setup Guide
 
 ## Execution Order
 
@@ -23,7 +23,7 @@ mysql -u root -p < production_init.sql
 
 ## Existing Installation Upgrade
 
-For existing Excel Islamic School installations, run patches in order:
+For existing IBUN BAZ installations, run patches in order:
 ```bash
 mysql -u root -p drais_school < fixes/staff_table_fixes.sql
 mysql -u root -p drais_school < add_school_id.sql

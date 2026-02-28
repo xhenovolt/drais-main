@@ -1,6 +1,6 @@
-# Excel Islamic School Notifications System
+# IBUN BAZ Notifications System
 
-A comprehensive real-time notifications system for Excel Islamic School with support for multiple channels, templates, and conversational triggers.
+A comprehensive real-time notifications system for IBUN BAZ with support for multiple channels, templates, and conversational triggers.
 
 ## Features
 
