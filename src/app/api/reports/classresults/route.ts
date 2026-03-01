@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import mysql, { RowDataPacket } from 'mysql2/promise';
+import { getSchoolInfo } from '@/lib/schoolConfig';
 
 const dbConfig = {
   host: 'localhost',
@@ -13,12 +14,12 @@ export async function GET() {
   try {
     connection = await mysql.createConnection(dbConfig);
 
-    // Fetch school info
-    const [schoolRows] = await connection.execute<RowDataPacket[]>(
-      'SELECT name, address FROM schools WHERE name = ? LIMIT 1',
-      ['Ibun Baz Girls Secondary School']
-    );
-    const schoolInfo = schoolRows[0] as { name: string; address: string };
+    // Fetch school info from centralized configuration (single source of truth)
+    const schoolCfg = getSchoolInfo();
+    const schoolInfo = {
+      name: schoolCfg.name || 'Ibun Baz Girls Secondary School',
+      address: schoolCfg.address || 'Busei, Iganga along Iganga-Tororo highway'
+    };
 
     // Fetch class results grouped by student
     const [results] = await connection.execute<RowDataPacket[]>(

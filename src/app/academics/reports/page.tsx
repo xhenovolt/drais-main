@@ -125,6 +125,20 @@ const ReportsPage = () => {
   const [saving, setSaving] = useState(false);
   const [nextTermBegins, setNextTermBegins] = useState('18-AUG-2025');
   const [enableMarkConversion, setEnableMarkConversion] = useState(false);
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
+    name: 'Ibun Baz Girls Secondary School',
+    address: 'Busei, Iganga along Iganga-Tororo highway',
+    po_box: 'P.O. BOX, Iganga',
+    logo_url: '/uploads/logo.png',
+    contact: '+256 700 123 456',
+    center_no: 'UNEB CENTRE No: TBD',
+    registration_no: 'Reg no: TBD',
+    arabic_name: 'مدرسة إبن باز للبنات الثانوية',
+    arabic_address: 'بوسي، إيكانغا',
+    arabic_contact: '+256 700 123 456',
+    arabic_center_no: 'رقم مركز الامتحانات (UNEB): سيحدد لاحقاً',
+    arabic_registration_no: 'رقم التسجيل: سيحدد لاحقاً',
+  });
   const customizationRef = useRef<CustomizationRef>({ current: {} });
 
   // Helper to get term ID (you may need to adjust based on your database)
@@ -162,17 +176,17 @@ const ReportsPage = () => {
   };
 
   // School info (static for all reports)
-  const schoolInfo: SchoolInfo = {
+  const schoolInfoDefault: SchoolInfo = {
     name: 'Ibun Baz Girls Secondary School',
-    address: 'Bugumba, Iganga Municipality',
-    po_box: 'P.O. BOX, Bugumba, Iganga',
-    logo_url: '/logo.png',
-    contact: 'Tel: 0706 074 179 / 0785 680 091 / 0701 962 984',
+    address: 'Busei, Iganga along Iganga-Tororo highway',
+    po_box: 'P.O. BOX, Iganga',
+    logo_url: '/uploads/logo.png',
+    contact: '+256 700 123 456',
     center_no: 'UNEB CENTRE No: TBD',
     registration_no: 'Reg no: TBD',
-    arabic_name: 'مدرسة إكسيل الإسلامية للروضة والابتدائية',
-    arabic_address: 'بوجومبا، بلدية إيكانغا',
-    arabic_contact: 'هاتف: 0706 074 179 / 0785 680 091 / 0701 962 984',
+    arabic_name: 'مدرسة إبن باز للبنات الثانوية',
+    arabic_address: 'بوسي، إيكانغا',
+    arabic_contact: '+256 700 123 456',
     arabic_center_no: 'رقم مركز الامتحانات (UNEB): سيحدد لاحقاً',
     arabic_registration_no: 'رقم التسجيل: سيحدد لاحقاً',
   };
@@ -193,16 +207,34 @@ const ReportsPage = () => {
   useEffect(() => {
     setLoading(true);
     // Use new DB (Next.js API)
-    fetch(`/api/reports/list`)
-      .then(async r => {
-        const data: ApiResponse = await r.json().catch(() => ({}));
-        return data;
-      })
-      .then((data: ApiResponse) => {
-        const students = data?.students || [];
-        const results = data?.results || data?.data || (Array.isArray(data) ? data as Result[] : []);
+    Promise.all([
+      fetch(`/api/reports/list`)
+        .then(async r => {
+          const data: ApiResponse = await r.json().catch(() => ({}));
+          return data;
+        }),
+      fetch(`/api/school-config`)
+        .then(async r => {
+          const data = await r.json().catch(() => ({}));
+          return data;
+        })
+    ])
+      .then(([reportsData, schoolConfigData]) => {
+        const students = reportsData?.students || [];
+        const results = reportsData?.results || reportsData?.data || (Array.isArray(reportsData) ? reportsData as Result[] : []);
         setAllStudents(students);
         setAllResults(results);
+        
+        // Update school info from centralized config
+        if (schoolConfigData?.school) {
+          setSchoolInfo({
+            ...schoolInfoDefault,
+            name: schoolConfigData.school.name || schoolInfoDefault.name,
+            address: schoolConfigData.school.address || schoolInfoDefault.address,
+            logo_url: schoolConfigData.school.branding?.logo || schoolInfoDefault.logo_url,
+            contact: schoolConfigData.school.contact?.phone || schoolInfoDefault.contact,
+          });
+        }
       })
       .catch(() => {
         setAllStudents([]);

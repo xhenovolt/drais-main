@@ -23,7 +23,7 @@ export function loadSchoolConfig() {
     // Fallback configuration
     cachedConfig = {
       school: {
-        name: 'Ibun Baz Girls Secondary School',
+        name: 'IbunBaz Girls Secondary School',
         shortName: 'IBUN BAZ',
         address: 'Busei, Iganga along Iganga-Tororo highway',
         contact: {
@@ -31,7 +31,7 @@ export function loadSchoolConfig() {
           email: 'info@ibunbaz.ac.ug',
         },
         principal: {
-          name: 'Headteacher',
+          name: 'Hassan Muhammad Mwaita',
           title: 'Headteacher',
         },
         branding: {

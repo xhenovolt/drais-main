@@ -148,6 +148,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
   // New state for PDF generation
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [admissionData, setAdmissionData] = useState<any>(null);
+  const [schoolName, setSchoolName] = useState('Ibun Baz Girls Secondary School');
   const [tahfizAutoEnroll, setTahfizAutoEnroll] = useState(autoEnrollTahfiz);
 
   const reset = () => { 
@@ -210,13 +211,18 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
         fetch(`${API_BASE}/classes`).then(r=>r.json()).catch(()=>({})),
         fetch(`${API_BASE}/curriculums`).then(r=>r.json()).catch(()=>({})),
         fetch(`${API_BASE}/academic_years`).then(r=>r.json()).catch(()=>({})),
-        fetch(`${API_BASE}/terms`).then(r=>r.json()).catch(()=>({}))
-      ]).then(([cl,cu,ya,te])=>{ 
+        fetch(`${API_BASE}/terms`).then(r=>r.json()).catch(()=>({}))),
+        fetch(`${API_BASE}/school-config`).then(r=>r.json()).catch(()=>({}))
+      ]).then(([cl,cu,ya,te,schoolCfg])=>{ 
         const yrs=toArr(ya); 
         setYears(yrs); 
         setClasses(toArr(cl)); 
         setCurriculums(toArr(cu)); 
         setTerms(toArr(te)); 
+        // Fetch school name from centralized config
+        if(schoolCfg?.school?.name) {
+          setSchoolName(schoolCfg.school.name);
+        }
         if(yrs.length){ 
           const yStr=String(new Date().getFullYear()); 
           const match=yrs.find(y=>y.name===yStr || y.name.includes(yStr)); 
@@ -659,7 +665,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
           title: 'Student Admitted Successfully!',
           html: `
             <div class="text-center">
-              <p><strong>${responseData?.admission_no || 'Student'}</strong> has been admitted to Ibun Baz Girls Secondary School</p>
+              <p><strong>${responseData?.admission_no || 'Student'}</strong> has been admitted to ${schoolName}</p>
               <p class="mt-2 text-sm text-gray-600">The admission form has been automatically downloaded to your device.</p>
               <div class="mt-3 p-3 bg-green-50 rounded-lg">
                 <div class="flex items-center justify-center gap-2">
