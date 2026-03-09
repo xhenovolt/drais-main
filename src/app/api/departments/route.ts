@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
 
     connection = await getConnection();
 
@@ -16,8 +24,6 @@ export async function GET(req: NextRequest) {
         d.name,
         d.description,
         d.head_staff_id,
-        d.budget,
-        d.created_at,
         p.first_name as head_first_name,
         p.last_name as head_last_name,
         s.staff_no as head_staff_no,
@@ -26,8 +32,8 @@ export async function GET(req: NextRequest) {
       LEFT JOIN staff s ON d.head_staff_id = s.id
       LEFT JOIN people p ON s.person_id = p.id
       LEFT JOIN staff s2 ON s2.department_id = d.id AND s2.status = 'active' AND s2.deleted_at IS NULL
-      WHERE d.school_id = ? AND (d.deleted_at IS NULL OR d.deleted_at = '')
-      GROUP BY d.id, d.name, d.description, d.head_staff_id, d.budget, d.created_at, p.first_name, p.last_name, s.staff_no
+      WHERE d.school_id = ?
+      GROUP BY d.id, d.name, d.description, d.head_staff_id, p.first_name, p.last_name, s.staff_no
       ORDER BY d.name
     `, [schoolId]);
 
@@ -51,8 +57,15 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const { school_id = 1, name, description, head_staff_id, budget = 0 } = body;
+    const { name, description, head_staff_id, budget = 0 } = body;
 
     if (!name) {
       return NextResponse.json({
@@ -66,7 +79,7 @@ export async function POST(req: NextRequest) {
     const [result] = await connection.execute(`
       INSERT INTO departments (school_id, name, description, head_staff_id, budget)
       VALUES (?, ?, ?, ?, ?)
-    `, [school_id, name, description, head_staff_id, budget]);
+    `, [schoolId, name, description, head_staff_id, budget]);
 
     return NextResponse.json({
       success: true,

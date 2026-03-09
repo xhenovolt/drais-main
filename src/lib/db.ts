@@ -30,6 +30,60 @@ async function initializeDatabase() {
 
   console.log('[Database] Initializing database connection...');
   
+  const databaseMode = process.env.DATABASE_MODE || 'auto';
+  
+  // If DATABASE_MODE is explicitly set to 'mysql', use MySQL directly
+  if (databaseMode === 'mysql') {
+    console.log('[Database] Using Local MySQL (DATABASE_MODE=mysql)...');
+    const mysqlConfig = getLocalMySQLConfig();
+    try {
+      const testConn = await mysql.createConnection({
+        host: mysqlConfig.host,
+        port: mysqlConfig.port,
+        user: mysqlConfig.user,
+        password: mysqlConfig.password,
+        database: mysqlConfig.database,
+        connectTimeout: 5000,
+      });
+      await testConn.query('SELECT 1');
+      await testConn.end();
+      console.log('[Database] ✅ Connected to Local MySQL');
+      activeDatabase = 'mysql';
+      return;
+    } catch (mysqlError) {
+      console.error('[Database] ❌ Local MySQL connection failed:', mysqlError instanceof Error ? mysqlError.message : String(mysqlError));
+      throw new Error('Failed to connect to Local MySQL');
+    }
+  }
+  
+  // If DATABASE_MODE is 'tidb', use TiDB directly
+  if (databaseMode === 'tidb') {
+    console.log('[Database] Using TiDB Cloud (DATABASE_MODE=tidb)...');
+    const tidbConfig = getTiDBConfig();
+    try {
+      const testConn = await mysql.createConnection({
+        host: tidbConfig.host,
+        port: tidbConfig.port,
+        user: tidbConfig.user,
+        password: tidbConfig.password,
+        database: tidbConfig.database,
+        ssl: { rejectUnauthorized: false },
+        connectTimeout: 5000,
+      });
+      await testConn.query('SELECT 1');
+      await testConn.end();
+      console.log('[Database] ✅ Connected to TiDB Cloud');
+      activeDatabase = 'tidb';
+      return;
+    } catch (error) {
+      console.error('[Database] ❌ TiDB Cloud connection failed:', error instanceof Error ? error.message : String(error));
+      throw new Error('Failed to connect to TiDB Cloud');
+    }
+  }
+  
+  // DATABASE_MODE is 'auto' - try TiDB first, fall back to MySQL
+  console.log('[Database] Auto-detecting database (attempting TiDB first)...');
+  
   // Try TiDB first
   const tidbConfig = getTiDBConfig();
   try {
@@ -41,7 +95,7 @@ async function initializeDatabase() {
       password: tidbConfig.password,
       database: tidbConfig.database,
       ssl: { rejectUnauthorized: false },
-      connectionTimeout: 5000,
+      connectTimeout: 5000,
     });
     await testConn.query('SELECT 1');
     await testConn.end();
@@ -60,7 +114,7 @@ async function initializeDatabase() {
         user: mysqlConfig.user,
         password: mysqlConfig.password,
         database: mysqlConfig.database,
-        connectionTimeout: 5000,
+        connectTimeout: 5000,
       });
       await testConn.query('SELECT 1');
       await testConn.end();

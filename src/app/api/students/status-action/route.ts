@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
-import { getSchoolInfo } from '@/lib/schoolConfig';
+import { getSchoolFromDB } from '@/lib/schoolDB';
+import { getSessionSchoolId } from '@/lib/auth';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { student_id, action, details } = body;
 
@@ -26,8 +34,8 @@ export async function POST(req: NextRequest) {
       `SELECT s.id AS student_id, s.admission_no, s.class_id, s.status AS current_status, p.first_name, p.last_name, p.photo_url
        FROM students s
        LEFT JOIN people p ON s.person_id = p.id
-       WHERE s.id = ?`,
-      [student_id]
+       WHERE s.id = ? AND s.school_id = ?`,
+      [student_id, schoolId]
     ) as any[];
 
     if (!rows || rows.length === 0) {
@@ -62,32 +70,12 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    const schoolName = 'Ibun Baz Girls Secondary School';
-    const schoolAddress = 'Busei, Iganga along Iganga-Tororo highway';
-    const logoUrl = '/uploads/logo.png';
-    let principalName = 'Principal / Headteacher';
-    
-    // Get school info from centralized configuration (single source of truth)
-    try {
-      const schoolInfo = getSchoolInfo();
-      if (schoolInfo) {
-        if (schoolInfo.name) {
-          (schoolName as any) = schoolInfo.name;
-        }
-        if (schoolInfo.address) {
-          (schoolAddress as any) = schoolInfo.address;
-        }
-        if (schoolInfo.branding?.logo) {
-          (logoUrl as any) = schoolInfo.branding.logo;
-        }
-        if (schoolInfo.principal?.name) {
-          principalName = schoolInfo.principal.name;
-        }
-      }
-    } catch (configError) {
-      console.error('Error fetching school config:', configError);
-      // Fall back to hardcoded defaults
-    }
+    // Get school info from database (single source of truth)
+    const schoolInfoDB = await getSchoolFromDB(schoolId);
+    const schoolName = schoolInfoDB.name;
+    const schoolAddress = schoolInfoDB.address;
+    const logoUrl = schoolInfoDB.logo_url || '/uploads/logo.png';
+    const principalName = schoolInfoDB.principal_name || 'Principal / Headteacher';
 
     const html = `<!doctype html>
 <html>

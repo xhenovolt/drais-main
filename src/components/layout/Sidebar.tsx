@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import {
@@ -89,6 +90,8 @@ const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const theme = useTheme();
   const { t, dir, lang } = useI18n();
+  const { school } = useSchoolConfig();
+  const sidebarSchoolName = school.name || 'School';
   const [hovering, setHovering] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isHovered, setIsHovered] = useState(false);
@@ -833,7 +836,7 @@ const Sidebar: React.FC = () => {
             {/* Mobile Footer */}
             <div className="p-4 border-t border-white/10 bg-gradient-to-r from-blue-500/5 to-purple-500/5">
               <div className="text-xs text-gray-400 text-center">
-                Ibun Baz Girls Secondary School Management System
+                {sidebarSchoolName} Management System
               </div>
             </div>
           </motion.aside>

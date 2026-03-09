@@ -31,15 +31,15 @@ const StaffAttendancePage: React.FC = () => {
 
   // Fetch attendance data
   const { data: attendanceData, isLoading, mutate } = useSWR(
-    `/api/staff/attendance?school_id=1&date=${selectedDate}${selectedDepartment ? `&department_id=${selectedDepartment}` : ''}${selectedStatus ? `&status=${selectedStatus}` : ''}`,
+    `/api/staff/attendance?date=${selectedDate}${selectedDepartment ? `&department_id=${selectedDepartment}` : ''}${selectedStatus ? `&status=${selectedStatus}` : ''}`,
     fetcher
   );
 
   // Fetch departments
-  const { data: departmentsData } = useSWR('/api/departments?school_id=1', fetcher);
+  const { data: departmentsData } = useSWR('/api/departments', fetcher);
 
   // Fetch staff list
-  const { data: staffData } = useSWR('/api/staff/list?school_id=1', fetcher);
+  const { data: staffData } = useSWR('/api/staff/list', fetcher);
 
   const attendanceRecords = attendanceData?.data || [];
   const departments = departmentsData?.data || [];

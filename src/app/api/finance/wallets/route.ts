@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { computeWalletBalance } from '@/lib/services/FeeService';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const branchId = searchParams.get('branch_id');
 
     connection = await getConnection();
@@ -76,17 +84,21 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const { 
-      school_id = 1, 
-      branch_id = 1,
+    const { branch_id = 1,
       name, 
       method, 
       currency = 'UGX',
       opening_balance = 0,
       account_number,
-      bank_name
-    } = body;
+      bank_name } = body;
 
     if (!name || !method) {
       return NextResponse.json({
@@ -103,7 +115,7 @@ export async function POST(req: NextRequest) {
       const [walletResult] = await connection.execute(`
         INSERT INTO wallets (school_id, branch_id, name, method, currency, opening_balance, account_number, bank_name)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [school_id, branch_id, name, method, currency, opening_balance, account_number, bank_name]);
+      `, [schoolId, branch_id, name, method, currency, opening_balance, account_number, bank_name]);
 
       const walletId = walletResult.insertId;
 
@@ -121,21 +133,21 @@ export async function POST(req: NextRequest) {
           const [newCategoryResult] = await connection.execute(`
             INSERT INTO finance_categories (school_id, type, name) 
             VALUES (?, 'income', 'Opening Balance')
-          `, [school_id]);
+          `, [schoolId]);
           categoryId = newCategoryResult.insertId;
         }
 
         await connection.execute(`
           INSERT INTO ledger (school_id, wallet_id, category_id, tx_type, amount, reference, description, created_by)
           VALUES (?, ?, ?, 'credit', ?, 'OPENING_BALANCE', 'Opening balance for wallet', ?)
-        `, [school_id, walletId, categoryId, opening_balance, 1]); // TODO: Get user from session
+        `, [schoolId, walletId, categoryId, opening_balance, 1]); // TODO: Get user from session
       }
 
       // Log action
       await connection.execute(`
         INSERT INTO finance_actions (school_id, actor_user_id, action, entity_type, entity_id, metadata)
         VALUES (?, ?, 'create_wallet', 'wallet', ?, ?)
-      `, [school_id, 1, walletId, JSON.stringify({ name, method, opening_balance })]);
+      `, [schoolId, 1, walletId, JSON.stringify({ name, method, opening_balance })]);
 
       await connection.commit();
 

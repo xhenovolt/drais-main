@@ -1,3 +1,15 @@
+/**
+ * @deprecated — DO NOT import from this file for new code.
+ * 
+ * USE INSTEAD:
+ *   Server-side:  import { getSchoolFromDB } from '@/lib/schoolDB';
+ *   Client-side:  import { useSchoolConfig } from '@/hooks/useSchoolConfig';
+ *   One-off fetch: import { fetchSchoolConfigAsync } from '@/hooks/useSchoolConfig';
+ * 
+ * This file exists only as a legacy shim that reads school-config.json.
+ * The TRUE source of truth is the `schools` table in the database,
+ * served via /api/school-config (DB-driven) and /api/school-info.
+ */
 import fs from 'fs';
 import path from 'path';
 
@@ -20,23 +32,23 @@ export function loadSchoolConfig() {
     return cachedConfig;
   } catch (error) {
     console.warn('[School Config] Failed to load configuration, using defaults:', error);
-    // Fallback configuration
+    // Fallback configuration — NO hardcoded school identity
     cachedConfig = {
       school: {
-        name: 'IbunBaz Girls Secondary School',
-        shortName: 'IBUN BAZ',
-        address: 'Busei, Iganga along Iganga-Tororo highway',
+        name: 'School',
+        shortName: '',
+        address: '',
         contact: {
-          phone: '+256 700 123 456',
-          email: 'info@ibunbaz.ac.ug',
+          phone: '',
+          email: '',
         },
         principal: {
-          name: 'Hassan Muhammad Mwaita',
+          name: '',
           title: 'Headteacher',
         },
         branding: {
           logo: '/uploads/logo.png',
-          motto: 'Excellence in Islamic and Academic Education',
+          motto: '',
         },
       },
     };

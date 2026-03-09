@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * GET /api/analytics/predictive
  * AI-Powered Predictive Analytics for Academic Performance
@@ -8,13 +9,20 @@ import { getConnection } from '@/lib/db';
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const schoolId = searchParams.get('school_id') || '1';
+  // school_id derived from session below
   const scope = searchParams.get('scope') || 'school'; // school, class, student
   const scopeId = searchParams.get('scope_id'); // class_id or student_id
   const analysisType = searchParams.get('analysis_type') || 'comprehensive'; // comprehensive, subjects, projections
 
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     connection = await getConnection();
 
     let analytics: any = {

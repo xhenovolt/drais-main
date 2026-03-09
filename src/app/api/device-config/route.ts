@@ -9,12 +9,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deviceConnectionManager } from '@/lib/services/DeviceConnectionManager';
 import { encryptionUtil } from '@/lib/services/EncryptionUtil';
+import { getSessionSchoolId } from '@/lib/auth';
 
 // Get device configuration for current school
 export async function GET(req: NextRequest) {
   try {
-    // Extract school ID from request (would normally come from auth context)
-    const schoolId = req.nextUrl.searchParams.get('schoolId');
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+    // schoolId now from session auth (above)
 
     if (!schoolId) {
       return NextResponse.json({ success: false, error: 'School ID required' }, { status: 400 });
@@ -55,16 +58,20 @@ export async function POST(req: NextRequest) {
   let requestData;
 
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     requestData = await req.json();
 
-    const { schoolId, deviceName, deviceIp, devicePort, deviceUsername, devicePassword } = requestData;
+    const { deviceName, deviceIp, devicePort, deviceUsername, devicePassword } = requestData;
 
     // Validation
     if (!schoolId || !deviceName || !deviceIp || !devicePort || !deviceUsername || !devicePassword) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: schoolId, deviceName, deviceIp, devicePort, deviceUsername, devicePassword'
+          error: 'Missing required fields: deviceName, deviceIp, devicePort, deviceUsername, devicePassword'
         },
         { status: 400 }
       );
@@ -127,8 +134,12 @@ export async function POST(req: NextRequest) {
 // Update device configuration
 export async function PUT(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const requestData = await req.json();
-    const { schoolId, deviceName, deviceIp, devicePort, deviceUsername, devicePassword } = requestData;
+    const { deviceName, deviceIp, devicePort, deviceUsername, devicePassword } = requestData;
 
     if (!schoolId) {
       return NextResponse.json({ success: false, error: 'School ID required' }, { status: 400 });
@@ -174,7 +185,10 @@ export async function PUT(req: NextRequest) {
 // DELETE: Remove device configuration
 export async function DELETE(req: NextRequest) {
   try {
-    const schoolId = req.nextUrl.searchParams.get('schoolId');
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+    // schoolId now from session auth (above)
 
     if (!schoolId) {
       return NextResponse.json({ success: false, error: 'School ID required' }, { status: 400 });

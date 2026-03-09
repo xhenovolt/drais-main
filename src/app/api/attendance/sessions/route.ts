@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
     const classId = searchParams.get('class_id');
     const date = searchParams.get('date');
     const status = searchParams.get('status');
@@ -108,10 +116,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      class_id,
+    const { class_id,
       stream_id,
       term_id,
       academic_year_id,
@@ -122,8 +135,7 @@ export async function POST(req: NextRequest) {
       session_end_time,
       session_type = 'lesson',
       attendance_type = 'manual',
-      notes
-    } = body;
+      notes } = body;
 
     if (!class_id || !session_date) {
       return NextResponse.json({
@@ -141,7 +153,7 @@ export async function POST(req: NextRequest) {
         session_type, attendance_type, status, notes, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, NOW())`,
       [
-        school_id, class_id, stream_id, term_id, academic_year_id, subject_id,
+        schoolId, class_id, stream_id, term_id, academic_year_id, subject_id,
         teacher_id, session_date, session_start_time, session_end_time,
         session_type, attendance_type, notes
       ]

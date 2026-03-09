@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const resolvedParams = await params;
     const portionId = resolvedParams.id;
     const body = await request.json();
-    const { status, notes, school_id } = body;
+    const { status, notes } = body;
 
-    if (!school_id) {
+    if (!schoolId) {
       return NextResponse.json({
         success: false,
         message: 'School ID is required'
@@ -59,11 +64,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const resolvedParams = await params;
     const portionId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get('school_id');
-
+    // schoolId now from session auth (above)
     if (!schoolId) {
       return NextResponse.json({
         success: false,

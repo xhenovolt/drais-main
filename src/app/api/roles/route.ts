@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * POST /api/roles
  * Create a new role
@@ -8,8 +9,15 @@ import { getConnection } from '@/lib/db';
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const { school_id, name, description } = body;
+    const { name, description } = body;
 
     if (!name) {
       return NextResponse.json({
@@ -22,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     const [result] = await connection.execute(
       'INSERT INTO roles (school_id, name, description) VALUES (?, ?, ?)',
-      [school_id || 1, name, description || null]
+      [schoolId || 1, name, description || null]
     );
 
     return NextResponse.json({

@@ -8,12 +8,14 @@ import Footer from "@/components/layout/Footer";
 import { ThemeCustomizerPanel } from "@/components/layout/ThemeCustomizerPanel";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
 import { useThemeStore } from "@/hooks/useThemeStore";
+import { useSchoolConfig } from "@/hooks/useSchoolConfig";
 
 const AUTH_PREFIXES = ["/auth", "/login", "/register", "/forgot-password", "/reset-password"]; // extend as needed
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const isAuth = AUTH_PREFIXES.some(p => pathname === p || pathname.startsWith(p + "/"));
+  const { school } = useSchoolConfig();
 
   const collapsed = useThemeStore.getState().sidebarCollapsed;
   const pos = useThemeStore.getState().sidebarPosition;
@@ -27,7 +29,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           </div>
         </main>
         <footer className="py-6 text-center text-xs text-gray-600 dark:text-gray-400">
-          © {new Date().getFullYear()} Ibun Baz Girls Secondary School Management.
+          © {new Date().getFullYear()} {school.name} Management.
         </footer>
       </div>
     );
@@ -37,7 +39,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     <I18nProvider>
       <Navbar />
       <Sidebar />
-      <div className={`pt-16 md:pr-6 px-4 transition-all ${collapsed ? (pos==='left'? 'md:pl-16':'md:pr-16') : (pos==='left'? 'md:pl-64':'md:pr-64')}`} data-sidebar>
+      <div className={`pt-16 pb-16 md:pb-0 md:pr-6 px-4 transition-all ${collapsed ? (pos==='left'? 'md:pl-16':'md:pr-16') : (pos==='left'? 'md:pl-64':'md:pr-64')}`} data-sidebar>
         <main className="max-w-[1600px] mx-auto">
           {children}
           <Footer />

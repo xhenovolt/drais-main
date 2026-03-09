@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * GET /api/academics/promotions
  * Calculate promotions for 3rd term based on Division performance
@@ -8,13 +9,20 @@ import { getConnection } from '@/lib/db';
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const schoolId = searchParams.get('school_id') || '1';
+  // school_id derived from session below
   const classId = searchParams.get('class_id');
   const termId = searchParams.get('term_id');
   const academicYearId = searchParams.get('academic_year_id');
 
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     connection = await getConnection();
 
     // Verify it's 3rd term

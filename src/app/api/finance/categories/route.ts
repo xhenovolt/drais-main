@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const type = searchParams.get('type'); // 'income' or 'expense'
 
     connection = await getConnection();
 
     let sql = `
       SELECT 
-        id,
-        school_id,
-        type,
-        name,
+        fc.id,
+        fc.school_id,
+        fc.type,
+        fc.name,
         COUNT(l.id) as usage_count,
         COALESCE(SUM(l.amount), 0) as total_amount
       FROM finance_categories fc
@@ -31,7 +39,7 @@ export async function GET(req: NextRequest) {
       params.push(type);
     }
 
-    sql += ' GROUP BY fc.id ORDER BY fc.type, fc.name';
+    sql += ' GROUP BY fc.id, fc.school_id, fc.type, fc.name ORDER BY fc.type, fc.name';
 
     const [categories] = await connection.execute(sql, params);
 
@@ -55,8 +63,15 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const { school_id = 1, type, name } = body;
+    const { type, name } = body;
 
     if (!type || !name) {
       return NextResponse.json({
@@ -70,7 +85,7 @@ export async function POST(req: NextRequest) {
     const [result] = await connection.execute(`
       INSERT INTO finance_categories (school_id, type, name)
       VALUES (?, ?, ?)
-    `, [school_id, type, name]);
+    `, [schoolId, type, name]);
 
     return NextResponse.json({
       success: true,

@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const studentId = searchParams.get('student_id');
 
     connection = await getConnection();
@@ -17,7 +25,7 @@ export async function GET(req: NextRequest) {
         sc.contact_id,
         sc.relationship,
         sc.is_primary,
-        c.id as contact_id,
+        c.id,
         c.contact_type,
         c.occupation,
         c.alive_status,
@@ -71,24 +79,32 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const {
       student_id,
-      first_name,
-      last_name,
+      first_name = '',
+      last_name = '',
       phone,
-      email,
-      address,
-      contact_type,
-      occupation,
-      relationship,
+      email = '',
+      address = '',
+      contact_type = 'guardian',
+      occupation = '',
+      relationship = '',
       is_primary = 0
     } = body;
 
-    if (!student_id || !first_name || !last_name || !contact_type) {
+    // Only require student_id and phone for quick contact collection
+    if (!student_id || !phone) {
       return NextResponse.json({
         success: false,
-        error: 'Student ID, first name, last name, and contact type are required'
+        error: 'Student ID and phone number are required'
       }, { status: 400 });
     }
 
@@ -96,19 +112,17 @@ export async function POST(req: NextRequest) {
     await connection.beginTransaction();
 
     try {
-      // Get school ID from student
+      // Verify student belongs to this school
       const [studentRows] = await connection.execute(
-        'SELECT school_id FROM students WHERE id = ?',
-        [student_id]
+        'SELECT id FROM students WHERE id = ? AND school_id = ?',
+        [student_id, schoolId]
       );
 
       if (!Array.isArray(studentRows) || studentRows.length === 0) {
-        throw new Error('Student not found');
+        throw new Error('Student not found or does not belong to your school');
       }
 
-      const schoolId = studentRows[0].school_id;
-
-      // Insert person record for contact
+      // Insert person record for contact (using session schoolId)
       const [personResult] = await connection.execute(`
         INSERT INTO people (school_id, first_name, last_name, phone, email, address)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -134,7 +148,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: 'Contact added successfully',
+        message: 'Phone number saved successfully',
         data: { contact_id: contactId }
       });
 
@@ -147,7 +161,7 @@ export async function POST(req: NextRequest) {
     console.error('Contact creation error:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to create contact'
+      error: 'Failed to save contact'
     }, { status: 500 });
   } finally {
     if (connection) await connection.end();

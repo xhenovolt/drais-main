@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * GET /api/tahfiz/reports/list
@@ -8,6 +9,10 @@ import { getConnection } from '@/lib/db';
 export async function GET() {
   let connection;
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     connection = await getConnection();
 
     const sql = `
@@ -28,7 +33,7 @@ export async function GET() {
       ORDER BY p.last_name, p.first_name
     `;
 
-    const [rows] = await connection.execute(sql, [1]); // Replace 1 with dynamic school_id if needed
+    const [rows] = await connection.execute(sql, [1]); // Replace 1 with dynamic schoolId if needed
 
     return NextResponse.json({ success: true, data: rows });
   } catch (error) {

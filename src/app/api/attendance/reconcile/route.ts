@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * POST /api/attendance/reconcile
  * Reconcile manual vs biometric attendance for a session
@@ -8,12 +9,16 @@ import { getConnection } from '@/lib/db';
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      attendance_session_id,
-      school_id = 1,
-      reconciled_by
-    } = body;
+    const { attendance_session_id,
+      reconciled_by } = body;
 
     if (!attendance_session_id) {
       return NextResponse.json({
@@ -37,7 +42,7 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    const session = (sessions[0] as any);
+    const attSession = (sessions[0] as any);
 
     // Get all attendance records for this session
     const [attendanceRecords] = await connection.execute(
@@ -105,13 +110,13 @@ export async function POST(req: NextRequest) {
         // Record reconciliation
         const [result] = await connection.execute(
           `INSERT INTO attendance_reconciliation (
-            school_id, attendance_session_id, student_id,
+            schoolId, attendance_session_id, student_id,
             manual_status, manual_marked_by, manual_marked_at,
             biometric_status, reconciliation_status, conflict_resolution,
             resolved_at, resolved_by, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, NOW(), ?, NOW())`,
           [
-            school_id,
+            schoolId,
             attendance_session_id,
             record.student_id,
             manualStatus !== 'not_marked' ? manualStatus : null,
@@ -162,9 +167,16 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('session_id');
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
 
     connection = await getConnection();
 

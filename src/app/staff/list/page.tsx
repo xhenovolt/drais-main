@@ -1,6 +1,6 @@
 "use client";
-import React, { useState } from 'react';
-import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
@@ -16,6 +16,11 @@ const StaffListPage: React.FC = () => {
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Device ID editing state
+  const [deviceIdEditingCell, setDeviceIdEditingCell] = useState<{staffId: number} | null>(null);
+  const [deviceIdValue, setDeviceIdValue] = useState('');
+  const [isUpdatingDeviceId, setIsUpdatingDeviceId] = useState(false);
 
   // Fetch staff data using the corrected API endpoint
   const { data: staffData, isLoading, mutate } = useSWR(
@@ -67,6 +72,135 @@ const StaffListPage: React.FC = () => {
       toast.error('An error occurred');
     }
   };
+
+  const handleDeleteStaff = async (staffId: number, staffName: string) => {
+    const confirmed = window.confirm(`Are you sure you want to delete ${staffName}? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/staff/${staffId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        toast.success('Staff member deleted successfully');
+        mutate();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to delete staff member');
+      }
+    } catch (error) {
+      toast.error('An error occurred while deleting staff member');
+    }
+  };
+
+  // Device ID editing functions
+  const startDeviceIdEdit = (staffId: number, currentValue: number) => {
+    if (isUpdatingDeviceId || deviceIdEditingCell) return;
+    setDeviceIdEditingCell({ staffId });
+    setDeviceIdValue(currentValue.toString());
+  };
+
+  const cancelDeviceIdEdit = () => {
+    setDeviceIdEditingCell(null);
+    setDeviceIdValue('');
+  };
+
+  const saveDeviceIdCallback = async () => {
+    if (!deviceIdEditingCell || isUpdatingDeviceId) return;
+
+    const staffMember = staff.find(s => s.id === deviceIdEditingCell.staffId);
+    if (!staffMember) return;
+
+    const newDeviceId = parseInt(deviceIdValue) || 0;
+    if (newDeviceId === (staffMember.device_user_id || 0)) {
+      cancelDeviceIdEdit();
+      return;
+    }
+
+    setIsUpdatingDeviceId(true);
+
+    try {
+      if (newDeviceId === 0) {
+        // Delete device mapping
+        if (staffMember.device_mapping_id) {
+          const response = await fetch(`/api/device-mappings/${staffMember.device_mapping_id}`, {
+            method: 'DELETE'
+          });
+
+          if (!response.ok) throw new Error('Failed to delete device mapping');
+          toast.success('Device ID removed successfully');
+        }
+      } else {
+        // Update or create device mapping
+        if (staffMember.device_mapping_id) {
+          // Update existing mapping
+          const response = await fetch(`/api/device-mappings/${staffMember.device_mapping_id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              device_user_id: newDeviceId,
+              status: 'active'
+            })
+          });
+
+          if (!response.ok) throw new Error('Failed to update device mapping');
+          toast.success('Device ID updated successfully');
+        } else {
+          // Create new mapping using the by-device endpoint which auto-selects default device
+          const response = await fetch(`/api/device-mappings/by-device`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              staff_id: staffMember.id,
+              device_user_id: newDeviceId
+            })
+          });
+
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Failed to create device mapping');
+          toast.success('Device ID assigned successfully');
+        }
+      }
+
+      mutate();
+      cancelDeviceIdEdit();
+    } catch (error: any) {
+      console.error('Device ID update error:', error);
+      toast.error(`Failed to update device ID: ${error.message}`);
+      setDeviceIdValue(staffMember.device_user_id?.toString() || '');
+    } finally {
+      setIsUpdatingDeviceId(false);
+    }
+  };
+
+  const handleDeviceIdKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveDeviceIdCallback();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelDeviceIdEdit();
+    }
+  };
+
+  // Effect to handle clicking outside of device ID editing input
+  useEffect(() => {
+    if (!deviceIdEditingCell || isUpdatingDeviceId) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('input[type="number"]') && !target.closest('.device-id-edit-container')) {
+        saveDeviceIdCallback();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [deviceIdEditingCell?.staffId, isUpdatingDeviceId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
@@ -157,11 +291,14 @@ const StaffListPage: React.FC = () => {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Position
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="hidden md:table-cell px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Contact
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="hidden lg:table-cell px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Performance
+                    </th>
+                    <th className="hidden sm:table-cell px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Device ID
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Status
@@ -206,7 +343,7 @@ const StaffListPage: React.FC = () => {
                             {member.department_name || 'No Department'}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="hidden md:table-cell px-6 py-4">
                           <div className="space-y-1">
                             {member.email && (
                               <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
@@ -222,7 +359,7 @@ const StaffListPage: React.FC = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="hidden lg:table-cell px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="w-20 bg-gray-200 dark:bg-slate-600 rounded-full h-2">
                               <div
@@ -234,6 +371,55 @@ const StaffListPage: React.FC = () => {
                               {member.performance_rating || 0}/5
                             </span>
                           </div>
+                        </td>
+                        <td className="hidden sm:table-cell px-6 py-4">
+                          <div className="text-sm text-gray-900 dark:text-white">
+                            {deviceIdEditingCell?.staffId === member.id ? (
+                              <div className="flex items-center gap-2 device-id-edit-container">
+                                <input
+                                  type="number"
+                                  value={deviceIdValue}
+                                  onChange={(e) => setDeviceIdValue(e.target.value)}
+                                  onBlur={saveDeviceIdCallback}
+                                  onKeyDown={handleDeviceIdKeyDown}
+                                  autoFocus
+                                  disabled={isUpdatingDeviceId}
+                                  className="border-2 border-blue-300 dark:border-blue-600 rounded px-2 py-1 text-sm w-24 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
+                                  placeholder="Device ID"
+                                />
+                                {isUpdatingDeviceId && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+                              </div>
+                            ) : (
+                              <>
+                                {member.device_user_id ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                      ID: {member.device_user_id}
+                                    </span>
+                                    <button
+                                      onClick={() => startDeviceIdEdit(member.id, member.device_user_id || 0)}
+                                      className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                                      title="Edit Device ID"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => startDeviceIdEdit(member.id, 0)}
+                                    className="text-xs text-gray-400 hover:text-blue-600 hover:underline transition-colors"
+                                  >
+                                    + Assign Device ID
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          {member.device_name && !deviceIdEditingCell?.staffId && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {member.device_name}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -247,22 +433,24 @@ const StaffListPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1 flex-wrap">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleViewDetails(member);
                               }}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
+                              title="Edit"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Handle delete
+                                handleDeleteStaff(member.id, `${member.first_name} ${member.last_name}`);
                               }}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
+                              title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

@@ -1,14 +1,16 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, Menu, User, Globe, Sun, Moon, Settings, ChevronDown, Check, Loader } from 'lucide-react';
+import { Bell, Search, Menu, User, Globe, Sun, Moon, Settings, ChevronDown, Check, Loader, LogOut } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { useThemeStore } from '@/hooks/useThemeStore';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import useSWR from 'swr';
 import BellClient from '@/components/notifications/BellClient';
+import NavbarSearch from './NavbarSearch';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api';
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -21,19 +23,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
   const theme = useTheme();
   const store = useThemeStore();
   const { t, lang, setLang, dir } = useI18n();
+  const { user, logout, isAuthenticated } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  // Fetch school info
-  const { data: schoolData } = useSWR(
-    `${API_BASE}/school-info`,
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  );
-  const schoolName = schoolData?.data?.school_name || 'Ibun Baz Girls Secondary School';
+  // Get school name from authenticated user's school data
+  const schoolName = user?.school?.name || user?.schoolName || 'School';
 
   // Language options
   const languages = [
@@ -58,9 +57,45 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
     };
   }, [languageOpen]);
 
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+
+    if (profileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileOpen]);
+
   const handleLanguageChange = (langCode: string) => {
     setLang(langCode);
     setLanguageOpen(false);
+  };
+
+  const handleLogout = async () => {
+    setProfileOpen(false);
+    await logout();
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    const first = user.firstName?.charAt(0) || '';
+    const last = user.lastName?.charAt(0) || '';
+    return (first + last).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U';
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (!user) return 'User';
+    return user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'User';
   };
 
   // Hide navbar on the reports page
@@ -145,14 +180,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
 
           {/* Center Section - Search */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 rtl:left-auto rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder={t('common.search')}
-                className="w-full pl-10 rtl:pl-4 rtl:pr-10 pr-4 py-2 rounded-xl bg-gray-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-[var(--color-primary)] focus:bg-white dark:focus:bg-slate-700 transition-all placeholder-gray-500 dark:placeholder-gray-400"
-              />
-            </div>
+            <NavbarSearch />
           </div>
 
           {/* Right Section */}
@@ -253,8 +281,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
 
             {/* Notifications - Replace the old bell with BellClient */}
             <BellClient 
-              userId={1} // TODO: Get from session
-              schoolId={1} // TODO: Get from session
+              userId={user?.id || 0}
+              schoolId={user?.schoolId || 0}
               className="relative"
             />
 
@@ -268,18 +296,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
             </button>
 
             {/* Profile Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={profileDropdownRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex items-center space-x-3 rtl:space-x-reverse p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 aria-label="Profile menu"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-purple-600 flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    getUserInitials()
+                  )}
                 </div>
-                <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-200">
-                  Admin
+                <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[120px] truncate">
+                  {getDisplayName()}
                 </span>
+                <ChevronDown className={clsx(
+                  "hidden sm:block w-4 h-4 text-gray-500 transition-transform duration-200",
+                  profileOpen && "rotate-180"
+                )} />
               </button>
 
               <AnimatePresence>
@@ -289,33 +325,63 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     className={clsx(
-                      "absolute top-full mt-2 w-48 rounded-xl shadow-lg border",
+                      "absolute top-full mt-2 w-64 rounded-xl shadow-lg border",
                       "bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700",
                       isRTL ? "left-0" : "right-0"
                     )}
                   >
+                    {/* User Info Header */}
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-purple-600 flex items-center justify-center text-white font-semibold">
+                          {user?.avatarUrl ? (
+                            <img src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            getUserInitials()
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                            {getDisplayName()}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {user?.email}
+                          </p>
+                        </div>
+                      </div>
+                      {user?.schoolName && (
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {user.schoolName}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Menu Items */}
                     <div className="p-2">
                       <a
-                        href="#"
-                        className="flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                        href="/settings/profile"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200"
                       >
                         <User className="w-4 h-4" />
                         <span className="text-sm">{t('navigation.profile')}</span>
                       </a>
                       <a
-                        href="#"
-                        className="flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                        href="/settings"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200"
                       >
                         <Settings className="w-4 h-4" />
                         <span className="text-sm">{t('navigation.settings')}</span>
                       </a>
                       <hr className="my-2 border-gray-200 dark:border-gray-600" />
-                      <a
-                        href="#"
-                        className="flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
                       >
+                        <LogOut className="w-4 h-4" />
                         <span className="text-sm">{t('navigation.logout')}</span>
-                      </a>
+                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -334,15 +400,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
               className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900"
             >
               <div className="p-4">
-                <div className="relative">
-                  <Search className="absolute left-3 rtl:left-auto rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder={t('common.search')}
-                    className="w-full pl-10 rtl:pl-4 rtl:pr-10 pr-4 py-2 rounded-xl bg-gray-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-[var(--color-primary)] transition-all"
-                    autoFocus
-                  />
-                </div>
+                <NavbarSearch isMobile={true} />
               </div>
             </motion.div>
           )}

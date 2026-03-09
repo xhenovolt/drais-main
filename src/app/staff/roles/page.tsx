@@ -34,7 +34,7 @@ const RolesPage: React.FC = () => {
 
   // Fetch roles
   const { data: rolesData, mutate: refreshRoles } = useSWR(
-    '/api/roles/list?school_id=1',
+    '/api/roles/list',
     fetcher
   );
 

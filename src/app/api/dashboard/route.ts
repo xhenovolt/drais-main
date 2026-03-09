@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   const connection = await getConnection();
 
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     // Fetch total classes
-    const [classes] = await connection.execute('SELECT COUNT(*) AS total_classes FROM classes');
+    const [classes] = await connection.execute('SELECT COUNT(*) AS total_classes FROM classes WHERE school_id = ?', [schoolId]);
 
     // Fetch total learners
-    const [learners] = await connection.execute('SELECT COUNT(*) AS total_learners FROM students WHERE status = "active"');
+    const [learners] = await connection.execute('SELECT COUNT(*) AS total_learners FROM students WHERE status = "active" AND school_id = ?', [schoolId]);
 
     // Fetch total boys and girls
     const [genderCounts] = await connection.execute(`
@@ -18,14 +25,14 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN p.gender = 'F' THEN 1 ELSE 0 END) AS girls
       FROM students s
       JOIN people p ON s.person_id = p.id
-      WHERE s.status = "active"
-    `);
+      WHERE s.status = "active" AND s.school_id = ?
+    `, [schoolId]);
 
     // Fetch total staff members
-    const [staff] = await connection.execute('SELECT COUNT(*) AS total_staff FROM staff WHERE status = "active"');
+    const [staff] = await connection.execute('SELECT COUNT(*) AS total_staff FROM staff WHERE status = "active" AND school_id = ?', [schoolId]);
 
     // Fetch total parents
-    const [parents] = await connection.execute('SELECT COUNT(DISTINCT student_id) AS total_parents FROM student_contacts');
+    const [parents] = await connection.execute('SELECT COUNT(DISTINCT sc.student_id) AS total_parents FROM student_contacts sc JOIN students s ON sc.student_id = s.id WHERE s.school_id = ?', [schoolId]);
 
     // Fetch learners admitted in various timeframes
     const [admissions] = await connection.execute(`
@@ -38,15 +45,18 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN YEAR(admission_date) = YEAR(CURDATE()) THEN 1 ELSE 0 END) AS this_year,
         SUM(CASE WHEN YEAR(admission_date) = YEAR(CURDATE()) - 1 THEN 1 ELSE 0 END) AS last_year
       FROM students
-    `);
+      WHERE school_id = ?
+    `, [schoolId]);
 
     // Fetch learners' payment statuses
     const [paymentStats] = await connection.execute(`
       SELECT
         SUM(CASE WHEN balance = 0 THEN 1 ELSE 0 END) AS fully_paid,
         SUM(CASE WHEN balance > 0 AND paid > 0 THEN 1 ELSE 0 END) AS partially_paid
-      FROM student_fee_items
-    `);
+      FROM student_fee_items sfi
+      JOIN students s ON sfi.student_id = s.id
+      WHERE s.school_id = ?
+    `, [schoolId]);
 
     // Fetch improving and declining learners
     const [learnerPerformance] = await connection.execute(`
@@ -54,7 +64,9 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN cr.score > 75 THEN 1 ELSE 0 END) AS improving_learners,
         SUM(CASE WHEN cr.score < 40 THEN 1 ELSE 0 END) AS declining_learners
       FROM class_results cr
-    `);
+      JOIN students s ON cr.student_id = s.id
+      WHERE s.school_id = ?
+    `, [schoolId]);
 
     // Fetch best and worst learners
     const [bestLearner] = await connection.execute(`
@@ -62,20 +74,22 @@ export async function GET(req: NextRequest) {
       FROM class_results cr
       JOIN students s ON cr.student_id = s.id
       JOIN people p ON s.person_id = p.id
-      GROUP BY cr.student_id
+      WHERE s.school_id = ?
+      GROUP BY cr.student_id, p.first_name, p.last_name
       ORDER BY best_score DESC
       LIMIT 1
-    `);
+    `, [schoolId]);
 
     const [worstLearner] = await connection.execute(`
       SELECT p.first_name, p.last_name, MIN(cr.score) AS worst_score
       FROM class_results cr
       JOIN students s ON cr.student_id = s.id
       JOIN people p ON s.person_id = p.id
-      GROUP BY cr.student_id
+      WHERE s.school_id = ?
+      GROUP BY cr.student_id, p.first_name, p.last_name
       ORDER BY worst_score ASC
       LIMIT 1
-    `);
+    `, [schoolId]);
 
     // Fetch term progress
     const [termProgress] = await connection.execute(`
@@ -83,14 +97,12 @@ export async function GET(req: NextRequest) {
         t.name AS term_name,
         DATEDIFF(t.end_date, CURDATE()) AS remaining_days,
         DATEDIFF(CURDATE(), t.start_date) AS days_covered,
-        COUNT(DISTINCT tp.day_date) AS weekends_covered,
-        COUNT(DISTINCT ph.date) AS public_days
+        0 AS weekends_covered,
+        0 AS public_days
       FROM terms t
-      LEFT JOIN term_progress_log tp ON tp.term_id = t.id AND WEEKDAY(tp.day_date) IN (5, 6)
-      LEFT JOIN public_holidays ph ON ph.date BETWEEN t.start_date AND t.end_date
-      WHERE t.status = "active"
-      GROUP BY t.id
-    `);
+      WHERE t.status = "active" AND t.school_id = ?
+      LIMIT 1
+    `, [schoolId]);
 
     return NextResponse.json({
       success: true,

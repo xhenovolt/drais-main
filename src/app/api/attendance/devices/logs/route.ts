@@ -73,6 +73,8 @@ export async function GET(req: NextRequest) {
     const total = (countResult as any[])[0]?.total || 0;
 
     // Get logs with device info
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
     const [logs] = await connection.execute(
       `SELECT 
         dl.id,
@@ -98,8 +100,8 @@ export async function GET(req: NextRequest) {
       LEFT JOIN departments dep ON st.department_id = dep.id
       WHERE ${whereClause}
       ORDER BY dl.timestamp DESC
-      LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      [...params]
     );
 
     return NextResponse.json({

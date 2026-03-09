@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../../../lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 function extractIdFromPath(pathname: string) {
   // pathname example: /api/tahfiz/plans/123
@@ -9,6 +10,10 @@ function extractIdFromPath(pathname: string) {
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const url = new URL(req.url);
     const id = extractIdFromPath(url.pathname);
     if (!id) return NextResponse.json({ error: 'Plan id required' }, { status: 400 });
@@ -27,6 +32,10 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const url = new URL(req.url);
     const id = extractIdFromPath(url.pathname);
     if (!id) return NextResponse.json({ error: 'Plan id required' }, { status: 400 });
@@ -50,6 +59,10 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const url = new URL(req.url);
     const id = extractIdFromPath(url.pathname);
     if (!id) return NextResponse.json({ error: 'Plan id required' }, { status: 400 });

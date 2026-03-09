@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const type = searchParams.get('type'); // Filter by subject_type if provided
@@ -41,9 +42,16 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
   
-  const school_id = 1;
+  // school_id comes from session (schoolId variable)
   const connection = await getConnection();
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     if (id) {
       await connection.execute('UPDATE subjects SET name=?, code=?, subject_type=? WHERE id=?', [name, code, subject_type, id]);
       await connection.end();

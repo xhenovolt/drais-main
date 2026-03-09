@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const sessionSchoolId = session.schoolId;
+
     const formData = await req.formData();
     
     // Extract all form data
     const staffData = {
       // Personal Info (people table)
-      school_id: parseInt(formData.get('school_id') as string) || 1,
+      schoolId: sessionSchoolId,
       first_name: formData.get('first_name') as string,
       last_name: formData.get('last_name') as string,
       other_name: formData.get('other_name') as string || null,
@@ -138,7 +145,7 @@ export async function POST(req: NextRequest) {
           date_of_birth, phone, email, address, photo_url
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        staffData.school_id, staffData.first_name, staffData.last_name, 
+        staffData.schoolId, staffData.first_name, staffData.last_name, 
         staffData.other_name, staffData.gender, staffData.date_of_birth,
         staffData.phone, staffData.email, staffData.address, photoUrl
       ]);
@@ -150,7 +157,7 @@ export async function POST(req: NextRequest) {
 
       // Build dynamic insert query based on existing columns (reuse columns check from above)
       const baseColumns = ['school_id', 'person_id', 'staff_no', 'position', 'status'];
-      const baseValues = [staffData.school_id, personId, finalStaffNo, staffData.position, 'active'];
+      const baseValues = [staffData.schoolId, personId, finalStaffNo, staffData.position, 'active'];
       
       const optionalColumns: { [key: string]: any } = {
         branch_id: staffData.branch_id,
@@ -196,7 +203,7 @@ export async function POST(req: NextRequest) {
             school_id, role_id, username, email, phone, password_hash, status
           ) VALUES (?, ?, ?, ?, ?, ?, 'active')
         `, [
-          staffData.school_id, staffData.role_id,
+          staffData.schoolId, staffData.role_id,
           staffData.username, staffData.email, staffData.phone, hashedPassword
         ]);
 

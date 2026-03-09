@@ -11,7 +11,7 @@ export interface AdmissionPdfOptions {
 }
 
 export function generateAdmissionPdf(student: any, form: any, opts: AdmissionPdfOptions = {}) {
-  const { schoolName='Ibun Baz Girls Secondary School', schoolNameAr='مدرسة إبن باز للبنات الثانوية', lang='bilingual' } = opts;
+  const { schoolName='School', schoolNameAr='', lang='bilingual' } = opts;
   try {
     const now = new Date();
     const sections: { titleEn: string; titleAr: string; rows: [string,string,string?][] }[] = [];

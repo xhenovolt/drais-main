@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, withTransaction } from '@/lib/db';
-import { getServerSession } from 'next-auth';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.school_id) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    const school_id = session.user.school_id;
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
 
     // Step 1: Get active students without fee items
     const missingStudents = await query(`
@@ -25,7 +22,7 @@ export async function POST(req: NextRequest) {
       AND s.status = 'active'
       AND e.status = 'active'
       AND f.id IS NULL
-    `, [school_id]);
+    `, [schoolId]);
 
     // Step 2: Get or create fee structures
     await withTransaction(async (conn) => {
@@ -35,7 +32,7 @@ export async function POST(req: NextRequest) {
           SELECT item, amount 
           FROM fee_structures 
           WHERE school_id = ? AND class_id = ? AND term_id = ?
-        `, [school_id, student.class_id, student.term_id]);
+        `, [schoolId, student.class_id, student.term_id]);
 
         // If no structure exists, create default structure
         if (!structures.length) {
@@ -46,9 +43,9 @@ export async function POST(req: NextRequest) {
               (?, ?, ?, 'Development', 100000),
               (?, ?, ?, 'Registration', 50000)
           `, [
-            school_id, student.class_id, student.term_id,
-            school_id, student.class_id, student.term_id,
-            school_id, student.class_id, student.term_id
+            schoolId, student.class_id, student.term_id,
+            schoolId, student.class_id, student.term_id,
+            schoolId, student.class_id, student.term_id
           ]);
         }
 

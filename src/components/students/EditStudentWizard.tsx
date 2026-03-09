@@ -198,7 +198,7 @@ export const EditStudentWizard: React.FC<EditStudentWizardProps> = ({ open, onCl
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col overflow-hidden"
+          className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col overflow-visible"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

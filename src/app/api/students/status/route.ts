@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function PUT(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  const schoolId = session.schoolId;
+
   const body = await req.json();
   const { student_id, new_status } = body;
 
@@ -12,9 +19,15 @@ export async function PUT(req: NextRequest) {
   const connection = await getConnection();
 
   try {
+    // Verify student belongs to this school
+    const [check] = await connection.execute('SELECT id FROM students WHERE id = ? AND school_id = ?', [student_id, schoolId]);
+    if (!Array.isArray(check) || check.length === 0) {
+      return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
+    }
+
     await connection.execute(
-      `UPDATE students SET status = ? WHERE id = ?`,
-      [new_status, student_id]
+      `UPDATE students SET status = ? WHERE id = ? AND school_id = ?`,
+      [new_status, student_id, schoolId]
     );
 
     await connection.execute(

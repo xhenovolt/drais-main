@@ -3,14 +3,22 @@ import { getConnection } from '@/lib/db';
 import { generateReceiptPDF, generateInvoicePDF } from '@/lib/receipts';
 import { v4 as uuidv4 } from 'uuid';
 
+import { getSessionSchoolId } from '@/lib/auth';
 // GET /api/finance/invoices?student_id=&term_id=
 // Generate invoice for a student
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const studentId = searchParams.get('student_id');
     const termId = searchParams.get('term_id');
     const invoiceId = searchParams.get('invoice_id');
@@ -96,7 +104,7 @@ export async function GET(req: NextRequest) {
     // Prepare invoice data
     const invoiceData = {
       invoice_no: invoiceNo,
-      school_name: school.name || 'Ibun Baz Girls Secondary School',
+      school_name: school.name || 'School',
       school_address: school.address || '',
       school_phone: school.phone || '',
       school_email: school.email || '',
@@ -175,14 +183,18 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      student_id,
+    const { student_id,
       term_id,
       items = [],
-      notes
-    } = body;
+      notes } = body;
     
     if (!student_id) {
       return NextResponse.json({
@@ -222,7 +234,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO receipts (school_id, invoice_no, metadata, generated_at)
       VALUES (?, ?, ?, NOW())
     `, [
-      school_id,
+      schoolId,
       invoiceNo,
       JSON.stringify({
         student_id,

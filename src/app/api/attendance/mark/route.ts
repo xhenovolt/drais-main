@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/utils/database';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { student_id, class_id, date, action, method, time } = await request.json();
 
     if (!student_id || !class_id || !date || !action) {
@@ -14,6 +21,15 @@ export async function POST(request: NextRequest) {
 
     let query = '';
     let params: any[] = [];
+
+    // Verify student belongs to this school
+    const studentCheck = await executeQuery(
+      'SELECT id FROM students WHERE id = ? AND school_id = ?',
+      [student_id, schoolId]
+    );
+    if (!Array.isArray(studentCheck) || studentCheck.length === 0) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
 
     // Check if attendance record exists for this student, date, and class
     const existingRecord = await executeQuery(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * BULK PROMOTIONS API
  * Endpoint: /api/promotions/bulk
@@ -14,10 +15,15 @@ import { getConnection } from '@/lib/db';
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      mode = 'manual',
-      school_id = 1,
+    const { mode = 'manual',
       academic_year_id,
       from_class_id,
       to_class_id,
@@ -26,8 +32,7 @@ export async function POST(req: NextRequest) {
       criteria,
       promoted_by,
       promotion_reason = 'manual',
-      promotion_notes = ''
-    } = body;
+      promotion_notes = '' } = body;
 
     if (!academic_year_id || !from_class_id || !to_class_id) {
       return NextResponse.json(
@@ -52,7 +57,7 @@ export async function POST(req: NextRequest) {
           c.name as current_class_name,
           c2.name as destination_class_name
         FROM students s
-        JOIN persons p ON s.person_id = p.id
+        JOIN people p ON s.person_id = p.id
         JOIN enrollments e ON s.id = e.student_id
         JOIN classes c ON e.class_id = c.id
         JOIN classes c2 ON c2.id = ?
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
           AND s.school_id = ?
           AND e.academic_year_id = ?
           AND s.deleted_at IS NULL`,
-        [to_class_id, school_id, academic_year_id, ...student_ids]
+        [to_class_id, schoolId, academic_year_id, ...student_ids]
       );
       eligibleStudents = students as any[];
     } else if (mode === 'condition_based' && criteria) {
@@ -84,7 +89,7 @@ export async function POST(req: NextRequest) {
           COALESCE(AVG(r.total_marks), 0) as average_marks,
           COUNT(DISTINCT CASE WHEN r.grade IS NOT NULL AND r.grade NOT IN ('F', 'U') THEN r.subject_id END) as subjects_passed
         FROM students s
-        JOIN persons p ON s.person_id = p.id
+        JOIN people p ON s.person_id = p.id
         JOIN enrollments e ON s.id = e.student_id
         JOIN classes c ON e.class_id = c.id
         JOIN classes c2 ON c2.id = ?
@@ -106,7 +111,7 @@ export async function POST(req: NextRequest) {
           to_class_id,
           academic_year_id,
           academic_year_id,
-          school_id,
+          schoolId,
           academic_year_id,
           from_class_id,
           minimum_total_marks,
@@ -148,7 +153,7 @@ export async function POST(req: NextRequest) {
           // Insert promotion record
           await connection.execute(
             `INSERT INTO promotions (
-              school_id,
+              schoolId,
               student_id,
               from_class_id,
               to_class_id,
@@ -166,7 +171,7 @@ export async function POST(req: NextRequest) {
               promotion_status = 'promoted',
               updated_at = NOW()`,
             [
-              school_id,
+              schoolId,
               student.id,
               from_class_id,
               to_class_id,
@@ -196,7 +201,7 @@ export async function POST(req: NextRequest) {
               criteria ? JSON.stringify(criteria) : null,
               promotion_notes,
               student.id,
-              school_id
+              schoolId
             ]
           );
 
@@ -213,7 +218,7 @@ export async function POST(req: NextRequest) {
           // Log audit
           await connection.execute(
             `INSERT INTO promotion_audit_log (
-              school_id,
+              schoolId,
               student_id,
               action_type,
               from_class_id,
@@ -227,7 +232,7 @@ export async function POST(req: NextRequest) {
               reason
             ) VALUES (?, ?, 'promoted', ?, ?, ?, ?, 'pending', 'promoted', ?, ?, ?)`,
             [
-              school_id,
+              schoolId,
               student.id,
               from_class_id,
               to_class_id,

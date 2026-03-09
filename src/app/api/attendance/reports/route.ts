@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * POST /api/attendance/reports
  * Generate attendance reports
@@ -8,17 +9,21 @@ import { getConnection } from '@/lib/db';
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      report_type = 'daily_summary',
+    const { report_type = 'daily_summary',
       date_from,
       date_to,
       class_id,
       stream_id,
       academic_year_id,
-      generated_by
-    } = body;
+      generated_by } = body;
 
     if (!date_from || !date_to) {
       return NextResponse.json({
@@ -33,22 +38,22 @@ export async function POST(req: NextRequest) {
 
     switch (report_type) {
       case 'daily_summary':
-        reportData = await generateDailySummary(connection, school_id, date_from, date_to, class_id);
+        reportData = await generateDailySummary(connection, schoolId, date_from, date_to, class_id);
         break;
       case 'weekly_trend':
-        reportData = await generateWeeklyTrend(connection, school_id, date_from, date_to, class_id);
+        reportData = await generateWeeklyTrend(connection, schoolId, date_from, date_to, class_id);
         break;
       case 'monthly_summary':
-        reportData = await generateMonthlySummary(connection, school_id, date_from, date_to, class_id);
+        reportData = await generateMonthlySummary(connection, schoolId, date_from, date_to, class_id);
         break;
       case 'class_analysis':
-        reportData = await generateClassAnalysis(connection, school_id, class_id, date_from, date_to);
+        reportData = await generateClassAnalysis(connection, schoolId, class_id, date_from, date_to);
         break;
       case 'student_profile':
-        reportData = await generateStudentProfile(connection, school_id, date_from, date_to);
+        reportData = await generateStudentProfile(connection, schoolId, date_from, date_to);
         break;
       case 'period_comparison':
-        reportData = await generatePeriodComparison(connection, school_id, date_from, date_to);
+        reportData = await generatePeriodComparison(connection, schoolId, date_from, date_to);
         break;
       default:
         return NextResponse.json({
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
         academic_year_id, report_data, generated_by, generated_at, expires_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY))`,
       [
-        school_id, report_type, date_from, date_to, class_id, stream_id,
+        schoolId, report_type, date_from, date_to, class_id, stream_id,
         academic_year_id, JSON.stringify(reportData), generated_by
       ]
     );
@@ -98,8 +103,15 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
     const reportId = searchParams.get('report_id');
     const reportType = searchParams.get('report_type');
 

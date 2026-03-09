@@ -26,7 +26,7 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Fetch students and document types
-  const { data: studentsData } = useSWR('/api/students/full?school_id=1', fetcher);
+  const { data: studentsData } = useSWR('/api/students/full', fetcher);
   const { data: documentTypesData } = useSWR('/api/document-types', fetcher);
 
   const students = studentsData?.data || [];

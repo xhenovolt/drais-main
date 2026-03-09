@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import * as XLSX from 'xlsx';
+import { getSessionSchoolId } from '@/lib/auth';
 
 function safe(v: any) { return (v === undefined || v === '' || v === null) ? null : v; }
 
@@ -41,6 +42,10 @@ function parseCSV(csvContent: string): string[][] {
 export async function POST(request: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -182,8 +187,25 @@ export async function POST(request: NextRequest) {
             );
             const personId = personResult.insertId;
 
+            // Generate sequential admission number
+            const year = new Date().getFullYear();
+            const [admRows]: any = await connection.execute(
+              `SELECT admission_no FROM students 
+               WHERE school_id = ? AND admission_no LIKE ? 
+               ORDER BY CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(admission_no, '/', 2), '/', -1) AS UNSIGNED) DESC 
+               LIMIT 1`,
+              [1, `XHN/%/${year}`]
+            );
+            let seq = 1;
+            if (admRows.length && admRows[0].admission_no) {
+              const parts = admRows[0].admission_no.split('/');
+              const num = parseInt(parts[1] || '0', 10);
+              seq = num + 1;
+            }
+            const padded = String(seq).padStart(4, '0');
+            const admission_no = `XHN/${padded}/${year}`;
+            
             // Insert student
-            const admission_no = `XHN/${personId.toString().padStart(4, '0')}/${new Date().getFullYear()}`;
             const [studentResult]: any = await connection.execute(
               'INSERT INTO students (school_id, person_id, admission_no, village_id, status, notes) VALUES (?, ?, ?, ?, ?, ?)',
               [

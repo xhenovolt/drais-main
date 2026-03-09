@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../../lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
   const url = new URL(req.url);
   const id = url.searchParams.get('id');
   if (id) {
@@ -19,7 +24,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { school_id, person, admission_no, village_id, admission_date, status } = await req.json();
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
+  const { person, admission_no, village_id, admission_date, status } = await req.json();
   // create person then student (minimal)
   const resP: any = await query('INSERT INTO people (school_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)', [school_id, person.first_name, person.last_name, person.phone || null, person.email || null]);
   const personId = resP.insertId;
@@ -28,6 +37,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
   const body = await req.json();
   const { id, person_updates, student_updates } = body;
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
@@ -53,6 +66,10 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
   const url = new URL(req.url);
   const id = url.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

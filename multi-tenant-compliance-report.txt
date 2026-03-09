@@ -1,0 +1,1414 @@
+
+DRAIS V1 - Multi-Tenant Compliance Report
+Generated: 2026-03-08T14:41:56.378Z
+
+FILES SCANNED: 207
+COMPLIANT: 100
+VIOLATIONS: 224
+
+SEVERITY BREAKDOWN:
+- CRITICAL: 89
+- HIGH: 135
+- MEDIUM: 0
+
+DETAILED VIOLATIONS:
+
+1. [HIGH] src/app/api/academic_years/route.ts
+   Line 6: SELECT without WHERE clause
+   Table: academic_years
+   Query: SELECT id, school_id, name, start_date, end_date, status FROM academic_years...
+
+
+2. [HIGH] src/app/api/academics/promotions/route.ts
+   Line 22: SELECT without school_id filter
+   Table: terms
+   Query: SELECT id, name, term_number, academic_year_id FROM terms WHERE...
+
+
+3. [HIGH] src/app/api/analytics/student-performance/route.ts
+   Line 26: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT cr2.score 
+          FROM class_results...
+
+
+4. [HIGH] src/app/api/attendance/biometric/route.ts
+   Line 43: SELECT without school_id filter
+   Table: enrollments
+   Query: SELECT class_id FROM enrollments WHERE...
+
+
+5. [HIGH] src/app/api/attendance/biometric/route.ts
+   Line 73: SELECT without school_id filter
+   Table: students
+   Query: SELECT p.first_name, p.last_name FROM students s JOIN people p ON s.person_id = p.id WHERE...
+
+
+6. [CRITICAL] src/app/api/attendance/biometric/route.ts
+   Line 37: UPDATE without school_id filter
+   Table: student_fingerprints
+   Query: UPDATE student_fingerprints SET last_used_at = CURRENT_TIMESTAMP, counter = counter + 1 WHERE...
+
+
+7. [HIGH] src/app/api/attendance/biometric/sync/route.ts
+   Line 76: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT e.id, e.class_id, e.stream_id, e.academic_year_id
+           FROM enrollments...
+
+
+8. [HIGH] src/app/api/attendance/biometric/sync/route.ts
+   Line 97: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id FROM student_attendance...
+
+
+9. [HIGH] src/app/api/attendance/bulk-mark/route.ts
+   Line 35: SELECT without school_id filter
+   Table: student_attendance
+   Query: SELECT id FROM student_attendance WHERE...
+
+
+10. [HIGH] src/app/api/attendance/bulk-mark/route.ts
+   Line 14: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id 
+      FROM students...
+
+
+11. [CRITICAL] src/app/api/attendance/dahua/[id]/logs/route.ts
+   Line 120: UPDATE without school_id filter
+   Table: dahua_devices
+   Query: UPDATE dahua_devices SET last_sync_status = 'failed', last_error_message = ? WHERE...
+
+
+12. [HIGH] src/app/api/attendance/dahua/[id]/logs/route.ts
+   Line 143: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id FROM students...
+
+
+13. [HIGH] src/app/api/attendance/dahua/[id]/logs/route.ts
+   Line 198: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT class_id, stream_id, academic_year_id FROM enrollments...
+
+
+14. [HIGH] src/app/api/attendance/dahua/[id]/logs/route.ts
+   Line 208: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id FROM student_attendance...
+
+
+15. [CRITICAL] src/app/api/attendance/dahua/[id]/route.ts
+   Line 117: UPDATE without school_id filter
+   Table: dahua_devices
+   Query: UPDATE dahua_devices SET ${updates.join(', ')}, updated_at = NOW() WHERE...
+
+
+16. [CRITICAL] src/app/api/attendance/dahua/[id]/route.ts
+   Line 162: UPDATE without school_id filter
+   Table: dahua_devices
+   Query: UPDATE dahua_devices SET status = ? WHERE...
+
+
+17. [HIGH] src/app/api/attendance/dahua/[id]/sync/route.ts
+   Line 153: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id FROM students...
+
+
+18. [HIGH] src/app/api/attendance/dahua/[id]/sync/route.ts
+   Line 208: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT class_id, stream_id, academic_year_id FROM enrollments...
+
+
+19. [HIGH] src/app/api/attendance/dahua/[id]/sync/route.ts
+   Line 218: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id FROM student_attendance...
+
+
+20. [CRITICAL] src/app/api/attendance/devices/[id]/route.ts
+   Line 175: DELETE without school_id filter
+   Table: device_sync_checkpoints
+   Query: DELETE FROM device_sync_checkpoints WHERE...
+
+
+21. [HIGH] src/app/api/attendance/devices/[id]/route.ts
+   Line 38: SELECT without WHERE clause
+   Table: biometric_devices
+   Query: SELECT last_sync_timestamp FROM device_sync_checkpoints WHERE device_id = b.id) as last_checkpoint
+ ...
+
+
+22. [HIGH] src/app/api/attendance/devices/analytics/route.ts
+   Line 124: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id, CONCAT(s.first_name, ' ', s.last_name) as name, c.class_name as class
+      FROM studen...
+
+
+23. [HIGH] src/app/api/attendance/devices/fetch-logs/route.ts
+   Line 62: SELECT without school_id filter
+   Table: biometric_devices
+   Query: SELECT * FROM biometric_devices WHERE...
+
+
+24. [CRITICAL] src/app/api/attendance/devices/fetch-logs/route.ts
+   Line 93: UPDATE without school_id filter
+   Table: biometric_devices
+   Query: UPDATE biometric_devices SET last_sync_time = NOW(), sync_status = ? WHERE...
+
+
+25. [HIGH] src/app/api/attendance/devices/logs/route.ts
+   Line 58: SELECT without school_id filter
+   Table: students
+   Query: SELECT id FROM students WHERE...
+
+
+26. [HIGH] src/app/api/attendance/devices/process-logs/route.ts
+   Line 166: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id FROM students...
+
+
+27. [HIGH] src/app/api/attendance/mark/route.ts
+   Line 20: SELECT without school_id filter
+   Table: student_attendance
+   Query: SELECT * FROM student_attendance WHERE...
+
+
+28. [HIGH] src/app/api/attendance/reconcile/route.ts
+   Line 86: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id FROM student_attendance...
+
+
+29. [HIGH] src/app/api/attendance/reports/route.ts
+   Line 281: SELECT without school_id filter
+   Table: classes
+   Query: SELECT name, level FROM classes WHERE...
+
+
+30. [HIGH] src/app/api/attendance/route.ts
+   Line 94: SELECT without school_id filter
+   Table: enrollments
+   Query: SELECT class_id FROM enrollments WHERE...
+
+
+31. [HIGH] src/app/api/attendance/sessions/[id]/route.ts
+   Line 184: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT COUNT(*) as count FROM student_attendance...
+
+
+32. [HIGH] src/app/api/attendance/signin/route.ts
+   Line 62: SELECT without school_id filter
+   Table: students
+   Query: SELECT id, first_name, last_name FROM students WHERE...
+
+
+33. [HIGH] src/app/api/attendance/signin/route.ts
+   Line 78: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id, status, time_in, time_out 
+         FROM student_attendance...
+
+
+34. [HIGH] src/app/api/attendance/signin/route.ts
+   Line 209: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id, student_id, class_id, date, status, time_in, time_out, created_at, updated_at
+       FRO...
+
+
+35. [HIGH] src/app/api/attendance/signout/route.ts
+   Line 63: SELECT without school_id filter
+   Table: students
+   Query: SELECT id, first_name, last_name FROM students WHERE...
+
+
+36. [HIGH] src/app/api/attendance/signout/route.ts
+   Line 77: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id, status, time_in, time_out 
+         FROM student_attendance...
+
+
+37. [HIGH] src/app/api/attendance/signout/route.ts
+   Line 230: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT id, student_id, class_id, date, status, time_in, time_out, created_at, updated_at
+       FRO...
+
+
+38. [CRITICAL] src/app/api/auth/login/route.ts
+   Line 145: UPDATE without school_id filter
+   Table: users
+   Query: UPDATE users SET failed_login_attempts = COALESCE(failed_login_attempts, 0) + 1 WHERE...
+
+
+39. [CRITICAL] src/app/api/auth/login/route.ts
+   Line 195: UPDATE without school_id filter
+   Table: users
+   Query: UPDATE users SET last_login_at = NOW(), failed_login_attempts = 0 WHERE...
+
+
+40. [HIGH] src/app/api/auth/login/route.ts
+   Line 201: SELECT without WHERE clause
+   Table: user_roles
+   Query: SELECT r.id, r.name
+       FROM user_roles...
+
+
+41. [HIGH] src/app/api/auth/login/route.ts
+   Line 220: SELECT without WHERE clause
+   Table: user_roles
+   Query: SELECT DISTINCT p.code
+         FROM user_roles...
+
+
+42. [CRITICAL] src/app/api/auth/logout/route.ts
+   Line 18: UPDATE without school_id filter
+   Table: sessions
+   Query: UPDATE sessions SET is_active = FALSE, updated_at = NOW() WHERE...
+
+
+43. [HIGH] src/app/api/auth/me/route.ts
+   Line 132: SELECT without WHERE clause
+   Table: user_roles
+   Query: SELECT r.id, r.name, r.slug, r.is_super_admin
+       FROM user_roles...
+
+
+44. [HIGH] src/app/api/auth/me/route.ts
+   Line 150: SELECT without WHERE clause
+   Table: user_roles
+   Query: SELECT DISTINCT p.code
+         FROM user_roles...
+
+
+45. [HIGH] src/app/api/auth/signup/route.ts
+   Line 272: SELECT without WHERE clause
+   Table: roles
+   Query: SELECT id FROM roles...
+
+
+46. [HIGH] src/app/api/biometric-devices/route.ts
+   Line 101: SELECT without school_id filter
+   Table: biometric_devices
+   Query: SELECT id FROM biometric_devices WHERE...
+
+
+47. [HIGH] src/app/api/class-results/[id]/route.ts
+   Line 27: SELECT without school_id filter
+   Table: class_results
+   Query: SELECT * FROM class_results WHERE...
+
+
+48. [HIGH] src/app/api/class-results/[id]/route.ts
+   Line 53: SELECT without school_id filter
+   Table: class_results
+   Query: SELECT * FROM class_results WHERE...
+
+
+49. [CRITICAL] src/app/api/class_results/[id]/route.ts
+   Line 8: UPDATE without school_id filter
+   Table: class_results
+   Query: UPDATE class_results SET score = ?, updated_at = NOW() WHERE...
+
+
+50. [HIGH] src/app/api/class_results/missing/route.ts
+   Line 19: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT COUNT(*) AS total FROM class_results...
+
+
+51. [HIGH] src/app/api/class_results/missing/route.ts
+   Line 28: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT e.*, s.id as student_id, p.first_name, p.last_name
+         FROM enrollments...
+
+
+52. [HIGH] src/app/api/class_results/missing/route.ts
+   Line 41: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT e.*, s.id as student_id, p.first_name, p.last_name
+        FROM enrollments...
+
+
+53. [HIGH] src/app/api/class_results/submit/route.ts
+   Line 27: SELECT without school_id filter
+   Table: class_results
+   Query: SELECT COUNT(*) as count FROM class_results WHERE...
+
+
+54. [HIGH] src/app/api/class_results copy/missing/route.ts
+   Line 18: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT COUNT(*) AS total FROM class_results...
+
+
+55. [HIGH] src/app/api/class_results copy/missing/route.ts
+   Line 26: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT e.*, s.id as student_id, p.first_name, p.last_name
+       FROM enrollments...
+
+
+56. [HIGH] src/app/api/class_results copy/missing/route.ts
+   Line 38: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT e.*, s.id as student_id, p.first_name, p.last_name
+       FROM enrollments...
+
+
+57. [HIGH] src/app/api/class_results copy/submit/route.ts
+   Line 26: SELECT without school_id filter
+   Table: class_results
+   Query: SELECT COUNT(*) as count FROM class_results WHERE...
+
+
+58. [CRITICAL] src/app/api/classes/route.ts
+   Line 89: DELETE without school_id filter
+   Table: classes
+   Query: DELETE FROM classes WHERE...
+
+
+59. [CRITICAL] src/app/api/curriculums/route.ts
+   Line 38: UPDATE without school_id filter
+   Table: curriculums
+   Query: UPDATE curriculums SET code=?, name=? WHERE...
+
+
+60. [CRITICAL] src/app/api/curriculums/route.ts
+   Line 52: DELETE without school_id filter
+   Table: curriculums
+   Query: DELETE FROM curriculums WHERE...
+
+
+61. [HIGH] src/app/api/dashboard/admissions-analytics/route.ts
+   Line 32: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COUNT(*) as count FROM students...
+
+
+62. [HIGH] src/app/api/dashboard/admissions-analytics/route.ts
+   Line 40: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COUNT(*) as count FROM students...
+
+
+63. [HIGH] src/app/api/dashboard/admissions-analytics/route.ts
+   Line 48: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COUNT(*) as count FROM students...
+
+
+64. [HIGH] src/app/api/dashboard/overview/route.ts
+   Line 97: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT p.first_name, p.last_name, AVG(cr.score) AS best_score
+        FROM class_results...
+
+
+65. [HIGH] src/app/api/dashboard/overview/route.ts
+   Line 109: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT p.first_name, p.last_name, AVG(cr.score) AS worst_score
+        FROM class_results...
+
+
+66. [HIGH] src/app/api/dashboard/route.ts
+   Line 12: SELECT without school_id filter
+   Table: students
+   Query: SELECT COUNT(*) AS total_learners FROM students WHERE...
+
+
+67. [HIGH] src/app/api/dashboard/route.ts
+   Line 25: SELECT without school_id filter
+   Table: staff
+   Query: SELECT COUNT(*) AS total_staff FROM staff WHERE...
+
+
+68. [HIGH] src/app/api/dashboard/route.ts
+   Line 9: SELECT without WHERE clause
+   Table: classes
+   Query: SELECT COUNT(*) AS total_classes FROM classes...
+
+
+69. [HIGH] src/app/api/dashboard/route.ts
+   Line 61: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT p.first_name, p.last_name, MAX(cr.score) AS best_score
+      FROM class_results...
+
+
+70. [HIGH] src/app/api/dashboard/route.ts
+   Line 71: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT p.first_name, p.last_name, MIN(cr.score) AS worst_score
+      FROM class_results...
+
+
+71. [CRITICAL] src/app/api/deadlines/route.ts
+   Line 47: UPDATE without school_id filter
+   Table: result_submission_deadlines
+   Query: UPDATE result_submission_deadlines SET exam_id=?, deadline_date=?, created_by=? WHERE...
+
+
+72. [CRITICAL] src/app/api/deadlines/route.ts
+   Line 66: DELETE without school_id filter
+   Table: result_submission_deadlines
+   Query: DELETE FROM result_submission_deadlines WHERE...
+
+
+73. [CRITICAL] src/app/api/device-mappings/[id]/route.ts
+   Line 74: UPDATE without school_id filter
+   Table: device_user_mappings
+   Query: UPDATE device_user_mappings SET ${updateFields.join(', ')} WHERE...
+
+
+74. [CRITICAL] src/app/api/device-mappings/[id]/route.ts
+   Line 143: DELETE without school_id filter
+   Table: device_user_mappings
+   Query: DELETE FROM device_user_mappings WHERE...
+
+
+75. [HIGH] src/app/api/device-mappings/by-device/route.ts
+   Line 108: SELECT without school_id filter
+   Table: device_user_mappings
+   Query: SELECT id FROM device_user_mappings WHERE ${where...
+
+
+76. [HIGH] src/app/api/device-mappings/by-device/route.ts
+   Line 43: SELECT without WHERE clause
+   Table: biometric_devices
+   Query: SELECT id FROM biometric_devices...
+
+
+77. [HIGH] src/app/api/device-mappings/by-device/route.ts
+   Line 144: SELECT without WHERE clause
+   Table: device_user_mappings
+   Query: SELECT id FROM device_user_mappings...
+
+
+78. [HIGH] src/app/api/device-mappings/route.ts
+   Line 147: SELECT without WHERE clause
+   Table: device_user_mappings
+   Query: SELECT id FROM device_user_mappings...
+
+
+79. [CRITICAL] src/app/api/exams/route.ts
+   Line 49: DELETE without school_id filter
+   Table: exams
+   Query: DELETE FROM exams WHERE...
+
+
+80. [CRITICAL] src/app/api/finance/fee_payments/route.ts
+   Line 50: UPDATE without school_id filter
+   Table: student_fee_items
+   Query: UPDATE student_fee_items SET paid = paid + ? WHERE...
+
+
+81. [HIGH] src/app/api/finance/fees/route.ts
+   Line 115: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id
+        FROM students...
+
+
+82. [HIGH] src/app/api/finance/invoices/route.ts
+   Line 75: SELECT without school_id filter
+   Table: terms
+   Query: SELECT * FROM terms WHERE...
+
+
+83. [HIGH] src/app/api/finance/invoices/route.ts
+   Line 82: SELECT without school_id filter
+   Table: academic_years
+   Query: SELECT * FROM academic_years WHERE...
+
+
+84. [HIGH] src/app/api/finance/invoices/route.ts
+   Line 213: SELECT without school_id filter
+   Table: academic_years
+   Query: SELECT * FROM academic_years WHERE...
+
+
+85. [HIGH] src/app/api/finance/invoices/route.ts
+   Line 199: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id, s.admission_no, p.first_name, p.last_name
+      FROM students...
+
+
+86. [HIGH] src/app/api/finance/ledger/fees/route.ts
+   Line 105: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COUNT(DISTINCT s.id) as total
+      FROM students...
+
+
+87. [HIGH] src/app/api/finance/mpesa/stk-push/route.ts
+   Line 87: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id, s.admission_no, p.first_name, p.last_name
+      FROM students...
+
+
+88. [CRITICAL] src/app/api/finance/pay_fee_item/route.ts
+   Line 21: UPDATE without school_id filter
+   Table: student_fee_items
+   Query: UPDATE student_fee_items SET paid = paid + ? WHERE...
+
+
+89. [HIGH] src/app/api/finance/student_fee_items/route.ts
+   Line 20: SELECT without school_id filter
+   Table: enrollments
+   Query: SELECT student_id FROM enrollments WHERE...
+
+
+90. [HIGH] src/app/api/finance/student_fee_items/route.ts
+   Line 39: SELECT without school_id filter
+   Table: enrollments
+   Query: SELECT DISTINCT e.student_id FROM enrollments e WHERE...
+
+
+91. [CRITICAL] src/app/api/finance/student_fee_items/route.ts
+   Line 89: UPDATE without school_id filter
+   Table: student_fee_items
+   Query: UPDATE student_fee_items SET ${sets.join(', ')} WHERE...
+
+
+92. [HIGH] src/app/api/fingerprints/route.ts
+   Line 132: SELECT without school_id filter
+   Table: students
+   Query: SELECT school_id FROM students WHERE...
+
+
+93. [HIGH] src/app/api/fingerprints/route.ts
+   Line 231: SELECT without school_id filter
+   Table: students
+   Query: SELECT s.school_id, ?, ?, ?, ?, ?, 'active', 1, NOW()
+      FROM students s WHERE...
+
+
+94. [CRITICAL] src/app/api/payroll_definitions/route.ts
+   Line 36: UPDATE without school_id filter
+   Table: payroll_definitions
+   Query: UPDATE payroll_definitions SET name = ?, type = ? WHERE...
+
+
+95. [CRITICAL] src/app/api/payroll_definitions/route.ts
+   Line 50: DELETE without school_id filter
+   Table: payroll_definitions
+   Query: DELETE FROM payroll_definitions WHERE...
+
+
+96. [HIGH] src/app/api/promotions/bulk/route.ts
+   Line 93: SELECT without school_id filter
+   Table: terms
+   Query: SELECT id FROM terms WHERE...
+
+
+97. [HIGH] src/app/api/promotions/preview/route.ts
+   Line 73: SELECT without school_id filter
+   Table: terms
+   Query: SELECT id FROM terms WHERE...
+
+
+98. [HIGH] src/app/api/promotions/preview/route.ts
+   Line 61: SELECT without WHERE clause
+   Table: student_attendance
+   Query: SELECT ROUND(COUNT(CASE WHEN status = 'present' OR status = 'late' THEN 1 END) / COUNT(*) * 100, 2)
+...
+
+
+99. [HIGH] src/app/api/promotions/route.ts
+   Line 36: SELECT without school_id filter
+   Table: classes
+   Query: SELECT name FROM classes WHERE...
+
+
+100. [HIGH] src/app/api/promotions/route.ts
+   Line 229: SELECT without school_id filter
+   Table: students
+   Query: SELECT promotion_status FROM students WHERE...
+
+
+101. [HIGH] src/app/api/promotions/route.ts
+   Line 238: SELECT without WHERE clause
+   Table: promotions
+   Query: SELECT id FROM promotions...
+
+
+102. [CRITICAL] src/app/api/reminders/route.ts
+   Line 127: UPDATE without school_id filter
+   Table: reminders
+   Query: UPDATE reminders SET title=?, description=?, target_role=?, due_date=?, is_recurring=?, created_by=?...
+
+
+103. [CRITICAL] src/app/api/reminders/route.ts
+   Line 147: DELETE without school_id filter
+   Table: reminders
+   Query: DELETE FROM reminders WHERE...
+
+
+104. [HIGH] src/app/api/reminders/send-teacher-reminder/route.ts
+   Line 35: SELECT without school_id filter
+   Table: staff
+   Query: SELECT p.phone FROM staff s JOIN people p ON s.person_id = p.id WHERE...
+
+
+105. [HIGH] src/app/api/reports/student.ts
+   Line 9: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.first_name, s.last_name, s.date_of_birth, c.name AS class_name, r.subject_name, r.score, r....
+
+
+106. [HIGH] src/app/api/result-deadlines/route.ts
+   Line 60: SELECT without school_id filter
+   Table: staff
+   Query: SELECT phone FROM staff WHERE...
+
+
+107. [CRITICAL] src/app/api/result_types/[id]/route.ts
+   Line 46: DELETE without school_id filter
+   Table: result_types
+   Query: DELETE FROM result_types WHERE...
+
+
+108. [HIGH] src/app/api/result_types/route.ts
+   Line 12: SELECT without WHERE clause
+   Table: result_types
+   Query: SELECT id, school_id, name, code, description, weight, status, deadline, created_at, updated_at 
+  ...
+
+
+109. [HIGH] src/app/api/results/[id]/route.ts
+   Line 22: SELECT without school_id filter
+   Table: results
+   Query: SELECT * FROM results WHERE...
+
+
+110. [CRITICAL] src/app/api/results/[id]/route.ts
+   Line 18: UPDATE without school_id filter
+   Table: results
+   Query: UPDATE results SET score = ?, grade = ?, remarks = ? WHERE...
+
+
+111. [HIGH] src/app/api/roles/[id]/route.ts
+   Line 57: SELECT without school_id filter
+   Table: staff
+   Query: SELECT COUNT(*) as count FROM staff WHERE...
+
+
+112. [CRITICAL] src/app/api/roles/[id]/route.ts
+   Line 25: UPDATE without school_id filter
+   Table: roles
+   Query: UPDATE roles SET name = ?, description = ? WHERE...
+
+
+113. [CRITICAL] src/app/api/roles/[id]/route.ts
+   Line 68: DELETE without school_id filter
+   Table: roles
+   Query: DELETE FROM roles WHERE...
+
+
+114. [HIGH] src/app/api/roles/list/route.ts
+   Line 14: SELECT without WHERE clause
+   Table: roles
+   Query: SELECT id, name, description
+      FROM roles...
+
+
+115. [CRITICAL] src/app/api/salary_payments/route.ts
+   Line 36: UPDATE without school_id filter
+   Table: salary_payments
+   Query: UPDATE salary_payments SET staff_id = ?, wallet_id = ?, amount = ?, method = ?, reference = ? WHERE...
+
+
+116. [CRITICAL] src/app/api/salary_payments/route.ts
+   Line 50: DELETE without school_id filter
+   Table: salary_payments
+   Query: DELETE FROM salary_payments WHERE...
+
+
+117. [CRITICAL] src/app/api/schools/create/route.ts
+   Line 56: UPDATE without school_id filter
+   Table: users
+   Query: UPDATE users SET school_id = ? WHERE...
+
+
+118. [CRITICAL] src/app/api/schools/select/route.ts
+   Line 53: UPDATE without school_id filter
+   Table: users
+   Query: UPDATE users SET school_id = ? WHERE...
+
+
+119. [HIGH] src/app/api/schools/select/route.ts
+   Line 59: SELECT without WHERE clause
+   Table: user_roles
+   Query: SELECT ur.role_id FROM user_roles...
+
+
+120. [HIGH] src/app/api/staff/[id]/route.ts
+   Line 33: SELECT without school_id filter
+   Table: staff
+   Query: SELECT id, person_id FROM staff WHERE...
+
+
+121. [HIGH] src/app/api/staff/[id]/route.ts
+   Line 169: SELECT without school_id filter
+   Table: device_user_mappings
+   Query: SELECT id FROM device_user_mappings WHERE...
+
+
+122. [HIGH] src/app/api/staff/[id]/route.ts
+   Line 228: SELECT without school_id filter
+   Table: staff
+   Query: SELECT id FROM staff WHERE...
+
+
+123. [CRITICAL] src/app/api/staff/[id]/route.ts
+   Line 87: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET ${updatedFields.join(', ')} WHERE...
+
+
+124. [CRITICAL] src/app/api/staff/[id]/route.ts
+   Line 158: UPDATE without school_id filter
+   Table: staff
+   Query: UPDATE staff SET ${staffUpdatedFields.join(', ')} WHERE...
+
+
+125. [CRITICAL] src/app/api/staff/[id]/route.ts
+   Line 175: UPDATE without school_id filter
+   Table: device_user_mappings
+   Query: UPDATE device_user_mappings SET device_user_id = ? WHERE...
+
+
+126. [CRITICAL] src/app/api/staff/[id]/route.ts
+   Line 241: UPDATE without school_id filter
+   Table: staff
+   Query: UPDATE staff SET deleted_at = CURRENT_TIMESTAMP WHERE...
+
+
+127. [HIGH] src/app/api/staff/add/route.ts
+   Line 84: SELECT without WHERE clause
+   Table: staff
+   Query: SELECT COALESCE(MAX(id), 0) as maxId FROM staff...
+
+
+128. [CRITICAL] src/app/api/staff/attendance/route.ts
+   Line 213: DELETE without school_id filter
+   Table: staff_attendance
+   Query: DELETE FROM staff_attendance WHERE...
+
+
+129. [HIGH] src/app/api/staff/list/route.ts
+   Line 8: SELECT without WHERE clause
+   Table: staff
+   Query: SELECT s.id, s.staff_no, p.first_name, p.last_name, s.position, s.status
+       FROM staff...
+
+
+130. [HIGH] src/app/api/staff/route.ts
+   Line 63: SELECT without WHERE clause
+   Table: staff
+   Query: SELECT COUNT(*) as total
+      FROM staff...
+
+
+131. [CRITICAL] src/app/api/staff_salaries/route.ts
+   Line 36: UPDATE without school_id filter
+   Table: staff_salaries
+   Query: UPDATE staff_salaries SET staff_id = ?, month = ?, period_month = ?, definition_id = ?, amount = ? W...
+
+
+132. [CRITICAL] src/app/api/staff_salaries/route.ts
+   Line 50: DELETE without school_id filter
+   Table: staff_salaries
+   Query: DELETE FROM staff_salaries WHERE...
+
+
+133. [HIGH] src/app/api/staff_salaries/route.ts
+   Line 8: SELECT without WHERE clause
+   Table: staff_salaries
+   Query: SELECT * FROM staff_salaries...
+
+
+134. [CRITICAL] src/app/api/streams/route.ts
+   Line 56: DELETE without school_id filter
+   Table: streams
+   Query: DELETE FROM streams WHERE...
+
+
+135. [HIGH] src/app/api/students/[id]/fingerprint/capture/route.ts
+   Line 30: SELECT without school_id filter
+   Table: students
+   Query: SELECT id FROM students WHERE...
+
+
+136. [CRITICAL] src/app/api/students/[id]/fingerprint/capture/route.ts
+   Line 48: UPDATE without school_id filter
+   Table: fingerprints
+   Query: UPDATE fingerprints SET credential = ?, updated_at = NOW() WHERE...
+
+
+137. [HIGH] src/app/api/students/[id]/fingerprint/route.ts
+   Line 51: SELECT without school_id filter
+   Table: students
+   Query: SELECT id FROM students WHERE...
+
+
+138. [CRITICAL] src/app/api/students/[id]/fingerprint/route.ts
+   Line 94: UPDATE without school_id filter
+   Table: student_fingerprints
+   Query: UPDATE student_fingerprints SET is_active = 0 WHERE...
+
+
+139. [HIGH] src/app/api/students/[id]/primary-contact/route.ts
+   Line 42: SELECT without school_id filter
+   Table: students
+   Query: SELECT school_id FROM students WHERE...
+
+
+140. [CRITICAL] src/app/api/students/[id]/primary-contact/route.ts
+   Line 66: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET phone = ?, first_name = ?, last_name = ? WHERE...
+
+
+141. [CRITICAL] src/app/api/students/[id]/primary-contact/route.ts
+   Line 71: UPDATE without school_id filter
+   Table: student_contacts
+   Query: UPDATE student_contacts SET relationship = ? WHERE...
+
+
+142. [HIGH] src/app/api/students/attendence/route.ts
+   Line 9: SELECT without school_id filter
+   Table: student_attendance_view
+   Query: SELECT * FROM student_attendance_view WHERE...
+
+
+143. [HIGH] src/app/api/students/bulk-assign/route.ts
+   Line 24: SELECT without school_id filter
+   Table: enrollments
+   Query: SELECT id FROM enrollments WHERE...
+
+
+144. [CRITICAL] src/app/api/students/bulk-assign/route.ts
+   Line 35: UPDATE without school_id filter
+   Table: enrollments
+   Query: UPDATE enrollments SET class_id = ? WHERE...
+
+
+145. [CRITICAL] src/app/api/students/bulk-photo-upload/route.ts
+   Line 144: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET photo_url = ?, updated_at = NOW() WHERE...
+
+
+146. [CRITICAL] src/app/api/students/contacts/[id]/route.ts
+   Line 123: UPDATE without school_id filter
+   Table: contacts
+   Query: UPDATE contacts SET deleted_at = NOW() WHERE...
+
+
+147. [CRITICAL] src/app/api/students/contacts/[id]/route.ts
+   Line 129: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET deleted_at = NOW() WHERE...
+
+
+148. [CRITICAL] src/app/api/students/contacts/[id]/route.ts
+   Line 117: DELETE without school_id filter
+   Table: student_contacts
+   Query: DELETE FROM student_contacts WHERE...
+
+
+149. [HIGH] src/app/api/students/contacts/route.ts
+   Line 102: SELECT without school_id filter
+   Table: students
+   Query: SELECT school_id FROM students WHERE...
+
+
+150. [CRITICAL] src/app/api/students/delete/route.ts
+   Line 16: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET deleted_at = NOW() WHERE...
+
+
+151. [HIGH] src/app/api/students/documents/route.ts
+   Line 92: SELECT without school_id filter
+   Table: students
+   Query: SELECT school_id FROM students WHERE...
+
+
+152. [HIGH] src/app/api/students/edit/route.ts
+   Line 40: SELECT without school_id filter
+   Table: students
+   Query: SELECT person_id FROM students WHERE...
+
+
+153. [HIGH] src/app/api/students/edit/route.ts
+   Line 92: SELECT without school_id filter
+   Table: enrollments
+   Query: SELECT id FROM enrollments WHERE...
+
+
+154. [CRITICAL] src/app/api/students/edit/route.ts
+   Line 99: UPDATE without school_id filter
+   Table: enrollments
+   Query: UPDATE enrollments SET class_id = ? WHERE...
+
+
+155. [HIGH] src/app/api/students/fee_items/route.ts
+   Line 17: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id AS student_id, e.class_id
+         FROM students...
+
+
+156. [HIGH] src/app/api/students/full/route.ts
+   Line 204: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COALESCE(MAX(CAST(id AS UNSIGNED)), 0) as max_id FROM students...
+
+
+157. [HIGH] src/app/api/students/full/route.ts
+   Line 219: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(admission_no, '/', -2), '/', 1) AS UNSIGNED...
+
+
+158. [CRITICAL] src/app/api/students/full.ts
+   Line 86: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET first_name=?, last_name=?, other_name=?, gender=?, date_of_birth=?, phone=?, email...
+
+
+159. [CRITICAL] src/app/api/students/full.ts
+   Line 91: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET admission_no=?, village_id=?, admission_date=?, status=?, notes=? WHERE...
+
+
+160. [CRITICAL] src/app/api/students/full.ts
+   Line 96: UPDATE without school_id filter
+   Table: enrollments
+   Query: UPDATE enrollments SET class_id=?, theology_class_id=?, stream_id=?, academic_year_id=?, term_id=?, ...
+
+
+161. [CRITICAL] src/app/api/students/full.ts
+   Line 112: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET deleted_at=NOW() WHERE...
+
+
+162. [HIGH] src/app/api/students/import/route.ts
+   Line 133: SELECT without school_id filter
+   Table: academic_years
+   Query: SELECT id FROM academic_years WHERE...
+
+
+163. [HIGH] src/app/api/students/import/route.ts
+   Line 134: SELECT without school_id filter
+   Table: terms
+   Query: SELECT id FROM terms WHERE...
+
+
+164. [HIGH] src/app/api/students/import/route.ts
+   Line 130: SELECT without WHERE clause
+   Table: classes
+   Query: SELECT id, name FROM classes...
+
+
+165. [HIGH] src/app/api/students/import/route.ts
+   Line 188: SELECT without WHERE clause
+   Table: students
+   Query: SELECT admission_no FROM students...
+
+
+166. [HIGH] src/app/api/students/index.ts
+   Line 35: SELECT without school_id filter
+   Table: students
+   Query: SELECT COUNT(*) as total FROM students s JOIN people p ON p.id = s.person_id LEFT JOIN enrollments e...
+
+
+167. [HIGH] src/app/api/students/index.ts
+   Line 26: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id, s.admission_no, s.status, s.admission_date, p.first_name, p.last_name, e.class_id
+    ...
+
+
+168. [CRITICAL] src/app/api/students/merge-duplicates/route.ts
+   Line 70: UPDATE without school_id filter
+   Table: enrollments
+   Query: UPDATE enrollments SET student_id = ? WHERE...
+
+
+169. [CRITICAL] src/app/api/students/merge-duplicates/route.ts
+   Line 84: UPDATE without school_id filter
+   Table: student_contacts
+   Query: UPDATE student_contacts SET student_id = ? WHERE...
+
+
+170. [CRITICAL] src/app/api/students/merge-duplicates/route.ts
+   Line 91: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET deleted_at = NOW(), notes = CONCAT(COALESCE(notes, ''), '\n[MERGED INTO #', ?, '...
+
+
+171. [HIGH] src/app/api/students/merge-duplicates/route.ts
+   Line 29: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.*, p.* FROM students...
+
+
+172. [HIGH] src/app/api/students/merge-duplicates/route.ts
+   Line 36: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.*, p.* FROM students...
+
+
+173. [HIGH] src/app/api/students/merge-duplicates/route.ts
+   Line 51: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT class_id, academic_year_id FROM enrollments...
+
+
+174. [HIGH] src/app/api/students/merge-duplicates/route.ts
+   Line 57: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT * FROM enrollments...
+
+
+175. [CRITICAL] src/app/api/students/status/route.ts
+   Line 16: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET status = ? WHERE...
+
+
+176. [CRITICAL] src/app/api/students/status-action/route.ts
+   Line 128: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET status = ?, updated_at = NOW() WHERE...
+
+
+177. [HIGH] src/app/api/students/status-action/route.ts
+   Line 26: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id AS student_id, s.admission_no, s.class_id, s.status AS current_status, p.first_name, p.l...
+
+
+178. [HIGH] src/app/api/students/upload-photo/route.ts
+   Line 44: SELECT without school_id filter
+   Table: students
+   Query: SELECT person_id FROM students WHERE...
+
+
+179. [CRITICAL] src/app/api/students/upload-photo/route.ts
+   Line 105: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET photo_url = ?, updated_at = NOW() WHERE...
+
+
+180. [CRITICAL] src/app/api/subjects/route.ts
+   Line 48: UPDATE without school_id filter
+   Table: subjects
+   Query: UPDATE subjects SET name=?, code=?, subject_type=? WHERE...
+
+
+181. [CRITICAL] src/app/api/subjects/route.ts
+   Line 71: DELETE without school_id filter
+   Table: subjects
+   Query: DELETE FROM subjects WHERE...
+
+
+182. [HIGH] src/app/api/subjects/route.ts
+   Line 11: SELECT without WHERE clause
+   Table: subjects
+   Query: SELECT id, name, code, subject_type FROM subjects...
+
+
+183. [HIGH] src/app/api/system-analysis/route.ts
+   Line 22: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.id, p.first_name, p.last_name, AVG(r.score) AS average_score FROM students...
+
+
+184. [HIGH] src/app/api/tahfiz/group-members/route.ts
+   Line 86: SELECT without school_id filter
+   Table: tahfiz_records
+   Query: SELECT DISTINCT student_id FROM tahfiz_records WHERE...
+
+
+185. [CRITICAL] src/app/api/tahfiz/group-members/route.ts
+   Line 227: DELETE without school_id filter
+   Table: tahfiz_group_members
+   Query: DELETE FROM tahfiz_group_members WHERE...
+
+
+186. [CRITICAL] src/app/api/tahfiz/group-members/route.ts
+   Line 229: DELETE without school_id filter
+   Table: tahfiz_group_members
+   Query: DELETE FROM tahfiz_group_members WHERE...
+
+
+187. [HIGH] src/app/api/tahfiz/group-members/route.ts
+   Line 148: SELECT without WHERE clause
+   Table: students
+   Query: SELECT st.id, st.school_id, p.first_name, p.last_name, st.admission_no
+      FROM students...
+
+
+188. [CRITICAL] src/app/api/tahfiz/groups/route.ts
+   Line 168: DELETE without school_id filter
+   Table: tahfiz_group_members
+   Query: DELETE FROM tahfiz_group_members WHERE...
+
+
+189. [CRITICAL] src/app/api/tahfiz/groups/route.ts
+   Line 174: DELETE without school_id filter
+   Table: tahfiz_groups
+   Query: DELETE FROM tahfiz_groups WHERE...
+
+
+190. [HIGH] src/app/api/tahfiz/learners/route.ts
+   Line 8: SELECT without school_id filter
+   Table: students
+   Query: SELECT s.*, p.first_name, p.last_name, p.phone, p.email FROM students s JOIN people p ON s.person_id...
+
+
+191. [HIGH] src/app/api/tahfiz/learners/route.ts
+   Line 39: SELECT without school_id filter
+   Table: students
+   Query: SELECT person_id FROM students WHERE...
+
+
+192. [CRITICAL] src/app/api/tahfiz/learners/route.ts
+   Line 42: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET ${fields} WHERE...
+
+
+193. [CRITICAL] src/app/api/tahfiz/learners/route.ts
+   Line 49: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET ${fields} WHERE...
+
+
+194. [CRITICAL] src/app/api/tahfiz/learners/route.ts
+   Line 59: DELETE without school_id filter
+   Table: students
+   Query: DELETE FROM students WHERE...
+
+
+195. [HIGH] src/app/api/tahfiz/learners/route.ts
+   Line 12: SELECT without WHERE clause
+   Table: students
+   Query: SELECT s.*, p.first_name, p.last_name, p.email, e.class_id
+    FROM students...
+
+
+196. [CRITICAL] src/app/api/tahfiz/plans/[id]/route.ts
+   Line 43: UPDATE without school_id filter
+   Table: tahfiz_plans
+   Query: UPDATE tahfiz_plans SET ${fields} WHERE...
+
+
+197. [CRITICAL] src/app/api/tahfiz/plans/[id]/route.ts
+   Line 57: DELETE without school_id filter
+   Table: tahfiz_plans
+   Query: DELETE FROM tahfiz_plans WHERE...
+
+
+198. [CRITICAL] src/app/api/tahfiz/plans/route.ts
+   Line 29: UPDATE without school_id filter
+   Table: tahfiz_plans
+   Query: UPDATE tahfiz_plans SET ${fields} WHERE...
+
+
+199. [CRITICAL] src/app/api/tahfiz/plans/route.ts
+   Line 37: DELETE without school_id filter
+   Table: tahfiz_plans
+   Query: DELETE FROM tahfiz_plans WHERE...
+
+
+200. [CRITICAL] src/app/api/tahfiz/portions/[id]/present/route.ts
+   Line 108: UPDATE without school_id filter
+   Table: tahfiz_portions
+   Query: UPDATE tahfiz_portions SET ${updates.join(', ')} WHERE...
+
+
+201. [CRITICAL] src/app/api/tahfiz/portions/route.ts
+   Line 438: UPDATE without school_id filter
+   Table: tahfiz_portions
+   Query: UPDATE tahfiz_portions SET ${updates.join(', ')} WHERE...
+
+
+202. [HIGH] src/app/api/tahfiz/portions/route.ts
+   Line 175: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COUNT(DISTINCT s.id) as total
+      FROM students...
+
+
+203. [CRITICAL] src/app/api/tahfiz/records/route.ts
+   Line 90: UPDATE without school_id filter
+   Table: tahfiz_records
+   Query: UPDATE tahfiz_records SET ${fields} WHERE...
+
+
+204. [CRITICAL] src/app/api/tahfiz/records/route.ts
+   Line 109: DELETE without school_id filter
+   Table: tahfiz_records
+   Query: DELETE FROM tahfiz_records WHERE...
+
+
+205. [HIGH] src/app/api/tahfiz/results/route.ts
+   Line 168: SELECT without school_id filter
+   Table: subjects
+   Query: SELECT id FROM subjects WHERE...
+
+
+206. [CRITICAL] src/app/api/tahfiz/results/route.ts
+   Line 333: UPDATE without school_id filter
+   Table: class_results
+   Query: UPDATE class_results SET ${updates.join(', ')} WHERE...
+
+
+207. [CRITICAL] src/app/api/tahfiz/results/route.ts
+   Line 384: DELETE without school_id filter
+   Table: class_results
+   Query: DELETE FROM class_results WHERE...
+
+
+208. [HIGH] src/app/api/tahfiz/results/route.ts
+   Line 152: SELECT without WHERE clause
+   Table: enrollments
+   Query: SELECT id FROM enrollments...
+
+
+209. [HIGH] src/app/api/tahfiz/results/route.ts
+   Line 183: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT id FROM class_results...
+
+
+210. [HIGH] src/app/api/tahfiz/results/route.ts
+   Line 282: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT cr.id FROM class_results...
+
+
+211. [HIGH] src/app/api/tahfiz/results/route.ts
+   Line 371: SELECT without WHERE clause
+   Table: class_results
+   Query: SELECT cr.id FROM class_results...
+
+
+212. [HIGH] src/app/api/tahfiz/students/[id]/route.ts
+   Line 100: SELECT without school_id filter
+   Table: students
+   Query: SELECT person_id FROM students WHERE...
+
+
+213. [HIGH] src/app/api/tahfiz/students/[id]/route.ts
+   Line 183: SELECT without school_id filter
+   Table: tahfiz_records
+   Query: SELECT COUNT(*) as count FROM tahfiz_records WHERE...
+
+
+214. [CRITICAL] src/app/api/tahfiz/students/[id]/route.ts
+   Line 112: UPDATE without school_id filter
+   Table: people
+   Query: UPDATE people SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE...
+
+
+215. [CRITICAL] src/app/api/tahfiz/students/[id]/route.ts
+   Line 118: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET admission_no = ?, status = ?, notes = ? WHERE...
+
+
+216. [CRITICAL] src/app/api/tahfiz/students/[id]/route.ts
+   Line 193: UPDATE without school_id filter
+   Table: students
+   Query: UPDATE students SET status = ?, deleted_at = NOW() WHERE...
+
+
+217. [CRITICAL] src/app/api/tahfiz/students/[id]/route.ts
+   Line 126: DELETE without school_id filter
+   Table: tahfiz_group_members
+   Query: DELETE FROM tahfiz_group_members WHERE...
+
+
+218. [CRITICAL] src/app/api/tahfiz/students/[id]/route.ts
+   Line 199: DELETE without school_id filter
+   Table: tahfiz_group_members
+   Query: DELETE FROM tahfiz_group_members WHERE...
+
+
+219. [CRITICAL] src/app/api/tahfiz/students/[id]/route.ts
+   Line 204: DELETE without school_id filter
+   Table: enrollments
+   Query: DELETE FROM enrollments WHERE...
+
+
+220. [CRITICAL] src/app/api/tahfiz/students/[id]/route.ts
+   Line 209: DELETE without school_id filter
+   Table: students
+   Query: DELETE FROM students WHERE...
+
+
+221. [HIGH] src/app/api/test-db/route.ts
+   Line 30: SELECT without WHERE clause
+   Table: tahfiz_groups
+   Query: SELECT COUNT(*) as count 
+      FROM tahfiz_groups...
+
+
+222. [HIGH] src/app/api/test-db/route.ts
+   Line 37: SELECT without WHERE clause
+   Table: staff
+   Query: SELECT COUNT(*) as count 
+      FROM staff...
+
+
+223. [HIGH] src/app/api/test-db/route.ts
+   Line 44: SELECT without WHERE clause
+   Table: students
+   Query: SELECT COUNT(*) as count 
+      FROM students...
+
+
+224. [CRITICAL] src/app/api/work-plans/route.ts
+   Line 195: UPDATE without school_id filter
+   Table: workplans
+   Query: UPDATE workplans SET deleted_at = CURRENT_TIMESTAMP WHERE...
+
+
+RECOMMENDATIONS:
+
+⚠️  Multi-tenant violations detected. Add school_id filtering to all queries.
+
+Fix Pattern:
+  const { searchParams } = new URL(req.url);
+  const schoolId = parseInt(searchParams.get('school_id') || '1');
+  
+  // Then update queries:
+  WHERE table.school_id = ? AND [other conditions]
+
+Priority:
+  1. Fix CRITICAL violations first (UPDATE/DELETE)
+  2. Fix HIGH violations (student/finance data)
+  3. Fix MEDIUM violations (reporting queries)
+

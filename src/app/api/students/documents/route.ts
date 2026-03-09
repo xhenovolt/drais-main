@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const studentId = searchParams.get('student_id');
 
     connection = await getConnection();
@@ -70,6 +78,13 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const formData = await req.formData();
     const studentId = parseInt(formData.get('student_id') as string);
     const documentTypeId = parseInt(formData.get('document_type_id') as string);
@@ -97,7 +112,10 @@ export async function POST(req: NextRequest) {
       throw new Error('Student not found');
     }
 
-    const schoolId = studentRows[0].school_id;
+    // Verify student belongs to this school
+    if (studentRows[0].school_id !== schoolId) {
+      return NextResponse.json({ success: false, error: 'Student not found in your school' }, { status: 404 });
+    }
 
     // TODO: Implement actual file upload logic
     const fileName = file.name;

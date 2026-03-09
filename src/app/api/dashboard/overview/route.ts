@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const from = searchParams.get('from') || new Date().toISOString().split('T')[0];
     const to = searchParams.get('to') || new Date().toISOString().split('T')[0];
 
@@ -77,8 +85,8 @@ export async function GET(req: NextRequest) {
           SUM(CASE WHEN sfi.status = 'paid' THEN sfi.paid ELSE 0 END) AS total_paid
         FROM student_fee_items sfi
         JOIN students s ON sfi.student_id = s.id
-        WHERE s.school_id = ? AND sfi.academic_year = ?
-      `, [schoolId, new Date().getFullYear().toString()]),
+        WHERE s.school_id = ?
+      `, [schoolId]),
 
       // Performance statistics
       connection.execute(`
@@ -116,7 +124,7 @@ export async function GET(req: NextRequest) {
         LIMIT 1
       `, [schoolId]),
 
-      // Term progress - Fixed: use is_active instead of status
+      // Term progress - Get current active term
       connection.execute(`
         SELECT
           t.name AS term_name,
@@ -129,7 +137,7 @@ export async function GET(req: NextRequest) {
             ELSE 0
           END AS days_covered
         FROM terms t
-        WHERE t.is_active = 1 AND t.school_id = ?
+        WHERE t.status = 'active' AND t.school_id = ?
         ORDER BY t.id DESC
         LIMIT 1
       `, [schoolId]),

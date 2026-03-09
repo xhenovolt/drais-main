@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/NotificationService';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const userId = parseInt(searchParams.get('user_id') || '1'); // TODO: Get from session
+    const userId = session.userId; // From authenticated session
     const cursor = searchParams.get('cursor') || undefined;
     const limit = parseInt(searchParams.get('limit') || '25');
     const filter = searchParams.get('filter') as 'unread' | 'archived' | 'all' || 'all';
-    const schoolId = searchParams.get('school_id') ? parseInt(searchParams.get('school_id')) : undefined;
+    // schoolId from session auth (above)
 
     const notificationService = NotificationService.getInstance();
     const result = await notificationService.list(userId, {

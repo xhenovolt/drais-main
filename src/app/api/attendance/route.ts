@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
     const classId = searchParams.get('class_id');
@@ -39,9 +46,10 @@ export async function GET(req: NextRequest) {
       WHERE e.status = 'active' 
         AND s.status IN ('active', 'suspended', 'on_leave')
         AND s.deleted_at IS NULL
+        AND s.school_id = ?
     `;
 
-    const params = [date];
+    const params: any[] = [date, schoolId];
 
     if (classId) {
       sql += ` AND e.class_id = ?`;
@@ -77,6 +85,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { student_id, date, status, method = 'manual', notes, marked_by } = body;
 
@@ -88,6 +102,15 @@ export async function POST(req: NextRequest) {
     }
 
     connection = await getConnection();
+
+    // Verify student belongs to this school
+    const [studentCheck] = await connection.execute(
+      'SELECT id FROM students WHERE id = ? AND school_id = ?',
+      [student_id, schoolId]
+    );
+    if (!Array.isArray(studentCheck) || studentCheck.length === 0) {
+      return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
+    }
 
     // Get student's class for the attendance record
     const [classResult] = await connection.execute(

@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const classId = searchParams.get('class_id');
     const termId = searchParams.get('term_id');
 
@@ -66,8 +74,15 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const { school_id = 1, class_id, term_id, requirements } = body;
+    const { class_id, term_id, requirements } = body;
 
     if (!class_id || !term_id || !Array.isArray(requirements) || requirements.length === 0) {
       return NextResponse.json({
@@ -91,7 +106,7 @@ export async function POST(req: NextRequest) {
 
         const [result] = await connection.execute(`
           INSERT INTO class_requirements (
-            school_id, class_id, term_id, requirement_item, 
+            schoolId, class_id, term_id, requirement_item, 
             description, quantity, is_mandatory
           ) VALUES (?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE 
@@ -99,7 +114,7 @@ export async function POST(req: NextRequest) {
             quantity = VALUES(quantity),
             is_mandatory = VALUES(is_mandatory),
             updated_at = CURRENT_TIMESTAMP
-        `, [school_id, class_id, term_id, requirement_item, description, quantity, is_mandatory]);
+        `, [schoolId, class_id, term_id, requirement_item, description, quantity, is_mandatory]);
 
         insertedIds.push(result.insertId || result.insertId);
       }

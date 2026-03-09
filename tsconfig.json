@@ -25,7 +25,6 @@
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": false,
     "noUncheckedIndexedAccess": false,
-    "suppressImplicitAnyIndexErrors": true,
     "plugins": [
       {
         "name": "next"

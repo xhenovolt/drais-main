@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * GET /api/attendance/devices
  * List all devices (both biometric and dahua)
@@ -13,8 +14,15 @@ import { getConnection } from '@/lib/db';
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
     const deviceType = searchParams.get('device_type') || 'all';
     const status = searchParams.get('status');
 
@@ -107,10 +115,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      device_name,
+    const { device_name,
       device_code,
       device_type = 'dahua',
       ip_address,
@@ -123,8 +136,7 @@ export async function POST(req: NextRequest) {
       sync_interval_minutes = 15,
       poll_interval_seconds = 60,
       late_threshold_minutes = 30,
-      status = 'active'
-    } = body;
+      status = 'active' } = body;
 
     if (!device_name || !ip_address) {
       return NextResponse.json({
@@ -144,17 +156,17 @@ export async function POST(req: NextRequest) {
       // Insert into dahua_devices
       [insertResult] = await connection.execute(
         `INSERT INTO dahua_devices 
-         (school_id, device_name, device_code, ip_address, port, username, password, device_type, protocol, api_url, auto_sync_enabled, sync_interval_minutes, poll_interval_seconds, late_threshold_minutes, status) 
+         (schoolId, device_name, device_code, ip_address, port, username, password, device_type, protocol, api_url, auto_sync_enabled, sync_interval_minutes, poll_interval_seconds, late_threshold_minutes, status) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [school_id, device_name, finalDeviceCode, ip_address, port, username, password, device_type, protocol, api_url, auto_sync_enabled ? 1 : 0, sync_interval_minutes, poll_interval_seconds, late_threshold_minutes, status]
+        [schoolId, device_name, finalDeviceCode, ip_address, port, username, password, device_type, protocol, api_url, auto_sync_enabled ? 1 : 0, sync_interval_minutes, poll_interval_seconds, late_threshold_minutes, status]
       );
     } else {
       // Insert into biometric_devices
       [insertResult] = await connection.execute(
         `INSERT INTO biometric_devices 
-         (school_id, device_name, device_code, device_type, ip_address, status) 
+         (schoolId, device_name, device_code, device_type, ip_address, status) 
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [school_id, device_name, finalDeviceCode, device_type, ip_address, status]
+        [schoolId, device_name, finalDeviceCode, device_type, ip_address, status]
       );
     }
 

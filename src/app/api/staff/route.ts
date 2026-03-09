@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
-    const search = searchParams.get('search') || '';
-    const status = searchParams.get('status') || '';
-    const department = searchParams.get('department') || '';
+    // school_id derived from session below
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = (page - 1) * limit;
+    const offset = Math.max(0, (page - 1) * limit);
 
     connection = await getConnection();
 
@@ -39,27 +44,7 @@ export async function GET(req: NextRequest) {
       console.log('Note: Some staff table columns may already exist');
     }
 
-    let whereConditions = ['s.school_id = ?'];
-    let queryParams = [schoolId];
-
-    if (search) {
-      whereConditions.push('(p.first_name LIKE ? OR p.last_name LIKE ? OR s.staff_no LIKE ?)');
-      queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
-
-    if (status) {
-      whereConditions.push('s.status = ?');
-      queryParams.push(status);
-    }
-
-    if (department) {
-      whereConditions.push('s.department_id = ?');
-      queryParams.push(parseInt(department));
-    }
-
-    const whereClause = whereConditions.join(' AND ');
-
-    // First, get the basic staff data that we know exists
+    // Get basic staff data
     const [staffRows] = await connection.execute(`
       SELECT 
         s.id,
@@ -78,8 +63,8 @@ export async function GET(req: NextRequest) {
       JOIN people p ON s.person_id = p.id
       WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY p.first_name, p.last_name
-      LIMIT ? OFFSET ?
-    `, [schoolId, limit, offset]);
+      LIMIT ${Math.max(1, limit)} OFFSET ${Math.max(0, offset)}
+    `, [schoolId]);
 
     // Count total records
     const [countRows] = await connection.execute(`
@@ -118,10 +103,15 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      first_name,
+    const { first_name,
       last_name,
       other_name,
       gender,
@@ -130,8 +120,7 @@ export async function POST(req: NextRequest) {
       position,
       hire_date,
       staff_no,
-      department_id
-    } = body;
+      department_id } = body;
 
     if (!first_name || !last_name || !position) {
       return NextResponse.json({
@@ -148,7 +137,7 @@ export async function POST(req: NextRequest) {
       const [personResult] = await connection.execute(`
         INSERT INTO people (school_id, first_name, last_name, other_name, gender, phone, email)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [school_id, first_name, last_name, other_name || null, gender || null, phone || null, email || null]);
+      `, [schoolId, first_name, last_name, other_name || null, gender || null, phone || null, email || null]);
 
       const personId = personResult.insertId;
 
@@ -159,7 +148,7 @@ export async function POST(req: NextRequest) {
       const [staffResult] = await connection.execute(`
         INSERT INTO staff (school_id, person_id, staff_no, position, hire_date, status)
         VALUES (?, ?, ?, ?, ?, 'active')
-      `, [school_id, personId, finalStaffNo, position, hire_date || new Date().toISOString().split('T')[0]]);
+      `, [schoolId, personId, finalStaffNo, position, hire_date || new Date().toISOString().split('T')[0]]);
 
       await connection.commit();
 

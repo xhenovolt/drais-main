@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 import { 
   parseDahuaRawData, 
   generateMockDahuaData,
@@ -15,8 +16,15 @@ import {
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
     const status = searchParams.get('status');
 
     connection = await getConnection();
@@ -80,10 +88,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      device_name,
+    const { device_name,
       device_code,
       ip_address,
       port = 80,
@@ -94,8 +107,7 @@ export async function POST(req: NextRequest) {
       protocol = 'http',
       auto_sync_enabled = true,
       sync_interval_minutes = 15,
-      late_threshold_minutes = 30
-    } = body;
+      late_threshold_minutes = 30 } = body;
 
     if (!device_name || !ip_address || !api_url) {
       return NextResponse.json({
@@ -123,13 +135,13 @@ export async function POST(req: NextRequest) {
 
     const [result] = await connection.execute(
       `INSERT INTO dahua_devices (
-        school_id, device_name, device_code, ip_address, port, api_url,
+        schoolId, device_name, device_code, ip_address, port, api_url,
         username, password, device_type, protocol, status,
         auto_sync_enabled, sync_interval_minutes, late_threshold_minutes,
         created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, NOW())`,
       [
-        school_id, device_name, device_code, ip_address, port, api_url,
+        schoolId, device_name, device_code, ip_address, port, api_url,
         username, password, device_type, protocol, auto_sync_enabled,
         sync_interval_minutes, late_threshold_minutes
       ]

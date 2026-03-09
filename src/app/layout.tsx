@@ -84,8 +84,19 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname(); // Get the current route
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Exclude Sidebar and Navbar for specific routes
-  const hideSidebarAndNavbar = pathname === '/academics/reports' || pathname === '/';
+  // Routes where Sidebar and Navbar should be hidden
+  // These are public/auth routes that don't need the main app shell
+  const hideSidebarAndNavbar = 
+    pathname === '/' ||                          // Landing page
+    pathname === '/login' ||                     // Login page
+    pathname === '/signup' ||                    // Signup page
+    pathname.startsWith('/auth') ||              // All auth routes (/auth/login, /auth/signup, etc.)
+    pathname === '/forgot-password' ||           // Password reset
+    pathname.startsWith('/reset-password') ||    // Password reset with token
+    pathname === '/unauthorized' ||              // Unauthorized page
+    pathname === '/forbidden' ||                 // Forbidden page
+    pathname === '/server-error' ||              // Error pages
+    pathname === '/academics/reports';           // Report printing layout
 
   return (
     <div className="min-h-screen">

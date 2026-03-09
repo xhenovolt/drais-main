@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
+import { getConnection } from '@/lib/db';
 
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'drais_school',
-  port: parseInt(process.env.DB_PORT || '3306')
-};
-
-async function getConnection() {
-  return await mysql.createConnection(dbConfig);
-}
-
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(request: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
     const termId = searchParams.get('term_id');
     const classId = searchParams.get('class_id');
     const groupId = searchParams.get('group_id');

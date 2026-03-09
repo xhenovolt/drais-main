@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const schoolId = searchParams.get('school_id') || null;
-
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const connection = await getConnection();
     const params: any[] = [];
     let whereClause = '';
@@ -33,9 +38,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { name, location } = body;
-    const schoolId = body.schoolId || 1; // Default to 1 if schoolId is not provided
     const createdBy = body.createdBy || 1; // Default to 1 if createdBy is not provided
 
     if (!name) {

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/NotificationService';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const userId = parseInt(searchParams.get('user_id') || '1'); // TODO: Get from session
-    const schoolId = searchParams.get('school_id') ? parseInt(searchParams.get('school_id')) : undefined;
+    const userId = session.userId; // From authenticated session
+    // schoolId from session auth (above)
 
     const notificationService = NotificationService.getInstance();
     const unread = await notificationService.getUnreadCount(userId, schoolId);

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const schoolId = searchParams.get('school_id');
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
 
+    const searchParams = request.nextUrl.searchParams;
+    // schoolId now from session auth (above)
     if (!schoolId) {
       return NextResponse.json(
         { error: 'School ID is required' },
@@ -18,19 +22,20 @@ export async function GET(request: NextRequest) {
     const [students] = await connection.execute(
       `SELECT 
         s.id,
-        s.name,
-        s.reg_no,
-        s.photo_url,
+        CONCAT(p.first_name, ' ', p.last_name) as name,
+        s.admission_no as reg_no,
+        p.photo_url,
         tg.name as group_name,
         COUNT(DISTINCT tr.id) as portions_completed,
-        SUM(tr.pages_memorized) as total_pages
+        COALESCE(SUM(tr.score), 0) as total_pages
       FROM students s
+      JOIN people p ON s.person_id = p.id
       LEFT JOIN tahfiz_group_members tgm ON s.id = tgm.student_id
       LEFT JOIN tahfiz_groups tg ON tgm.group_id = tg.id
       LEFT JOIN tahfiz_records tr ON s.id = tr.student_id
-      WHERE s.school_id = ? AND s.status = 'active'
-      GROUP BY s.id
-      ORDER BY s.name ASC`,
+      WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
+      GROUP BY s.id, p.first_name, p.last_name, s.admission_no, p.photo_url, tg.name
+      ORDER BY p.first_name ASC`,
       [schoolId]
     );
 

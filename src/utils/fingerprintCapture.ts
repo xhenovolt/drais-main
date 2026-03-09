@@ -32,7 +32,7 @@ export class FingerprintCapture {
   }
 
   // Capture fingerprint using WebAuthn (real device biometrics)
-  async captureWebAuthn(studentId: number): Promise<FingerprintCaptureResult> {
+  async captureWebAuthn(studentId: number, schoolName: string = 'School'): Promise<FingerprintCaptureResult> {
     try {
       if (!window.PublicKeyCredential) {
         throw new Error('WebAuthn not supported');
@@ -44,7 +44,7 @@ export class FingerprintCapture {
       const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
         challenge,
         rp: {
-          name: "Ibun Baz Girls Secondary School Fingerprint System",
+          name: `${schoolName} Fingerprint System`,
           id: window.location.hostname,
         },
         user: {

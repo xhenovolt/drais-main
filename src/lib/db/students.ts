@@ -10,20 +10,20 @@ export async function getStudentsList() {
         s.admission_no,
         s.school_id,
         s.class_id,
-        s.stream_id,
         s.status,
         s.admission_date,
         p.first_name,
         p.last_name,
         p.gender,
-        p.dob,
+        p.date_of_birth,
         p.photo_url,
         c.name as class_name,
         st.name as stream_name
       FROM students s
       JOIN people p ON s.person_id = p.id
       LEFT JOIN classes c ON s.class_id = c.id
-      LEFT JOIN streams st ON s.stream_id = st.id
+      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      LEFT JOIN streams st ON e.stream_id = st.id
       ORDER BY s.admission_no
     `);
     return rows;
@@ -37,11 +37,16 @@ export async function getStudentById(id: number) {
   try {
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(`
       SELECT 
-        s.*,
+        s.id,
+        s.admission_no,
+        s.school_id,
+        s.class_id,
+        s.status,
+        s.admission_date,
         p.first_name,
         p.last_name,
         p.gender,
-        p.dob,
+        p.date_of_birth,
         p.photo_url,
         p.email,
         p.phone,
@@ -50,7 +55,8 @@ export async function getStudentById(id: number) {
       FROM students s
       JOIN people p ON s.person_id = p.id
       LEFT JOIN classes c ON s.class_id = c.id
-      LEFT JOIN streams st ON s.stream_id = st.id
+      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      LEFT JOIN streams st ON e.stream_id = st.id
       WHERE s.id = ?
     `, [id]);
     return rows[0] || null;

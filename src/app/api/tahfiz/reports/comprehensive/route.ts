@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * GET /api/tahfiz/reports/comprehensive
  * Fetch comprehensive Tahfiz reports using REAL class_results data
@@ -8,7 +9,7 @@ import { getConnection } from '@/lib/db';
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const schoolId = searchParams.get('school_id') || '1';
+  // school_id derived from session below
   const termId = searchParams.get('term_id');
   const classId = searchParams.get('class_id');
   const groupId = searchParams.get('group_id');
@@ -16,6 +17,13 @@ export async function GET(request: NextRequest) {
 
   let connection: any;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     connection = await getConnection();
 
     // Fetch students with their REAL Tahfiz results from class_results

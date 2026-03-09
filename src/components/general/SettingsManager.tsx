@@ -5,21 +5,21 @@ import { t } from '@/lib/i18n';
 import { SchoolInfoSettings } from './SchoolInfoSettings';
 import { Settings, Building2 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
+const API_BASE = '/api';
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
 export const SettingsManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'school'>('school');
-  const { data, mutate } = useSWR(`${API_BASE}/school_settings.php`, fetcher);
-  const rows = data?.data || [];
+  const { data, mutate } = useSWR(`${API_BASE}/settings`, fetcher);
+  const rows = data?.data?.settings?.general ? Object.entries(data.data.settings.general).map(([k, v]: [string, any], i: number) => ({ id: i, key_name: k, value_text: String(v) })) : [];
   const [form, setForm] = useState({ key_name: '', value_text: '' });
 
   const add = async () => {
     if (!form.key_name) return;
-    await fetch(`${API_BASE}/school_settings.php`, {
-      method: 'POST',
+    await fetch(`${API_BASE}/settings`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
+      body: JSON.stringify({ school_id: 1, settings: { general: { [form.key_name]: form.value_text } } })
     });
     setForm({ key_name: '', value_text: '' });
     mutate();

@@ -1,15 +1,18 @@
 "use client";
 import React, { useState } from 'react';
-import { Search, Plus, Phone, Mail, User, Users, Heart } from 'lucide-react';
+import { Search, Plus, Phone, Mail, User, Users, Heart, Edit2, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import AddContactModal from '@/components/students/AddContactModal';
+import ContactsListModal from '@/components/students/ContactsListModal';
 
 const ContactsPage: React.FC = () => {
   const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [showContactsList, setShowContactsList] = useState(false);
 
   // Fetch contacts data
   const { data: contactsData, isLoading, mutate } = useSWR(
@@ -97,7 +100,14 @@ const ContactsPage: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                  onClick={() => {
+                    setSelectedStudent({
+                      id: contact.student_id,
+                      name: `${contact.student_first_name} ${contact.student_last_name}`
+                    });
+                    setShowContactsList(true);
+                  }}
                 >
                   {/* Student Info */}
                   <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-600">
@@ -105,7 +115,7 @@ const ContactsPage: React.FC = () => {
                       {contact.student_first_name?.charAt(0)}{contact.student_last_name?.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                      <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {contact.student_first_name} {contact.student_last_name}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -143,7 +153,7 @@ const ContactsPage: React.FC = () => {
                       {contact.contact_phone && (
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                           <Phone className="w-4 h-4" />
-                          <span>{contact.contact_phone}</span>
+                          <span className="font-mono">{contact.contact_phone}</span>
                         </div>
                       )}
                       {contact.contact_email && (
@@ -157,6 +167,54 @@ const ContactsPage: React.FC = () => {
                           <span className="font-medium">Occupation:</span> {contact.occupation}
                         </div>
                       )}
+                    </div>
+
+                    {/* Quick Action Icons */}
+                    <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `tel:${contact.contact_phone}`;
+                        }}
+                        className="flex-1 p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
+                        title="Call"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Call
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedStudent({
+                            id: contact.student_id,
+                            name: `${contact.student_first_name} ${contact.student_last_name}`
+                          });
+                          setShowContactsList(true);
+                          setTimeout(() => {
+                            // SMS will be triggered from within ContactsListModal
+                          }, 100);
+                        }}
+                        className="flex-1 p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
+                        title="Send SMS"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        SMS
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedStudent({
+                            id: contact.student_id,
+                            name: `${contact.student_first_name} ${contact.student_last_name}`
+                          });
+                          setShowContactsList(true);
+                        }}
+                        className="flex-1 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Manage
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -181,6 +239,14 @@ const ContactsPage: React.FC = () => {
           setShowAddModal(false);
           mutate();
         }}
+      />
+
+      {/* Contacts List Modal (Edit, Delete, SMS, Call) */}
+      <ContactsListModal
+        open={showContactsList}
+        onClose={() => setShowContactsList(false)}
+        studentId={selectedStudent?.id}
+        studentName={selectedStudent?.name}
       />
     </div>
   );

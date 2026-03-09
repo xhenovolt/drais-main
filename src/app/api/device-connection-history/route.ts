@@ -6,12 +6,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   let connection;
 
   try {
-    const schoolId = req.nextUrl.searchParams.get('schoolId');
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50', 10);
     const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0', 10);
     const status = req.nextUrl.searchParams.get('status'); // Filter: 'success', 'failed', 'timeout', etc.
@@ -42,6 +46,8 @@ export async function GET(req: NextRequest) {
     const total = (countResult as any)[0]?.total || 0;
 
     // Get paginated history
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
     const [history] = await connection.execute(
       `SELECT 
         dch.id,
@@ -59,8 +65,8 @@ export async function GET(req: NextRequest) {
       JOIN device_configs dc ON dch.device_config_id = dc.id
       WHERE ${whereClause}
       ORDER BY dch.created_at DESC
-      LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      [...params]
     );
 
     // Calculate success rate from history
@@ -71,7 +77,7 @@ export async function GET(req: NextRequest) {
       FROM device_connection_history dch
       JOIN device_configs dc ON dch.device_config_id = dc.id
       WHERE ${whereClause}`,
-      params.slice(0, params.length - 2) // Remove limit/offset from params for this query
+      params
     );
 
     const stats = (statsResult as any)[0];

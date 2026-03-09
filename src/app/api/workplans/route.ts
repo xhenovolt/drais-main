@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const status = searchParams.get('status') || '';
     const assignedTo = searchParams.get('assigned_to') || '';
     const department = searchParams.get('department') || '';
@@ -88,10 +96,15 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      title,
+    const { title,
       description,
       start_datetime,
       end_datetime,
@@ -99,8 +112,7 @@ export async function POST(req: NextRequest) {
       assigned_to,
       owner_type = 'school',
       owner_id,
-      created_by
-    } = body;
+      created_by } = body;
 
     if (!title) {
       return NextResponse.json({
@@ -113,11 +125,11 @@ export async function POST(req: NextRequest) {
 
     const [result] = await connection.execute(`
       INSERT INTO workplans (
-        school_id, title, description, start_datetime, end_datetime,
+        schoolId, title, description, start_datetime, end_datetime,
         priority, assigned_to, owner_type, owner_id, created_by, status
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     `, [
-      school_id, title, description, start_datetime, end_datetime,
+      schoolId, title, description, start_datetime, end_datetime,
       priority, assigned_to, owner_type, owner_id, created_by
     ]);
 

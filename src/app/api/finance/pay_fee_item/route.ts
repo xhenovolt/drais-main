@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 // POST /api/finance/pay_fee_item { fee_item_id, wallet_id, amount, method, paid_by, receipt_no, reference, category_id }
 // Atomically pays a specific student_fee_item (no spreading across items)
@@ -9,6 +10,10 @@ export async function POST(req: NextRequest){
   if(!fee_item_id || !amount) return NextResponse.json({ error:'fee_item_id and amount are required' },{ status:400 });
   const conn = await getConnection();
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     await conn.beginTransaction?.();
     const [[item]]: any = await conn.execute(`SELECT id, student_id, term_id, item, amount, discount, paid, (amount-discount-paid) AS outstanding FROM student_fee_items WHERE id=? FOR UPDATE`,[fee_item_id]);
     if(!item) throw new Error('Fee item not found');

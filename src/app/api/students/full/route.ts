@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
-import { getSchoolInfo } from '@/lib/schoolConfig';
+import { getSchoolFromDB } from '@/lib/schoolDB';
+import { getNextAdmissionNumber, formatAdmissionNumber } from '@/lib/admissionNumber';
+import { getSessionSchoolId } from '@/lib/auth';
 import path from 'path';
 import fs from 'fs/promises';
 import puppeteer from 'puppeteer';
@@ -16,6 +18,13 @@ function safe(v:any) { return (v === undefined || v === '') ? null : v; }
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Derive school_id from authenticated session — never from query params
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
     const classId = searchParams.get('class_id');
@@ -25,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     connection = await getConnection();
 
-    // Enhanced query to include person_id and photo_url from people table
+    // Enhanced query to include person_id and photo_url from people table, device_user_id, and primary contact info
     let sql = `
       SELECT DISTINCT
         s.id,
@@ -49,14 +58,23 @@ export async function GET(req: NextRequest) {
         st.id as stream_id,
         d.name as district_name,
         v.name as village_name,
+        dum.device_user_id,
+        dum.id as device_mapping_id,
+        bd.device_name,
+        bd.id as device_id,
+        -- Primary contact information
+        cp.phone as contact_phone,
+        CONCAT(cp.first_name, ' ', cp.last_name) as contact_name,
+        sc.relationship as contact_relationship,
+        ct.contact_type,
         -- Calculate attendance percentage
         COALESCE(
           (SELECT ROUND(
-            (COUNT(CASE WHEN sa.status = 'present' THEN 1 END) * 100.0) / 
+            (COUNT(CASE WHEN sa.status = 'present' THEN 1 END) * 100.0) /
             NULLIF(COUNT(*), 0), 2
-          ) 
-          FROM student_attendance sa 
-          WHERE sa.student_id = s.id 
+          )
+          FROM student_attendance sa
+          WHERE sa.student_id = s.id
           AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
           ), 0
         ) as attendance_percentage
@@ -67,24 +85,32 @@ export async function GET(req: NextRequest) {
       LEFT JOIN streams st ON e.stream_id = st.id
       LEFT JOIN villages v ON s.village_id = v.id
       LEFT JOIN parishes pa ON v.parish_id = pa.id
-      LEFT JOIN subcounties sc ON pa.subcounty_id = sc.id
-      LEFT JOIN counties co ON sc.county_id = co.id
+      LEFT JOIN subcounties scc ON pa.subcounty_id = scc.id
+      LEFT JOIN counties co ON scc.county_id = co.id
       LEFT JOIN districts d ON co.district_id = d.id
-      WHERE s.deleted_at IS NULL
+      LEFT JOIN device_user_mappings dum ON s.id = dum.student_id AND dum.school_id = ?
+      LEFT JOIN biometric_devices bd ON dum.device_id = bd.id
+      LEFT JOIN student_contacts sc ON s.id = sc.student_id AND sc.is_primary = 1
+      LEFT JOIN contacts ct ON sc.contact_id = ct.id
+      LEFT JOIN people cp ON ct.person_id = cp.id
+      WHERE s.deleted_at IS NULL AND s.school_id = ?
     `;
 
-    const params: any[] = [];
+    const params: any[] = [schoolId, schoolId];
 
-    // Add search filter
-    if (query) {
+    // Add search filter with normalization
+    if (query && query.trim()) {
+      // Trim and normalize search query
+      const normalizedQuery = query.trim().toLowerCase();
+      const searchTerm = `%${normalizedQuery}%`;
+      
       sql += ` AND (
-        p.first_name LIKE ? OR 
-        p.last_name LIKE ? OR 
-        p.other_name LIKE ? OR
-        s.admission_no LIKE ? OR
-        CONCAT(p.first_name, ' ', p.last_name) LIKE ?
+        LOWER(p.first_name) LIKE LOWER(?) OR 
+        LOWER(p.last_name) LIKE LOWER(?) OR 
+        LOWER(p.other_name) LIKE LOWER(?) OR
+        LOWER(s.admission_no) LIKE LOWER(?) OR
+        LOWER(CONCAT(p.first_name, ' ', p.last_name)) LIKE LOWER(?)
       )`;
-      const searchTerm = `%${query}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
@@ -167,8 +193,12 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    // Always set school_id to 1 (number, not null)
-    body.school_id = 1;
+    // Derive school_id from authenticated session — never hardcode
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    body.school_id = session.school_id;
     
     // Validate required fields
     if (!body.first_name || !body.last_name) {
@@ -180,22 +210,39 @@ export async function POST(req: NextRequest) {
     try {
       await connection.beginTransaction();
       
-      // Insert person
-      const [personResult]: any = await connection.execute(
-        'INSERT INTO people (school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [1, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
+      // Get next sequential ID - cast as integer to get proper numeric maximum
+      const [maxIdResult]: any = await connection.execute(
+        'SELECT COALESCE(MAX(CAST(id AS UNSIGNED)), 0) as max_id FROM students'
       );
-      const newPersonId = personResult.insertId;
+      const nextId = (parseInt(maxIdResult[0]?.max_id) || 0) + 1;
       
-      // Generate admission number if not provided
-      const admission_no = body.admission_no || `XHN/${newPersonId.toString().padStart(4, '0')}/${new Date().getFullYear()}`;
-      
-      // Insert student
-      const [studentResult]: any = await connection.execute(
-        'INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [1, newPersonId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
+      // Insert person with explicit ID to ensure alignment
+      await connection.execute(
+        'INSERT INTO people (id, school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [nextId, body.schoolId, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
       );
-      const newStudentId = studentResult.insertId;
+      
+      // Generate sequential admission number if not provided
+      let admission_no = body.admission_no;
+      if (!admission_no) {
+        // Get the next sequence number using the same connection (in transaction)
+        const [seqResult]: any = await connection.execute(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(admission_no, '/', -2), '/', 1) AS UNSIGNED)), 0) + 1 as next_seq
+           FROM students
+           WHERE school_id = ? AND admission_no IS NOT NULL AND admission_no LIKE 'XHN/%'`,
+          [body.schoolId]
+        );
+        const nextSeq = seqResult[0]?.next_seq || 1;
+        admission_no = formatAdmissionNumber(nextSeq, body.schoolId);
+      }
+      
+      // Insert student with explicit ID, ensuring perfect alignment with person
+      await connection.execute(
+        'INSERT INTO students (id, school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [nextId, body.schoolId, nextId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
+      );
+      const newStudentId = nextId;
+      const newPersonId = nextId;
       
       // Insert enrollment
       await connection.execute(
@@ -222,7 +269,7 @@ export async function POST(req: NextRequest) {
           // Insert contact with AUTO_INCREMENT
           const [contactResult]: any = await connection.execute(
             'INSERT INTO contacts (school_id, person_id, contact_type, occupation, alive_status, date_of_death) VALUES (?, ?, ?, ?, ?, ?)',
-            [1, newPersonId, safe(c.contact_type), safe(c.occupation), safe(c.alive_status), safe(c.date_of_death)]
+            [body.schoolId, newPersonId, safe(c.contact_type), safe(c.occupation), safe(c.alive_status), safe(c.date_of_death)]
           );
           const newContactId = contactResult.insertId;
           
@@ -242,19 +289,13 @@ export async function POST(req: NextRequest) {
       const student_id = newStudentId;
       const person_id = newPersonId;
       
-      // Get school info from centralized configuration (single source of truth)
-      let schoolName = 'Ibun Baz Girls Secondary School';
-      let schoolAddress = 'Busei, Iganga along Iganga-Tororo highway';
-      try {
-        const schoolInfo = getSchoolInfo();
-        if (schoolInfo) {
-          schoolName = schoolInfo.name || schoolName;
-          schoolAddress = schoolInfo.address || schoolAddress;
-        }
-      } catch (configError) {
-        console.error('Error fetching school config:', configError);
-        // Fallback to hardcoded values on error
-      }
+      // Get school info from database (single source of truth)
+      const schoolInfo = await getSchoolFromDB(body.schoolId);
+      const schoolName = schoolInfo.name;
+      const schoolAddress = schoolInfo.address || '';
+      const schoolPhone = schoolInfo.phone || '';
+      const schoolEmail = schoolInfo.email || '';
+      const schoolShortCode = schoolInfo.short_code || 'DRAIS';
       
       // Generate PDF admission form
       const pdfHtml = `
@@ -280,13 +321,13 @@ export async function POST(req: NextRequest) {
             <h1>OFFICIAL ADMISSION LETTER</h1>
             <p><strong>${schoolName}</strong></p>
             <p>${schoolAddress}</p>
-            <p>Tel: +256 700 123 456 | Email: info@draisschool.ac.ug</p>
+            <p>Tel: ${schoolPhone} | Email: ${schoolEmail}</p>
             <hr style="margin: 20px 0;">
           </div>
           
           <div class="section">
             <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            <p><strong>Ref:</strong> HILLSIDEWAYS/ADM/${admission_no}/2025</p>
+            <p><strong>Ref:</strong> ${schoolShortCode}/ADM/${admission_no}/${new Date().getFullYear()}</p>
           </div>
           
           <div class="section">

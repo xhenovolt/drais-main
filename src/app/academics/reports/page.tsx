@@ -126,18 +126,18 @@ const ReportsPage = () => {
   const [nextTermBegins, setNextTermBegins] = useState('18-AUG-2025');
   const [enableMarkConversion, setEnableMarkConversion] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
-    name: 'Ibun Baz Girls Secondary School',
-    address: 'Busei, Iganga along Iganga-Tororo highway',
-    po_box: 'P.O. BOX, Iganga',
+    name: '',
+    address: '',
+    po_box: '',
     logo_url: '/uploads/logo.png',
-    contact: '+256 700 123 456',
-    center_no: 'UNEB CENTRE No: TBD',
-    registration_no: 'Reg no: TBD',
-    arabic_name: 'مدرسة إبن باز للبنات الثانوية',
-    arabic_address: 'بوسي، إيكانغا',
-    arabic_contact: '+256 700 123 456',
-    arabic_center_no: 'رقم مركز الامتحانات (UNEB): سيحدد لاحقاً',
-    arabic_registration_no: 'رقم التسجيل: سيحدد لاحقاً',
+    contact: '',
+    center_no: '',
+    registration_no: '',
+    arabic_name: '',
+    arabic_address: '',
+    arabic_contact: '',
+    arabic_center_no: '',
+    arabic_registration_no: '',
   });
   const customizationRef = useRef<CustomizationRef>({ current: {} });
 
@@ -150,7 +150,7 @@ const ReportsPage = () => {
   // Fetch promotion data if it's 3rd term
   const { data: promotionData } = useSWR(
     filters.term === 'Term 3' && filters.classId
-      ? `/api/academics/promotions?school_id=1&term_id=${getTermId(filters.term)}&class_id=${filters.classId}`
+      ? `/api/academics/promotions?term_id=${getTermId(filters.term)}&class_id=${filters.classId}`
       : null,
     fetcher,
     { revalidateOnFocus: false }
@@ -175,20 +175,20 @@ const ReportsPage = () => {
     }
   };
 
-  // School info (static for all reports)
+  // School info default — generic placeholders that get overridden by DB-driven API
   const schoolInfoDefault: SchoolInfo = {
-    name: 'Ibun Baz Girls Secondary School',
-    address: 'Busei, Iganga along Iganga-Tororo highway',
-    po_box: 'P.O. BOX, Iganga',
+    name: '',
+    address: '',
+    po_box: '',
     logo_url: '/uploads/logo.png',
-    contact: '+256 700 123 456',
-    center_no: 'UNEB CENTRE No: TBD',
-    registration_no: 'Reg no: TBD',
-    arabic_name: 'مدرسة إبن باز للبنات الثانوية',
-    arabic_address: 'بوسي، إيكانغا',
-    arabic_contact: '+256 700 123 456',
-    arabic_center_no: 'رقم مركز الامتحانات (UNEB): سيحدد لاحقاً',
-    arabic_registration_no: 'رقم التسجيل: سيحدد لاحقاً',
+    contact: '',
+    center_no: '',
+    registration_no: '',
+    arabic_name: '',
+    arabic_address: '',
+    arabic_contact: '',
+    arabic_center_no: '',
+    arabic_registration_no: '',
   };
 
   // Add Arabic-Indic digits converter (strip dash characters before mapping)
@@ -225,14 +225,22 @@ const ReportsPage = () => {
         setAllStudents(students);
         setAllResults(results);
         
-        // Update school info from centralized config
+        // Update school info from centralized DB-driven config
         if (schoolConfigData?.school) {
+          const s = schoolConfigData.school;
           setSchoolInfo({
-            ...schoolInfoDefault,
-            name: schoolConfigData.school.name || schoolInfoDefault.name,
-            address: schoolConfigData.school.address || schoolInfoDefault.address,
-            logo_url: schoolConfigData.school.branding?.logo || schoolInfoDefault.logo_url,
-            contact: schoolConfigData.school.contact?.phone || schoolInfoDefault.contact,
+            name: s.name || schoolInfoDefault.name,
+            address: s.address || schoolInfoDefault.address,
+            po_box: s.po_box || schoolInfoDefault.po_box,
+            logo_url: s.branding?.logo || s.logo_url || schoolInfoDefault.logo_url,
+            contact: s.contact?.phone || schoolInfoDefault.contact,
+            center_no: s.center_no || schoolInfoDefault.center_no,
+            registration_no: s.registration_no || schoolInfoDefault.registration_no,
+            arabic_name: s.arabic_name || schoolInfoDefault.arabic_name,
+            arabic_address: s.arabic_address || schoolInfoDefault.arabic_address,
+            arabic_contact: s.contact?.phone || schoolInfoDefault.arabic_contact,
+            arabic_center_no: schoolInfoDefault.arabic_center_no,
+            arabic_registration_no: schoolInfoDefault.arabic_registration_no,
           });
         }
       })

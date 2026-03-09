@@ -29,9 +29,9 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
   });
 
   // Fetch students, terms, and requirements
-  const { data: studentsData } = useSWR('/api/students/full?school_id=1', fetcher);
-  const { data: termsData } = useSWR('/api/terms?school_id=1', fetcher);
-  const { data: requirementsData } = useSWR('/api/requirements/master?school_id=1', fetcher);
+  const { data: studentsData } = useSWR('/api/students/full', fetcher);
+  const { data: termsData } = useSWR('/api/terms', fetcher);
+  const { data: requirementsData } = useSWR('/api/requirements/master', fetcher);
 
   const students = studentsData?.data || [];
   const terms = termsData?.data || [];

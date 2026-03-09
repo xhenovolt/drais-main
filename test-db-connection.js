@@ -11,9 +11,9 @@ const mysql = require('mysql2/promise');
 const tidbConfig = {
   host: process.env.TIDB_HOST || 'gateway01.eu-central-1.prod.aws.tidbcloud.com',
   port: parseInt(process.env.TIDB_PORT || '4000', 10),
-  user: process.env.TIDB_USER || '2qzYvPUSbNa3RNc.root',
-  password: process.env.TIDB_PASSWORD || 'Gn4OSg1m8sSMSRMq',
-  database: process.env.TIDB_DB || 'test',
+  user: process.env.TIDB_USER || '2Trc8kJebpKLb1Z.root',
+  password: process.env.TIDB_PASSWORD || 'QMNAOiP9J1rANv4Z',
+  database: process.env.TIDB_DB || 'drais',
   ssl: { rejectUnauthorized: false },
 };
 

@@ -1,7 +1,7 @@
 "use client";
 import React, { Fragment, useEffect, useState, useRef, useCallback } from 'react';
 import { Dialog, Transition, Listbox } from '@headlessui/react';
-import { X, ChevronsUpDown, Check, Loader2, Upload, Camera, User, AlertCircle, Image as ImageIcon, Download, BookOpen } from 'lucide-react';
+import { X, ChevronsUpDown, Check, Loader2, Upload, Camera, User, AlertCircle, Image as ImageIcon, Download, BookOpen, ChevronDown } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Swal from 'sweetalert2';
 import jsPDF from 'jspdf';
@@ -23,6 +23,7 @@ const Field:React.FC<{label:string; className?:string; children:React.ReactNode}
 );
 
 const fieldCls = "w-full px-3 py-2 rounded-xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 backdrop-blur text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-400 transition";
+const nameFieldCls = fieldCls + " uppercase";
 
 const ClassSelect:React.FC<{label:string; options:ClassRec[]; value?:ClassRec; onChange:(c:ClassRec)=>void; loading:boolean; accent:'secular'|'theology'}> = ({label,options,value,onChange,loading,accent}) => {
   const accentCls = accent==='theology' ? 'from-emerald-500/20 to-teal-500/10 ring-emerald-500/40' : 'from-indigo-500/20 to-fuchsia-500/10 ring-fuchsia-500/40';
@@ -36,7 +37,7 @@ const ClassSelect:React.FC<{label:string; options:ClassRec[]; value?:ClassRec; o
             <ChevronsUpDown className="w-4 h-4 opacity-60"/>
           </Listbox.Button>
           <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <Listbox.Options className="absolute z-10 mt-2 left-0 right-0 max-h-64 overflow-auto rounded-xl border border-white/30 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl p-1 text-sm">
+            <Listbox.Options className="absolute z-50 mt-2 left-0 right-0 max-h-72 overflow-auto rounded-xl border border-white/30 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-1 text-sm">
               {options.map(o => (
                 <Listbox.Option key={o.id} value={o} className={({active,selected})=>`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer ${active? 'bg-black/5 dark:bg-white/10':''} ${selected? 'text-fuchsia-600 dark:text-fuchsia-400 font-semibold':''}`}>
                   {({selected}) => (<><span className="flex-1 truncate">{o.name}</span>{selected && <Check className="w-4 h-4"/>}</>)}
@@ -65,7 +66,7 @@ const FutSelect:React.FC<{label:string; items:any; value?:{id:number; name:strin
           </Listbox.Button>
           {!disabled && (
             <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-              <Listbox.Options className="absolute z-10 mt-2 left-0 right-0 max-h-60 overflow-auto rounded-xl border border-white/30 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl p-1 text-sm">
+              <Listbox.Options className="absolute z-50 mt-2 left-0 right-0 max-h-72 overflow-auto rounded-xl border border-white/30 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-1 text-sm">
                 {list.map((o:any) => (
                   <Listbox.Option key={o.id} value={o} className={({active,selected})=>`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer ${active? 'bg-black/5 dark:bg-white/10':''} ${selected? 'text-fuchsia-600 dark:text-fuchsia-400 font-semibold':''}`}>
                     {({selected}) => (<><span className="flex-1 truncate">{o.name}</span>{selected && <Check className="w-4 h-4"/>}</>)}
@@ -148,8 +149,12 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
   // New state for PDF generation
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [admissionData, setAdmissionData] = useState<any>(null);
-  const [schoolName, setSchoolName] = useState('Ibun Baz Girls Secondary School');
+  const [schoolName, setSchoolName] = useState('School'); // Will be fetched dynamically
   const [tahfizAutoEnroll, setTahfizAutoEnroll] = useState(autoEnrollTahfiz);
+  
+  // Collapsible sections state
+  const [expandBiographic, setExpandBiographic] = useState(false);
+  const [expandPhoto, setExpandPhoto] = useState(false);
 
   const reset = () => { 
     setStep(0); 
@@ -321,12 +326,12 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
         id: 'pdf-toast'
       });
 
-      // Fetch school info from centralized configuration
+      // Fetch school info from centralized DB-driven configuration
       let schoolInfo = {
-        school_name: 'Ibun Baz Girls Secondary School',
-        school_address: 'Busei, Iganga along Iganga-Tororo highway',
-        school_contact: '+256 700 123 456',
-        school_email: 'info@ibunbaz.ac.ug',
+        school_name: schoolName || 'School',
+        school_address: '',
+        school_contact: '',
+        school_email: '',
         principal_name: 'Headteacher'
       };
 
@@ -498,52 +503,202 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
 
       yPosition += 10;
 
-      // School Policies
+      // COMPREHENSIVE SCHOOL POLICIES SECTION
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('SCHOOL POLICIES & EXPECTATIONS:', 20, yPosition);
+      doc.text('SCHOOL POLICIES & EXPECTATIONS', 20, yPosition);
       yPosition += 8;
 
-      const policies = [
-        '• Regular attendance and punctuality are mandatory',
-        '• Adherence to school dress code and conduct policies',
-        '• Respect for Islamic values and academic excellence',
-        '• Active participation in both secular and religious studies',
-        '• Payment of fees as per agreed schedule'
-      ];
-
       doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('1. DRESS CODE & UNIFORM REQUIREMENTS', 20, yPosition);
+      yPosition += 6;
+      
       doc.setFont('helvetica', 'normal');
-      policies.forEach(policy => {
-        doc.text(policy, 25, yPosition);
-        yPosition += 6;
-      });
+      doc.setFontSize(9);
+      const dressCodeText = 'School Uniform (Mandatory): Navy blue skirt (knee-length), white blouse, navy blue jacket, white socks, black shoes. Hair must be neatly groomed; hijab encouraged in line with Islamic teachings. No makeup, nail polish, or visible jewelry except simple earrings. All attire must be clean and well-maintained. Uniform violations result in disciplinary action.';
+      const dressCodeLines = doc.splitTextToSize(dressCodeText, pageWidth - 40);
+      doc.text(dressCodeLines, 25, yPosition);
+      yPosition += dressCodeLines.length * 3.5 + 5;
 
-      // Signatures Section
-      yPosition = Math.max(yPosition + 20, pageHeight - 80);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('2. ATTENDANCE & PUNCTUALITY', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const attendanceText = 'Reporting Time: 6:45 AM (Assembly at 7:00 AM). Maximum 2 days unexplained absence per term. Minimum 85% attendance required to sit examinations. Medical certificates required for absences exceeding 2 consecutive days. Poor attendance results in academic probation or expulsion.';
+      const attendanceLines = doc.splitTextToSize(attendanceText, pageWidth - 40);
+      doc.text(attendanceLines, 25, yPosition);
+      yPosition += attendanceLines.length * 3.5 + 5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('3. BEHAVIOR & DISCIPLINE GUIDELINES', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const behaviorText = 'Prohibited: Bullying, theft, cheating, violence, drugs, alcohol, weapons, disrespect to authority, vandalism, or inappropriate conduct. Disciplinary measures: Verbal warning → Written warning → Detention → Parent meeting → Suspension → Expulsion. Serious violations (violence, theft, weapons) result in immediate suspension and possible expulsion.';
+      const behaviorLines = doc.splitTextToSize(behaviorText, pageWidth - 40);
+      doc.text(behaviorLines, 25, yPosition);
+      yPosition += behaviorLines.length * 3.5 + 5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('4. RELIGIOUS & PRAYER OBLIGATIONS', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const religionText = 'Dhuhr Prayer (Midday): Mandatory for all Muslim students. Conducted in designated prayer hall during school hours. Friday Jumu\'ah prayers encouraged. During Ramadan, lighter meals and flexible PE activities provided. Islamic studies are core curriculum. All students, regardless of religion, are taught Islamic values: honesty, community, respect, compassion. Non-Muslim students fully respected and accommodated.';
+      const religionLines = doc.splitTextToSize(religionText, pageWidth - 40);
+      doc.text(religionLines, 25, yPosition);
+      yPosition += religionLines.length * 3.5 + 5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('5. ACADEMIC INTEGRITY & HOMEWORK', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const academicText = 'Copying work or submitting work not your own constitutes cheating. First offense: Zero marks + detention. Second offense: Suspension. Third offense: Expulsion. Expected homework: S.1-S.2: 1.5-2 hours/day; S.3-S.4: 2.5-3.5 hours/day. Late homework receives 10% deduction per day. Remedial classes and peer tutoring available for struggling students.';
+      const academicLines = doc.splitTextToSize(academicText, pageWidth - 40);
+      doc.text(academicLines, 25, yPosition);
+      yPosition += academicLines.length * 3.5 + 5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('6. HEALTH, SAFETY & EMERGENCY PROCEDURES', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const healthText = 'Medical facilities staffed during school hours. All students must be up-to-date on vaccinations. Fire drills conducted monthly. Emergency exits clearly marked. CCTV security cameras in public areas. Prohibited items: Sharp objects, lighters, matches, flammable materials, unauthorized mobile phones. School not responsible for lost items. Parents contacted immediately for serious medical or safety issues.';
+      const healthLines = doc.splitTextToSize(healthText, pageWidth - 40);
+      doc.text(healthLines, 25, yPosition);
+      yPosition += healthLines.length * 3.5 + 5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('7. COMMUNICATION WITH PARENTS/GUARDIANS', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const communicationText = 'Report cards issued end of each term. Parent-teacher meetings held twice per term. School newsletters issued monthly. Online portal provides access to student progress and attendance. Parents expected to attend at least 2 meetings per term and monitor homework completion. Urgent issues trigger immediate parent notification.';
+      const communicationLines = doc.splitTextToSize(communicationText, pageWidth - 40);
+      doc.text(communicationLines, 25, yPosition);
+      yPosition += communicationLines.length * 3.5 + 5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('8. FEE PAYMENT & FINANCIAL OBLIGATIONS', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const feeText = 'School fees are due on the first day of each term. Payment can be made via bank transfer, mobile money, or direct deposit at school offices. Failure to pay fees may result in suspension from classes. Fee payment is mandatory for examination eligibility.';
+      const feeLines = doc.splitTextToSize(feeText, pageWidth - 40);
+      doc.text(feeLines, 25, yPosition);
+      yPosition += feeLines.length * 3.5 + 8;
+
+      // IMPORTANT REMINDERS SECTION
+      if (yPosition > pageHeight - 150) {
+        doc.addPage();
+        yPosition = 20;
+      }
       
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('ACKNOWLEDGMENT & SIGNATURES:', 20, yPosition);
-      yPosition += 15;
-
-      // Signature blocks
+      doc.text('IMPORTANT REMINDERS', 20, yPosition);
+      yPosition += 6;
+      
       doc.setFont('helvetica', 'normal');
-      doc.text('Headteacher Signature:', 20, yPosition);
-      doc.text('Parent/Guardian Signature:', pageWidth / 2 + 10, yPosition);
+      doc.setFontSize(9);
+      const reminders = [
+        '• This admission is CONDITIONAL on submission of all required documents and fee payment',
+        '• REPORTING DATE: ' + new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-GB'),
+        '• Report by 6:45 AM; Assembly & Orientation begins at 7:00 AM',
+        '• Late reporting without prior permission may result in forfeiture of admission',
+        '• Parent/Guardian agreement to all policies is MANDATORY',
+        '• School reserves right to amend policies with 2 weeks\' notice',
+        '• Academic streams: Science (Biology, Chemistry, Physics) & Theology (Quranic, Islamic Law)'
+      ];
       
+      reminders.forEach(reminder => {
+        doc.text(reminder, 25, yPosition);
+        yPosition += 5;
+      });
+
+      yPosition += 8;
+
+      // CONTACT INFORMATION
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CONTACT INFORMATION FOR INQUIRIES:', 20, yPosition);
+      yPosition += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const contactInfo = [
+        `School: ${schoolInfo.school_name}`,
+        `Location: ${schoolInfo.school_address || ''}`,
+        `Telephone: ${schoolInfo.school_contact || ''}`,
+        `Email: ${schoolInfo.school_email || ''}`,
+        'Office Hours: 8:00 AM - 4:00 PM, Monday to Friday'
+      ];
+      
+      contactInfo.forEach(contact => {
+        doc.text(contact, 25, yPosition);
+        yPosition += 5;
+      });
+
+      yPosition += 10;
+
+      // ACKNOWLEDGMENT STATEMENT
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ACKNOWLEDGMENT OF RECEIPT & ACCEPTANCE', 20, yPosition);
+      yPosition += 7;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const acknowledgmentText = `I/We acknowledge receipt of this Official Admission Letter and confirm that I/we understand and accept all conditions, policies, and expectations outlined herein. I/We commit to supporting ${studentData.first_name} ${studentData.last_name}'s academic and personal development in accordance with the values and standards of ${schoolInfo.school_name}.`;
+      
+      const ackLines = doc.splitTextToSize(acknowledgmentText, pageWidth - 40);
+      doc.text(ackLines, 20, yPosition);
+      yPosition += ackLines.length * 3.5 + 12;
+
+      // Signatures Section
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('AUTHORIZED BY:', 20, yPosition);
+      doc.text('PARENT/GUARDIAN ACCEPTANCE:', pageWidth / 2 + 10, yPosition);
+      yPosition += 20;
+
       // Signature lines
-      doc.line(20, yPosition + 8, 80, yPosition + 8);
-      doc.line(pageWidth / 2 + 10, yPosition + 8, pageWidth - 20, yPosition + 8);
+      doc.line(20, yPosition, 85, yPosition);
+      doc.line(pageWidth / 2 + 10, yPosition, pageWidth - 20, yPosition);
       
-      yPosition += 15;
-      doc.text('Date: ________________', 20, yPosition);
-      doc.text('Date: ________________', pageWidth / 2 + 10, yPosition);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Headmistress/Headmaster', 20, yPosition + 2);
+      doc.text('Parent/Guardian', pageWidth / 2 + 10, yPosition + 2);
+      
+      yPosition += 10;
+      doc.text('Date: _______________', 20, yPosition);
+      doc.text('Date: _______________', pageWidth / 2 + 10, yPosition);
 
       // Footer
+      yPosition = pageHeight - 15;
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
-      doc.text(`This is an official document from ${schoolInfo.school_name}. Please keep this letter for your records.`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+      const footerText = `This is an OFFICIAL document from ${schoolInfo.school_name}. Please keep this letter for your records. A scanned copy will be sent to your registered email address.`;
+      const footerLines = doc.splitTextToSize(footerText, pageWidth - 40);
+      doc.text(footerLines, pageWidth / 2, yPosition - footerLines.length * 2.5, { align: 'center' });
 
       // Generate and download
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
@@ -789,12 +944,12 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
         <div className="fixed inset-0 overflow-y-auto p-4 md:p-8">
           <div className="mx-auto max-w-5xl">
             <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-              <Dialog.Panel className="relative rounded-3xl border border-white/15 dark:border-white/10 bg-gradient-to-br from-white/90 via-white/70 to-white/50 dark:from-slate-900/90 dark:via-slate-900/70 dark:to-slate-800/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+              <Dialog.Panel className="relative rounded-3xl border border-white/15 dark:border-white/10 bg-gradient-to-br from-white/90 via-white/70 to-white/50 dark:from-slate-900/90 dark:via-slate-900/70 dark:to-slate-800/60 backdrop-blur-2xl shadow-2xl overflow-visible flex flex-col h-screen md:h-[85vh] max-h-[85vh]">
                 <div className="absolute inset-0 pointer-events-none">
                   <div className="absolute -top-16 -right-10 w-72 h-72 bg-fuchsia-400/20 blur-3xl rounded-full" />
                   <div className="absolute -bottom-24 -left-20 w-96 h-96 bg-indigo-500/20 blur-3xl rounded-full" />
                 </div>
-                <div className="relative p-6 border-b border-white/30 dark:border-white/10 flex flex-wrap gap-2">
+                <div className="relative p-6 border-b border-white/30 dark:border-white/10 flex flex-wrap gap-2 flex-shrink-0 z-40">
                   {steps.map((s,i)=>(<button key={s} type="button" onClick={()=>{ if(i<step && !loading) setStep(i); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition ${i===step?'bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white shadow':'bg-white/40 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300'}`}>{i+1}. {s}</button>))}
                   <div className="ml-auto flex items-center gap-3 text-xs font-medium">
                     {message && <span className={message.type==='error'?'text-red-600':'text-green-600'}>{message.text}</span>}
@@ -808,66 +963,179 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
                   <button type="button" onClick={handleClose} className="ml-2 p-2 rounded-lg hover:bg-black/10 dark:hover:bg-white/10"><X className="w-5 h-5"/></button>
                 </div>
                 
-                <div className="relative p-8 space-y-8">
+                <div className="relative p-8 space-y-4 overflow-visible overflow-y-auto flex-1 h-screen md:h-auto">
                   {step===0 && (
-                    <div className="grid md:grid-cols-3 gap-6">
-                      <Field label="First Name"><input value={first} onChange={e=>setFirst(e.target.value)} className={`${fieldCls} ${touchedNames && !first.trim()? 'ring-2 ring-red-500 border-red-500':''}`} /></Field>
-                      <Field label="Last Name"><input value={last} onChange={e=>setLast(e.target.value)} className={`${fieldCls} ${touchedNames && !last.trim()? 'ring-2 ring-red-500 border-red-500':''}`} /></Field>
-                      <Field label="Other Name (Optional)"><input value={otherName} onChange={e=>setOtherName(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Gender (Optional)"><select value={gender} onChange={e=>setGender(e.target.value)} className={fieldCls}><option value="">--</option><option value="M">Male</option><option value="F">Female</option></select></Field>
-                      <Field label="Date of Birth (Optional)"><input type="date" value={dob} onChange={e=>setDob(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Phone"><input value={phone} onChange={e=>setPhone(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Address"><input value={address} onChange={e=>setAddress(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Nationality"><input value={nationalityId} onChange={e=>setNationalityId(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Orphan Status"><select value={orphanStatus} onChange={e=>setOrphanStatus(e.target.value)} className={fieldCls}><option value="">--</option><option value="orphan">Orphan</option><option value="non_orphan">Non-Orphan</option></select></Field>
-                      <Field label="Living Status"><select value={livingStatus} onChange={e=>setLivingStatus(e.target.value)} className={fieldCls}><option value="">--</option><option value="alive">Alive</option><option value="deceased">Deceased</option></select></Field>
-                      <Field label="Juzus Memorized"><input value={noOfJuzus} onChange={e=>setNoOfJuzus(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Previous School"><input value={prevSchool} onChange={e=>setPrevSchool(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Previous School Year"><input value={prevSchoolYear} onChange={e=>setPrevSchoolYear(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Previous Theology Class"><input value={prevClassTheology} onChange={e=>setPrevClassTheology(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Previous Secular Class"><input value={prevClassSecular} onChange={e=>setPrevClassSecular(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Photo">
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={photoPreview ? photoPreview : '/default-avatar.png'} // Use default avatar if no photo is selected
-                            alt="Preview"
-                            className="w-20 h-20 object-cover rounded-full border"
-                          />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files?.[0]) {
-                                setPhotoFile(e.target.files[0]); // Temporarily store the selected file
-                                setPhotoPreview(URL.createObjectURL(e.target.files[0]));
-                              }
-                            }}
-                            className={fieldCls}
-                          />
+                    <>
+                      {/* Required Names Section */}
+                      <div className="space-y-4 bg-gradient-to-br from-indigo-50/50 via-transparent to-fuchsia-50/30 dark:from-indigo-950/20 dark:via-transparent dark:to-fuchsia-950/10 px-4 py-5 rounded-2xl border border-indigo-200/50 dark:border-indigo-800/30">
+                        <div className="mb-2">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Student Names *</h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Required fields</p>
                         </div>
-                      </Field>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Field label="First Name">
+                            <input 
+                              value={first} 
+                              onChange={e=>setFirst(e.target.value.toUpperCase())} 
+                              placeholder="e.g., KAGWINYRWOTH"
+                              className={`${nameFieldCls} text-base font-semibold ${touchedNames && !first.trim()? 'ring-2 ring-red-500 border-red-500':''}`} 
+                            />
+                          </Field>
+                          <Field label="Last Name">
+                            <input 
+                              value={last} 
+                              onChange={e=>setLast(e.target.value.toUpperCase())} 
+                              placeholder="e.g., PRISCILA"
+                              className={`${nameFieldCls} text-base font-semibold ${touchedNames && !last.trim()? 'ring-2 ring-red-500 border-red-500':''}`} 
+                            />
+                          </Field>
+                        </div>
+                        
+                        {/* Quick Submit Button - appears when names are filled */}
+                        {first.trim() && last.trim() && (
+                          <div className="flex gap-2 pt-3 border-t border-indigo-200/50 dark:border-indigo-800/30 mt-4">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (canNext()) next();
+                              }}
+                              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                            >
+                              Add Details
+                            </button>
+                            <button
+                              type="button"
+                              disabled={loading || generatingPDF}
+                              onClick={submit}
+                              className="flex-1 relative px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
+                            >
+                              <span className={loading || generatingPDF ? 'opacity-0' : 'opacity-100'}>
+                                ✓ Enroll Now
+                              </span>
+                              {(loading || generatingPDF) && (
+                                <span className="absolute inset-0 flex items-center justify-center">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Biographical Information - Collapsible */}
+                      <div className="border border-gray-200/50 dark:border-gray-700/50 rounded-2xl overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandBiographic(!expandBiographic)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Biographical Information</h3>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">(optional)</span>
+                          </div>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${expandBiographic ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {expandBiographic && (
+                          <div className="px-4 py-4 border-t border-gray-200/50 dark:border-gray-700/50 space-y-4 bg-gradient-to-b from-gray-50/50 dark:from-gray-900/20 to-transparent">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <Field label="Other Name"><input value={otherName} onChange={e=>setOtherName(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
+                              <Field label="Gender">
+                                <select value={gender} onChange={e=>setGender(e.target.value)} className={fieldCls}>
+                                  <option value="">Select</option>
+                                  <option value="M">Male</option>
+                                  <option value="F">Female</option>
+                                </select>
+                              </Field>
+                              <Field label="Date of Birth"><input type="date" value={dob} onChange={e=>setDob(e.target.value)} className={fieldCls} /></Field>
+                              <Field label="Phone"><input value={phone} onChange={e=>setPhone(e.target.value)} className={fieldCls} /></Field>
+                              <Field label="Address" className="md:col-span-2"><input value={address} onChange={e=>setAddress(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
+                              <Field label="Nationality"><input value={nationalityId} onChange={e=>setNationalityId(e.target.value)} className={fieldCls} /></Field>
+                              <Field label="Orphan Status">
+                                <select value={orphanStatus} onChange={e=>setOrphanStatus(e.target.value)} className={fieldCls}>
+                                  <option value="">--</option>
+                                  <option value="orphan">Orphan</option>
+                                  <option value="non_orphan">Non-Orphan</option>
+                                </select>
+                              </Field>
+                              <Field label="Living Status">
+                                <select value={livingStatus} onChange={e=>setLivingStatus(e.target.value)} className={fieldCls}>
+                                  <option value="">--</option>
+                                  <option value="alive">Alive</option>
+                                  <option value="deceased">Deceased</option>
+                                </select>
+                              </Field>
+                              <Field label="Place of Birth"><input value={placeBirth} onChange={e=>setPlaceBirth(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
+                              <Field label="Place of Residence"><input value={placeResidence} onChange={e=>setPlaceResidence(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
+                              <Field label="Juzus Memorized"><input value={noOfJuzus} onChange={e=>setNoOfJuzus(e.target.value)} className={fieldCls} /></Field>
+                              <Field label="Previous School"><input value={prevSchool} onChange={e=>setPrevSchool(e.target.value)} className={fieldCls} /></Field>
+                              <Field label="Previous School Year"><input value={prevSchoolYear} onChange={e=>setPrevSchoolYear(e.target.value)} className={fieldCls} /></Field>
+                              <Field label="Previous Theology Class"><input value={prevClassTheology} onChange={e=>setPrevClassTheology(e.target.value)} className={fieldCls} /></Field>
+                              <Field label="Previous Secular Class"><input value={prevClassSecular} onChange={e=>setPrevClassSecular(e.target.value)} className={fieldCls} /></Field>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Photo - Collapsible */}
+                      <div className="border border-gray-200/50 dark:border-gray-700/50 rounded-2xl overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandPhoto(!expandPhoto)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Photo</h3>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">(optional)</span>
+                          </div>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${expandPhoto ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {expandPhoto && (
+                          <div className="px-4 py-4 border-t border-gray-200/50 dark:border-gray-700/50 space-y-4 bg-gradient-to-b from-gray-50/50 dark:from-gray-900/20 to-transparent">
+                            <div className="flex items-center gap-4">
+                              <img
+                                src={photoPreview ? photoPreview : '/default-avatar.png'}
+                                alt="Preview"
+                                className="w-20 h-20 object-cover rounded-full border"
+                              />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    setPhotoFile(e.target.files[0]);
+                                    setPhotoPreview(URL.createObjectURL(e.target.files[0]));
+                                  }
+                                }}
+                                className={fieldCls}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       
                       {/* Tahfiz Auto-Enrollment Option */}
                       {autoEnrollTahfiz && (
-                        <Field label="Tahfiz Program" className="md:col-span-3">
-                          <div className="flex items-center space-x-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                            <input
-                              type="checkbox"
-                              id="tahfiz-enroll"
-                              checked={tahfizAutoEnroll}
-                              onChange={(e) => setTahfizAutoEnroll(e.target.checked)}
-                              className="w-4 h-4 text-emerald-600 bg-white border-emerald-300 rounded focus:ring-emerald-500"
-                            />
+                        <div className="flex items-center space-x-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                          <input
+                            type="checkbox"
+                            id="tahfiz-enroll"
+                            checked={tahfizAutoEnroll}
+                            onChange={(e) => setTahfizAutoEnroll(e.target.checked)}
+                            className="w-4 h-4 text-emerald-600 bg-white border-emerald-300 rounded focus:ring-emerald-500"
+                          />
+                          <div className="flex-1">
                             <label htmlFor="tahfiz-enroll" className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
                               Automatically enroll in Tahfiz program
                             </label>
+                            <p className="text-xs text-emerald-600 dark:text-emerald-300 mt-0.5">
+                              Student will be added to the default Tahfiz group and can start memorization tracking immediately.
+                            </p>
                           </div>
-                          <p className="text-xs text-emerald-600 mt-1">
-                            Student will be added to the default Tahfiz group and can start memorization tracking immediately.
-                          </p>
-                        </Field>
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
                   {step===1 && (
                     <div className="grid md:grid-cols-4 gap-6">
@@ -880,30 +1148,30 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
                     <div className="space-y-8">
                       <div className="grid md:grid-cols-4 gap-6">
                         <div className="md:col-span-4 font-semibold text-xs uppercase tracking-wide text-slate-500">Parents</div>
-                        <Field label="Mother Name"><input value={motherName} onChange={e=>setMotherName(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Mother Name"><input value={motherName} onChange={e=>setMotherName(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                         <Field label="Mother Contact"><input value={motherContact} onChange={e=>setMotherContact(e.target.value)} className={fieldCls} /></Field>
-                        <Field label="Mother Occupation"><input value={motherOccupation} onChange={e=>setMotherOccupation(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Mother Occupation"><input value={motherOccupation} onChange={e=>setMotherOccupation(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                         <Field label="Mother Alive?"><select value={motherAlive} onChange={e=>setMotherAlive(e.target.value as any)} className={fieldCls}><option value="unknown">Unknown</option><option value="alive">Alive</option><option value="deceased">Deceased</option></select></Field>
                         {motherAlive==='deceased' && <Field label="Mother Date of Death"><input type="date" value={motherDod} onChange={e=>setMotherDod(e.target.value)} className={fieldCls} /></Field>}
-                        <Field label="Father Name"><input value={fatherName} onChange={e=>setFatherName(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Father Name"><input value={fatherName} onChange={e=>setFatherName(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                         <Field label="Father Contact"><input value={fatherContact} onChange={e=>setFatherContact(e.target.value)} className={fieldCls} /></Field>
-                        <Field label="Father Occupation"><input value={fatherOccupation} onChange={e=>setFatherOccupation(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Father Occupation"><input value={fatherOccupation} onChange={e=>setFatherOccupation(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                         <Field label="Father Alive?"><select value={fatherAlive} onChange={e=>setFatherAlive(e.target.value as any)} className={fieldCls}><option value="unknown">Unknown</option><option value="alive">Alive</option><option value="deceased">Deceased</option></select></Field>
                         {fatherAlive==='deceased' && <Field label="Father Date of Death"><input type="date" value={fatherDod} onChange={e=>setFatherDod(e.target.value)} className={fieldCls} /></Field>}
                       </div>
                       <div className="grid md:grid-cols-4 gap-6">
                         <div className="md:col-span-4 font-semibold text-xs uppercase tracking-wide text-slate-500">Guardian</div>
-                        <Field label="Guardian Name"><input value={guardianName} onChange={e=>setGuardianName(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Guardian Name"><input value={guardianName} onChange={e=>setGuardianName(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                         <Field label="Guardian Contact"><input value={guardianContact} onChange={e=>setGuardianContact(e.target.value)} className={fieldCls} /></Field>
-                        <Field label="Guardian Occupation"><input value={guardianOccupation} onChange={e=>setGuardianOccupation(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Guardian Occupation"><input value={guardianOccupation} onChange={e=>setGuardianOccupation(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                         <Field label="Guardian Alive?"><select value={guardianAlive} onChange={e=>setGuardianAlive(e.target.value as any)} className={fieldCls}><option value="unknown">Unknown</option><option value="alive">Alive</option><option value="deceased">Deceased</option></select></Field>
                         {guardianAlive==='deceased' && <Field label="Guardian Date of Death"><input type="date" value={guardianDod} onChange={e=>setGuardianDod(e.target.value)} className={fieldCls} /></Field>}
                       </div>
                       <div className="grid md:grid-cols-4 gap-6">
                         <div className="md:col-span-4 font-semibold text-xs uppercase tracking-wide text-slate-500">Next of Kin</div>
-                        <Field label="Name"><input value={nokName} onChange={e=>setNokName(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Name"><input value={nokName} onChange={e=>setNokName(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                         <Field label="Contact"><input value={nokContact} onChange={e=>setNokContact(e.target.value)} className={fieldCls} /></Field>
-                        <Field label="Relationship"><input value={nokRelationship} onChange={e=>setNokRelationship(e.target.value)} className={fieldCls} /></Field>
+                        <Field label="Relationship"><input value={nokRelationship} onChange={e=>setNokRelationship(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                       </div>
                     </div>
                   )}
@@ -911,7 +1179,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
                     <div className="grid md:grid-cols-3 gap-6">
                       <Field label="District ID (Optional)"><input value={districtId} onChange={e=>setDistrictId(e.target.value)} className={fieldCls} /></Field>
                       <Field label="Village ID (Optional)"><input value={villageId} onChange={e=>setVillageId(e.target.value)} className={fieldCls} /></Field>
-                      <Field label="Residence (Optional)" className="md:col-span-2"><input value={placeResidence} onChange={e=>setPlaceResidence(e.target.value)} className={fieldCls} /></Field>
+                      <Field label="Residence (Optional)" className="md:col-span-2"><input value={placeResidence} onChange={e=>setPlaceResidence(e.target.value.toUpperCase())} className={nameFieldCls} /></Field>
                     </div>
                   )}
                   {step===4 && (
@@ -948,7 +1216,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
                       </ul>
                     </div>
                   )}
-                  <div className="flex justify-between items-center pt-2">
+                  <div className="flex justify-between items-center pt-6 border-t border-white/20 dark:border-white/10 mt-6 flex-shrink-0">
                     <div className="flex gap-2">
                       <button type="button" disabled={step===0 || loading} onClick={prev} className="px-4 py-2 rounded-lg text-xs font-medium bg-black/5 dark:bg-white/10 disabled:opacity-30">Back</button>
                       {step < steps.length-1 && <button type="button" disabled={!canNext() || loading} onClick={next} className="px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white disabled:opacity-40">Next</button>}

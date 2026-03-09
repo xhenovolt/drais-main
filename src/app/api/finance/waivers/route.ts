@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 // GET /api/finance/waivers
 // List waivers and discounts
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const studentId = searchParams.get('student_id');
     const termId = searchParams.get('term_id');
     const status = searchParams.get('status'); // pending, approved, rejected
@@ -41,6 +49,7 @@ export async function GET(req: NextRequest) {
       FROM waivers_discounts w
       LEFT JOIN students s ON w.student_id = s.id
       LEFT JOIN people p ON s.person_id = p.id
+      LEFT JOIN classes c ON s.class_id = c.id
       LEFT JOIN terms t ON w.term_id = t.id
       LEFT JOIN student_fee_items sfi ON w.fee_item_id = sfi.id
       WHERE w.school_id = ? AND (w.deleted_at IS NULL OR w.deleted_at = '')
@@ -63,8 +72,9 @@ export async function GET(req: NextRequest) {
       params.push(status);
     }
     
-    sql += ' ORDER BY w.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, (page - 1) * limit);
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number((page - 1) * limit) || 0);
+    sql += ` ORDER BY w.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
     
     const [waivers] = await connection.execute(sql, params);
     
@@ -118,18 +128,22 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      student_id,
+    const { student_id,
       term_id,
       fee_item_id,
       waiver_type = 'partial',
       discount_type = 'fixed',
       amount,
       reason,
-      created_by = 1
-    } = body;
+      created_by = 1 } = body;
     
     // Validation
     if (!student_id || !term_id || !amount || !reason) {
@@ -145,11 +159,11 @@ export async function POST(req: NextRequest) {
     // Insert waiver
     const [result] = await connection.execute(`
       INSERT INTO waivers_discounts (
-        school_id, student_id, term_id, fee_item_id, waiver_type,
+        schoolId, student_id, term_id, fee_item_id, waiver_type,
         discount_type, amount, reason, created_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      school_id, student_id, term_id, fee_item_id || null, 
+      schoolId, student_id, term_id, fee_item_id || null, 
       waiver_type, discount_type, amount, reason, created_by
     ]);
     
@@ -183,14 +197,18 @@ export async function PUT(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      id,
-      school_id = 1,
+    const { id,
       action, // 'approve' or 'reject'
       approved_by = 1,
-      rejection_reason
-    } = body;
+      rejection_reason } = body;
     
     if (!id || !action) {
       return NextResponse.json({
@@ -205,7 +223,7 @@ export async function PUT(req: NextRequest) {
     // Get waiver details
     const [waivers] = await connection.execute(
       'SELECT * FROM waivers_discounts WHERE id = ? AND school_id = ?',
-      [id, school_id]
+      [id, schoolId]
     );
     
     if (!waivers.length) {
@@ -220,7 +238,7 @@ export async function PUT(req: NextRequest) {
         UPDATE waivers_discounts 
         SET status = 'approved', approved_by = ?, approved_at = NOW()
         WHERE id = ? AND school_id = ?
-      `, [approved_by, id, school_id]);
+      `, [approved_by, id, schoolId]);
       
       // Update fee item with waiver amount
       if (waiver.fee_item_id) {
@@ -243,7 +261,7 @@ export async function PUT(req: NextRequest) {
         UPDATE waivers_discounts 
         SET status = 'rejected', rejection_reason = ?
         WHERE id = ? AND school_id = ?
-      `, [rejection_reason, id, school_id]);
+      `, [rejection_reason, id, schoolId]);
     }
     
     await connection.commit();
@@ -271,9 +289,16 @@ export async function DELETE(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     
     if (!id) {
       return NextResponse.json({

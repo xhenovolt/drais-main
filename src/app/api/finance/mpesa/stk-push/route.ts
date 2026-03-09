@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 // M-Pesa Configuration
 const MPESA_CONFIG = {
   consumerKey: process.env.MPESA_CONSUMER_KEY || '',
@@ -49,16 +50,20 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      student_id,
+    const { student_id,
       phone_number,
       amount,
       description = 'School Fees Payment',
       callback_url,
-      created_by = 1
-    } = body;
+      created_by = 1 } = body;
     
     if (!student_id || !phone_number || !amount) {
       return NextResponse.json({
@@ -100,10 +105,10 @@ export async function POST(req: NextRequest) {
     // Store pending transaction
     const [transactionResult] = await connection.execute(`
       INSERT INTO mobile_money_transactions (
-        school_id, payment_id, transaction_type, phone_number, amount,
+        schoolId, payment_id, transaction_type, phone_number, amount,
         merchant_request_id, status, created_by
       ) VALUES (?, NULL, 'stk_push', ?, ?, ?, 'pending', ?)
-    `, [school_id, formattedPhone, amount, transactionRef, created_by]);
+    `, [schoolId, formattedPhone, amount, transactionRef, created_by]);
     
     const transactionId = transactionResult.insertId;
     await connection.commit();

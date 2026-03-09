@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 // GET /api/finance/expenditures
 // List expenditures with filtering
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const categoryId = searchParams.get('category_id');
     const walletId = searchParams.get('wallet_id');
     const status = searchParams.get('status');
@@ -77,8 +85,9 @@ export async function GET(req: NextRequest) {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
     
-    sql += ' ORDER BY e.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, (page - 1) * limit);
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number((page - 1) * limit) || 0);
+    sql += ` ORDER BY e.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
     
     const [expenditures] = await connection.execute(sql, params);
     
@@ -136,10 +145,15 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      category_id,
+    const { category_id,
       wallet_id,
       amount,
       description,
@@ -148,8 +162,7 @@ export async function POST(req: NextRequest) {
       invoice_number,
       expense_date,
       status = 'pending',
-      created_by = 1
-    } = body;
+      created_by = 1 } = body;
     
     // Validation
     if (!category_id || !amount || !description) {
@@ -165,12 +178,12 @@ export async function POST(req: NextRequest) {
     // Insert expenditure
     const [result] = await connection.execute(`
       INSERT INTO expenditures (
-        school_id, category_id, wallet_id, amount, description,
+        schoolId, category_id, wallet_id, amount, description,
         vendor_name, vendor_contact, invoice_number, expense_date,
         status, created_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      school_id, category_id, wallet_id || null, amount, description,
+      schoolId, category_id, wallet_id || null, amount, description,
       vendor_name || null, vendor_contact || null, invoice_number || null,
       expense_date || new Date().toISOString().split('T')[0],
       status, created_by
@@ -206,10 +219,15 @@ export async function PUT(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      id,
-      school_id = 1,
+    const { id,
       category_id,
       wallet_id,
       amount,
@@ -219,8 +237,7 @@ export async function PUT(req: NextRequest) {
       invoice_number,
       expense_date,
       status,
-      approved_by
-    } = body;
+      approved_by } = body;
     
     if (!id) {
       return NextResponse.json({
@@ -278,7 +295,7 @@ export async function PUT(req: NextRequest) {
       }
     }
     
-    params.push(id, school_id);
+    params.push(id, schoolId);
     
     await connection.execute(`
       UPDATE expenditures 
@@ -311,9 +328,16 @@ export async function DELETE(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     
     if (!id) {
       return NextResponse.json({

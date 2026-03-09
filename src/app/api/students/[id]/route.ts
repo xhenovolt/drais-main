@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const resolvedParams = await params;
     const { id } = resolvedParams;
 
@@ -26,8 +33,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
        LEFT JOIN districts d ON d.id = p.school_id
        LEFT JOIN classes c ON c.id = e.class_id
        LEFT JOIN student_history h ON h.student_id = s.id
-       WHERE s.id = ?`,
-      [id]
+       WHERE s.id = ? AND s.school_id = ?`,
+      [id, schoolId]
     );
 
     await connection.end();

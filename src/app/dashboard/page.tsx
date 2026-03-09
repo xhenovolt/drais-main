@@ -29,6 +29,7 @@ import AttendanceToday from '@/components/dashboard/AttendanceToday';
 import AIInsightCard from '@/components/dashboard/AIInsightCard';
 import AdvancedDashboard from '@/components/dashboard/AdvancedDashboard';
 import PredictiveAnalyticsDashboard from '@/components/dashboard/PredictiveAnalyticsDashboard';
+import AdmissionsAnalytics from '@/components/dashboard/AdmissionsAnalytics';
 import { toast } from 'react-hot-toast';
 
 const DashboardPage: React.FC = () => {
@@ -204,6 +205,9 @@ const DashboardPage: React.FC = () => {
             >
               {/* KPIs Row */}
               <DashboardKPIs data={overview?.kpis} />
+
+              {/* Admissions Analytics Section */}
+              <AdmissionsAnalytics schoolId={schoolId} />
 
               {/* Main Panels Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">

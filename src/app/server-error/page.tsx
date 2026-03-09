@@ -2,11 +2,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { motion } from 'framer-motion';
 import { Home, RefreshCw, Server, Wifi, ArrowLeft } from 'lucide-react';
 
 export default function ServerErrorPage() {
   const { t, dir } = useI18n();
+  const { school } = useSchoolConfig();
   const isRTL = dir === 'rtl';
 
   return (
@@ -141,7 +143,7 @@ export default function ServerErrorPage() {
             transition={{ delay: 0.9, duration: 0.5 }}
             className="text-xs text-gray-400 dark:text-gray-500"
           >
-            © 2025 Ibun Baz Girls Secondary School Management System. All rights reserved.
+            © {new Date().getFullYear()} {school.name} Management System. All rights reserved.
           </motion.div>
         </motion.div>
       </div>

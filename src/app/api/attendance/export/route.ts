@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Get attendance data for export
     const query = `
       SELECT 
-        CONCAT('XHN/', LPAD(s.id, 4, '0'), '/2025') as admission_no,
+        COALESCE(s.admission_no, CONCAT('XHN/', LPAD(s.id, 4, '0'), '/2025')) as admission_no,
         p.first_name,
         p.last_name,
         c.name as class_name,

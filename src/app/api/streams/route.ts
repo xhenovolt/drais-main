@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 function safe(v:any) { return (v === undefined || v === '') ? null : v; }
 
 export async function GET(req: NextRequest) {
@@ -18,7 +19,14 @@ export async function POST(req: NextRequest) {
   }
   const connection = await getConnection();
   try {
-    await connection.execute('INSERT INTO streams (name, class_id, school_id) VALUES (?, ?, ?)', [body.name, body.class_id, body.school_id || 1]);
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
+    await connection.execute('INSERT INTO streams (name, class_id, school_id) VALUES (?, ?, ?)', [body.name, body.class_id, schoolId]);
     await connection.end();
     return NextResponse.json({ success: true });
   } catch (e: any) {
@@ -36,7 +44,14 @@ export async function PUT(req: NextRequest) {
   }
   const connection = await getConnection();
   try {
-    await connection.execute('UPDATE streams SET name=?, class_id=?, school_id=? WHERE id=?', [body.name, body.class_id, body.school_id || 1, id]);
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
+    await connection.execute('UPDATE streams SET name=?, class_id=?, school_id=? WHERE id=?', [body.name, body.class_id, schoolId, id]);
     await connection.end();
     return NextResponse.json({ success: true });
   } catch (e: any) {

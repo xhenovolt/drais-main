@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const formData = await request.formData();
-    
-    const schoolId = formData.get('school_id') as string;
+    // schoolId from session auth (above)
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const totalUnits = formData.get('total_units') as string;
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
     // For now, returning success response
     const bookData = {
       id: Date.now(), // Replace with actual DB insert
-      school_id: parseInt(schoolId),
+      schoolId: parseInt(schoolId),
       title,
       description: description || '',
       total_units: parseInt(totalUnits),
@@ -95,9 +99,12 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get('school_id');
-    
+    // schoolId now from session auth (above)
     if (!schoolId) {
       return NextResponse.json({
         success: false,
@@ -110,7 +117,7 @@ export async function GET(request: NextRequest) {
     const books = [
       {
         id: 1,
-        school_id: parseInt(schoolId),
+        schoolId: parseInt(schoolId),
         title: 'The Holy Quran',
         description: 'Complete Quran for memorization',
         total_units: 114,
@@ -141,6 +148,10 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(request.url);
     const bookId = searchParams.get('id');
     

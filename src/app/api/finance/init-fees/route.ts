@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFeesSystem } from '@/lib/fees';
-import { getServerSession } from 'next-auth';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.role?.includes('admin')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const school_id = session.user.school_id;
-    const result = await initializeFeesSystem(school_id);
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+    const result = await initializeFeesSystem(schoolId);
 
     return NextResponse.json({
       success: true,

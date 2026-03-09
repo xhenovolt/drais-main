@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * POST /api/fingerprints/register
@@ -38,6 +39,10 @@ export async function GET(req: NextRequest) {
 async function listFingerprints(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get('student_id');
     const deviceId = searchParams.get('device_id');

@@ -66,8 +66,8 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch dropdown data
-  const { data: departmentsData } = useSWR('/api/departments/list?school_id=1', fetcher);
-  const { data: rolesData } = useSWR('/api/roles/list?school_id=1', fetcher);
+  const { data: departmentsData } = useSWR('/api/departments/list', fetcher);
+  const { data: rolesData } = useSWR('/api/roles/list', fetcher);
 
   const departments = departmentsData?.data || [];
   const roles = rolesData?.data || [];

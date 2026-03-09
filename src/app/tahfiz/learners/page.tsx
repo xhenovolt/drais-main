@@ -11,7 +11,7 @@ export default function LearnersPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/tahfiz/learners?school_id=1'); // Replace 1 with the actual school_id
+        const res = await fetch('/api/tahfiz/learners'); // Replace 1 with the actual school_id
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Failed to fetch learners');
         setLearners(data.data);

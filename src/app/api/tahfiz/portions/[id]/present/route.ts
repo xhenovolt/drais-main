@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'drais_school',
-  port: parseInt(process.env.DB_PORT || '3306')
-};
-
-async function getConnection() {
-  return await mysql.createConnection(dbConfig);
-}
+import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(
   request: NextRequest,
@@ -19,6 +8,10 @@ export async function POST(
 ) {
   let connection;
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const resolvedParams = await params;
     const portionId = resolvedParams.id;
     const body = await request.json();
@@ -29,11 +22,10 @@ export async function POST(
       mark, 
       status, 
       notes, 
-      recorded_by,
-      school_id 
+      recorded_by
     } = body;
 
-    if (!school_id) {
+    if (!schoolId) {
       return NextResponse.json({
         success: false,
         message: 'School ID is required'
@@ -83,7 +75,7 @@ export async function POST(
         recorded_at = NOW()`,
 
       [
-        school_id, portionId, studentId, presented ? 1 : 0, presented_length || 0,
+        schoolId, portionId, studentId, presented ? 1 : 0, presented_length || 0,
         retention_score || null, mark || null, status || 'pending', 
         notes || null, recorded_by || null
       ]

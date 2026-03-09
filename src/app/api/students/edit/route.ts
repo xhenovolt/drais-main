@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function PUT(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const {
       id,
@@ -37,8 +45,8 @@ export async function PUT(req: NextRequest) {
       let actualPersonId = person_id;
       if (!actualPersonId) {
         const [studentData] = await connection.execute(
-          'SELECT person_id FROM students WHERE id = ?',
-          [id]
+          'SELECT person_id FROM students WHERE id = ? AND school_id = ?',
+          [id, schoolId]
         ) as any[];
 
         if (studentData.length === 0) {

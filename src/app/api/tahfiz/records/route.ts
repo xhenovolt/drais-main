@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import mysql from 'mysql2/promise';
+import { getSessionSchoolId } from '@/lib/auth';
 
 // Add query function for POST/PATCH operations
 async function query(sql: string, params: any[] = []) {
@@ -16,11 +17,13 @@ async function query(sql: string, params: any[] = []) {
 export async function GET(req: NextRequest) {
   let connection;
   try {
-    const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') || 1;
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
 
+    const { searchParams } = new URL(req.url);    // schoolId now from session auth (above)
     if (!schoolId) {
-      return NextResponse.json({ success: false, message: 'school_id is required' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'schoolId is required' }, { status: 400 });
     }
 
     connection = await getConnection();
@@ -64,6 +67,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const cols = ['school_id','plan_id','student_id','presented','presented_length','retention_score','mark','status','notes','recorded_by','group_id'];
     const vals = cols.map(c => (body[c] !== undefined ? body[c] : null));
@@ -80,6 +87,10 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { id, ...rest } = body;
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
@@ -98,6 +109,10 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

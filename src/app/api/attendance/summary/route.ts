@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * GET /api/attendance/summary
  * Get comprehensive attendance summary for dashboard
@@ -13,11 +14,18 @@ import { getConnection } from '@/lib/db';
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
     const period = searchParams.get('period') || 'daily';
     const classId = searchParams.get('class_id');
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
 
     connection = await getConnection();
 
@@ -37,7 +45,7 @@ export async function GET(req: NextRequest) {
 
     // Base WHERE clause
     let classFilter = '';
-    const params: any[] = [schoolId, startDate, endDate];
+    const params: any[] = [startDate, endDate, schoolId];
     
     if (classId) {
       classFilter = 'AND e.class_id = ?';
@@ -56,16 +64,16 @@ export async function GET(req: NextRequest) {
         COUNT(CASE WHEN COALESCE(sa.status, 'not_marked') = 'not_marked' THEN 1 END) as not_marked,
         
         -- Male breakdown
-        COUNT(CASE WHEN s.gender = 'Male' THEN 1 END) as male_total,
-        COUNT(CASE WHEN s.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as male_present,
-        COUNT(CASE WHEN s.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as male_absent,
-        COUNT(CASE WHEN s.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as male_late,
+        COUNT(CASE WHEN p.gender = 'Male' THEN 1 END) as male_total,
+        COUNT(CASE WHEN p.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as male_present,
+        COUNT(CASE WHEN p.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as male_absent,
+        COUNT(CASE WHEN p.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as male_late,
         
         -- Female breakdown
-        COUNT(CASE WHEN s.gender = 'Female' THEN 1 END) as female_total,
-        COUNT(CASE WHEN s.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as female_present,
-        COUNT(CASE WHEN s.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as female_absent,
-        COUNT(CASE WHEN s.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as female_late,
+        COUNT(CASE WHEN p.gender = 'Female' THEN 1 END) as female_total,
+        COUNT(CASE WHEN p.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as female_present,
+        COUNT(CASE WHEN p.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as female_absent,
+        COUNT(CASE WHEN p.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as female_late,
         
         -- Method breakdown
         COUNT(CASE WHEN sa.method = 'biometric' THEN 1 END) as biometric_marked,
@@ -74,6 +82,7 @@ export async function GET(req: NextRequest) {
         
       FROM students s
       JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      JOIN people p ON s.person_id = p.id
       LEFT JOIN student_attendance sa ON s.id = sa.student_id 
         AND sa.date BETWEEN ? AND ?
       WHERE s.school_id = ?
@@ -130,11 +139,12 @@ export async function GET(req: NextRequest) {
         sa.time_in,
         sa.method,
         CONCAT(p.first_name, ' ', p.last_name) as student_name,
-        c.class_name
+        c.name as class_name
       FROM student_attendance sa
       JOIN students s ON sa.student_id = s.id
       JOIN people p ON s.person_id = p.id
-      LEFT JOIN classes c ON sa.class_id = c.id
+      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      LEFT JOIN classes c ON e.class_id = c.id
       WHERE sa.date = ?
       ORDER BY sa.marked_at DESC
       LIMIT 10`,

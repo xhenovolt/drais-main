@@ -34,13 +34,13 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch classes and terms
-  const { data: classesData } = useSWR('/api/classes?school_id=1', fetcher);
-  const { data: termsData } = useSWR('/api/terms?school_id=1', fetcher);
+  const { data: classesData } = useSWR('/api/classes', fetcher);
+  const { data: termsData } = useSWR('/api/terms', fetcher);
 
   // Fetch existing requirements when class and term are selected
   const { data: existingRequirements, mutate } = useSWR(
     selectedClass && selectedTerm 
-      ? `/api/requirements/class?school_id=1&class_id=${selectedClass}&term_id=${selectedTerm}`
+      ? `/api/requirements/class?class_id=${selectedClass}&term_id=${selectedTerm}`
       : null,
     fetcher
   );

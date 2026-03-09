@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const type = searchParams.get('type'); // Filter by type (e.g., 'tahfiz')
 
     connection = await getConnection();
@@ -50,10 +58,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     if (!body.name) return NextResponse.json({ error: 'name required' }, { status: 400 });
     connection = await getConnection();
-    await connection.execute('INSERT INTO classes (school_id,name,class_level,head_teacher_id,curriculum_id) VALUES (?,?,?,?,?)', [body.school_id || 1, body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null]);
+    await connection.execute('INSERT INTO classes (school_id,name,class_level,head_teacher_id,curriculum_id) VALUES (?,?,?,?,?)', [school_id, body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null]);
     const [result] = await connection.execute('SELECT LAST_INSERT_ID() as id');
     return NextResponse.json({ success: true, id: (result as any)[0].id }, { status: 201 });
   } catch (error: any) {
@@ -67,10 +82,17 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     if (!body.id || !body.name) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
     connection = await getConnection();
-    await connection.execute('UPDATE classes SET name=?, class_level=?, head_teacher_id=?, curriculum_id=?, school_id=? WHERE id=?', [body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null, body.school_id || 1, body.id]);
+    await connection.execute('UPDATE classes SET name=?, class_level=?, head_teacher_id=?, curriculum_id=?, school_id=? WHERE id=?', [body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null, schoolId, body.id]);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Classes PUT error:', error);

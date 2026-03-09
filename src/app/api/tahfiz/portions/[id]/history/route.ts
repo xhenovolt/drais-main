@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'drais_school',
-  port: parseInt(process.env.DB_PORT || '3306')
-};
-
-async function getConnection() {
-  return await mysql.createConnection(dbConfig);
-}
+import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -19,11 +8,13 @@ export async function GET(
 ) {
   let connection;
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const resolvedParams = await params;
     const studentId = resolvedParams.id;
-    const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get('school_id');
-
+    const { searchParams } = new URL(request.url);    // schoolId now from session auth (above)
     if (!schoolId) {
       return NextResponse.json({
         success: false,

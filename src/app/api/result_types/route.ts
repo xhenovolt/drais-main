@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
+    const { searchParams } = new URL(req.url);
+    // schoolId derived from session below
+    
     connection = await getConnection();
     const [rows] = await connection.execute(`
       SELECT id, school_id, name, code, description, weight, status, deadline, created_at, updated_at 
       FROM result_types 
+      WHERE school_id = ?
       ORDER BY created_at DESC
-    `);
+    `, [schoolId]);
     
     return NextResponse.json({ 
       success: true, 
@@ -36,8 +48,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const { name, code, description, weight, deadline, school_id } = body;
+    const { name, code, description, weight, deadline } = body;
 
     if (!name || !code || weight === undefined) {
       return NextResponse.json({ 
@@ -51,7 +70,7 @@ export async function POST(req: NextRequest) {
     // Check if code already exists for this school
     const [existing] = await connection.execute(`
       SELECT id FROM result_types WHERE code = ? AND school_id = ?
-    `, [code, school_id || 1]);
+    `, [code, schoolId || 1]);
 
     if (Array.isArray(existing) && existing.length > 0) {
       return NextResponse.json({ 
@@ -65,7 +84,7 @@ export async function POST(req: NextRequest) {
     const [result] = await connection.execute(`
       INSERT INTO result_types (school_id, name, code, description, weight, deadline, status, created_at) 
       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())
-    `, [school_id || 1, name, code, description || null, parseFloat(weight), deadlineValue]);
+    `, [schoolId || 1, name, code, description || null, parseFloat(weight), deadlineValue]);
 
     const insertId = (result as any).insertId;
 

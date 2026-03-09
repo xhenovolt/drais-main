@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * PROMOTIONS PREVIEW API
  * Endpoint: /api/promotions/preview
@@ -24,17 +25,21 @@ import { getConnection } from '@/lib/db';
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      academic_year_id,
+    const { academic_year_id,
       from_class_id,
       to_class_id,
       minimum_total_marks,
       minimum_average_marks,
       minimum_subjects_passed,
-      attendance_percentage = 75
-    } = body;
+      attendance_percentage = 75 } = body;
 
     if (!academic_year_id || !from_class_id || !to_class_id) {
       return NextResponse.json(
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
           100
         ) as attendance_percentage
       FROM students s
-      JOIN persons p ON s.person_id = p.id
+      JOIN people p ON s.person_id = p.id
       JOIN enrollments e ON s.id = e.student_id
       JOIN classes c ON e.class_id = c.id
       JOIN classes c2 ON ? = c2.id
@@ -78,7 +83,7 @@ export async function POST(req: NextRequest) {
         AND s.deleted_at IS NULL
         AND s.status = 'active'
       GROUP BY s.id, p.id, c.id, c2.id`,
-      [to_class_id, academic_year_id, academic_year_id, school_id, academic_year_id, from_class_id]
+      [to_class_id, academic_year_id, academic_year_id, schoolId, academic_year_id, from_class_id]
     );
 
     // Separate eligible and ineligible students

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * POST /api/attendance/biometric/sync
  * Sync attendance data from biometric device
@@ -9,10 +10,16 @@ import { getConnection } from '@/lib/db';
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const {
       device_id,
-      school_id = 1,
       attendance_records,  // Array of: { biometric_uuid, timestamp, quality_score? }
       initiated_by
     } = body;
@@ -32,7 +39,7 @@ export async function POST(req: NextRequest) {
         school_id, device_id, sync_type, sync_direction, status,
         records_processed, initiated_by, started_at
       ) VALUES (?, ?, 'attendance_download', 'pull', 'in_progress', ?, ?, NOW())`,
-      [school_id, device_id, attendance_records.length, initiated_by]
+      [schoolId, device_id, attendance_records.length, initiated_by]
     );
 
     const syncLogId = (syncLogResult as any).insertId;
@@ -67,7 +74,7 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const { student_id, school_id: studentSchoolId } = (students[0] as any);
+        const { student_id, schoolId: studentSchoolId } = (students[0] as any);
         const attendanceDate = new Date(timestamp).toISOString().split('T')[0];
         const attendanceTime = new Date(timestamp).toTimeString().split(' ')[0];
 
@@ -194,9 +201,16 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
     const deviceId = searchParams.get('device_id');
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
 
     connection = await getConnection();
 

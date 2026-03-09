@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * GET /api/biometric-devices
  * List all biometric devices
@@ -8,8 +9,15 @@ import { getConnection } from '@/lib/db';
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') || '1';
+    // school_id derived from session below
     const status = searchParams.get('status');
 
     connection = await getConnection();
@@ -17,7 +25,7 @@ export async function GET(req: NextRequest) {
     let sql = `
       SELECT 
         id,
-        school_id,
+        schoolId,
         device_name,
         device_code,
         device_type,
@@ -71,10 +79,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      device_name,
+    const { device_name,
       device_code,
       device_type = 'fingerprint',
       manufacturer,
@@ -84,8 +97,7 @@ export async function POST(req: NextRequest) {
       ip_address,
       mac_address,
       api_key,
-      api_secret
-    } = body;
+      api_secret } = body;
 
     if (!device_name || !device_code) {
       return NextResponse.json({
@@ -111,12 +123,12 @@ export async function POST(req: NextRequest) {
 
     const [result] = await connection.execute(
       `INSERT INTO biometric_devices (
-        school_id, device_name, device_code, device_type, manufacturer,
+        schoolId, device_name, device_code, device_type, manufacturer,
         model, serial_number, location, ip_address, mac_address,
         status, sync_status, api_key, api_secret, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'pending', ?, ?, NOW())`,
       [
-        school_id, device_name, device_code, device_type, manufacturer,
+        schoolId, device_name, device_code, device_type, manufacturer,
         model, serial_number, location, ip_address, mac_address,
         api_key, api_secret
       ]

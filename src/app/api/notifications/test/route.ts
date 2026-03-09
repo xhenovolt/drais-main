@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/NotificationService';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function POST(req: NextRequest) {
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const { template_code, recipients, variables = {}, school_id = 1 } = body;
+    const { template_code, recipients, variables = {} } = body;
 
     if (!template_code || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json({
@@ -18,7 +26,7 @@ export async function POST(req: NextRequest) {
       template_code,
       variables,
       recipients,
-      { school_id }
+      { schoolId }
     );
 
     return NextResponse.json({

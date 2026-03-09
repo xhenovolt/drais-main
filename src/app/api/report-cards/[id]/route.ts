@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const reportCardId = resolvedParams.id;
-  const schoolId = req.headers.get('x-school-id'); // Or get from session/auth
 
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const conn = await getConnection();
     try {
       // Optimized query

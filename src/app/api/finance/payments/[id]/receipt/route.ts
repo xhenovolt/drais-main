@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { generateReceiptPDF } from '@/lib/services/ReceiptService';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let connection;
   
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const resolvedParams = await params;
     const paymentId = parseInt(resolvedParams.id);
 

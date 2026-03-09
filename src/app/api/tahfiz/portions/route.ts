@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-// Database connection configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'drais_school',
-  port: parseInt(process.env.DB_PORT || '3306')
-};
-
-async function getConnection() {
-  return await mysql.createConnection(dbConfig);
-}
+import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') || 1;
+    // schoolId now from session auth (above)
     const groupId = searchParams.get('group_id');
     const studentId = searchParams.get('student_id');
     const status = searchParams.get('status');
@@ -138,9 +130,10 @@ export async function GET(req: NextRequest) {
       baseQuery += ' AND ' + conditions.join(' AND ');
     }
 
-    // Add pagination
-    baseQuery += ' ORDER BY p.first_name, p.last_name LIMIT ? OFFSET ?';
-    queryParams.push(limit, (page - 1) * limit);
+    // Add pagination - inline LIMIT/OFFSET since TiDB doesn't support parameterized LIMIT
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number((page - 1) * limit) || 0);
+    baseQuery += ` ORDER BY student_name LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
     const [rows] = await connection.execute(baseQuery, queryParams);
     const learners = (rows as any[]).map(row => ({
@@ -250,6 +243,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const {
       student_ids, 
@@ -264,11 +261,10 @@ export async function POST(req: NextRequest) {
       juz_number,
       difficulty_level, 
       estimated_days, 
-      notes,
-      school_id 
+      notes
     } = body;
 
-    if (!school_id) {
+    if (!schoolId) {
       return NextResponse.json({
         success: false,
         message: 'School ID is required'
@@ -397,6 +393,10 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { id, status, notes, presented_length, retention_score, mark } = body;
 

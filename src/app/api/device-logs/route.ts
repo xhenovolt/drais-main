@@ -6,12 +6,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   let connection;
 
   try {
-    const schoolId = req.nextUrl.searchParams.get('schoolId');
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+    // schoolId from session auth (above)
     const limit = parseInt(req.nextUrl.searchParams.get('limit') || '100', 10);
     const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0', 10);
     const accessResult = req.nextUrl.searchParams.get('accessResult'); // Filter: 'granted' or 'denied'
@@ -42,6 +46,8 @@ export async function GET(req: NextRequest) {
     const total = (countResult as any)[0]?.total || 0;
 
     // Get paginated logs
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
     const [logs] = await connection.execute(
       `SELECT 
         dal.id,
@@ -59,8 +65,8 @@ export async function GET(req: NextRequest) {
       JOIN device_configs dc ON dal.device_config_id = dc.id
       WHERE ${whereClause}
       ORDER BY dal.event_timestamp DESC
-      LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      [...params]
     );
 
     // Format response
@@ -101,8 +107,12 @@ export async function POST(req: NextRequest) {
   let connection;
 
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const requestData = await req.json();
-    const { schoolId } = requestData;
+    // schoolId from session auth (above)
 
     if (!schoolId) {
       return NextResponse.json({ success: false, error: 'School ID required' }, { status: 400 });

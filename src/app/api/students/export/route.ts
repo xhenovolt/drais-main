@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         st.name as stream_name,
         d.name as district_name,
         v.name as village_name,
-        CONCAT('XHN/', LPAD(s.id, 4, '0'), '/2025') as admission_no
+        s.admission_no
       FROM students s
       LEFT JOIN classes c ON s.class_id = c.id
       LEFT JOIN streams st ON s.stream_id = st.id

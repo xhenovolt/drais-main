@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import useSWR from 'swr';
 import useSWRImmutable from 'swr/immutable';
-import { Plus, Search, Loader2, Printer, FileDown, FileUp, Edit, Trash, Eye, MoreVertical, Filter, Users, UserCheck, UserX, UserMinus, Clock, CheckSquare, Square, Camera, Upload, Home, Thermometer, Fingerprint } from 'lucide-react';
+import { Plus, Search, Loader2, Printer, FileDown, FileUp, Edit, Trash, Eye, MoreVertical, Filter, Users, UserCheck, UserX, UserMinus, Clock, CheckSquare, Square, Camera, Upload, Home, Thermometer, Fingerprint, ChevronRight, X, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { StudentWizard } from './StudentWizard';
 import { EditStudentWizard } from './EditStudentWizard';
@@ -12,6 +12,7 @@ import { ImportModal } from './ImportModal';
 import { BulkPhotoUploadModal } from './BulkPhotoUploadModal';
 import { StatusActionModal } from './StatusActionModal';
 import { FingerprintModal } from './FingerprintModal';
+import DuplicatesManager from './DuplicatesManager';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
@@ -23,6 +24,7 @@ import PhotoEditorModal from './PhotoEditorModal'; // <-- new import
 import { toast } from 'react-hot-toast';
 import { Info } from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
+import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import Pagination from '@/components/ui/Pagination';
 
 const API_BASE = '/api';
@@ -67,6 +69,7 @@ const statusOptions = [
 
 export const StudentTable: React.FC = () => {
   const { t, lang, dir } = useI18n();
+  const { school: schoolCfg } = useSchoolConfig();
   const isRTL = dir === 'rtl';
   
   // Allow upload components to opt-out of client-side file-size limits.
@@ -82,6 +85,7 @@ export const StudentTable: React.FC = () => {
   
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -102,7 +106,7 @@ export const StudentTable: React.FC = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showAlphabetFilter, setShowAlphabetFilter] = useState(false);
   const [showBulkPhotoUpload, setShowBulkPhotoUpload] = useState(false);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [statusAction, setStatusAction] = useState<'suspend' | 'expel' | null>(null);
@@ -110,32 +114,26 @@ export const StudentTable: React.FC = () => {
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
   const [photoEditorStudent, setPhotoEditorStudent] = useState<Student | null>(null);
   const [fingerprintStatuses, setFingerprintStatuses] = useState<Record<number, {hasFingerprint: boolean, loading: boolean, lastFetched?: number}>>({});
-  
+  const [showDuplicatesManager, setShowDuplicatesManager] = useState(false);
+
   // Inline editing state
   const [editingCell, setEditingCell] = useState<{studentId: number, field: 'first_name' | 'last_name'} | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
-  
+
+  // Device ID editing state
+  const [deviceIdEditingCell, setDeviceIdEditingCell] = useState<{studentId: number} | null>(null);
+  const [deviceIdValue, setDeviceIdValue] = useState('');
+  const [isUpdatingDeviceId, setIsUpdatingDeviceId] = useState(false);
+
+  // Contact phone editing state
+  const [contactPhoneEditingCell, setContactPhoneEditingCell] = useState<{studentId: number} | null>(null);
+  const [contactPhoneValue, setContactPhoneValue] = useState('');
+  const [isUpdatingContactPhone, setIsUpdatingContactPhone] = useState(false);
+
   const router = useRouter();
 
-  // Effect to handle clicking outside of editing input
-  useEffect(() => {
-    if (!editingCell || isUpdating) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      // Check if the click is on an input or if we're in the middle of an update
-      if (!target.closest('input[type="text"]') && !target.closest('.inline-edit-container')) {
-        saveInlineEdit();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [editingCell?.studentId, editingCell?.field, isUpdating]);
-
+  // SWR Hook - define early so data is available for other functions
   const { data, isLoading, mutate } = useSWR(
     `${API_BASE}/students/full?q=${encodeURIComponent(query)}${selectedClass ? `&class_id=${selectedClass}` : ''}${selectedStream ? `&stream_id=${selectedStream}` : ''}${selectedGender ? `&gender=${selectedGender}` : ''}${selectedStatus ? `&status=${selectedStatus}` : ''}`,
     fetcher
@@ -144,30 +142,25 @@ export const StudentTable: React.FC = () => {
   const rows: Student[] = data?.data || [];
   const total = rows.length;
   const rowsPerPage = 10;
-  const pages = Math.ceil(total / rowsPerPage) || 1;
 
-  const { data: classData } = useSWRImmutable(`${API_BASE}/classes`, fetcher);
-  const classOptions = classData?.data || [];
+  // Data processing - single source of truth
+  const uniqueRows = rows.filter(
+    (student, index, self) => self.findIndex((s) => s.id === student.id) === index
+  );
+  
+  // Apply alphabetical filter
+  const filteredByLetter = selectedLetter
+    ? uniqueRows.filter(student => 
+        student.first_name?.toUpperCase().startsWith(selectedLetter)
+      )
+    : uniqueRows;
+  
+  const totalFiltered = filteredByLetter.length;
+  const pages = Math.ceil(totalFiltered / rowsPerPage) || 1;
+  const paginatedRows = filteredByLetter.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
-  const { data: streamData } = useSWRImmutable(`${API_BASE}/streams`, fetcher);
-  const streamOptions = streamData?.data || [];
-
-  // Helper functions
-  const generateAdmissionNo = (id: number) => `XHN/${id.toString().padStart(4, '0')}/2025`;
-
-  // Inline editing functions
-  const startInlineEdit = (studentId: number, field: 'first_name' | 'last_name', currentValue: string) => {
-    if (isUpdating || editingCell) return; // Prevent editing while update is in progress or another cell is being edited
-    setEditingCell({ studentId, field });
-    setEditingValue(currentValue);
-  };
-
-  const cancelInlineEdit = () => {
-    setEditingCell(null);
-    setEditingValue('');
-  };
-
-  const saveInlineEdit = async () => {
+  // Inline editing - save on blur
+  const saveInlineEditCallback = async () => {
     if (!editingCell || isUpdating) return;
     
     const student = rows.find(s => s.id === editingCell.studentId);
@@ -233,13 +226,230 @@ export const StudentTable: React.FC = () => {
     }
   };
 
+  // Effect to handle clicking outside of editing input
+  useEffect(() => {
+    if (!editingCell || isUpdating) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      // Check if the click is on an input or if we're in the middle of an update
+      if (!target.closest('input[type="text"]') && !target.closest('.inline-edit-container')) {
+        saveInlineEditCallback();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [editingCell?.studentId, editingCell?.field, isUpdating]);
+
+  // Effect to handle clicking outside of device ID editing input
+  useEffect(() => {
+    if (!deviceIdEditingCell || isUpdatingDeviceId) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      // Check if the click is on an input or if we're in the middle of an update
+      if (!target.closest('input[type="number"]') && !target.closest('.device-id-edit-container')) {
+        saveDeviceIdCallback();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [deviceIdEditingCell?.studentId, isUpdatingDeviceId]);
+
+  // Effect to handle clicking outside of contact phone editing input
+  useEffect(() => {
+    if (!contactPhoneEditingCell || isUpdatingContactPhone) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('input[type="tel"]') && !target.closest('.contact-phone-edit-container')) {
+        saveContactPhoneCallback();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [contactPhoneEditingCell?.studentId, isUpdatingContactPhone]);
+
+  const { data: classData } = useSWRImmutable(`${API_BASE}/classes`, fetcher);
+  const classOptions = classData?.data || [];
+
+  const { data: streamData } = useSWRImmutable(`${API_BASE}/streams`, fetcher);
+  const streamOptions = streamData?.data || [];
+
+  // Helper functions - display admission number from student record
+  const getAdmissionNo = (student: any) => {
+    // Return the student's actual admission_no from the database
+    return student.admission_no || `XHN/${student.id.toString().padStart(4, '0')}/2025`;
+  };
+
+  // Inline editing functions
+  const startInlineEdit = (studentId: number, field: 'first_name' | 'last_name', currentValue: string) => {
+    if (isUpdating || editingCell) return; // Prevent editing while update is in progress or another cell is being edited
+    setEditingCell({ studentId, field });
+    setEditingValue(currentValue);
+  };
+
+  const cancelInlineEdit = () => {
+    setEditingCell(null);
+    setEditingValue('');
+  };
+
   const handleInlineEditKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      saveInlineEdit();
+      saveInlineEditCallback();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       cancelInlineEdit();
+    }
+  };
+
+  // Device ID editing functions
+  const startDeviceIdEdit = (studentId: number, currentValue: number) => {
+    if (isUpdatingDeviceId || deviceIdEditingCell) return;
+    setDeviceIdEditingCell({ studentId });
+    setDeviceIdValue(currentValue.toString());
+  };
+
+  const cancelDeviceIdEdit = () => {
+    setDeviceIdEditingCell(null);
+    setDeviceIdValue('');
+  };
+
+  const saveDeviceIdCallback = async () => {
+    if (!deviceIdEditingCell || isUpdatingDeviceId) return;
+
+    const student = rows.find(s => s.id === deviceIdEditingCell.studentId);
+    if (!student) return;
+
+    const newDeviceId = parseInt(deviceIdValue) || 0;
+    if (newDeviceId === (student.device_user_id || 0)) {
+      cancelDeviceIdEdit();
+      return;
+    }
+
+    setIsUpdatingDeviceId(true);
+
+    try {
+      if (newDeviceId === 0) {
+        // Delete device mapping
+        if (student.device_mapping_id) {
+          const response = await fetch(`/api/device-mappings/${student.device_mapping_id}`, {
+            method: 'DELETE'
+          });
+
+          if (!response.ok) throw new Error('Failed to delete device mapping');
+          toast.success('Device ID removed successfully');
+        }
+      } else {
+        // Create or update mapping using the by-device endpoint which auto-selects default device
+        const response = await fetch(`/api/device-mappings/by-device`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student_id: student.id,
+            device_user_id: newDeviceId
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to update device mapping');
+        toast.success('Device ID updated successfully');
+      }
+
+      mutate();
+      cancelDeviceIdEdit();
+    } catch (error: any) {
+      console.error('Device ID update error:', error);
+      toast.error(`Failed to update device ID: ${error.message}`);
+      setDeviceIdValue(student.device_user_id?.toString() || '');
+    } finally {
+      setIsUpdatingDeviceId(false);
+    }
+  };
+
+  const handleDeviceIdKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveDeviceIdCallback();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelDeviceIdEdit();
+    }
+  };
+
+  // Contact phone editing functions
+  const startContactPhoneEdit = (studentId: number, currentPhone: string) => {
+    if (isUpdatingContactPhone || contactPhoneEditingCell) return;
+    setContactPhoneEditingCell({ studentId });
+    setContactPhoneValue(currentPhone || '');
+  };
+
+  const cancelContactPhoneEdit = () => {
+    setContactPhoneEditingCell(null);
+    setContactPhoneValue('');
+  };
+
+  const saveContactPhoneCallback = async () => {
+    if (!contactPhoneEditingCell || isUpdatingContactPhone) return;
+
+    const student = rows.find(s => s.id === contactPhoneEditingCell.studentId);
+    if (!student) return;
+
+    if (contactPhoneValue.trim() === (student.contact_phone || '')) {
+      cancelContactPhoneEdit();
+      return;
+    }
+
+    if (!contactPhoneValue.trim()) {
+      toast.error('Phone number cannot be empty');
+      setContactPhoneValue(student.contact_phone || '');
+      return;
+    }
+
+    setIsUpdatingContactPhone(true);
+
+    try {
+      const response = await fetch(`/api/students/${student.id}/primary-contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contact_phone: contactPhoneValue.trim(),
+          relationship: 'Guardian'
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to save contact');
+
+      toast.success('Contact phone updated successfully');
+      mutate();
+      cancelContactPhoneEdit();
+    } catch (error: any) {
+      console.error('Contact phone update error:', error);
+      toast.error(`Failed to update contact: ${error.message}`);
+      setContactPhoneValue(student.contact_phone || '');
+    } finally {
+      setIsUpdatingContactPhone(false);
+    }
+  };
+
+  const handleContactPhoneKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveContactPhoneCallback();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelContactPhoneEdit();
     }
   };
 
@@ -352,14 +562,9 @@ export const StudentTable: React.FC = () => {
     setSelectedStream('');
     setSelectedGender('');
     setSelectedStatus('');
+    setSelectedLetter(null);
     setPage(1);
   };
-
-  // Data processing - single source of truth
-  const uniqueRows = rows.filter(
-    (student, index, self) => self.findIndex((s) => s.id === student.id) === index
-  );
-  const paginatedRows = uniqueRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   // Event handlers
   const handleEdit = (student: Student) => {
@@ -736,7 +941,6 @@ export const StudentTable: React.FC = () => {
         });
         setSelectedLearners([]);
         setBulkClass('');
-        setShowBulkActions(false);
         mutate();
       } else {
         Swal.fire('Error', result.error || 'Failed to assign class.', 'error');
@@ -782,7 +986,7 @@ export const StudentTable: React.FC = () => {
       ];
 
       const csvData = uniqueRows.map(student => [
-        generateAdmissionNo(student.id),
+        getAdmissionNo(student),
         student.first_name || '',
         student.last_name || '',
         student.other_name || '',
@@ -879,7 +1083,7 @@ export const StudentTable: React.FC = () => {
       // Add header
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text('Ibun Baz Girls Secondary School - STUDENT LIST', 20, 20);
+      doc.text(`${schoolCfg.name} - STUDENT LIST`, 20, 20);
       
       // Add generation date
       doc.setFontSize(10);
@@ -900,7 +1104,7 @@ export const StudentTable: React.FC = () => {
       if (selectedGender) filterInfo.push(`Gender: ${selectedGender}`);
       if (selectedStatus) filterInfo.push(`Status: ${selectedStatus}`);
       if (query) filterInfo.push(`Search: "${query}"`);
-      
+      if (selectedLetter) filterInfo.push(`Name starts with: ${selectedLetter}`);
       if (filterInfo.length > 0) {
         doc.text(`Filters: ${filterInfo.join(', ')}`, 20, 40);
       }
@@ -918,8 +1122,8 @@ export const StudentTable: React.FC = () => {
       ];
 
       // Table data - use all filtered data, not just paginated
-      const tableRows = uniqueRows.map((row) => [
-        generateAdmissionNo(row.id),
+      const tableRows = filteredByLetter.map((row) => [
+        getAdmissionNo(row),
         `${row.first_name} ${row.last_name}`,
         row.gender || '-',
         row.class_name || 'No Class',
@@ -966,7 +1170,7 @@ export const StudentTable: React.FC = () => {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.text(`Page ${i} of ${pageCount}`, 280, 200, { align: 'right' });
-        doc.text('Ibun Baz Girls Secondary School Management System', 20, 200);
+        doc.text(`${schoolCfg.name} Management System`, 20, 200);
       }
 
       // Save the PDF
@@ -989,249 +1193,249 @@ export const StudentTable: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8 gradient-bg min-h-screen">
-      {/* Add demo mode banner at the top if in development */}
-      {process.env.NODE_ENV !== 'production' && (
-        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <Info className="w-4 h-4 text-amber-600" />
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              <strong>Demo Environment:</strong> Fingerprint features are accessible for demonstration. 
-              Real biometric capture is enabled but data is stored temporarily.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Header Section with enhanced enterprise styling */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg">
-              <Users className="w-5 h-5 text-white" />
+    <div className="space-y-3 p-4 sm:p-6 lg:p-8 gradient-bg min-h-screen">
+      {/* Clean Header Section - SINGLE ROW on Desktop: Title | Search | Filters | Actions */}
+      <div className="space-y-3">
+        {/* Unified Header - All controls on one row (responsive: stacks on mobile) */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+          {/* Title Section - Left */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-md">
+              <Users className="w-4 h-4 text-white" />
             </div>
-            {t('students.title', 'Students')}
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1">
-              {t('students.total', 'Total')}: 
-              <span className="font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {total}
-              </span> 
-              learners
-            </span>
-            {selectedLearners.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-4 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
-                <CheckSquare className="w-3 h-3" />
-                {selectedLearners.length} selected
-              </span>
-            )}
-          </p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-2 mobile-stack">
-          <button
-            onClick={() => {
-              setSelectedStudent(null);
-              setIsEditing(false);
-              setOpen(true);
-            }}
-            className="btn-primary bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-transform duration-200 focus:ring-4 focus:ring-indigo-300"
-          >
-            <Plus className="w-4 h-4" />
-            {t('students.add', 'Add Student')}
-          </button>
-
-          {selectedLearners.length > 0 && (
-            <button
-              onClick={() => setShowBulkActions(!showBulkActions)}
-              className="btn-accent bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-transform duration-200 focus:ring-4 focus:ring-blue-300"
-            >
-              <CheckSquare className="w-4 h-4" />
-              Bulk Actions ({selectedLearners.length})
-            </button>
-          )}
-
-          <button
-            onClick={() => setShowBulkPhotoUpload(true)}
-            className="btn-secondary bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-transform duration-200 focus:ring-4 focus:ring-gray-500"
-          >
-            <Camera className="w-4 h-4" />
-            Bulk Photos
-          </button>
-          
-          <button
-            onClick={() => setImportOpen(true)}
-            className="btn-secondary bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-transform duration-200 focus:ring-4 focus:ring-green-300"
-          >
-            <FileUp className="w-4 h-4" />
-            {t('common.import', 'Import')}
-          </button>
-          
-          {/* Export Dropdown */}
-          <div className="relative group">
-            <button
-              onClick={() => handleExport('excel')}
-              className="btn-secondary bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-transform duration-200 focus:ring-4 focus:ring-yellow-300"
-            >
-              <FileDown className="w-4 h-4" />
-              Export
-            </button>
-            
-            {/* Export format dropdown */}
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-              <div className="p-2">
-                <button
-                  onClick={() => handleExport('excel')}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md flex items-center gap-2"
-                >
-                  <FileDown className="w-4 h-4" />
-                  Export as Excel (.xlsx)
-                </button>
-                <button
-                  onClick={() => handleExport('csv')}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md flex items-center gap-2"
-                >
-                  <FileDown className="w-4 h-4" />
-                  Export as CSV
-                </button>
-              </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">Students</h1>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                <span className="font-semibold text-blue-600 dark:text-blue-400">{total}</span> learners
+              </p>
             </div>
           </div>
-          
-          <button
-            onClick={handlePrint}
-            className="btn-secondary bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-transform duration-200 focus:ring-4 focus:ring-red-300"
-          >
-            <Printer className="w-4 h-4" />
-            {t('common.print', 'Print')}
-          </button>
 
-          <button
-            onClick={() => router.push('/attendance')}
-            className="btn-accent bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-transform duration-200 focus:ring-4 focus:ring-teal-300"
-          >
-            <UserCheck className="w-4 h-4" />
-            Take Attendance
-          </button>
-        </div>
-      </div>
-
-      {/* Bulk Actions Panel */}
-      <AnimatePresence>
-        {showBulkActions && selectedLearners.length > 0 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0, y: -10 }}
-            animate={{ height: 'auto', opacity: 1, y: 0 }}
-            exit={{ height: 0, opacity: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: [0.0, 0.0, 0.2, 1] as [number, number, number, number] }}
-            className="overflow-hidden"
-          >
-            <div className="card-glass p-6 border-l-4 border-blue-500 dark:border-blue-400 shadow-lg">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-blue-500 flex items-center justify-center">
-                      <Users className="w-3 h-3 text-white" />
-                    </div>
-                    Bulk Actions - {selectedLearners.length} students selected
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Assign selected students to a class or perform other bulk operations.
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <select
-                    value={bulkClass}
-                    onChange={(e) => setBulkClass(e.target.value)}
-                    className="input-field flex-1 sm:w-48 shadow-sm focus:shadow-md transition-shadow duration-200"
-                  >
-                    <option value="">Select Class...</option>
-                    {classOptions.map((cls: any) => (
-                      <option key={`class-${cls.id}`} value={cls.id}>
-                        {cls.name}
-                      </option>
-                    ))}
-                  </select>
-                  
-                  <button
-                    onClick={handleBulkAssign}
-                    disabled={!bulkClass}
-                    className="btn-primary gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    <Users className="w-4 h-4" />
-                    Assign Class
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setSelectedLearners([]);
-                      setShowBulkActions(false);
-                      setBulkClass('');
-                    }}
-                    className="btn-secondary shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Enhanced Filters Section */}
-      <div className="card-glass p-4 sm:p-6 space-y-4 shadow-lg">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
+          {/* Search Input - Flex-grow to take available space */}
+          <div className="flex-1 min-w-0">
             <div className="relative group">
-              <Search className={clsx("absolute top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors duration-200", isRTL ? "right-3" : "left-3")} />
+              <Search className={clsx("absolute top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors", isRTL ? "right-3" : "left-3")} />
               <input
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setPage(1);
                 }}
-                placeholder={t('students.search', 'Search by name, ID, or class...')}
-                className={clsx("input-field shadow-sm focus:shadow-md transition-all duration-200", isRTL ? "pr-10 pl-4" : "pl-10 pr-4")}
+                placeholder={t('students.search', 'Search students...')}
+                className={clsx("input-field text-sm shadow-sm focus:shadow-md", isRTL ? "pr-9 pl-3" : "pl-9 pr-3")}
               />
             </div>
           </div>
-          
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="btn-secondary gap-2 min-w-fit shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-            {(selectedClass || selectedStream || selectedGender || selectedStatus) && (
-              <span className="bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-inner">
-                {[selectedClass, selectedStream, selectedGender, selectedStatus].filter(Boolean).length}
-              </span>
-            )}
-          </button>
+
+          {/* Filter & A-Z Buttons - Center */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors font-medium text-sm flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Filter className="w-4 h-4" />
+              Filters
+              {(selectedClass || selectedStream || selectedGender || selectedStatus) && (
+                <span className="bg-blue-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-semibold">
+                  {[selectedClass, selectedStream, selectedGender, selectedStatus].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setShowAlphabetFilter(!showAlphabetFilter)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors font-medium text-sm flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <span className="text-xs font-bold">A–Z</span>
+              {selectedLetter && (
+                <span className="bg-pink-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-semibold">
+                  ✓
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Primary Actions - Right */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Primary Action: Add Student */}
+            <button
+              onClick={() => {
+                setSelectedStudent(null);
+                setIsEditing(false);
+                setOpen(true);
+              }}
+              className="btn-primary bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-md hover:shadow-lg hover:brightness-110 transition-all duration-200 focus:ring-4 focus:ring-indigo-300 font-medium text-sm"
+            >
+              <Plus className="w-5 h-5" />
+              Add Student
+            </button>
+
+            {/* Secondary Actions Dropdown */}
+            <div className="relative group">
+              <button
+                className="px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors duration-200 font-medium text-sm"
+                title="More actions"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              
+              {/* Dropdown Menu */}
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 py-1">
+                {/* Import */}
+                <button
+                  onClick={() => setImportOpen(true)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors duration-150"
+                >
+                  <FileUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  Import Students
+                </button>
+
+                {/* Export */}
+                <div className="relative group/export">
+                  <button
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors duration-150"
+                  >
+                    <FileDown className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                    Export Students
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  </button>
+                  
+                  {/* Export submenu */}
+                  <div className="absolute left-full top-0 ml-0 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 opacity-0 invisible group-hover/export:opacity-100 group-hover/export:visible transition-all duration-200 z-20 py-1">
+                    <button
+                      onClick={() => handleExport('excel')}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-150"
+                    >
+                      Export as Excel
+                    </button>
+                    <button
+                      onClick={() => handleExport('csv')}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-150"
+                    >
+                      Export as CSV
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bulk Photo Upload */}
+                <button
+                  onClick={() => setShowBulkPhotoUpload(true)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors duration-150"
+                >
+                  <Camera className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  Bulk Photo Upload
+                </button>
+
+                {/* Manage Duplicates */}
+                <button
+                  onClick={() => setShowDuplicatesManager(true)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors duration-150"
+                >
+                  <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                  Find & Merge Duplicates
+                </button>
+
+                {/* Print */}
+                <button
+                  onClick={handlePrint}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors duration-150"
+                >
+                  <Printer className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  Print List
+                </button>
+
+                {/* Divider */}
+                <div className="my-1 border-t border-gray-200 dark:border-slate-700"></div>
+
+                {/* Attendance */}
+                <button
+                  onClick={() => router.push('/attendance')}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors duration-150"
+                >
+                  <UserCheck className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  Mark Attendance
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Enhanced filter dropdowns with smooth animations */}
+        {/* Bulk Actions Panel - Only Show When Items Selected */}
+        <AnimatePresence>
+          {selectedLearners.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0, y: -10 }}
+              animate={{ height: 'auto', opacity: 1, y: 0 }}
+              exit={{ height: 0, opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
+            >
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 dark:border-blue-400">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {selectedLearners.length} student{selectedLearners.length !== 1 ? 's' : ''} selected
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <select
+                      value={bulkClass}
+                      onChange={(e) => setBulkClass(e.target.value)}
+                      className="flex-1 sm:flex-none px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select class...</option>
+                      {classOptions.map((cls: any) => (
+                        <option key={`class-${cls.id}`} value={cls.id}>
+                          {cls.name}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      onClick={handleBulkAssign}
+                      disabled={!bulkClass}
+                      className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 whitespace-nowrap"
+                    >
+                      Assign Class
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setSelectedLearners([]);
+                        setBulkClass('');
+                      }}
+                      className="px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors duration-200 whitespace-nowrap"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Filter Dropdowns - Collapsible */}
         <AnimatePresence>
           {showFilters && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                {/* Enhanced select inputs with better styling */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                {/* Compact select inputs */}
                 <select
                   value={selectedClass}
                   onChange={(e) => {
                     setSelectedClass(e.target.value);
                     setPage(1);
                   }}
-                  className="input-field shadow-sm focus:shadow-md transition-all duration-200"
+                  className="input-field text-sm shadow-sm focus:shadow-md transition-all duration-200"
                 >
                   <option value="">All Classes</option>
                   {classOptions.map((cls: any) => (
@@ -1247,7 +1451,7 @@ export const StudentTable: React.FC = () => {
                     setSelectedStream(e.target.value);
                     setPage(1);
                   }}
-                  className="input-field shadow-sm focus:shadow-md transition-all duration-200"
+                  className="input-field text-sm shadow-sm focus:shadow-md transition-all duration-200"
                 >
                   <option value="">All Streams</option>
                   {streamOptions.map((stream: any) => (
@@ -1263,7 +1467,7 @@ export const StudentTable: React.FC = () => {
                     setSelectedGender(e.target.value);
                     setPage(1);
                   }}
-                  className="input-field shadow-sm focus:shadow-md transition-all duration-200"
+                  className="input-field text-sm shadow-sm focus:shadow-md transition-all duration-200"
                 >
                   <option value="">All Genders</option>
                   <option value="male">Male</option>
@@ -1276,7 +1480,7 @@ export const StudentTable: React.FC = () => {
                     setSelectedStatus(e.target.value);
                     setPage(1);
                   }}
-                  className="input-field shadow-sm focus:shadow-md transition-all duration-200"
+                  className="input-field text-sm shadow-sm focus:shadow-md transition-all duration-200"
                 >
                   <option value="">All Status</option>
                   {statusOptions.map((status) => (
@@ -1286,14 +1490,67 @@ export const StudentTable: React.FC = () => {
                   ))}
                 </select>
               </div>
-
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-slate-700">
                 <button
                   onClick={clearFilters}
-                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors duration-200 hover:underline"
+                  className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors duration-200 hover:underline"
                 >
-                  Clear all filters
+                  Clear all
                 </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Alphabetical Filter - Compact Collapsible */}
+        <AnimatePresence>
+          {showAlphabetFilter && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={() => {
+                      setSelectedLetter(null);
+                      setPage(1);
+                    }}
+                    className={clsx(
+                      'px-2 py-1 rounded text-xs font-semibold transition-all',
+                      !selectedLetter
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md scale-105'
+                        : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                    )}
+                  >
+                    All
+                  </button>
+                  {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => (
+                    <button
+                      key={letter}
+                      onClick={() => {
+                        setSelectedLetter(letter);
+                        setPage(1);
+                      }}
+                      className={clsx(
+                        'px-1.5 py-1 rounded text-xs font-semibold transition-all min-w-[1.75rem]',
+                        selectedLetter === letter
+                          ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white shadow-md scale-105'
+                          : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                      )}
+                    >
+                      {letter}
+                    </button>
+                  ))}
+                </div>
+                {selectedLetter && (
+                  <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                    Showing <span className="font-semibold text-gray-900 dark:text-white">{selectedLetter}</span> · {totalFiltered} result{totalFiltered !== 1 ? 's' : ''}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -1328,6 +1585,12 @@ export const StudentTable: React.FC = () => {
                 <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Attendance
                 </th>
+                <th className="hidden sm:table-cell px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Device ID
+                </th>
+                <th className="hidden md:table-cell px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Contact
+                </th>
                 <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
@@ -1339,7 +1602,7 @@ export const StudentTable: React.FC = () => {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
               {isLoading && (
                 <tr key="loading-row">
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center">
                       <Loader2 className="w-8 h-8 animate-spin text-gradient mb-2" />
                       <span className="text-gray-500 dark:text-gray-400">{t('common.loading')}</span>
@@ -1347,10 +1610,10 @@ export const StudentTable: React.FC = () => {
                   </td>
                 </tr>
               )}
-              
+
               {!isLoading && paginatedRows.length === 0 && (
                 <tr key="no-data-row">
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center">
                       <Users className="w-12 h-12 text-gray-300 mb-2" />
                       <span className="text-gray-500 dark:text-gray-400">No students found</span>
@@ -1383,17 +1646,17 @@ export const StudentTable: React.FC = () => {
                     </button>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-3 min-w-0">
                       {getStudentAvatar(student)}
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                           {editingCell?.studentId === student.id && editingCell.field === 'first_name' ? (
                             <div className="flex items-center gap-1 inline-edit-container">
                               <input
                                 type="text"
                                 value={editingValue}
                                 onChange={(e) => setEditingValue(e.target.value)}
-                                onBlur={saveInlineEdit}
+                                onBlur={saveInlineEditCallback}
                                 onKeyDown={handleInlineEditKeyDown}
                                 className="border-2 border-blue-300 dark:border-blue-600 rounded px-1 py-0.5 text-sm font-medium bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 min-w-0 w-auto"
                                 autoFocus
@@ -1417,7 +1680,7 @@ export const StudentTable: React.FC = () => {
                                 type="text"
                                 value={editingValue}
                                 onChange={(e) => setEditingValue(e.target.value)}
-                                onBlur={saveInlineEdit}
+                                onBlur={saveInlineEditCallback}
                                 onKeyDown={handleInlineEditKeyDown}
                                 className="border-2 border-blue-300 dark:border-blue-600 rounded px-1 py-0.5 text-sm font-medium bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 min-w-0 w-auto"
                                 autoFocus
@@ -1436,7 +1699,7 @@ export const StudentTable: React.FC = () => {
                           )}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                          {generateAdmissionNo(student.id)}
+                          {getAdmissionNo(student)}
                         </div>
                       </div>
 
@@ -1477,6 +1740,104 @@ export const StudentTable: React.FC = () => {
                       </div>
                     </div>
                   </td>
+                  <td className="hidden sm:table-cell px-6 py-4">
+                    <div className="text-sm text-gray-900 dark:text-white">
+                      {deviceIdEditingCell?.studentId === student.id ? (
+                        <div className="flex items-center gap-2 device-id-edit-container">
+                          <input
+                            type="number"
+                            value={deviceIdValue}
+                            onChange={(e) => setDeviceIdValue(e.target.value)}
+                            onBlur={saveDeviceIdCallback}
+                            onKeyDown={handleDeviceIdKeyDown}
+                            autoFocus
+                            disabled={isUpdatingDeviceId}
+                            className="border-2 border-blue-300 dark:border-blue-600 rounded px-2 py-1 text-sm w-24 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
+                            placeholder="Device ID"
+                          />
+                          {isUpdatingDeviceId && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+                        </div>
+                      ) : (
+                        <>
+                          {student.device_user_id ? (
+                            <div className="flex items-center gap-2">
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                ID: {student.device_user_id}
+                              </span>
+                              <button
+                                onClick={() => startDeviceIdEdit(student.id, student.device_user_id || 0)}
+                                className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                                title="Edit Device ID"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startDeviceIdEdit(student.id, 0)}
+                              className="text-xs text-gray-400 hover:text-blue-600 hover:underline transition-colors"
+                            >
+                              + Assign Device ID
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {student.device_name && !deviceIdEditingCell?.studentId && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {student.device_name}
+                      </div>
+                    )}
+                  </td>
+                  <td className="hidden md:table-cell px-6 py-4">
+                    <div className="text-sm text-gray-900 dark:text-white">
+                      {contactPhoneEditingCell?.studentId === student.id ? (
+                        <div className="flex items-center gap-2 contact-phone-edit-container">
+                          <input
+                            type="tel"
+                            value={contactPhoneValue}
+                            onChange={(e) => setContactPhoneValue(e.target.value)}
+                            onBlur={saveContactPhoneCallback}
+                            onKeyDown={handleContactPhoneKeyDown}
+                            autoFocus
+                            disabled={isUpdatingContactPhone}
+                            className="border-2 border-blue-300 dark:border-blue-600 rounded px-2 py-1 text-sm w-32 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
+                            placeholder="Phone"
+                          />
+                          {isUpdatingContactPhone && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+                        </div>
+                      ) : (
+                        <>
+                          {student.contact_phone ? (
+                            <div className="flex items-center gap-2">
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                {student.contact_phone}
+                              </span>
+                              <button
+                                onClick={() => startContactPhoneEdit(student.id, student.contact_phone || '')}
+                                className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                                title="Edit Contact"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startContactPhoneEdit(student.id, '')}
+                              className="text-xs text-gray-400 hover:text-green-600 hover:underline transition-colors"
+                            >
+                              + Add Contact
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {student.contact_name && !contactPhoneEditingCell?.studentId && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {student.contact_name}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="relative">
                       <select
@@ -1491,7 +1852,7 @@ export const StudentTable: React.FC = () => {
                               setStatusAction('suspend');
                             } else if (newStatus === 'expelled') {
                               setStatusAction('expel');
-                            } 
+                            }
                             setStatusTargetStudent(student);
                             setStatusModalOpen(true);
                             return;
@@ -1591,7 +1952,7 @@ export const StudentTable: React.FC = () => {
                             type="text"
                             value={editingValue}
                             onChange={(e) => setEditingValue(e.target.value)}
-                            onBlur={saveInlineEdit}
+                            onBlur={saveInlineEditCallback}
                             onKeyDown={handleInlineEditKeyDown}
                             className="border-2 border-blue-300 dark:border-blue-600 rounded px-1 py-0.5 text-sm font-semibold bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 min-w-0 w-auto"
                             autoFocus
@@ -1615,7 +1976,7 @@ export const StudentTable: React.FC = () => {
                             type="text"
                             value={editingValue}
                             onChange={(e) => setEditingValue(e.target.value)}
-                            onBlur={saveInlineEdit}
+                            onBlur={saveInlineEditCallback}
                             onKeyDown={handleInlineEditKeyDown}
                             className="border-2 border-blue-300 dark:border-blue-600 rounded px-1 py-0.5 text-sm font-semibold bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 min-w-0 w-auto"
                             autoFocus
@@ -1634,7 +1995,7 @@ export const StudentTable: React.FC = () => {
                       )}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-                      {generateAdmissionNo(student.id)}
+                      {getAdmissionNo(student)}
                     </p>
                   </div>
                 </div>
@@ -1683,6 +2044,13 @@ export const StudentTable: React.FC = () => {
                     className="p-2 rounded-lg bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-orange-100 hover:text-orange-600 dark:hover:bg-orange-900/20 transition-all"
                   >
                     <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(student)}
+                    className="p-2 rounded-lg bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/20 transition-all"
+                    title="Delete"
+                  >
+                    <Trash className="w-4 h-4" />
                   </button>
                 </div>
                 
@@ -1861,6 +2229,15 @@ export const StudentTable: React.FC = () => {
             // Optimistically update the local state
           }
           
+          mutate();
+        }}
+      />
+
+      {/* Duplicates Manager */}
+      <DuplicatesManager
+        open={showDuplicatesManager}
+        onClose={() => setShowDuplicatesManager(false)}
+        onMergeComplete={() => {
           mutate();
         }}
       />

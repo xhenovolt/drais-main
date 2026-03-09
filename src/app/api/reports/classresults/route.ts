@@ -1,28 +1,22 @@
 import { NextResponse } from 'next/server';
-import mysql, { RowDataPacket } from 'mysql2/promise';
-import { getSchoolInfo } from '@/lib/schoolConfig';
-
-const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'drais_school',
-};
+import { getConnection } from '@/lib/db';
 
 export async function GET() {
   let connection;
   try {
-    connection = await mysql.createConnection(dbConfig);
+    connection = await getConnection();
 
-    // Fetch school info from centralized configuration (single source of truth)
-    const schoolCfg = getSchoolInfo();
-    const schoolInfo = {
-      name: schoolCfg.name || 'Ibun Baz Girls Secondary School',
-      address: schoolCfg.address || 'Busei, Iganga along Iganga-Tororo highway'
-    };
+    // Fetch school info from database
+    let schoolInfo = { name: 'School', address: '' };
+    try {
+      const [schools]: any = await connection.execute('SELECT name, address FROM schools WHERE id = 1 LIMIT 1');
+      if (schools.length > 0) {
+        schoolInfo = { name: schools[0].name || 'School', address: schools[0].address || '' };
+      }
+    } catch (e) { /* use default */ }
 
     // Fetch class results grouped by student
-    const [results] = await connection.execute<RowDataPacket[]>(
+    const [results]: any = await connection.execute(
       `SELECT 
         students.id AS student_id,
         CONCAT(people.first_name, ' ', people.last_name) AS student_name,
@@ -44,7 +38,7 @@ export async function GET() {
     );
 
     // Map results to custom type and group by student
-    const learners = results.reduce((acc: Record<number, any>, row: RowDataPacket) => {
+    const learners = results.reduce((acc: Record<number, any>, row: any) => {
       const studentId = row.student_id;
       if (!acc[studentId]) {
         acc[studentId] = {

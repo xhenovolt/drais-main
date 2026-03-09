@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // schoolId derived from session below
 
     connection = await getConnection();
 
-    // Get all staff with basic information
+    // Get all staff with basic information, including device_user_id
     const [staffRows] = await connection.execute(`
-      SELECT 
+      SELECT
         s.id,
         s.staff_no,
         s.position,
@@ -26,12 +34,18 @@ export async function GET(req: NextRequest) {
         p.email,
         p.photo_url,
         p.address,
-        p.date_of_birth
+        p.date_of_birth,
+        dum.device_user_id,
+        dum.id as device_mapping_id,
+        bd.device_name,
+        bd.id as device_id
       FROM staff s
       JOIN people p ON s.person_id = p.id
+      LEFT JOIN device_user_mappings dum ON s.id = dum.staff_id AND dum.school_id = ?
+      LEFT JOIN biometric_devices bd ON dum.device_id = bd.id
       WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY p.first_name, p.last_name
-    `, [schoolId]);
+    `, [schoolId, schoolId]);
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
+import { getSessionSchoolId } from '@/lib/auth';
 /**
  * PROMOTIONS API - Enhanced to show ALL learners by default
  * GET - Fetch students with optional filters
@@ -10,7 +11,13 @@ import { getConnection } from '@/lib/db';
 export async function GET(req: NextRequest) {
   let connection;
   try {
-    const schoolId = req.nextUrl.searchParams.get('school_id') || '1';
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const academicYearId = req.nextUrl.searchParams.get('academic_year_id'); // Now OPTIONAL
     const classId = req.nextUrl.searchParams.get('class_id');
     const statusFilter = req.nextUrl.searchParams.get('status'); // promoted|not_promoted|demoted|dropped_out|completed|pending|all
@@ -133,10 +140,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let connection;
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
-    const {
-      school_id = 1,
-      student_id,
+    const { student_id,
       from_class_id,
       to_class_id,
       from_academic_year_id = null,
@@ -147,8 +159,7 @@ export async function POST(req: NextRequest) {
       term_used = 'Term 3',
       promotion_notes = '',
       user_id,
-      user_ip = null
-    } = body;
+      user_ip = null } = body;
 
     // Validate required fields
     if (!student_id || !to_class_id) {
@@ -173,7 +184,7 @@ export async function POST(req: NextRequest) {
     // Verify student exists
     const [studentCheck] = await connection.execute(
       'SELECT id, admission_no FROM students WHERE id = ? AND school_id = ?',
-      [student_id, school_id]
+      [student_id, schoolId]
     );
 
     if ((studentCheck as any[]).length === 0) {
@@ -206,7 +217,7 @@ export async function POST(req: NextRequest) {
           from_class_id || null, // Ensure null if from_class_id is undefined or null
           from_academic_year_id || null, // Ensure null is passed, not empty string
           student_id,
-          school_id
+          schoolId
         ]
       );
 
@@ -237,7 +248,7 @@ export async function POST(req: NextRequest) {
           const [existingPromo] = await connection.execute(
             `SELECT id FROM promotions 
              WHERE school_id = ? AND student_id = ? AND (from_academic_year_id <=> ?)`,
-            [school_id, student_id, from_academic_year_id]
+            [schoolId, student_id, from_academic_year_id]
           );
 
           if ((existingPromo as any[]).length > 0) {
@@ -261,7 +272,7 @@ export async function POST(req: NextRequest) {
                 promotion_reason,
                 term_used,
                 promotion_notes,
-                school_id,
+                schoolId,
                 student_id,
                 from_academic_year_id
               ]
@@ -277,7 +288,7 @@ export async function POST(req: NextRequest) {
               'term_used'
             ];
             const insertVals = [
-              school_id,
+              schoolId,
               student_id,
               to_class_id,
               promotion_status,
@@ -322,7 +333,7 @@ export async function POST(req: NextRequest) {
         try {
           await connection.execute(
             `INSERT INTO promotion_audit_log (
-              school_id,
+              schoolId,
               student_id,
               action_type,
               from_class_id,
@@ -337,7 +348,7 @@ export async function POST(req: NextRequest) {
               ip_address
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-              school_id,
+              schoolId,
               student_id,
               'promoted',
               from_class_id || null,

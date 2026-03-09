@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../../lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
   const url = new URL(req.url);
   const id = url.searchParams.get('id');
   if (id) {
@@ -13,6 +18,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
   const body = await req.json();
   const cols = ['school_id','teacher_id','class_id','stream_id','assigned_date','portion_text','portion_unit','expected_length','type','notes','book_id','group_id'];
   const vals = cols.map(c => body[c] ?? null);
@@ -21,6 +30,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
   const body = await req.json();
   const { id, ...rest } = body;
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
@@ -31,6 +44,10 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
   const url = new URL(req.url);
   const id = url.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

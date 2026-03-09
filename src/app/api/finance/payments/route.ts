@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { updateFeeItemStatus, batchUpdateFeeItemStatuses } from '@/lib/services/FeeService';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const studentId = searchParams.get('student_id');
     const termId = searchParams.get('term_id');
     const status = searchParams.get('status');
@@ -32,7 +40,7 @@ export async function GET(req: NextRequest) {
         fp.reference,
         fp.gateway_reference,
         fp.receipt_no,
-        fp.status,
+        fp.payment_status as status,
         fp.created_at,
         CONCAT(p.first_name, ' ', p.last_name) as student_name,
         s.admission_no,
@@ -53,7 +61,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN receipts r ON fp.id = r.payment_id
       LEFT JOIN payment_reconciliations pr ON fp.id = pr.payment_id
       WHERE fp.student_id IN (
-        SELECT student_id FROM students WHERE school_id = ?
+        SELECT s2.id FROM students s2 WHERE s2.school_id = ?
       )
     `;
 
@@ -70,7 +78,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (status) {
-      sql += ' AND fp.status = ?';
+      sql += ' AND fp.payment_status = ?';
       params.push(status);
     }
 
@@ -79,8 +87,9 @@ export async function GET(req: NextRequest) {
       params.push(parseInt(walletId));
     }
 
-    sql += ' ORDER BY fp.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    sql += ` ORDER BY fp.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
     const [payments] = await connection.execute(sql, params);
 
@@ -138,9 +147,15 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { 
-      school_id = 1,
       student_id,
       term_id,
       wallet_id,
@@ -192,7 +207,7 @@ export async function POST(req: NextRequest) {
       // 2. Generate receipt number
       const [receiptCount] = await connection.execute(
         'SELECT COUNT(*) as count FROM receipts WHERE school_id = ? AND DATE(generated_at) = CURDATE()',
-        [school_id]
+        [schoolId]
       );
       
       const receiptNo = `R-${new Date().getFullYear()}-${String(receiptCount[0].count + 1).padStart(6, '0')}`;
@@ -227,15 +242,15 @@ export async function POST(req: NextRequest) {
         SELECT id FROM finance_categories 
         WHERE (school_id = ? OR school_id IS NULL) AND type = 'income' AND name = 'Tuition Fees'
         LIMIT 1
-      `, [school_id]);
+      `, [schoolId]);
 
       await connection.execute(`
         INSERT INTO ledger (
-          school_id, wallet_id, category_id, tx_type, amount, 
+          schoolId, wallet_id, category_id, tx_type, amount, 
           reference, description, student_id, created_by
         ) VALUES (?, ?, ?, 'credit', ?, ?, ?, ?, ?)
       `, [
-        school_id, wallet_id, incomeCategory[0]?.id || 1, amount,
+        schoolId, wallet_id, incomeCategory[0]?.id || 1, amount,
         reference || receiptNo, `Payment from ${paid_by} for ${feeItems.map((f: any) => f.item).join(', ')}`,
         student_id, 1 // TODO: Get from session
       ]);
@@ -245,7 +260,7 @@ export async function POST(req: NextRequest) {
         INSERT INTO receipts (school_id, payment_id, receipt_no, generated_by, metadata)
         VALUES (?, ?, ?, ?, ?)
       `, [
-        school_id, paymentId, receiptNo, 1,
+        schoolId, paymentId, receiptNo, 1,
         JSON.stringify({
           items: feeItems.map((f: any) => ({ item: f.item, amount: f.amount })),
           payment_method: method,
@@ -258,14 +273,14 @@ export async function POST(req: NextRequest) {
       await connection.execute(`
         INSERT INTO payment_reconciliations (school_id, payment_id, status)
         VALUES (?, ?, 'pending')
-      `, [school_id, paymentId]);
+      `, [schoolId, paymentId]);
 
       // 8. Log finance action
       await connection.execute(`
         INSERT INTO finance_actions (school_id, actor_user_id, action, entity_type, entity_id, metadata)
         VALUES (?, ?, 'create_payment', 'payment', ?, ?)
       `, [
-        school_id, 1, paymentId,
+        schoolId, 1, paymentId,
         JSON.stringify({ amount, method, student_id, items_count: items.length })
       ]);
 

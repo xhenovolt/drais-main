@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { FinanceService } from '@/lib/services/FinanceService';
 
+import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(request: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation: derive school_id from session
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(request.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1');
+    // school_id derived from session below
     const classId = searchParams.get('class_id');
     const sectionId = searchParams.get('section_id');
     const termId = searchParams.get('term_id');

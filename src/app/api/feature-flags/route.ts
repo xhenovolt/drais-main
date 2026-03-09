@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   let connection;
   
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { searchParams } = new URL(req.url);
-    const schoolId = searchParams.get('school_id') ? parseInt(searchParams.get('school_id')!) : null;
     const category = searchParams.get('category');
     const includeExpired = searchParams.get('include_expired') === 'true';
 
@@ -36,7 +40,7 @@ export async function GET(req: NextRequest) {
       sql += ' AND (school_id = ? OR school_id IS NULL)';
       params.push(schoolId);
     } else {
-      sql += ' AND school_id IS NULL';
+      sql += ' AND schoolId IS NULL';
     }
 
     if (category) {
@@ -72,9 +76,12 @@ export async function POST(req: NextRequest) {
   let connection;
   
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { 
-      school_id = null, 
       route_name, 
       route_path, 
       label, 
@@ -100,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     await connection.execute(`
       INSERT INTO feature_flags (
-        school_id, route_name, route_path, label, description, 
+        schoolId, route_name, route_path, label, description, 
         is_new, category, priority, expires_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE 
@@ -113,7 +120,7 @@ export async function POST(req: NextRequest) {
         expires_at = VALUES(expires_at),
         updated_at = CURRENT_TIMESTAMP
     `, [
-      school_id, route_name, route_path, label, description,
+      schoolId, route_name, route_path, label, description,
       is_new, category, priority, expiresAt
     ]);
 

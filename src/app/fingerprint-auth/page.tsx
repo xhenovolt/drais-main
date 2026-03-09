@@ -2,11 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Swal from "sweetalert2";
+import { useSchoolConfig } from "@/hooks/useSchoolConfig";
 
 const FingerprintAuthPage: React.FC = () => {
   const searchParams = useSearchParams();
   const studentId = searchParams.get("student_id");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const { school } = useSchoolConfig();
 
   const handleFingerprintAuth = async () => {
     if (!studentId) {
@@ -28,7 +30,7 @@ const FingerprintAuthPage: React.FC = () => {
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge: new Uint8Array(32), // Random challenge
-          rp: { name: "Ibun Baz Girls Secondary School" },
+          rp: { name: school.name || "School" },
           user: {
             id: new Uint8Array(16), // Random user ID
             name: `student-${studentId}`,
