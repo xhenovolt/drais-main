@@ -6,7 +6,6 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
-import { ThemeCustomizerPanel } from "@/components/layout/ThemeCustomizerPanel";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
@@ -133,7 +132,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
-      {!hideSidebarAndNavbar && <ThemeCustomizerPanel />}
       <FeatureUpdateNotification />
       {/* Onboarding system — global modals, tour, help search */}
       <OnboardingOrchestrator />
