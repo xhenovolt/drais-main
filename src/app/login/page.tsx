@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import SystemThemeWrapper from '@/components/auth/SystemThemeWrapper';
 
 export default function LoginPage() {
   const { login, error, clearError } = useAuth();
@@ -64,6 +65,7 @@ export default function LoginPage() {
   };
 
   return (
+    <SystemThemeWrapper>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8 transition-colors">
       <div className="w-full max-w-md">
         {/* Header */}
@@ -176,5 +178,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </SystemThemeWrapper>
   );
 }

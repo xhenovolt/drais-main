@@ -30,6 +30,8 @@ import AIInsightCard from '@/components/dashboard/AIInsightCard';
 import AdvancedDashboard from '@/components/dashboard/AdvancedDashboard';
 import PredictiveAnalyticsDashboard from '@/components/dashboard/PredictiveAnalyticsDashboard';
 import AdmissionsAnalytics from '@/components/dashboard/AdmissionsAnalytics';
+import SetupChecklist from '@/components/onboarding/SetupChecklist';
+import QuickActions from '@/components/onboarding/QuickActions';
 import { toast } from 'react-hot-toast';
 
 const DashboardPage: React.FC = () => {
@@ -85,7 +87,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
       {/* Global Top Bar */}
-      <div className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700">
+      <div data-tour="dashboard" className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Left: Title & School Info */}
@@ -193,6 +195,13 @@ const DashboardPage: React.FC = () => {
 
       {/* Dashboard Content */}
       <div className="container mx-auto px-4 py-8">
+        {/* Quick Actions — visible only in simple mode */}
+        {mode === 'simple' && (
+          <div className="mb-8 space-y-6">
+            <QuickActions />
+            <SetupChecklist />
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {mode === 'simple' ? (
             <motion.div
@@ -204,7 +213,9 @@ const DashboardPage: React.FC = () => {
               className="space-y-8"
             >
               {/* KPIs Row */}
-              <DashboardKPIs data={overview?.kpis} />
+              <div data-tour="students">
+                <DashboardKPIs data={overview?.kpis} />
+              </div>
 
               {/* Admissions Analytics Section */}
               <AdmissionsAnalytics schoolId={schoolId} />
@@ -221,10 +232,14 @@ const DashboardPage: React.FC = () => {
                 <FeesSnapshot data={overview?.fees} />
 
                 {/* Subject Stats */}
-                <SubjectStats data={overview?.subjects} />
+                <div data-tour="reports">
+                  <SubjectStats data={overview?.subjects} />
+                </div>
 
                 {/* Attendance Today */}
-                <AttendanceToday schoolId={schoolId} />
+                <div data-tour="attendance">
+                  <AttendanceToday schoolId={schoolId} />
+                </div>
 
                 {/* AI Insight */}
                 <AIInsightCard data={overview?.aiInsight} />

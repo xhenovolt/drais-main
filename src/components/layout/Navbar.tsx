@@ -1,11 +1,13 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, Menu, User, Globe, Sun, Moon, Settings, ChevronDown, Check, Loader, LogOut } from 'lucide-react';
+import { Bell, Search, Menu, User, Globe, Sun, Moon, Settings, ChevronDown, Check, Loader, LogOut, HelpCircle } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { useThemeStore } from '@/hooks/useThemeStore';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import useSWR from 'swr';
@@ -24,6 +26,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
   const store = useThemeStore();
   const { t, lang, setLang, dir } = useI18n();
   const { user, logout, isAuthenticated } = useAuth();
+  const { setHelpSearchOpen, startTour } = useOnboarding();
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
@@ -295,6 +298,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
               <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300 hover:text-[var(--color-primary)] transition-colors" />
             </button>
 
+            {/* Help Button — opens help search or navigates to /help */}
+            <div className="relative group">
+              <button
+                onClick={() => setHelpSearchOpen(true)}
+                className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                aria-label="Help"
+              >
+                <HelpCircle className="w-5 h-5 text-gray-600 dark:text-gray-300 hover:text-indigo-500 transition-colors" />
+              </button>
+              {/* Quick tooltip */}
+              <div className="absolute right-0 top-full mt-1 w-36 hidden group-hover:block z-50">
+                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg">
+                  Help &amp; Tour
+                  <div className="text-gray-400 text-xs mt-0.5">⌘⇧H to search</div>
+                </div>
+              </div>
+            </div>
+
             {/* Profile Dropdown */}
             <div className="relative" ref={profileDropdownRef}>
               <button
@@ -374,6 +395,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
                         <Settings className="w-4 h-4" />
                         <span className="text-sm">{t('navigation.settings')}</span>
                       </a>
+                      <a
+                        href="/help"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200"
+                      >
+                        <HelpCircle className="w-4 h-4" />
+                        <span className="text-sm">Help Center</span>
+                      </a>
+                      <button
+                        onClick={() => { setProfileOpen(false); startTour(); }}
+                        className="w-full flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 transition-colors"
+                      >
+                        <span className="text-sm">🚀</span>
+                        <span className="text-sm">Restart Guided Tour</span>
+                      </button>
                       <hr className="my-2 border-gray-200 dark:border-gray-600" />
                       <button
                         onClick={handleLogout}

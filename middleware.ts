@@ -101,7 +101,7 @@ function createRedirect(request: NextRequest, destination: string, preserveQuery
   }
   
   // Add redirect parameter for returning after login
-  if (destination === '/login' || destination === '/auth/login') {
+  if (destination === '/login') {
     const currentPath = request.nextUrl.pathname;
     if (currentPath !== '/' && !isPublicRoute(currentPath)) {
       url.searchParams.set('redirect', currentPath);
@@ -152,11 +152,23 @@ export function middleware(request: NextRequest) {
     if (isApiRoute) {
       return createApiError('Unauthorized', 'UNAUTHORIZED', 401);
     }
-    return createRedirect(request, '/auth/login');
+    return createRedirect(request, '/login');
   }
 
   // ========================================
-  // 3. SESSION EXISTS - ALLOW REQUEST
+  // 3a. AUTHENTICATED USER ON AUTH PAGES
+  // ========================================
+  // If the user is already logged in, redirect them away from auth pages
+  const authOnlyPaths = ['/login', '/signup', '/auth/login', '/auth/signup'];
+  if (authOnlyPaths.includes(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
+  // ========================================
+  // 3b. SESSION EXISTS - ALLOW REQUEST
   // ========================================
   // Note: Full session validation happens in API routes
   // The middleware only checks for cookie presence

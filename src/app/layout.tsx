@@ -13,6 +13,12 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import FeatureUpdateNotification from '@/components/notifications/FeatureUpdateNotification';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { OnboardingProvider } from '@/contexts/OnboardingContext';
+import OnboardingOrchestrator from '@/components/onboarding/OnboardingOrchestrator';
+import OnboardingCompletionBanner from '@/components/onboarding/OnboardingCompletionBanner';
+import dynamic from 'next/dynamic';
+
+const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
 
 // Create a stable QueryClient instance
 const queryClient = new QueryClient({
@@ -83,11 +89,25 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
   const pathname = usePathname(); // Get the current route
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showMobileOnboarding, setShowMobileOnboarding] = useState(false);
+
+  // Check if this is the first visit for mobile onboarding
+  useEffect(() => {
+    const hasSeenMobileOnboarding = localStorage.getItem('drais_mobile_onboarding_seen');
+    if (!hasSeenMobileOnboarding && typeof window !== 'undefined') {
+      setShowMobileOnboarding(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('drais_mobile_onboarding_seen', 'true');
+    setShowMobileOnboarding(false);
+  };
 
   // Routes where Sidebar and Navbar should be hidden
   // These are public/auth routes that don't need the main app shell
   const hideSidebarAndNavbar = 
-    pathname === '/' ||                          // Landing page
+    pathname === '/' ||                          // Landing page (redirects to login)
     pathname === '/login' ||                     // Login page
     pathname === '/signup' ||                    // Signup page
     pathname.startsWith('/auth') ||              // All auth routes (/auth/login, /auth/signup, etc.)
@@ -115,6 +135,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       </main>
       {!hideSidebarAndNavbar && <ThemeCustomizerPanel />}
       <FeatureUpdateNotification />
+      {/* Onboarding system — global modals, tour, help search */}
+      <OnboardingOrchestrator />
+      <OnboardingCompletionBanner />
+      {/* Mobile onboarding slides */}
+      {showMobileOnboarding && <MobileOnboarding onComplete={handleOnboardingComplete} />}
     </div>
   );
 }
@@ -129,11 +154,13 @@ export default function RootLayout({
       <body className="font-sans antialiased selection:bg-[var(--color-primary)]/20">
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <ThemeProvider>
-              <I18nProvider>
-                <LayoutContent>{children}</LayoutContent>
-              </I18nProvider>
-            </ThemeProvider>
+            <OnboardingProvider>
+              <ThemeProvider>
+                <I18nProvider>
+                  <LayoutContent>{children}</LayoutContent>
+                </I18nProvider>
+              </ThemeProvider>
+            </OnboardingProvider>
           </AuthProvider>
         </QueryClientProvider>
       </body>

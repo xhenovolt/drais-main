@@ -9,6 +9,10 @@ import BiometricModal from '@/components/attendance/BiometricModal';
 import DeviceConnectionModal from '@/components/attendance/DeviceConnectionModal';
 import AttendanceCard from '@/components/attendance/AttendanceCard';
 import AttendanceStats from '@/components/attendance/AttendanceStats';
+import ModuleIntroCard from '@/components/onboarding/ModuleIntroCard';
+import VideoTutorial from '@/components/onboarding/VideoTutorial';
+import HelpButton from '@/components/onboarding/HelpButton';
+import EmptyState from '@/components/onboarding/EmptyState';
 import clsx from 'clsx';
 
 const AttendancePage: React.FC = () => {
@@ -105,12 +109,42 @@ const AttendancePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
       <div className="container mx-auto px-4 py-8">
+
+        {/* Phase 22: Module intro card (first visit only) */}
+        <ModuleIntroCard
+          moduleId="attendance"
+          icon="👆"
+          title="Attendance Module"
+          description="DRAIS is built attendance-first. Record who arrives, who is late, and who is absent — manually or automatically via fingerprint scanner. Fingerprint devices eliminate the need for roll calls entirely."
+          actions={[
+            { label: 'Connect Fingerprint Device', href: '#', onClick: () => setDeviceModalOpen(true), primary: true },
+          ]}
+          learnMoreHref="/documentation/attendance"
+          tip="Set up your fingerprint device first. Once connected, attendance is recorded automatically when students arrive."
+        />
+
+        {/* Phase 25: Video tutorial */}
+        <VideoTutorial
+          title="How Fingerprint Attendance Works"
+          description="Watch this 3-minute video before using the attendance module for the first time."
+          videoId={null}
+        />
+
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-              📊 Smart Attendance System
-            </h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                📊 Smart Attendance System
+              </h1>
+              {/* Phase 23: Contextual help button */}
+              <HelpButton
+                title="About Attendance"
+                text="Attendance records show when each student arrives, is late, or is absent. Use the fingerprint device for automatic recording, or mark attendance manually here."
+                docsHref="/documentation/attendance"
+                side="bottom"
+              />
+            </div>
             <p className="text-gray-600 dark:text-gray-400">
               Hybrid manual and biometric attendance tracking
             </p>
@@ -214,10 +248,18 @@ const AttendancePage: React.FC = () => {
             </AnimatePresence>
           </div>
 
-          {filteredStudents.length === 0 && (
+          {filteredStudents.length === 0 && !students.length && (
+            <EmptyState
+              icon="👆"
+              title="No students in attendance"
+              description="First admit students in the Students module, then come back here to take today's roll call or view biometric records."
+              action={{ label: 'Go to Students', href: '/students/list' }}
+              learnMoreHref="/documentation/attendance"
+            />
+          )}
+          {filteredStudents.length === 0 && students.length > 0 && (
             <div className="text-center py-12">
-              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No students found</p>
+              <p className="text-gray-500">No students match the current filter.</p>
             </div>
           )}
         </div>

@@ -19,6 +19,8 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
+import ModuleIntroCard from '@/components/onboarding/ModuleIntroCard';
+import HelpButton from '@/components/onboarding/HelpButton';
 
 // Report Template Types
 interface ReportTemplate {
@@ -518,6 +520,19 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Phase 22: Module intro card */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <ModuleIntroCard
+          moduleId="reports"
+          icon="📊"
+          title="Reports Module"
+          description="Generate attendance reports, academic summaries, and financial snapshots. Export to PDF or Excel. This is where you prove that DRAIS is working for your school."
+          actions={[
+            { label: 'Generate Attendance Report', href: '#', primary: true },
+          ]}
+          learnMoreHref="/documentation/reports"
+        />
+      </div>
       {/* Header Controls */}
       <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

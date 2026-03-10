@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import SystemThemeWrapper from '@/components/auth/SystemThemeWrapper';
 import { Shield, Sparkles, Building2, User, Mail, Lock, Phone, CheckCircle2 } from 'lucide-react';
 
 export default function SignupPage() {
@@ -107,6 +108,7 @@ export default function SignupPage() {
   // Success state - show confirmation
   if (success?.pendingApproval) {
     return (
+      <SystemThemeWrapper>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -128,10 +130,12 @@ export default function SignupPage() {
           </Link>
         </motion.div>
       </div>
+      </SystemThemeWrapper>
     );
   }
 
   return (
+    <SystemThemeWrapper>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors">
 
       <motion.div
@@ -382,5 +386,6 @@ export default function SignupPage() {
         </p>
       </motion.div>
     </div>
+    </SystemThemeWrapper>
   );
 }

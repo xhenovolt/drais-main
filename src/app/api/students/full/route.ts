@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
     
     // Apply safe() to all fields EXCEPT school_id
     Object.keys(body).forEach(k => { 
-      if (k !== 'school_id') {
+      if (k !== 'school_id' && k !== 'schoolId') {
         body[k] = safe(body[k]); 
       }
     });
@@ -198,7 +198,10 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    body.school_id = session.school_id;
+    // session.schoolId is the correct camelCase field returned by getSessionSchoolId()
+    const schoolId = session.schoolId;
+    body.schoolId = schoolId;
+    body.school_id = schoolId;
     
     // Validate required fields
     if (!body.first_name || !body.last_name) {
@@ -210,17 +213,12 @@ export async function POST(req: NextRequest) {
     try {
       await connection.beginTransaction();
       
-      // Get next sequential ID - cast as integer to get proper numeric maximum
-      const [maxIdResult]: any = await connection.execute(
-        'SELECT COALESCE(MAX(CAST(id AS UNSIGNED)), 0) as max_id FROM students'
+      // Insert person — let the DB assign id via AUTO_INCREMENT
+      const [personResult]: any = await connection.execute(
+        'INSERT INTO people (school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [schoolId, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
       );
-      const nextId = (parseInt(maxIdResult[0]?.max_id) || 0) + 1;
-      
-      // Insert person with explicit ID to ensure alignment
-      await connection.execute(
-        'INSERT INTO people (id, school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [nextId, body.schoolId, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
-      );
+      const newPersonId = personResult.insertId;
       
       // Generate sequential admission number if not provided
       let admission_no = body.admission_no;
@@ -230,19 +228,18 @@ export async function POST(req: NextRequest) {
           `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(admission_no, '/', -2), '/', 1) AS UNSIGNED)), 0) + 1 as next_seq
            FROM students
            WHERE school_id = ? AND admission_no IS NOT NULL AND admission_no LIKE 'XHN/%'`,
-          [body.schoolId]
+          [schoolId]
         );
         const nextSeq = seqResult[0]?.next_seq || 1;
-        admission_no = formatAdmissionNumber(nextSeq, body.schoolId);
+        admission_no = formatAdmissionNumber(nextSeq, schoolId);
       }
       
-      // Insert student with explicit ID, ensuring perfect alignment with person
-      await connection.execute(
-        'INSERT INTO students (id, school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [nextId, body.schoolId, nextId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
+      // Insert student — let the DB assign id via AUTO_INCREMENT
+      const [studentResult]: any = await connection.execute(
+        'INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [schoolId, newPersonId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
       );
-      const newStudentId = nextId;
-      const newPersonId = nextId;
+      const newStudentId = studentResult.insertId;
       
       // Insert enrollment
       await connection.execute(
@@ -269,7 +266,7 @@ export async function POST(req: NextRequest) {
           // Insert contact with AUTO_INCREMENT
           const [contactResult]: any = await connection.execute(
             'INSERT INTO contacts (school_id, person_id, contact_type, occupation, alive_status, date_of_death) VALUES (?, ?, ?, ?, ?, ?)',
-            [body.schoolId, newPersonId, safe(c.contact_type), safe(c.occupation), safe(c.alive_status), safe(c.date_of_death)]
+            [schoolId, newPersonId, safe(c.contact_type), safe(c.occupation), safe(c.alive_status), safe(c.date_of_death)]
           );
           const newContactId = contactResult.insertId;
           
@@ -290,7 +287,7 @@ export async function POST(req: NextRequest) {
       const person_id = newPersonId;
       
       // Get school info from database (single source of truth)
-      const schoolInfo = await getSchoolFromDB(body.schoolId);
+      const schoolInfo = await getSchoolFromDB(schoolId);
       const schoolName = schoolInfo.name;
       const schoolAddress = schoolInfo.address || '';
       const schoolPhone = schoolInfo.phone || '';

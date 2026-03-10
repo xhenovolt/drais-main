@@ -26,6 +26,7 @@ import { Info } from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import Pagination from '@/components/ui/Pagination';
+import EmptyState from '@/components/onboarding/EmptyState';
 
 const API_BASE = '/api';
 
@@ -1613,11 +1614,14 @@ export const StudentTable: React.FC = () => {
 
               {!isLoading && paginatedRows.length === 0 && (
                 <tr key="no-data-row">
-                  <td colSpan={8} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center">
-                      <Users className="w-12 h-12 text-gray-300 mb-2" />
-                      <span className="text-gray-500 dark:text-gray-400">No students found</span>
-                    </div>
+                  <td colSpan={8} className="px-6 py-2">
+                    <EmptyState
+                      icon="👩‍🎓"
+                      title="No students admitted yet"
+                      description="Students must be registered before attendance can be tracked. Start by admitting your first student."
+                      action={{ label: 'Admit First Student', href: '/students/admit' }}
+                      learnMoreHref="/documentation/admitting-students"
+                    />
                   </td>
                 </tr>
               )}
@@ -1914,9 +1918,14 @@ export const StudentTable: React.FC = () => {
           )}
           
           {!isLoading && paginatedRows.length === 0 && (
-            <div key="mobile-no-data" className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-300 mb-2 mx-auto" />
-              <span className="text-gray-500 dark:text-gray-400">No students found</span>
+            <div key="mobile-no-data">
+              <EmptyState
+                icon="👩‍🎓"
+                title="No students admitted yet"
+                description="Register your first student to begin tracking attendance."
+                action={{ label: 'Admit First Student', href: '/students/admit' }}
+                learnMoreHref="/documentation/admitting-students"
+              />
             </div>
           )}
           
