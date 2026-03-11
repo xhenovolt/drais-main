@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     if (!body.name) return NextResponse.json({ error: 'name required' }, { status: 400 });
     connection = await getConnection();
-    await connection.execute('INSERT INTO classes (school_id,name,class_level,head_teacher_id,curriculum_id) VALUES (?,?,?,?,?)', [school_id, body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null]);
+    await connection.execute('INSERT INTO classes (school_id,name,class_level,head_teacher_id,curriculum_id) VALUES (?,?,?,?,?)', [schoolId, body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null]);
     const [result] = await connection.execute('SELECT LAST_INSERT_ID() as id');
     return NextResponse.json({ success: true, id: (result as any)[0].id }, { status: 201 });
   } catch (error: any) {

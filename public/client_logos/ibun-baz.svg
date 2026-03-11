@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" className="w-full h-full">
+  <defs>
+    <linearGradient id="ibunbazBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c2d12;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#92400e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="200" height="80" fill="white"/>
+  
+  <!-- Logo background -->
+  <circle cx="35" cy="40" r="25" fill="url(#ibunbazBg)"/>
+  
+  <!-- Islamic dome and minaret -->
+  <g transform="translate(25, 25)">
+    <path d="M5 20 Q10 15 15 20 L15 25 L5 25 Z" fill="white"/>
+    <rect x="17" y="10" width="2" height="15" fill="white"/>
+    <circle cx="18" cy="8" r="1.5" fill="white"/>
+    <rect x="9.5" y="25" width="1" height="5" fill="white"/>
+  </g>
+  
+  <!-- School name -->
+  <text x="70" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#7c2d12">IBUN BAZ</text>
+  <text x="70" y="40" font-family="Arial, sans-serif" font-size="10" fill="#92400e">Girls Secondary</text>
+  <text x="70" y="53" font-family="Arial, sans-serif" font-size="10" fill="#92400e">School</text>
+  <text x="70" y="68" font-family="Arial, sans-serif" font-size="7" fill="#6b7280">Nurturing Islamic Values</text>
+</svg>

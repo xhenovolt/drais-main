@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" className="w-full h-full">
+  <defs>
+    <linearGradient id="albayanBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#047857;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="200" height="80" fill="white"/>
+  
+  <!-- Logo background -->
+  <circle cx="35" cy="40" r="25" fill="url(#albayanBg)"/>
+  
+  <!-- Islamic crescent and star -->
+  <g transform="translate(25, 30)">
+    <path d="M10 5 Q20 10 10 15 Q15 10 10 5" fill="white"/>
+    <circle cx="17" cy="8" r="2" fill="white"/>
+  </g>
+  
+  <!-- Open book -->
+  <g transform="translate(28, 45)">
+    <path d="M0 0 L7 -2 L14 0 L14 8 L7 6 L0 8 Z" fill="white"/>
+    <line x1="7" y1="-2" x2="7" y2="6" stroke="#059669" stroke-width="0.5"/>
+  </g>
+  
+  <!-- School name -->
+  <text x="70" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#059669">ALBAYAN</text>
+  <text x="70" y="35" font-family="Arial, sans-serif" font-size="11" fill="#047857">Quran Memorization</text>
+  <text x="70" y="50" font-family="Arial, sans-serif" font-size="11" fill="#047857">Center</text>
+  <text x="70" y="65" font-family="Arial, sans-serif" font-size="7" fill="#6b7280">Excellence in Islamic Education</text>
+</svg>
