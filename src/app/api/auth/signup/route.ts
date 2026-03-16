@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { query, getConnection } from '@/lib/db';
+import { initializeFreeTrial } from '@/lib/subscription';
 import { randomBytes } from 'crypto';
 
 // Session configuration (same as login)
@@ -179,8 +180,12 @@ export async function POST(request: NextRequest) {
         
         // Create the school
         const [schoolResult] = await connection.execute<any>(
-          `INSERT INTO schools (id, name, status, setup_complete, created_at)
-           VALUES (?, ?, 'active', FALSE, NOW())`,
+          `INSERT INTO schools (id, name, status, setup_complete,
+              subscription_status, subscription_type,
+              trial_start_date, trial_end_date, created_at)
+           VALUES (?, ?, 'active', FALSE,
+              'trial', 'trial',
+              NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), NOW())`,
           [nextSchoolId, schoolName]
         );
         
@@ -207,9 +212,9 @@ export async function POST(request: NextRequest) {
 
         // Assign Super Admin role to user
         await connection.execute(
-          `INSERT INTO user_roles (user_id, role_id, is_active, assigned_at)
-           VALUES (?, ?, TRUE, NOW())`,
-          [userId, superAdminRoleId]
+          `INSERT INTO user_roles (user_id, role_id, school_id, is_active, assigned_at)
+           VALUES (?, ?, ?, TRUE, NOW())`,
+          [userId, superAdminRoleId, finalSchoolId]
         );
 
       // ========================================

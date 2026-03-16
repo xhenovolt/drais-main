@@ -9,8 +9,9 @@ import Link from 'next/link';
 import SystemThemeWrapper from '@/components/auth/SystemThemeWrapper';
 
 export default function LoginPage() {
-  const { login, error, clearError } = useAuth();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (loginError) setLoginError(null);
     // Clear validation error
     if (validationErrors[name]) {
       setValidationErrors((prev) => {
@@ -46,7 +48,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
+    setLoginError(null);
 
     if (!validateForm()) {
       return;
@@ -55,10 +57,14 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(formData.email, formData.password);
-      // Navigation happens in login function
+      const result = await login(formData.email, formData.password);
+      if (!result.success) {
+        setLoginError(result.error || 'Login failed. Please check your credentials.');
+      }
+      // Navigation handled by AuthContext on success
     } catch (err) {
       console.error('Login error:', err);
+      setLoginError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -84,9 +90,9 @@ export default function LoginPage() {
         {/* Form Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
           {/* Error Alert */}
-          {error && (
+          {loginError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm font-medium">{error}</p>
+              <p className="text-red-800 text-sm font-medium">{loginError}</p>
             </div>
           )}
 

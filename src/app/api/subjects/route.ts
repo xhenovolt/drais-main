@@ -7,21 +7,24 @@ import { getSessionSchoolId } from '@/lib/auth';
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
  * TiDB doesn't support ALTER TABLE MODIFY ... AUTO_INCREMENT,
  * so we must DROP/RECREATE with data migration.
+ * Returns true if AUTO_INCREMENT is now available.
  */
-async function selfHealAutoIncrement(conn: any) {
+async function selfHealAutoIncrement(conn: any): Promise<boolean> {
   try {
     const [cols] = await conn.query("SHOW COLUMNS FROM subjects WHERE Field = 'id'");
     const col = (cols as any[])[0];
     if (col && col.Extra?.includes('auto_increment')) {
-      return;
+      return true;
     }
     console.log('[self-heal] subjects: id column missing AUTO_INCREMENT, recreating table...');
     const db = await getActiveDatabase();
     if (db === 'mysql') {
       await conn.query('ALTER TABLE subjects MODIFY id BIGINT NOT NULL AUTO_INCREMENT');
     } else {
+      // TiDB: must recreate — drop leftover temp table from any prior failed attempt
       await conn.query('SET FOREIGN_KEY_CHECKS = 0');
-      await conn.query(`CREATE TABLE IF NOT EXISTS _subjects_new (
+      await conn.query('DROP TABLE IF EXISTS _subjects_new');
+      await conn.query(`CREATE TABLE _subjects_new (
         id BIGINT PRIMARY KEY AUTO_INCREMENT,
         school_id BIGINT NOT NULL DEFAULT 1,
         name VARCHAR(120) NOT NULL,
@@ -39,9 +42,23 @@ async function selfHealAutoIncrement(conn: any) {
       await conn.query('SET FOREIGN_KEY_CHECKS = 1');
     }
     console.log('[self-heal] subjects: table fixed successfully');
+    return true;
   } catch (e: any) {
     console.error('[self-heal] subjects failed:', e.message);
+    return false;
   }
+}
+
+/**
+ * Fallback insert: explicitly generate the next id when AUTO_INCREMENT is unavailable.
+ */
+async function insertWithExplicitId(conn: any, schoolId: number, name: string, code: string | null, subjectType: string) {
+  const [maxRows] = await conn.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM subjects');
+  const nextId = (maxRows as any[])[0].next_id;
+  return await conn.query(
+    'INSERT INTO subjects (id, school_id, name, code, subject_type) VALUES (?, ?, ?, ?, ?)',
+    [nextId, schoolId, name, code, subjectType]
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -130,17 +147,26 @@ export async function POST(req: NextRequest) {
       );
     };
 
+    let result;
     try {
-      const [result] = await insertFn();
-      return NextResponse.json({ success: true, id: (result as any).insertId }, { status: 201 });
+      [result] = await insertFn();
     } catch (insertErr: any) {
       if (insertErr.errno === 1364 /* ER_NO_DEFAULT_FOR_FIELD */) {
-        await selfHealAutoIncrement(connection);
-        const [result] = await insertFn();
-        return NextResponse.json({ success: true, id: (result as any).insertId }, { status: 201 });
+        const healed = await selfHealAutoIncrement(connection);
+        if (healed) {
+          try {
+            [result] = await insertFn();
+          } catch {
+            [result] = await insertWithExplicitId(connection, schoolId, name, code, subject_type);
+          }
+        } else {
+          [result] = await insertWithExplicitId(connection, schoolId, name, code, subject_type);
+        }
+      } else {
+        throw insertErr;
       }
-      throw insertErr;
     }
+    return NextResponse.json({ success: true, id: (result as any).insertId }, { status: 201 });
   } catch (e: any) {
     console.error('Subjects POST error:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });

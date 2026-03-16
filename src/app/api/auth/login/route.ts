@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { query } from '@/lib/db';
+import { getSubscriptionInfo } from '@/lib/subscription';
 import { randomBytes } from 'crypto';
 
 // Session configuration

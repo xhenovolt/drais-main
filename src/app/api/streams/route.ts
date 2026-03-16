@@ -7,24 +7,24 @@ import { getSessionSchoolId } from '@/lib/auth';
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
  * TiDB doesn't support ALTER TABLE MODIFY ... AUTO_INCREMENT,
  * so we must DROP/RECREATE with data migration.
+ * Returns true if AUTO_INCREMENT is now available.
  */
-async function selfHealAutoIncrement(conn: any) {
+async function selfHealAutoIncrement(conn: any): Promise<boolean> {
   try {
     const [cols] = await conn.query("SHOW COLUMNS FROM streams WHERE Field = 'id'");
     const col = (cols as any[])[0];
     if (col && col.Extra?.includes('auto_increment')) {
-      // Already has AUTO_INCREMENT — nothing to do
-      return;
+      return true;
     }
     console.log('[self-heal] streams: id column missing AUTO_INCREMENT, recreating table...');
     const db = await getActiveDatabase();
     if (db === 'mysql') {
-      // Local MySQL supports ALTER TABLE MODIFY
       await conn.query('ALTER TABLE streams MODIFY id BIGINT NOT NULL AUTO_INCREMENT');
     } else {
-      // TiDB: must recreate
+      // TiDB: must recreate — drop leftover temp table from any prior failed attempt
       await conn.query('SET FOREIGN_KEY_CHECKS = 0');
-      await conn.query(`CREATE TABLE IF NOT EXISTS _streams_new (
+      await conn.query('DROP TABLE IF EXISTS _streams_new');
+      await conn.query(`CREATE TABLE _streams_new (
         id BIGINT PRIMARY KEY AUTO_INCREMENT,
         school_id BIGINT NOT NULL DEFAULT 1,
         class_id BIGINT NOT NULL,
@@ -40,9 +40,23 @@ async function selfHealAutoIncrement(conn: any) {
       await conn.query('SET FOREIGN_KEY_CHECKS = 1');
     }
     console.log('[self-heal] streams: table fixed successfully');
+    return true;
   } catch (e: any) {
     console.error('[self-heal] streams failed:', e.message);
+    return false;
   }
+}
+
+/**
+ * Fallback insert: explicitly generate the next id when AUTO_INCREMENT is unavailable.
+ */
+async function insertWithExplicitId(conn: any, name: string, classId: number, schoolId: number) {
+  const [maxRows] = await conn.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM streams');
+  const nextId = (maxRows as any[])[0].next_id;
+  return await conn.query(
+    'INSERT INTO streams (id, name, class_id, school_id) VALUES (?, ?, ?, ?)',
+    [nextId, name, classId, schoolId]
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -119,8 +133,19 @@ export async function POST(req: NextRequest) {
       [result] = await insertFn();
     } catch (insertErr: any) {
       if (insertErr.errno === 1364 /* ER_NO_DEFAULT_FOR_FIELD */) {
-        await selfHealAutoIncrement(connection);
-        [result] = await insertFn();
+        const healed = await selfHealAutoIncrement(connection);
+        if (healed) {
+          // Self-heal succeeded — retry with AUTO_INCREMENT
+          try {
+            [result] = await insertFn();
+          } catch {
+            // AUTO_INCREMENT still not working — fall back to explicit id
+            [result] = await insertWithExplicitId(connection, body.name.trim(), body.class_id, schoolId);
+          }
+        } else {
+          // Self-heal failed — fall back to explicit id
+          [result] = await insertWithExplicitId(connection, body.name.trim(), body.class_id, schoolId);
+        }
       } else {
         throw insertErr;
       }

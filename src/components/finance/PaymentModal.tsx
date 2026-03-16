@@ -57,7 +57,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Fetch data
   const { data: studentsData } = useSWR(
-    studentSearch.length > 2 ? `/api/students?q=${studentSearch}&school_id=${schoolId}` : null,
+    studentSearch.length > 2 ? `/api/students/full?q=${studentSearch}&school_id=${schoolId}` : null,
     fetcher
   );
   const { data: termsData } = useSWR(`/api/terms?school_id=${schoolId}`, fetcher);

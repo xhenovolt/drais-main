@@ -90,11 +90,47 @@ export async function GET(req: NextRequest) {
 
     const [historyRows] = await connection.execute(historySQL, historyParams);
 
+    // Get enrollment history (for lifecycle tracking)
+    let enrollmentSQL = `
+      SELECT
+        e.id AS enrollment_id,
+        e.student_id,
+        c.id AS class_id,
+        c.name AS class_name,
+        c.level AS class_level,
+        st.name AS stream_name,
+        ay.id AS academic_year_id,
+        ay.name AS academic_year_name,
+        t.name AS term_name,
+        e.status AS enrollment_status,
+        e.enrollment_date,
+        e.end_date,
+        e.end_reason
+      FROM enrollments e
+      JOIN students s ON e.student_id = s.id
+      LEFT JOIN classes c ON e.class_id = c.id
+      LEFT JOIN streams st ON e.stream_id = st.id
+      LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
+      LEFT JOIN terms t ON e.term_id = t.id
+      WHERE s.school_id = ?
+    `;
+    const enrollParams: any[] = [schoolId];
+
+    if (studentId) {
+      enrollmentSQL += ' AND e.student_id = ?';
+      enrollParams.push(parseInt(studentId));
+    }
+
+    enrollmentSQL += ' ORDER BY ay.start_date DESC, e.id DESC';
+
+    const [enrollmentRows] = await connection.execute(enrollmentSQL, enrollParams);
+
     return NextResponse.json({
       success: true,
       data: {
         academic_results: academicRows,
-        student_history: historyRows
+        student_history: historyRows,
+        enrollment_history: enrollmentRows
       }
     });
 

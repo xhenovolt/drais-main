@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
   const subjectId = searchParams.get('subject_id');
   const resultTypeId = searchParams.get('result_type_id');
   const termId = searchParams.get('term_id');
+  const academicYearId = searchParams.get('academic_year_id');
   const query = searchParams.get('query') || '';
 
   const connection = await getConnection();
@@ -31,6 +32,10 @@ export async function GET(req: NextRequest) {
       where += ' AND cr.term_id = ?';
       params.push(termId);
     }
+    if (academicYearId) {
+      where += ' AND (cr.academic_year_id = ? OR t.academic_year_id = ?)';
+      params.push(academicYearId, academicYearId);
+    }
     if (query && query.trim() !== '' && query.toLowerCase() !== 'all') {
       where += ` AND (
         p.first_name LIKE ? OR
@@ -49,6 +54,7 @@ export async function GET(req: NextRequest) {
         cr.student_id,
         cr.class_id,
         cr.term_id,
+        cr.academic_year_id,
         s.admission_no,
         p.first_name,
         p.last_name,
@@ -60,13 +66,14 @@ export async function GET(req: NextRequest) {
         sub.subject_type,
         rt.name as result_type_name,
         t.name as term_name,
+        COALESCE(ay.name, ay2.name) as academic_year_name,
         st.name as stream_name,
         cr.score,
         cr.grade,
         cr.remarks,
         cr.created_at,
         cr.updated_at,
-        IFNULL(s.status, 'inactive') AS status -- Show 'active' or 'inactive' based on status
+        IFNULL(s.status, 'inactive') AS status
       FROM class_results cr
       JOIN students s ON s.id = cr.student_id
       JOIN people p ON p.id = s.person_id
@@ -74,6 +81,8 @@ export async function GET(req: NextRequest) {
       JOIN subjects sub ON sub.id = cr.subject_id
       JOIN result_types rt ON rt.id = cr.result_type_id
       LEFT JOIN terms t ON t.id = cr.term_id
+      LEFT JOIN academic_years ay ON cr.academic_year_id = ay.id
+      LEFT JOIN academic_years ay2 ON t.academic_year_id = ay2.id
       LEFT JOIN enrollments e ON e.student_id = cr.student_id AND e.class_id = cr.class_id AND (e.term_id = cr.term_id OR cr.term_id IS NULL)
       LEFT JOIN streams st ON st.id = e.stream_id
       ${where}

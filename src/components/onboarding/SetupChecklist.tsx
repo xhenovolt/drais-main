@@ -22,14 +22,14 @@ export default function SetupChecklist() {
   const [dismissed, setDismissed] = useState(false);
 
   // Auto-check via API data
-  const { data: studentsData } = useSWR('/api/students?limit=1', fetcher, { revalidateOnFocus: false });
+  const { data: studentsData } = useSWR('/api/students/full?limit=1', fetcher, { revalidateOnFocus: false });
   const { data: classData }    = useSWR('/api/classes?limit=1',  fetcher, { revalidateOnFocus: false });
   const { data: attendData }   = useSWR(
     `/api/attendance?date=${new Date().toISOString().split('T')[0]}&limit=1`,
     fetcher,
     { revalidateOnFocus: false }
   );
-  const { data: reportsData }  = useSWR('/api/reports?limit=1', fetcher, { revalidateOnFocus: false });
+  const { data: reportsData }  = useSWR('/api/reports/list?limit=1', fetcher, { revalidateOnFocus: false });
 
   useEffect(() => {
     // School profile — use school setupComplete from auth

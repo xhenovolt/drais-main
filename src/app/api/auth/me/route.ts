@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getSubscriptionInfo } from '@/lib/subscription';
 
 const SESSION_COOKIE_NAME = 'drais_session';
 
@@ -99,6 +100,8 @@ export async function GET(request: NextRequest) {
     let school = null;
     let setupComplete = true;
 
+    let subscriptionInfo = null;
+
     if (session.schoolId) {
       const schools = await query(
         `SELECT id, name, status, setup_complete, email, phone, address, school_type, logo_url
@@ -122,6 +125,27 @@ export async function GET(request: NextRequest) {
               }
             },
             { status: 403 }
+          );
+        }
+
+        // Check subscription access
+        subscriptionInfo = await getSubscriptionInfo(Number(session.schoolId));
+        if (subscriptionInfo && !subscriptionInfo.hasAccess) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                message: 'Your subscription has expired. Please subscribe to continue using DRAIS.',
+                code: 'SUBSCRIPTION_EXPIRED',
+              },
+              subscriptionInfo: {
+                status: subscriptionInfo.subscriptionStatus,
+                type: subscriptionInfo.subscriptionType,
+                trialEndDate: subscriptionInfo.trialEndDate,
+                subscriptionEndDate: subscriptionInfo.subscriptionEndDate,
+              },
+            },
+            { status: 402 }
           );
         }
       }
@@ -183,6 +207,15 @@ export async function GET(request: NextRequest) {
         schoolType: school.school_type,
         logoUrl: school.logo_url,
         setupComplete,
+      } : null,
+      subscription: subscriptionInfo ? {
+        status: subscriptionInfo.subscriptionStatus,
+        type: subscriptionInfo.subscriptionType,
+        trialEndDate: subscriptionInfo.trialEndDate,
+        trialDaysRemaining: subscriptionInfo.trialDaysRemaining,
+        subscriptionEndDate: subscriptionInfo.subscriptionEndDate,
+        subscriptionDaysRemaining: subscriptionInfo.subscriptionDaysRemaining,
+        hasAccess: subscriptionInfo.hasAccess,
       } : null,
       setupComplete,
       roles: roles.map((r: any) => ({

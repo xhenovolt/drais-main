@@ -19,8 +19,13 @@ export interface School {
   setup_completed_at?: Date;
   status: 'active' | 'inactive' | 'suspended';
   subscription_plan: string;
-  subscription_status: 'active' | 'inactive' | 'trial';
+  subscription_status: 'active' | 'inactive' | 'trial' | 'expired';
+  subscription_type: 'none' | 'trial' | 'monthly' | 'yearly';
   trial_ends_at?: Date;
+  trial_start_date?: Date;
+  trial_end_date?: Date;
+  subscription_start_date?: Date;
+  subscription_end_date?: Date;
   created_at: Date;
   updated_at: Date;
   deleted_at?: Date;

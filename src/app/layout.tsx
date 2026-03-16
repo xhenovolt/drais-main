@@ -18,6 +18,7 @@ import OnboardingCompletionBanner from '@/components/onboarding/OnboardingComple
 import dynamic from 'next/dynamic';
 
 const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
+const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
 
 // Create a stable QueryClient instance
 const queryClient = new QueryClient({
@@ -89,6 +90,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname(); // Get the current route
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showMobileOnboarding, setShowMobileOnboarding] = useState(false);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !sessionStorage.getItem('drais_splash_shown');
+  });
 
   // Check if this is the first visit for mobile onboarding
   useEffect(() => {
@@ -138,6 +143,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <OnboardingCompletionBanner />
       {/* Mobile onboarding slides */}
       {showMobileOnboarding && <MobileOnboarding onComplete={handleOnboardingComplete} />}
+      {/* Splash screen — shown once per session */}
+      {showSplash && (
+        <SplashScreen
+          onFinished={() => {
+            sessionStorage.setItem('drais_splash_shown', '1');
+            setShowSplash(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -149,6 +163,24 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="application-name" content="DRAIS" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="DRAIS" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#0A2463" />
+        <meta name="msapplication-TileColor" content="#0A2463" />
+        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
+      </head>
       <body className="font-sans antialiased selection:bg-[var(--color-primary)]/20">
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
