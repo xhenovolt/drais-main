@@ -13,10 +13,8 @@ export const useSocket = () => {
 
     try {
       // Initialize socket connection with error handling
+      // Authentication is handled via the drais_session HTTP-only cookie
       const socketInstance = io(socketUrl, {
-        auth: {
-          token: localStorage.getItem('auth_token') || 'demo-token' // Fallback token
-        },
         transports: ['websocket', 'polling'],
         timeout: 20000,
         reconnection: true,

@@ -246,7 +246,7 @@ const LoginPage: React.FC = () => {
           transition={{ delay: 0.8 }}
           className="text-center mt-8 text-gray-400 text-sm"
         >
-          <p>Powered by Xhenvolt Technology</p>
+          <p>Powered by <a href="http://xhenvolt.com" target="_blank" rel="noopener noreferrer">Xhenvolt</a></p>
           <p className="mt-1">© 2024 DRAIS. All rights reserved.</p>
         </motion.div>
       </motion.div>

@@ -4,9 +4,8 @@
 export function validateEnvironment() {
   const requiredVars = [
     'DB_HOST',
-    'DB_USER', 
+    'DB_USER',
     'DB_NAME',
-    'JWT_SECRET'
   ];
 
   const missing = requiredVars.filter(varName => !process.env[varName]);
@@ -15,8 +14,11 @@ export function validateEnvironment() {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 
-  // Warn about development defaults
-  if (process.env.JWT_SECRET === 'drais-dev-secret-change-in-production') {
-    console.warn('⚠️ Using default JWT secret. Change in production!');
+  // Warn if session cookie secret is not set in production
+  if (
+    process.env.NODE_ENV === 'production' &&
+    !process.env.SESSION_COOKIE_SECRET
+  ) {
+    console.warn('⚠️ SESSION_COOKIE_SECRET is not set. Set it in production for additional security.');
   }
 }

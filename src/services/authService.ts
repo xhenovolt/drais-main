@@ -1,14 +1,10 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { query, getConnection } from '@/lib/db';
 import {
   User,
   UserWithRoles,
   Role,
   Permission,
-  TokenPayload,
-  AuthenticationError,
-  AuthorizationError,
 } from '@/types/saas';
 
 // ============================================
@@ -33,51 +29,8 @@ export async function verifyPassword(
   return bcrypt.compare(plainPassword, hash);
 }
 
-// ============================================
-// JWT TOKEN MANAGEMENT
-// ============================================
-
-/**
- * Generate JWT access token
- */
-export function generateAccessToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET not configured');
-
-  const expiresIn = process.env.JWT_EXPIRES_IN || '1h';
-  return jwt.sign(payload, secret, { expiresIn });
-}
-
-/**
- * Generate JWT refresh token
- */
-export function generateRefreshToken(payload: { user_id: bigint; school_id: bigint | null }): string {
-  const secret = process.env.REFRESH_SECRET;
-  if (!secret) throw new Error('REFRESH_SECRET not configured');
-
-  const expiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
-  return jwt.sign(payload, secret, { expiresIn });
-}
-
-/**
- * Verify and decode JWT token
- */
-export function verifyToken(token: string, isRefresh = false): TokenPayload {
-  const secret = isRefresh ? process.env.REFRESH_SECRET : process.env.JWT_SECRET;
-  if (!secret) throw new Error(`${isRefresh ? 'REFRESH_' : ''}JWT_SECRET not configured`);
-
-  try {
-    return jwt.verify(token, secret) as TokenPayload;
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      throw new AuthenticationError('Token has expired', 'TOKEN_EXPIRED');
-    }
-    if (error instanceof jwt.JsonWebTokenError) {
-      throw new AuthenticationError('Invalid token', 'INVALID_TOKEN');
-    }
-    throw error;
-  }
-}
+// JWT token management has been removed.
+// The system uses server-side session cookies (drais_session) for authentication.
 
 // ============================================
 // USER RETRIEVAL & ROLES/PERMISSIONS

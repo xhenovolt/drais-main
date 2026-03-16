@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
-import jwt from 'jsonwebtoken';
+import { query } from '@/lib/db';
 
 export class SocketService {
   private static instance: SocketService;
@@ -74,19 +74,35 @@ export class SocketService {
 
   private async authenticateSocket(socket: Socket, next: (err?: Error) => void) {
     try {
-      const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-      
-      if (!token) {
-        throw new Error('No authentication token provided');
+      // Extract drais_session cookie from the handshake HTTP headers
+      const cookieHeader = socket.handshake.headers.cookie || '';
+      const match = cookieHeader.match(/(?:^|;\s*)drais_session=([^;]+)/);
+      const sessionToken = match ? decodeURIComponent(match[1]) : null;
+
+      if (!sessionToken) {
+        throw new Error('No session cookie provided');
       }
 
-      // Verify JWT token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: number; schoolId: number };
-      
-      // Attach user data to socket
-      socket.data.userId = decoded.userId;
-      socket.data.schoolId = decoded.schoolId;
-      
+      // Validate session against the database
+      const sessions: any[] = await query(
+        `SELECT s.user_id, s.school_id
+         FROM sessions s
+         JOIN users u ON s.user_id = u.id
+         WHERE s.session_token = ?
+           AND s.is_active = TRUE
+           AND s.expires_at > NOW()
+           AND u.deleted_at IS NULL
+         LIMIT 1`,
+        [sessionToken]
+      );
+
+      if (!sessions || sessions.length === 0) {
+        throw new Error('Invalid or expired session');
+      }
+
+      socket.data.userId = Number(sessions[0].user_id);
+      socket.data.schoolId = Number(sessions[0].school_id);
+
       next();
     } catch (error) {
       console.error('Socket authentication failed:', error);

@@ -1,13 +1,11 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import {
-  requirePermission,
   createErrorResponse,
   createSuccessResponse,
   getAuthenticatedUser,
 } from '@/middleware/auth';
 import { hashPassword, logAuditAction } from '@/services/authService';
-import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * GET /api/admin/users?school_id={schoolId}
@@ -15,19 +13,11 @@ import { getSessionSchoolId } from '@/lib/auth';
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionSchoolId(request);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    const schoolId = session.schoolId;
-
     const tokenPayload = await getAuthenticatedUser(request);
 
-    if (!schoolId || BigInt(schoolId) !== tokenPayload.schoolId) {
-      return createErrorResponse(
-        'Forbidden',
-        403,
-        'FORBIDDEN',
-        'You can only access your own school'
-      );
+    const schoolId = tokenPayload.schoolId;
+    if (!schoolId) {
+      return createErrorResponse('Forbidden', 403, 'NO_SCHOOL', 'No school associated with session');
     }
 
     const connection = await getConnection();
@@ -72,16 +62,13 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionSchoolId(request);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    const schoolId = session.schoolId;
-
     const tokenPayload = await getAuthenticatedUser(request);
+
     const body = await request.json();
     const { first_name, last_name, email, password, phone, role_id } = body;
 
     // Check permission
-    if (!tokenPayload.permissions.includes('user.create')) {
+    if (!tokenPayload.isSuperAdmin && !tokenPayload.permissions.includes('user.create')) {
       return createErrorResponse(
         'Forbidden',
         403,
@@ -143,7 +130,7 @@ export async function POST(request: NextRequest) {
         [tokenPayload.schoolId, first_name, last_name, email, phone || null, passwordHash, false, tokenPayload.user_id]
       );
 
-      const userId = BigInt(result.insertId);
+      const userId = Number(result.insertId);
 
       // Assign role
       await connection.execute(
@@ -153,11 +140,11 @@ export async function POST(request: NextRequest) {
 
       // Log user creation
       await logAuditAction(
-        tokenPayload.schoolId,
+        BigInt(tokenPayload.schoolId!),
         'user_created',
         'user',
-        userId,
-        tokenPayload.user_id,
+        BigInt(userId),
+        BigInt(tokenPayload.user_id),
         {
           new_values: { email, first_name, last_name, role_id },
           status: 'success',

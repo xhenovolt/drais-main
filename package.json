@@ -51,7 +51,6 @@
     "html2canvas": "^1.4.1",
     "jotai": "^2.13.1",
     "json2csv": "^6.0.0-alpha.2",
-    "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.541.0",
