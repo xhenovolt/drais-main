@@ -75,26 +75,6 @@ export async function POST(request: NextRequest) {
       [email]
     );
 
-    // Fallback to staff table if no user found
-    if (!users || users.length === 0) {
-      users = await query(
-        `SELECT 
-          s.id,
-          s.school_id AS schoolId,
-          s.email,
-          s.password as password_hash,
-          s.status,
-          s.name as first_name,
-          '' as last_name,
-          s.name as display_name
-        FROM staff s
-        WHERE s.email = ? 
-          AND s.deleted_at IS NULL
-        LIMIT 1`,
-        [email]
-      );
-    }
-
     if (!users || users.length === 0) {
       return NextResponse.json(
         { 

@@ -6,6 +6,7 @@ import {
   getAuthenticatedUser,
 } from '@/middleware/auth';
 import { hashPassword, logAuditAction } from '@/services/authService';
+import { AuthenticationError, AuthorizationError } from '@/types/saas';
 
 /**
  * GET /api/admin/users?school_id={schoolId}
@@ -47,12 +48,14 @@ export async function GET(request: NextRequest) {
       await connection.end();
     }
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return createErrorResponse('Unauthorized', 401, error.code, error.message);
+    }
+    if (error instanceof AuthorizationError) {
+      return createErrorResponse('Forbidden', 403, error.code, error.message);
+    }
     console.error('Get users error:', error);
-    return createErrorResponse(
-      'Internal Server Error',
-      500,
-      'INTERNAL_ERROR'
-    );
+    return createErrorResponse('Internal Server Error', 500, 'INTERNAL_ERROR');
   }
 }
 
@@ -170,11 +173,13 @@ export async function POST(request: NextRequest) {
       await connection.end();
     }
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return createErrorResponse('Unauthorized', 401, error.code, error.message);
+    }
+    if (error instanceof AuthorizationError) {
+      return createErrorResponse('Forbidden', 403, error.code, error.message);
+    }
     console.error('Create user error:', error);
-    return createErrorResponse(
-      'Internal Server Error',
-      500,
-      'INTERNAL_ERROR'
-    );
+    return createErrorResponse('Internal Server Error', 500, 'INTERNAL_ERROR');
   }
 }

@@ -56,16 +56,15 @@ function daysBetween(from: Date, to: Date): number {
  * Also auto-marks expired trials in the database.
  */
 export async function getSubscriptionInfo(schoolId: number): Promise<SubscriptionInfo | null> {
+  // Select only core columns that exist in the current schema.
+  // Extended columns (trial/subscription dates, subscription_type) are optional
+  // — they may not yet exist in older deployments so we handle their absence gracefully.
   const rows = await query(
     `SELECT
        id,
        name,
        subscription_status,
-       subscription_type,
-       trial_start_date,
-       trial_end_date,
-       subscription_start_date,
-       subscription_end_date
+       subscription_plan
      FROM schools
      WHERE id = ? AND deleted_at IS NULL
      LIMIT 1`,
@@ -77,9 +76,10 @@ export async function getSubscriptionInfo(schoolId: number): Promise<Subscriptio
 
   const now = new Date();
 
-  const trialEndDate: Date | null    = row.trial_end_date   ? new Date(row.trial_end_date)   : null;
-  const subEndDate: Date | null      = row.subscription_end_date ? new Date(row.subscription_end_date) : null;
-  const trialStartDate: Date | null  = row.trial_start_date  ? new Date(row.trial_start_date)  : null;
+  // Date columns may not exist in this schema version — default to null
+  const trialEndDate: Date | null    = row.trial_end_date          ? new Date(row.trial_end_date)          : null;
+  const subEndDate: Date | null      = row.subscription_end_date   ? new Date(row.subscription_end_date)   : null;
+  const trialStartDate: Date | null  = row.trial_start_date        ? new Date(row.trial_start_date)        : null;
   const subStartDate: Date | null    = row.subscription_start_date ? new Date(row.subscription_start_date) : null;
 
   let status: SubscriptionStatus = row.subscription_status as SubscriptionStatus;
@@ -125,7 +125,7 @@ export async function getSubscriptionInfo(schoolId: number): Promise<Subscriptio
     schoolId:                   Number(row.id),
     schoolName:                 row.name,
     subscriptionStatus:         status,
-    subscriptionType:           (row.subscription_type || 'none') as SubscriptionType,
+    subscriptionType:           (row.subscription_plan || row.subscription_type || 'none') as SubscriptionType,
     trialStartDate,
     trialEndDate,
     subscriptionStartDate:      subStartDate,
@@ -169,11 +169,9 @@ export async function initializeFreeTrial(schoolId: number): Promise<void> {
   await query(
     `UPDATE schools
      SET
-       subscription_status    = 'trial',
-       subscription_type      = 'trial',
-       trial_start_date       = NOW(),
-       trial_end_date         = DATE_ADD(NOW(), INTERVAL 30 DAY),
-       updated_at             = NOW()
+       subscription_status = 'trial',
+       subscription_plan   = 'trial',
+       updated_at          = NOW()
      WHERE id = ?`,
     [schoolId]
   );
