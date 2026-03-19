@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { query, getConnection } from '@/lib/db';
-import { initializeFreeTrial } from '@/lib/subscription';
+import { getConnection } from '@/lib/db';
 import { randomBytes } from 'crypto';
+
+/**
+ * Return the set of column names that actually exist in the schools table.
+ * Used to build schema-safe INSERTs even if a migration has not yet run.
+ */
+async function getSchoolsColumns(connection: any): Promise<Set<string>> {
+  const [cols] = await connection.execute<any[]>(
+    `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schools'`
+  );
+  return new Set<string>(cols.map((c: any) => c.COLUMN_NAME));
+}
 
 // Session configuration (same as login)
 const SESSION_CONFIG = {
@@ -177,18 +188,41 @@ export async function POST(request: NextRequest) {
           `SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM schools`
         );
         const nextSchoolId = maxIdResult[0].next_id;
-        
+
+        // Compute trial dates in JS so they're explicit and testable
+        const trialStartDate = new Date();
+        const trialEndDate = new Date(trialStartDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        // Defensive: only insert columns that actually exist in the schema
+        const availableCols = await getSchoolsColumns(connection);
+        const hasSub = availableCols.has('subscription_type');
+        const hasTrialStart = availableCols.has('trial_start_date');
+        const hasTrialEnd = availableCols.has('trial_end_date');
+
+        const colList = [
+          'id', 'name', 'status', 'setup_complete',
+          'subscription_status',
+          ...(hasSub ? ['subscription_type'] : []),
+          ...(hasTrialStart ? ['trial_start_date'] : []),
+          ...(hasTrialEnd ? ['trial_end_date'] : []),
+          'created_at',
+        ];
+        const placeholders = colList.map(() => '?').join(', ');
+        const values: any[] = [
+          nextSchoolId, schoolName, 'active', false,
+          'trial',
+          ...(hasSub ? ['trial'] : []),
+          ...(hasTrialStart ? [trialStartDate] : []),
+          ...(hasTrialEnd ? [trialEndDate] : []),
+          trialStartDate,
+        ];
+
         // Create the school
-        const [schoolResult] = await connection.execute<any>(
-          `INSERT INTO schools (id, name, status, setup_complete,
-              subscription_status, subscription_type,
-              trial_start_date, trial_end_date, created_at)
-           VALUES (?, ?, 'active', FALSE,
-              'trial', 'trial',
-              NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), NOW())`,
-          [nextSchoolId, schoolName]
+        await connection.execute<any>(
+          `INSERT INTO schools (${colList.join(', ')}) VALUES (${placeholders})`,
+          values
         );
-        
+
         finalSchoolId = nextSchoolId;
         isFirstUser = true;
         setupComplete = false;

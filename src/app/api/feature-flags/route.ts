@@ -7,7 +7,10 @@ export async function GET(req: NextRequest) {
   
   try {
     const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // Allow unauthenticated access — return empty flags list for public/signup pages
+    if (!session) {
+      return NextResponse.json({ success: true, data: [] });
+    }
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);

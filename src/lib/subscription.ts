@@ -166,6 +166,11 @@ export async function schoolHasAccess(schoolId: number): Promise<SubscriptionChe
  * Sets a 30-day free trial on the school record.
  */
 export async function initializeFreeTrial(schoolId: number): Promise<void> {
+  const trialStart = new Date();
+  const trialEnd = new Date(trialStart.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  // Update core columns always present, then attempt to set date/type columns
+  // (they may be absent on older deployments — failures are intentionally swallowed)
   await query(
     `UPDATE schools
      SET
@@ -175,6 +180,20 @@ export async function initializeFreeTrial(schoolId: number): Promise<void> {
      WHERE id = ?`,
     [schoolId]
   );
+
+  // Attempt to set extended trial columns (added via migration)
+  await query(
+    `UPDATE schools
+     SET
+       subscription_type  = 'trial',
+       trial_start_date   = ?,
+       trial_end_date     = ?,
+       updated_at         = NOW()
+     WHERE id = ?`,
+    [trialStart, trialEnd, schoolId]
+  ).catch(() => {
+    // Columns may not exist yet — safe to ignore, trial will still function
+  });
 }
 
 // ============================================
