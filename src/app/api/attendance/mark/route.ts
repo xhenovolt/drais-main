@@ -31,6 +31,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
+    // Resolve active enrollment_id for this student+class on the given date
+    const enrollmentRows = await executeQuery(
+      `SELECT e.id AS enrollment_id, e.term_id
+       FROM enrollments e
+       WHERE e.student_id = ? AND e.class_id = ? AND e.school_id = ?
+         AND e.status = 'active'
+         AND (e.joined_at IS NULL OR e.joined_at <= ?)
+         AND (e.end_date IS NULL OR e.end_date >= ?)
+       LIMIT 1`,
+      [student_id, class_id, schoolId, date, date]
+    ) as any[];
+    const enrollmentId: number | null = enrollmentRows[0]?.enrollment_id ?? null;
+    const termId: number | null = enrollmentRows[0]?.term_id ?? null;
+
     // Check if attendance record exists for this student, date, and class
     const existingRecord = await executeQuery(
       'SELECT * FROM student_attendance WHERE student_id = ? AND date = ? AND class_id = ?',
@@ -39,26 +53,26 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'sign_in':
-        if (existingRecord.length > 0) {
+        if ((existingRecord as any[]).length > 0) {
           // Update existing record
           query = `
             UPDATE student_attendance 
-            SET status = 'present', time_in = ?, updated_at = NOW()
+            SET status = 'present', time_in = ?, enrollment_id = COALESCE(enrollment_id, ?), term_id = COALESCE(term_id, ?), updated_at = NOW()
             WHERE student_id = ? AND date = ? AND class_id = ?
           `;
-          params = [currentTime, student_id, date, class_id];
+          params = [currentTime, enrollmentId, termId, student_id, date, class_id];
         } else {
           // Insert new record
           query = `
-            INSERT INTO student_attendance (student_id, date, class_id, status, time_in)
-            VALUES (?, ?, ?, 'present', ?)
+            INSERT INTO student_attendance (student_id, date, class_id, status, time_in, enrollment_id, term_id)
+            VALUES (?, ?, ?, 'present', ?, ?, ?)
           `;
-          params = [student_id, date, class_id, currentTime];
+          params = [student_id, date, class_id, currentTime, enrollmentId, termId];
         }
         break;
 
       case 'sign_out':
-        if (existingRecord.length > 0) {
+        if ((existingRecord as any[]).length > 0) {
           query = `
             UPDATE student_attendance 
             SET time_out = ?, updated_at = NOW()
@@ -71,19 +85,19 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'mark_absent':
-        if (existingRecord.length > 0) {
+        if ((existingRecord as any[]).length > 0) {
           query = `
             UPDATE student_attendance 
-            SET status = 'absent', time_in = NULL, time_out = NULL, updated_at = NOW()
+            SET status = 'absent', time_in = NULL, time_out = NULL, enrollment_id = COALESCE(enrollment_id, ?), term_id = COALESCE(term_id, ?), updated_at = NOW()
             WHERE student_id = ? AND date = ? AND class_id = ?
           `;
-          params = [student_id, date, class_id];
+          params = [enrollmentId, termId, student_id, date, class_id];
         } else {
           query = `
-            INSERT INTO student_attendance (student_id, date, class_id, status)
-            VALUES (?, ?, ?, 'absent')
+            INSERT INTO student_attendance (student_id, date, class_id, status, enrollment_id, term_id)
+            VALUES (?, ?, ?, 'absent', ?, ?)
           `;
-          params = [student_id, date, class_id];
+          params = [student_id, date, class_id, enrollmentId, termId];
         }
         break;
 

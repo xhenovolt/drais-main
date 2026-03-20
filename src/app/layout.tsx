@@ -19,6 +19,7 @@ import dynamic from 'next/dynamic';
 
 const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
 const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
+const BottomNav = dynamic(() => import('@/components/layout/BottomNav'), { ssr: false });
 
 // Create a stable QueryClient instance
 const queryClient = new QueryClient({
@@ -131,12 +132,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         className={clsx(
           "transition-all duration-300",
           hideSidebarAndNavbar ? "pt-0" : "pt-16", // Conditional padding-top
+          !hideSidebarAndNavbar && "pb-16 md:pb-0", // Space for BottomNav on mobile
           !hideSidebarAndNavbar && (theme.sidebarCollapsed ? "md:ml-16" : "md:ml-72"),
           hideSidebarAndNavbar && "ml-0" // No margin when Sidebar is hidden
         )}
       >
         {children}
       </main>
+      {!hideSidebarAndNavbar && <BottomNav />}
       <FeatureUpdateNotification />
       {/* Onboarding system — global modals, tour, help search */}
       <OnboardingOrchestrator />

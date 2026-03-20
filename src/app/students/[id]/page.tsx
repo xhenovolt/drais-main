@@ -1,5 +1,6 @@
 import React from 'react';
 import { t } from '@/lib/i18n';
+import EnrollmentTimeline from '@/components/students/EnrollmentTimeline';
 
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 
@@ -71,6 +72,8 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
           </div>
         </div>
       </div>
+      {/* Enrollment History Timeline — Phase 7 */}
+      <EnrollmentTimeline studentId={params.id} />
     </div>
   );
 }

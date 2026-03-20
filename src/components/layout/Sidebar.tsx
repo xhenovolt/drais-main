@@ -187,6 +187,8 @@ const Sidebar: React.FC = () => {
       icon: <Users className="w-5 h-5" />,
       children: [
         { key: 'students-list', label: t('nav.students.list'), icon: <Users className="w-4 h-4" />, href: '/students/list' },
+        { key: 'students-admit', label: t('nav.students.admit', 'Admit Student'), icon: <UserPlus className="w-4 h-4" />, href: '/students/admit' },
+        { key: 'students-enroll', label: t('nav.students.enroll', 'Enroll Student'), icon: <GraduationCap className="w-4 h-4" />, href: '/students/enroll' },
         { key: 'students-attendance', label: t('nav.students.attendance'), icon: <UserCheck className="w-4 h-4" />, href: '/attendance' },
         { key: 'students-requirements', label: t('nav.students.requirements'), icon: <CheckSquare className="w-4 h-4" />, href: '/students/requirements' },
         { key: 'students-contacts', label: t('nav.students.contacts'), icon: <Phone className="w-4 h-4" />, href: '/students/contacts' },
