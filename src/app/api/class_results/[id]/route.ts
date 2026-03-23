@@ -1,63 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
-
-// Mock database connection - replace with your actual DB
-async function updateClassResult(id: string, data: any) {
-  // This would connect to your MySQL database
-  // Example using your schema:
-  // UPDATE class_results SET score = ?, updated_at = NOW() WHERE id = ?
-  
-  console.log(`Updating class_result ${id} with:`, data);
-  
-  // Simulate database update
-  return {
-    id: parseInt(id),
-    ...data,
-    updated_at: new Date().toISOString()
-  };
-}
+import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let connection;
   try {
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await request.json();
     const { score, grade, remarks } = body;
+    const resolvedParams = await params;
+    const resultId = parseInt(resolvedParams.id);
 
-    // Validate input
-    if (score !== null && (isNaN(score) || score < 0 || score > 100)) {
-      return NextResponse.json(
-        { error: 'Score must be between 0 and 100' },
-        { status: 400 }
-      );
+    if (isNaN(resultId)) {
+      return NextResponse.json({ error: 'Invalid result ID' }, { status: 400 });
+    }
+    if (score !== null && score !== undefined && (isNaN(Number(score)) || Number(score) < 0 || Number(score) > 100)) {
+      return NextResponse.json({ error: 'Score must be between 0 and 100' }, { status: 400 });
     }
 
-    // Update the database
-    const resolvedParams = await params;
-    const updatedResult = await updateClassResult(resolvedParams.id, {
-      score: score ? parseFloat(score) : null,
-      grade: grade || null,
-      remarks: remarks || null
-    });
+    connection = await getConnection();
 
-    // Log audit trail
-    // INSERT INTO audit_log (actor_user_id, action, entity_type, entity_id, changes_json, created_at)
-    // VALUES (?, 'edit_result', 'class_result', ?, ?, NOW())
+    // Verify the result belongs to this school via student ownership
+    const [check]: any = await connection.execute(
+      `SELECT cr.id FROM class_results cr
+       JOIN students s ON cr.student_id = s.id
+       WHERE cr.id = ? AND s.school_id = ?`,
+      [resultId, schoolId]
+    );
+    if (!check || check.length === 0) {
+      return NextResponse.json({ error: 'Result not found or access denied' }, { status: 404 });
+    }
 
-    // Revalidate the results page to refresh server-side data
-    revalidatePath('/academics/results');
+    await connection.execute(
+      `UPDATE class_results SET score = ?, grade = ?, remarks = ?, updated_at = NOW() WHERE id = ?`,
+      [score !== undefined ? score : null, grade || null, remarks || null, resultId]
+    );
 
-    return NextResponse.json({
-      success: true,
-      data: updatedResult
-    });
-
+    return NextResponse.json({ success: true, message: 'Result updated successfully' });
   } catch (error) {
     console.error('Error updating class result:', error);
-    return NextResponse.json(
-      { error: 'Failed to update result' },
-      { status: 500 }
+    return NextResponse.json({ error: 'Failed to update result' }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  let connection;
+  try {
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
+    const resolvedParams = await params;
+    const resultId = parseInt(resolvedParams.id);
+    if (isNaN(resultId)) {
+      return NextResponse.json({ error: 'Invalid result ID' }, { status: 400 });
+    }
+
+    connection = await getConnection();
+
+    const [check]: any = await connection.execute(
+      `SELECT cr.id FROM class_results cr
+       JOIN students s ON cr.student_id = s.id
+       WHERE cr.id = ? AND s.school_id = ?`,
+      [resultId, schoolId]
     );
+    if (!check || check.length === 0) {
+      return NextResponse.json({ error: 'Result not found or access denied' }, { status: 404 });
+    }
+
+    await connection.execute('DELETE FROM class_results WHERE id = ?', [resultId]);
+
+    return NextResponse.json({ success: true, message: 'Result deleted' });
+  } catch (error) {
+    console.error('Error deleting class result:', error);
+    return NextResponse.json({ error: 'Failed to delete result' }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }

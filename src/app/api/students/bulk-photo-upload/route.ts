@@ -3,8 +3,13 @@ import { getConnection } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import sharp from 'sharp';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const formData = await req.formData();

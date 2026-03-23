@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -10,6 +11,10 @@ interface RouteParams {
  * Get specific device details
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const { id } = await params;
@@ -70,6 +75,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
  * Update a device
  */
 export async function PUT(req: NextRequest, { params }: RouteParams) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const { id } = await params;
@@ -141,6 +150,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
  * Delete a device
  */
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const { id } = await params;

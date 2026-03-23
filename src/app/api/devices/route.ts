@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         FROM biometric_devices
         WHERE school_id = ? AND status != 'inactive'
         ORDER BY lower(location), device_name`,
-        [tenant.schoolId]
+        [tenant.school_id]
       );
 
       // Get sync stats for each device
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
               MAX(completed_at) as last_sync_completed
             FROM device_sync_history
             WHERE device_id = ? AND school_id = ?`,
-            [device.id, tenant.schoolId]
+            [device.id, tenant.school_id]
           );
 
           return {
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       // Check for duplicate device_id in this school
       const [existing]: any = await connection.execute(
         `SELECT id FROM biometric_devices WHERE school_id = ? AND device_id = ?`,
-        [tenant.schoolId, device_id]
+        [tenant.school_id, device_id]
       );
 
       if (existing.length > 0) {
@@ -140,12 +140,12 @@ export async function POST(req: NextRequest) {
         `INSERT INTO biometric_devices 
          (schoolId, device_id, device_name, serial_number, model, location, ip_address, max_users, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
-        [tenant.schoolId, device_id, device_name, serial_number || null, model || null, location || null, ip_address || null, max_users]
+        [tenant.school_id, device_id, device_name, serial_number || null, model || null, location || null, ip_address || null, max_users]
       );
 
       // Log activity
       await logActivity(
-        tenant.schoolId,
+        tenant.school_id,
         'create',
         'device',
         result.insertId,

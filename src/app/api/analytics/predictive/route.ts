@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
  */
 async function analyzeSubjectPerformance(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   scope: string,
   scopeId: string | null
 ) {
@@ -192,7 +192,7 @@ async function analyzeSubjectPerformance(
  */
 async function generateAcademicProjections(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   scope: string,
   scopeId: string | null
 ) {
@@ -261,7 +261,7 @@ async function generateAcademicProjections(
  */
 async function generatePerformanceInsights(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   scope: string,
   scopeId: string | null
 ) {
@@ -383,7 +383,7 @@ function projectPerformance(currentScore: number, growthRate: number, terms: num
 
 async function projectDepartmentPerformance(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   subjectType: string,
   historicalData: any[]
 ): Promise<any> {

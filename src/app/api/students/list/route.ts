@@ -2,10 +2,15 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getStudentsList } from '@/lib/db/students';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const students = await getStudentsList();
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const students = await getStudentsList(session.schoolId);
     
     return NextResponse.json({
       success: true,

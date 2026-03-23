@@ -110,8 +110,8 @@ export async function PUT(req: NextRequest) {
         } else {
           // Create new enrollment
           await connection.execute(
-            'INSERT INTO enrollments (student_id, class_id, status) VALUES (?, ?, "active")',
-            [id, class_id]
+            'INSERT INTO enrollments (school_id, student_id, class_id, status, enrollment_date) VALUES (?, ?, ?, "active", CURDATE())',
+            [schoolId, id, class_id]
           );
         }
       }

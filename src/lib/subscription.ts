@@ -214,17 +214,28 @@ export async function activateSubscription(opts: ActivateSubscriptionOpts): Prom
   const end = new Date(start);
   end.setMonth(end.getMonth() + months);
 
+  // 1. Always update core status column (present in all schema versions)
+  await query(
+    `UPDATE schools
+     SET subscription_status = 'active', updated_at = NOW()
+     WHERE id = ?`,
+    [schoolId]
+  );
+
+  // 2. Update extended columns — wrapped in catch because older deployments
+  //    that haven't run migration 017/018 may not have these columns yet.
   await query(
     `UPDATE schools
      SET
-       subscription_status         = 'active',
-       subscription_type           = ?,
-       trial_start_date            = NULL,
-       trial_end_date              = NULL,
-       subscription_start_date     = ?,
-       subscription_end_date       = ?,
-       updated_at                  = NOW()
+       subscription_type       = ?,
+       trial_start_date        = NULL,
+       trial_end_date          = NULL,
+       subscription_start_date = ?,
+       subscription_end_date   = ?,
+       updated_at              = NOW()
      WHERE id = ?`,
     [type, start, end, schoolId]
-  );
+  ).catch((err) => {
+    console.warn('[Subscription] Extended column UPDATE skipped (run migration 018):', err?.code ?? err?.message);
+  });
 }

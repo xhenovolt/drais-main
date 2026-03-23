@@ -1,202 +1,163 @@
 import mysql from 'mysql2/promise';
 
+// ============================================================================
+// DRAIS — Database Connection (TiDB Cloud Only)
+// No fallback, no silent failures. If TiDB is down, the system FAILS loudly.
+// ============================================================================
+
 let pool: mysql.Pool | null = null;
-let activeDatabase: 'tidb' | 'mysql' | null = null;
-let initializationPromise: Promise<void> | null = null;
+let connectionVerified = false;
 
-// Determine which database configuration to use
-const getTiDBConfig = () => ({
-  host: process.env.TIDB_HOST || 'gateway01.eu-central-1.prod.aws.tidbcloud.com',
-  port: parseInt(process.env.TIDB_PORT || '4000', 10),
-  user: process.env.TIDB_USER || '2qzYvPUSbNa3RNc.root',
-  password: process.env.TIDB_PASSWORD || 'Gn4OSg1m8sSMSRMq',
-  database: process.env.TIDB_DB || 'test',
-  ssl: { rejectUnauthorized: false }, // Required for TiDB Cloud
-});
+const TIDB_CONFIG = {
+  host:     process.env.TIDB_HOST     || 'gateway01.eu-central-1.prod.aws.tidbcloud.com',
+  port:     parseInt(process.env.TIDB_PORT || '4000', 10),
+  user:     process.env.TIDB_USER     || '',
+  password: process.env.TIDB_PASSWORD || '',
+  database: process.env.TIDB_DB       || 'drais',
+  ssl: { rejectUnauthorized: false },
+};
 
-const getLocalMySQLConfig = () => ({
-  host: process.env.MYSQL_HOST || process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.MYSQL_PORT || process.env.DB_PORT || '3306', 10),
-  user: process.env.MYSQL_USER || process.env.DB_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || process.env.DB_PASS || '',
-  database: process.env.MYSQL_DB || process.env.DB_NAME || 'ibunbaz_drais',
-});
-
-// Initialize database connection - test TiDB first, fall back to MySQL
-async function initializeDatabase() {
-  if (activeDatabase !== null) {
-    return; // Already initialized
+// Guard: fail immediately if credentials are missing
+function assertCredentials() {
+  if (!TIDB_CONFIG.user || !TIDB_CONFIG.password) {
+    throw new Error(
+      '[Database] FATAL: TIDB_USER and TIDB_PASSWORD must be set in environment. ' +
+      'Set TIDB_USER and TIDB_PASSWORD in .env.local'
+    );
   }
-
-  console.log('[Database] Initializing database connection...');
-  
-  const databaseMode = process.env.DATABASE_MODE || 'auto';
-  
-  // If DATABASE_MODE is explicitly set to 'mysql', use MySQL directly
-  if (databaseMode === 'mysql') {
-    console.log('[Database] Using Local MySQL (DATABASE_MODE=mysql)...');
-    const mysqlConfig = getLocalMySQLConfig();
-    try {
-      const testConn = await mysql.createConnection({
-        host: mysqlConfig.host,
-        port: mysqlConfig.port,
-        user: mysqlConfig.user,
-        password: mysqlConfig.password,
-        database: mysqlConfig.database,
-        connectTimeout: 5000,
-      });
-      await testConn.query('SELECT 1');
-      await testConn.end();
-      console.log('[Database] ✅ Connected to Local MySQL');
-      activeDatabase = 'mysql';
-      return;
-    } catch (mysqlError) {
-      console.error('[Database] ❌ Local MySQL connection failed:', mysqlError instanceof Error ? mysqlError.message : String(mysqlError));
-      throw new Error('Failed to connect to Local MySQL');
-    }
-  }
-  
-  // If DATABASE_MODE is 'tidb', use TiDB directly
-  if (databaseMode === 'tidb') {
-    console.log('[Database] Using TiDB Cloud (DATABASE_MODE=tidb)...');
-    const tidbConfig = getTiDBConfig();
-    try {
-      const testConn = await mysql.createConnection({
-        host: tidbConfig.host,
-        port: tidbConfig.port,
-        user: tidbConfig.user,
-        password: tidbConfig.password,
-        database: tidbConfig.database,
-        ssl: { rejectUnauthorized: false },
-        connectTimeout: 5000,
-      });
-      await testConn.query('SELECT 1');
-      await testConn.end();
-      console.log('[Database] ✅ Connected to TiDB Cloud');
-      activeDatabase = 'tidb';
-      return;
-    } catch (error) {
-      console.error('[Database] ❌ TiDB Cloud connection failed:', error instanceof Error ? error.message : String(error));
-      throw new Error('Failed to connect to TiDB Cloud');
-    }
-  }
-  
-  // DATABASE_MODE is 'auto' - try TiDB first, fall back to MySQL
-  console.log('[Database] Auto-detecting database (attempting TiDB first)...');
-  
-  // Try TiDB first
-  const tidbConfig = getTiDBConfig();
-  try {
-    console.log('[Database] Testing TiDB Cloud connection...');
-    const testConn = await mysql.createConnection({
-      host: tidbConfig.host,
-      port: tidbConfig.port,
-      user: tidbConfig.user,
-      password: tidbConfig.password,
-      database: tidbConfig.database,
-      ssl: { rejectUnauthorized: false },
-      connectTimeout: 5000,
-    });
-    await testConn.query('SELECT 1');
-    await testConn.end();
-    console.log('[Database] ✅ Using TiDB Cloud as primary database');
-    activeDatabase = 'tidb';
-  } catch (error) {
-    console.warn('[Database] ⚠️  TiDB Cloud connection failed:', error instanceof Error ? error.message : String(error));
-    console.log('[Database] Attempting fallback to Local MySQL...');
-    
-    // Fall back to local MySQL
-    const mysqlConfig = getLocalMySQLConfig();
-    try {
-      const testConn = await mysql.createConnection({
-        host: mysqlConfig.host,
-        port: mysqlConfig.port,
-        user: mysqlConfig.user,
-        password: mysqlConfig.password,
-        database: mysqlConfig.database,
-        connectTimeout: 5000,
-      });
-      await testConn.query('SELECT 1');
-      await testConn.end();
-      console.log('[Database] ✅ Using Local MySQL as fallback database');
-      activeDatabase = 'mysql';
-    } catch (mysqlError) {
-      console.error('[Database] ❌ Both databases failed:', mysqlError instanceof Error ? mysqlError.message : String(mysqlError));
-      activeDatabase = 'tidb'; // Default to TiDB config even if both fail
-      throw new Error('Failed to connect to both TiDB Cloud and Local MySQL');
-    }
+  if (!TIDB_CONFIG.database) {
+    throw new Error('[Database] FATAL: TIDB_DB must be set in environment (e.g. TIDB_DB=drais)');
   }
 }
 
-// Ensure initialization is done before creating pool
-async function ensureInitialized() {
-  if (!initializationPromise) {
-    initializationPromise = initializeDatabase();
+/**
+ * Hard validation — throws if query returns no rows.
+ */
+async function testConnection(conn: mysql.Connection): Promise<void> {
+  const [rows] = await conn.execute('SELECT 1 AS test') as any[];
+  if (!rows || rows.length === 0) {
+    throw new Error('[Database] Connection test failed — SELECT 1 returned no rows');
   }
-  await initializationPromise;
+  const [dbRows] = await conn.execute('SELECT DATABASE() AS active_db') as any[];
+  const activeDb = dbRows?.[0]?.active_db;
+  console.log(`[Database] ✅ Connected to TiDB Cloud — active database: ${activeDb}`);
+  if (activeDb !== TIDB_CONFIG.database) {
+    throw new Error(
+      `[Database] FATAL: Connected to wrong database "${activeDb}". Expected "${TIDB_CONFIG.database}". ` +
+      'Check TIDB_DB in .env.local'
+    );
+  }
 }
 
-export async function getPool() {
-  if (pool) return pool;
-  
-  await ensureInitialized();
-  
-  const config = activeDatabase === 'tidb' ? getTiDBConfig() : getLocalMySQLConfig();
-  
+export async function getPool(): Promise<mysql.Pool> {
+  if (pool && connectionVerified) return pool;
+
+  assertCredentials();
+
+  console.log(
+    `[Database] Connecting to TiDB Cloud → ${TIDB_CONFIG.host}:${TIDB_CONFIG.port}/${TIDB_CONFIG.database} ` +
+    `as ${TIDB_CONFIG.user}`
+  );
+
+  // Test connection first with exponential backoff
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    let testConn: mysql.Connection | null = null;
+    try {
+      testConn = await mysql.createConnection({
+        ...TIDB_CONFIG,
+        connectTimeout: 15000,
+      });
+      await testConnection(testConn);
+      await testConn.end();
+      break; // Success
+    } catch (err: any) {
+      if (testConn) {
+        try { await testConn.end(); } catch {}
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Database] Connection attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`);
+      if (attempt === MAX_RETRIES) {
+        throw new Error(
+          `[Database] FATAL: TiDB Cloud unreachable after ${MAX_RETRIES} attempts. ` +
+          `Last error: ${msg}. ` +
+          'Check TIDB_HOST, TIDB_USER, TIDB_PASSWORD, TIDB_DB in .env.local. ' +
+          'Check network/DNS connectivity to TiDB Cloud.'
+        );
+      }
+      // Exponential backoff: 300ms, 600ms
+      await new Promise(r => setTimeout(r, 300 * attempt));
+    }
+  }
+
   pool = mysql.createPool({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: config.database,
+    ...TIDB_CONFIG,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
     enableKeepAlive: true,
+    keepAliveInitialDelay: 30000,
+    connectTimeout: 15000,
     timezone: 'Z',
     supportBigNumbers: true,
     bigNumberStrings: true,
-    ...(activeDatabase === 'tidb' && { ssl: { rejectUnauthorized: false } }),
   });
 
+  connectionVerified = true;
   return pool;
 }
 
-export async function query(sql: string, params: unknown[] = []) {
-  const p = await getPool();
-  const [rows] = await p.execute(sql, params);
-  return rows;
+// Retryable error codes (transient network/pool issues)
+const RETRYABLE_CODES = new Set([
+  'ECONNRESET', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', 'ENOTFOUND',
+  'ECONNREFUSED', 'ER_CON_COUNT_ERROR', 'POOL_CLOSED',
+]);
+
+export async function query(sql: string, params: any[] = []): Promise<any[]> {
+  const MAX_RETRIES = 3;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const p = await getPool();
+      const [rows] = await p.execute(sql, params);
+      return rows as any[];
+    } catch (err: any) {
+      lastError = err;
+      const isRetryable = RETRYABLE_CODES.has(err?.code);
+      if (!isRetryable || attempt === MAX_RETRIES) throw err;
+      console.warn(`[Database] Retrying query (attempt ${attempt}/${MAX_RETRIES}), error: ${err.code}`);
+      pool = null;
+      connectionVerified = false;
+      await new Promise(r => setTimeout(r, 300 * attempt));
+    }
+  }
+  throw lastError;
 }
 
-export async function getConnection() {
+/**
+ * Get a single connection from the pool.
+ * Callers MUST call conn.end() — it releases back to the pool.
+ */
+export async function getConnection(): Promise<mysql.Connection> {
   try {
-    await ensureInitialized();
-    const config = activeDatabase === 'tidb' ? getTiDBConfig() : getLocalMySQLConfig();
-    const conn = await mysql.createConnection({
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      password: config.password,
-      database: config.database,
-      supportBigNumbers: true,
-      bigNumberStrings: true,
-      ...(activeDatabase === 'tidb' && { ssl: { rejectUnauthorized: false } }),
-    });
-    return conn;
+    const p = await getPool();
+    const conn = await p.getConnection();
+    // Alias end() → release() so callers don't destroy the socket
+    (conn as any).end = (): Promise<void> =>
+      new Promise<void>((resolve) => { conn.release(); resolve(); });
+    return conn as unknown as mysql.Connection;
   } catch (error) {
-    console.error('[Database] Connection error:', error);
-    throw new Error('Failed to connect to the database. Please check your database configuration.');
+    console.error('[Database] getConnection error:', error);
+    throw new Error(
+      `[Database] Failed to acquire connection from pool: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
-export async function getActiveDatabase() {
-  await ensureInitialized();
-  return activeDatabase;
-}
-
-export { getTiDBConfig, getLocalMySQLConfig };
-
-export async function withTransaction<T>(fn: (conn: mysql.PoolConnection) => Promise<T>): Promise<T> {
+export async function withTransaction<T>(
+  fn: (conn: mysql.PoolConnection) => Promise<T>
+): Promise<T> {
   const p = await getPool();
   const conn = await p.getConnection();
   try {
@@ -211,3 +172,11 @@ export async function withTransaction<T>(fn: (conn: mysql.PoolConnection) => Pro
     conn.release();
   }
 }
+
+// Legacy exports kept for backward compatibility
+export async function getActiveDatabase() {
+  return 'tidb' as const;
+}
+export const getTiDBConfig = () => TIDB_CONFIG;
+export const getLocalMySQLConfig = () => TIDB_CONFIG; // No local fallback
+

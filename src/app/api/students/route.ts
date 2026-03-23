@@ -19,7 +19,10 @@ export async function POST(req: NextRequest) {
       last_name,
       email,
       phone,
-      class_id } = body;
+      class_id,
+      academic_year_id,
+      term_id,
+      stream_id } = body;
 
     // Validate required fields
     if (!first_name || !last_name) {
@@ -39,14 +42,47 @@ export async function POST(req: NextRequest) {
 
       const personId = personResult.insertId;
 
-      // Insert student record
+      // Insert student record (no class_id — class lives in enrollments)
       const [studentResult] = await connection.execute(
-        `INSERT INTO students (school_id, person_id, class_id, status, admission_date)
-         VALUES (?, ?, ?, 'active', NOW())`,
-        [schoolId, personId, class_id || null]
+        `INSERT INTO students (school_id, person_id, status, admission_date)
+         VALUES (?, ?, 'active', NOW())`,
+        [schoolId, personId]
       );
 
       const studentId = studentResult.insertId;
+
+      // Create enrollment if class_id provided.
+      // Uses the full column set (requires migration 020 to have run).
+      // Falls back to the minimal guaranteed-schema INSERT if any column is
+      // missing (migration 020 not yet applied) so the student creation never
+      // fails due to a schema gap in the enrollments table.
+      let enrollmentId: number | null = null;
+      if (class_id) {
+        try {
+          const [enrollResult]: any = await connection.execute(
+            `INSERT INTO enrollments
+               (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status, enrollment_date, enrolled_at)
+             VALUES (?, ?, ?, ?, ?, ?, 'active', CURDATE(), NOW())`,
+            [schoolId, studentId, class_id, stream_id || null, academic_year_id || null, term_id || null]
+          );
+          enrollmentId = enrollResult.insertId;
+        } catch (enrollErr: any) {
+          // If the error is an unknown-column error (MySQL errno 1054) the
+          // migration has not yet run — retry with the minimal column set.
+          if (enrollErr?.errno === 1054 || String(enrollErr?.message).includes('Unknown column')) {
+            console.warn('[students/POST] enrollments has missing columns (run migration 020). Falling back to minimal INSERT.');
+            const [enrollResult]: any = await connection.execute(
+              `INSERT INTO enrollments
+                 (student_id, class_id, stream_id, academic_year_id, term_id, status)
+               VALUES (?, ?, ?, ?, ?, 'active')`,
+              [studentId, class_id, stream_id || null, academic_year_id || null, term_id || null]
+            );
+            enrollmentId = enrollResult.insertId;
+          } else {
+            throw enrollErr;
+          }
+        }
+      }
 
       await connection.commit();
 
@@ -55,6 +91,7 @@ export async function POST(req: NextRequest) {
         success: true,
         student_id: studentId,
         person_id: personId,
+        enrollment_id: enrollmentId,
         message: 'Student created successfully'
       };
 
@@ -66,7 +103,7 @@ export async function POST(req: NextRequest) {
           entity_type: 'student',
           entity_id: studentId,
           actor_user_id: 1, // TODO: Get from session
-          schoolId,
+          school_id: schoolId,
           recipients: adminRecipients,
           metadata: {
             student_name: `${first_name} ${last_name}`,

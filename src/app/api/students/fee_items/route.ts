@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   try {
     const { term_id = 1 } = await req.json(); // Default term_id to 1 if not provided
 

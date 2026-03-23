@@ -13,6 +13,7 @@ import clsx from "clsx";
 import FeatureUpdateNotification from '@/components/notifications/FeatureUpdateNotification';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
+import { TermProvider } from '@/contexts/TermContext';
 import OnboardingOrchestrator from '@/components/onboarding/OnboardingOrchestrator';
 import OnboardingCompletionBanner from '@/components/onboarding/OnboardingCompletionBanner';
 import dynamic from 'next/dynamic';
@@ -188,11 +189,13 @@ export default function RootLayout({
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <OnboardingProvider>
-              <ThemeProvider>
-                <I18nProvider>
-                  <LayoutContent>{children}</LayoutContent>
-                </I18nProvider>
-              </ThemeProvider>
+              <TermProvider>
+                <ThemeProvider>
+                  <I18nProvider>
+                    <LayoutContent>{children}</LayoutContent>
+                  </I18nProvider>
+                </ThemeProvider>
+              </TermProvider>
             </OnboardingProvider>
           </AuthProvider>
         </QueryClientProvider>

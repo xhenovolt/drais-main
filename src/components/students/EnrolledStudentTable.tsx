@@ -164,7 +164,13 @@ export default function EnrolledStudentTable() {
   const { data: classData } = useSWR<any>('/api/classes', fetcher);
   const { data: streamData } = useSWR<any>('/api/streams', fetcher);
 
-  const students: EnrolledStudent[] = data?.data ?? [];
+  const students: EnrolledStudent[] = useMemo(() => {
+    const raw: EnrolledStudent[] = data?.data ?? [];
+    return [...raw].sort((a, b) =>
+      (a.last_name ?? '').localeCompare(b.last_name ?? '', undefined, { sensitivity: 'base' }) ||
+      (a.first_name ?? '').localeCompare(b.first_name ?? '', undefined, { sensitivity: 'base' })
+    );
+  }, [data]);
   const meta = data?.meta ?? {};
   const currentTerm: TermOption | null = termData?.data?.current ?? null;
   const allTerms: TermOption[] = termData?.data?.all ?? [];

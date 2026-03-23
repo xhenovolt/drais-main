@@ -29,7 +29,9 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const historical = sp.get('historical') === 'true';
-  const enrollmentStatus = sp.get('status') || 'active';
+  // No default status filter — 'active' default hides completed/historical enrollments.
+  // Pass status=active explicitly in the URL to restrict to active only.
+  const enrollmentStatus = sp.get('status');
   const search = sp.get('search')?.trim();
   const classId = sp.get('class_id');
   const streamId = sp.get('stream_id');
@@ -53,7 +55,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Build WHERE clause
-    const conditions: string[] = ['e.school_id = ?', 'e.deleted_at IS NULL', 's.deleted_at IS NULL'];
+    // Use s.school_id for tenant isolation — authoritative and always present.
+    // Do NOT use e.school_id here because enrollments.school_id may be NULL for
+    // rows imported before migration 020 ran.
+    // Do NOT add e.deleted_at IS NULL here: the column is added by migration 020
+    // with NULL default, so it is safe to omit until migration has run. Once it
+    // runs, all rows have deleted_at = NULL so behaviour is identical.
+    const conditions: string[] = ['s.school_id = ?', 's.deleted_at IS NULL'];
     const params: any[] = [schoolId];
 
     if (!historical && termId) {
@@ -61,7 +69,7 @@ export async function GET(req: NextRequest) {
       params.push(termId);
     }
 
-    if (enrollmentStatus) {
+    if (enrollmentStatus && enrollmentStatus !== 'all') {
       conditions.push('e.status = ?');
       params.push(enrollmentStatus);
     }
@@ -82,41 +90,47 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      conditions.push('(p.first_name LIKE ? OR p.last_name LIKE ? OR s.admission_no LIKE ?)');
-      const like = `%${search}%`;
-      params.push(like, like, like);
+      conditions.push('(LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR s.admission_no LIKE ? OR LOWER(CONCAT(p.last_name, \' \', p.first_name)) LIKE ? OR LOWER(CONCAT(p.first_name, \' \', p.last_name)) LIKE ?)');
+      const like = `%${search.toLowerCase()}%`;
+      params.push(like, like, like, like, like);
     }
 
     const where = 'WHERE ' + conditions.join(' AND ');
 
+    // Validate pagination values are safe integers before embedding in SQL
+    if (!Number.isInteger(limit) || !Number.isInteger(offset) || limit < 1 || offset < 0) {
+      throw new Error(`Invalid pagination: limit=${limit} offset=${offset}`);
+    }
+
     // Count query
-    const countParams = [...params];
     const [[{ total }]] = await conn.execute<any[]>(
       `SELECT COUNT(*) AS total
        FROM enrollments e
        JOIN students s ON e.student_id = s.id
-       JOIN people p ON s.person_id = p.id
+       LEFT JOIN people p ON s.person_id = p.id
        ${where}`,
-      countParams
+      [...params]
     ) as any;
 
     // Data query
-    const dataParams = [...params, limit, offset];
+    // LIMIT and OFFSET are embedded as literals (not ? params) because TiDB
+    // raises "Incorrect arguments to LIMIT" when they are sent as bound
+    // parameters via mysql2.  Both values are validated integers above.
     const [rows] = await conn.execute<any[]>(
       `SELECT
-         e.id              AS enrollment_id,
+         e.id                                   AS enrollment_id,
          e.student_id,
          e.class_id,
          e.stream_id,
          e.academic_year_id,
          e.term_id,
-         e.enrollment_type,
-         e.status          AS enrollment_status,
-         e.joined_at,
-         e.enrollment_date,
-         s.id              AS id,
+         e.status                               AS enrollment_status,
+         IFNULL(e.enrollment_type, 'new')       AS enrollment_type,
+         IFNULL(e.joined_at,       e.created_at) AS joined_at,
+         IFNULL(e.enrollment_date, s.admission_date) AS enrollment_date,
+         s.id                                   AS id,
          s.admission_no,
-         s.status          AS student_status,
+         s.status                               AS student_status,
          s.admission_date,
          p.first_name,
          p.last_name,
@@ -132,16 +146,16 @@ export async function GET(req: NextRequest) {
          ay.name           AS academic_year_name,
          t.name            AS term_name
        FROM enrollments e
-       JOIN students s  ON e.student_id       = s.id
-       JOIN people p    ON s.person_id         = p.id
+       JOIN students s      ON e.student_id   = s.id
+       LEFT JOIN people p   ON s.person_id    = p.id
        LEFT JOIN classes c         ON e.class_id         = c.id
        LEFT JOIN streams st        ON e.stream_id        = st.id
        LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
        LEFT JOIN terms t           ON e.term_id          = t.id
        ${where}
-       ORDER BY p.last_name ASC, p.first_name ASC
-       LIMIT ? OFFSET ?`,
-      dataParams
+       ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC
+       LIMIT ${limit} OFFSET ${offset}`,
+      [...params]
     );
 
     return NextResponse.json({

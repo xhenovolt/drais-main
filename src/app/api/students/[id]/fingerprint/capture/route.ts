@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 function safe(v: any) { return (v === undefined || v === '') ? null : v; }
 

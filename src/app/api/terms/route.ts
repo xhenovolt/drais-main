@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       FROM terms t
       LEFT JOIN academic_years ay ON t.academic_year_id = ay.id
       WHERE t.school_id = ?
+        AND t.deleted_at IS NULL
       ORDER BY t.start_date DESC
     `,
       [schoolId]

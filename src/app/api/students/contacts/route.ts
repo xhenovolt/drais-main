@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
       params.push(parseInt(studentId));
     }
 
-    sql += ' ORDER BY sp.first_name, sp.last_name, sc.is_primary DESC';
+    sql += ' ORDER BY COALESCE(sp.last_name, \'\') ASC, COALESCE(sp.first_name, \'\') ASC, sc.is_primary DESC';
 
     const [rows] = await connection.execute(sql, params);
 

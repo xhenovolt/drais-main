@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { IncomingForm } from 'formidable';
 import sharp from 'sharp';
+import { getSessionSchoolId } from '@/lib/auth';
 
 // NOTE: You must install formidable and sharp on the server:
 // npm install formidable sharp
@@ -32,6 +33,10 @@ function parseForm(req: any): Promise<{ fields: any; files: any }> {
 }
 
 export async function POST(req: Request) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   try {
     const { fields, files } = await parseForm((req as any));
     const studentId = fields.student_id;
@@ -85,6 +90,10 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   try {
     const body = await req.json();
     const studentId = body.student_id;

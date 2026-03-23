@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/utils/database';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  const session = await getSessionSchoolId(request);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   try {
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('class_id');
@@ -40,7 +45,7 @@ export async function GET(request: NextRequest) {
       ORDER BY p.first_name, p.last_name
     `;
 
-    const data = await executeQuery(query, [date, classId, classId]);
+    const data = await executeQuery(query, [date, classId, classId]) as any[];
 
     // Convert to CSV
     const headers = [

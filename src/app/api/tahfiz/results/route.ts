@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * GET /api/tahfiz/results
@@ -7,6 +8,10 @@ import { getConnection } from '@/lib/db';
  * Query params: class_id, term_id, student_id, subject_id
  */
 export async function GET(request: NextRequest) {
+  const session = await getSessionSchoolId(request);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   const { searchParams } = new URL(request.url);
   const classId = searchParams.get('class_id');
   const termId = searchParams.get('term_id');

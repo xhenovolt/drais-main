@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
       AND (e.theology_class_id IS NOT NULL OR tgm.student_id IS NOT NULL)
     `;
 
-    const params = [schoolId];
+    const params: any[] = [schoolId];
 
     // Add filters
     if (status && status !== 'all') {

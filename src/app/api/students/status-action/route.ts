@@ -29,11 +29,15 @@ export async function POST(req: NextRequest) {
 
     connection = await getConnection();
 
-    // fetch student + person details for letter
+    // fetch student + person details + active enrollment for letter
     const [rows] = await connection.execute(
-      `SELECT s.id AS student_id, s.admission_no, s.class_id, s.status AS current_status, p.first_name, p.last_name, p.photo_url
+      `SELECT s.id AS student_id, s.admission_no, s.status AS current_status,
+              p.first_name, p.last_name, p.photo_url,
+              c.name AS class_name
        FROM students s
        LEFT JOIN people p ON s.person_id = p.id
+       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+       LEFT JOIN classes c ON e.class_id = c.id
        WHERE s.id = ? AND s.school_id = ?`,
       [student_id, schoolId]
     ) as any[];

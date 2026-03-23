@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      studentsSql += ' AND (p.first_name LIKE ? OR p.last_name LIKE ? OR s.admission_no LIKE ?)';
-      const searchPattern = `%${search}%`;
-      studentsParams.push(searchPattern, searchPattern, searchPattern);
+      studentsSql += ' AND (LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR s.admission_no LIKE ?)';
+      const searchPattern = `%${String(search).toLowerCase()}%`;
+      studentsParams.push(searchPattern, searchPattern, `%${search}%`);
     }
 
     studentsSql += ' ORDER BY p.last_name, p.first_name';

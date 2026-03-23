@@ -97,8 +97,9 @@ export async function GET(req: NextRequest) {
     }
     
     if (search) {
-      sql += ` AND (p.first_name LIKE ? OR p.last_name LIKE ? OR s.admission_no LIKE ?)`;
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      sql += ` AND (LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR s.admission_no LIKE ?)`;
+      const likeSearch = `%${String(search).toLowerCase()}%`;
+      params.push(likeSearch, likeSearch, `%${search}%`);
     }
     
     sql += ` GROUP BY s.id, s.admission_no, p.first_name, p.last_name, p.phone, c.name, st.name`;

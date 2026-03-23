@@ -311,7 +311,7 @@ CREATE TABLE IF NOT EXISTS staff (
 
 CREATE TABLE IF NOT EXISTS staff_attendance (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  staff_id BIG INT NOT NULL,
+  staff_id BIGINT NOT NULL,
   date VARCHAR(255) NOT NULL,
   status VARCHAR(20) DEFAULT 'present',
   notes TEXT DEFAULT NULL,
@@ -502,8 +502,8 @@ CREATE TABLE IF NOT EXISTS student_fee_items (
 
 CREATE TABLE IF NOT EXISTS fee_payments (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  student_id BIG INT NOT NULL,
-  term_id BIG INT NOT NULL,
+  student_id BIGINT NOT NULL,
+  term_id BIGINT NOT NULL,
   wallet_id BIGINT NOT NULL,
   amount DECIMAL(14,2) NOT NULL,
   method VARCHAR(30) DEFAULT NULL,
@@ -614,7 +614,7 @@ CREATE TABLE result_submission_deadlines (
 
 CREATE TABLE reminders (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  school_id BIG NOT NULL,
+  school_id BIGINT NOT NULL,
   owner_type VARCHAR(50) NOT NULL,  -- e.g. 'event', 'task', 'exam', 'result_submission'
   owner_id BIGINT NOT NULL,
   message TEXT DEFAULT NULL,
@@ -630,7 +630,7 @@ CREATE TABLE reminders (
 -- =============================
 CREATE TABLE stores (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  school_id BIG NOT NULL,
+  school_id BIGINT NOT NULL,
   name VARCHAR(120) NOT NULL,
   location VARCHAR(150) DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -883,8 +883,8 @@ INSERT INTO reminder_schedule (deadline_id, reminder_time)
 SELECT id, '17:00:00' FROM result_submission_deadlines
 ON DUPLICATE KEY UPDATE reminder_time = VALUES(reminder_time);
 
-ALTER TABLE result_types
-ADD COLUMN deadline DATETIME DEFAULT NULL AFTER updated_at;
+-- deadline column already defined in CREATE TABLE result_types above
+-- ALTER TABLE result_types ADD COLUMN deadline DATETIME (removed — duplicate)
 
 CREATE TABLE IF NOT EXISTS fingerprints (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -1014,48 +1014,42 @@ CREATE TABLE IF NOT EXISTS tahfiz_portions (
 
 -- Upgrade student_attendance table to support hybrid tracking
 ALTER TABLE student_attendance 
-ADD COLUMN IF NOT EXISTS method VARCHAR(20) DEFAULT 'manual' AFTER status,
-ADD COLUMN IF NOT EXISTS marked_by BIGINT DEFAULT NULL AFTER method,
-ADD COLUMN IF NOT EXISTS marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER marked_by,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER marked_at;
+ADD COLUMN IF NOT EXISTS method VARCHAR(20) DEFAULT 'manual',
+ADD COLUMN IF NOT EXISTS marked_by BIGINT DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
 -- Ensure unique constraint exists
-ALTER TABLE student_attendance 
-ADD UNIQUE KEY IF NOT EXISTS unique_student_date (student_id, date);
+CREATE UNIQUE INDEX IF NOT EXISTS unique_student_date ON student_attendance(student_id, date);
 
--- Add is_late computed column if not exists
+-- Add is_late column (non-generated for TiDB compatibility — computed in application layer)
 ALTER TABLE student_attendance 
-ADD COLUMN IF NOT EXISTS is_late BOOLEAN GENERATED ALWAYS AS (
-  CASE 
-    WHEN time_in > '08:30:00' AND status = 'present' THEN TRUE 
-    ELSE FALSE 
-  END
-) STORED;
+ADD COLUMN IF NOT EXISTS is_late BOOLEAN DEFAULT FALSE;
 
 -- Enhanced staff_attendance table for better tracking
 ALTER TABLE staff_attendance 
-ADD COLUMN IF NOT EXISTS time_in TIME DEFAULT NULL AFTER status,
-ADD COLUMN IF NOT EXISTS time_out TIME DEFAULT NULL AFTER time_in,
-ADD COLUMN IF NOT EXISTS method VARCHAR(20) DEFAULT 'manual' AFTER time_out,
-ADD COLUMN IF NOT EXISTS marked_by BIGINT DEFAULT NULL AFTER method,
-ADD COLUMN IF NOT EXISTS marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER marked_by,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER marked_at,
-ADD UNIQUE KEY IF NOT EXISTS unique_staff_date (staff_id, date);
+ADD COLUMN IF NOT EXISTS time_in TIME DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS time_out TIME DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS method VARCHAR(20) DEFAULT 'manual',
+ADD COLUMN IF NOT EXISTS marked_by BIGINT DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+CREATE UNIQUE INDEX IF NOT EXISTS unique_staff_date ON staff_attendance(staff_id, date);
 
 -- Enhanced departments table
 ALTER TABLE departments 
-ADD COLUMN IF NOT EXISTS budget DECIMAL(14,2) DEFAULT 0 AFTER description,
-ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER budget,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,
-ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at;
+ADD COLUMN IF NOT EXISTS budget DECIMAL(14,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL DEFAULT NULL;
 
 -- Enhanced workplans table with better tracking
 ALTER TABLE workplans 
-ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'medium' AFTER status,
-ADD COLUMN IF NOT EXISTS progress INT DEFAULT 0 AFTER priority,
-ADD COLUMN IF NOT EXISTS assigned_to BIGINT DEFAULT NULL AFTER progress,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,
-ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at;
+ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'medium',
+ADD COLUMN IF NOT EXISTS progress INT DEFAULT 0,
+ADD COLUMN IF NOT EXISTS assigned_to BIGINT DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL DEFAULT NULL;
 
 -- Staff performance tracking
 CREATE TABLE IF NOT EXISTS staff_performance_summary (
@@ -1095,15 +1089,15 @@ CREATE INDEX IF NOT EXISTS idx_workplans_assigned ON workplans(assigned_to, stat
 
 -- Ensure requirements_master table has proper constraints
 ALTER TABLE requirements_master 
-ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER description,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,
-ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at;
+ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL DEFAULT NULL;
 
 -- Enhanced student_requirements table with class and term associations
 ALTER TABLE student_requirements 
-ADD COLUMN IF NOT EXISTS class_id BIGINT DEFAULT NULL AFTER term_id,
-ADD COLUMN IF NOT EXISTS requirement_item VARCHAR(255) DEFAULT NULL AFTER requirement_id,
-ADD COLUMN IF NOT EXISTS quantity VARCHAR(50) DEFAULT NULL AFTER requirement_item,
+ADD COLUMN IF NOT EXISTS class_id BIGINT DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS requirement_item VARCHAR(255) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS quantity VARCHAR(50) DEFAULT NULL,
 MODIFY COLUMN notes TEXT DEFAULT NULL;
 
 -- Create class_requirements table for class-level requirement definitions
@@ -1240,14 +1234,13 @@ CREATE TABLE IF NOT EXISTS student_fingerprints (
 ALTER TABLE fingerprints 
 ADD COLUMN IF NOT EXISTS device_info JSON NULL,
 ADD COLUMN IF NOT EXISTS quality_score INT DEFAULT 0;
-ALTER TABLE fingerprints 
-ADD INDEX IF NOT EXISTS idx_created_at (created_at);
+CREATE INDEX IF NOT EXISTS idx_fingerprints_created_at ON fingerprints(created_at);
 
 -- Upgrade student_attendance table to support hybrid tracking
 ALTER TABLE student_attendance 
--- ADD COLUMN method VARCHAR(20) DEFAULT 'manual' AFTER status,
-ADD COLUMN marked_by BIGINT DEFAULT NULL AFTER method,
-ADD COLUMN marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER marked_by,
+-- ADD COLUMN method VARCHAR(20) DEFAULT 'manual',
+ADD COLUMN marked_by BIGINT DEFAULT NULL,
+ADD COLUMN marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 ADD UNIQUE KEY unique_student_date (student_id, date);
 
 -- Update status values to be more specific
@@ -1264,7 +1257,7 @@ CREATE TABLE IF NOT EXISTS student_fingerprints (
   counter BIGINT DEFAULT 0,
   is_active TINYINT(1) DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_used_at VARCHAR DEFAULT NULL,
+  last_used_at TIMESTAMP DEFAULT NULL,
   INDEX idx_student (student_id),
   INDEX idx_credential (credential_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

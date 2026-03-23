@@ -138,7 +138,7 @@ export async function GET(req: NextRequest) {
       params.push(status);
     }
 
-    sql += ` ORDER BY p.first_name, p.last_name`;
+    sql += ` ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC`;
 
     const [rows] = await connection.execute(sql, params);
 

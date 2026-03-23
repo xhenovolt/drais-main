@@ -3,8 +3,13 @@ import { query } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   try {
     const session = await getServerSession();
     if (!session?.user?.role?.includes('admin')) {

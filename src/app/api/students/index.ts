@@ -16,8 +16,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let where = 'WHERE s.deleted_at IS NULL';
   let params: any[] = [];
   if (q) {
-    where += ' AND (p.first_name LIKE ? OR p.last_name LIKE ? OR s.admission_no LIKE ?)';
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    where += ' AND (LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR s.admission_no LIKE ?)';
+    const likeQ = `%${String(q).toLowerCase()}%`;
+    params.push(likeQ, likeQ, `%${q}%`);
   }
   if (class_id) {
     where += ' AND e.class_id = ?';
@@ -29,10 +30,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     LEFT JOIN enrollments e ON e.student_id = s.id
     ${where}
     ORDER BY s.id DESC
-    LIMIT ? OFFSET ?`;
-  params.push(pageSize, offset);
+    LIMIT ${pageSize} OFFSET ${offset}`;
   const [rows] = await connection.execute(sql, params);
-  const [countRows] = await connection.execute(`SELECT COUNT(*) as total FROM students s JOIN people p ON p.id = s.person_id LEFT JOIN enrollments e ON e.student_id = s.id ${where}`, params.slice(0, -2));
+  const [countRows] = await connection.execute(`SELECT COUNT(*) as total FROM students s JOIN people p ON p.id = s.person_id LEFT JOIN enrollments e ON e.student_id = s.id ${where}`, params);
   const total = (countRows as any)[0]?.total || 0;
   await connection.end();
   res.status(200).json({ data: rows, page: pageNum, size: pageSize, total });

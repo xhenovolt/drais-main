@@ -1,9 +1,11 @@
 import mysql from 'mysql2/promise';
 import { getConnection } from '../db';
 
-export async function getStudentsList() {
+export async function getStudentsList(schoolId?: number) {
   const conn = await getConnection();
   try {
+    const where = schoolId ? 'WHERE s.deleted_at IS NULL AND s.school_id = ?' : 'WHERE s.deleted_at IS NULL';
+    const params = schoolId ? [schoolId] : [];
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(`
       SELECT
         s.id,
@@ -26,7 +28,7 @@ export async function getStudentsList() {
         e.enrollment_type,
         e.status AS enrollment_status
       FROM students s
-      JOIN people p ON s.person_id = p.id
+      LEFT JOIN people p ON s.person_id = p.id
       LEFT JOIN enrollments e
              ON e.student_id = s.id
             AND e.status     = 'active'
@@ -35,9 +37,9 @@ export async function getStudentsList() {
       LEFT JOIN streams st        ON e.stream_id        = st.id
       LEFT JOIN terms t           ON e.term_id          = t.id
       LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
-      WHERE s.deleted_at IS NULL
-      ORDER BY s.admission_no
-    `);
+      ${where}
+      ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC
+    `, params);
     return rows;
   } finally {
     await conn.end();
@@ -65,7 +67,7 @@ export async function getStudentById(id: number) {
         c.name as class_name,
         st.name as stream_name
       FROM students s
-      JOIN people p ON s.person_id = p.id
+      LEFT JOIN people p ON s.person_id = p.id
       LEFT JOIN classes c ON s.class_id = c.id
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN streams st ON e.stream_id = st.id

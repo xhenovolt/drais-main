@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/utils/database';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
+  const session = await getSessionSchoolId(request);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   try {
     const { class_id, date, action } = await request.json();
 

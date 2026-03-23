@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * Sign Out API Route
@@ -19,12 +20,19 @@ export async function POST(req: NextRequest) {
   let connection = null;
   
   try {
+    // Enforce authentication and school isolation
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     // Parse request body
     const body = await req.json();
-    const { 
-      student_id, 
-      class_id, 
-      date, 
+    const {
+      student_id,
+      class_id,
+      date,
       device_id,
       device_type = 'biometric',
       biometric_data,
@@ -58,10 +66,10 @@ export async function POST(req: NextRequest) {
       // Start transaction for atomic operation
       await connection.beginTransaction();
 
-      // Check if student exists
+      // Check if student exists and belongs to this school
       const [studentCheck] = await connection.execute(
-        'SELECT id, first_name, last_name FROM students WHERE id = ?',
-        [student_id]
+        'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+        [student_id, schoolId]
       );
       
       if (!studentCheck || (studentCheck as any[]).length === 0) {
@@ -209,6 +217,12 @@ export async function POST(req: NextRequest) {
 
 // GET handler for retrieving sign-out status
 export async function GET(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) {
+    return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+  }
+  const schoolId = session.schoolId;
+
   const { searchParams } = new URL(req.url);
   const student_id = searchParams.get('student_id');
   const class_id = searchParams.get('class_id');
@@ -227,10 +241,11 @@ export async function GET(req: NextRequest) {
     connection = await getConnection();
     
     const [rows] = await connection.execute(
-      `SELECT id, student_id, class_id, date, status, time_in, time_out, created_at, updated_at
-       FROM student_attendance 
-       WHERE student_id = ? AND class_id = ? AND date = ?`,
-      [student_id, class_id, date]
+      `SELECT sa.id, sa.student_id, sa.class_id, sa.date, sa.status, sa.time_in, sa.time_out
+       FROM student_attendance sa
+       JOIN students s ON sa.student_id = s.id
+       WHERE sa.student_id = ? AND sa.class_id = ? AND sa.date = ? AND s.school_id = ?`,
+      [student_id, class_id, date, schoolId]
     );
 
     if (!rows || (rows as any[]).length === 0) {

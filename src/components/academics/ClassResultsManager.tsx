@@ -63,7 +63,10 @@ export default function ClassResultsManager() {
   const [listLoading,setListLoading]=useState(false);
   const [listPage,setListPage]=useState(1);
   const [listTotal,setListTotal]=useState(0);
-  const perPage=25;
+  const [listLimit,setListLimit]=useState(50);
+  const [listSortBy,setListSortBy]=useState<'name'|'score'|'class'>('name');
+  const [listSortOrder,setListSortOrder]=useState<'asc'|'desc'>('asc');
+  const perPage=listLimit;
   const [filters, setFilters] = useState({ search: '', class_id: '', result_type_id: '', subject_id: '', term_id: '' });
 
   // Optimistic updates for inline editing
@@ -113,14 +116,21 @@ export default function ClassResultsManager() {
 
   useEffect(() => { loadMeta(); }, []);
 
-  // Load results list whenever filters change
+  // Reset page to 1 whenever filters/sort/limit change
+  useEffect(() => { setListPage(1); }, [filters.class_id, filters.subject_id, filters.result_type_id, filters.term_id, filters.search, listSortBy, listSortOrder, listLimit]);
+
+  // Load results list with server-side pagination, search, and sort
   useEffect(() => {
-    const { search, ...apiFilters } = filters;
     const qs = new URLSearchParams({
-      class_id: apiFilters.class_id,
-      subject_id: apiFilters.subject_id,
-      result_type_id: apiFilters.result_type_id,
-      term_id: apiFilters.term_id
+      class_id: filters.class_id,
+      subject_id: filters.subject_id,
+      result_type_id: filters.result_type_id,
+      term_id: filters.term_id,
+      search: filters.search,
+      sort_by: listSortBy,
+      sort_order: listSortOrder,
+      page: String(listPage),
+      limit: String(listLimit),
     });
     setListLoading(true);
     fetch(`${API_BASE}/class-results/list?${qs.toString()}`)
@@ -131,16 +141,8 @@ export default function ClassResultsManager() {
       .then(d => {
         if (d.error) setMessage(d.error);
         else {
-          let filteredResults = d.data || [];
-          // Apply client-side search filter
-          if (search) {
-            const searchLower = search.toLowerCase();
-            filteredResults = filteredResults.filter((result: any) =>
-              `${result.first_name} ${result.last_name}`.toLowerCase().includes(searchLower)
-            );
-          }
-          setList(filteredResults);
-          setListTotal(filteredResults.length);
+          setList(d.data || []);
+          setListTotal(d.meta?.total ?? (d.data || []).length);
         }
       })
       .catch(e => {
@@ -148,7 +150,7 @@ export default function ClassResultsManager() {
         setMessage(e.message || 'Failed to load results');
       })
       .finally(() => setListLoading(false));
-  }, [filters.class_id, filters.subject_id, filters.result_type_id, filters.term_id, filters.search]);
+  }, [filters.class_id, filters.subject_id, filters.result_type_id, filters.term_id, filters.search, listSortBy, listSortOrder, listPage, listLimit]);
 
   // Update score with optimistic UI
   const updateScore = async (resultId: number, field: string, value: any) => {
@@ -191,22 +193,15 @@ export default function ClassResultsManager() {
             duration: 2000,
             style: { background: '#10b981', color: 'white' },
           });
-          // Update actual state
+          // Update actual state — patch in-place, no extra refetch
           setList(prev => prev.map(result =>
-            result.id === resultId ? { ...result, ...data.updatedResult } : result
+            result.id === resultId ? { ...result, ...(data.updatedResult ?? { [field]: value }) } : result
           ));
         } else {
           toast.dismiss(savingToast);
           toast.error(data.error || 'Failed to update score');
-          // Revert optimistic update
-          const { search, ...apiFilters } = filters;
-          const qs = new URLSearchParams(apiFilters);
-          fetch(`${API_BASE}/class-results/list?${qs.toString()}`)
-            .then(r => {
-              if (!r.ok) throw new Error(`Server error: ${r.status}`);
-              return r.json();
-            })
-            .then(d => setList(d.data || []));
+          // Revert by resetting filters to trigger reload
+          setFilters(f => ({ ...f }));
         }
       } catch (error) {
         toast.dismiss(savingToast);
@@ -310,19 +305,8 @@ export default function ClassResultsManager() {
       } else {
         setMessage('Saved');
         toast.success('Results submitted successfully!');
-        // Refresh list
-        const { search, ...apiFilters } = filters;
-        const qs = new URLSearchParams(apiFilters);
-        fetch(`${API_BASE}/class-results/list?${qs.toString()}`)
-          .then(r => {
-            if (!r.ok) throw new Error(`Server error: ${r.status}`);
-            return r.json();
-          })
-          .then(d => setList(d.data || []))
-          .catch(err => {
-            console.error('Error refreshing list:', err);
-            setMessage(err.message || 'Failed to refresh list');
-          });
+        // Trigger list reload by resetting filters reference
+        setFilters(f => ({ ...f }));
         setOpen(false);
       }
     } catch (e: any) {
@@ -344,6 +328,7 @@ export default function ClassResultsManager() {
   }, [optimisticList]);
 
   // Group results by student and class with enhanced calculations
+  // Data is already server-side paginated/filtered/sorted — just build the marklist
   const marklist = React.useMemo(() => {
     const classGroups: Record<string, any[]> = {};
     optimisticList.forEach(r => {
@@ -354,14 +339,17 @@ export default function ClassResultsManager() {
           student_id: r.student_id,
           name: `${r.last_name}, ${r.first_name}`,
           class_name: r.class_name,
+          program_name: r.program_name || null,
           scores: {},
           allScores: [],
         };
         classGroups[r.class_name].push(student);
       }
       student.scores[r.subject_id] = r;
+      // Keep program_name if available
+      if (r.program_name && !student.program_name) student.program_name = r.program_name;
       const scoreNum = typeof r.score === 'number' ? r.score : (r.score !== null && r.score !== undefined && r.score !== '' ? parseFloat(r.score) : null);
-      if (!isNaN(scoreNum) && scoreNum !== null) student.allScores.push(scoreNum);
+      if (scoreNum !== null && !isNaN(scoreNum)) student.allScores.push(scoreNum);
     });
     
     let allRows: any[] = [];
@@ -370,19 +358,15 @@ export default function ClassResultsManager() {
         const scoresArr = subjectColumns.map(s => {
           const result = row.scores[s.id];
           return result ? parseFloat(result.score) : null;
-        }).filter((v): v is number => typeof v === 'number' && !isNaN(v) && v !== null);
+        }).filter((v): v is number => typeof v === 'number' && !isNaN(v));
 
         const total = scoresArr.reduce((a, b) => a + b, 0);
-        const min = scoresArr.length ? Math.min(...scoresArr) : null;
-        const max = scoresArr.length ? Math.max(...scoresArr) : null;
         const avg = scoresArr.length ? (total / scoresArr.length) : null;
         row.total = Math.round(total * 100) / 100;
-        row.min = min;
-        row.max = max;
         row.avg = avg;
       });
       
-      // Sort by total descending for position within class
+      // Sort by total descending for class position
       students.sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
       students.forEach((row, i) => { 
         row.position = i + 1; 
@@ -393,24 +377,13 @@ export default function ClassResultsManager() {
     return allRows;
   }, [optimisticList, subjectColumns]);
 
-  // Filter marklist for search and filters (but keep position from full class)
-  const filteredMarklist = React.useMemo(() => {
-    let rows = marklist;
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      rows = rows.filter(row => row.name.toLowerCase().includes(q));
-    }
-    if (filters.class_id) {
-      const className = classes.find(c => String(c.id) === String(filters.class_id))?.name;
-      if (className) rows = rows.filter(row => String(row.class_name) === String(className));
-    }
-    return rows;
-  }, [marklist, filters, classes]);
+  // filteredMarklist = marklist as-is (filtering/search/sort is server-side now)
+  const filteredMarklist = marklist;
 
   const sortedLearners = useMemo(() => {
     return [...rows].sort((a, b) => {
-      const nameA = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase();
-      const nameB = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase();
+      const nameA = `${a.last_name || ''} ${a.first_name || ''}`.toLowerCase();
+      const nameB = `${b.last_name || ''} ${b.first_name || ''}`.toLowerCase();
       return nameA.localeCompare(nameB);
     });
   }, [rows]);
@@ -750,60 +723,146 @@ export default function ClassResultsManager() {
         </div>
       </div>
       
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
+      <div className="space-y-3">
+        {/* Table toolbar: title + limit selector + sort controls + refresh */}
+        <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-sm font-semibold tracking-wide uppercase">{t('existing_results')}</h2>
-          <button onClick={() => setFilters({ ...filters })} className="px-3 py-1.5 rounded-md text-xs font-medium bg-black/5 dark:bg-white/10 flex items-center gap-1"><RefreshCw className="w-3 h-3"/>{t('refresh')}</button>
+          <span className="text-xs text-slate-500">({listTotal} total)</span>
+          <button onClick={() => setFilters(f => ({ ...f }))} className="px-3 py-1.5 rounded-md text-xs font-medium bg-black/5 dark:bg-white/10 flex items-center gap-1">
+            <RefreshCw className="w-3 h-3"/>{t('refresh')}
+          </button>
+          {/* Limit selector */}
+          <div className="ml-auto flex items-center gap-2 text-xs">
+            <span className="text-slate-500">Per page:</span>
+            {[20, 50, 100].map(n => (
+              <button
+                key={n}
+                onClick={() => { setListLimit(n); setListPage(1); }}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${listLimit === n ? 'bg-indigo-600 text-white' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10'}`}
+              >{n}</button>
+            ))}
+          </div>
+          {/* Sort selector */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500">Sort:</span>
+            {(['name', 'score', 'class'] as const).map(key => (
+              <button
+                key={key}
+                onClick={() => {
+                  if (listSortBy === key) setListSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+                  else { setListSortBy(key); setListSortOrder('asc'); }
+                  setListPage(1);
+                }}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${listSortBy === key ? 'bg-fuchsia-600 text-white' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10'}`}
+              >
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+                {listSortBy === key && <span className="ml-0.5">{listSortOrder === 'asc' ? '↑' : '↓'}</span>}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="overflow-auto rounded-xl border border-white/30 dark:border-white/10">
-          <table className="w-full text-xs">
-            <thead className="bg-slate-100/60 dark:bg-slate-800/60">
+
+        {/* Results table with sticky header */}
+        <div className="overflow-auto rounded-xl border border-white/30 dark:border-white/10 max-h-[70vh]">
+          <table className="w-full text-xs border-collapse">
+            <thead className="bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="text-left px-3 py-2">{t('student')}</th>
-                <th className="text-left px-3 py-2">{t('class')}</th>
+                <th
+                  className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
+                  onClick={() => { if (listSortBy==='name') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('name'); setListSortOrder('asc'); } setListPage(1); }}
+                >
+                  {t('student')} {listSortBy==='name' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
+                </th>
+                <th
+                  className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
+                  onClick={() => { if (listSortBy==='class') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('class'); setListSortOrder('asc'); } setListPage(1); }}
+                >
+                  {t('class')} {listSortBy==='class' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
+                </th>
+                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">Program</th>
                 {subjectColumns.map(s => (
-                  <th key={s.id} className="text-left px-3 py-2 relative">
+                  <th key={s.id} className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">
                     {s.name}
-                    {isPending && filteredMarklist.some(row => {
-                      const result = row.scores[s.id];
-                      return result && editingCell?.id === result.id && editingCell?.field === 'score';
-                    }) && (
-                      <div className="absolute top-1 right-1">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                      </div>
-                    )}
                   </th>
                 ))}
-                <th className="text-left px-3 py-2">{t('total')}</th>
-                <th className="text-left px-3 py-2">{t('min')}</th>
-                <th className="text-left px-3 py-2">{t('max')}</th>
-                <th className="text-left px-3 py-2">{t('avg')}</th>
-                <th className="text-left px-3 py-2">{t('position')}</th>
+                <th
+                  className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
+                  onClick={() => { if (listSortBy==='score') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('score'); setListSortOrder('asc'); } setListPage(1); }}
+                >
+                  {t('total')} {listSortBy==='score' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
+                </th>
+                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('avg')}</th>
+                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('position')}</th>
               </tr>
             </thead>
             <tbody>
-              {filteredMarklist.map(row => (
-                <tr key={row.student_id} className="odd:bg-white/50 dark:odd:bg-slate-800/40">
-                  <td className="px-3 py-1.5 font-medium">{row.name}</td>
-                  <td className="px-3 py-1.5">{row.class_name || '-'}</td>
+              {filteredMarklist.map((row, idx) => (
+                <tr key={row.student_id} className={`border-t border-white/10 dark:border-white/5 ${idx % 2 === 0 ? 'bg-white/40 dark:bg-slate-800/20' : 'bg-white/20 dark:bg-slate-800/10'} hover:bg-indigo-50/40 dark:hover:bg-indigo-900/20 transition-colors`}>
+                  <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{row.name}</td>
+                  <td className="px-3 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">{row.class_name || '-'}</td>
+                  <td className="px-3 py-2">
+                    {row.program_name ? (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${row.program_name.toLowerCase().includes('islam') || row.program_name.toLowerCase().includes('tahfiz') ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                        {row.program_name}
+                      </span>
+                    ) : <span className="text-slate-400">—</span>}
+                  </td>
                   {subjectColumns.map(s => (
-                    <td key={s.id} className="px-3 py-1.5">
-                      {row.scores[s.id] ? renderEditableCell(row.scores[s.id]) : '-'}
+                    <td key={s.id} className="px-3 py-2">
+                      {row.scores[s.id] ? renderEditableCell(row.scores[s.id]) : <span className="text-slate-300">—</span>}
                     </td>
                   ))}
-                  <td className="px-3 py-1.5 font-semibold">{row.total ?? '-'}</td>
-                  <td className="px-3 py-1.5">{row.min ?? '-'}</td>
-                  <td className="px-3 py-1.5">{row.max ?? '-'}</td>
-                  <td className="px-3 py-1.5">{row.avg !== null && row.avg !== undefined ? row.avg.toFixed(2) : '-'}</td>
-                  <td className="px-3 py-1.5 font-bold text-blue-600">{row.position}/{row.totalInClass}</td>
+                  <td className="px-3 py-2 font-bold text-slate-800 dark:text-slate-200">{row.total ?? '—'}</td>
+                  <td className="px-3 py-2">{row.avg !== null && row.avg !== undefined ? row.avg.toFixed(1) : '—'}</td>
+                  <td className="px-3 py-2">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {row.position}/{row.totalInClass}
+                    </span>
+                  </td>
                 </tr>
               ))}
-              {!listLoading && filteredMarklist.length===0 && <tr><td colSpan={subjectColumns.length+8} className="px-4 py-8 text-center text-slate-500">{t('no_results_found')}</td></tr>}
+              {!listLoading && filteredMarklist.length === 0 && (
+                <tr>
+                  <td colSpan={subjectColumns.length + 7} className="px-4 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Table className="w-8 h-8 opacity-30"/>
+                      <span>{t('no_results_found')}</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-          {listLoading && <div className="flex items-center gap-2 px-4 py-3 text-xs"><Loader2 className="w-4 h-4 animate-spin"/>{t('loading')}...</div>}
+          {listLoading && (
+            <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin text-indigo-500"/>Loading results...
+            </div>
+          )}
         </div>
-        {listTotal>perPage && <div className="flex items-center gap-3 text-xs pt-2"><button disabled={listPage===1} onClick={()=>setListPage(p=>p-1)} className="px-3 py-1 rounded bg-black/5 dark:bg-white/10 disabled:opacity-30">{t('prev')}</button><span>{t('page')} {listPage} {t('of')} {Math.ceil(listTotal/perPage)}</span><button disabled={listPage>=Math.ceil(listTotal/perPage)} onClick={()=>setListPage(p=>p+1)} className="px-3 py-1 rounded bg-black/5 dark:bg-white/10 disabled:opacity-30">{t('next')}</button></div>}
+
+        {/* Pagination */}
+        {listTotal > 0 && (
+          <div className="flex items-center justify-between text-xs pt-1">
+            <span className="text-slate-500">
+              Showing {Math.min((listPage - 1) * listLimit + 1, listTotal)}–{Math.min(listPage * listLimit, listTotal)} of {listTotal} results
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={listPage === 1}
+                onClick={() => setListPage(p => Math.max(1, p - 1))}
+                className="px-3 py-1.5 rounded-md bg-black/5 dark:bg-white/10 disabled:opacity-30 hover:bg-black/10 transition-colors"
+              >← {t('prev')}</button>
+              <span className="px-3 py-1.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold">
+                {listPage} / {Math.ceil(listTotal / listLimit)}
+              </span>
+              <button
+                disabled={listPage >= Math.ceil(listTotal / listLimit)}
+                onClick={() => setListPage(p => p + 1)}
+                className="px-3 py-1.5 rounded-md bg-black/5 dark:bg-white/10 disabled:opacity-30 hover:bg-black/10 transition-colors"
+              >{t('next')} →</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal for adding/editing results */}

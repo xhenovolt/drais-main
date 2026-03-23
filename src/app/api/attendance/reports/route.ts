@@ -161,7 +161,7 @@ export async function GET(req: NextRequest) {
 
 async function generateDailySummary(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   dateFrom: string,
   dateTo: string,
   classId?: string
@@ -206,7 +206,7 @@ async function generateDailySummary(
 
 async function generateWeeklyTrend(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   dateFrom: string,
   dateTo: string,
   classId?: string
@@ -245,7 +245,7 @@ async function generateWeeklyTrend(
 
 async function generateMonthlySummary(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   dateFrom: string,
   dateTo: string,
   classId?: string
@@ -284,7 +284,7 @@ async function generateMonthlySummary(
 
 async function generateClassAnalysis(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   classId: string,
   dateFrom: string,
   dateTo: string
@@ -317,7 +317,7 @@ async function generateClassAnalysis(
 
 async function generateStudentProfile(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   dateFrom: string,
   dateTo: string
 ) {
@@ -373,7 +373,7 @@ async function generateStudentProfile(
 
 async function generatePeriodComparison(
   connection: any,
-  schoolId: string,
+  schoolId: number,
   dateFrom: string,
   dateTo: string
 ) {

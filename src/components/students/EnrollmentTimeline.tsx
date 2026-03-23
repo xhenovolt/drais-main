@@ -5,6 +5,7 @@
  * Shows each term they've been enrolled, the class, and highlights the current one.
  */
 import React from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import {
@@ -78,12 +79,12 @@ export default function EnrollmentTimeline({ studentId, currentEnrollmentId }: P
           <GraduationCap className="w-6 h-6 text-slate-400" />
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">No enrollment history found.</p>
-        <a
+        <Link
           href="/students/enroll"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
         >
           Enroll this student <ArrowUpRight className="w-3 h-3" />
-        </a>
+        </Link>
       </div>
     );
   }

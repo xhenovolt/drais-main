@@ -1,42 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 import * as XLSX from 'xlsx';
 
 export async function GET(request: NextRequest) {
   let connection;
   try {
+    // Enforce authentication and school isolation
+    const session = await getSessionSchoolId(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const url = new URL(request.url);
     const format = url.searchParams.get('format') || 'excel';
 
     connection = await getConnection();
 
-    // Fetch all students with their class and stream information
+    // Fetch all students — person data from people, class from enrollment
     const [students] = await connection.execute(`
-      SELECT 
+      SELECT
         s.id,
-        s.first_name,
-        s.last_name,
-        s.other_name,
-        s.gender,
-        s.date_of_birth,
-        s.phone,
-        s.email,
-        s.address,
+        s.admission_no,
         s.status,
         s.admission_date,
         s.created_at,
-        c.name as class_name,
-        st.name as stream_name,
-        d.name as district_name,
-        v.name as village_name,
-        s.admission_no
+        p.first_name,
+        p.last_name,
+        p.other_name,
+        p.gender,
+        p.date_of_birth,
+        p.phone,
+        p.email,
+        p.address,
+        c.name  AS class_name,
+        st.name AS stream_name,
+        v.name  AS village_name
       FROM students s
-      LEFT JOIN classes c ON s.class_id = c.id
-      LEFT JOIN streams st ON s.stream_id = st.id
-      LEFT JOIN districts d ON s.district_id = d.id
+      JOIN people p ON s.person_id = p.id
+      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      LEFT JOIN classes c ON e.class_id = c.id
+      LEFT JOIN streams st ON e.stream_id = st.id
       LEFT JOIN villages v ON s.village_id = v.id
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY s.created_at DESC
-    `);
+    `, [schoolId]);
 
     if (!Array.isArray(students)) {
       throw new Error('Failed to fetch students data');
@@ -59,7 +68,6 @@ export async function GET(request: NextRequest) {
         'Address': student.address || '',
         'Class': student.class_name || '',
         'Stream': student.stream_name || '',
-        'District': student.district_name || '',
         'Village': student.village_name || '',
         'Status': student.status || '',
         'Admission Date': student.admission_date || '',
@@ -81,7 +89,6 @@ export async function GET(request: NextRequest) {
         { wch: 25 }, // Address
         { wch: 15 }, // Class
         { wch: 15 }, // Stream
-        { wch: 15 }, // District
         { wch: 15 }, // Village
         { wch: 12 }, // Status
         { wch: 15 }, // Admission Date
@@ -113,7 +120,6 @@ export async function GET(request: NextRequest) {
         address: student.address || '',
         class_name: student.class_name || '',
         stream_name: student.stream_name || '',
-        district_name: student.district_name || '',
         village_name: student.village_name || '',
         status: student.status || '',
         admission_date: student.admission_date || '',

@@ -53,9 +53,10 @@ interface SignupRequest {
 }
 
 export async function POST(request: NextRequest) {
-  const connection = await getConnection();
-  
+  let connection: Awaited<ReturnType<typeof getConnection>> | undefined;
+
   try {
+    connection = await getConnection();
     const body: SignupRequest = await request.json();
     const { 
       firstName, 
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     // ========================================
     // VALIDATION
     // ========================================
-    
+
     // Required fields
     if (!firstName || !email || !password || !confirmPassword) {
       return NextResponse.json(
@@ -193,29 +194,26 @@ export async function POST(request: NextRequest) {
         const trialStartDate = new Date();
         const trialEndDate = new Date(trialStartDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-        // Defensive: only insert columns that actually exist in the schema
+        // Defensive: only INSERT columns that actually exist in the schema.
+        // Every optional column is checked before being added to the list.
         const availableCols = await getSchoolsColumns(connection);
-        const hasSub = availableCols.has('subscription_type');
-        const hasTrialStart = availableCols.has('trial_start_date');
-        const hasTrialEnd = availableCols.has('trial_end_date');
+        const hasSubStatus   = availableCols.has('subscription_status');
+        const hasSubType     = availableCols.has('subscription_type');
+        const hasTrialStart  = availableCols.has('trial_start_date');
+        const hasTrialEnd    = availableCols.has('trial_end_date');
+        const hasSetup       = availableCols.has('setup_complete');
 
-        const colList = [
-          'id', 'name', 'status', 'setup_complete',
-          'subscription_status',
-          ...(hasSub ? ['subscription_type'] : []),
-          ...(hasTrialStart ? ['trial_start_date'] : []),
-          ...(hasTrialEnd ? ['trial_end_date'] : []),
-          'created_at',
-        ];
+        // Build column list and value list in tandem
+        const colList: string[]  = ['id', 'name', 'status', 'created_at'];
+        const values: any[]      = [nextSchoolId, schoolName, 'active', trialStartDate];
+
+        if (hasSetup)      { colList.push('setup_complete');      values.push(false); }
+        if (hasSubStatus)  { colList.push('subscription_status'); values.push('trial'); }
+        if (hasSubType)    { colList.push('subscription_type');   values.push('trial'); }
+        if (hasTrialStart) { colList.push('trial_start_date');    values.push(trialStartDate); }
+        if (hasTrialEnd)   { colList.push('trial_end_date');      values.push(trialEndDate); }
+
         const placeholders = colList.map(() => '?').join(', ');
-        const values: any[] = [
-          nextSchoolId, schoolName, 'active', false,
-          'trial',
-          ...(hasSub ? ['trial'] : []),
-          ...(hasTrialStart ? [trialStartDate] : []),
-          ...(hasTrialEnd ? [trialEndDate] : []),
-          trialStartDate,
-        ];
 
         // Create the school
         await connection.execute<any>(
@@ -401,7 +399,7 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (error) {
-      await connection.rollback();
+      if (connection) await connection.rollback().catch(() => {});
       throw error;
     }
 
@@ -418,6 +416,10 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await connection.end().catch(() => {});
+    if (connection) {
+      try { await connection.end(); } catch (err) {
+        console.error('[Signup] Connection release failed:', err);
+      }
+    }
   }
 }

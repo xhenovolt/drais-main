@@ -29,7 +29,7 @@ export default function AdmitStudentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) return;
+    if (!firstName.trim()) return;
     setLoading(true);
     setError(null);
     try {
@@ -131,8 +131,8 @@ export default function AdmitStudentPage() {
                 <input required value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="e.g., Fatuma" className={fieldBase} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Last Name *</label>
-                <input required value={lastName} onChange={e => setLastName(e.target.value)} placeholder="e.g., Nakibuuka" className={fieldBase} />
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Last Name <span className="font-normal text-slate-400">(optional)</span></label>
+                <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="e.g., Nakibuuka" className={fieldBase} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Other Name</label>
@@ -167,7 +167,7 @@ export default function AdmitStudentPage() {
               <Link href="/students/list" className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">Cancel</Link>
               <button
                 type="submit"
-                disabled={loading || !firstName.trim() || !lastName.trim()}
+                disabled={loading || !firstName.trim()}
                 className="btn-primary px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   
   try {
@@ -90,6 +95,10 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
 }
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   
   try {

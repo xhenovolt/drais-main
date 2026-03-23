@@ -6,6 +6,7 @@ import {
   formatToMySQLDateTime,
   determineAttendanceStatus
 } from '@/lib/dahua';
+import { getSessionSchoolId } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -20,6 +21,10 @@ interface RouteParams {
  * - records: array - manually provided records (optional)
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const { id } = await params;
@@ -308,6 +313,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
  * Get sync history for a device
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const { id } = await params;

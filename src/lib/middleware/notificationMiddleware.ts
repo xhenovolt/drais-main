@@ -80,10 +80,12 @@ export class NotificationMiddleware {
       const [admins] = await connection.execute(`
         SELECT DISTINCT u.id
         FROM users u
-        JOIN roles r ON u.role_id = r.id
-        WHERE u.school_id = ? 
+        JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = TRUE
+        JOIN roles r ON ur.role_id = r.id AND r.is_active = TRUE
+        WHERE u.school_id = ?
           AND u.status = 'active'
-          AND (r.name LIKE '%admin%' OR r.name LIKE '%head%')
+          AND u.deleted_at IS NULL
+          AND (r.name LIKE '%admin%' OR r.name LIKE '%head%' OR r.is_super_admin = TRUE)
       `, [schoolId]);
 
       return Array.isArray(admins) ? admins.map((admin: any) => admin.id) : [];

@@ -8,6 +8,8 @@ import * as XLSX from 'xlsx';
 import PromotionSummaryNotification from '@/components/academics/PromotionSummaryNotification';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
+import type { ReportLayoutJSON } from '@/lib/reportTemplates';
+import { DEFAULT_TEMPLATE_JSON } from '@/lib/reportTemplates';
 
 // Type definitions
 interface Student {
@@ -140,6 +142,20 @@ const ReportsPage = () => {
     arabic_registration_no: '',
   });
   const customizationRef = useRef<CustomizationRef>({ current: {} });
+
+  // ── Template engine: active layout JSON loaded from /api/report-templates/active
+  const [activeLayout, setActiveLayout] = useState<ReportLayoutJSON>(DEFAULT_TEMPLATE_JSON);
+
+  useEffect(() => {
+    fetch('/api/report-templates/active')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.template?.layout_json) {
+          setActiveLayout(data.template.layout_json);
+        }
+      })
+      .catch(() => { /* keep default */ });
+  }, []);
 
   // Helper to get term ID (you may need to adjust based on your database)
   const getTermId = (termName: string): string => {
@@ -868,6 +884,13 @@ const ReportsPage = () => {
           >
             Customize Style
           </button>
+
+          <a
+            href="/reports/kitchen"
+            className="button bg-amber-600 text-white px-4 py-2 rounded text-sm shadow-sm hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          >
+            🍳 Template Kitchen
+          </a>
         </div>
         {loading && <div className="no-print">Loading..</div>}
         <div>
@@ -930,9 +953,29 @@ const ReportsPage = () => {
                 }
 
                 return (
-                  <div key={student.student_id} style={styles.reportPage}>
+                  <div key={student.student_id} style={{
+                    pageBreakAfter: 'always',
+                    background: activeLayout.page.background,
+                    boxShadow: activeLayout.page.boxShadow,
+                    padding: activeLayout.page.padding,
+                    borderRadius: activeLayout.page.borderRadius,
+                    maxWidth: activeLayout.page.maxWidth,
+                    margin: activeLayout.page.margin,
+                    fontSize: activeLayout.page.fontSize,
+                    fontFamily: activeLayout.page.fontFamily,
+                  }}>
                     {/* Header */}
-                    <div style={styles.header}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: activeLayout.header.layout === 'centered' ? 'center' : 'space-between',
+                      alignItems: 'center',
+                      flexDirection: activeLayout.header.layout === 'centered' ? 'column' : 'row',
+                      paddingBottom: activeLayout.header.paddingBottom,
+                      opacity: activeLayout.header.opacity,
+                      marginBottom: 0,
+                      marginTop: 0,
+                      borderBottom: activeLayout.header.borderBottom,
+                    }}>
                       <div className="text-left ltr:text-left rtl:text-right" style={{ direction: 'ltr', textAlign: 'left', flex: 1 }}>
                         <h2 className="text-xl font-bold">{schoolInfo.name}</h2>
                         <p>{schoolInfo.address}</p>
@@ -952,29 +995,61 @@ const ReportsPage = () => {
                       </div>
                     </div>
                     {/* Banner */}
-                    <div style={{...styles.blueBanner, cursor: 'text'}} contentEditable suppressContentEditableWarning>
+                    <div style={{
+                      backgroundColor: activeLayout.banner.backgroundColor,
+                      color: activeLayout.banner.color,
+                      textAlign: activeLayout.banner.textAlign,
+                      fontSize: activeLayout.banner.fontSize,
+                      fontWeight: activeLayout.banner.fontWeight,
+                      padding: activeLayout.banner.padding,
+                      marginTop: activeLayout.banner.marginTop,
+                      marginBottom: activeLayout.banner.marginBottom,
+                      borderRadius: activeLayout.banner.borderRadius,
+                      letterSpacing: activeLayout.banner.letterSpacing,
+                      textTransform: activeLayout.banner.textTransform,
+                      cursor: 'text',
+                    }} contentEditable suppressContentEditableWarning>
                       {(principal[0]?.result_type_name || 'MID TERM').toUpperCase()} REPORT
                     </div>
                     {/* Student Info */}
-                    <div style={styles.studentInfoBox}>
-                      <div style={styles.studentDetails}>
-                        <div style={styles.barcodeCard}>
-                          <img src={`/api/barcode?id=${student.student_id}`} style={styles.barcodeImg as any} alt="Barcode" />
-                          <span style={styles.barcodeVertical}>{student.student_id}</span>
+                    <div style={{
+                      border: activeLayout.studentInfoBox.border,
+                      borderRadius: activeLayout.studentInfoBox.borderRadius,
+                      padding: activeLayout.studentInfoBox.padding,
+                      background: activeLayout.studentInfoBox.background,
+                      boxShadow: activeLayout.studentInfoBox.boxShadow,
+                      margin: activeLayout.studentInfoBox.margin,
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        gap: 5,
+                        marginBottom: 2,
+                        alignItems: 'center',
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'row', padding: 0, margin: 0, gap: 2, alignItems: 'center' }}>
+                          <img src={`/api/barcode?id=${student.student_id}`} style={{ width: 90, height: 40, marginRight: -30, marginLeft: -20, transform: 'rotate(270deg)' }} alt="Barcode" />
+                          <span style={{ fontSize: 15, fontWeight: 500, margin: 0, transform: 'rotate(180deg)', writingMode: 'vertical-rl' as any }}>{student.student_id}</span>
                         </div>
                         <Image
                           src={`${student.photo || '/logo.png'}`}
                           alt={`${student.first_name} ${student.last_name}`}
                           width={100}
                           height={115}
-                          style={styles.studentPhoto}
+                          style={{ width: 100, height: 115, objectFit: 'cover', marginRight: 20, border: '2px solid #eee' }}
                         />
                         <div>
-                          <div style={styles.studentInfoContainer}>
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: activeLayout.studentInfoContainer.flexDirection,
+                            marginBottom: 0,
+                            paddingBottom: 0,
+                            borderBottom: activeLayout.studentInfoContainer.borderBottom,
+                            fontSize: activeLayout.studentInfoContainer.fontSize,
+                          }}>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Name:</span>
                               <span 
-                                style={{...styles.studentValue, cursor: 'text'}} 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
                                 contentEditable 
                                 suppressContentEditableWarning
                               > {student.first_name} {student.last_name}</span>
@@ -982,7 +1057,7 @@ const ReportsPage = () => {
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Gender:</span>
                               <span 
-                                style={{...styles.studentValue, cursor: 'text'}} 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
                                 contentEditable 
                                 suppressContentEditableWarning
                               > {student.gender || '-'}</span>
@@ -990,7 +1065,7 @@ const ReportsPage = () => {
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Class:</span>
                               <span 
-                                style={{...styles.studentValue, cursor: 'text'}} 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
                                 contentEditable 
                                 suppressContentEditableWarning
                               > {student.class_name}</span>
@@ -998,22 +1073,31 @@ const ReportsPage = () => {
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Stream:</span>
                               <span 
-                                style={{...styles.studentValue, cursor: 'text'}} 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
                                 contentEditable 
                                 suppressContentEditableWarning
                               > {student.stream_name || 'A'}</span>
                             </p>
                           </div>
-                          <div style={styles.studentInfoContainer}>
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: activeLayout.studentInfoContainer.flexDirection,
+                            marginBottom: 0,
+                            paddingBottom: 0,
+                            borderBottom: activeLayout.studentInfoContainer.borderBottom,
+                            fontSize: activeLayout.studentInfoContainer.fontSize,
+                          }}>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Student No:</span>
-                              <span style={styles.studentValue}> {student.student_id}</span>
+                              <span style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight }}> {student.student_id}</span>
                             </p>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Term:</span>
                               <span 
                                 style={{ 
-                                  ...styles.studentValue, 
+                                  color: activeLayout.studentValue.color,
+                                  fontStyle: activeLayout.studentValue.fontStyle as any,
+                                  fontWeight: activeLayout.studentValue.fontWeight,
                                   cursor: 'pointer',
                                   borderBottom: isEditingTerm ? '1px solid #000' : 'none',
                                   display: 'inline-block',
@@ -1043,20 +1127,33 @@ const ReportsPage = () => {
                         </div>
                       </div>
                     </div>
-                    {/* Gray Ribbon */}
-                    <div style={{...styles.grayRibbon, cursor: 'text'}} contentEditable suppressContentEditableWarning>Marks attained in each subject</div>
+                    {/* Ribbon */}
+                    <div style={{
+                      position: 'relative',
+                      background: activeLayout.ribbon.background,
+                      color: activeLayout.ribbon.color,
+                      textAlign: activeLayout.ribbon.textAlign,
+                      fontWeight: activeLayout.ribbon.fontWeight,
+                      fontSize: activeLayout.ribbon.fontSize,
+                      padding: activeLayout.ribbon.padding,
+                      marginTop: 4,
+                      marginBottom: 20,
+                      marginLeft: activeLayout.ribbon.marginSidesPercent,
+                      marginRight: activeLayout.ribbon.marginSidesPercent,
+                      borderRadius: activeLayout.ribbon.borderRadius,
+                      cursor: 'text',
+                    }} contentEditable suppressContentEditableWarning>Marks attained in each subject</div>
                     {/* Subjects Table - Display ALL subjects but only core contribute to grading */}
-                    <table style={styles.studentTable}>
+                    <table style={{ borderCollapse: activeLayout.table.borderCollapse, width: '100%', marginTop: 10, fontSize: activeLayout.table.fontSize }}>
                       <thead>
                         <tr>
-                          <th style={styles.studentTh}>SUBJECT</th>
-                          {isEndOfTerm && <th style={styles.studentTh}>{enableMarkConversion ? 'MT ' : 'MT'}</th>}
-                          {!isEndOfTerm && <th style={styles.studentTh}>{enableMarkConversion ? 'MT ' : 'MT'}</th>}
-                          {isEndOfTerm && <th style={styles.studentTh}>{enableMarkConversion ? 'EOT ' : 'EOT'}</th>}
-                          {/* <th style={styles.studentTh}>OUT OF</th> */}
-                          <th style={styles.studentTh}>GRADE</th>
-                          <th style={styles.studentTh}>COMMENT</th>
-                          <th style={styles.studentTh}>INITIALS</th>
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>SUBJECT</th>
+                          {isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'MT ' : 'MT'}</th>}
+                          {!isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'MT ' : 'MT'}</th>}
+                          {isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'EOT ' : 'EOT'}</th>}
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>GRADE</th>
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>COMMENT</th>
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>INITIALS</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1070,16 +1167,17 @@ const ReportsPage = () => {
                           const currentInitials = teacherInitials[initialsKey] || 
                             r.teacher_name?.split(' ').map((n: string) => n[0]).join('') || 'N/A';
 
+                          const tdStyle = { border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign, color: activeLayout.table.td.color };
                           return (
                             <tr key={i}>
-                              <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{r.subject_name}</td>
-                              {filters.resultType?.toLowerCase() === 'mid term' && <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
-                              {filters.resultType?.toLowerCase() === 'end of term' && <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
-                              {filters.resultType?.toLowerCase() === 'end of term' && <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{endTermMarks}</td>}
-                              <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{getGrade(scoreToUse || 0, isNursery)}</td>
-                              <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning className="commentsCell">{commentsForGrade(getGrade(scoreToUse || 0, isNursery))}</td>
+                              <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{r.subject_name}</td>
+                              {filters.resultType?.toLowerCase() === 'mid term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
+                              {filters.resultType?.toLowerCase() === 'end of term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
+                              {filters.resultType?.toLowerCase() === 'end of term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{endTermMarks}</td>}
+                              <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{getGrade(scoreToUse || 0, isNursery)}</td>
+                              <td style={{ ...tdStyle, cursor: 'text', fontSize: activeLayout.table.fontSize - 1 }} contentEditable suppressContentEditableWarning>{commentsForGrade(getGrade(scoreToUse || 0, isNursery))}</td>
                               <td
-                                style={styles.studentTd}
+                                style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign, color: activeLayout.table.td.color }}
                                 contentEditable
                                 suppressContentEditableWarning
                                 onBlur={(e) => {
@@ -1094,13 +1192,12 @@ const ReportsPage = () => {
                           );
                         })}
                         <tr style={{ fontWeight: 'bold' }}>
-                          <td style={styles.studentTd}>TOTAL MARKS:</td>
-                          {isEndOfTerm && <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.midTermScore || 0), 0))}</td>}
-                          {!isEndOfTerm && <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.midTermScore || 0), 0))}</td>}
-                          {isEndOfTerm && <td style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.endTermScore || 0), 0))}</td>}
-                          {/* <td style={styles.studentTd}>{totalMarks}</td> */}
-                          <td style={styles.studentTd}></td>
-                          <td colSpan={2} style={{...styles.studentTd, cursor: 'text'}} contentEditable suppressContentEditableWarning>
+                          <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign }}>TOTAL MARKS:</td>
+                          {isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.midTermScore || 0), 0))}</td>}
+                          {!isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.midTermScore || 0), 0))}</td>}
+                          {isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.endTermScore || 0), 0))}</td>}
+                          <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding }}></td>
+                          <td colSpan={2} style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, cursor: 'text' }} contentEditable suppressContentEditableWarning>
                             AVERAGE: {allGroupedResults.length > 0 ? Math.round(totalMarks / allGroupedResults.length) : 0}
                           </td>
                         </tr>
@@ -1108,16 +1205,16 @@ const ReportsPage = () => {
                     </table>
                     
                     {/* Assessment Section - Modified for Nursery */}
-                    <div style={{ marginTop: 20, fontSize: 14 }}>
+                    <div style={{ marginTop: 20, fontSize: activeLayout.page.fontSize }}>
                       <h3 style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 10, cursor: 'text' }} contentEditable suppressContentEditableWarning>
                         General Assessment
                       </h3>
                       <div style={{ 
                         display: 'flex', 
                         justifyContent: 'space-between', 
-                        padding: '10px 20px', 
-                        border: '1px solid #000', 
-                        borderRadius: 8 
+                        border: activeLayout.assessmentBox.border,
+                        borderRadius: activeLayout.assessmentBox.borderRadius,
+                        padding: activeLayout.assessmentBox.padding,
                       }}>
                         <div>
                           {!isNursery ? (
@@ -1137,9 +1234,9 @@ const ReportsPage = () => {
                             style={{ 
                               display: 'flex', 
                               justifyContent: 'space-between', 
-                              padding: '10px 20px', 
-                              border: '1px solid #000', 
-                              borderRadius: 8, 
+                              padding: activeLayout.assessmentBox.padding, 
+                              border: activeLayout.assessmentBox.border, 
+                              borderRadius: activeLayout.assessmentBox.borderRadius, 
                               cursor: 'text',
                               minHeight: '50px'
                             }}
@@ -1175,16 +1272,17 @@ const ReportsPage = () => {
                       
                     </div> */}
                     {/* Comments Section */}
-                    <div style={styles.comments}>
+                    <div style={{ marginTop: activeLayout.comments.marginTop, borderTop: activeLayout.comments.borderTop, paddingTop: activeLayout.comments.paddingTop }}>
                       <CommentsSection
                         student={student}
                         division={isNursery ? nurseryOverallGrade : division}
                         nextTermBegins={nextTermBegins}
                         handleNextTermChange={handleNextTermChange}
+                        layout={activeLayout}
                       />
                     </div>
                     {/* Grade Table */}
-                    <GradeTable />
+                    <GradeTable layout={activeLayout} />
                     {/* Footer - Enhanced for clarity and style */}
                     {/* <div style={styles.footer}>
                       <div style={styles.divider}></div>
@@ -1325,178 +1423,9 @@ const ReportsPage = () => {
 export default ReportsPage;
 
 // Inline style objects (mimic old CSS)
-const styles = {
-  reportPage: {
-    pageBreakAfter: 'always',
-    background: '#fff',
-    boxShadow: '0 2px 8px #e6f0fa',
-    padding: '16px 18px',
-    borderRadius: 8,
-    maxWidth: 900,
-    margin: '0 auto 40px',
-    fontSize: 14,
-    fontFamily: "'Segoe UI', sans-serif",
-  } as React.CSSProperties,
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 10,
-    opacity: 0.8,
-    marginBottom: 0,
-    marginTop: 0,
-  } as React.CSSProperties,
-  blueBanner: {
-    backgroundColor: 'rgb(34, 139, 34)',
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: 'bold',
-    padding: 8,
-    marginTop: 8,
-    marginBottom: 4,
-  } as React.CSSProperties,
-  grayRibbon: {
-    position: 'relative',
-    background: 'linear-gradient(to right, #d3d3d3, #a9a9a9)',
-    color: '#000',
-    textAlign: 'center',
-    fontWeight: 'bold',
-    fontSize: 18,
-    padding: 4,
-    marginTop: 4,
-    marginBottom: 20,
-    marginLeft: '15%',
-    marginRight: '15%',
-    maxWidth: '70%',
-    justifyContent: 'center',
-  } as React.CSSProperties,
-  commentsCell: {
-    textAlign: 'left',
-    verticalAlign: 'top',
-    fontSize: 11,
-    padding: '8px',
-    fontWeight: 500,
-  } as React.CSSProperties,
-  studentDetails: {
-    display: 'flex',
-    gap: 5,
-    marginBottom: 2,
-    alignItems: 'center',
-  } as React.CSSProperties,
-  studentPhoto: {
-    width: 100,
-    height: 115,
-    objectFit: 'cover',
-    marginRight: 20,
-    border: '2px solid #eee',
-  } as React.CSSProperties,
-  barcodeCard: {
-    display: 'flex',
-    flexDirection: 'row',
-    padding: 0,
-    margin: 0,
-    gap: 2,
-    alignItems: 'center',
-  } as React.CSSProperties,
-  barcodeImg: {
-    width: 90,
-    height: 40,
-    marginRight: -30,
-    marginLeft: -20,
-    transform: 'rotate(270deg)',
-  } as React.CSSProperties,
-  barcodeVertical: {
-    fontSize: 15,
-    fontWeight: 500,
-    margin: 0,
-    transform: 'rotate(180deg)',
-    writingMode: 'vertical-rl' as any,
-  },
-  studentInfoContainer: {
-    display: 'flex',
-    flexDirection: 'row',
-    marginBottom: 0,
-    paddingBottom: 0,
-    borderBottom: '2px dashed #000',
-    fontSize: 18,
-  } as React.CSSProperties,
-  studentValue: {
-    color: '#d61515ff',
-    fontStyle: 'italic',
-    fontWeight: 'bolder',
-  } as React.CSSProperties,
-  comments: {
-    marginTop: 30,
-    borderTop: '2px dashed #999',
-    paddingTop: 15,
-  } as React.CSSProperties,
-  commentRibbon: {
-    display: 'inline-block',
-    position: 'relative',
-    background: 'rgb(145, 140, 140)',
-    color: '#000',
-    fontWeight: 'bold',
-    padding: '4px 18px 4px 10px',
-    borderRadius: '4px 0 0 4px',
-    marginRight: 18,
-    marginBottom: 8,
-    fontSize: 14,
-    borderTopRightRadius: '.4rem',
-    borderBottomRightRadius: '.4rem',
-  } as React.CSSProperties,
-  commentText: {
-    color: '#1a4be7',
-    fontStyle: 'italic',
-    borderBottom: '1.5px dashed #1a4be7',
-    textDecoration: 'none',
-    display: 'inline',
-    marginBottom: 0,
-    padding: 0,
-  } as React.CSSProperties,
-  gradeTable: {
-    marginTop: 20,
-    width: '100%',
-    borderCollapse: 'collapse' as any,
-    fontSize: 13,
-  },
-  gradeTh: {
-    background: '#f0f0f0',
-    border: '1px solid #04081a',
-    textAlign: 'center' as any,
-    padding: 6,
-  },
-  gradeTd: {
-    border: '1px solid #04081a',
-    textAlign: 'center' as any,
-    padding: 6,
-  },
-  studentTable: {
-    borderCollapse: 'collapse' as any,
-    width: '100%',
-    marginTop: 10,
-    fontSize: 14,
-  },
-  studentTh: {
-    border: '1px solid black',
-    padding: 6,
-    textAlign: 'center' as any,
-    background: '#f0f8ff',
-  },
-  studentTd: {
-    border: '1px solid black',
-    padding: 6,
-    textAlign: 'center' as any,
-  },
-  studentInfoBox: {
-    border: '2px solid #1a4be7',
-    borderRadius: 10,
-    padding: '18px 16px',
-    margin: '18px 0 18px 0',
-    background: '#f8faff',
-    boxShadow: '0 1px 6px #e6f0fa',
-  } as React.CSSProperties,
-};
+// NOTE: All layout now comes from the active ReportLayoutJSON template.
+// These legacy style references remain only for the tahfiz/reports page.
+// This file uses activeLayout from /api/report-templates/active instead.
 
 // Adjust division based on the presence of F9 grades
 function adjustDivisionForF9(division: string, grades: string[]): string {
@@ -1614,29 +1543,48 @@ function CommentsSection({
   division,
   nextTermBegins,
   handleNextTermChange,
+  layout,
 }: {
   student: any;
   division: string;
   nextTermBegins: string;
   handleNextTermChange: (newDate: string) => void;
+  layout: import('@/lib/reportTemplates').ReportLayoutJSON;
 }) {
   const divisionComments = getCommentsByDivision(division);
+  const ribbonStyle = {
+    display: 'inline-block',
+    position: 'relative' as const,
+    background: layout.comments.ribbon.background,
+    color: layout.comments.ribbon.color,
+    fontWeight: 'bold',
+    padding: layout.comments.ribbon.padding,
+    borderRadius: layout.comments.ribbon.borderRadius,
+    marginRight: 18,
+    marginBottom: 8,
+    fontSize: 14,
+  };
+  const textStyle = {
+    color: layout.comments.text.color,
+    fontStyle: layout.comments.text.fontStyle as any,
+    borderBottom: layout.comments.text.borderBottom,
+  };
   
   return (
     <div style={{ marginTop: '1%' }}>
       Comments/Remarks
       <div style={{ marginTop: 2 }}>
         <div style={{ marginBottom: 10, width: '100%' }}>
-          <span style={styles.commentRibbon}>Class Teacher&apos;s Comment:</span>
-          <span style={styles.commentText}>{student.class_teacher_comment || divisionComments.classTeacher}</span>
+          <span style={ribbonStyle}>Class Teacher&apos;s Comment:</span>
+          <span style={textStyle}>{student.class_teacher_comment || divisionComments.classTeacher}</span>
         </div>
         <div style={{ marginBottom: 10 }}>
-          <span style={styles.commentRibbon}>DOS Comment:</span>
-          <span style={styles.commentText}>{student.dos_comment || divisionComments.dos}</span>
+          <span style={ribbonStyle}>DOS Comment:</span>
+          <span style={textStyle}>{student.dos_comment || divisionComments.dos}</span>
         </div>
         <div style={{ marginBottom: 10 }}>
-          <span style={styles.commentRibbon}>Headteacher&apos;s Comment:</span>
-          <span style={styles.commentText}>{student.headteacher_comment || divisionComments.headteacher}</span>
+          <span style={ribbonStyle}>Headteacher&apos;s Comment:</span>
+          <span style={textStyle}>{student.headteacher_comment || divisionComments.headteacher}</span>
         </div>
         <div
           contentEditable
@@ -1653,34 +1601,45 @@ function CommentsSection({
 }
 
 // Grade table as a component
-function GradeTable() {
+function GradeTable({ layout }: { layout: import('@/lib/reportTemplates').ReportLayoutJSON }) {
+  const thStyle = {
+    background: layout.gradeTable.th.background,
+    border: layout.gradeTable.th.border,
+    textAlign: layout.gradeTable.th.textAlign as any,
+    padding: layout.gradeTable.th.padding,
+  };
+  const tdStyle = {
+    border: layout.gradeTable.td.border,
+    textAlign: layout.gradeTable.td.textAlign as any,
+    padding: layout.gradeTable.td.padding,
+  };
   return (
-    <div style={styles.gradeTable}>
+    <div style={{ marginTop: 20, width: '100%', fontSize: 13 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr>
-            <th style={styles.gradeTh}>GRADE</th>
-            <th style={styles.gradeTh}>D1</th>
-            <th style={styles.gradeTh}>D2</th>
-            <th style={styles.gradeTh}>C3</th>
-            <th style={styles.gradeTh}>C4</th>
-            <th style={styles.gradeTh}>C5</th>
-            <th style={styles.gradeTh}>C6</th>
-            <th style={styles.gradeTh}>P7</th>
-            <th style={styles.gradeTh}>P8</th>
-            <th style={styles.gradeTh}>F9</th>
+            <th style={thStyle}>GRADE</th>
+            <th style={thStyle}>D1</th>
+            <th style={thStyle}>D2</th>
+            <th style={thStyle}>C3</th>
+            <th style={thStyle}>C4</th>
+            <th style={thStyle}>C5</th>
+            <th style={thStyle}>C6</th>
+            <th style={thStyle}>P7</th>
+            <th style={thStyle}>P8</th>
+            <th style={thStyle}>F9</th>
           </tr>
           <tr>
-            <td style={styles.gradeTd}>SCORE RANGE</td>
-            <td style={styles.gradeTd}>90–100</td>
-            <td style={styles.gradeTd}>80–89</td>
-            <td style={styles.gradeTd}>70–79</td>
-            <td style={styles.gradeTd}>60–69</td>
-            <td style={styles.gradeTd}>50–59</td>
-            <td style={styles.gradeTd}>44–49</td>
-            <td style={styles.gradeTd}>40–43</td>
-            <td style={styles.gradeTd}>34–39</td>
-            <td style={styles.gradeTd}>0–33</td>
+            <td style={tdStyle}>SCORE RANGE</td>
+            <td style={tdStyle}>90–100</td>
+            <td style={tdStyle}>80–89</td>
+            <td style={tdStyle}>70–79</td>
+            <td style={tdStyle}>60–69</td>
+            <td style={tdStyle}>50–59</td>
+            <td style={tdStyle}>44–49</td>
+            <td style={tdStyle}>40–43</td>
+            <td style={tdStyle}>34–39</td>
+            <td style={tdStyle}>0–33</td>
           </tr>
         </tbody>
       </table>

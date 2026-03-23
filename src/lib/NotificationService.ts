@@ -109,14 +109,16 @@ export class NotificationService {
   }
 
   /**
-   * Create notification from template
+   * Create notification from template.
+   * Returns null (and logs a warning) if the template does not exist —
+   * the caller must NOT crash on a missing template.
    */
   async createFromTemplate(
     templateCode: string, 
     variables: Record<string, unknown>, 
     recipients: number[], 
     overrides: Partial<NotificationData> = {}
-  ): Promise<{ notification_id: number; delivered: number }> {
+  ): Promise<{ notification_id: number; delivered: number } | null> {
     let connection;
     
     try {
@@ -131,7 +133,11 @@ export class NotificationService {
       `, [templateCode, overrides.school_id || null]);
 
       if (!Array.isArray(templates) || templates.length === 0) {
-        throw new Error(`Template not found: ${templateCode}`);
+        // Template missing — warn and return null.  Never throw here so callers
+        // never crash due to a missing optional template.
+        console.warn(`[NotificationService] Template not found: "${templateCode}". ` +
+          'Run migration 020_fix_enrollments_complete.sql to seed system templates.');
+        return null;
       }
 
       const template = templates[0];
@@ -150,7 +156,8 @@ export class NotificationService {
       });
     } catch (error) {
       console.error('NotificationService.createFromTemplate error:', error);
-      throw error;
+      // Do not re-throw — notification failures must never crash main requests
+      return null;
     } finally {
       if (connection) await connection.end();
     }
@@ -372,8 +379,10 @@ export class NotificationService {
         );
       }
     } catch (error) {
-      // Template might not exist, that's okay for auto-logging
-      console.debug(`Auto-log skipped for action ${context.action}:`, error.message);
+      // createFromTemplate already returns null on missing template, so this
+      // catch handles unexpected errors only.
+      console.debug(`Auto-log skipped for action ${context.action}:`,
+        error instanceof Error ? error.message : String(error));
     }
   }
 

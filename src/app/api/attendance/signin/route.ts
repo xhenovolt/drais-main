@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * Sign In API Route
@@ -16,6 +17,10 @@ import { getConnection } from '@/lib/db';
  */
 
 export async function POST(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection = null;
   
   try {
@@ -188,6 +193,10 @@ export async function POST(req: NextRequest) {
 
 // GET handler for retrieving sign-in status
 export async function GET(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   const { searchParams } = new URL(req.url);
   const student_id = searchParams.get('student_id');
   const class_id = searchParams.get('class_id');

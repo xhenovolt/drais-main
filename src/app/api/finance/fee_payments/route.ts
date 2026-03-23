@@ -24,7 +24,9 @@ export async function GET(req: NextRequest){
   if(student_id){ where.push('fp.student_id=?'); params.push(student_id); }
   if(term_id){ where.push('fp.term_id=?'); params.push(term_id); }
   const whereSql = where.length? 'WHERE '+where.join(' AND '):'';
-  const [rows] = await conn.execute(`SELECT fp.id,fp.student_id,fp.term_id,fp.wallet_id,fp.amount,fp.method,fp.paid_by,fp.receipt_no,fp.created_at,p.first_name,p.last_name FROM fee_payments fp JOIN students s ON s.id=fp.student_id JOIN people p ON p.id=s.person_id ${whereSql} ORDER BY fp.id DESC LIMIT ? OFFSET ?`,[...params,per_page,offset]);
+  const safeLimit = Math.max(1, Math.min(200, isNaN(per_page) ? 25 : per_page));
+  const safeOffset = Math.max(0, isNaN(offset) ? 0 : offset);
+  const [rows] = await conn.execute(`SELECT fp.id,fp.student_id,fp.term_id,fp.wallet_id,fp.amount,fp.method,fp.paid_by,fp.receipt_no,fp.created_at,p.first_name,p.last_name FROM fee_payments fp JOIN students s ON s.id=fp.student_id JOIN people p ON p.id=s.person_id ${whereSql} ORDER BY fp.id DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,[...params]);
   const [[countRow]]: any = await conn.execute(`SELECT COUNT(*) total FROM fee_payments fp ${whereSql}`,params);
   await conn.end();
   return NextResponse.json({ data: rows, total: countRow.total });

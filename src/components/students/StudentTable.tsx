@@ -145,9 +145,12 @@ export const StudentTable: React.FC = () => {
   const rowsPerPage = 10;
 
   // Data processing - single source of truth
-  const uniqueRows = rows.filter(
-    (student, index, self) => self.findIndex((s) => s.id === student.id) === index
-  );
+  const uniqueRows = rows
+    .filter((student, index, self) => self.findIndex((s) => s.id === student.id) === index)
+    .sort((a, b) =>
+      (a.last_name ?? '').localeCompare(b.last_name ?? '', undefined, { sensitivity: 'base' }) ||
+      (a.first_name ?? '').localeCompare(b.first_name ?? '', undefined, { sensitivity: 'base' })
+    );
   
   // Apply alphabetical filter
   const filteredByLetter = selectedLetter

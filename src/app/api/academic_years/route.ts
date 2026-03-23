@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
       `SELECT id, school_id, name, start_date, end_date, status
        FROM academic_years
        WHERE school_id = ?
+         AND deleted_at IS NULL
        ORDER BY start_date DESC, id DESC`,
       [schoolId]
     );

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
@@ -169,7 +170,7 @@ export async function POST(
 
 async function submitSession(
   req: NextRequest,
-  params: { params: Promise<{ id: string }> }
+  params: Promise<{ id: string }>
 ) {
   let connection;
   try {
@@ -212,7 +213,7 @@ async function submitSession(
 
 async function lockSession(
   req: NextRequest,
-  params: { params: Promise<{ id: string }> }
+  params: Promise<{ id: string }>
 ) {
   let connection;
   try {
@@ -255,7 +256,7 @@ async function lockSession(
 
 async function finalizeSession(
   req: NextRequest,
-  params: { params: Promise<{ id: string }> }
+  params: Promise<{ id: string }>
 ) {
   let connection;
   try {

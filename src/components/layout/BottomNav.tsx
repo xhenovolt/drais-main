@@ -61,6 +61,7 @@ import {
 	Layers,
 	Landmark,
 	Receipt,
+	LifeBuoy,
 } from "lucide-react";
 import clsx from "clsx";
 import React, { useState } from "react";
@@ -156,9 +157,6 @@ const navigationCategories = [
 		],
 	},
 ];
-
-// Simple placeholder icon for LifeBuoy
-const LifeBuoy = () => <HelpCircle className="w-4 h-4" />;
 
 export const BottomNav: React.FC = () => {
 	const pathname = usePathname();

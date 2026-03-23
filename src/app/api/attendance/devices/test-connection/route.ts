@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * POST /api/attendance/devices/test-connection
@@ -15,6 +16,10 @@ import { getConnection } from '@/lib/db';
  * - api_url: string (optional, for Dahua)
  */
 export async function POST(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const body = await req.json();

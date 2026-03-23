@@ -23,7 +23,9 @@ export async function GET(req: NextRequest){
   if(unbalanced){ where.push('(sfi.amount - sfi.discount - sfi.paid) > 0'); }
   const whereSql = where.length? 'WHERE '+where.join(' AND '):'';
   const conn = await getConnection();
-  const [rows]:any = await conn.execute(`SELECT sfi.id,sfi.student_id,sfi.term_id,sfi.item,sfi.amount,sfi.discount,sfi.paid,sfi.balance,p.first_name,p.last_name FROM student_fee_items sfi JOIN students st ON st.id=sfi.student_id JOIN people p ON p.id=st.person_id ${whereSql} ORDER BY sfi.id DESC LIMIT ? OFFSET ?`,[...params,per_page,offset]);
+  const safeLimit = Math.max(1, Math.min(200, isNaN(per_page) ? 50 : per_page));
+  const safeOffset = Math.max(0, isNaN(offset) ? 0 : offset);
+  const [rows]:any = await conn.execute(`SELECT sfi.id,sfi.student_id,sfi.term_id,sfi.item,sfi.amount,sfi.discount,sfi.paid,sfi.balance,p.first_name,p.last_name FROM student_fee_items sfi JOIN students st ON st.id=sfi.student_id JOIN people p ON p.id=st.person_id ${whereSql} ORDER BY sfi.id DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,[...params]);
   const [[countRow]]:any = await conn.execute(`SELECT COUNT(*) total FROM student_fee_items sfi ${whereSql}`,params);
   await conn.end();
   return NextResponse.json({ data: rows, total: countRow.total });

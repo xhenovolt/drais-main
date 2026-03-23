@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'School ID required' }, { status: 400 });
     }
 
-    const config = await deviceConnectionManager.loadDeviceConfig(parseInt(schoolId));
+    const config = await deviceConnectionManager.loadDeviceConfig(schoolId);
 
     if (!config) {
       return NextResponse.json({ success: true, configured: false, data: null });
@@ -196,7 +196,7 @@ export async function DELETE(req: NextRequest) {
 
     // TODO: Implement DELETE logic in DeviceConnectionManager
     // For now, we just stop monitoring
-    const config = await deviceConnectionManager.loadDeviceConfig(parseInt(schoolId));
+    const config = await deviceConnectionManager.loadDeviceConfig(schoolId);
     if (config) {
       deviceConnectionManager.stopHeartbeatMonitoring(config.id);
     }

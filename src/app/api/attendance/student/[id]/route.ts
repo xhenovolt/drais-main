@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -15,6 +16,10 @@ interface RouteParams {
  * - limit: number - number of records to return
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const { id } = await params;

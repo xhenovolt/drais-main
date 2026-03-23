@@ -29,6 +29,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/health',
+  '/api/feature-flags',
 ];
 
 /**

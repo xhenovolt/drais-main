@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 /**
  * GET /api/attendance/devices/logs
@@ -16,6 +17,10 @@ import { getConnection } from '@/lib/db';
  * - limit: number (default 50)
  */
 export async function GET(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const { searchParams } = new URL(req.url);
@@ -131,6 +136,10 @@ export async function GET(req: NextRequest) {
  * Export device logs as CSV
  */
 export async function POST(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const body = await req.json();
