@@ -1,0 +1,49 @@
+
+🚀 NORTHGATE SCHOOL COMPREHENSIVE DATA MIGRATION
+
+Started: 2026-03-24T02:21:19.028Z
+[02:21:20] ✅ Connected to TiDB database
+[02:21:20] 🔹 STEP 1 - DATA EXTRACTION: Reading and parsing SQL file
+[02:21:20] ✅ ✓ Extracted 0 learner records
+[02:21:20] 🔹 STEP 0 - DATA CLEANING: Removing specified learners
+[02:21:20] ⚠️ No learners matched removal criteria
+[02:21:20] 🔹 STEP 1B - NORMALIZATION: Removing duplicates and normalizing
+[02:21:20] 🔹 STEP 2 - INSERT INTO SYSTEM: Creating learner records in TiDB
+[02:21:20] ✅ ✓ Inserted 0/0 learners into DRAIS
+[02:21:20] 🔹 STEP 3 - ENROLLMENTS: Creating Term 2 & 3 enrollments for 2025
+[02:21:20] ✅ ✓ Created 0 enrollments (2 per learner for Terms 2 & 3)
+[02:21:20] 🔹 STEP 4 - RESULTS TERM 2: Inserting subject results
+[02:21:21] ✅ ✓ Inserted 0 results for Term 2
+[02:21:21] 🔹 STEP 5 - RESULTS TERM 3: Inserting subject results
+[02:21:21] ✅ ✓ Inserted 0 results for Term 3
+[02:21:21] 🔹 STEP 6 - GRADUATION: Marking P7 learners as graduated
+[02:21:21] ⚠️ No P7 learners found to graduate
+[02:21:21] 🔹 STEP 7 - PROMOTION: Promoting non-P7 learners for 2026
+[02:21:21] ✅ ✓ Promoted 0 learners to 2026 classes
+[02:21:21] 🔹 STEP 8 - VALIDATION: Performing data integrity checks
+[02:21:21] ❌ Validation check failed: Table 'drais.learners' doesn't exist
+
+
+╔════════════════════════════════════════════════════════╗
+║  🎓 NORTHGATE SCHOOL - MIGRATION COMPLETE REPORT       ║
+╚════════════════════════════════════════════════════════╝
+
+📊 MIGRATION STATISTICS:
+   Learners extracted:           0
+   Learners removed:             0
+   Learners inserted:            0
+   Enrollments created:          0
+   Results inserted:             0
+   P7 graduated:                 0
+   Promoted to 2026:             0
+
+⚠️  WARNINGS (2):
+   - No learners matched removal criteria
+   - No P7 learners found to graduate
+
+❌ ERRORS (1):
+   - Validation check failed: Table 'drais.learners' doesn't exist
+
+STATUS: ⚠️ REVIEW REQUIRED
+
+[02:21:21] ✅ Completed: 2026-03-24T02:21:21.743Z

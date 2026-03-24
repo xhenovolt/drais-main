@@ -1,21 +1,41 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
-export async function GET() {
+/**
+ * SECURITY: PHASE 2A FIX - Class Results Report
+ * GET /api/reports/classresults
+ * 
+ * Returns class results for authenticated user's school only:
+ * - Requires authentication (session.schoolId)
+ * - Filters ALL queries by school_id
+ * - Prevents cross-school data leakage
+ */
+export async function GET(req: NextRequest) {
   let connection;
   try {
+    // SECURITY: Enforce authentication
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     connection = await getConnection();
 
-    // Fetch school info from database
+    // Fetch school info from database (for current school only)
     let schoolInfo = { name: 'School', address: '' };
     try {
-      const [schools]: any = await connection.execute('SELECT name, address FROM schools WHERE id = 1 LIMIT 1');
+      const [schools]: any = await connection.execute(
+        'SELECT name, address FROM schools WHERE id = ? LIMIT 1',
+        [schoolId]
+      );
       if (schools.length > 0) {
         schoolInfo = { name: schools[0].name || 'School', address: schools[0].address || '' };
       }
     } catch (e) { /* use default */ }
 
-    // Fetch class results grouped by student
+    // SECURITY: Fetch class results ONLY for current school
     const [results]: any = await connection.execute(
       `SELECT 
         students.id AS student_id,
@@ -33,8 +53,9 @@ export async function GET() {
       JOIN people ON students.person_id = people.id
       LEFT JOIN branches ON students.village_id = branches.id
       JOIN subjects ON class_results.subject_id = subjects.id
-      WHERE students.deleted_at IS NULL
-      ORDER BY students.id`
+      WHERE students.deleted_at IS NULL AND students.school_id = ?
+      ORDER BY students.id`,
+      [schoolId]  // SECURITY: Filter by school_id
     );
 
     // Map results to custom type and group by student
