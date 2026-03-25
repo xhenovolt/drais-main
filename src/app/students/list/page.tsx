@@ -22,6 +22,17 @@ import {
 } from 'lucide-react';
 import { useExport } from '@/hooks/useExport';
 import { toast } from 'react-hot-toast';
+import { 
+  safeArray, 
+  safeString, 
+  safeMultiFieldFilter,
+  scopedLogger,
+  standardizeResponse,
+  assertArray,
+} from '@/lib/safety';
+
+// Scoped logger for this module
+const logger = scopedLogger('StudentsList');
 
 // Interfaces
 interface Student {
@@ -105,6 +116,7 @@ export default function StudentsListPage() {
   }, []);
 
   const loadOptions = async () => {
+    logger.log('Loading dropdown options...');
     try {
       const [classRes, streamRes, progRes, modeRes, yearRes, termRes] = await Promise.all([
         fetch('/api/classes'),
@@ -115,14 +127,73 @@ export default function StudentsListPage() {
         fetch('/api/terms'),
       ]);
 
-      if (classRes.ok) setClasses(await classRes.json());
-      if (streamRes.ok) setStreams(await streamRes.json());
-      if (progRes.ok) setPrograms(await progRes.json());
-      if (modeRes.ok) setStudyModes(await modeRes.json());
-      if (yearRes.ok) setAcademicYears(await yearRes.json());
-      if (termRes.ok) setTerms(await termRes.json());
+      // Safely handle all responses
+      if (classRes.ok) {
+        const classData = await classRes.json();
+        const normalizedClasses = standardizeResponse<SelectOption>(classData);
+        setClasses(normalizedClasses.data);
+        logger.debug('[Classes]', normalizedClasses.data);
+      } else {
+        logger.warn('Failed to fetch classes:', classRes.status);
+        setClasses([]);
+      }
+
+      if (streamRes.ok) {
+        const streamData = await streamRes.json();
+        const normalizedStreams = standardizeResponse<SelectOption>(streamData);
+        setStreams(normalizedStreams.data);
+        logger.debug('[Streams]', normalizedStreams.data);
+      } else {
+        setStreams([]);
+      }
+
+      if (progRes.ok) {
+        const progData = await progRes.json();
+        const normalizedPrograms = standardizeResponse<SelectOption>(progData);
+        setPrograms(normalizedPrograms.data);
+        logger.debug('[Programs]', normalizedPrograms.data);
+      } else {
+        setPrograms([]);
+      }
+
+      if (modeRes.ok) {
+        const modeData = await modeRes.json();
+        const normalizedModes = standardizeResponse<SelectOption>(modeData);
+        setStudyModes(normalizedModes.data);
+        logger.debug('[StudyModes]', normalizedModes.data);
+      } else {
+        setStudyModes([]);
+      }
+
+      if (yearRes.ok) {
+        const yearData = await yearRes.json();
+        const normalizedYears = standardizeResponse<SelectOption>(yearData);
+        setAcademicYears(normalizedYears.data);
+        logger.debug('[AcademicYears]', normalizedYears.data);
+      } else {
+        setAcademicYears([]);
+      }
+
+      if (termRes.ok) {
+        const termData = await termRes.json();
+        const normalizedTerms = standardizeResponse<SelectOption>(termData);
+        setTerms(normalizedTerms.data);
+        logger.debug('[Terms]', normalizedTerms.data);
+      } else {
+        setTerms([]);
+      }
+
+      logger.log('✅ All dropdown options loaded');
     } catch (error) {
-      console.error('Failed to load options:', error);
+      logger.error('Failed to load options:', error);
+      // Set empty arrays on error
+      setClasses([]);
+      setStreams([]);
+      setPrograms([]);
+      setStudyModes([]);
+      setAcademicYears([]);
+      setTerms([]);
+      toast.error('Failed to load form options');
     }
   };
 
@@ -135,23 +206,43 @@ export default function StudentsListPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ search });
+      logger.log('Fetching students with search:', search);
       
       // Fetch enrolled students
       const enrolledRes = await fetch(`/api/students/enrolled?${params}`);
       if (enrolledRes.ok) {
         const enrolledData = await enrolledRes.json();
-        setEnrolledStudents(enrolledData.data || []);
+        const normalizedEnrolled = standardizeResponse<EnrolledStudent>(enrolledData);
+        const safeEnroled = assertArray(normalizedEnrolled.data, 'Enrolled students', logger)
+          ? normalizedEnrolled.data
+          : [];
+        setEnrolledStudents(safeEnroled);
+        logger.debug('[Enrolled Students]', safeEnroled.length, 'records');
+      } else {
+        logger.warn('Enrolled fetch failed:', enrolledRes.status);
+        setEnrolledStudents([]);
       }
 
       // Fetch admitted students (no enrollment)
       const admittedRes = await fetch(`/api/students/admitted?${params}`);
       if (admittedRes.ok) {
         const admittedData = await admittedRes.json();
-        setAdmittedStudents(admittedData.data || []);
+        const normalizedAdmitted = standardizeResponse<Student>(admittedData);
+        const safeAdmitted = assertArray(normalizedAdmitted.data, 'Admitted students', logger)
+          ? normalizedAdmitted.data
+          : [];
+        setAdmittedStudents(safeAdmitted);
+        logger.debug('[Admitted Students]', safeAdmitted.length, 'records');
+      } else {
+        logger.warn('Admitted fetch failed:', admittedRes.status);
+        setAdmittedStudents([]);
       }
     } catch (error) {
-      console.error('Failed to fetch students:', error);
+      logger.error('Failed to fetch students:', error);
       toast.error('Failed to load students');
+      // Set empty arrays on error
+      setEnrolledStudents([]);
+      setAdmittedStudents([]);
     } finally {
       setLoading(false);
     }
@@ -271,12 +362,15 @@ export default function StudentsListPage() {
   };
 
   const currentData = activeTab === 'enrolled' ? enrolledStudents : admittedStudents;
-  const displayedData = currentData.filter(s =>
-    search === '' || 
-    s.first_name.toLowerCase().includes(search.toLowerCase()) ||
-    s.last_name.toLowerCase().includes(search.toLowerCase()) ||
-    s.admission_no.toLowerCase().includes(search.toLowerCase())
+  
+  // Safe search filter using utility function
+  const displayedData = safeMultiFieldFilter(
+    currentData,
+    search,
+    ['first_name', 'last_name', 'admission_no']
   );
+
+  logger.debug('Displayed data:', displayedData.length, 'of', currentData.length);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -469,19 +563,19 @@ function StudentCard({
             {student.photo_url ? (
               <img
                 src={student.photo_url}
-                alt={`${student.first_name} ${student.last_name}`}
+                alt={`${safeString(student.first_name)} ${safeString(student.last_name)}`}
                 className="w-10 h-10 rounded-full object-cover"
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                {student.first_name[0]}{student.last_name[0]}
+                {safeString(student.first_name)[0] || '?'}{safeString(student.last_name)[0] || '?'}
               </div>
             )}
             <div>
               <h3 className="font-semibold text-gray-900">
-                {student.first_name} {student.last_name}
+                {safeString(student.first_name)} {safeString(student.last_name)}
               </h3>
-              <p className="text-sm text-gray-500">{student.admission_no}</p>
+              <p className="text-sm text-gray-500">{safeString(student.admission_no)}</p>
             </div>
           </div>
 
@@ -495,20 +589,24 @@ function StudentCard({
               <div>
                 <p className="text-xs text-gray-500 font-medium">PROGRAMS</p>
                 <div className="flex gap-1 flex-wrap mt-1">
-                  {enrolled.programs?.map((p) => (
-                    <span key={p.id} className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                      {p.name}
-                    </span>
-                  )) || <p className="text-sm text-gray-600">-</p>}
+                  {safeArray(enrolled.programs).length > 0 ? (
+                    safeArray(enrolled.programs).map((p) => (
+                      <span key={p.id} className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                        {safeString(p.name)}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-600">-</p>
+                  )}
                 </div>
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-medium">STUDY MODE</p>
-                <p className="text-sm font-medium text-gray-900">{enrolled.study_mode_name || '-'}</p>
+                <p className="text-sm font-medium text-gray-900">{safeString(enrolled.study_mode_name) || '-'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-medium">ACADEMIC YEAR</p>
-                <p className="text-sm font-medium text-gray-900">{enrolled.academic_year_name}</p>
+                <p className="text-sm font-medium text-gray-900">{safeString(enrolled.academic_year_name)}</p>
               </div>
             </div>
           )}
@@ -604,6 +702,22 @@ function EnrollmentModal({
   terms,
   toggleProgram,
 }: EnrollmentModalProps) {
+  // Safety check: ensure all arrays are valid
+  const modalLogger = scopedLogger('EnrollmentModal');
+  
+  // Defensive array checks
+  const safeClasses = Array.isArray(classes) ? classes : [];
+  const safeStreams = Array.isArray(streams) ? streams : [];
+  const safePrograms = Array.isArray(programs) ? programs : [];
+  const safeStudyModes = Array.isArray(studyModes) ? studyModes : [];
+  const safeAcademicYears = Array.isArray(academicYears) ? academicYears : [];
+  const safeTerms = Array.isArray(terms) ? terms : [];
+
+  // Log any missing data
+  if (!assertArray(safeClasses, 'classes', modalLogger)) {
+    modalLogger.error('Classes array is invalid, will show fallback UI');
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -634,12 +748,18 @@ function EnrollmentModal({
               value={form.class_id}
               onChange={(e) => setForm({ ...form, class_id: parseInt(e.target.value) })}
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={safeClasses.length === 0}
             >
-              <option value={0}>Select Class</option>
-              {classes?.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              <option value={0}>
+                {safeClasses.length === 0 ? '⚠️ No classes available' : 'Select Class'}
+              </option>
+              {safeClasses.map(c => (
+                <option key={c.id} value={c.id}>{safeString(c.name)}</option>
               ))}
             </select>
+            {safeClasses.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">No classes configured. Contact administrator.</p>
+            )}
           </div>
 
           {/* Stream Selection */}
@@ -651,8 +771,8 @@ function EnrollmentModal({
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={0}>No Stream</option>
-              {streams?.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {safeStreams.map(s => (
+                <option key={s.id} value={s.id}>{safeString(s.name)}</option>
               ))}
             </select>
           </div>
@@ -663,19 +783,25 @@ function EnrollmentModal({
               Programs <span className="text-red-600">*</span>
             </label>
             <p className="text-xs text-gray-600 mb-3">Select at least one program</p>
-            <div className="grid grid-cols-2 gap-3">
-              {programs?.map(p => (
-                <label key={p.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.program_ids.includes(p.id)}
-                    onChange={() => toggleProgram(p.id)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm font-medium text-gray-900">{p.name}</span>
-                </label>
-              ))}
-            </div>
+            {safePrograms.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {safePrograms.map(p => (
+                  <label key={p.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.program_ids.includes(p.id)}
+                      onChange={() => toggleProgram(p.id)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-900">{safeString(p.name)}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-700">⚠️ No programs available. Configure programs first.</p>
+              </div>
+            )}
           </div>
 
           {/* Study Mode Selection */}
@@ -683,21 +809,27 @@ function EnrollmentModal({
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Study Mode <span className="text-red-600">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              {studyModes?.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setForm({ ...form, study_mode_id: m.id })}
-                  className={`p-3 border rounded-lg font-medium transition-colors ${
-                    form.study_mode_id === m.id
-                      ? 'border-blue-600 bg-blue-50 text-blue-600'
-                      : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {m.name}
-                </button>
-              ))}
-            </div>
+            {safeStudyModes.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {safeStudyModes.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setForm({ ...form, study_mode_id: m.id })}
+                    className={`p-3 border rounded-lg font-medium transition-colors ${
+                      form.study_mode_id === m.id
+                        ? 'border-blue-600 bg-blue-50 text-blue-600'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {safeString(m.name)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-700">⚠️ No study modes available. Configure study modes first.</p>
+              </div>
+            )}
           </div>
 
           {/* Academic Year Selection */}
@@ -709,12 +841,18 @@ function EnrollmentModal({
               value={form.academic_year_id}
               onChange={(e) => setForm({ ...form, academic_year_id: parseInt(e.target.value) })}
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={safeAcademicYears.length === 0}
             >
-              <option value={0}>Select Academic Year</option>
-              {academicYears?.map(y => (
-                <option key={y.id} value={y.id}>{y.name}</option>
+              <option value={0}>
+                {safeAcademicYears.length === 0 ? '⚠️ No academic years available' : 'Select Academic Year'}
+              </option>
+              {safeAcademicYears.map(y => (
+                <option key={y.id} value={y.id}>{safeString(y.name)}</option>
               ))}
             </select>
+            {safeAcademicYears.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">No academic years configured. Contact administrator.</p>
+            )}
           </div>
 
           {/* Term Selection */}
@@ -726,12 +864,18 @@ function EnrollmentModal({
               value={form.term_id}
               onChange={(e) => setForm({ ...form, term_id: parseInt(e.target.value) })}
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={safeTerms.length === 0}
             >
-              <option value={0}>Select Term</option>
-              {terms?.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              <option value={0}>
+                {safeTerms.length === 0 ? '⚠️ No terms available' : 'Select Term'}
+              </option>
+              {safeTerms.map(t => (
+                <option key={t.id} value={t.id}>{safeString(t.name)}</option>
               ))}
             </select>
+            {safeTerms.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">No terms configured. Contact administrator.</p>
+            )}
           </div>
         </div>
 
