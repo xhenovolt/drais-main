@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
           `INSERT INTO enrollments 
            (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status, enrollment_date)
            VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
-          [schoolId, studentId, enrollClassId, enrollStreamId, currentTerm.academicYearId, currentTerm.termId]
+          [schoolId, studentId, enrollClassId, enrollStreamId, currentTerm.academic_year_id, currentTerm.id]
         );
 
         enrolled++;
@@ -98,11 +98,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Enrolled ${enrolled} students in ${currentTerm.termName}`,
+      message: `Enrolled ${enrolled} students in ${currentTerm.name}`,
       enrolled,
       failed,
-      academic_year: currentTerm.academicYearName,
-      term: currentTerm.termName
+      academic_year: currentTerm.academic_year_name,
+      term: currentTerm.name
     });
   } catch (error) {
     console.error('Bulk enroll error:', error);

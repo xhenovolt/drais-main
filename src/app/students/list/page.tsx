@@ -15,8 +15,13 @@ import {
   AlertCircle,
   CheckSquare,
   Square,
-  Plus
+  Plus,
+  Download,
+  Filter,
+  FileText,
+  Sheet3
 } from 'lucide-react';
+import { useExport } from '@/hooks/useExport';
 
 interface Student {
   id: number;
@@ -36,6 +41,8 @@ interface Student {
 }
 
 export default function StudentsListPage() {
+  const { exportAsCSV, exportAsExcel, exporting } = useExport();
+  
   const [students, setStudents] = useState<Student[]>([]);
   const [total, setTotal] = useState(0);
   const [page,setPage] = useState(1);
@@ -45,6 +52,7 @@ export default function StudentsListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null);
   const [bulkActioning, setBulkActioning] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const limit = 50;
   const pages = Math.ceil(total / limit);
@@ -122,6 +130,30 @@ export default function StudentsListPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    const dataToExport = students.map(s => ({
+      'Admission No': s.admission_no,
+      'First Name': s.first_name,
+      'Last Name': s.last_name,
+      'Class': s.class_name || '-',
+      'Status': s.status,
+    }));
+    exportAsCSV(dataToExport, `students_${statusFilter}`, ['Admission No', 'First Name', 'Last Name', 'Class', 'Status']);
+    setShowExportMenu(false);
+  };
+
+  const handleExportExcel = () => {
+    const dataToExport = students.map(s => ({
+      'Admission No': s.admission_no,
+      'First Name': s.first_name,
+      'Last Name': s.last_name,
+      'Class': s.class_name || '-',
+      'Status': s.status,
+    }));
+    exportAsExcel(dataToExport, `students_${statusFilter}`, ['Admission No', 'First Name', 'Last Name', 'Class', 'Status'], 'Student List');
+    setShowExportMenu(false);
+  };
+
   const getStatusBadge = (status: string, leftAt?: string) => {
     const badges: Record<string, {bg: string; text: string}> = {
       active: { bg: 'bg-green-100', text: 'text-green-800' },
@@ -154,9 +186,40 @@ export default function StudentsListPage() {
               >
                 <Plus size={18} /> Bulk Import
               </Link>
+              
+              {/* Export Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+                >
+                  <Download size={18} /> Export
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50 overflow-hidden">
+                    <button
+                      onClick={handleExportCSV}
+                      disabled={exporting}
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <FileText size={16} />
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={handleExportExcel}
+                      disabled={exporting}
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t disabled:opacity-50"
+                    >
+                      <Sheet3 size={16} />
+                      Export as Excel
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <Link
                 href="/students/admit"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium"
               >
                 + Add Student
               </Link>
