@@ -309,6 +309,38 @@ export default function StudentsListPage() {
     }));
   };
 
+  // Delete student handler
+  const handleDeleteStudent = async (studentId: number) => {
+    const student = admittedStudents.find(s => s.id === studentId);
+    if (!student) return;
+
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${safeString(student.first_name)} ${safeString(student.last_name)}? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/students/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: studentId }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Student deleted successfully');
+        // Refresh the list
+        fetchStudents();
+      } else {
+        toast.error(data.message || 'Failed to delete student');
+      }
+    } catch (error) {
+      logger.error('Delete error:', error);
+      toast.error('Failed to delete student');
+    }
+  };
+
   // Selection handlers
   const handleSelectAll = () => {
     const currentList = activeTab === 'enrolled' ? enrolledStudents : admittedStudents;
@@ -495,6 +527,7 @@ export default function StudentsListPage() {
                 onSelect={() => handleSelectStudent(student.id)}
                 isEnrolled={activeTab === 'enrolled'}
                 onEnroll={() => openEnrollModal(student)}
+                onDelete={() => handleDeleteStudent(student.id)}
               />
             ))}
           </div>
@@ -530,6 +563,7 @@ interface StudentCardProps {
   onSelect: () => void;
   isEnrolled: boolean;
   onEnroll?: () => void;
+  onDelete?: () => void;
 }
 
 function StudentCard({
@@ -538,6 +572,7 @@ function StudentCard({
   onSelect,
   isEnrolled,
   onEnroll,
+  onDelete,
 }: StudentCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const enrolled = student as EnrolledStudent;
@@ -638,12 +673,21 @@ function StudentCard({
               </button>
             </div>
           ) : (
-            <button
-              onClick={onEnroll}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors"
-            >
-              <Plus size={16} /> Enroll
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={onEnroll}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors"
+              >
+                <Plus size={16} /> Enroll
+              </button>
+              <button
+                onClick={onDelete}
+                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete Learner"
+              >
+                <Trash2 size={18} className="text-red-600" />
+              </button>
+            </div>
           )}
 
           {showMenu && (
@@ -654,7 +698,13 @@ function StudentCard({
               <Link href={`/students/${student.id}/edit`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 border-b text-sm">
                 <Edit size={16} /> Edit
               </Link>
-              <button className="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-red-600 text-sm">
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  if (onDelete) onDelete();
+                }}
+                className="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-red-600 text-sm"
+              >
                 <Trash2 size={16} /> Delete
               </button>
             </div>
