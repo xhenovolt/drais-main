@@ -8,11 +8,12 @@ import { getCurrentTerm } from '@/lib/terms';
  *
  * Returns students who have been admitted but are NOT enrolled in the
  * current active term. Used by the "Admitted" tab in the students module.
+ * School isolation enforced: only returns data for authenticated school.
  *
  * Query params:
- *   search  — filter by name or admission_no
- *   page    — pagination (default: 1)
- *   limit   — page size (default: 50)
+ *   search  — filter by name or admission_no (optional)
+ *
+ * ALL results returned (no backend pagination — frontend handles).
  */
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -23,9 +24,6 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const search = sp.get('search')?.trim();
-  const page  = Math.max(1, parseInt(sp.get('page')  || '1',  10));
-  const limit = Math.min(200, Math.max(1, parseInt(sp.get('limit') || '50', 10)));
-  const offset = (page - 1) * limit;
 
   const conn = await getConnection();
   try {
@@ -59,21 +57,7 @@ export async function GET(req: NextRequest) {
 
     const where = 'WHERE ' + conditions.join(' AND ');
 
-    // Guard: both must be integers before embedding in SQL
-    if (!Number.isInteger(limit) || !Number.isInteger(offset) || limit < 1 || offset < 0) {
-      throw new Error(`Invalid pagination: limit=${limit} offset=${offset}`);
-    }
-
-    // Count
-    const [[{ total }]] = await conn.execute<any[]>(
-      `SELECT COUNT(*) AS total FROM students s LEFT JOIN people p ON s.person_id = p.id ${where}`,
-      [...params]
-    ) as any;
-
-    // Data
-    // LIMIT / OFFSET are embedded as literals (not ? params) — TiDB raises
-    // "Incorrect arguments to LIMIT" when they arrive as bound parameters via
-    // mysql2. Values are validated integers above.
+    // Fetch all admitted students (no pagination — frontend handles)
     const [rows] = await conn.execute<any[]>(
       `SELECT
          s.id,
@@ -91,19 +75,17 @@ export async function GET(req: NextRequest) {
        FROM students s
        LEFT JOIN people p ON s.person_id = p.id
        ${where}
-       ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC
-       LIMIT ${limit} OFFSET ${offset}`,
+       ORDER BY p.first_name ASC, p.last_name ASC`,
       [...params]
     );
+
+    console.log(`[ADMITTED STUDENTS] school=${schoolId}, returned=${rows.length}, term=${currentTermId}`);
 
     return NextResponse.json({
       success: true,
       data: rows,
       meta: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
+        total: rows.length,
         current_term_id: currentTermId,
         current_term_name: currentTerm?.name ?? null,
       },

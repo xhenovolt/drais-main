@@ -4,12 +4,9 @@ import "./globals.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Navbar } from "@/components/layout/Navbar";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import clsx from "clsx";
 import FeatureUpdateNotification from '@/components/notifications/FeatureUpdateNotification';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
@@ -17,10 +14,10 @@ import { TermProvider } from '@/contexts/TermContext';
 import OnboardingOrchestrator from '@/components/onboarding/OnboardingOrchestrator';
 import OnboardingCompletionBanner from '@/components/onboarding/OnboardingCompletionBanner';
 import dynamic from 'next/dynamic';
+import { MainLayout } from "@/components/layout/MainLayout";
 
 const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
 const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
-const BottomNav = dynamic(() => import('@/components/layout/BottomNav'), { ssr: false });
 
 // Create a stable QueryClient instance
 const queryClient = new QueryClient({
@@ -88,8 +85,7 @@ function DynamicTitle() {
 }
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
-  const theme = useTheme();
-  const pathname = usePathname(); // Get the current route
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showMobileOnboarding, setShowMobileOnboarding] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
@@ -127,20 +123,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <DynamicTitle />
-      {!hideSidebarAndNavbar && <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />}
-      {!hideSidebarAndNavbar && <Sidebar />}
-      <main
-        className={clsx(
-          "transition-all duration-300",
-          hideSidebarAndNavbar ? "pt-0" : "pt-16", // Conditional padding-top
-          !hideSidebarAndNavbar && "pb-16 md:pb-0", // Space for BottomNav on mobile
-          !hideSidebarAndNavbar && (theme.sidebarCollapsed ? "md:ml-16" : "md:ml-72"),
-          hideSidebarAndNavbar && "ml-0" // No margin when Sidebar is hidden
-        )}
-      >
-        {children}
-      </main>
-      {!hideSidebarAndNavbar && <BottomNav />}
+      {hideSidebarAndNavbar ? (
+        // For public/auth routes: no layout
+        <main className="pt-0 ml-0">
+          {children}
+        </main>
+      ) : (
+        // For protected routes: use MainLayout (mobile-first architecture)
+        <MainLayout>
+          {children}
+        </MainLayout>
+      )}
       <FeatureUpdateNotification />
       {/* Onboarding system — global modals, tour, help search */}
       <OnboardingOrchestrator />

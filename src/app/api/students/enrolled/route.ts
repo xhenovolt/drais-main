@@ -7,7 +7,8 @@ import { getCurrentTerm } from '@/lib/terms';
  * GET /api/students/enrolled
  *
  * Returns students enrolled in a specific term (defaults to current term).
- * This is the CANONICAL student list query — always term-aware.
+ * This is the CANONICAL student ENROLLMENT list query — always term-aware.
+ * DIFFERENT FROM /api/students/list which returns ALL students regardless of enrollment.
  *
  * Query params:
  *   term_id          — specific term (optional, defaults to current)
@@ -17,8 +18,9 @@ import { getCurrentTerm } from '@/lib/terms';
  *   search           — search by name or admission_no (optional)
  *   status           — enrollment status: active|transferred|dropped|completed (default: active)
  *   historical       — if "true", returns ALL enrollments (no term filter)
- *   page             — pagination page (default: 1)
- *   limit            — page size (default: 50, max: 200)
+ *
+ * ALL results returned (no backend pagination — frontend handles).
+ * School isolation enforced: only returns data for authenticated school.
  */
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -36,9 +38,6 @@ export async function GET(req: NextRequest) {
   const classId = sp.get('class_id');
   const streamId = sp.get('stream_id');
   const academicYearId = sp.get('academic_year_id');
-  const page = Math.max(1, parseInt(sp.get('page') || '1', 10));
-  const limit = Math.min(200, Math.max(1, parseInt(sp.get('limit') || '50', 10)));
-  const offset = (page - 1) * limit;
 
   const conn = await getConnection();
   try {
@@ -97,26 +96,9 @@ export async function GET(req: NextRequest) {
 
     const where = 'WHERE ' + conditions.join(' AND ');
 
-    // Validate pagination values are safe integers before embedding in SQL
-    if (!Number.isInteger(limit) || !Number.isInteger(offset) || limit < 1 || offset < 0) {
-      throw new Error(`Invalid pagination: limit=${limit} offset=${offset}`);
-    }
-
-    // Count query
-    const [[{ total }]] = await conn.execute<any[]>(
-      `SELECT COUNT(*) AS total
-       FROM enrollments e
-       JOIN students s ON e.student_id = s.id
-       LEFT JOIN people p ON s.person_id = p.id
-       ${where}`,
-      [...params]
-    ) as any;
-
-    // Data query
-    // LIMIT and OFFSET are embedded as literals (not ? params) because TiDB
-    // raises "Incorrect arguments to LIMIT" when they are sent as bound
-    // parameters via mysql2.  Both values are validated integers above.
-    const [rows] = await conn.execute<any[]>(
+    // Fetch data query
+    // No pagination — frontend handles all pagination logic.
+    // Backend returns complete filtered result set.
       `SELECT
          e.id                                   AS enrollment_id,
          e.student_id,
@@ -153,19 +135,17 @@ export async function GET(req: NextRequest) {
        LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
        LEFT JOIN terms t           ON e.term_id          = t.id
        ${where}
-       ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC
-       LIMIT ${limit} OFFSET ${offset}`,
+       ORDER BY p.first_name ASC, p.last_name ASC`,
       [...params]
     );
+
+    console.log(`[ENROLLED STUDENTS] school=${schoolId}, class=${classId}, returned=${rows.length}, term=${termId}, historical=${historical}`);
 
     return NextResponse.json({
       success: true,
       data: rows,
       meta: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
+        total: rows.length,
         term_id: termId,
         historical,
       },

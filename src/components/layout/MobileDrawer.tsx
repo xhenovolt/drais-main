@@ -1,43 +1,46 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { getNavigationItems, MenuItem, filterMenuByRole } from '@/lib/navigationConfig';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolConfig } from '@/hooks/useSchoolConfig';
+
+interface MobileDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
 /**
  * ═════════════════════════════════════════════════════════════════════════════
- * SIDEBAR - Desktop Only (Hidden on mobile)
+ * MOBILE DRAWER - Sidebar substitute for mobile
  * 
  * ⚡ INTELLIGENT NAVIGATION SYSTEM
  * - Dynamically loads ALL routes from navigationConfig
+ * - Supports collapsible groups on mobile
  * - Does NOT hard-code any routes
- * - Auto-expands critical modules (Attendance, Students, Academics)
  * - Respects user role permissions
  * 
  * DESIGN:
- * - Fixed width: 16rem (256px)
- * - Scrollable navigation
- * - Collapsible section groups
- * - Active link highlighting
- * - Smart role-based filtering
+ * - Slides in from left
+ * - Overlay backdrop
+ * - Close button
+ * - Full-height navigation with sections
+ * - Collapsible groups for organization
  * 
  * RULES:
- * - Never shown on mobile (handled by MainLayout)
- * - Sticky positioning
- * - Smooth transitions
- * - Always shows critical modules (unless user lacks access)
+ * - Only visible on mobile (when isOpen=true)
+ * - Closes on link click
+ * - Overlay dismissible
+ * - Auto-expands critical modules
  * ═════════════════════════════════════════════════════════════════════════════
  */
-export const Sidebar = () => {
+export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const pathname = usePathname();
   const { t } = useI18n();
   const { user } = useAuth() || {};
-  const { school } = useSchoolConfig();
 
   // Get navigation items and filter by role
   const navigationItems = useMemo(() => {
@@ -63,7 +66,7 @@ export const Sidebar = () => {
     return items;
   }, [t, user]);
 
-  // Auto-expand critical modules: Attendance, Students, Academics
+  // Auto-expand critical modules
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['attendance', 'students', 'academics', 'reports'])
   );
@@ -78,6 +81,23 @@ export const Sidebar = () => {
     setExpandedSections(newExpanded);
   };
 
+  useEffect(() => {
+    // Close drawer when route changes
+    onClose();
+  }, [pathname, onClose]);
+
+  // Prevent body scroll when drawer is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const isActive = (href?: string) => {
     if (!href) return false;
     return pathname === href || pathname.startsWith(href + '/');
@@ -87,23 +107,21 @@ export const Sidebar = () => {
   const renderMenuItem = (item: MenuItem) => {
     return (
       <div key={item.key} className="relative">
-        {/* Main nav item (parent) */}
+        {/* Main nav item */}
         {item.href ? (
           // If item has href, render as clickable link
           <Link
             href={item.href}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
               isActive(item.href)
                 ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 font-medium'
                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
-            <span className="flex items-center gap-3 flex-1">
-              <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                {item.icon}
-              </div>
-              <span className="text-sm font-medium">{item.label}</span>
-            </span>
+            <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+              {item.icon}
+            </div>
+            <span className="text-sm font-medium flex-1">{item.label}</span>
             {item.children && item.children.length > 0 && (
               <ChevronRight
                 size={18}
@@ -169,21 +187,44 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen">
-      {/* Logo area */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-          D
-        </div>
-        <div>
-          <div className="font-bold text-gray-900 dark:text-white">DRAIS</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">School OS</div>
-        </div>
-      </div>
+    <>
+      {/* Backdrop overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Navigation - Scrollable */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4 custom-scroll">
-        <div className="space-y-1">
+      {/* Drawer */}
+      <div
+        className={`fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 lg:hidden ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+              D
+            </div>
+            <div>
+              <div className="font-bold text-gray-900 dark:text-white">DRAIS</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">School OS</div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Close menu"
+          >
+            <X size={24} className="text-gray-700 dark:text-gray-300" />
+          </button>
+        </div>
+
+        {/* Navigation - Scrollable */}
+        <nav className="px-2 py-4 space-y-1 overflow-y-auto flex-1 custom-scroll">
           {navigationItems.length > 0 ? (
             navigationItems.map((item) => renderMenuItem(item))
           ) : (
@@ -191,20 +232,16 @@ export const Sidebar = () => {
               No modules available
             </div>
           )}
-        </div>
-      </nav>
+        </nav>
 
-      {/* Footer - School info */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-2">
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          {school && (
-            <>
-              <div className="font-semibold text-gray-900 dark:text-white">{school.name || 'School'}</div>
-              <div className="text-gray-500 dark:text-gray-400">Ready to serve</div>
-            </>
-          )}
+        {/* Drawer Footer */}
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="font-semibold text-gray-900 dark:text-white">DRAIS</div>
+            <div>School Management System</div>
+          </div>
         </div>
       </div>
-    </aside>
+    </>
   );
 };
