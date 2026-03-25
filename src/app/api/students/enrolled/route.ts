@@ -99,6 +99,7 @@ export async function GET(req: NextRequest) {
     // Fetch data query
     // No pagination — frontend handles all pagination logic.
     // Backend returns complete filtered result set.
+    const [rows]: any = await conn.execute(
       `SELECT
          e.id                                   AS enrollment_id,
          e.student_id,
