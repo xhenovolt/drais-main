@@ -636,7 +636,7 @@ function EnrollmentModal({
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={0}>Select Class</option>
-              {classes.map(c => (
+              {classes?.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
@@ -651,7 +651,7 @@ function EnrollmentModal({
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={0}>No Stream</option>
-              {streams.map(s => (
+              {streams?.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
@@ -664,7 +664,7 @@ function EnrollmentModal({
             </label>
             <p className="text-xs text-gray-600 mb-3">Select at least one program</p>
             <div className="grid grid-cols-2 gap-3">
-              {programs.map(p => (
+              {programs?.map(p => (
                 <label key={p.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                   <input
                     type="checkbox"
@@ -684,7 +684,7 @@ function EnrollmentModal({
               Study Mode <span className="text-red-600">*</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {studyModes.map(m => (
+              {studyModes?.map(m => (
                 <button
                   key={m.id}
                   onClick={() => setForm({ ...form, study_mode_id: m.id })}
@@ -711,7 +711,7 @@ function EnrollmentModal({
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={0}>Select Academic Year</option>
-              {academicYears.map(y => (
+              {academicYears?.map(y => (
                 <option key={y.id} value={y.id}>{y.name}</option>
               ))}
             </select>
@@ -728,7 +728,7 @@ function EnrollmentModal({
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={0}>Select Term</option>
-              {terms.map(t => (
+              {terms?.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
