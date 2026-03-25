@@ -756,4 +756,5 @@ function EnrollmentModal({
       </div>
     </div>
   );
+}
 
