@@ -1,43 +1,67 @@
 /**
  * ═════════════════════════════════════════════════════════════════════════════
- * useExport Hook
+ * useExport Hook - React wrapper for export service
  * 
- * Simplifies data export in React components
+ * Simplifies data export in React components with error handling
  * ═════════════════════════════════════════════════════════════════════════════
  */
 
 'use client';
 
 import { useState } from 'react';
-import { exportData, ExportOptions } from '@/lib/export/exporter';
+import { exportCSV, exportExcel, exportPDF } from '@/lib/export/exportService';
+import toast from 'react-hot-toast';
 
 export function useExport() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleExport = async (options: ExportOptions) => {
+  const exportAsCSV = async (data: any[], filename: string, columns?: string[]) => {
     try {
       setExporting(true);
       setError(null);
-      await exportData(options);
+      exportCSV(data, filename, columns);
+      toast.success('CSV exported successfully');
     } catch (err: any) {
-      setError(err.message || 'Export failed');
-      console.error('Export error:', err);
+      const msg = err.message || 'Export failed';
+      setError(msg);
+      toast.error(msg);
+      console.error('CSV export error:', err);
     } finally {
       setExporting(false);
     }
   };
 
-  const exportAsCSV = async (data: any[], filename: string, columns?: string[]) => {
-    await handleExport({ type: 'csv', filename, data, columns });
-  };
-
   const exportAsExcel = async (data: any[], filename: string, columns?: string[], title?: string) => {
-    await handleExport({ type: 'excel', filename, data, columns, title });
+    try {
+      setExporting(true);
+      setError(null);
+      await exportExcel(data, filename, columns);
+      toast.success('Excel exported successfully');
+    } catch (err: any) {
+      const msg = err.message || 'Export failed';
+      setError(msg);
+      toast.error(msg);
+      console.error('Excel export error:', err);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const exportAsPDF = async (data: any[], filename: string, columns?: string[], title?: string) => {
-    await handleExport({ type: 'pdf', filename, data, columns, title });
+    try {
+      setExporting(true);
+      setError(null);
+      await exportPDF(data, filename, columns);
+      toast.success('PDF exported successfully');
+    } catch (err: any) {
+      const msg = err.message || 'Export failed';
+      setError(msg);
+      toast.error(msg);
+      console.error('PDF export error:', err);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return {
@@ -46,6 +70,5 @@ export function useExport() {
     exportAsCSV,
     exportAsExcel,
     exportAsPDF,
-    handleExport,
   };
 }

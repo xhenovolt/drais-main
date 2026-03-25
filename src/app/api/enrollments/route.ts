@@ -134,8 +134,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'student_id and class_id are required' }, { status: 400 });
     }
 
-    // study_mode_id is REQUIRED for single-student enrollments.
-    // Bulk promotion flows use /api/enrollments/bulk and never reach this check.
+    // STRICT VALIDATION: All fields required for enrollment
     if (!study_mode_id) {
       return NextResponse.json(
         { error: 'Study mode is required. Select a study mode before enrolling.' },
@@ -143,10 +142,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate program_ids if provided
+    if (!academic_year_id) {
+      return NextResponse.json(
+        { error: 'Academic year is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!term_id) {
+      return NextResponse.json(
+        { error: 'Term is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate program_ids - at least one program required
     const safeProgramIds: number[] = Array.isArray(program_ids)
       ? program_ids.filter((x: any) => Number.isInteger(x) && x > 0)
       : [];
+
+    if (safeProgramIds.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one program must be selected' },
+        { status: 400 }
+      );
+    }
 
     await conn.execute('START TRANSACTION');
 
