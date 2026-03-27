@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const isThirdTerm = term.term_number === 3 || term.name.toLowerCase().includes('3');
 
     // Fetch all students with their results - PROPERLY FILTERED BY ACADEMIC YEAR
-    let sql = `
+    const sql = `
       SELECT 
         s.id as student_id,
         s.admission_no,

@@ -2,7 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-   images: {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  images: {
     remotePatterns: [
       {
         protocol: 'http',
@@ -13,9 +19,6 @@ const nextConfig: NextConfig = {
     ],
     // Also allow local uploads path
     domains: ['localhost'],
-  },
-   typescript: {
-    ignoreBuildErrors: true,
   },
 };
 

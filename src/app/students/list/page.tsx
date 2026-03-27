@@ -795,6 +795,8 @@ function EnrollmentModal({
   loading,
   form,
   setForm,
+  error,
+  validation,
   classes,
   streams,
   programs,
@@ -803,7 +805,6 @@ function EnrollmentModal({
   terms,
   toggleProgram,
 }: EnrollmentModalProps) {
-  // Safety check: ensure all arrays are valid
   const modalLogger = scopedLogger('EnrollmentModal');
   
   // Defensive array checks
@@ -814,185 +815,232 @@ function EnrollmentModal({
   const safeAcademicYears = Array.isArray(academicYears) ? academicYears : [];
   const safeTerms = Array.isArray(terms) ? terms : [];
 
-  // Log any missing data
-  if (!assertArray(safeClasses, 'classes', modalLogger)) {
-    modalLogger.error('Classes array is invalid, will show fallback UI');
-  }
+  // Determine if all required fields are valid
+  const allFieldsValid = Object.values(validation).every(v => v);
+
+  // Filtered terms based on selected academic year
+  const filteredTerms = safeTerms.filter(t => {
+    // If no academic year selected, show all
+    if (form.academic_year_id === 0) return true;
+    // Otherwise, you might want to filter by academic_year_id if available
+    return true;
+  });
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-start">
-          <div>
-            <h2 className="text-2xl font-bold">Enroll Student</h2>
-            <p className="text-gray-600 mt-1">
-              {student.first_name} {student.last_name} ({student.admission_no})
-            </p>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-gradient-to-r from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Enroll Student</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                {student.first_name} {student.last_name} · Admission # {student.admission_no}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="p-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+              aria-label="Close modal"
+            >
+              <X size={24} className="text-slate-600 dark:text-slate-400" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X size={24} />
-          </button>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+              <AlertCircle size={18} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
         </div>
 
-        {/* Form */}
-        <div className="p-6 space-y-6">
-          {/* Class Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Class <span className="text-red-600">*</span>
-            </label>
-            <select
-              value={form.class_id}
-              onChange={(e) => setForm({ ...form, class_id: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={safeClasses.length === 0}
-            >
-              <option value={0}>
-                {safeClasses.length === 0 ? '⚠️ No classes available' : 'Select Class'}
-              </option>
-              {safeClasses.map(c => (
-                <option key={c.id} value={c.id}>{safeString(c.name)}</option>
-              ))}
-            </select>
-            {safeClasses.length === 0 && (
-              <p className="mt-1 text-xs text-amber-600">No classes configured. Contact administrator.</p>
-            )}
-          </div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="space-y-6">
+            {/* Row 1: Class, Stream, Academic Year */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Class Selection */}
+              <div className={`space-y-2 p-4 rounded-lg border-2 transition-all ${
+                validation.class_id
+                  ? 'border-emerald-300 dark:border-emerald-600 bg-emerald-50/30 dark:bg-emerald-900/10'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
+              }`}>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                  Class <span className="text-red-600">*</span>
+                </label>
+                <select
+                  value={form.class_id}
+                  onChange={(e) => setForm({ ...form, class_id: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-400 transition-all"
+                  disabled={safeClasses.length === 0}
+                >
+                  <option value={0}>
+                    {safeClasses.length === 0 ? '⚠️ No classes' : 'Select class'}
+                  </option>
+                  {safeClasses.map(c => (
+                    <option key={c.id} value={c.id}>{safeString(c.name)}</option>
+                  ))}
+                </select>
+                {safeClasses.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">Contact administrator to add classes.</p>
+                )}
+              </div>
 
-          {/* Stream Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Stream</label>
-            <select
-              value={form.stream_id || 0}
-              onChange={(e) => setForm({ ...form, stream_id: e.target.value ? parseInt(e.target.value) : undefined })}
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={0}>No Stream</option>
-              {safeStreams.map(s => (
-                <option key={s.id} value={s.id}>{safeString(s.name)}</option>
-              ))}
-            </select>
-          </div>
+              {/* Stream Selection */}
+              <div className="space-y-2 p-4 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Stream (Optional)</label>
+                <select
+                  value={form.stream_id || 0}
+                  onChange={(e) => setForm({ ...form, stream_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                  className="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-400 transition-all"
+                >
+                  <option value={0}>No Stream</option>
+                  {safeStreams.map(s => (
+                    <option key={s.id} value={s.id}>{safeString(s.name)}</option>
+                  ))}
+                </select>
+              </div>
 
-          {/* Programs Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Programs <span className="text-red-600">*</span>
-            </label>
-            <p className="text-xs text-gray-600 mb-3">Select at least one program</p>
-            {safePrograms.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">
-                {safePrograms.map(p => (
-                  <label key={p.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.program_ids.includes(p.id)}
-                      onChange={() => toggleProgram(p.id)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm font-medium text-gray-900">{safeString(p.name)}</span>
+              {/* Academic Year Selection */}
+              <div className={`space-y-2 p-4 rounded-lg border-2 transition-all ${
+                validation.academic_year_id
+                  ? 'border-emerald-300 dark:border-emerald-600 bg-emerald-50/30 dark:bg-emerald-900/10'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
+              }`}>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                  Academic Year <span className="text-red-600">*</span>
+                </label>
+                <select
+                  value={form.academic_year_id}
+                  onChange={(e) => setForm({ ...form, academic_year_id: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-400 transition-all"
+                  disabled={safeAcademicYears.length === 0}
+                >
+                  <option value={0}>
+                    {safeAcademicYears.length === 0 ? '⚠️ No years' : 'Select year'}
+                  </option>
+                  {safeAcademicYears.map(y => (
+                    <option key={y.id} value={y.id}>{safeString(y.name)}</option>
+                  ))}
+                </select>
+                {safeAcademicYears.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">No academic years configured.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Row 2: Study Mode, Term, Programs */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Study Mode Selection */}
+                <div className={`space-y-2 p-4 rounded-lg border-2 transition-all ${
+                  validation.study_mode_id
+                    ? 'border-emerald-300 dark:border-emerald-600 bg-emerald-50/30 dark:bg-emerald-900/10'
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
+                }`}>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                    Study Mode <span className="text-red-600">*</span>
                   </label>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-700">⚠️ No programs available. Configure programs first.</p>
-              </div>
-            )}
-          </div>
+                  {safeStudyModes.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {safeStudyModes.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => setForm({ ...form, study_mode_id: m.id })}
+                          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                            form.study_mode_id === m.id
+                              ? 'bg-indigo-600 text-white ring-2 ring-indigo-400 dark:ring-indigo-500'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-600'
+                          }`}
+                        >
+                          {safeString(m.name)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">No study modes available.</p>
+                  )}
+                </div>
 
-          {/* Study Mode Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Study Mode <span className="text-red-600">*</span>
-            </label>
-            {safeStudyModes.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">
-                {safeStudyModes.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => setForm({ ...form, study_mode_id: m.id })}
-                    className={`p-3 border rounded-lg font-medium transition-colors ${
-                      form.study_mode_id === m.id
-                        ? 'border-blue-600 bg-blue-50 text-blue-600'
-                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}
+                {/* Term Selection */}
+                <div className={`space-y-2 p-4 rounded-lg border-2 transition-all ${
+                  validation.term_id
+                    ? 'border-emerald-300 dark:border-emerald-600 bg-emerald-50/30 dark:bg-emerald-900/10'
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
+                }`}>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                    Term <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={form.term_id}
+                    onChange={(e) => setForm({ ...form, term_id: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-400 transition-all"
+                    disabled={filteredTerms.length === 0}
                   >
-                    {safeString(m.name)}
-                  </button>
-                ))}
+                    <option value={0}>
+                      {filteredTerms.length === 0 ? '⚠️ No terms' : 'Select term'}
+                    </option>
+                    {filteredTerms.map(t => (
+                      <option key={t.id} value={t.id}>{safeString(t.name)}</option>
+                    ))}
+                  </select>
+                  {filteredTerms.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">No terms available for selected year.</p>
+                  )}
+                </div>
               </div>
-            ) : (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-700">⚠️ No study modes available. Configure study modes first.</p>
+
+              {/* Programs Selection (Full Width) */}
+              <div className={`space-y-3 p-4 rounded-lg border-2 transition-all ${
+                validation.program_ids
+                  ? 'border-emerald-300 dark:border-emerald-600 bg-emerald-50/30 dark:bg-emerald-900/10'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
+              }`}>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                  Programs <span className="text-red-600">*</span> — Select at least one
+                </label>
+                {safePrograms.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                    {safePrograms.map((p, idx) => (
+                      <label key={p.id} className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all ${
+                        form.program_ids.includes(p.id)
+                          ? 'bg-indigo-100 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-600'
+                          : `border border-slate-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-600 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800/50' : 'bg-slate-50/50 dark:bg-slate-800/30'}`
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={form.program_ids.includes(p.id)}
+                          onChange={() => toggleProgram(p.id)}
+                          className="w-4 h-4 rounded text-indigo-600 dark:text-indigo-500 cursor-pointer"
+                        />
+                        <span className="text-sm font-medium text-slate-900 dark:text-white">{safeString(p.name)}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">No programs available. Contact administrator.</p>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Academic Year Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Academic Year <span className="text-red-600">*</span>
-            </label>
-            <select
-              value={form.academic_year_id}
-              onChange={(e) => setForm({ ...form, academic_year_id: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={safeAcademicYears.length === 0}
-            >
-              <option value={0}>
-                {safeAcademicYears.length === 0 ? '⚠️ No academic years available' : 'Select Academic Year'}
-              </option>
-              {safeAcademicYears.map(y => (
-                <option key={y.id} value={y.id}>{safeString(y.name)}</option>
-              ))}
-            </select>
-            {safeAcademicYears.length === 0 && (
-              <p className="mt-1 text-xs text-amber-600">No academic years configured. Contact administrator.</p>
-            )}
-          </div>
-
-          {/* Term Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Term <span className="text-red-600">*</span>
-            </label>
-            <select
-              value={form.term_id}
-              onChange={(e) => setForm({ ...form, term_id: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={safeTerms.length === 0}
-            >
-              <option value={0}>
-                {safeTerms.length === 0 ? '⚠️ No terms available' : 'Select Term'}
-              </option>
-              {safeTerms.map(t => (
-                <option key={t.id} value={t.id}>{safeString(t.name)}</option>
-              ))}
-            </select>
-            {safeTerms.length === 0 && (
-              <p className="mt-1 text-xs text-amber-600">No terms configured. Contact administrator.</p>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="sticky bottom-0 bg-gray-50 border-t p-6 flex justify-end gap-3">
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 bg-gradient-to-r from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex gap-3 justify-end">
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-6 py-2 border rounded-lg font-medium text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={onEnroll}
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-2"
+            disabled={loading || !allFieldsValid}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
           >
             {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
             {loading ? 'Enrolling...' : 'Enroll Student'}

@@ -17,9 +17,9 @@ export async function updateScore(
     const [current] = await connection.execute(
       'SELECT * FROM class_results WHERE id = ?', 
       [resultId]
-    ) as any[];
+    ) as unknown[];
 
-    if (!current || current.length === 0) {
+    if (!current || (Array.isArray(current) && current.length === 0)) {
       throw new Error('Result not found');
     }
 

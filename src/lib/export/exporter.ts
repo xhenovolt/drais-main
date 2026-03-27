@@ -75,15 +75,10 @@ function exportCSV(data: any[], columns?: string[], timestamp = true): string {
 /**
  * Excel EXPORT - Requires xlsx library
  */
-function exportExcel(data: any[], filename: string, columns?: string[], title?: string): void {
-  // Check if xlsx is available
-  if (typeof require === 'undefined') {
-    console.error('Excel export requires server-side execution');
-    return;
-  }
-
+async function exportExcel(data: any[], filename: string, columns?: string[], title?: string): Promise<void> {
   try {
-    const XLSX = require('xlsx');
+    // Dynamically import xlsx - only available on server side
+    const XLSX = await import('xlsx');
 
     // Get column names
     const headers = columns || (data.length > 0 ? Object.keys(data[0]) : []);
@@ -102,14 +97,14 @@ function exportExcel(data: any[], filename: string, columns?: string[], title?: 
     // Add title if provided
     if (title) {
       const titleRow = [[title]];
-      const ws_title = XLSX.utils.aoa_to_sheet(titleRow);
       XLSX.utils.sheet_add_aoa(ws, titleRow, { origin: 0 });
     }
 
     // Write file
     XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
-  } catch (err) {
-    console.error('Excel export failed:', err);
+  } catch (error) {
+    console.error('Excel export failed:', error);
+    throw new Error('Failed to export Excel file');
   }
 }
 
@@ -158,7 +153,7 @@ export async function exportData(options: ExportOptions): Promise<void> {
         break;
 
       case 'excel':
-        exportExcel(data, filename, columns, title);
+        await exportExcel(data, filename, columns, title);
         break;
 
       case 'pdf':
