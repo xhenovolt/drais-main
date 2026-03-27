@@ -101,6 +101,14 @@ export default function StudentsListPage() {
     term_id: 0,
   });
   const [enrollLoading, setEnrollLoading] = useState(false);
+  const [enrollError, setEnrollError] = useState<string>('');
+  const [enrollmentValidation, setEnrollmentValidation] = useState<Record<string, boolean>>({
+    class_id: false,
+    program_ids: false,
+    study_mode_id: false,
+    academic_year_id: false,
+    term_id: false,
+  });
   
   // Options for Dropdowns
   const [classes, setClasses] = useState<SelectOption[]>([]);
@@ -123,7 +131,7 @@ export default function StudentsListPage() {
         fetch('/api/streams'),
         fetch('/api/programs'),
         fetch('/api/study-modes'),
-        fetch('/api/academic-years'),
+        fetch('/api/academic_years'),
         fetch('/api/terms'),
       ]);
 
@@ -259,22 +267,54 @@ export default function StudentsListPage() {
       academic_year_id: 0,
       term_id: 0,
     });
+    setEnrollError('');
+    setEnrollmentValidation({
+      class_id: false,
+      program_ids: false,
+      study_mode_id: false,
+      academic_year_id: false,
+      term_id: false,
+    });
     setShowEnrollModal(true);
+  };
+
+  // Real-time form validation
+  const validateEnrollForm = (form: EnrollmentFormData) => {
+    const validation = {
+      class_id: form.class_id !== 0,
+      program_ids: form.program_ids.length > 0,
+      study_mode_id: form.study_mode_id !== 0,
+      academic_year_id: form.academic_year_id !== 0,
+      term_id: form.term_id !== 0,
+    };
+    setEnrollmentValidation(validation);
+    return Object.values(validation).every(v => v);
+  };
+
+  // Check if student is already enrolled in the same academic year
+  const checkDuplicateEnrollment = (studentId: number, academicYearId: number): boolean => {
+    return enrolledStudents.some(
+      s => s.id === studentId && s.academic_year_id === academicYearId
+    );
   };
 
   const handleEnroll = async () => {
     // Validation
-    if (!enrollForm.class_id || !enrollForm.study_mode_id || !enrollForm.academic_year_id || !enrollForm.term_id) {
+    if (!validateEnrollForm(enrollForm)) {
       toast.error('Please fill all required fields');
+      setEnrollError('All fields marked with * are required');
       return;
     }
 
-    if (enrollForm.program_ids.length === 0) {
-      toast.error('Please select at least one program');
+    // Check for duplicate enrollment
+    if (checkDuplicateEnrollment(enrollForm.student_id, enrollForm.academic_year_id)) {
+      setEnrollError('Student is already enrolled in this academic year');
+      toast.error('Student is already enrolled in this academic year');
       return;
     }
 
     setEnrollLoading(true);
+    setEnrollError('');
     try {
       const res = await fetch('/api/enrollments', {
         method: 'POST',
@@ -289,11 +329,15 @@ export default function StudentsListPage() {
         setSelectedIds(new Set(prev => new Set([...prev]).delete(enrollForm.student_id)));
         fetchStudents();
       } else {
-        toast.error(data.error || 'Enrollment failed');
+        const errorMsg = data.error || 'Enrollment failed';
+        toast.error(errorMsg);
+        setEnrollError(errorMsg);
       }
     } catch (error) {
       console.error('Enrollment error:', error);
-      toast.error('Enrollment failed');
+      const errorMsg = 'Enrollment failed - please try again';
+      toast.error(errorMsg);
+      setEnrollError(errorMsg);
     } finally {
       setEnrollLoading(false);
     }
@@ -542,7 +586,12 @@ export default function StudentsListPage() {
           onEnroll={handleEnroll}
           loading={enrollLoading}
           form={enrollForm}
-          setForm={setEnrollForm}
+          setForm={(form) => {
+            setEnrollForm(form);
+            validateEnrollForm(form);
+          }}
+          error={enrollError}
+          validation={enrollmentValidation}
           classes={classes}
           streams={streams}
           programs={programs}
@@ -728,6 +777,8 @@ interface EnrollmentModalProps {
   loading: boolean;
   form: EnrollmentFormData;
   setForm: (form: EnrollmentFormData) => void;
+  error: string;
+  validation: Record<string, boolean>;
   classes: SelectOption[];
   streams: SelectOption[];
   programs: SelectOption[];

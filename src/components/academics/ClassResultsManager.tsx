@@ -13,6 +13,19 @@ const API_BASE = '/api';
 const API_MISSING = `${API_BASE}/class_results/missing`;
 const API_SUBMIT = `${API_BASE}/class_results/submit`;
 
+// Success pulse animation styles
+const successAnimationStyle = `
+  @keyframes successPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+    50% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  }
+  .success-pulse {
+    animation: successPulse 0.6s ease-out;
+  }
+`;
+
+
 interface Option { id:number; name:string; }
 interface StudentRow { student_id:number; first_name:string; last_name:string; score:number|null; grade:string|null; remarks:string|null; }
 
@@ -46,6 +59,7 @@ export default function ClassResultsManager() {
   const [isPending, startTransition] = useTransition();
   
   const [open,setOpen]=useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [terms,setTerms]=useState<Option[]>([]);
   const [classes,setClasses]=useState<Option[]>([]);
   const [subjects,setSubjects]=useState<Option[]>([]);
@@ -68,6 +82,14 @@ export default function ClassResultsManager() {
   const [listSortOrder,setListSortOrder]=useState<'asc'|'desc'>('asc');
   const perPage=listLimit;
   const [filters, setFilters] = useState({ search: '', class_id: '', result_type_id: '', subject_id: '', term_id: '' });
+
+  // Inject success animation styles on mount
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = successAnimationStyle;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
 
   // Optimistic updates for inline editing
   const [optimisticList, updateOptimisticList] = useOptimistic(
@@ -303,11 +325,17 @@ export default function ClassResultsManager() {
         setMessage(data.error);
         toast.error(data.error);
       } else {
-        setMessage('Saved');
+        setMessage('✓ Saved Successfully!');
+        setShowSuccessAnimation(true);
         toast.success('Results submitted successfully!');
-        // Trigger list reload by resetting filters reference
-        setFilters(f => ({ ...f }));
-        setOpen(false);
+        // Trigger list reload with slight delay to show success state
+        setTimeout(() => {
+          // Ensure duplicate key check by invalidating the list
+          setList([]);
+          setFilters(f => ({ ...f }));
+          setOpen(false);
+          setShowSuccessAnimation(false);
+        }, 800);
       }
     } catch (e: any) {
       setMessage(e.message || 'Failed to submit results');
@@ -797,7 +825,7 @@ export default function ClassResultsManager() {
             </thead>
             <tbody>
               {filteredMarklist.map((row, idx) => (
-                <tr key={row.student_id} className={`border-t border-white/10 dark:border-white/5 ${idx % 2 === 0 ? 'bg-white/40 dark:bg-slate-800/20' : 'bg-white/20 dark:bg-slate-800/10'} hover:bg-indigo-50/40 dark:hover:bg-indigo-900/20 transition-colors`}>
+                <tr key={`${row.student_id}-${idx}`} className={`border-t border-white/10 dark:border-white/5 ${idx % 2 === 0 ? 'bg-white/40 dark:bg-slate-800/20' : 'bg-white/20 dark:bg-slate-800/10'} hover:bg-indigo-50/40 dark:hover:bg-indigo-900/20 transition-colors`}>
                   <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{row.name}</td>
                   <td className="px-3 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">{row.class_name || '-'}</td>
                   <td className="px-3 py-2">
@@ -894,60 +922,125 @@ export default function ClassResultsManager() {
                   <div className="absolute -top-20 -right-10 w-72 h-72 bg-fuchsia-400/20 blur-3xl rounded-full" />
                   <div className="absolute -bottom-24 -left-20 w-96 h-96 bg-indigo-500/20 blur-3xl rounded-full" />
                 </div>
-                <div className="relative p-6 border-b border-white/30 dark:border-white/10 flex items-center gap-4">
-                  <h2 className="text-sm font-semibold tracking-wide uppercase">{t('class_results_entry')}</h2>
-                  {message && <span className={`text-xs font-medium ml-auto ${message==='Saved'?'text-green-600':'text-red-600'}`}>{message}</span>}
-                  <button onClick={()=>setOpen(false)} className="p-2 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 ml-auto"><X className="w-5 h-5"/></button>
-                </div>
-                <div className="relative p-6 space-y-6">
-                  <div className="grid md:grid-cols-5 gap-5">
-                    <SelectBox label={t('term')} value={term ?? null} onChange={setTerm} items={terms} placeholder={t('optional')} />
-                    <SelectBox label={t('class')} value={klass ?? null} onChange={v=>{setKlass(v);}} items={classes} />
-                    <SelectBox label={t('subject')} value={subject ?? null} onChange={setSubject} items={subjects.filter(s=>!klass || s)} />
-                    <SelectBox label={t('result_type')} value={rtype ?? null} onChange={setRtype} items={types} />
-                    <div className="flex flex-col justify-end">
-                      <button
-                        disabled={!klass||!subject||!rtype||loading}
-                        onClick={handleFetchMissingRows}
-                        className="px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white disabled:opacity-40"
-                      >
-                        {t('load')}
-                      </button>
+                {/* Sticky Header */}
+                <div className="sticky top-0 z-40 p-6 border-b border-white/30 dark:border-white/10 bg-gradient-to-r from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">{t('class_results_entry')}</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Enter scores for each student across all subjects</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {message && <span className={`text-xs font-semibold px-3 py-1 rounded-full ${message==='Saved'?'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300':'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>{message}</span>}
+                      <button onClick={()=>setOpen(false)} className="group p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors" aria-label="Close modal"><X className="w-5 h-5 text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white"/></button>
                     </div>
                   </div>
-                  {rows.length>0 && (
+                </div>
+                {/* Content Container with Internal Scroll */}
+                <div className="relative px-6 pt-6 pb-24 max-h-[calc(80vh-180px)] overflow-y-auto space-y-6">
+                  {/* Filter Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Filter & Load</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <SelectBox label={t('term')} value={term ?? null} onChange={setTerm} items={terms} placeholder={t('optional')} />
+                      <SelectBox label={t('class')} value={klass ?? null} onChange={v=>{setKlass(v);}} items={classes} />
+                      <SelectBox label={t('subject')} value={subject ?? null} onChange={setSubject} items={subjects.filter(s=>!klass || s)} />
+                      <SelectBox label={t('result_type')} value={rtype ?? null} onChange={setRtype} items={types} />
+                      <div className="flex flex-col justify-end">
+                        <button
+                          disabled={!klass||!subject||!rtype||loading}
+                          onClick={handleFetchMissingRows}
+                          className="px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white disabled:opacity-40 transition-all hover:shadow-lg disabled:cursor-not-allowed"
+                        >
+                          {loading ? <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" /> : null}
+                          {loading ? t('loading') : t('load')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Data Entry Grid (3 columns) */}
+                  {rows.length > 0 && (
                     <div className="space-y-4">
-                      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {t('student_results', 'Student Results')} ({rows.length} {t('students', 'students')})
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto rounded-xl border border-white/30 dark:border-white/10 p-4 bg-white/20 dark:bg-slate-800/20 backdrop-blur">
-                        {sortedLearners.map(r=> (
-                          <div key={r.student_id} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur rounded-xl p-4 border border-white/40 dark:border-white/10 space-y-3">
-                            <div className="text-center">
-                              <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-200 mb-3" title={`${r.first_name} ${r.last_name}`}>
-                                {r.first_name} {r.last_name}
-                              </h4>
-                              <input 
-                                type="number" 
-                                step="0.01" 
-                                className="w-full px-3 py-2 rounded-lg bg-white/70 dark:bg-slate-900/60 border border-white/40 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-center font-medium" 
-                                value={r.score ?? ''} 
-                                onChange={e=>updateRow(r.student_id,'score', e.target.value===''? null : parseFloat(e.target.value))}
-                                placeholder="Score"
-                              />
-                            </div>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                          {t('student_results', 'Student Results')} — {rows.length} {t('students', 'students')}
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {sortedLearners.map((r, rowIdx) => (
+                          <div 
+                            key={`student-${r.student_id}-${rowIdx}`} 
+                            className={`group relative rounded-lg border transition-all duration-200 ${
+                              editingCell?.id === r.student_id ? 'ring-2 ring-indigo-500 border-indigo-300 dark:border-indigo-600 bg-indigo-50/30 dark:bg-indigo-900/20' : 'border-slate-200/60 dark:border-slate-700/60'
+                            } ${rowIdx % 2 === 0 ? 'bg-slate-50/40 dark:bg-slate-900/20' : 'bg-white/50 dark:bg-slate-800/30'} p-4 hover:border-indigo-300 dark:hover:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-400 dark:focus-within:ring-indigo-500`}
+                          >
+                            {/* Student Name Label - Floating */}
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2 transition-colors group-hover:text-slate-800 dark:group-hover:text-slate-300">
+                              {r.first_name} {r.last_name}
+                            </label>
+                            {/* Score Input - Modern Excel Style */}
+                            <input 
+                              type="number" 
+                              step="0.01" 
+                              min="0"
+                              max="100"
+                              className="w-full px-3 py-2.5 rounded-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-400 transition-all text-center" 
+                              value={r.score ?? ''} 
+                              onChange={e=>updateRow(r.student_id,'score', e.target.value===''? null : parseFloat(e.target.value))}
+                              onFocus={() => setEditingCell({ id: r.student_id, field: 'score' })}
+                              onBlur={() => setEditingCell(null)}
+                              placeholder="Score"
+                              aria-label={`Score for ${r.first_name} ${r.last_name}`}
+                            />
+                            {/* Score Display Helper */}
+                            {r.score !== null && r.score !== undefined && (
+                              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 text-center">
+                                {typeof r.score === 'number' && r.score >= 0 && r.score <= 100 ? `${r.score}%` : 'Invalid'}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={includeMissing} onChange={e=>setIncludeMissing(e.target.checked)} /> <span>{t('auto_create_null_rows')}</span></label>
-                    <div className="flex gap-2">
-                      <button disabled={saving || rows.length===0} onClick={submitResults} className="flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white disabled:opacity-40"><Save className="w-4 h-4"/>{saving? t('saving')+'...':t('save_results')}</button>
+
+                  {/* Loading State */}
+                  {loading && (
+                    <div className="flex flex-col items-center justify-center py-8 text-slate-500 dark:text-slate-400">
+                      <Loader2 className="w-5 h-5 animate-spin mb-2" />
+                      <span className="text-xs font-medium">{t('loading_students')}...</span>
                     </div>
+                  )}
+                </div>
+
+                {/* Sticky Footer */}
+                <div className="sticky bottom-0 left-0 right-0 z-40 border-t border-white/30 dark:border-white/10 bg-gradient-to-r from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-xl p-6 space-y-4">
+                  <label className="flex items-center gap-3 text-xs cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={includeMissing} 
+                      onChange={e=>setIncludeMissing(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 dark:text-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                    /> 
+                    <span className="text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{t('auto_create_null_rows')}</span>
+                  </label>
+                  <div className="flex gap-3 pt-2">
+                    <button 
+                      disabled={saving || rows.length===0} 
+                      onClick={submitResults} 
+                      className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:shadow-lg hover:scale-105 active:scale-95 disabled:hover:shadow-none disabled:hover:scale-100 ${showSuccessAnimation ? 'success-pulse' : ''}`}
+                    >
+                      <Save className="w-4 h-4"/>
+                      <span>{saving ? t('saving')+'...' : t('save_results')}</span>
+                    </button>
+                    <button 
+                      onClick={()=>setOpen(false)} 
+                      disabled={saving}
+                      className="px-6 py-3 rounded-lg text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t('cancel')}
+                    </button>
                   </div>
-                  {loading && <div className="flex items-center gap-2 text-xs text-slate-500"><Loader2 className="w-4 h-4 animate-spin"/>{t('loading_students')}...</div>}
                 </div>
               </Transition.Child>
             </div>
