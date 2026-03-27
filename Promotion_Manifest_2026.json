@@ -1,0 +1,5636 @@
+{
+  "generated_at": "2026-03-27T17:54:04.535Z",
+  "source": "albayanRamadhanrefined.sql",
+  "school_id": 8002,
+  "year_2025_id": 8001,
+  "year_2026_id": 8002,
+  "term_2026_id": 30005,
+  "summary": {
+    "total_2025_unique_students": 630,
+    "graduates_excluded": 41,
+    "unknown_class_excluded": 0,
+    "already_in_2026_skipped": 108,
+    "to_be_enrolled": 481
+  },
+  "students": [
+    {
+      "student_id": 392586,
+      "name": "MARIAM NAKAZIBA",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392594,
+      "name": "AALYAH HAMZA",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392596,
+      "name": "BAKAKI HASHIM",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392597,
+      "name": "KYAKUTEMA HADIJJA",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392598,
+      "name": "HAMDAN TASNEEM",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392599,
+      "name": "HAWA HASSAN",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392600,
+      "name": "MUNIRA BASEFF",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392628,
+      "name": "NAMUGANZA FATUMA",
+      "previous_class": "BABY CLASS",
+      "target_class": "MIDDLE CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392002,
+      "name": "NAIRAH MUWAGA MUHAMMAD",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392047,
+      "name": "NAMUWAYA SHATURA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392048,
+      "name": "NAKIRANDA RAHUMA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392049,
+      "name": "SHAMSHA YUSUF HILAL",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392050,
+      "name": "MUHSIN MUKUNGU MUKUNGU",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392051,
+      "name": "MUWANGUZI RAFIQ",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392052,
+      "name": "MULINDA AZED RAIF",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392053,
+      "name": "NABANAKULYA HADIJJA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392054,
+      "name": "MUNULO AFRINA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392055,
+      "name": "WESIGE ALEYA  RAMADHAN",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392056,
+      "name": "ASUMAN ATANAZIRABA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392057,
+      "name": "TENYWA ALI MANSI",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392058,
+      "name": "ABDUL-HAFIIZU WAISWA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392059,
+      "name": "SSEMAZI SHAMRAN",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392060,
+      "name": "NABOSA RAYHAN",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392061,
+      "name": "NAMAGEMBE SHAZIMINA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392062,
+      "name": "NAMWABULA KAUTHAR",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392063,
+      "name": "REHAN DIDDI",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392064,
+      "name": "LUGWIRE ABUBAKAR HAISWAL",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392065,
+      "name": "ADEN UTHUMAN",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392066,
+      "name": "AALYAH HAMZA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392067,
+      "name": "HAMZA MUHAMMAD MWASE",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392068,
+      "name": "MUKISA RASHIQ",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392069,
+      "name": "BUMBO SUDAIS",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392633,
+      "name": "NAMUKWAYA NABIHA",
+      "previous_class": "MIDDLE CLASS",
+      "target_class": "TOP CLASS",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392003,
+      "name": "NANYANGE YUSURAH",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392070,
+      "name": "MATENDE SHURAIM",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392071,
+      "name": "KIBIRIGE AKRAM",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392072,
+      "name": "NAMUWAYA SAUYA UMAR",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392073,
+      "name": "MUYIIMA ABDUL-RAHIM",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392074,
+      "name": "NAMUWAYA ASHIA",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392075,
+      "name": "ISABIRYE HUZAIFAH",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392076,
+      "name": "MULINDA ABUBAKAR",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392077,
+      "name": "MAGUMBA AKIRAM",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392078,
+      "name": "BIDI SAIDAH",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392079,
+      "name": "ZIWA RAUSHAN",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392080,
+      "name": "SSALI RASHID MUBARAKA",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392081,
+      "name": "DHAKABA SHABAN",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392082,
+      "name": "KASADHA HUSNA YAKUB",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392083,
+      "name": "YAHAYA ISA",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392084,
+      "name": "KATENDE YAASIR",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392085,
+      "name": "BAMWAGALE ABDUL-RAHMAN",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392086,
+      "name": "SHURAIM ALI",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392087,
+      "name": "RWANTALE SHUMI",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392088,
+      "name": "ABDUL-RAHMAN RAMATHAN",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392089,
+      "name": "MUBALA ABDUL-SWABUL",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392090,
+      "name": "KINTU SAAD",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392091,
+      "name": "AYEBALE ASHLYN",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392092,
+      "name": "MAYANJA IDRIS",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392110,
+      "name": "KIBUTTO ALI",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392569,
+      "name": "naser kawa",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392593,
+      "name": "mudaa asma",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392625,
+      "name": "SHAMIRAH NANGIYAH ABDALLAH",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392626,
+      "name": "NANGIYA SHAMIRAH",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392627,
+      "name": "YUSUF FAUZAN DIDI",
+      "previous_class": "TOP CLASS",
+      "target_class": "PRIMARY ONE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392004,
+      "name": "NAIGAGA JALIA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392093,
+      "name": "NAMUJUZI TASNEEM SAMIHA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392094,
+      "name": "KIRANDA AZAAN",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392095,
+      "name": "KAGOYA RAHMAH MADINA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392096,
+      "name": "NAKAMANYA RUQUAYYAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392097,
+      "name": "SHURAIM BIN ZAID",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392098,
+      "name": "KAWUMA SHATRAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392099,
+      "name": "MAYANJA ABDUL-RAHIM",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392100,
+      "name": "NANGOBI HAZMAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392101,
+      "name": "KUMUGONZA KHADIJJAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392102,
+      "name": "SWALLAHUDIN BUN UMAR MENYA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392103,
+      "name": "NAMUGABO HAIRAT",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392104,
+      "name": "MUGABO RAYAN",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392105,
+      "name": "RAYAN TAIKA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392106,
+      "name": "KATABA TAISIR",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392107,
+      "name": "GULUME ALI HADAD",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392108,
+      "name": "BABIRYE SHAUFAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392109,
+      "name": "NAKUEIRA IMRAN",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392111,
+      "name": "MUNUULO AFRAH NANKYA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392112,
+      "name": "GASSEMBA BASHA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392113,
+      "name": "SHAMIRAH ABDALLAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392114,
+      "name": "FAUZAN DIDI YUSUF",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392115,
+      "name": "NAMPALA MUSA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392116,
+      "name": "NANJIYA TAIBU TWAIBU",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392117,
+      "name": "NDYEKU RASHID",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392118,
+      "name": "NAKISIGE MWAJJUMA",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392119,
+      "name": "NAMUGAYA SHAMIRAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392120,
+      "name": "MAGUMBA RAYAN",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392121,
+      "name": "BAASIL UTHMAN",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392122,
+      "name": "NAQQIYYAH YUSUF",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392123,
+      "name": "MUZAALE ALI",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392124,
+      "name": "HIBBATULAH MUHAMMAD",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392125,
+      "name": "GULOOBA JAMALI BUDI",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392126,
+      "name": "NAFULA PATIENCE",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392258,
+      "name": "NAMWASE SHUKRUT",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392621,
+      "name": "KYORABA FATUMAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392622,
+      "name": "NAMUKWAYA RANIAH",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392623,
+      "name": "NAMWASE SHUKRAN",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392624,
+      "name": "RUKAIYYA SSEBADUKA ABAS",
+      "previous_class": "PRIMARY ONE",
+      "target_class": "PRIMARY TWO",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392221,
+      "name": "ABDUL RAHMAN DAMUZUNGU",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392222,
+      "name": "MUKISA SUDAIS",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392223,
+      "name": "RAHIYYAH BINT ZAID",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392224,
+      "name": "SULTAN ALI",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392225,
+      "name": "NAMWENA RAHMA NAMYALO",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392226,
+      "name": "MPAULO SWALIK",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392227,
+      "name": "ERIASA KAUKA SUDAIS",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392228,
+      "name": "KYOTAITE RAJAB",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392229,
+      "name": "UTHUMAN BIN AFAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392230,
+      "name": "USAMA FARID",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392231,
+      "name": "GASEMBA JUMA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392232,
+      "name": "SEBACHWA SHARIF",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392233,
+      "name": "KAGOYA SHUKRAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392234,
+      "name": "BIDI HADIJJAH",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392235,
+      "name": "NTALO JAUHALI",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392236,
+      "name": "ARIANA MUHAMMAD",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392237,
+      "name": "SSERUNJOJI MUHAMMAD",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392238,
+      "name": "NAKIYINJI RAHUMA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392239,
+      "name": "NAIGAGA BUSHIRA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392240,
+      "name": "NAMUYANGU SHUKRAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392241,
+      "name": "KAMPI ANISHA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392242,
+      "name": "NAMUSUSWA RASHIM",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392243,
+      "name": "KALEMBE NUSULA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392244,
+      "name": "NAMATENDE SHATURAH",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392245,
+      "name": "MENYA HASHIM",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392246,
+      "name": "VALENTINE NOEL",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392247,
+      "name": "KAKAIRE BUKARI",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392248,
+      "name": "NAIGAGA SHUNERA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392249,
+      "name": "MUKUBUYA SULAIMAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392250,
+      "name": "JIBRIEL HILAL",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392251,
+      "name": "AZEDI .A. GANIYU",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392252,
+      "name": "KISIGE SHAHID",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392253,
+      "name": "NTUUYO HANIM",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392254,
+      "name": "NAMPELA WALIDHA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392255,
+      "name": "SHAFIE SIRAJ",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392256,
+      "name": "MUGOOWA TAHIYA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392257,
+      "name": "NDADA MUHAMMAD",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392259,
+      "name": "KANTONO MARIAM",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392260,
+      "name": "BWAANA AKISAM",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392261,
+      "name": "ISIKO HYTHAM",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392262,
+      "name": "SIRAJ ABDUL-RAHIM",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392263,
+      "name": "NAKATO SHIFRAH",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392264,
+      "name": "SARAH MUHAMMAD NAMWANI",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392265,
+      "name": "NAQIYYU YUSUF",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392266,
+      "name": "NGOBI SHAMURAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392267,
+      "name": "BABIRYE HAIRAT",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392268,
+      "name": "BASEKE ABDUL-MAJID",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392269,
+      "name": "MUHAMMAD SHARIF MPINDI",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392270,
+      "name": "BUTHAINA BASEF",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392271,
+      "name": "BIYINZIKA PIUS",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392285,
+      "name": "APOLOTI BARIAH",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392286,
+      "name": "WAIGONGOLO UTHUMAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392295,
+      "name": "SENGOYE KATO",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392309,
+      "name": "OTUMA JANAT",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392310,
+      "name": "ZIYAD KASAKYA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392329,
+      "name": "KYOLABA FATUMA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392572,
+      "name": "CLOCK ROSHAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392601,
+      "name": "NAKABAMBWE RAHUMA",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392612,
+      "name": "NAKATO SHIFRAH",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392613,
+      "name": "REGEAH SHARIF",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392614,
+      "name": "SHARIFA ABDUL HAMID",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392615,
+      "name": "SSEWANYANA ABDUL RAHMAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392616,
+      "name": "HUSNAH UTHMAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392617,
+      "name": "HUSNAH UTHMAN",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392618,
+      "name": "ABDUL KARIM ABDALLAH",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392619,
+      "name": "ABDUL RAHMAN YUSUFU DIDI",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392620,
+      "name": "KATO AAHIL",
+      "previous_class": "PRIMARY TWO",
+      "target_class": "PRIMARY THREE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392272,
+      "name": "ZZIWA RABIBA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392273,
+      "name": "KASADHA RAIHAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392274,
+      "name": "ABDUL WARITH KAGUBIRU",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392276,
+      "name": "MENYA ISMA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392277,
+      "name": "NANYANZI LEILA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392278,
+      "name": "ABDUL BAAR ISA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392279,
+      "name": "SEWANYANA ABDUL RAHMAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392280,
+      "name": "KIZZA SALEH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392281,
+      "name": "NJIIYA TAKIIYUDIN HASSAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392282,
+      "name": "NABAGALA SHARIFAH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392283,
+      "name": "NASEJJE SWALIHA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392284,
+      "name": "MUWAI RAYAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392287,
+      "name": "ASHURAH FAHIMAH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392288,
+      "name": "WAAKO ABDUL-QAWIYU",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392289,
+      "name": "NOORIAT NANSAMBA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392290,
+      "name": "ABDALLAH HABIBU",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392291,
+      "name": "NAKAGOLO SHATURAH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392292,
+      "name": "KIWANUKA IBRAHIM",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392293,
+      "name": "NABUKERA RAUFA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392294,
+      "name": "WASSWA AQAMAL",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392296,
+      "name": "MUSENZE HANANI",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392297,
+      "name": "WAFULA ABDUL-RAHMAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392298,
+      "name": "NALUBEGA ATIMA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392299,
+      "name": "MANGOOLE HATIM",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392300,
+      "name": "OTHIENO JOHNSTEVEN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392301,
+      "name": "KATIIKI RAHMA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392302,
+      "name": "OBB RAYAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392303,
+      "name": "ABDUL-SHAKUR MALINZI",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392304,
+      "name": "DAKHABA BURUHAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392305,
+      "name": "BALELE MAJID",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392306,
+      "name": "MUWAYA ABDALLAH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392307,
+      "name": "MUGEYI HISHAM",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392308,
+      "name": "MUTYABA AWATH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392311,
+      "name": "MUTAGOBWA AHMED JUMA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392312,
+      "name": "UNAISA YUSUF",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392313,
+      "name": "MULINYA RAYAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392314,
+      "name": "KISIGE SHURAIM",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392315,
+      "name": "GAALI FARAHAT",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392316,
+      "name": "AALIYA KAUTHARA NANGOBI",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392317,
+      "name": "KIMERA RAYD",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392318,
+      "name": "MUGOOWA KING FAHAD",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392319,
+      "name": "UTHUMAN MINSHAWI",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392320,
+      "name": "NAMULEMO NALUZZE THUWAIBAH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392321,
+      "name": "SSENYONJO TAUFIQ",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392322,
+      "name": "SHARIFA ABDUL-HAMIDU",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392323,
+      "name": "KASADHA YASIN YAKUB",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392324,
+      "name": "NAMAGANDA FITRA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392325,
+      "name": "NAMBI HAWA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392326,
+      "name": "ABDUL-KARIM ABDALLAH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392327,
+      "name": "NABANDA HADIJJAH",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392328,
+      "name": "MAGUMBA ABDUL-RAHIM",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392330,
+      "name": "KANSIIME YASIIMINE",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392331,
+      "name": "MUNULO SHABAN",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392332,
+      "name": "MUGAGA ISMAEL",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392333,
+      "name": "MUKISA RAZAQ",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392368,
+      "name": "KYEYUNE HALIMA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392386,
+      "name": "EMETAYI ABDUL-RAHIM",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392574,
+      "name": "BAKAKI JAMADA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392575,
+      "name": "KHAIRAT ABDALLAH NANKISA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392609,
+      "name": "MASOLO RASHID ALI",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392610,
+      "name": "KIRUNDA UKASHA",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392611,
+      "name": "MUSENE HAFIZU",
+      "previous_class": "PRIMARY THREE",
+      "target_class": "PRIMARY FOUR",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392335,
+      "name": "NAMATENDE AISHA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392336,
+      "name": "AMIRAH HUSINAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392337,
+      "name": "MUTESI RAHMAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392338,
+      "name": "NANGOBI FARIHA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392339,
+      "name": "KATENDE ABDUL-RAHMAN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392340,
+      "name": "WAISWA HASSAN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392341,
+      "name": "KATO HUSSEIN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392342,
+      "name": "KINTU MEDI",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392343,
+      "name": "KAKAIRE UKASHA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392344,
+      "name": "AHMED MUDATHIR",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392345,
+      "name": "MUTUBA IMRAN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392346,
+      "name": "KONERA HUSNAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392347,
+      "name": "KISUYI HUZAIRU",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392348,
+      "name": "YAHAYA FAIZAL",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392349,
+      "name": "MPAULO SHABAN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392350,
+      "name": "SEBUGANDA SHURAIM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392351,
+      "name": "HANIPH QURAISH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392352,
+      "name": "MUSASIZI AQEIL",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392353,
+      "name": "ASIMAH BINT FARID",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392354,
+      "name": "KAKOOZA HUZAIR",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392355,
+      "name": "GASEMBA AZED",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392356,
+      "name": "NAKISUYI FAHMAT",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392357,
+      "name": "ANISHAH MUTESI",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392358,
+      "name": "BAMULANZEKI SALIM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392359,
+      "name": "RAHMAH NAKAGOLO",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392360,
+      "name": "WANGUBO RAYAN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392361,
+      "name": "NAMPALA RAHMA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392362,
+      "name": "NAMUWAYA RAHMA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392363,
+      "name": "NALUWAGULA NOOR",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392364,
+      "name": "SOOMA ASHIM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392365,
+      "name": "NANGIRA AYAAT",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392366,
+      "name": "TIBAGA NUSFAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392367,
+      "name": "NAMPALA YUSUF",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392369,
+      "name": "KIGUNDU SHAFIK",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392370,
+      "name": "ASHIBAH BINT YUSUF",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392371,
+      "name": "NASSALI FARHIYYAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392372,
+      "name": "ABUBAKAR SWIDIQ",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392373,
+      "name": "MUSTAFA PAVEZ",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392374,
+      "name": "SUDAIS ABDUL-RAHMAN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392375,
+      "name": "BAMULANZEKI RAMATHAN",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392376,
+      "name": "ASIIMWE FAHIM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392377,
+      "name": "NAKIBINGE IBRAHIM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392378,
+      "name": "UTHUMAN ABUBAKAR",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392379,
+      "name": "BIKADHO ADAM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392380,
+      "name": "MWASE SUDAIS",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392381,
+      "name": "MONDO RAHUR",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392382,
+      "name": "MUHSIN ABDUL-KARIM  NSAMBA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392383,
+      "name": "ASHA NAKIMULI",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392384,
+      "name": "NAMAGANDA RAUTHAR",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392385,
+      "name": "WAIRA MUSWABU",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392387,
+      "name": "BAKAKI SWABIR",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392388,
+      "name": "GOOBI HANNAN ABASI",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392389,
+      "name": "NAMULONDO ZAINAB  RAHMA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392390,
+      "name": "HASANAH KANSIIME",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392391,
+      "name": "MATENDE ABDUL-RAUF",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392398,
+      "name": "MULONDO ISHAM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392409,
+      "name": "MUSISI RAMISH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392438,
+      "name": "MWOGEZA ASHRAF",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392440,
+      "name": "AMASE NUSFAT",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392448,
+      "name": "KAMBA NASSER  DUMBA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392449,
+      "name": "KHAIRAT ABDALLAH  NANKISA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392450,
+      "name": "NABILYE ZAINAB",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392451,
+      "name": "ZULFA ABDALLAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392453,
+      "name": "KIZITO UKASHA",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392577,
+      "name": "NABILYE ZAINAB",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392592,
+      "name": "NAMUSOBYA NASSIM ARAFAT",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392595,
+      "name": "NAKABAMBWE SUMMAYAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392602,
+      "name": "ZULFA ABDALLAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392629,
+      "name": "NAMUWAYA AMINAH",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392630,
+      "name": "ZAINAB BINT ISMAEL",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392636,
+      "name": "MULONDO ISHAM",
+      "previous_class": "PRIMARY FOUR",
+      "target_class": "PRIMARY FIVE",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392392,
+      "name": "BUKENYA HASSAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392393,
+      "name": "MUHAMMAD ISSA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392394,
+      "name": "MUDATHIR IBRAHIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392395,
+      "name": "KAKAIRE IMRAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392396,
+      "name": "BALELE ABUBAKAR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392397,
+      "name": "MUNOBWA ABDUL-SWABUL",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392399,
+      "name": "SULAIMAN SEIF",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392400,
+      "name": "BABIRYE HABIBAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392401,
+      "name": "NAKIYEMBA SHIFRA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392402,
+      "name": "WAVAMUNO HATWIB",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392403,
+      "name": "SHAHA BINT YUSUF",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392404,
+      "name": "TIBIWABYA RASHIDAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392405,
+      "name": "LUWANGULA JUMA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392406,
+      "name": "NABIRYO FAKIIHA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392407,
+      "name": "NAMPALA SHURAIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392408,
+      "name": "WALUSANSA ISA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392410,
+      "name": "HINDU ABDULLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392411,
+      "name": "ZAINAB ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392412,
+      "name": "MUKOSE AHMED",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392413,
+      "name": "KYONKYO MUSA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392414,
+      "name": "KIYIMBA RAYAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392415,
+      "name": "KULUTUBI GAMUSI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392416,
+      "name": "SULTANA BINT MUTWALIB",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392417,
+      "name": "SADALA ISA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392418,
+      "name": "DIDI HUSSEIN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392419,
+      "name": "NAWAL ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392420,
+      "name": "NANDEGO RAHMA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392421,
+      "name": "KIBUYE ABUTHAARI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392422,
+      "name": "SIKYAGATEMA KAUTHARA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392423,
+      "name": "ISMAEL AZED SOWED",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392424,
+      "name": "HAMISI MUGOYA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392425,
+      "name": "MUGOYA ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392426,
+      "name": "TAGEJJE TAQIYYU",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392427,
+      "name": "SEMAKULA RAJASHI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392428,
+      "name": "SSENYOGA ABDALLAH  RAHIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392429,
+      "name": "KISUYI ABDUL-RAHIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392430,
+      "name": "MUNFIC ARAFAT",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392431,
+      "name": "BIWEMBA RAJJAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392432,
+      "name": "ASMAH JALIRUDIN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392433,
+      "name": "RAUTHAR ZZIWA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392434,
+      "name": "IHLAM ISMAEL",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392435,
+      "name": "NAMATA MUNTAHA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392436,
+      "name": "NAKIMBUGWE HANIFA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392437,
+      "name": "NAMBOGWE AISHA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392439,
+      "name": "MASTULA MARIAM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392441,
+      "name": "MAGEZI SHAFIQ",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392442,
+      "name": "NATTABI RAHMA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392443,
+      "name": "NAKINYANZI MARIAM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392444,
+      "name": "MATSAD HAITHAM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392445,
+      "name": "NGOOBI HAARITH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392446,
+      "name": "MUSINGO FRIDAUS",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392447,
+      "name": "UKASHA RAMATHAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392452,
+      "name": "MUKISA RASHID",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392457,
+      "name": "NAMWASE SWALIHAT",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392458,
+      "name": "NAMWASE SWALIHAT",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392459,
+      "name": "HASSAN ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392460,
+      "name": "IDRIS NKOOBE",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392461,
+      "name": "MUWAYA ABUBAKAR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392462,
+      "name": "MUWAYA ABUBAKAR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392463,
+      "name": "GASEMBA ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392464,
+      "name": "GASEMBA ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392465,
+      "name": "GASEMBA ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392466,
+      "name": "IWUMBWE FARAHAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392467,
+      "name": "ABDUL-MUTWALIB GUUYA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392468,
+      "name": "ISA KIIZA MUSOBYA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392469,
+      "name": "ISA KIIZA MUSOBYA KIIZA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392470,
+      "name": "KINTU NAJIB",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392471,
+      "name": "KABAALE HAJJI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392472,
+      "name": "MUTESI RANIA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392473,
+      "name": "NANKISANDA RAHMA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392474,
+      "name": "IBRAHIIM ABUBAKAR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392475,
+      "name": "KONGOLA SULAIMAN  SABAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392476,
+      "name": "ABDUL-RAZAK AHMED",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392477,
+      "name": "NANGOBI RAUDHAT",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392478,
+      "name": "GASEMBA ALI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392479,
+      "name": "TALKAZA INAAYA  SALIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392480,
+      "name": "SENGENDO FAIZAL",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392481,
+      "name": "LWANGA BANULI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392482,
+      "name": "KASADHA FAJIRDIIN FAHMAI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392483,
+      "name": "ABDUL-BASIT UKASHA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392484,
+      "name": "NANGOBI HANAD  RASHAK",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392485,
+      "name": "SSEMBATYA ABDUL-RAHMAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392486,
+      "name": "SSONZI HARUNA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392487,
+      "name": "NINSIIMA MARIAM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392488,
+      "name": "NINSIIMA MARIAM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392489,
+      "name": "NINSIIMA MARIAM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392490,
+      "name": "NTONGO MARIAM  ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392491,
+      "name": "ISOTA ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392492,
+      "name": "MUTEBI FARHAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392493,
+      "name": "UKASHA WANDERA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392494,
+      "name": "MAGANDA MUHSIN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392495,
+      "name": "NAMAKIKA RAHMA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392496,
+      "name": "NDYEKU JABELI",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392497,
+      "name": "MUHUMUZA BASHIIR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392498,
+      "name": "KIRABIRA MAHAD",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392499,
+      "name": "NALO IBRAHIIM   MUHAMMAD",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392500,
+      "name": "RAYAN ABDUL-KARIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392501,
+      "name": "ONANYANGO ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392502,
+      "name": "MUDOOLA SAID",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392503,
+      "name": "NAKALEMA AISHA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392504,
+      "name": "AYEMBE YAHAYA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392505,
+      "name": "ABDUL QAHALU ABUBAKAR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392506,
+      "name": "ABDUL-RAHMAN  MUSA ISA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392507,
+      "name": "RAHMAH JALIRUDIIN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392508,
+      "name": "DHABULIWO HASHIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392509,
+      "name": "BASHIIRAH UTHMAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392510,
+      "name": "ABDUL-WAHAB MUHSIN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392511,
+      "name": "YOUSEF AL-MUSALAMY",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392512,
+      "name": "KAKOOZA ISMAEL",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392513,
+      "name": "KIYAGA RAUF",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392514,
+      "name": "MPATA IDRISS",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392515,
+      "name": "TUSIIME ZAINAB",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392516,
+      "name": "MONDO SHAKUL",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392517,
+      "name": "NANTEZA SWABURA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392518,
+      "name": "GOOBI KHIDHIR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392519,
+      "name": "MAGANDA BADIRUDIIN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392520,
+      "name": "KIIRYA JUMA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392521,
+      "name": "KALINISE ABDALLAH",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392522,
+      "name": "MUKISA RAHIM",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392523,
+      "name": "FALUWA  BINT YUSUF",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392576,
+      "name": "HAIRAT ABDALLAH NANKISA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392578,
+      "name": "KIBUDE IMRAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392579,
+      "name": "KIBUDE IMRAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392580,
+      "name": "WAIRA ARYAN",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392581,
+      "name": "ALIYYU ABUBAKAR",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392582,
+      "name": "MUMBEJJA SOPHIA",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392583,
+      "name": "NUHA BASEF",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392584,
+      "name": "FRAIHA BINT MUHAMMAD",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392587,
+      "name": "FRAIHA BINT MUHAMMAD",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392590,
+      "name": "ABDUL RAZAK AHMED",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392605,
+      "name": "MADINAH NAMUZUNGU",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392606,
+      "name": "NANJIYA TAUBAH TAIBU",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392637,
+      "name": "ISHAM MULONDO",
+      "previous_class": "PRIMARY FIVE",
+      "target_class": "PRIMARY SIX",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392524,
+      "name": "NANGOBI SHAFUKA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392525,
+      "name": "NAKISUUYI ASMA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392526,
+      "name": "HUDA MUBARAK",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392527,
+      "name": "NAKUNGU MARIAM",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392528,
+      "name": "GULUME HAMZAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392529,
+      "name": "SABANO FARIIDA  MODONDO",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392530,
+      "name": "NABULUMBA NAHIYAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392531,
+      "name": "ABDUL-KARIIM ABDALLAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392532,
+      "name": "MATEEKA SHURAIM",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392533,
+      "name": "NAWEMBA SINAN",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392534,
+      "name": "SHAINAH MUSASIZI",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392535,
+      "name": "AFEEFAH MUSASIZI",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392536,
+      "name": "KAZIBA ABDUL-RAHMAN",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392537,
+      "name": "KAUMA SHATURAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392538,
+      "name": "MUTESI SUMAYA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392539,
+      "name": "ABDUL-HAIL MUKUYE",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392540,
+      "name": "NAKALANZI SOPHIE",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392541,
+      "name": "KIJAMBU MAITHARAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392542,
+      "name": "MUKASA ABDUL-RAZAK",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392543,
+      "name": "MUKASA ABDUL-RAZAK",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392544,
+      "name": "MUMBEJJA SHAMIRAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392545,
+      "name": "KAMYA HAMIS",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392546,
+      "name": "KYAZZE IBRAHIIM",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392547,
+      "name": "MUNABA HAJARA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392548,
+      "name": "MUDOOLA RAYAN",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392549,
+      "name": "NSUBUGA ARAFAT",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392550,
+      "name": "NAMBALILWA SHIFRAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392551,
+      "name": "UMMUSULAIMU KANTONO",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392552,
+      "name": "CHRITIAN SHADRAK",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392553,
+      "name": "MAGANDA MUSTAFA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392554,
+      "name": "UTHMAN MUKASA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392555,
+      "name": "MAGANDA MUSTAFA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392556,
+      "name": "AUZAA-E ABUBAKAR",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392557,
+      "name": "MAYENGO ABDUL-RAHMAN",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392558,
+      "name": "DHABULIWO SHAFIK",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392559,
+      "name": "NAMATENDE MWASIT",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392560,
+      "name": "ZIYANA BINT  RAMADHAN  WANYANZE",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392561,
+      "name": "SSENYOJO ABDALLAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392562,
+      "name": "NTAMBI IMRAN",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392563,
+      "name": "SOPHIA MUTESI",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392564,
+      "name": "ASMAH NANTONGO",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392565,
+      "name": "NAMUGABO JAUHARAH",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392566,
+      "name": "NABUNYA MARIAM",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392567,
+      "name": "MUYINDA BADRDEEN",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392568,
+      "name": "ABAS JUMA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392604,
+      "name": "NADIA MASITULA HITLA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392631,
+      "name": "MWANJA UTHMAN",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392632,
+      "name": "ABUBAKAR MAGANDA",
+      "previous_class": "PRIMARY SIX",
+      "target_class": "PRIMARY SEVEN",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392029,
+      "name": "MUZAALE SALIM",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392127,
+      "name": "MAGOOLA BASHIRI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392128,
+      "name": "ZAHARA ABDALLAH NAKIBUULE",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392129,
+      "name": "ZAINAB ABDALLAH NAMUGENYI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392130,
+      "name": "JUMBA ABDALLAH",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392131,
+      "name": "RAYAN RAMADHAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392132,
+      "name": "ARAFAT KIGENYI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392133,
+      "name": "RUKINDU ASHIRAF MUSA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392134,
+      "name": "BUWEMBO MUDATHIR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392135,
+      "name": "NSUBUGA ABDUL-AZIZI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392136,
+      "name": "KASEKENDE ABDUL-RAHMAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392137,
+      "name": "LUSWATA MUHAMMAD",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392138,
+      "name": "BWANIKA RIDHIWANI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392139,
+      "name": "ABUBAKAR SWIDIQ",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392140,
+      "name": "KIRUNDA ISMAEL",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392141,
+      "name": "NYANJA NOORDEEN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392142,
+      "name": "MUHAMMAD ALI SSERUBOGO",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392143,
+      "name": "NYANZI ABDUL SWABUR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392144,
+      "name": "KATEGA AYUB",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392145,
+      "name": "SONKO SHARAF KIGANDA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392146,
+      "name": "KATUSIIME FAHIIMA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392147,
+      "name": "SEGUJJA HUSSEIN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392148,
+      "name": "SSEMWANGA RAYAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392149,
+      "name": "MUKOSE TWAHIR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392150,
+      "name": "ABDUL SHAKUR SWALEH",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392151,
+      "name": "MULANGIRA ABDUL RAHMAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392152,
+      "name": "WANDERA MUSTAPHA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392153,
+      "name": "NABABENGA HABIBAH",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392154,
+      "name": "ATWA-U MWASE",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392155,
+      "name": "WAWAYANGA ABDUL HAIRI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392156,
+      "name": "KALEMA FADHIL",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392157,
+      "name": "MUYOMBA ANWAR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392158,
+      "name": "BALE ABDUL-SHAKUR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392159,
+      "name": "BYARUHANGA NASIIB",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392160,
+      "name": "MUBIRU AZHAR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392161,
+      "name": "LUQMAN KAYONDO",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392162,
+      "name": "SSEMAKULA SHUKRAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392163,
+      "name": "SSENOGA MAHAWISH",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392164,
+      "name": "WALUGEMBE HAITHAM ABDUL KARIM",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392165,
+      "name": "SHADIAH BINTI ZAIDI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392166,
+      "name": "KALUNGI UKASHA UMAR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392167,
+      "name": "ASIMWE RAHMA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392168,
+      "name": "HASSAN QASSIM WASSWA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392169,
+      "name": "SSEKADU HAMAM",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392170,
+      "name": "BUKENYA ABDUL GHAFAR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392171,
+      "name": "LUKWAGO SUDAIS",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392172,
+      "name": "KANAKULYA RAJAB",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392173,
+      "name": "NAIGAGA HAJARAH",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392174,
+      "name": "LWANGA UKASHA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392175,
+      "name": "TAUFIC LUKOMWA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392176,
+      "name": "ABDUL AZIZI SAIF LA WAYA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392177,
+      "name": "NANGOBI SUMMAYAH",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392178,
+      "name": "WASOKO EDRISA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392179,
+      "name": "HAMIDAH QASSIM",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392180,
+      "name": "ABDUL AZIZ MUYIIMA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392181,
+      "name": "UMAR MUSA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392182,
+      "name": "THURAYYA MBAZIIRA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392183,
+      "name": "RAYAN KAGABA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392184,
+      "name": "MUBIRU MUSTAFA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392185,
+      "name": "MISBAHU ASHIRAF",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392186,
+      "name": "ABDUL NASWIR MUHAMMAD NGOBI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392187,
+      "name": "ABDUL MALIK MUHAMMAD",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392188,
+      "name": "FADHIL HUZAIFAH",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392189,
+      "name": "FADHIL HUBAIBU",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392190,
+      "name": "FADHIL UWAIS",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392191,
+      "name": "ABDURAHMAN HASSAN WASSWA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392192,
+      "name": "KANYIKE MUHAMMAD YASIN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392193,
+      "name": "NAKATE AFUWA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392194,
+      "name": "ZAITUNI NAISAMULA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392195,
+      "name": "MUYOMBA UMAR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392196,
+      "name": "KAWOOYA UMAR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392197,
+      "name": "ABDUL RAHMAN SHURAIM WAFULA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392198,
+      "name": "KAZIBWE ISMAEL",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392199,
+      "name": "BASHIRA ABDUL KARIM",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392200,
+      "name": "IQLAS MOHAMED MUHAMMUD",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392201,
+      "name": "IDRIS MOHAMED MUHAMMUD",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392202,
+      "name": "HIBATULLAH ABAS",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392203,
+      "name": "HAIRAT NASSUNA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392204,
+      "name": "NSIMBI NAJIB",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392205,
+      "name": "TIMUNTU ABDUL-RAZAK",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392206,
+      "name": "ABDUL-AZIZI ZIZINGA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392207,
+      "name": "WILDAN TWAIB",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392208,
+      "name": "MUGUNDA YUSUF",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392209,
+      "name": "HASNAT UTHUMAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392210,
+      "name": "SHAKIB MUGANGA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392211,
+      "name": "MUSOBYA SHAFIE ABUBAKAR",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392212,
+      "name": "NAKANTU HAFIDHWA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392213,
+      "name": "NAKANTU HUNAISA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392214,
+      "name": "JAMILA JUMA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392215,
+      "name": "RAHMA FADHIL",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392216,
+      "name": "KIIRA MUHAAMAD",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392217,
+      "name": "AAYAT UTHMAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392218,
+      "name": "QAYIM UTHMAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392219,
+      "name": "ZAMZAM NAKALEMBE",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392220,
+      "name": "BASHIR ABDUL HAFIDHI",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392334,
+      "name": "OLANYA HAMZA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392570,
+      "name": "AKSAM NGAYIRE",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392571,
+      "name": "AKSAM NGAYIRE",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392573,
+      "name": "AKSAM NGAYIRE LUGOMWA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392585,
+      "name": "SHADAD TILIBUZA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392588,
+      "name": "TILIBUZA SHADAD",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392589,
+      "name": "TILIBUZA SHADAD",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392607,
+      "name": "SHUKRAN SSEMAKULA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392608,
+      "name": "AAYAT UTHMAN",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392634,
+      "name": "MULANGILA UKASHA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    },
+    {
+      "student_id": 392635,
+      "name": "TAKIA BBOSA",
+      "previous_class": "TAHFIZ",
+      "target_class": "TAHFIZ",
+      "target_year_id": 8002,
+      "target_term_id": 30005,
+      "stream_id": null
+    }
+  ],
+  "graduates": [
+    {
+      "student_id": 392005,
+      "name": "NAMULI ZIYADA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392006,
+      "name": "NAJJUKO MADINA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392007,
+      "name": "KISUYI MUSWAB",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392008,
+      "name": "NAKIMULI AISHA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392009,
+      "name": "NAMBEEDHA NUSULA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392010,
+      "name": "RUKAYYA ISA SEMPIJJA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392011,
+      "name": "DIDI IMRAN",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392012,
+      "name": "TUMUSIME ABDUL-RAHMAN",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392013,
+      "name": "KANENE UTHMAN",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392014,
+      "name": "MPAULO ZAITUNA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392015,
+      "name": "ASIMWE RAZAKA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392016,
+      "name": "RASHMA BINT RAMATHAN",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392017,
+      "name": "NKIZZI MARIAM",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392018,
+      "name": "RANI BARAKAT",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392019,
+      "name": "MUWAYI HISHAM",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392020,
+      "name": "IBRAHIM ODOGO",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392021,
+      "name": "KAKEREWE MEDDIE",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392022,
+      "name": "MUSWAB ALI",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392023,
+      "name": "ISABIRYE UMARU",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392024,
+      "name": "BABUZA MUHAMMAD",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392025,
+      "name": "ZZIWA RAYHAN",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392026,
+      "name": "NTAMBI FAHIM",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392027,
+      "name": "KILIBA UMAR",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392028,
+      "name": "SSENYANGE DALDAE",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392030,
+      "name": "KAWUMA NIJAD",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392031,
+      "name": "BALUKA KHADIJA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392032,
+      "name": "KYEYAGO NASIF",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392033,
+      "name": "NSUBUGA ZAKIYYU",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392034,
+      "name": "NAZIIFA NAIGAGA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392035,
+      "name": "RUKAYYA SIRINA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392036,
+      "name": "TIKUSITWA AMAL",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392037,
+      "name": "NAMUKOBE ZAHIRA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392038,
+      "name": "KIKOBWAKO GIFT",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392039,
+      "name": "NANJURA B DESIRE",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392040,
+      "name": "MUKISA JEMIMA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392041,
+      "name": "NAMIYINGO THUWAIBA",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392042,
+      "name": "NANDUBU JACOB",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392043,
+      "name": "MUTESI SHARIFAH",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392044,
+      "name": "NTUUYO IMRAN  HASIM",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392045,
+      "name": "MENYA ABDUL-RAHIIM",
+      "previous_class": "PRIMARY SEVEN"
+    },
+    {
+      "student_id": 392046,
+      "name": "NABUTANDA RANIA",
+      "previous_class": "PRIMARY SEVEN"
+    }
+  ],
+  "skipped_integrity_check": [
+    392486,
+    392492,
+    392029,
+    392127,
+    392128,
+    392129,
+    392130,
+    392131,
+    392132,
+    392133,
+    392134,
+    392135,
+    392136,
+    392137,
+    392138,
+    392139,
+    392140,
+    392141,
+    392142,
+    392143,
+    392144,
+    392145,
+    392146,
+    392147,
+    392148,
+    392149,
+    392150,
+    392151,
+    392152,
+    392153,
+    392154,
+    392155,
+    392156,
+    392157,
+    392158,
+    392159,
+    392160,
+    392161,
+    392162,
+    392163,
+    392164,
+    392165,
+    392166,
+    392167,
+    392168,
+    392169,
+    392170,
+    392171,
+    392172,
+    392173,
+    392174,
+    392175,
+    392176,
+    392177,
+    392178,
+    392179,
+    392180,
+    392181,
+    392182,
+    392183,
+    392184,
+    392185,
+    392186,
+    392187,
+    392188,
+    392189,
+    392190,
+    392191,
+    392192,
+    392193,
+    392194,
+    392195,
+    392196,
+    392197,
+    392198,
+    392199,
+    392200,
+    392201,
+    392202,
+    392203,
+    392204,
+    392205,
+    392206,
+    392207,
+    392208,
+    392209,
+    392210,
+    392211,
+    392212,
+    392213,
+    392214,
+    392215,
+    392216,
+    392217,
+    392218,
+    392219,
+    392220,
+    392334,
+    392570,
+    392571,
+    392573,
+    392585,
+    392588,
+    392589,
+    392607,
+    392608,
+    392634,
+    392635
+  ],
+  "unknown_class": []
+}

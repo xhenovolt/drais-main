@@ -19,6 +19,7 @@ import {
   Book,
   Home,
   MoreVertical,
+  Zap,
 } from 'lucide-react';
 import { useExport } from '@/hooks/useExport';
 import { toast } from 'react-hot-toast';
@@ -86,6 +87,8 @@ export default function StudentsListPage() {
   const [admittedStudents, setAdmittedStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterClassId, setFilterClassId] = useState<number>(0);
+  const [filterYearId, setFilterYearId]   = useState<number>(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showExportMenu, setShowExportMenu] = useState(false);
   
@@ -208,13 +211,20 @@ export default function StudentsListPage() {
   // Main data fetching
   useEffect(() => {
     fetchStudents();
-  }, [search]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, filterClassId, filterYearId]);
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ search });
-      logger.log('Fetching students with search:', search);
+      if (filterClassId)  params.set('class_id',          String(filterClassId));
+      if (filterYearId)  {
+        params.set('academic_year_id', String(filterYearId));
+        // Show all terms for the chosen year, not just the current term
+        params.set('historical',       'true');
+      }
+      logger.log('Fetching students — search:', search, 'class:', filterClassId, 'year:', filterYearId);
       
       // Fetch enrolled students
       const enrolledRes = await fetch(`/api/students/enrolled?${params}`);
@@ -326,7 +336,7 @@ export default function StudentsListPage() {
       if (data.success) {
         toast.success('Student enrolled successfully');
         setShowEnrollModal(false);
-        setSelectedIds(new Set(prev => new Set([...prev]).delete(enrollForm.student_id)));
+        setSelectedIds(prev => { const next = new Set(prev); next.delete(enrollForm.student_id); return next; });
         fetchStudents();
       } else {
         const errorMsg = data.error || 'Enrollment failed';
@@ -490,6 +500,14 @@ export default function StudentsListPage() {
               </div>
 
               <Link
+                href="/students/promote"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+                title="Mission Control — 2025→2026 bulk promotion"
+              >
+                <Zap size={18} /> Promote
+              </Link>
+
+              <Link
                 href="/students/admit"
                 className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
               >
@@ -504,6 +522,8 @@ export default function StudentsListPage() {
               onClick={() => {
                 setActiveTab('enrolled');
                 setSelectedIds(new Set());
+                setFilterClassId(0);
+                setFilterYearId(0);
               }}
               className={`px-4 py-3 font-medium border-b-2 transition-colors ${
                 activeTab === 'enrolled'
@@ -519,6 +539,8 @@ export default function StudentsListPage() {
               onClick={() => {
                 setActiveTab('admitted');
                 setSelectedIds(new Set());
+                setFilterClassId(0);
+                setFilterYearId(0);
               }}
               className={`px-4 py-3 font-medium border-b-2 transition-colors ${
                 activeTab === 'admitted'
@@ -531,6 +553,76 @@ export default function StudentsListPage() {
               </span>
             </button>
           </div>
+
+          {/* ── Filter Bar (Enrolled only) ────────────────────────── */}
+          {activeTab === 'enrolled' && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 p-3 rounded-xl border border-white/60 bg-white/70 backdrop-blur-lg shadow-sm">
+              {/* Class filter */}
+              <div className="relative flex-1 min-w-[160px] max-w-[220px]">
+                <select
+                  value={filterClassId}
+                  onChange={(e) => setFilterClassId(Number(e.target.value))}
+                  className="w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-slate-200 bg-white/80 backdrop-blur text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 appearance-none cursor-pointer"
+                >
+                  <option value={0}>All Classes</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-3 text-slate-400" />
+              </div>
+
+              {/* Academic Year filter */}
+              <div className="relative flex-1 min-w-[160px] max-w-[220px]">
+                <select
+                  value={filterYearId}
+                  onChange={(e) => setFilterYearId(Number(e.target.value))}
+                  className="w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-slate-200 bg-white/80 backdrop-blur text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 appearance-none cursor-pointer"
+                >
+                  <option value={0}>Current Term</option>
+                  {academicYears.map((y) => (
+                    <option key={y.id} value={y.id}>{y.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-3 text-slate-400" />
+              </div>
+
+              {/* Active filter pills + clear */}
+              {(filterClassId !== 0 || filterYearId !== 0) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {filterClassId !== 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                      {classes.find(c => c.id === filterClassId)?.name}
+                      <button onClick={() => setFilterClassId(0)} className="hover:text-indigo-900 transition-colors">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  )}
+                  {filterYearId !== 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-fuchsia-100 text-fuchsia-700">
+                      {academicYears.find(y => y.id === filterYearId)?.name}
+                      <button onClick={() => setFilterYearId(0)} className="hover:text-fuchsia-900 transition-colors">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  )}
+                  <button
+                    onClick={() => { setFilterClassId(0); setFilterYearId(0); }}
+                    className="text-xs text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2"
+                  >
+                    Clear all
+                  </button>
+                </div>
+              )}
+
+              {/* Result count badge */}
+              <div className="ml-auto flex-shrink-0">
+                <span className="text-xs text-slate-500 font-medium tabular-nums">
+                  {enrolledStudents.length} student{enrolledStudents.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Search */}
           <div className="mt-4 max-w-md">
@@ -555,11 +647,35 @@ export default function StudentsListPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           </div>
         ) : displayedData.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <AlertCircle className="mx-auto text-gray-400 mb-2" size={48} />
-            <p className="text-gray-600">
-              {activeTab === 'enrolled' ? 'No enrolled students' : 'No admitted students'}
-            </p>
+          <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+            <div className="mx-auto w-16 h-16 mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+              <Users size={28} className="text-gray-400" />
+            </div>
+            {activeTab === 'enrolled' && (filterClassId !== 0 || filterYearId !== 0) ? (
+              <>
+                <p className="text-gray-700 font-semibold text-lg">No students found</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  {filterClassId !== 0 && filterYearId !== 0
+                    ? `No enrollments in ${classes.find(c => c.id === filterClassId)?.name ?? 'this class'} for ${academicYears.find(y => y.id === filterYearId)?.name ?? 'this year'}`
+                    : filterClassId !== 0
+                    ? `No enrollments in ${classes.find(c => c.id === filterClassId)?.name ?? 'this class'}`
+                    : `No enrollments for ${academicYears.find(y => y.id === filterYearId)?.name ?? 'this year'}`}
+                </p>
+                <button
+                  onClick={() => { setFilterClassId(0); setFilterYearId(0); }}
+                  className="mt-4 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Clear filters
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600 font-medium">
+                  {activeTab === 'enrolled' ? 'No enrolled students' : 'No admitted students'}
+                </p>
+                {search && <p className="text-sm text-gray-400 mt-1">Try a different search term</p>}
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -674,7 +790,7 @@ function StudentCard({
                 <p className="text-xs text-gray-500 font-medium">PROGRAMS</p>
                 <div className="flex gap-1 flex-wrap mt-1">
                   {safeArray(enrolled.programs).length > 0 ? (
-                    safeArray(enrolled.programs).map((p) => (
+                    (safeArray(enrolled.programs) as Array<{id: number; name: string}>).map((p) => (
                       <span key={p.id} className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
                         {safeString(p.name)}
                       </span>
