@@ -10,6 +10,8 @@ import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import type { ReportLayoutJSON } from '@/lib/reportTemplates';
 import { DEFAULT_TEMPLATE_JSON } from '@/lib/reportTemplates';
+import DualCurriculumTemplate from '@/templates/DualCurriculumTemplate';
+import { getSubjectName } from '@/templates/DualCurriculumTemplate';
 
 // Type definitions
 interface Student {
@@ -37,6 +39,8 @@ interface Result {
   student_id: number;
   subject_id: number;
   subject_name: string;
+  /** Arabic subject name — populated from subjects.name_ar when available */
+  name_ar?: string;
   teacher_name?: string;
   score: number;
   result_type_name?: string;
@@ -64,6 +68,7 @@ interface ClassGroup {
 
 interface GroupedResult {
   subject_name: string;
+  name_ar?: string;
   teacher_name?: string;
   midTermScore: number | null;
   endTermScore: number | null;
@@ -146,6 +151,21 @@ const ReportsPage = () => {
   // ── Template engine: active layout JSON loaded from /api/report-templates/active
   const [activeLayout, setActiveLayout] = useState<ReportLayoutJSON>(DEFAULT_TEMPLATE_JSON);
 
+  // ── Template switching (Phase 1 & 8)
+  // Registry keys: 'default' | 'arabic' | 'dual' | 'default-clone' | 'arabic-clone'
+  const templateRegistry = {
+    default: 'default',
+    arabic: 'arabic',
+    dual: 'dual',
+    'default-clone': 'default-clone',
+    'arabic-clone': 'arabic-clone',
+  } as const;
+  type TemplateKey = keyof typeof templateRegistry;
+
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey>('default');
+  const [curriculum, setCurriculum] = useState<'all' | 'secular' | 'theology'>('all');
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ar'>('en');
+
   useEffect(() => {
     fetch('/api/report-templates/active')
       .then(r => r.json())
@@ -156,6 +176,12 @@ const ReportsPage = () => {
       })
       .catch(() => { /* keep default */ });
   }, []);
+
+  // Phase 8: log template + curriculum on every switch
+  useEffect(() => {
+    const resolved = templateRegistry[selectedTemplate] ?? 'default';
+    console.log('Rendering template:', resolved, '| curriculum:', curriculum);
+  }, [selectedTemplate, curriculum]);
 
   // Helper to get term ID (you may need to adjust based on your database)
   const getTermId = (termName: string): string => {
@@ -519,6 +545,7 @@ const ReportsPage = () => {
       if (!grouped[subjectKey]) {
         grouped[subjectKey] = {
           subject_name: result.subject_name || `Subject ${subjectKey}`,
+          name_ar: result.name_ar,
           teacher_name: result.teacher_name,
           midTermScore: null,
           endTermScore: null,
@@ -848,13 +875,44 @@ const ReportsPage = () => {
             className="input border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
 
+          {/* Template selector — Phase 1 */}
           <select
+            value={selectedTemplate}
+            onChange={(e) => {
+              const key = e.target.value as TemplateKey;
+              setSelectedTemplate(templateRegistry[key] ? key : 'default');
+            }}
+            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            title="Select report template"
+          >
+            <option value="default">Default</option>
+            <option value="arabic">Arabic</option>
+            <option value="dual">Dual Curriculum</option>
+            <option value="default-clone">Default (Clone)</option>
+            <option value="arabic-clone">Arabic (Clone)</option>
+          </select>
+
+          {/* Curriculum filter — Phase 2 */}
+          <select
+            value={curriculum}
+            onChange={(e) => setCurriculum(e.target.value as 'all' | 'secular' | 'theology')}
+            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500"
+            title="Filter by curriculum"
+          >
+            <option value="all">All Subjects</option>
+            <option value="secular">Secular Only</option>
+            <option value="theology">Theology Only</option>
+          </select>
+
+          {/* Language selector — Phase 5, wired to state */}
+          <select
+            value={selectedLanguage === 'ar' ? 'Arabic' : 'English'}
+            onChange={(e) => setSelectedLanguage(e.target.value === 'Arabic' ? 'ar' : 'en')}
             className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Display language"
           >
             <option value="English">English</option>
             <option value="Arabic">Arabic</option>
-            <option value="Luganda">Luganda</option>
-            <option value="Swahili">Swahili</option>
           </select>
 
           <button
@@ -898,7 +956,23 @@ const ReportsPage = () => {
             <div key={classGroup.className}>
               <div className="classHeading text-2xl font-bold text-center my-0">{classGroup.className}</div>
               {classGroup.students.map((student: any) => {
-                const { principal, others } = splitSubjects(student.results || []);
+                // ── Phase 2: apply curriculum filter to results client-side
+                // The dual template always receives all results (it splits them internally).
+                const isCurriculumFiltered = selectedTemplate !== 'dual' && curriculum !== 'all';
+                const filteredStudentResults: Result[] = isCurriculumFiltered
+                  ? (student.results || []).filter((r: Result) => {
+                      const type = (r.subject_type || '').toLowerCase();
+                      if (curriculum === 'secular') {
+                        return type === 'secular' || (!type.includes('theol') && !type.includes('islam') && !type.includes('religion') && type !== 'theology');
+                      }
+                      if (curriculum === 'theology') {
+                        return type === 'theology' || type.includes('theol') || type.includes('islam') || type.includes('religion');
+                      }
+                      return true;
+                    })
+                  : (student.results || []);
+
+                const { principal, others } = splitSubjects(filteredStudentResults);
                 const groupedResults = groupResultsBySubject(principal);
                 const allGroupedResults = groupResultsBySubject([...principal, ...others]); // Include all subjects for display
                 
@@ -952,6 +1026,35 @@ const ReportsPage = () => {
                   division = adjustDivisionForF9(division, coreGrades);
                 }
 
+                // ── Phase 3: Render DualCurriculumTemplate for 'dual' selection
+                if (selectedTemplate === 'dual') {
+                  return (
+                    <DualCurriculumTemplate
+                      key={student.student_id}
+                      student={{ ...student, results: filteredStudentResults }}
+                      schoolInfo={schoolInfo}
+                      activeLayout={activeLayout}
+                      isEndOfTerm={isEndOfTerm}
+                      enableMarkConversion={enableMarkConversion}
+                      editableTermValue={editableTermValue}
+                      nextTermBegins={nextTermBegins}
+                      division={division}
+                      aggregates={aggregates}
+                      isNursery={isNursery}
+                      nurseryOverallGrade={nurseryOverallGrade}
+                      teacherInitials={teacherInitials}
+                      onInitialsChange={handleInitialsChange}
+                      onInitialsSave={saveInitialsToBackend}
+                      onNextTermChange={handleNextTermChange}
+                    />
+                  );
+                }
+
+                // ── Phase 1 & 5: 'arabic' / 'arabic-clone' = RTL-first default layout
+                // The standard layout already renders Arabic on the right; marking it here
+                // confirms the template key resolved correctly.
+                const isArabicMode = selectedTemplate === 'arabic' || selectedTemplate === 'arabic-clone';
+
                 return (
                   <div key={student.student_id} style={{
                     pageBreakAfter: 'always',
@@ -965,11 +1068,12 @@ const ReportsPage = () => {
                     fontFamily: activeLayout.page.fontFamily,
                   }}>
                     {/* Header */}
+                    {/* Phase 5: isArabicMode = Arabic-first layout */}
                     <div style={{
                       display: 'flex',
                       justifyContent: activeLayout.header.layout === 'centered' ? 'center' : 'space-between',
                       alignItems: 'center',
-                      flexDirection: activeLayout.header.layout === 'centered' ? 'column' : 'row',
+                      flexDirection: activeLayout.header.layout === 'centered' ? 'column' : (isArabicMode ? 'row-reverse' : 'row'),
                       paddingBottom: activeLayout.header.paddingBottom,
                       opacity: activeLayout.header.opacity,
                       marginBottom: 0,
@@ -1170,7 +1274,7 @@ const ReportsPage = () => {
                           const tdStyle = { border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign, color: activeLayout.table.td.color };
                           return (
                             <tr key={i}>
-                              <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{r.subject_name}</td>
+                              <td style={{ ...tdStyle, cursor: 'text', direction: isArabicMode ? 'rtl' : 'ltr' }} contentEditable suppressContentEditableWarning>{getSubjectName(r, isArabicMode ? 'ar' : 'en')}</td>
                               {filters.resultType?.toLowerCase() === 'mid term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
                               {filters.resultType?.toLowerCase() === 'end of term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
                               {filters.resultType?.toLowerCase() === 'end of term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{endTermMarks}</td>}
@@ -1344,6 +1448,20 @@ const ReportsPage = () => {
               </form>
             </div>
           </div>
+        )}
+        {/* Phase 4: landscape print styles for dual curriculum template */}
+        {selectedTemplate === 'dual' && (
+          <style jsx global>{`
+            @media print {
+              @page { size: A4 landscape; margin: 10mm; }
+              .dual-report-page {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-shadow: none !important;
+                overflow-x: hidden !important;
+              }
+            }
+          `}</style>
         )}
         <style jsx global>{`
           .no-print {

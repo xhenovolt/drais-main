@@ -9,6 +9,8 @@ export async function GET(req: NextRequest) {
   const termId = searchParams.get('term_id');
   const academicYearId = searchParams.get('academic_year_id');
   const query = searchParams.get('query') || '';
+  // Phase 2: curriculum filter — 'secular' | 'theology' | 'all' (default)
+  const curriculum = searchParams.get('curriculum') || 'all';
 
   const connection = await getConnection();
 
@@ -46,6 +48,13 @@ export async function GET(req: NextRequest) {
       const like = `%${query}%`;
       params.push(like, like, like, like);
     }
+    // Phase 2: server-side curriculum filter
+    if (curriculum === 'secular') {
+      where += ' AND LOWER(COALESCE(sub.subject_type, \'\')) = \'secular\'';
+    } else if (curriculum === 'theology') {
+      where += ' AND LOWER(COALESCE(sub.subject_type, \'\')) = \'theology\'';
+    }
+    // curriculum === 'all' → no filter
 
     const [rows]: any = await connection.execute(
       `
@@ -63,6 +72,7 @@ export async function GET(req: NextRequest) {
         c.name as class_name,
         sub.id as subject_id,
         sub.name as subject_name,
+        COALESCE(sub.name_ar, '') as name_ar,
         sub.subject_type,
         rt.name as result_type_name,
         t.name as term_name,
