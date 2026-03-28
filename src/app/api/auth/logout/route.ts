@@ -48,6 +48,12 @@ export async function POST(request: NextRequest) {
       httpOnly: false,
     });
 
+    // Clear role cookie
+    response.cookies.set('drais_role', '', {
+      ...cookieOptions,
+      httpOnly: false,
+    });
+
     // Clear legacy auth-token cookie (for backward compatibility)
     response.cookies.set('auth-token', '', cookieOptions);
 

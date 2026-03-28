@@ -50,6 +50,23 @@ const SETUP_ALLOWED_ROUTES = [
 const SESSION_COOKIE_NAME = 'drais_session';
 
 // ============================================
+// RBAC ROUTE GUARDS
+// Role checks use the `drais_role` cookie set at login.
+// This is Edge-compatible (no DB calls needed).
+// ============================================
+
+/**
+ * Routes that require specific roles.
+ * If the user's role is NOT in the allowed list they get 403 / redirect.
+ */
+const ROLE_PROTECTED: { prefix: string; roles: string[] }[] = [
+  { prefix: '/admin/users',   roles: ['Admin', 'Super Admin'] },
+  { prefix: '/finance',       roles: ['Admin', 'Super Admin', 'Bursar'] },
+  { prefix: '/api/admin',     roles: ['Admin', 'Super Admin'] },
+  { prefix: '/api/finance',   roles: ['Admin', 'Super Admin', 'Bursar'] },
+];
+
+// ============================================
 // HELPER FUNCTIONS
 // ============================================
 
@@ -166,6 +183,30 @@ export function middleware(request: NextRequest) {
     url.pathname = '/dashboard';
     url.search = '';
     return NextResponse.redirect(url);
+  }
+
+  // ========================================
+  // 4. RBAC — ROLE-BASED ROUTE PROTECTION
+  // ========================================
+  const userRole = request.cookies.get('drais_role')?.value ?? '';
+
+  for (const guard of ROLE_PROTECTED) {
+    if (pathname.startsWith(guard.prefix)) {
+      const allowed = guard.roles.some(r => r.toLowerCase() === userRole.toLowerCase());
+      if (!allowed) {
+        if (isApiRoute) {
+          return NextResponse.json(
+            { success: false, error: { message: 'Forbidden', code: 'INSUFFICIENT_ROLE' } },
+            { status: 403 },
+          );
+        }
+        const url = request.nextUrl.clone();
+        url.pathname = '/unauthorized';
+        url.search   = '';
+        return NextResponse.redirect(url);
+      }
+      break; // first match wins
+    }
   }
 
   // ========================================

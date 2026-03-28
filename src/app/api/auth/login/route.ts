@@ -245,6 +245,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Set primary role cookie for Edge-compatible RBAC in middleware
+    const primaryRole = Array.isArray(userData.roles) && userData.roles.length
+      ? userData.roles[0]
+      : (userData.isSuperAdmin ? 'Admin' : 'Staff');
+    response.cookies.set('drais_role', primaryRole, {
+      ...SESSION_CONFIG.COOKIE_OPTIONS,
+      httpOnly: false, // Middleware needs to read this
+    });
+
     return response;
 
   } catch (error) {

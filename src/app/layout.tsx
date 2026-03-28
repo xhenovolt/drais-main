@@ -11,6 +11,8 @@ import FeatureUpdateNotification from '@/components/notifications/FeatureUpdateN
 import { AuthProvider } from '@/contexts/AuthContext';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
 import { TermProvider } from '@/contexts/TermContext';
+import { ProgressProvider } from '@/contexts/ProgressContext';
+import ProgressOverlay from '@/components/ui/ProgressOverlay';
 import OnboardingOrchestrator from '@/components/onboarding/OnboardingOrchestrator';
 import OnboardingCompletionBanner from '@/components/onboarding/OnboardingCompletionBanner';
 import dynamic from 'next/dynamic';
@@ -180,17 +182,20 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased selection:bg-[var(--color-primary)]/20">
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <OnboardingProvider>
-              <TermProvider>
-                <ThemeProvider>
-                  <I18nProvider>
-                    <LayoutContent>{children}</LayoutContent>
-                  </I18nProvider>
-                </ThemeProvider>
-              </TermProvider>
-            </OnboardingProvider>
-          </AuthProvider>
+          <ProgressProvider>
+            <AuthProvider>
+              <OnboardingProvider>
+                <TermProvider>
+                  <ThemeProvider>
+                    <I18nProvider>
+                      <LayoutContent>{children}</LayoutContent>
+                    </I18nProvider>
+                  </ThemeProvider>
+                </TermProvider>
+              </OnboardingProvider>
+            </AuthProvider>
+            <ProgressOverlay />
+          </ProgressProvider>
         </QueryClientProvider>
       </body>
     </html>

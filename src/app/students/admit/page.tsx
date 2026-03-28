@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { UserPlus, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import VoiceNameCapture from '@/components/admissions/VoiceNameCapture';
 
 const fieldBase =
   'w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition';
@@ -128,11 +129,17 @@ export default function AdmitStudentPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">First Name *</label>
-                <input required value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="e.g., Fatuma" className={fieldBase} />
+                <div className="flex items-center gap-2">
+                  <input required value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="e.g., Fatuma" className={fieldBase} />
+                  <VoiceNameCapture label="First Name" onCapture={setFirstName} />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Last Name <span className="font-normal text-slate-400">(optional)</span></label>
-                <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="e.g., Nakibuuka" className={fieldBase} />
+                <div className="flex items-center gap-2">
+                  <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="e.g., Nakibuuka" className={fieldBase} />
+                  <VoiceNameCapture label="Last Name" onCapture={setLastName} />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Other Name</label>
