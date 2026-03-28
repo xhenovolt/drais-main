@@ -352,11 +352,12 @@ export function getNavigationItems(
       key: 'users-roles',
       label: t('nav.usersRoles._'),
       icon: <UserCog className="w-5 h-5" />,
+      roles: ['admin', 'super_admin'],
       children: [
-        { key: 'users',       label: t('nav.usersRoles.users'),       icon: <UserCog className="w-4 h-4" />,    href: '/users/list' },
-        { key: 'roles',       label: t('nav.usersRoles.roles'),       icon: <ShieldCheck className="w-4 h-4" />,href: '/users/roles' },
-        { key: 'permissions', label: t('nav.usersRoles.permissions'), icon: <Shield className="w-4 h-4" />,     href: '/system/permissions' },
-        { key: 'audit-log',   label: t('nav.usersRoles.audit'),       icon: <FileText className="w-4 h-4" />,   href: '/system/audit' },
+        { key: 'users',       label: t('nav.usersRoles.users', 'User Management'), icon: <UserCog className="w-4 h-4" />,    href: '/admin/users',       roles: ['admin', 'super_admin'] },
+        { key: 'roles',       label: t('nav.usersRoles.roles', 'Roles'),           icon: <ShieldCheck className="w-4 h-4" />,href: '/users/roles',       roles: ['admin', 'super_admin'] },
+        { key: 'permissions', label: t('nav.usersRoles.permissions', 'Permissions'),icon: <Shield className="w-4 h-4" />,     href: '/system/permissions',roles: ['admin', 'super_admin'] },
+        { key: 'audit-log',   label: t('nav.usersRoles.audit', 'Audit Trail'),     icon: <Activity className="w-4 h-4" />,   href: '/admin/audit-logs',  roles: ['admin', 'super_admin'] },
       ],
     },
 

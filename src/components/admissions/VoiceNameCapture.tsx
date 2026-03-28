@@ -112,7 +112,20 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
     setSuggestions([]);
   };
 
-  if (!isSupported) return null; // Browser doesn't support Web Speech API
+  // Show a disabled button with tooltip instead of returning null
+  if (!isSupported) {
+    return (
+      <button
+        type="button"
+        disabled
+        title="Voice input is not supported in this browser. Try Chrome or Edge."
+        aria-label="Voice input not supported"
+        className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed"
+      >
+        <Mic className="w-4 h-4" />
+      </button>
+    );
+  }
 
   // ── Colour classes for the mic button ──────────────────────────────────────
   const micBtnClass = {
