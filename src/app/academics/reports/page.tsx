@@ -803,6 +803,24 @@ const ReportsPage = () => {
     }).catch(console.error);
   };
 
+  // Inject/remove the @page landscape rule dynamically — cannot be done in
+  // static styled-jsx because @page is not scopeable to a CSS class.
+  useEffect(() => {
+    const STYLE_ID = 'drais-print-page-size';
+    let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+    if (selectedTemplate === 'dual') {
+      if (!el) {
+        el = document.createElement('style');
+        el.id = STYLE_ID;
+        document.head.appendChild(el);
+      }
+      el.textContent = '@media print { @page { size: A4 landscape; margin: 10mm; } }';
+    } else {
+      el?.remove();
+    }
+    return () => { document.getElementById(STYLE_ID)?.remove(); };
+  }, [selectedTemplate]);
+
   return (
     <TeacherInitialsContext.Provider value={{ teacherInitials, handleInitialsChange }}>
       <div className="px-4 mt-0">
@@ -1449,20 +1467,6 @@ const ReportsPage = () => {
             </div>
           </div>
         )}
-        {/* Phase 4: landscape print styles for dual curriculum template */}
-        {selectedTemplate === 'dual' && (
-          <style jsx global>{`
-            @media print {
-              @page { size: A4 landscape; margin: 10mm; }
-              .dual-report-page {
-                width: 100% !important;
-                max-width: 100% !important;
-                box-shadow: none !important;
-                overflow-x: hidden !important;
-              }
-            }
-          `}</style>
-        )}
         <style jsx global>{`
           .no-print {
             display: block;
@@ -1471,6 +1475,13 @@ const ReportsPage = () => {
           @media print {
             .no-print {
               display: none !important;
+            }
+
+            .dual-report-page {
+              width: 100% !important;
+              max-width: 100% !important;
+              box-shadow: none !important;
+              overflow-x: hidden !important;
             }
 
             .classHeading,
