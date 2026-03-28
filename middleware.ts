@@ -30,6 +30,8 @@ const PUBLIC_ROUTES = [
   '/api/auth/reset-password',
   '/api/health',
   '/api/feature-flags',
+  // Internal JETON control APIs — authenticated via x-api-key header, NOT session cookie
+  '/api/internal',
 ];
 
 /**
@@ -74,11 +76,11 @@ const ROLE_PROTECTED: { prefix: string; roles: string[] }[] = [
  * Check if a route is public (doesn't require authentication)
  */
 function isPublicRoute(pathname: string): boolean {
-  // Exact matches
-  if (PUBLIC_ROUTES.some(route => pathname === route)) {
+  // Exact matches or prefix matches
+  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
     return true;
   }
-  
+
   // Prefix matches for auth routes
   if (pathname.startsWith('/auth/')) {
     return true;

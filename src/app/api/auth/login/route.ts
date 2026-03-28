@@ -145,15 +145,30 @@ export async function POST(request: NextRequest) {
     
     if (user.schoolId) {
       const schools = await query(
-        `SELECT id, name
-         FROM schools 
+        `SELECT id, name, status
+         FROM schools
          WHERE id = ? AND deleted_at IS NULL`,
         [user.schoolId]
       );
-      
+
       if (schools && schools.length > 0) {
         school = schools[0];
-        // School is considered active if it exists and not deleted
+
+        // Block suspended schools at login — return 403 with clear message
+        if (school.status === 'suspended') {
+          console.warn(`[Auth/Login] Blocked login for suspended school #${school.id} — user ${user.email}`);
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                message: 'Your school account is suspended. Contact DRAIS admin.',
+                code: 'SCHOOL_SUSPENDED',
+              },
+            },
+            { status: 403 }
+          );
+        }
+
         setupComplete = true;
       }
     }

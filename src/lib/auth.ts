@@ -33,14 +33,16 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
     if (!sessionToken) return null;
 
     const sessions: any = await query(
-      `SELECT 
+      `SELECT
         s.user_id,
         s.school_id,
         u.email,
         u.first_name,
-        u.last_name
+        u.last_name,
+        sc.status AS school_status
       FROM sessions s
       JOIN users u ON s.user_id = u.id
+      LEFT JOIN schools sc ON s.school_id = sc.id AND sc.deleted_at IS NULL
       WHERE s.session_token = ?
         AND s.is_active = TRUE
         AND s.expires_at > NOW()
@@ -52,6 +54,13 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
     if (!sessions || sessions.length === 0) return null;
 
     const s = sessions[0];
+
+    // Block suspended schools on every protected request
+    if (s.school_status === 'suspended') {
+      console.warn(`[Auth] SCHOOL_SUSPENDED: school_id=${s.school_id} blocked — all requests rejected until reactivated`);
+      return null;
+    }
+
     return {
       userId: Number(s.user_id),
       schoolId: Number(s.school_id),
