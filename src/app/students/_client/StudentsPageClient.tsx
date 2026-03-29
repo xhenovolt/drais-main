@@ -6,36 +6,25 @@ import {
   Download,
   Filter,
   Plus,
-  MoreVertical,
   Edit,
   Eye,
   Trash,
   FileText,
   Sheet,
-  File,
   Move,
   X,
+  Camera,
   Loader,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useExport } from '@/hooks/useExport';
 import ReassignClassModal from './ReassignClassModal';
-
-/**
- * ═════════════════════════════════════════════════════════════════════════════
- * STUDENTS MODULE - Production Grade
- * 
- * Features:
- * - Enrolled & Admitted Tabs
- * - Advanced Filtering
- * - Bulk Actions (Multi-select, Bulk Delete, Bulk Enroll)
- * - Data Export (CSV, Excel, PDF)
- * - Responsive Design (Mobile-First)
- * ═════════════════════════════════════════════════════════════════════════════
- */
+import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 
 interface Student {
   id: number;
+  person_id?: number;
   admission_no: string;
   first_name: string;
   last_name: string;
@@ -58,8 +47,8 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
-  const [showBulkActions, setShowBulkActions] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
 
   // Filters
@@ -165,11 +154,10 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
       const data = await response.json();
 
       if (data.success) {
-        toast.success(data.message || `✅ Students reassigned successfully!`);
+        toast.success(data.message || `Students reassigned successfully!`);
         setSelectedStudents(new Set());
         setShowReassignModal(false);
-        setShowBulkActions(false);
-        // Optionally reload page to show updated enrollments
+        // Reload page to show updated enrollments
         setTimeout(() => window.location.reload(), 1500);
       } else {
         // Handle partial success or failure
@@ -294,40 +282,13 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
               </div>
 
               {selectedStudents.size > 0 && (
-                <div className="relative group">
-                  <button
-                    onClick={() => setShowBulkActions(!showBulkActions)}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                  >
-                    <span>{selectedStudents.size} selected</span>
-                    <MoreVertical size={16} />
-                  </button>
-                  {showBulkActions && (
-                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 z-20">
-                      <button
-                        onClick={() => {
-                          setShowReassignModal(true);
-                          setShowBulkActions(false);
-                        }}
-                        disabled={isReassigning}
-                        className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-2 border-b border-gray-200 dark:border-gray-600"
-                      >
-                        <Move size={16} />
-                        <span>Reassign to Class</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          toast.error('Bulk delete coming soon');
-                          setShowBulkActions(false);
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-2"
-                      >
-                        <Trash size={16} />
-                        <span>Delete Selected</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={() => setSelectedStudents(new Set())}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <X size={16} />
+                  <span>{selectedStudents.size} selected</span>
+                </button>
               )}
             </div>
           </div>
@@ -383,7 +344,9 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
                             className="w-8 h-8 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600" />
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-semibold text-blue-700 dark:text-blue-200">
+                            {student.first_name?.[0]}{student.last_name?.[0]}
+                          </div>
                         )}
                         <div className="font-medium text-gray-900 dark:text-white">
                           {student.first_name} {student.last_name}
@@ -393,9 +356,25 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{student.admission_no}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{student.class_name || '-'}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded text-xs font-medium">
-                        {student.enrollment_status || student.status}
-                      </span>
+                      {(() => {
+                        const status = (student.enrollment_status || student.status || '').toLowerCase();
+                        const badgeColors: Record<string, string> = {
+                          enrolled: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200',
+                          active: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200',
+                          admitted: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200',
+                          pending: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200',
+                          suspended: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200',
+                          expelled: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200',
+                          withdrawn: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                          graduated: 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200',
+                        };
+                        const colors = badgeColors[status] || 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+                        return (
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${colors}`}>
+                            {student.enrollment_status || student.status}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-right text-sm">
                       <div className="flex justify-end gap-2">
@@ -418,6 +397,52 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
         )}
       </div>
 
+      {/* FLOATING ACTION BAR */}
+      <AnimatePresence>
+        {selectedStudents.size > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+          >
+            <div className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-4">
+              <span className="text-sm font-medium whitespace-nowrap">
+                {selectedStudents.size} student{selectedStudents.size > 1 ? 's' : ''} selected
+              </span>
+
+              <div className="h-6 w-px bg-gray-600 dark:bg-gray-400" />
+
+              <button
+                onClick={() => setShowReassignModal(true)}
+                disabled={isReassigning}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {isReassigning ? <Loader size={16} className="animate-spin" /> : <Move size={16} />}
+                Change Class
+              </button>
+
+              <button
+                onClick={() => setShowPhotoUploadModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Camera size={16} />
+                Upload Photos
+              </button>
+
+              <button
+                onClick={() => setSelectedStudents(new Set())}
+                className="p-2 hover:bg-gray-700 dark:hover:bg-gray-300 rounded-lg transition-colors"
+                title="Clear selection"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* REASSIGN CLASS MODAL */}
       {showReassignModal && (
         <ReassignClassModal
@@ -428,6 +453,25 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
           selectedStudentCount={selectedStudents.size}
         />
       )}
+
+      {/* BULK PHOTO UPLOAD MODAL */}
+      <BulkPhotoUploadModal
+        open={showPhotoUploadModal}
+        onClose={() => setShowPhotoUploadModal(false)}
+        students={filteredStudents.map(s => ({
+          id: s.id,
+          person_id: s.person_id ?? s.id,
+          first_name: s.first_name,
+          last_name: s.last_name,
+          admission_no: s.admission_no,
+          photo_url: s.photo_url,
+        }))}
+        onUploadComplete={() => {
+          setShowPhotoUploadModal(false);
+          toast.success('Photos uploaded successfully');
+          setTimeout(() => window.location.reload(), 1500);
+        }}
+      />
     </div>
   );
 }

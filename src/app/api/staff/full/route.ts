@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
-
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
+
 export async function GET(req: NextRequest) {
   let connection;
+  let session: any = null;
   
   try {
     // Enforce multi-tenant isolation: derive school_id from session
-    const session = await getSessionSchoolId(req);
+    session = await getSessionSchoolId(req);
     if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
 
@@ -41,7 +43,8 @@ export async function GET(req: NextRequest) {
         bd.id as device_id
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      LEFT JOIN device_user_mappings dum ON s.id = dum.staff_id AND dum.school_id = ?
+      LEFT JOIN users u ON u.staff_id = s.id AND u.school_id = s.school_id AND u.deleted_at IS NULL
+      LEFT JOIN device_user_mappings dum ON dum.student_id = u.id AND dum.school_id = ?
       LEFT JOIN biometric_devices bd ON dum.device_id = bd.id
       WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY p.first_name, p.last_name
@@ -54,10 +57,20 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Staff full fetch error:', error);
+    // Audit the failure
+    try {
+      await logAudit({
+        schoolId: session?.schoolId ?? 0,
+        userId: session?.userId ?? null,
+        action: 'STAFF_FETCH_FAILED',
+        entityType: 'staff',
+        details: { error: error.message || 'Unknown error' },
+      });
+    } catch {} // Don't let audit failure mask the original error
     return NextResponse.json({
       success: false,
-      error: 'Failed to fetch staff data',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Failed to fetch staff data',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     }, { status: 500 });
   } finally {
     if (connection) await connection.end();

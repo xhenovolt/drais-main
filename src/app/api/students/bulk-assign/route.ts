@@ -4,7 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
-  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!session) return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   const schoolId = session.schoolId;
 
   try {
@@ -12,11 +12,11 @@ export async function POST(req: NextRequest) {
     const { learnerIds, classId } = body;
 
     if (!learnerIds || !Array.isArray(learnerIds) || learnerIds.length === 0) {
-      return NextResponse.json({ error: 'No learners selected.' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'No learners selected' }, { status: 400 });
     }
 
     if (!classId) {
-      return NextResponse.json({ error: 'Class ID is required.' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Class ID is required' }, { status: 400 });
     }
 
     const connection = await getConnection();
@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
       await connection.commit();
       await connection.end();
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, message: 'Students assigned to class' });
     } catch (error) {
       await connection.rollback();
       await connection.end();
-      return NextResponse.json({ error: 'Failed to assign class.' }, { status: 500 });
+      return NextResponse.json({ success: false, message: 'Failed to assign class' }, { status: 500 });
     }
   } catch (error) {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+    return NextResponse.json({ success: false, message: 'Invalid request' }, { status: 400 });
   }
 }

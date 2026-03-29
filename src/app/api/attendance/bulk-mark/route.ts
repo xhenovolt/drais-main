@@ -4,14 +4,14 @@ import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   const session = await getSessionSchoolId(request);
-  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!session) return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   const schoolId = session.schoolId;
 
   try {
     const { class_id, date, action } = await request.json();
 
     if (!class_id || !date || !action) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
     }
 
     // Get all active students in the class with their enrollment details
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const students = await executeQuery(studentsQuery, [class_id, date, date]) as any[];
 
     if (students.length === 0) {
-      return NextResponse.json({ error: 'No students found in this class' }, { status: 404 });
+      return NextResponse.json({ success: false, message: 'No students found in this class' }, { status: 404 });
     }
 
     const currentTime = new Date().toTimeString().split(' ')[0];
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in bulk attendance operation:', error);
     return NextResponse.json(
-      { error: 'Failed to update bulk attendance' },
+      { success: false, message: 'Failed to update bulk attendance' },
       { status: 500 }
     );
   }

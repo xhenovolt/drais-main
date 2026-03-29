@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
     if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
 

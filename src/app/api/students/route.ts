@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
     if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
 
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // Validate required fields
     if (!first_name || !last_name) {
-      return NextResponse.json({ error: 'Missing required fields: first_name, last_name' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Missing required fields: first_name, last_name' }, { status: 400 });
     }
 
     connection = await getConnection();
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error('Error creating student:', error);
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to create student' }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }

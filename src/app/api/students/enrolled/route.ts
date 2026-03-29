@@ -25,7 +25,7 @@ import { getCurrentTerm } from '@/lib/terms';
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   }
   const schoolId = session.schoolId;
 
@@ -179,7 +179,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error('[students/enrolled] error:', err);
-    return NextResponse.json({ error: 'Failed to fetch enrolled students' }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to fetch enrolled students' }, { status: 500 });
   } finally {
     await conn.end();
   }

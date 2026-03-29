@@ -113,14 +113,23 @@ const RETRYABLE_CODES = new Set([
   'ECONNREFUSED', 'ER_CON_COUNT_ERROR', 'POOL_CLOSED',
 ]);
 
+/**
+ * Sanitize query parameters: convert undefined to null to prevent
+ * mysql2 from throwing "Bind parameters must not contain undefined".
+ */
+function sanitizeParams(params: any[]): any[] {
+  return params.map(p => (p === undefined ? null : p));
+}
+
 export async function query(sql: string, params: any[] = []): Promise<any[]> {
   const MAX_RETRIES = 3;
   let lastError: unknown;
+  const safeParams = sanitizeParams(params);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const p = await getPool();
-      const [rows] = await p.execute(sql, params);
+      const [rows] = await p.execute(sql, safeParams);
       return rows as any[];
     } catch (err: any) {
       lastError = err;
@@ -146,6 +155,10 @@ export async function getConnection(): Promise<mysql.Connection> {
     // Alias end() → release() so callers don't destroy the socket
     (conn as any).end = (): Promise<void> =>
       new Promise<void>((resolve) => { conn.release(); resolve(); });
+    // Wrap execute to sanitize params (undefined → null)
+    const origExecute = conn.execute.bind(conn);
+    (conn as any).execute = (sql: string, params?: any[]) =>
+      origExecute(sql, params ? sanitizeParams(params) : params);
     return conn as unknown as mysql.Connection;
   } catch (error) {
     console.error('[Database] getConnection error:', error);

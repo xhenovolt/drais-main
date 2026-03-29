@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
     if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
 
@@ -61,19 +61,19 @@ export async function POST(req: NextRequest) {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
     if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
 
     const body = await req.json();
-    if (!body.name) return NextResponse.json({ error: 'name required' }, { status: 400 });
+    if (!body.name) return NextResponse.json({ success: false, message: 'Class name is required' }, { status: 400 });
     connection = await getConnection();
     await connection.execute('INSERT INTO classes (school_id,name,class_level,head_teacher_id,curriculum_id) VALUES (?,?,?,?,?)', [schoolId, body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null]);
     const [result] = await connection.execute('SELECT LAST_INSERT_ID() as id');
-    return NextResponse.json({ success: true, id: (result as any)[0].id }, { status: 201 });
+    return NextResponse.json({ success: true, message: 'Class created', id: (result as any)[0].id }, { status: 201 });
   } catch (error: any) {
     console.error('Classes POST error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to create class' }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }
@@ -85,18 +85,18 @@ export async function PUT(req: NextRequest) {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
     if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
 
     const body = await req.json();
-    if (!body.id || !body.name) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
+    if (!body.id || !body.name) return NextResponse.json({ success: false, message: 'Class ID and name are required' }, { status: 400 });
     connection = await getConnection();
     await connection.execute('UPDATE classes SET name=?, class_level=?, head_teacher_id=?, curriculum_id=?, school_id=? WHERE id=?', [body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null, schoolId, body.id]);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Class updated' });
   } catch (error: any) {
     console.error('Classes PUT error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to update class' }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }
@@ -106,13 +106,13 @@ export async function DELETE(req: NextRequest) {
   let connection;
   try {
     const body = await req.json();
-    if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+    if (!body.id) return NextResponse.json({ success: false, message: 'Class ID is required' }, { status: 400 });
     connection = await getConnection();
     await connection.execute('DELETE FROM classes WHERE id=?', [body.id]);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Class deleted' });
   } catch (error: any) {
     console.error('Classes DELETE error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to delete class' }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }

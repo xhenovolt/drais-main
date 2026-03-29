@@ -43,6 +43,20 @@ export class NotificationService {
    * Create a notification and distribute to recipients
    */
   async create(data: NotificationData): Promise<{ notification_id: number; delivered: number }> {
+    // Validate critical fields before insert
+    if (!data.action?.trim()) {
+      throw new Error('NotificationService.create: action is required');
+    }
+    if (!data.title?.trim()) {
+      throw new Error('NotificationService.create: title is required');
+    }
+    if (!data.message?.trim()) {
+      throw new Error('NotificationService.create: message is required');
+    }
+    if (!Array.isArray(data.recipients) || data.recipients.length === 0) {
+      throw new Error('NotificationService.create: recipients array is required and must not be empty');
+    }
+
     let connection;
     
     try {

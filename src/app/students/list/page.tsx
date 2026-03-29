@@ -339,7 +339,7 @@ export default function StudentsListPage() {
         setSelectedIds(prev => { const next = new Set(prev); next.delete(enrollForm.student_id); return next; });
         fetchStudents();
       } else {
-        const errorMsg = data.error || 'Enrollment failed';
+        const errorMsg = data.message || data.error || 'Enrollment failed';
         toast.error(errorMsg);
         setEnrollError(errorMsg);
       }

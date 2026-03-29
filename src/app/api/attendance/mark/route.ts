@@ -6,14 +6,14 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSessionSchoolId(request);
     if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
 
     const { student_id, class_id, date, action, method, time } = await request.json();
 
     if (!student_id || !class_id || !date || !action) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
     }
 
     const currentTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS format
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       [student_id, schoolId]
     );
     if (!Array.isArray(studentCheck) || studentCheck.length === 0) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return NextResponse.json({ success: false, message: 'Student not found' }, { status: 404 });
     }
 
     // Resolve active enrollment_id for this student+class on the given date
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           `;
           params = [currentTime, student_id, date, class_id];
         } else {
-          return NextResponse.json({ error: 'Student must sign in first' }, { status: 400 });
+          return NextResponse.json({ success: false, message: 'Student must sign in first' }, { status: 400 });
         }
         break;
 
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         break;
 
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
     }
 
     await executeQuery(query, params);
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error marking attendance:', error);
     return NextResponse.json(
-      { error: 'Failed to mark attendance' },
+      { success: false, message: 'Failed to mark attendance' },
       { status: 500 }
     );
   }

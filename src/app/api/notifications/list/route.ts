@@ -5,7 +5,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
