@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
-
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -151,6 +151,21 @@ export async function POST(req: NextRequest) {
       `, [schoolId, personId, finalStaffNo, position, hire_date || new Date().toISOString().split('T')[0]]);
 
       await connection.commit();
+
+      // Audit log
+      await logAudit({
+        schoolId,
+        userId: session.userId,
+        action: AuditAction.CREATED_STAFF,
+        entityType: 'staff',
+        entityId: staffResult.insertId,
+        details: {
+          staffNo: finalStaffNo,
+          firstName: first_name,
+          lastName: last_name,
+          position,
+        },
+      }).catch(err => console.error('Audit log failed:', err));
 
       return NextResponse.json({
         success: true,

@@ -175,16 +175,35 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
       const result = await response.json();
 
       if (result.success) {
-        toast.success('Staff member added successfully!');
+        toast.success('✅ ' + (result.data?.message || 'Staff member added successfully!'));
         onSuccess();
         onClose();
         resetForm();
       } else {
-        toast.error(result.error || 'Failed to add staff member');
+        // Extract error message from structured response
+        const errorMessage = result.error?.message || result.error || 'Failed to add staff member';
+        const errorCode = result.error?.code;
+        
+        // Show detailed error message
+        const fullError = errorCode 
+          ? `❌ ${errorMessage} (${errorCode})` 
+          : `❌ ${errorMessage}`;
+        
+        toast.error(fullError, {
+          duration: 5000, // Show error for longer
+        });
+
+        // Log detailed error for debugging
+        console.error('Staff creation error:', {
+          errorCode,
+          message: errorMessage,
+          fullResponse: result
+        });
       }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('An error occurred while adding staff member');
+      const errorMsg = error instanceof Error ? error.message : 'An unknown error occurred';
+      toast.error(`❌ Network error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }

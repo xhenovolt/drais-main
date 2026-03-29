@@ -17,6 +17,8 @@ import OnboardingOrchestrator from '@/components/onboarding/OnboardingOrchestrat
 import OnboardingCompletionBanner from '@/components/onboarding/OnboardingCompletionBanner';
 import dynamic from 'next/dynamic';
 import { MainLayout } from "@/components/layout/MainLayout";
+import HeartbeatProvider from '@/components/providers/HeartbeatProvider';
+import { ToastProvider } from '@/components/ui/Toast';
 
 const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
 const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
@@ -133,6 +135,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       ) : (
         // For protected routes: use MainLayout (mobile-first architecture)
         <MainLayout>
+          <HeartbeatProvider />
           {children}
         </MainLayout>
       )}
@@ -188,7 +191,9 @@ export default function RootLayout({
                 <TermProvider>
                   <ThemeProvider>
                     <I18nProvider>
-                      <LayoutContent>{children}</LayoutContent>
+                      <ToastProvider>
+                        <LayoutContent>{children}</LayoutContent>
+                      </ToastProvider>
                     </I18nProvider>
                   </ThemeProvider>
                 </TermProvider>

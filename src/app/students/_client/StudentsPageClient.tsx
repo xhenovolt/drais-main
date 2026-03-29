@@ -13,8 +13,13 @@ import {
   FileText,
   Sheet,
   File,
+  Move,
+  X,
+  Loader,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useExport } from '@/hooks/useExport';
+import ReassignClassModal from './ReassignClassModal';
 
 /**
  * ═════════════════════════════════════════════════════════════════════════════
@@ -54,6 +59,8 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [isReassigning, setIsReassigning] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -136,6 +143,57 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
     }));
     exportAsExcel(dataToExport, `students_${tab}`, ['Admission No', 'First Name', 'Last Name', 'Class', 'Status'], 'Student List');
   }, [filteredStudents, tab, exportAsExcel]);
+
+  const handleReassignClass = useCallback(async (newClassId: number, reason: string) => {
+    if (selectedStudents.size === 0) {
+      toast.error('Please select students to reassign');
+      return;
+    }
+
+    setIsReassigning(true);
+    try {
+      const response = await fetch('/api/students/reassign-class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_ids: Array.from(selectedStudents),
+          new_class_id: newClassId,
+          reason: reason || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(data.message || `✅ Students reassigned successfully!`);
+        setSelectedStudents(new Set());
+        setShowReassignModal(false);
+        setShowBulkActions(false);
+        // Optionally reload page to show updated enrollments
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        // Handle partial success or failure
+        if (data.error_code === 'PARTIAL_SUCCESS') {
+          toast.error(
+            `⚠️ Partial success: ${data.data.success_count} reassigned, ${data.data.failed_count} failed`,
+            { duration: 5000 }
+          );
+        } else if (data.error_code === 'ALL_FAILED') {
+          toast.error(
+            `❌ ${data.data.failed_count} students could not be reassigned`,
+            { duration: 5000 }
+          );
+        } else {
+          toast.error(data.message || 'Failed to reassign students');
+        }
+      }
+    } catch (error) {
+      console.error('Error reassigning students:', error);
+      toast.error('An error occurred while reassigning students');
+    } finally {
+      setIsReassigning(false);
+    }
+  }, [selectedStudents]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 lg:pb-0">
@@ -236,12 +294,40 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
               </div>
 
               {selectedStudents.size > 0 && (
-                <button
-                  onClick={() => setShowBulkActions(!showBulkActions)}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  <span>{selectedStudents.size} selected</span>
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => setShowBulkActions(!showBulkActions)}
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    <span>{selectedStudents.size} selected</span>
+                    <MoreVertical size={16} />
+                  </button>
+                  {showBulkActions && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 z-20">
+                      <button
+                        onClick={() => {
+                          setShowReassignModal(true);
+                          setShowBulkActions(false);
+                        }}
+                        disabled={isReassigning}
+                        className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-2 border-b border-gray-200 dark:border-gray-600"
+                      >
+                        <Move size={16} />
+                        <span>Reassign to Class</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          toast.error('Bulk delete coming soon');
+                          setShowBulkActions(false);
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-2"
+                      >
+                        <Trash size={16} />
+                        <span>Delete Selected</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -331,6 +417,17 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
           </div>
         )}
       </div>
+
+      {/* REASSIGN CLASS MODAL */}
+      {showReassignModal && (
+        <ReassignClassModal
+          isOpen={showReassignModal}
+          onClose={() => setShowReassignModal(false)}
+          onSubmit={handleReassignClass}
+          isLoading={isReassigning}
+          selectedStudentCount={selectedStudents.size}
+        />
+      )}
     </div>
   );
 }

@@ -10,12 +10,16 @@ import { query } from '@/lib/db';
 const SESSION_COOKIE_NAME = 'drais_session';
 
 export interface SessionInfo {
-  userId: number;
-  schoolId: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  isSuperAdmin: boolean;
+  userId:              number;
+  schoolId:            number;
+  email:               string;
+  firstName:           string;
+  lastName:            string;
+  isSuperAdmin:        boolean;
+  /** FK → staff.id — null if this user is not linked to a staff record */
+  staffId:             number | null;
+  /** If true the user must change their password before doing anything else */
+  mustChangePassword:  boolean;
 }
 
 /**
@@ -39,9 +43,24 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
         u.email,
         u.first_name,
         u.last_name,
-        sc.status AS school_status
+        stf.id            AS staff_id,
+        u.must_change_password,
+        sc.status         AS school_status,
+        EXISTS(
+          SELECT 1 FROM user_roles ur
+          JOIN roles r ON ur.role_id = r.id
+          WHERE ur.user_id = s.user_id
+            AND (ur.school_id = s.school_id OR ur.school_id IS NULL)
+            AND ur.is_active = TRUE
+            AND r.is_super_admin = TRUE
+            AND r.is_active = TRUE
+        ) AS is_super_admin
       FROM sessions s
-      JOIN users u ON s.user_id = u.id
+      JOIN  users u  ON u.id             = s.user_id
+      LEFT JOIN staff stf
+            ON stf.person_id = u.person_id
+           AND stf.school_id = s.school_id
+           AND stf.deleted_at IS NULL
       LEFT JOIN schools sc ON s.school_id = sc.id AND sc.deleted_at IS NULL
       WHERE s.session_token = ?
         AND s.is_active = TRUE
@@ -61,13 +80,21 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
       return null;
     }
 
+    // Update last_activity_at in the background — non-blocking, never throws
+    query(
+      'UPDATE sessions SET last_activity_at = NOW() WHERE session_token = ? AND is_active = TRUE',
+      [sessionToken]
+    ).catch(() => {});
+
     return {
-      userId: Number(s.user_id),
-      schoolId: Number(s.school_id),
-      email: s.email || '',
-      firstName: s.first_name || '',
-      lastName: s.last_name || '',
-      isSuperAdmin: false, // Determined by roles table, not a column
+      userId:             Number(s.user_id),
+      schoolId:           Number(s.school_id),
+      email:              s.email || '',
+      firstName:          s.first_name || '',
+      lastName:           s.last_name || '',
+      isSuperAdmin:       Boolean(s.is_super_admin),
+      staffId:            s.staff_id ? Number(s.staff_id) : null,
+      mustChangePassword: Boolean(s.must_change_password),
     };
   } catch (error) {
     console.error('[Auth] Session validation error:', error);

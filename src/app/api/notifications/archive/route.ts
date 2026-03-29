@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/NotificationService';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+
     const body = await req.json();
-    const { ids, user_id = 1 } = body; // TODO: Get user_id from session
+    const { ids } = body;
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({
@@ -14,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const notificationService = NotificationService.getInstance();
-    await notificationService.archive(ids, user_id);
+    await notificationService.archive(ids, session.userId);
 
     return NextResponse.json({
       success: true,

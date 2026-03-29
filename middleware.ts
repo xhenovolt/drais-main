@@ -32,6 +32,8 @@ const PUBLIC_ROUTES = [
   '/api/feature-flags',
   // Internal JETON control APIs — authenticated via x-api-key header, NOT session cookie
   '/api/internal',
+  // JETON external control channel — authenticated via x-api-key + x-api-secret headers
+  '/api/control',
 ];
 
 /**
@@ -184,6 +186,27 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     url.search = '';
+    return NextResponse.redirect(url);
+  }
+
+  // ========================================
+  // 3b. FORCE PASSWORD RESET CHECK
+  // ========================================
+  const forceReset = request.cookies.get('drais_force_reset')?.value;
+  const isSetPasswordPage = pathname === '/auth/set-password';
+  const isChangePasswordApi = pathname === '/api/auth/change-password';
+  const isLogoutApi = pathname === '/api/auth/logout';
+
+  if (forceReset === '1' && !isSetPasswordPage && !isChangePasswordApi && !isLogoutApi) {
+    if (isApiRoute) {
+      return NextResponse.json(
+        { success: false, error: { message: 'Password change required', code: 'PASSWORD_RESET_REQUIRED' } },
+        { status: 403 }
+      );
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = '/auth/set-password';
+    url.search   = '';
     return NextResponse.redirect(url);
   }
 

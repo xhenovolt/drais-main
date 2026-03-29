@@ -1,0 +1,279 @@
+Role:
+Senior UX Architect, Mobile Systems Engineer, and Next.js Performance Specialist.
+
+System Context:
+You are working on DRAIS (Next.js full-stack system with PHP reference backend).
+This is a production system under real users, not a demo.
+
+Your job is to fix usability bottlenecks, not introduce new bugs.
+
+⚠️ GLOBAL RULES (NON-NEGOTIABLE)
+DO NOT BREAK EXISTING DESKTOP UI
+DO NOT TOUCH BUSINESS LOGIC / APIs
+ONLY MODIFY PRESENTATION + CLIENT STRUCTURE
+NO SILENT FAILURES — log everything in console
+EVERY CHANGE MUST BE RESPONSIVE + TESTED
+🚨 PHASE 0: ROOT PROBLEM (UNDERSTAND THIS FIRST)
+
+Current system issues:
+
+Navigation duplication → cognitive overload
+Tables → unusable on mobile
+No visible new features → RBAC, audit, voice appear “fake”
+Mobile UX → broken, requires desktop mode
+
+👉 This is not UI problem.
+👉 This is information architecture failure
+
+Fix that.
+
+📱 PHASE 1: MOBILE NAVIGATION SYSTEM (CORE RESTRUCTURE)
+🔥 OBJECTIVE:
+
+Replace 3 competing nav systems with 1 unified mobile system
+
+✅ IMPLEMENTATION
+1. Hide Desktop Navigation on Mobile
+<div className="hidden md:block">
+  <Sidebar />
+</div>
+
+<div className="hidden md:block">
+  <TopNavbar />
+</div>
+2. Create Mobile Layout Wrapper
+
+Create:
+
+components/mobile/MobileShell.tsx
+
+Responsibilities:
+
+BottomNav
+Drawer
+Content padding
+Safe area handling
+3. Bottom Navigation (MANDATORY STRUCTURE)
+
+5 FIXED TABS:
+
+Icon	Label	Route
+🏠	Home	/dashboard
+👨‍🎓	Students	/students
+📊	Academics	/academics
+💰	Finance	/accounts
+☰	More	Drawer Trigger
+4. "MORE" DRAWER (CRITICAL)
+
+👉 This is where your system is currently failing.
+
+You added features (RBAC, audit, etc.) but never exposed them.
+
+Drawer MUST include:
+Settings
+Staff Management (RBAC UI)
+Audit Trails
+Reports Templates
+Profile
+Logout
+
+👉 Mirror EXACT desktop sidebar structure
+
+5. Drawer Requirements
+Full height (100vh)
+Slide from right
+Backdrop blur
+Close on tap outside
+
+Use:
+
+framer-motion OR
+@headlessui/react
+📊 PHASE 2: TABLE DESTRUCTION (CRITICAL)
+🔥 RULE:
+
+Tables DO NOT EXIST ON MOBILE
+
+1. Students List → Card System
+Replace:
+<table>
+With:
+<StudentCard />
+StudentCard Structure:
+[ Photo ]   Name
+            Class + Stream
+
+[ Admit ] [ Edit ] [ More ⋮ ]
+Requirements:
+Tap anywhere → open profile
+Actions → dropdown or bottom sheet
+Fast rendering (no lag)
+2. Results Table → HYBRID MODE
+
+This is more complex.
+
+Desktop:
+
+Keep table
+
+Mobile:
+Sticky student name column
+Horizontal scroll ONLY inside table container
+overflow-x-auto
+AND:
+
+Add “Missing Subjects Indicator”
+
+Example:
+
+⚠ Missing: 5 subjects
+
+👉 This solves your earlier results issue
+
+🎤 PHASE 3: VOICE ADMISSION VISIBILITY FIX
+
+You said:
+
+“I don’t see microphone”
+
+That means:
+👉 Feature exists but UI is dead
+
+FIX:
+
+Add Floating Action Button (FAB)
+
+Location:
+/students/admit
+FAB:
+Bottom right
+Always visible
+High z-index
+<button className="fixed bottom-20 right-4 z-50">
+  🎤
+</button>
+On Click:
+Start voice capture
+Show modal:
+“Listening…”
+If microphone not supported:
+
+Show error:
+
+Voice not supported on this device
+🔐 PHASE 4: RBAC VISIBILITY (YOU FAILED HERE)
+
+You implemented backend but UI is invisible.
+
+FIX:
+1. Add Navigation Entry
+
+Inside Drawer:
+
+/admin/users
+
+Label:
+👉 “Staff & Roles”
+
+2. Route Protection (UI LEVEL)
+
+Hide menu if not Admin:
+
+if (user.role !== 'admin') return null;
+3. Audit Logs UI
+
+Add:
+
+/admin/audit
+
+Table:
+
+User
+Action
+Target
+Date
+📐 PHASE 5: MOBILE PERFORMANCE + TOUCH
+1. Touch Targets
+
+ALL buttons:
+
+min-h-[48px]
+2. Input Fields
+py-3 px-4
+text-base
+3. Disable Zoom
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+📄 PHASE 6: REPORTS MOBILE RULE
+RULE:
+
+Reports are NOT mobile-friendly → DON’T FAKE IT
+
+IMPLEMENT:
+Portrait Mode:
+
+Show message:
+
+Rotate device for better viewing
+Landscape:
+
+Render report
+
+⚡ PHASE 7: SAFE AREA (HIGH-END DEVICES)
+Bottom Nav:
+padding-bottom: env(safe-area-inset-bottom);
+🧪 PHASE 8: VALIDATION (MANDATORY)
+Must pass ALL:
+Navigation
+No duplicate nav visible
+Drawer opens correctly
+Students
+No table visible on mobile
+Cards render properly
+Results
+Scroll works inside container
+No page overflow
+Voice
+Mic visible
+Click works
+RBAC
+Menu visible
+Routes accessible
+🚨 FINAL DELIVERABLE
+
+You must produce:
+
+MobileShell layout
+BottomNav component
+Drawer component
+StudentCard system
+FAB Voice button
+RBAC navigation exposure
+Audit UI route
+Responsive table fix
+🧠 REALITY CHECK (READ THIS CAREFULLY)
+
+Right now your problem is not code.
+
+It’s this:
+
+You build features faster than you expose them.
+
+That kills businesses.
+
+From The Psychology of Money (The Psychology of Money):
+
+“Doing well with money isn’t about what you know, it’s about how you behave.”
+
+Same applies here:
+
+👉 It’s not what you build
+👉 It’s what users can SEE and USE
+
+⚔️ FINAL WARNING
+
+If this is not fixed:
+
+Users will think system is broken
+You lose trust
+You lose retention
+You lose money

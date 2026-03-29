@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
         CASE WHEN u.is_active = 0 THEN 'pending' WHEN u.is_active = 1 THEN 'active' ELSE 'inactive' END as status,
         COALESCE(u.first_name, '') as first_name,
         COALESCE(u.last_name, '') as last_name,
-        CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as display_name
+        CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as display_name,
+        COALESCE(u.must_change_password, FALSE) as must_change_password
       FROM users u
       WHERE u.email = ? 
         AND u.deleted_at IS NULL
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
             {
               success: false,
               error: {
-                message: 'Your school account is suspended. Contact DRAIS admin.',
+                message: 'Your school account is suspended. Contact administrator.',
                 code: 'SCHOOL_SUSPENDED',
               },
             },
@@ -179,11 +180,14 @@ export async function POST(request: NextRequest) {
     const ipAddress = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || null;
 
-    // Create session in database
+    // Parse device info from UA (mirrors heartbeat route logic)
+    const deviceInfo = userAgent ? parseDeviceInfo(userAgent) : null;
+
+    // Create session in database — also set device_info and last_activity_at
     await query(
-      `INSERT INTO sessions (user_id, school_id, session_token, expires_at, ip_address, user_agent, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, TRUE)`,
-      [user.id, user.schoolId, sessionToken, expiresAt, ipAddress, userAgent]
+      `INSERT INTO sessions (user_id, school_id, session_token, expires_at, ip_address, user_agent, device_info, last_activity_at, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), TRUE)`,
+      [user.id, user.schoolId, sessionToken, expiresAt, ipAddress, userAgent, deviceInfo]
     );
 
     // Update last login
@@ -227,6 +231,8 @@ export async function POST(request: NextRequest) {
       permissions = Array.isArray(perms) ? perms.map((p: any) => p.code) : [];
     }
 
+    const mustChangePassword = !!user.must_change_password;
+
     // Prepare user data for response
     const userData = {
       id: Number(user.id),
@@ -240,6 +246,7 @@ export async function POST(request: NextRequest) {
       roles: Array.isArray(roles) ? roles.map((r: any) => r.name) : [],
       permissions,
       isSuperAdmin,
+      mustChangePassword,
     };
 
     // Create response with session cookie
@@ -247,6 +254,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user: userData,
       setupComplete,
+      mustChangePassword,
     });
 
     // Set HTTP-only secure session cookie
@@ -269,6 +277,17 @@ export async function POST(request: NextRequest) {
       httpOnly: false, // Middleware needs to read this
     });
 
+    // If user must change password, set a readable cookie for middleware redirect
+    if (mustChangePassword) {
+      response.cookies.set('drais_force_reset', '1', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: SESSION_CONFIG.EXPIRY_MS / 1000,
+      });
+    }
+
     return response;
 
   } catch (error) {
@@ -284,4 +303,25 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/** Lightweight UA parser — mirrors /api/heartbeat/route.ts */
+function parseDeviceInfo(ua: string): string {
+  let browser = 'Unknown';
+  let os      = 'Unknown';
+  let device  = 'Desktop';
+
+  if (/Edg\//.test(ua))            browser = 'Edge';
+  else if (/Chrome\//.test(ua))    browser = 'Chrome';
+  else if (/Firefox\//.test(ua))   browser = 'Firefox';
+  else if (/Safari\//.test(ua))    browser = 'Safari';
+  else if (/OPR\//.test(ua))       browser = 'Opera';
+
+  if (/Android/.test(ua))          { os = 'Android'; device = 'Mobile'; }
+  else if (/iPhone|iPad/.test(ua)) { os = 'iOS'; device = /iPad/.test(ua) ? 'Tablet' : 'Mobile'; }
+  else if (/Windows/.test(ua))     os = 'Windows';
+  else if (/Mac OS/.test(ua))      os = 'macOS';
+  else if (/Linux/.test(ua))       os = 'Linux';
+
+  return `${browser} / ${os} / ${device}`.slice(0, 500);
 }

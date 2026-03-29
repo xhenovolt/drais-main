@@ -61,7 +61,7 @@ function prefixed(prefix, roots, phPrefix, origin, gender) {
 const naRoots = [
   'kato','mbi','mirembe','subuga','nnyombi','ntume','lungo','nkya','mpijja',
   'wagya','kabugo','kyeyune','lubega','lumansi','mubiru','bulime','kivubo',
-  'musisi','kasaga','kalanda','wulya','kajubi','lusiba','luwooza','tukunda',
+  'musisi','kasaga','kasango','kalanda','wulya','kajubi','lusiba','luwooza','tukunda',
   'kimuli','yiga','wagubi','ssuubi','mukasa','kibuuka','ttongo','nkuba',
   'siimbi','luvia','biri','wanga','kantu','ssenkungu','sserunjogi','mbowa',
   'kaddu','kizito','ggewa','birabwa','baale','nsimbi','mpologoma','mulondo',
