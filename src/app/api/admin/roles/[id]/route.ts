@@ -53,8 +53,8 @@ export const GET = withErrorHandling(async function GET(req: NextRequest, { para
          u.id AS user_id
        FROM user_roles ur
        JOIN users u  ON ur.user_id = u.id AND u.school_id = ?
-       LEFT JOIN staff s ON u.staff_id = s.id
-       LEFT JOIN people p ON s.person_id = p.id
+       LEFT JOIN people p ON u.person_id = p.id
+       LEFT JOIN staff s ON s.person_id = u.person_id AND s.school_id = u.school_id AND s.deleted_at IS NULL
        WHERE ur.role_id = ? AND ur.school_id = ? AND ur.is_active = TRUE AND u.deleted_at IS NULL`,
       [session.schoolId, roleId, session.schoolId],
     ),

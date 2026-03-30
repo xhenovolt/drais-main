@@ -43,12 +43,11 @@ export async function GET(req: NextRequest) {
         bd.id as device_id
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      LEFT JOIN users u ON u.staff_id = s.id AND u.school_id = s.school_id AND u.deleted_at IS NULL
-      LEFT JOIN device_user_mappings dum ON dum.student_id = u.id AND dum.school_id = ?
+      LEFT JOIN device_user_mappings dum ON dum.staff_id = s.id AND dum.school_id = s.school_id
       LEFT JOIN biometric_devices bd ON dum.device_id = bd.id
       WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY p.first_name, p.last_name
-    `, [schoolId, schoolId]);
+    `, [schoolId]);
 
     return NextResponse.json({
       success: true,

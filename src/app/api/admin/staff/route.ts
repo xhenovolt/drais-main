@@ -72,9 +72,8 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
          m.last_name     AS manager_last_name,
          -- User account status
          u.id            AS user_id,
-         u.is_active     AS account_active,
-         u.last_login_at,
-         u.must_change_password,
+         (u.status = 'active') AS account_active,
+         u.last_login,
          -- Roles (aggregated)
          GROUP_CONCAT(DISTINCT r.name ORDER BY r.name SEPARATOR ', ') AS roles
        FROM staff s
@@ -82,14 +81,14 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
        LEFT JOIN departments d ON s.department_id = d.id
        LEFT JOIN staff m_s ON s.manager_id = m_s.id
        LEFT JOIN people m ON m_s.person_id = m.id
-       LEFT JOIN users u ON u.staff_id = s.id AND u.school_id = s.school_id AND u.deleted_at IS NULL
+       LEFT JOIN users u ON u.person_id = s.person_id AND u.school_id = s.school_id AND u.deleted_at IS NULL
        LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.school_id = s.school_id AND ur.is_active = TRUE
        LEFT JOIN roles r ON ur.role_id = r.id
        WHERE ${where}
        GROUP BY s.id, s.school_id, s.staff_no, s.position, s.department_id, s.status,
                 s.hire_date, s.manager_id, s.created_at, p.first_name, p.last_name,
                 p.email, p.phone, p.gender, p.photo_url, d.name,
-                m.first_name, m.last_name, u.id, u.is_active, u.last_login_at, u.must_change_password
+                m.first_name, m.last_name, u.id, u.status, u.last_login
        ORDER BY p.first_name, p.last_name
        LIMIT ? OFFSET ?`,
       [...values, limit, offset],
@@ -160,10 +159,9 @@ export const POST = withErrorHandling(async function POST(req: NextRequest) {
       const hash = await bcrypt.hash(tempPassword, 12);
       const [userRes]: any = await conn.execute(
         `INSERT INTO users
-           (school_id, staff_id, first_name, last_name, email, username, password_hash,
-            role, status, is_active, must_change_password)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'staff', 'active', TRUE, TRUE)`,
-        [session.schoolId, staffId, first_name.trim(), last_name.trim(), email, username.trim(), hash],
+           (school_id, person_id, email, username, password_hash, role, status)
+         VALUES (?, ?, ?, ?, ?, 'staff', 'active')`,
+        [session.schoolId, personId, email, username.trim(), hash],
       );
       userId = userRes.insertId;
     }

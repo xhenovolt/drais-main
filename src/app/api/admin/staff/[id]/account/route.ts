@@ -26,7 +26,7 @@ export const POST = withErrorHandling(async function POST(req: NextRequest, { pa
 
   // Verify staff exists in this school
   const staffRows = await query(
-    `SELECT s.id, p.first_name, p.last_name, p.email
+    `SELECT s.id, s.person_id, p.first_name, p.last_name, p.email
      FROM staff s JOIN people p ON s.person_id = p.id
      WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL LIMIT 1`,
     [staffId, session.schoolId],
@@ -35,7 +35,9 @@ export const POST = withErrorHandling(async function POST(req: NextRequest, { pa
 
   // Check no account exists yet
   const existing = await query(
-    `SELECT id FROM users WHERE staff_id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
+    `SELECT u.id FROM users u
+     JOIN staff s ON u.person_id = s.person_id
+     WHERE s.id = ? AND u.school_id = ? AND u.deleted_at IS NULL LIMIT 1`,
     [staffId, session.schoolId],
   );
   if (existing.length) {
@@ -53,13 +55,11 @@ export const POST = withErrorHandling(async function POST(req: NextRequest, { pa
   const result = await withTransaction(async (conn) => {
     const [userRes]: any = await conn.execute(
       `INSERT INTO users
-         (school_id, staff_id, first_name, last_name, email, username, password_hash,
-          role, status, is_active, must_change_password)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'staff', 'active', TRUE, TRUE)`,
+         (school_id, person_id, email, username, password_hash, role, status)
+       VALUES (?, ?, ?, ?, ?, 'staff', 'active')`,
       [
-        session.schoolId, staffId,
-        staff.first_name, staff.last_name, staff.email,
-        username.trim(), hash,
+        session.schoolId, staff.person_id,
+        staff.email, username.trim(), hash,
       ],
     );
     const userId = userRes.insertId;
@@ -104,8 +104,9 @@ export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { 
   const ip = getIp(req);
 
   const userRows = await query(
-    `SELECT id, is_active FROM users
-     WHERE staff_id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
+    `SELECT u.id, u.status FROM users u
+     JOIN staff s ON u.person_id = s.person_id
+     WHERE s.id = ? AND u.school_id = ? AND u.deleted_at IS NULL LIMIT 1`,
     [staffId, session.schoolId],
   );
   if (!userRows.length) {
@@ -125,13 +126,13 @@ export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { 
 
   if (action === 'enable') {
     await query(
-      `UPDATE users SET is_active = TRUE, status = 'active' WHERE id = ? AND school_id = ?`,
+      `UPDATE users SET status = 'active' WHERE id = ? AND school_id = ?`,
       [userId, session.schoolId],
     );
     auditAction = AuditAction.ACTIVATED_STAFF;
   } else if (action === 'disable') {
     await query(
-      `UPDATE users SET is_active = FALSE, status = 'inactive'
+      `UPDATE users SET status = 'inactive'
        WHERE id = ? AND school_id = ?`,
       [userId, session.schoolId],
     );

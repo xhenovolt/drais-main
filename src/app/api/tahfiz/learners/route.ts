@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
 
   const { person, admission_no, village_id, admission_date, status } = await req.json();
   // create person then student (minimal)
-  const resP: any = await query('INSERT INTO people (school_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)', [school_id, person.first_name, person.last_name, person.phone || null, person.email || null]);
+  const resP: any = await query('INSERT INTO people (school_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)', [schoolId, person.first_name, person.last_name, person.phone || null, person.email || null]);
   const personId = resP.insertId;
-  const resS: any = await query('INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status) VALUES (?,?,?,?,?,?)', [school_id, personId, admission_no || null, village_id || null, admission_date || null, status || 'active']);
+  const resS: any = await query('INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status) VALUES (?,?,?,?,?,?)', [schoolId, personId, admission_no || null, village_id || null, admission_date || null, status || 'active']);
   return NextResponse.json({ id: resS.insertId });
 }
 

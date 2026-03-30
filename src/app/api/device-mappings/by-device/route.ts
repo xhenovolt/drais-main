@@ -158,8 +158,8 @@ export async function POST(req: NextRequest) {
 
       // Create new mapping
       const columns = entityType === 'student'
-        ? '(schoolId, device_id, student_id, device_user_id, status, mappings_sync_status)'
-        : '(schoolId, device_id, staff_id, device_user_id, status, mappings_sync_status)';
+        ? '(school_id, device_id, student_id, device_user_id, status, mappings_sync_status)'
+        : '(school_id, device_id, staff_id, device_user_id, status, mappings_sync_status)';
 
       const [result]: any = await connection.execute(
         `INSERT INTO device_user_mappings

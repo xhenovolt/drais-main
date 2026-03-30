@@ -30,27 +30,26 @@ const STAFF_SELECT = `
     p.email,
     p.phone,
     p.gender,
-    p.dob,
+    p.date_of_birth AS dob,
     p.address,
     p.photo_url,
     d.name          AS department_name,
     u.id            AS user_id,
     u.username,
-    u.is_active     AS account_active,
-    u.last_login_at,
-    u.must_change_password,
+    (u.status = 'active') AS account_active,
+    u.last_login,
     GROUP_CONCAT(DISTINCT r.name ORDER BY r.name SEPARATOR ', ') AS roles
   FROM staff s
   JOIN people p ON s.person_id = p.id
   LEFT JOIN departments d ON s.department_id = d.id
-  LEFT JOIN users u ON u.staff_id = s.id AND u.school_id = s.school_id AND u.deleted_at IS NULL
+  LEFT JOIN users u ON u.person_id = s.person_id AND u.school_id = s.school_id AND u.deleted_at IS NULL
   LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.school_id = s.school_id AND ur.is_active = TRUE
   LEFT JOIN roles r ON ur.role_id = r.id
   WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
   GROUP BY s.id, s.school_id, s.staff_no, s.position, s.department_id, s.status,
            s.hire_date, s.manager_id, s.created_at, p.id, p.first_name, p.last_name,
-           p.email, p.phone, p.gender, p.dob, p.address, p.photo_url,
-           d.name, u.id, u.username, u.is_active, u.last_login_at, u.must_change_password
+           p.email, p.phone, p.gender, p.date_of_birth, p.address, p.photo_url,
+           d.name, u.id, u.username, u.status, u.last_login
 `;
 
 export const GET = withErrorHandling(async function GET(req: NextRequest, { params }: { params: { id: string } }) {

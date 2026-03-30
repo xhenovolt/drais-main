@@ -9,7 +9,6 @@ import { toast } from 'react-hot-toast';
 import AddStaffModal from '@/components/staff/AddStaffModal';
 
 const StaffListPage: React.FC = () => {
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -24,14 +23,14 @@ const StaffListPage: React.FC = () => {
 
   // Fetch staff data using the corrected API endpoint
   const { data: staffData, isLoading, mutate } = useSWR(
-    `/api/staff/full?school_id=${schoolId}`,
+    `/api/staff/full`,
     fetcher,
     { refreshInterval: 30000 }
   );
 
   // Fetch departments for filter
   const { data: departmentsData } = useSWR(
-    `/api/departments/list?school_id=${schoolId}`,
+    `/api/departments/list`,
     fetcher
   );
 

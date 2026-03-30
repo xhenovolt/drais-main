@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   Download,
@@ -39,11 +40,14 @@ interface StudentPageProps {
   admittedData: Student[];
 }
 
-export default function StudentsPage({ enrolledData = [], admittedData = [] }: StudentPageProps) {
+export default function StudentsPage({ enrolledData: initialEnrolled = [], admittedData: initialAdmitted = [] }: StudentPageProps) {
   const { exportAsCSV, exportAsExcel, exporting } = useExport();
+  const router = useRouter();
 
   // State Management
   const [tab, setTab] = useState<'enrolled' | 'admitted'>('enrolled');
+  const [enrolledData, setEnrolledData] = useState<Student[]>(initialEnrolled);
+  const [admittedData] = useState<Student[]>(initialAdmitted);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
@@ -155,10 +159,19 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
 
       if (data.success) {
         toast.success(data.message || `Students reassigned successfully!`);
+        // Optimistic update — reflect class change instantly
+        const currentIds = new Set(selectedStudents);
+        setEnrolledData(prev =>
+          prev.map(s =>
+            currentIds.has(s.id)
+              ? { ...s, class_id: newClassId }
+              : s
+          )
+        );
         setSelectedStudents(new Set());
         setShowReassignModal(false);
-        // Reload page to show updated enrollments
-        setTimeout(() => window.location.reload(), 1500);
+        // Silently refresh server data in background
+        router.refresh();
       } else {
         // Handle partial success or failure
         if (data.error_code === 'PARTIAL_SUCCESS') {
@@ -469,7 +482,7 @@ export default function StudentsPage({ enrolledData = [], admittedData = [] }: S
         onUploadComplete={() => {
           setShowPhotoUploadModal(false);
           toast.success('Photos uploaded successfully');
-          setTimeout(() => window.location.reload(), 1500);
+          router.refresh();
         }}
       />
     </div>

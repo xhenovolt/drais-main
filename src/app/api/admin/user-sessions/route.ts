@@ -32,16 +32,14 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
        s.device_info,
        s.user_agent,
        s.is_active,
-       u.first_name,
-       u.last_name,
+       p.first_name,
+       p.last_name,
        u.email,
-       u.staff_id,
        p.photo_url,
        TIMESTAMPDIFF(MINUTE, s.created_at, IFNULL(s.last_activity_at, s.created_at)) AS duration_minutes
      FROM sessions s
      JOIN users u ON s.user_id = u.id
-     LEFT JOIN staff st ON u.staff_id = st.id
-     LEFT JOIN people p ON st.person_id = p.id
+     LEFT JOIN people p ON u.person_id = p.id
      WHERE s.school_id = ?
        AND s.expires_at > NOW()
        ${onlyActive ? 'AND s.is_active = TRUE AND s.logout_time IS NULL' : ''}

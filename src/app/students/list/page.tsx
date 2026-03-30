@@ -20,7 +20,13 @@ import {
   Home,
   MoreVertical,
   Zap,
+  Move,
+  Camera,
+  Loader,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import ReassignClassModal from '../_client/ReassignClassModal';
+import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 import { useExport } from '@/hooks/useExport';
 import { toast } from 'react-hot-toast';
 import { 
@@ -91,6 +97,11 @@ export default function StudentsListPage() {
   const [filterYearId, setFilterYearId]   = useState<number>(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Bulk Action State
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
+  const [isReassigning, setIsReassigning] = useState(false);
   
   // Enrollment Modal State
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -447,6 +458,57 @@ export default function StudentsListPage() {
     setShowExportMenu(false);
   };
 
+  // Bulk class reassignment with optimistic UI update
+  const handleReassignClass = async (newClassId: number, reason: string) => {
+    if (selectedIds.size === 0) {
+      toast.error('Please select students first');
+      return;
+    }
+    setIsReassigning(true);
+    try {
+      const res = await fetch('/api/students/reassign-class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_ids: Array.from(selectedIds),
+          new_class_id: newClassId,
+          reason: reason || null,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(data.message || `${selectedIds.size} student(s) reassigned successfully`);
+        // Optimistic update — reflect new class instantly, no page reload
+        const newClass = classes.find(c => c.id === newClassId);
+        setEnrolledStudents(prev =>
+          prev.map(s =>
+            selectedIds.has(s.id)
+              ? { ...s, class_id: newClassId, class_name: newClass?.name || '' }
+              : s
+          )
+        );
+        setSelectedIds(new Set());
+        setShowReassignModal(false);
+      } else {
+        if (data.error_code === 'PARTIAL_SUCCESS') {
+          toast.error(
+            `⚠️ Partial: ${data.data.success_count} reassigned, ${data.data.failed_count} failed`,
+            { duration: 5000 }
+          );
+        } else if (data.error_code === 'ALL_FAILED') {
+          toast.error(`❌ ${data.data.failed_count} students could not be reassigned`, { duration: 5000 });
+        } else {
+          toast.error(data.message || 'Failed to reassign students');
+        }
+      }
+    } catch {
+      toast.error('An error occurred while reassigning students');
+    } finally {
+      setIsReassigning(false);
+    }
+  };
+
   const currentData = activeTab === 'enrolled' ? enrolledStudents : admittedStudents;
   
   // Safe search filter using utility function
@@ -717,6 +779,86 @@ export default function StudentsListPage() {
           toggleProgram={toggleProgram}
         />
       )}
+
+      {/* FLOATING BULK ACTION BAR */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+          >
+            <div className="bg-gray-900 text-white rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-4">
+              <span className="text-sm font-medium whitespace-nowrap">
+                {selectedIds.size} student{selectedIds.size !== 1 ? 's' : ''} selected
+              </span>
+
+              <div className="h-6 w-px bg-gray-600" />
+
+              <button
+                onClick={() => setShowReassignModal(true)}
+                disabled={isReassigning}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {isReassigning
+                  ? <Loader size={16} className="animate-spin" />
+                  : <Move size={16} />}
+                Change Class ({selectedIds.size})
+              </button>
+
+              <button
+                onClick={() => setShowPhotoUploadModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Camera size={16} />
+                Upload Photos
+              </button>
+
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                title="Clear selection"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* REASSIGN CLASS MODAL */}
+      {showReassignModal && (
+        <ReassignClassModal
+          isOpen={showReassignModal}
+          onClose={() => setShowReassignModal(false)}
+          onSubmit={handleReassignClass}
+          isLoading={isReassigning}
+          selectedStudentCount={selectedIds.size}
+        />
+      )}
+
+      {/* BULK PHOTO UPLOAD MODAL */}
+      <BulkPhotoUploadModal
+        open={showPhotoUploadModal}
+        onClose={() => setShowPhotoUploadModal(false)}
+        students={(activeTab === 'enrolled' ? enrolledStudents : admittedStudents)
+          .filter(s => selectedIds.has(s.id))
+          .map(s => ({
+            id: s.id,
+            person_id: (s as any).person_id ?? s.id,
+            first_name: s.first_name,
+            last_name: s.last_name,
+            admission_no: s.admission_no,
+            photo_url: s.photo_url,
+          }))}
+        onUploadComplete={() => {
+          setShowPhotoUploadModal(false);
+          toast.success('Photos uploaded successfully');
+          fetchStudents();
+        }}
+      />
     </div>
   );
 }
