@@ -69,6 +69,10 @@ import {
   Fingerprint,
   Book,
   FileSearch,
+  Zap,
+  Radio,
+  ArrowUpDown,
+  Server,
 } from 'lucide-react';
 
 // Alias so callers don't have to worry about icon substitution
@@ -214,6 +218,14 @@ export function getNavigationItems(
         { key: 'att-sessions',       label: 'Sessions',          icon: <Calendar className="w-4 h-4" />,     href: '/attendance/sessions' },
         { key: 'att-reports',        label: 'Att. Reports',      icon: <BarChart3 className="w-4 h-4" />,    href: '/attendance/reports' },
         { key: 'att-devices',        label: 'Device Logs',       icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices' },
+        // — ZK Device Intelligence —
+        { key: 'zk-dashboard',       label: 'ZK Dashboard',      icon: <Zap className="w-4 h-4" />,          href: '/attendance/zk' },
+        { key: 'zk-logs',            label: 'ZK Logs',           icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/zk/logs' },
+        { key: 'zk-devices',         label: 'ZK Devices',        icon: <Server className="w-4 h-4" />,       href: '/attendance/zk/devices' },
+        { key: 'zk-commands',        label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/zk/commands', roles: ['admin', 'super_admin'] },
+        { key: 'zk-students',        label: 'Student Mapping',   icon: <Users className="w-4 h-4" />,        href: '/attendance/zk/students' },
+        { key: 'zk-staff',           label: 'Staff Mapping',     icon: <Briefcase className="w-4 h-4" />,    href: '/attendance/zk/staff' },
+        { key: 'zk-reports',         label: 'ZK Reports',        icon: <Radio className="w-4 h-4" />,        href: '/attendance/zk/reports' },
         // — Finance —
         { key: 'finance-fees',       label: 'Finance',           icon: <DollarSign className="w-4 h-4" />,   href: '/finance' },
         { key: 'fees',               label: 'Fees',              icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fees' },

@@ -93,6 +93,16 @@ const nextConfig = {
       },
     ];
   },
+
+  // ZKTeco ADMS Push Protocol — all /iclock/* traffic → /api/zk-handler
+  async rewrites() {
+    return [
+      {
+        source: '/iclock/:path*',
+        destination: '/api/zk-handler',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

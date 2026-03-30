@@ -20,6 +20,16 @@ const nextConfig: NextConfig = {
     // Also allow local uploads path
     domains: ['localhost'],
   },
+
+  // ZKTeco ADMS Push Protocol — all /iclock/* traffic → /api/zk-handler
+  async rewrites() {
+    return [
+      {
+        source: '/iclock/:path*',
+        destination: '/api/zk-handler',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
