@@ -86,45 +86,41 @@ const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 overflow-x-hidden">
       {/* Global Top Bar */}
       <div data-tour="dashboard" className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            {/* Left: Title & School Info */}
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  📊 DRAIS Dashboard
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Real-time school analytics & insights
-                </p>
-              </div>
+        <div className="max-w-full w-full px-2 sm:px-4 py-4 mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">
+            {/* Header Left: Logo & Title */}
+            <div className="flex flex-row items-center gap-3 md:gap-4">
+              <span className="hidden md:inline-block text-3xl font-extrabold text-blue-700 tracking-tight mr-2">📊</span>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-white md:whitespace-nowrap">
+                DRAIS Dashboard
+              </h1>
             </div>
-
-            {/* Center: Date Range */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <input
-                type="date"
-                value={dateRange.from}
-                onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-slate-800"
-              />
-              <span className="text-gray-500">to</span>
+            {/* Header Center: Date Range */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full md:w-auto md:justify-center">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                  className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-slate-800 min-w-[120px]"
+                />
+                <span className="text-gray-500 hidden sm:inline">to</span>
+              </div>
               <input
                 type="date"
                 value={dateRange.to}
                 onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-slate-800"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-slate-800 min-w-[120px]"
               />
             </div>
-
-            {/* Right: Mode Toggle & Actions */}
-            <div className="flex items-center gap-2">
+            {/* Header Right: Mode Toggle & Actions */}
+            <div className="flex flex-row items-center gap-2 md:gap-3 w-full md:w-auto justify-end">
               {/* Mode Toggle */}
-              <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+              <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1 overflow-x-auto max-w-full">
                 <button
                   onClick={() => setMode('simple')}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
@@ -157,9 +153,8 @@ const DashboardPage: React.FC = () => {
                   AI Analytics
                 </button>
               </div>
-
               {/* Quick Actions */}
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-shrink-0">
                 <button
                   onClick={() => handleQuickAction('add_student')}
                   className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
