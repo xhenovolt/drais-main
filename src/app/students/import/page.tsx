@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import {
   Upload, FileText, Eye, Play, RotateCcw, AlertTriangle,
   CheckCircle2, XCircle, Users, RefreshCw, ChevronDown,
+  Download, ArrowRight, Columns,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -12,6 +13,8 @@ interface PreviewData {
   preview: Record<string, string>[];
   warnings: string[];
   readyToImport: boolean;
+  fileHeaders?: string[];
+  columnMapping?: Record<string, string | null>;
 }
 
 interface ImportResult {
@@ -25,6 +28,26 @@ interface ImportResult {
 
 type Status = 'idle' | 'analyzing' | 'preview' | 'importing' | 'complete' | 'error';
 
+const SYSTEM_FIELDS = [
+  { key: 'name',          label: 'Full Name',        required: false },
+  { key: 'first_name',    label: 'First Name',       required: false },
+  { key: 'last_name',     label: 'Last Name',        required: false },
+  { key: 'reg_no',        label: 'Reg No / Adm No',  required: false },
+  { key: 'class',         label: 'Class',             required: false },
+  { key: 'section',       label: 'Section / Stream',  required: false },
+  { key: 'gender',        label: 'Gender',            required: false },
+  { key: 'date_of_birth', label: 'Date of Birth',     required: false },
+  { key: 'phone',         label: 'Phone',             required: false },
+  { key: 'address',       label: 'Address',           required: false },
+  { key: 'photo_url',     label: 'Photo URL',         required: false },
+  { key: 'biometric_id',  label: 'Biometric ID',      required: false },
+];
+
+const TEMPLATE_CSV = `name,reg_no,class,section,gender,date_of_birth,phone,address,photo_url,biometric_id
+Ali Hassan,ADM-001,Senior One,,M,2010-05-14,0700000001,Kampala,,
+Fatuma Nuru,ADM-002,Senior Two,,F,2009-08-22,0700000002,Entebbe,,
+Ibrahim Sali,,Senior One,,M,2011-01-30,0700000003,,,`;
+
 export default function BulkImportPage() {
   const [status, setStatus]         = useState<Status>('idle');
   const [file, setFile]             = useState<File | null>(null);
@@ -34,7 +57,34 @@ export default function BulkImportPage() {
   const [result, setResult]         = useState<ImportResult | null>(null);
   const [errorMsg, setErrorMsg]     = useState('');
   const [showTemplate, setShowTemplate] = useState(false);
+  const [showMapper, setShowMapper] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Template download ───────────────────────────────────────────────────
+  const downloadTemplate = () => {
+    const blob = new Blob([TEMPLATE_CSV], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'drais_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Template downloaded');
+  };
+
+  // ── Error log download ──────────────────────────────────────────────────
+  const downloadErrors = () => {
+    if (!result?.errors.length) return;
+    const content = result.errors.join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `import_errors_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Error log downloaded');
+  };
 
   // ── File selection ──────────────────────────────────────────────────────
   const acceptFile = (f: File | null) => {
@@ -128,23 +178,36 @@ export default function BulkImportPage() {
     setResult(null);
     setErrorMsg('');
     setProgress({ done: 0, total: 0, current: '' });
+    setShowMapper(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const mapping = previewData?.columnMapping ?? {};
+  const fileHeaders = previewData?.fileHeaders ?? [];
+  const hasNameMapping = mapping.name || (mapping.first_name && mapping.last_name);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Users className="text-blue-600" size={26} />
-            Bulk Import Students
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Upload CSV or Excel. Supports 1000+ rows with live progress.
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Users className="text-blue-600" size={26} />
+              Bulk Import Students
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Upload CSV or Excel. Supports 10,000+ rows with live progress.
+            </p>
+          </div>
+          <button
+            onClick={downloadTemplate}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm"
+          >
+            <Download size={16} />
+            Download Template
+          </button>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-5">
@@ -210,13 +273,15 @@ export default function BulkImportPage() {
               {/* CSV template */}
               {showTemplate && (
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                  <p className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-200">CSV Column Headers</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Required: <strong>name</strong> (or first_name + last_name)</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">CSV Column Headers</p>
+                    <button onClick={downloadTemplate} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                      <Download size={12} /> Download .csv
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Required: <strong>name</strong> (or first_name + last_name). Case insensitive.</p>
                   <pre className="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto text-gray-700 dark:text-gray-300">
-{`name,reg_no,class,section,gender,date_of_birth,phone,address,photo_url,biometric_id
-Ali Hassan,ADM-001,Senior One,,M,2010-05-14,0700000001,Kampala,,
-Fatuma Nuru,ADM-002,Senior Two,,F,2009-08-22,0700000002,Entebbe,,
-Ibrahim Sali,,Senior One,,M,2011-01-30,0700000003,,,fingerprint-id-123`}
+{TEMPLATE_CSV}
                   </pre>
                 </div>
               )}
@@ -232,6 +297,49 @@ Ibrahim Sali,,Senior One,,M,2011-01-30,0700000003,,,fingerprint-id-123`}
                   {previewData.total.toLocaleString()} student{previewData.total !== 1 ? 's' : ''} ready to import
                 </p>
               </div>
+
+              {/* ── Column Mapper ── */}
+              {fileHeaders.length > 0 && (
+                <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setShowMapper(v => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Columns size={16} className="text-blue-500" />
+                      Column Mapping
+                      {!hasNameMapping && <span className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full">Name unmapped</span>}
+                    </span>
+                    <ChevronDown size={14} className={showMapper ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                  </button>
+
+                  {showMapper && (
+                    <div className="p-4 space-y-2 max-h-72 overflow-y-auto">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        Your file headers: <span className="font-mono text-gray-700 dark:text-gray-300">{fileHeaders.join(', ')}</span>
+                      </p>
+                      {SYSTEM_FIELDS.map(field => {
+                        const mapped = mapping[field.key];
+                        return (
+                          <div key={field.key} className="flex items-center gap-3 py-1.5">
+                            <span className="w-36 text-xs font-medium text-gray-600 dark:text-gray-300 truncate">{field.label}</span>
+                            <ArrowRight size={12} className="text-gray-400 flex-shrink-0" />
+                            {mapped ? (
+                              <span className="text-xs font-mono px-2 py-1 rounded bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-700">
+                                {mapped}
+                              </span>
+                            ) : (
+                              <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-400 italic">
+                                not found
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {previewData.warnings.length > 0 && (
                 <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
@@ -337,18 +445,28 @@ Ibrahim Sali,,Senior One,,M,2011-01-30,0700000003,,,fingerprint-id-123`}
 
               {result.errors.length > 0 && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
-                  <p className="text-xs font-semibold text-red-800 dark:text-red-400 mb-1">
-                    {result.errors.length} row error{result.errors.length > 1 ? 's' : ''}:
-                  </p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-semibold text-red-800 dark:text-red-400">
+                      {result.errors.length} row error{result.errors.length > 1 ? 's' : ''}:
+                    </p>
+                    <button
+                      onClick={downloadErrors}
+                      className="text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1"
+                    >
+                      <Download size={12} /> Download log
+                    </button>
+                  </div>
                   <ul className="text-xs text-red-700 dark:text-red-300 space-y-0.5 max-h-32 overflow-y-auto">
                     {result.errors.map((e, i) => <li key={i}>• {e}</li>)}
                   </ul>
                 </div>
               )}
 
-              <button onClick={reset} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                <RotateCcw size={16} /> Import Another File
-              </button>
+              <div className="flex gap-3">
+                <button onClick={reset} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                  <RotateCcw size={16} /> Import Another File
+                </button>
+              </div>
             </div>
           )}
 

@@ -7,6 +7,9 @@
  *   Dashboard → Students → Staff & Roles → Academics →
  *   Attendance → Finance → Tahfiz → Reports → Settings
  *
+ * 9 sections total. Attendance is a standalone top-level section.
+ * Finance is separated from Attendance for clarity.
+ *
  * Roles: items without `roles` are visible to everyone authenticated.
  *        items with roles: ['admin','super_admin'] are admin-only.
  * ═══════════════════════════════════════════════════════════════════════════
@@ -203,28 +206,34 @@ export function getNavigationItems(
       ],
     },
 
-    // ══ 5. ATTENDANCE & FINANCE ═══════════════════════════════════════════════
-    // Merged: Attendance + Finance + Payroll
+    // ══ 5. ATTENDANCE (PRIORITY) ══════════════════════════════════════════════
+    // Attendance-first architecture: biometrics, devices, monitoring
     {
-      key:   'attendance-finance',
-      label: 'Attendance & Finance',
-      icon:  <Wallet className="w-5 h-5" />,
+      key:   'attendance',
+      label: 'Attendance',
+      icon:  <UserCheck className="w-5 h-5" />,
       children: [
-        // — Attendance —
-        { key: 'attendance',         label: 'Dashboard',         icon: <UserCheck className="w-4 h-4" />,    href: '/attendance' },
+        { key: 'att-dashboard',      label: 'Dashboard',         icon: <UserCheck className="w-4 h-4" />,    href: '/attendance' },
+        { key: 'att-live-monitor',   label: 'Live Monitor',      icon: <Activity className="w-4 h-4" />,     href: '/admin/biometric-monitor' },
         { key: 'att-sessions',       label: 'Sessions',          icon: <Calendar className="w-4 h-4" />,     href: '/attendance/sessions' },
         { key: 'att-students',       label: 'Students',          icon: <Users className="w-4 h-4" />,        href: '/students/attendance' },
         { key: 'att-staff',          label: 'Staff',             icon: <Briefcase className="w-4 h-4" />,    href: '/staff/attendance' },
         { key: 'att-reports',        label: 'Reports',           icon: <BarChart3 className="w-4 h-4" />,    href: '/attendance/reports' },
-        // — Devices —
-        { key: 'devices-monitor',    label: 'Device Monitor',    icon: <Activity className="w-4 h-4" />,     href: '/attendance/devices/monitor' },
+        { key: 'devices-monitor',    label: 'Devices',           icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices/monitor' },
         { key: 'devices-logs',       label: 'Device Logs',       icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/devices/logs' },
-        { key: 'devices-commands',   label: 'Device Commands',   icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/devices/commands', roles: ['admin', 'super_admin'] },
+        { key: 'devices-commands',   label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/devices/commands', roles: ['admin', 'super_admin'] },
         { key: 'devices-mapping',    label: 'User Mapping',      icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices/user-mapping' },
-        // — System —
         { key: 'system-logs',        label: 'System Logs',       icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/system-logs' },
-        // — Finance —
-        { key: 'finance-fees',       label: 'Finance',           icon: <DollarSign className="w-4 h-4" />,   href: '/finance' },
+      ],
+    },
+
+    // ══ 6. FINANCE ════════════════════════════════════════════════════════════
+    {
+      key:   'finance',
+      label: 'Finance',
+      icon:  <Wallet className="w-5 h-5" />,
+      children: [
+        { key: 'finance-dashboard',  label: 'Overview',          icon: <DollarSign className="w-4 h-4" />,   href: '/finance' },
         { key: 'fees',               label: 'Fees',              icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fees' },
         { key: 'learners-fees',      label: 'Learner Fees',      icon: <Users className="w-4 h-4" />,        href: '/finance/learners-fees' },
         { key: 'payments',           label: 'Payments',          icon: <Receipt className="w-4 h-4" />,      href: '/finance/payments' },
@@ -232,13 +241,12 @@ export function getNavigationItems(
         { key: 'ledger',             label: 'Ledger',            icon: <FileText className="w-4 h-4" />,     href: '/finance/ledger' },
         { key: 'waivers',            label: 'Waivers',           icon: <Percent className="w-4 h-4" />,      href: '/finance/waivers' },
         { key: 'expenditures',       label: 'Expenditures',      icon: <TrendingDown className="w-4 h-4" />, href: '/finance/expenditures' },
-        // — Payroll —
         { key: 'payroll-salaries',   label: 'Payroll',           icon: <Coins className="w-4 h-4" />,        href: '/payroll/salaries' },
         { key: 'payroll-payments',   label: 'Pay Runs',          icon: <BadgeDollarSign className="w-4 h-4" />, href: '/payroll/payments' },
       ],
     },
 
-    // ══ 6. TAHFIZ ═════════════════════════════════════════════════════════════
+    // ══ 7. TAHFIZ ═════════════════════════════════════════════════════════════
     {
       key:   'tahfiz',
       label: t('nav.tahfiz._', 'Tahfiz'),
@@ -257,7 +265,7 @@ export function getNavigationItems(
       ],
     },
 
-    // ══ 7. REPORTS & ANALYTICS ════════════════════════════════════════════════
+    // ══ 8. REPORTS & ANALYTICS ════════════════════════════════════════════════
     {
       key:   'reports',
       label: t('nav.reports._', 'Reports'),
@@ -272,7 +280,7 @@ export function getNavigationItems(
       ],
     },
 
-    // ══ 8. SETTINGS ═══════════════════════════════════════════════════════════
+    // ══ 9. SETTINGS ═══════════════════════════════════════════════════════════
     {
       key:   'settings',
       label: t('nav.settings._', 'Settings'),

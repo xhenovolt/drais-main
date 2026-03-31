@@ -167,7 +167,34 @@ export async function POST(request: NextRequest) {
         gender: cm.genderIdx !== -1 ? (row[cm.genderIdx] || '—') : '—',
       };
     });
-    return NextResponse.json({ success: true, total: dataRows.length, preview, warnings, readyToImport: true });
+
+    // Build column mapping for UI
+    const columnMapping: Record<string, string | null> = {};
+    const systemFields = [
+      { key: 'name',         mapped: cm.nameIdx >= 0        ? headers[cm.nameIdx]        : null },
+      { key: 'first_name',   mapped: cm.firstNameIdx >= 0   ? headers[cm.firstNameIdx]   : null },
+      { key: 'last_name',    mapped: cm.lastNameIdx >= 0    ? headers[cm.lastNameIdx]    : null },
+      { key: 'reg_no',       mapped: cm.regNoIdx >= 0       ? headers[cm.regNoIdx]       : null },
+      { key: 'class',        mapped: cm.classIdx >= 0       ? headers[cm.classIdx]       : null },
+      { key: 'section',      mapped: cm.sectionIdx >= 0     ? headers[cm.sectionIdx]     : null },
+      { key: 'gender',       mapped: cm.genderIdx >= 0      ? headers[cm.genderIdx]      : null },
+      { key: 'date_of_birth',mapped: cm.dobIdx >= 0         ? headers[cm.dobIdx]         : null },
+      { key: 'phone',        mapped: cm.phoneIdx >= 0       ? headers[cm.phoneIdx]       : null },
+      { key: 'address',      mapped: cm.addressIdx >= 0     ? headers[cm.addressIdx]     : null },
+      { key: 'photo_url',    mapped: cm.photoUrlIdx >= 0    ? headers[cm.photoUrlIdx]    : null },
+      { key: 'biometric_id', mapped: cm.biometricIdIdx >= 0 ? headers[cm.biometricIdIdx] : null },
+    ];
+    for (const f of systemFields) columnMapping[f.key] = f.mapped;
+
+    return NextResponse.json({
+      success: true,
+      total: dataRows.length,
+      preview,
+      warnings,
+      readyToImport: true,
+      fileHeaders: headers,
+      columnMapping,
+    });
   }
 
   // ── IMPORT MODE — Server-Sent Events stream ───────────────────────────────
