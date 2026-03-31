@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu, Bell, Cloud, CloudOff } from 'lucide-react';
+import { Menu, Bell, Cloud, CloudOff, Wifi, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -33,6 +33,39 @@ function CloudinaryBadge() {
       {connected ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
       <span>{connected ? 'Cloud ✓' : 'Cloud ✗'}</span>
     </div>
+  );
+}
+
+/** Global badge showing whether ANY device has pinged in last 2 min. */
+function DeviceStatusBadge() {
+  const { data } = useSWR('/api/devices/summary', fetcher, {
+    refreshInterval: 30000,
+    revalidateOnFocus: false,
+  });
+
+  const pending = data === undefined;
+  if (pending) return null;
+
+  const total  = data?.data?.total  ?? 0;
+  const online = data?.data?.online ?? 0;
+
+  if (total === 0) return null; // No devices registered yet
+
+  const anyOnline = online > 0;
+
+  return (
+    <Link
+      href="/admin/devices"
+      title={`${online}/${total} device${total !== 1 ? 's' : ''} online`}
+      className={`hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+        anyOnline
+          ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
+          : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
+      }`}
+    >
+      {anyOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+      <span>{anyOnline ? `${online} Live` : 'Offline'}</span>
+    </Link>
   );
 }
 
@@ -101,6 +134,9 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
 
           {/* Cloudinary Status Badge — desktop only */}
           <CloudinaryBadge />
+
+          {/* Device Status Badge — desktop only */}
+          <DeviceStatusBadge />
 
           {/* Notification Bell - 44px touch zone */}
           <button 

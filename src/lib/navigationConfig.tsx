@@ -218,6 +218,7 @@ export function getNavigationItems(
         { key: 'att-sessions',       label: 'Sessions',          icon: <Calendar className="w-4 h-4" />,     href: '/attendance/sessions' },
         { key: 'att-reports',        label: 'Att. Reports',      icon: <BarChart3 className="w-4 h-4" />,    href: '/attendance/reports' },
         { key: 'att-devices',        label: 'Device Logs',       icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices' },
+        { key: 'device-monitor',     label: 'Device Monitor',    icon: <Activity className="w-4 h-4" />,     href: '/admin/devices' },
         // — ZK Device Intelligence —
         { key: 'zk-dashboard',       label: 'ZK Dashboard',      icon: <Zap className="w-4 h-4" />,          href: '/attendance/zk' },
         { key: 'zk-logs',            label: 'ZK Logs',           icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/zk/logs' },

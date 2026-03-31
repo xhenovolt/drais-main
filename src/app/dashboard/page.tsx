@@ -30,6 +30,7 @@ import AIInsightCard from '@/components/dashboard/AIInsightCard';
 import AdvancedDashboard from '@/components/dashboard/AdvancedDashboard';
 import PredictiveAnalyticsDashboard from '@/components/dashboard/PredictiveAnalyticsDashboard';
 import AdmissionsAnalytics from '@/components/dashboard/AdmissionsAnalytics';
+import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import SetupChecklist from '@/components/onboarding/SetupChecklist';
 import QuickActions from '@/components/onboarding/QuickActions';
 import { toast } from 'react-hot-toast';
@@ -240,6 +241,9 @@ const DashboardPage: React.FC = () => {
                 <div data-tour="attendance">
                   <AttendanceToday schoolId={schoolId} />
                 </div>
+
+                {/* Device Status */}
+                <DeviceStatusWidget />
 
                 {/* AI Insight */}
                 <AIInsightCard data={overview?.aiInsight} />

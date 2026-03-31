@@ -163,6 +163,21 @@ async function upsertDevice(
   } catch (err) {
     zkLog('error', 'DEVICE_UPSERT_FAILED', { sn, error: String(err) });
   }
+
+  // ── Also upsert into unified `devices` table for real-time monitoring ──
+  try {
+    await query(
+      `INSERT INTO devices (sn, last_seen, ip_address, is_online)
+       VALUES (?, NOW(), ?, TRUE)
+       ON DUPLICATE KEY UPDATE
+         last_seen = NOW(),
+         ip_address = VALUES(ip_address),
+         is_online = TRUE`,
+      [sn, ip],
+    );
+  } catch (err) {
+    zkLog('error', 'DEVICES_TABLE_UPSERT_FAILED', { sn, error: String(err) });
+  }
 }
 
 /** Fetch the highest-priority pending command for a device. */
