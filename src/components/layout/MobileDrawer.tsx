@@ -295,17 +295,6 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   );
 };
 
-
-interface MobileDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-/**
- * Mobile Drawer — mirrors desktop Sidebar completely.
- * Slides in from left; responds to same navigationConfig.
- */
-export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const pathname = usePathname();
   const { t }    = useI18n();
   const { user } = useAuth() || {};
