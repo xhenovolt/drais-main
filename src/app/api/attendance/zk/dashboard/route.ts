@@ -23,10 +23,10 @@ export async function GET(req: NextRequest) {
     const deviceStats = await query(
       `SELECT
          COUNT(*) AS total_devices,
-         SUM(CASE WHEN status = 'active' AND last_heartbeat > DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 1 ELSE 0 END) AS online_devices,
-         SUM(CASE WHEN status = 'active' AND (last_heartbeat IS NULL OR last_heartbeat <= DATE_SUB(NOW(), INTERVAL 5 MINUTE)) THEN 1 ELSE 0 END) AS offline_devices,
+         SUM(CASE WHEN status = 'active' AND last_seen > DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 1 ELSE 0 END) AS online_devices,
+         SUM(CASE WHEN status = 'active' AND (last_seen IS NULL OR last_seen <= DATE_SUB(NOW(), INTERVAL 5 MINUTE)) THEN 1 ELSE 0 END) AS offline_devices,
          SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenance_devices
-       FROM zk_devices WHERE school_id = ?`,
+       FROM devices WHERE school_id = ?`,
       [schoolId],
     );
 
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
          al.student_id, al.staff_id,
          d.device_name, d.location
        FROM zk_attendance_logs al
-       LEFT JOIN zk_devices d ON al.device_sn = d.serial_number
+       LEFT JOIN devices d ON al.device_sn = d.sn
        WHERE al.school_id = ?
        ORDER BY al.check_time DESC
        LIMIT 20`,
@@ -87,16 +87,16 @@ export async function GET(req: NextRequest) {
     // Devices with last heartbeat
     const devices = await query(
       `SELECT
-         id, serial_number, device_name, location, ip_address, status,
-         last_heartbeat, last_activity,
+         id, sn AS serial_number, device_name, location, ip_address, status,
+         last_seen AS last_heartbeat, last_activity,
          CASE
-           WHEN last_heartbeat > DATE_SUB(NOW(), INTERVAL 2 MINUTE) THEN 'online'
-           WHEN last_heartbeat > DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 'delayed'
+           WHEN last_seen > DATE_SUB(NOW(), INTERVAL 2 MINUTE) THEN 'online'
+           WHEN last_seen > DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 'delayed'
            ELSE 'offline'
          END AS connection_status
-       FROM zk_devices
+       FROM devices
        WHERE school_id = ?
-       ORDER BY last_heartbeat DESC`,
+       ORDER BY last_seen DESC`,
       [schoolId],
     );
 

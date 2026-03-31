@@ -51,7 +51,7 @@ export default function DeviceStatusWidget() {
             Devices
           </h3>
           <Link
-            href="/admin/devices"
+            href="/attendance/devices/monitor"
             className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
           >
             Monitor <ArrowRight className="w-3 h-3" />
@@ -59,7 +59,10 @@ export default function DeviceStatusWidget() {
         </div>
 
         {!hasDevices ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">No devices registered</p>
+          <div className="text-center">
+            <p className="text-sm text-red-500 dark:text-red-400 font-medium">No devices registered</p>
+            <p className="text-xs text-gray-400 mt-1">Point a ZKTeco device at this server</p>
+          </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">

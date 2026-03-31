@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
            MIN(al.check_time) AS first_punch,
            MAX(al.check_time) AS last_punch
          FROM zk_attendance_logs al
-         LEFT JOIN zk_devices d ON al.device_sn = d.serial_number
+         LEFT JOIN devices d ON al.device_sn = d.sn
          WHERE ${conditions.join(' AND ')}
          GROUP BY DATE(al.check_time), al.device_sn, d.device_name
          ORDER BY date DESC, al.device_sn`,
@@ -77,32 +77,32 @@ export async function GET(req: NextRequest) {
       // Device health report
       data = await query(
         `SELECT
-           d.serial_number, d.device_name, d.location, d.model, d.status,
-           d.last_heartbeat, d.last_activity,
+           d.sn AS serial_number, d.device_name, d.location, d.model_name AS model, d.status,
+           d.last_seen AS last_heartbeat, d.last_activity,
            CASE
-             WHEN d.last_heartbeat > DATE_SUB(NOW(), INTERVAL 2 MINUTE) THEN 'online'
-             WHEN d.last_heartbeat > DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 'delayed'
+             WHEN d.last_seen > DATE_SUB(NOW(), INTERVAL 2 MINUTE) THEN 'online'
+             WHEN d.last_seen > DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 'delayed'
              ELSE 'offline'
            END AS connection_status,
            COALESCE(logs.total_today, 0) AS punches_today,
            COALESCE(logs.total_week, 0) AS punches_week,
            COALESCE(cmds.pending, 0) AS pending_commands,
            COALESCE(cmds.failed, 0) AS failed_commands
-         FROM zk_devices d
+         FROM devices d
          LEFT JOIN (
            SELECT device_sn,
              SUM(CASE WHEN DATE(check_time) = CURDATE() THEN 1 ELSE 0 END) AS total_today,
              SUM(CASE WHEN check_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS total_week
            FROM zk_attendance_logs WHERE school_id = ?
            GROUP BY device_sn
-         ) logs ON d.serial_number = logs.device_sn
+         ) logs ON d.sn = logs.device_sn
          LEFT JOIN (
            SELECT device_sn,
              SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
              SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed
            FROM zk_device_commands WHERE school_id = ?
            GROUP BY device_sn
-         ) cmds ON d.serial_number = cmds.device_sn
+         ) cmds ON d.sn = cmds.device_sn
          WHERE d.school_id = ?
          ORDER BY d.device_name`,
         [schoolId, schoolId, schoolId],

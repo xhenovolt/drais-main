@@ -16,10 +16,16 @@ export async function GET() {
       `SELECT
          id,
          sn,
+         device_name,
          model_name,
+         location,
          last_seen,
          ip_address,
          is_online,
+         status,
+         firmware_version,
+         push_version,
+         last_activity,
          TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS seconds_ago,
          created_at
        FROM devices

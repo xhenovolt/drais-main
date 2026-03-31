@@ -36,7 +36,7 @@ function CloudinaryBadge() {
   );
 }
 
-/** Global badge showing whether ANY device has pinged in last 2 min. */
+/** Global badge showing device status — RED if no devices or all offline. */
 function DeviceStatusBadge() {
   const { data } = useSWR('/api/devices/summary', fetcher, {
     refreshInterval: 30000,
@@ -49,13 +49,25 @@ function DeviceStatusBadge() {
   const total  = data?.data?.total  ?? 0;
   const online = data?.data?.online ?? 0;
 
-  if (total === 0) return null; // No devices registered yet
+  // Show RED "No Devices" when nothing registered
+  if (total === 0) {
+    return (
+      <Link
+        href="/attendance/devices/monitor"
+        title="No devices registered"
+        className="hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
+      >
+        <WifiOff className="w-3 h-3" />
+        <span>No Devices</span>
+      </Link>
+    );
+  }
 
   const anyOnline = online > 0;
 
   return (
     <Link
-      href="/admin/devices"
+      href="/attendance/devices/monitor"
       title={`${online}/${total} device${total !== 1 ? 's' : ''} online`}
       className={`hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
         anyOnline

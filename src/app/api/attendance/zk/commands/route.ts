@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
          c.error_message, c.created_by, c.created_at, c.expires_at,
          d.device_name, d.location AS device_location
        FROM zk_device_commands c
-       LEFT JOIN zk_devices d ON c.device_sn = d.serial_number
+       LEFT JOIN devices d ON c.device_sn = d.sn
        WHERE ${where}
        ORDER BY c.created_at DESC
        LIMIT ? OFFSET ?`,
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     // Verify device exists and belongs to school
     const device = await query(
-      'SELECT id FROM zk_devices WHERE serial_number = ? AND school_id = ?',
+      'SELECT id FROM devices WHERE sn = ? AND school_id = ?',
       [device_sn, session.schoolId],
     );
     if (!device || device.length === 0) {

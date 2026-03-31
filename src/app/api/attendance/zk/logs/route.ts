@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
          al.processed, al.matched, al.created_at,
          d.device_name, d.location AS device_location
        FROM zk_attendance_logs al
-       LEFT JOIN zk_devices d ON al.device_sn = d.serial_number
+       LEFT JOIN devices d ON al.device_sn = d.sn
        WHERE ${where}
        ORDER BY al.check_time DESC
        LIMIT ? OFFSET ?`,

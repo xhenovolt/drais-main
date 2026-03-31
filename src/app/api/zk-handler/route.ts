@@ -140,7 +140,7 @@ async function saveRawLog(
   }
 }
 
-/** Register device or update heartbeat on first/every GET. */
+/** Register device or update heartbeat on first/every GET. Single source: `devices` table. */
 async function upsertDevice(
   sn: string,
   ip: string,
@@ -149,34 +149,20 @@ async function upsertDevice(
 ): Promise<void> {
   try {
     await query(
-      `INSERT INTO zk_devices (serial_number, ip_address, options, push_version, last_heartbeat, status)
-       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'active')
+      `INSERT INTO devices (sn, ip_address, options, push_version, last_seen, is_online, status)
+       VALUES (?, ?, ?, ?, NOW(), TRUE, 'active')
        ON DUPLICATE KEY UPDATE
          ip_address = VALUES(ip_address),
          options = COALESCE(VALUES(options), options),
          push_version = COALESCE(VALUES(push_version), push_version),
-         last_heartbeat = CURRENT_TIMESTAMP,
+         last_seen = NOW(),
+         is_online = TRUE,
          status = 'active',
          updated_at = CURRENT_TIMESTAMP`,
       [sn, ip, options, pushVer],
     );
   } catch (err) {
     zkLog('error', 'DEVICE_UPSERT_FAILED', { sn, error: String(err) });
-  }
-
-  // ── Also upsert into unified `devices` table for real-time monitoring ──
-  try {
-    await query(
-      `INSERT INTO devices (sn, last_seen, ip_address, is_online)
-       VALUES (?, NOW(), ?, TRUE)
-       ON DUPLICATE KEY UPDATE
-         last_seen = NOW(),
-         ip_address = VALUES(ip_address),
-         is_online = TRUE`,
-      [sn, ip],
-    );
-  } catch (err) {
-    zkLog('error', 'DEVICES_TABLE_UPSERT_FAILED', { sn, error: String(err) });
   }
 }
 
@@ -395,8 +381,8 @@ export async function POST(req: NextRequest) {
     // Update device last_activity
     try {
       await query(
-        `UPDATE zk_devices SET last_activity = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE serial_number = ?`,
+        `UPDATE devices SET last_activity = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE sn = ?`,
         [sn],
       );
     } catch {
