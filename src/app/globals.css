@@ -24,12 +24,45 @@ html[data-theme-mode='dark'] {
   --gradient-to: #172554;
 }
 
+/* ─── Global horizontal overflow guard ──────────────────────────────────────
+   Prevents any element from causing horizontal scroll.
+   Tables, long strings, and media are safely clipped inside their containers.
+   ─────────────────────────────────────────────────────────────────────────── */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-feature-settings: "rlig" 1, "calt" 1;
+  word-break: break-word;
 }
+
+/* ─── Tables: scrollable inside their own container ─────────────────────── */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Images never overflow */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+
 
 /* RTL Support */
 html[dir="rtl"] {

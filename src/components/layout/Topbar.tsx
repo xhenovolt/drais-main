@@ -1,10 +1,40 @@
 'use client';
 
 import React from 'react';
-import { Menu, Bell } from 'lucide-react';
+import { Menu, Bell, Cloud, CloudOff } from 'lucide-react';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { ProfileDropdown } from '@/components/ui/ProfileDropdown';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
+/** Small badge shown in the navbar indicating Cloudinary connection status. */
+function CloudinaryBadge() {
+  const { data } = useSWR('/api/cloudinary/status', fetcher, {
+    refreshInterval: 5 * 60 * 1000, // re-check every 5 min
+    revalidateOnFocus: false,
+  });
+
+  const connected = data?.connected;
+  const pending   = data === undefined;
+
+  if (pending) return null;
+
+  return (
+    <div
+      title={data?.message || (connected ? 'Cloudinary connected' : 'Cloudinary not connected')}
+      className={`hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+        connected
+          ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-400'
+          : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400'
+      }`}
+    >
+      {connected ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
+      <span>{connected ? 'Cloud ✓' : 'Cloud ✗'}</span>
+    </div>
+  );
+}
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -68,6 +98,9 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
           <div className="md:hidden">
             <SearchBar isMobile={true} />
           </div>
+
+          {/* Cloudinary Status Badge — desktop only */}
+          <CloudinaryBadge />
 
           {/* Notification Bell - 44px touch zone */}
           <button 

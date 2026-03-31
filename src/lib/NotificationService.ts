@@ -63,16 +63,23 @@ export class NotificationService {
       connection = await getConnection();
       await connection.beginTransaction();
 
-      // Insert notification
+      // Insert notification — coerce undefined → null to prevent bind param errors
       const [notificationResult] = await connection.execute(`
         INSERT INTO notifications (
           school_id, actor_user_id, action, entity_type, entity_id,
           title, message, metadata, priority, channel
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        data.school_id, data.actor_user_id, data.action, data.entity_type, data.entity_id,
-        data.title, data.message, JSON.stringify(data.metadata || {}), 
-        data.priority || 'normal', data.channel || 'in_app'
+        data.school_id      ?? null,
+        data.actor_user_id  ?? null,
+        data.action,
+        data.entity_type    ?? null,
+        data.entity_id      ?? null,
+        data.title,
+        data.message,
+        JSON.stringify(data.metadata || {}),
+        data.priority || 'normal',
+        data.channel  || 'in_app',
       ]);
 
       const notificationId = notificationResult.insertId;
@@ -84,7 +91,7 @@ export class NotificationService {
           await connection.execute(`
             INSERT INTO user_notifications (notification_id, user_id, school_id, channel)
             VALUES (?, ?, ?, ?)
-          `, [notificationId, userId, data.school_id, data.channel || 'in_app']);
+          `, [notificationId, userId, data.school_id ?? null, data.channel || 'in_app']);
           deliveredCount++;
 
           // Emit real-time notification for in_app channel

@@ -12,55 +12,52 @@ interface MainLayoutProps {
 }
 
 /**
- * PHASE 1 - GLOBAL LAYOUT ARCHITECTURE
- * 
- * Mobile-First Unified Layout System
- * 
- * STRUCTURE:
- * - Desktop (lg+): Sidebar (left) + Content (right)
- * - Mobile (<lg): Topbar + Content + BottomNav
- * - Mobile Sidebar: Hidden drawer (triggered by menu icon)
- * 
+ * GLOBAL LAYOUT ARCHITECTURE
+ *
+ * Desktop (lg+): Topbar + Sidebar (left) + Content
+ * Mobile (<lg):  NO Topbar — Bottom Navigation (4 items + More drawer)
+ *
  * RULES:
+ * - Topbar NEVER visible on mobile (hidden lg:block)
+ * - BottomNav ALWAYS visible on mobile (lg:hidden)
  * - Sidebar NEVER visible on mobile
- * - BottomNav ALWAYS visible on mobile
- * - Content scrolls independently
- * - Touch zones: 44px minimum
+ * - Content bottom-padded on mobile to clear BottomNav
+ * - No horizontal scroll (overflow-x: hidden via globals.css)
  */
 export const MainLayout = ({ children }: MainLayoutProps) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  
+
   // Monitor route validity on app startup
   useRouteValidator();
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* MOBILE DRAWER (hidden by default, toggles on mobile) */}
-      <MobileDrawer 
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+      {/* MOBILE DRAWER (full-screen, triggered by BottomNav "More") */}
+      <MobileDrawer
         isOpen={mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
       />
 
-      {/* TOPBAR - Always visible, mobile-first */}
-      <Topbar 
-        onMenuClick={() => setMobileDrawerOpen(true)}
-      />
+      {/* TOPBAR — Desktop only (hidden on mobile) */}
+      <div className="hidden lg:block">
+        <Topbar onMenuClick={() => setMobileDrawerOpen(true)} />
+      </div>
 
       {/* MAIN CONTENT AREA */}
       <div className="flex flex-1 overflow-hidden">
-        {/* SIDEBAR - Desktop only (hidden on mobile via tailwind) */}
+        {/* SIDEBAR — Desktop only */}
         <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0">
           <Sidebar />
         </div>
 
-        {/* CONTENT - Scrollable independent area */}
-        <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
+        {/* CONTENT — Scrollable, padded bottom on mobile for BottomNav */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 lg:pt-16">
           {children}
         </main>
       </div>
 
-      {/* BOTTOM NAVIGATION - Mobile only (hidden on desktop) */}
-      <BottomNav />
+      {/* BOTTOM NAVIGATION — Mobile only (4 items: Dashboard, Students, Attendance, More) */}
+      <BottomNav onMoreClick={() => setMobileDrawerOpen(true)} />
     </div>
   );
 };

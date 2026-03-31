@@ -1,121 +1,111 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useI18n } from '@/components/i18n/I18nProvider';
-import { getNavigationItems, filterMenuByRole } from '@/lib/navigationConfig';
-import { useAuth } from '@/contexts/AuthContext';
+import { LayoutDashboard, Users, CalendarCheck, Menu } from 'lucide-react';
 
 /**
- * ═════════════════════════════════════════════════════════════════════════════
- * BOTTOM NAVIGATION - Mobile Only
- * 
- * ⚡ PRIORITY MODULES SYSTEM
- * - Shows top 5 critical modules on mobile
- * - Priority order: Dashboard, Students, Attendance, Academics, Settings
- * - Dynamically loaded from navigationConfig
- * - Respects user role permissions
- * 
- * DESIGN:
- * - Fixed at bottom of screen
- * - 5 main sections
- * - Icon + Label
- * - Active indicator (underline)
- * 
+ * BOTTOM NAVIGATION — One UI 8 Style — Mobile only (lg:hidden)
+ *
+ * Exactly 4 items:
+ *  1. Dashboard  → /dashboard
+ *  2. Students   → /students
+ *  3. Attendance → /attendance
+ *  4. More       → opens MobileDrawer (via onMoreClick callback)
+ *
  * RULES:
- * - Hidden on desktop (lg breakpoint)
- * - Always visible on mobile
- * - 44px+ touch zones
- * - Simple, uncluttered
- * ═════════════════════════════════════════════════════════════════════════════
+ * - Only visible on mobile (lg:hidden)
+ * - 60px height, evenly-spaced items
+ * - Active item: blue pill indicator above icon
+ * - Matches MobileDrawer navigation exactly via onMoreClick
  */
-export const BottomNav = () => {
+
+interface BottomNavProps {
+  onMoreClick?: () => void;
+}
+
+const NAV_ITEMS = [
+  { key: 'dashboard',  label: 'Dashboard',  href: '/dashboard',  Icon: LayoutDashboard },
+  { key: 'students',   label: 'Students',   href: '/students',   Icon: Users },
+  { key: 'attendance', label: 'Attendance', href: '/attendance', Icon: CalendarCheck },
+] as const;
+
+export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
   const pathname = usePathname();
-  const { t } = useI18n();
-  const { user } = useAuth() || {};
 
-  // Get all navigation items
-  const allItems = useMemo(() => {
-    // Wrapper function to adapt t's signature
-    const tWrapper = (key: string, fallback?: string) => {
-      return t(key) || fallback || key;
-    };
-    const items = getNavigationItems(tWrapper);
-    
-    // Filter by role if user info is available
-    if (user) {
-      const hasRole = (slug: string) => {
-        if (!user.roles) return false;
-        if (typeof user.roles[0] === 'string') {
-          return (user.roles as string[]).includes(slug);
-        }
-        return (user.roles as any[]).some((role: any) => role.slug === slug);
-      };
-      const isSuperAdmin = user.isSuperAdmin === true;
-      return filterMenuByRole(items, hasRole, isSuperAdmin);
-    }
-    
-    return items;
-  }, [t, user]);
-
-  // Extract top 5 priority modules: Dashboard, Students, Attendance, Academics, Settings
-  const priorityOrder = ['dashboard', 'students', 'attendance', 'academics', 'settings'];
-  const navItems = useMemo(() => {
-    const prioritized = priorityOrder
-      .map(key => allItems.find(item => item.key === key))
-      .filter((item): item is typeof allItems[0] => item !== undefined && item.href !== undefined)
-      .slice(0, 5);
-
-    // If we don't have 5 items, add more from the remaining items
-    if (prioritized.length < 5) {
-      const remaining = allItems.filter(
-        item => item.href && !prioritized.some(p => p.key === item.key)
-      );
-      prioritized.push(...remaining.slice(0, 5 - prioritized.length));
-    }
-
-    return prioritized;
-  }, [allItems]);
-
-  const isActive = (href?: string) => {
-    if (!href) return false;
-    return pathname === href || pathname.startsWith(href + '/');
-  };
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + '/');
 
   return (
-    <nav className="fixed lg:hidden bottom-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40">
-      <div className="flex items-center justify-around h-full px-1">
-        {navItems.length > 0 ? (
-          navItems.map((item) => (
+    <nav
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40"
+      style={{ height: '60px' }}
+    >
+      {/* Frosted glass background */}
+      <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-t border-gray-200/80 dark:border-gray-700/80" />
+
+      <div className="relative flex items-center justify-around h-full px-2">
+        {/* Static nav links */}
+        {NAV_ITEMS.map(({ key, label, href, Icon }) => {
+          const active = isActive(href);
+          return (
             <Link
-              key={item.key}
-              href={item.href || '#'}
-              className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors relative ${
-                isActive(item.href)
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-              title={item.label}
+              key={key}
+              href={href}
+              className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 group relative"
             >
-              <div className="w-6 h-6 flex items-center justify-center">
-                {item.icon}
-              </div>
-              <span className="text-xs font-medium truncate max-w-12">
-                {item.label}
-              </span>
-              {/* Active indicator */}
-              {isActive(item.href) && (
-                <div className="absolute bottom-0 h-1 w-12 bg-blue-600 dark:bg-blue-400 rounded-t-full" />
+              {/* Active pill indicator */}
+              {active && (
+                <span className="absolute top-1.5 h-1 w-10 bg-blue-600 dark:bg-blue-400 rounded-full" />
               )}
+              <div
+                className={`flex items-center justify-center w-10 h-8 rounded-2xl transition-all duration-200 ${
+                  active
+                    ? 'bg-blue-100 dark:bg-blue-900/40'
+                    : 'group-hover:bg-gray-100 dark:group-hover:bg-gray-800'
+                }`}
+              >
+                <Icon
+                  className={`w-5 h-5 transition-colors duration-200 ${
+                    active
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
+                  }`}
+                />
+              </div>
+              <span
+                className={`text-[10px] font-semibold transition-colors duration-200 ${
+                  active
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
+                }`}
+              >
+                {label}
+              </span>
             </Link>
-          ))
-        ) : (
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            No modules
+          );
+        })}
+
+        {/* More — opens full-screen drawer */}
+        <button
+          onClick={onMoreClick}
+          className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 group relative"
+          aria-label="Open navigation menu"
+        >
+          <div className="flex items-center justify-center w-10 h-8 rounded-2xl transition-all duration-200 group-hover:bg-gray-100 dark:group-hover:bg-gray-800">
+            <Menu className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors duration-200" />
           </div>
-        )}
+          <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors duration-200">
+            More
+          </span>
+        </button>
       </div>
+
+      {/* Safe area padding for home bar (iOS) */}
+      <div className="bg-white/90 dark:bg-gray-900/90 h-safe-area-inset-bottom" />
     </nav>
   );
 };
+
+export default BottomNav;
