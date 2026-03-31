@@ -219,6 +219,24 @@ export async function POST(req: NextRequest) {
         console.error('Audit logging failed:', auditError);
       }
 
+      // Insert notification for admins
+      if (successList.length > 0) {
+        try {
+          await conn.execute(
+            `INSERT INTO notifications (school_id, actor_user_id, action, entity_type, title, message, priority, channel, created_at)
+             VALUES (?, ?, 'REASSIGNED_CLASS', 'students', ?, ?, 'normal', 'in_app', NOW())`,
+            [
+              schoolId,
+              userId,
+              'Class Reassignment',
+              `${successList.length} student(s) moved to ${newClassName}${reason ? ': ' + reason : ''}`,
+            ]
+          );
+        } catch (notifError) {
+          console.error('Notification insert failed (non-fatal):', notifError);
+        }
+      }
+
       // Construct response
       const allSucceeded = failedList.length === 0;
       const allFailed = successList.length === 0;

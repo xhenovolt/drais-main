@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { NotificationMiddleware } from '@/lib/middleware/notificationMiddleware';
-
+import { logAudit, AuditAction } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 export async function POST(req: NextRequest) {
   let connection;
@@ -85,6 +85,20 @@ export async function POST(req: NextRequest) {
       }
 
       await connection.commit();
+
+      // Audit log for student enrollment
+      try {
+        await logAudit({
+          schoolId,
+          userId: session.userId,
+          action: AuditAction.ENROLLED_STUDENT,
+          entityType: 'student',
+          entityId: studentId,
+          details: { first_name, last_name, class_id: class_id || null },
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed (non-fatal):', auditErr);
+      }
 
       // Prepare response data
       const responseData = {

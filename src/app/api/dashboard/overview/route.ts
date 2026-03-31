@@ -37,7 +37,9 @@ export async function GET(req: NextRequest) {
       bestLearner,
       worstLearner,
       termProgress,
-      todayAttendance
+      todayAttendance,
+      activeDevices,
+      todayBiometricPunches
     ] = await Promise.all([
       // Total classes
       connection.execute('SELECT COUNT(*) AS total_classes FROM classes WHERE school_id = ?', [schoolId]),
@@ -154,7 +156,23 @@ export async function GET(req: NextRequest) {
         JOIN enrollments e ON s.id = e.student_id
         LEFT JOIN student_attendance sa ON s.id = sa.student_id AND sa.date = ?
         WHERE s.school_id = ? AND s.status = 'active' AND e.status = 'active'
-      `, [today, schoolId])
+      `, [today, schoolId]),
+
+      // Active biometric devices (last heartbeat <= 2 min)
+      connection.execute(`
+        SELECT
+          COUNT(*) AS total_devices,
+          SUM(CASE WHEN TIMESTAMPDIFF(SECOND, last_seen, NOW()) <= 120 THEN 1 ELSE 0 END) AS online_devices
+        FROM devices
+        WHERE school_id = ?
+      `, [schoolId]),
+
+      // Today biometric punches from ZKTeco devices
+      connection.execute(`
+        SELECT COUNT(*) AS today_punches, SUM(matched) AS matched_punches
+        FROM zk_attendance_logs
+        WHERE school_id = ? AND DATE(check_time) = CURDATE()
+      `, [schoolId])
     ]);
 
     // Extract results from arrays
@@ -170,6 +188,8 @@ export async function GET(req: NextRequest) {
     const worstStudentData = Array.isArray(worstLearner[0]) ? worstLearner[0][0] : worstLearner[0];
     const termData = Array.isArray(termProgress[0]) ? termProgress[0][0] : termProgress[0];
     const attendanceData = Array.isArray(todayAttendance[0]) ? todayAttendance[0][0] : todayAttendance[0];
+    const deviceData = Array.isArray(activeDevices[0]) ? activeDevices[0][0] : activeDevices[0];
+    const biometricData = Array.isArray(todayBiometricPunches[0]) ? todayBiometricPunches[0][0] : todayBiometricPunches[0];
 
     // Calculate attendance percentage
     const totalStudentsToday = attendanceData?.total_students || 0;
@@ -192,7 +212,15 @@ export async function GET(req: NextRequest) {
         boys: genderData?.boys || 0,
         girls: genderData?.girls || 0,
         total_staff: staffCount?.total_staff || 0,
-        total_parents: parentCount?.total_parents || 0
+        total_parents: parentCount?.total_parents || 0,
+        total_devices: Number(deviceData?.total_devices ?? 0),
+        online_devices: Number(deviceData?.online_devices ?? 0)
+      },
+      biometrics: {
+        today_punches: Number(biometricData?.today_punches ?? 0),
+        matched_punches: Number(biometricData?.matched_punches ?? 0),
+        total_devices: Number(deviceData?.total_devices ?? 0),
+        online_devices: Number(deviceData?.online_devices ?? 0)
       },
       admissions: admissionData || {},
       paymentStats: {
