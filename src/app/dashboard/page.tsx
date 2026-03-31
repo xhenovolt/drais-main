@@ -88,7 +88,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 overflow-x-hidden">
       {/* Global Top Bar */}
-      <div data-tour="dashboard" className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700">
+      <div data-tour="dashboard" className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-full w-full px-2 sm:px-4 py-4 mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">
             {/* Header Left: Logo & Title */}
