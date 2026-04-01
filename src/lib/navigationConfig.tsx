@@ -223,6 +223,7 @@ export function getNavigationItems(
         { key: 'devices-logs',       label: 'Device Logs',       icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/devices/logs' },
         { key: 'devices-commands',   label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/devices/commands', roles: ['admin', 'super_admin'] },
         { key: 'devices-mapping',    label: 'User Mapping',      icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices/user-mapping' },
+        { key: 'device-mappings',    label: 'Device Mappings',   icon: <Users className="w-4 h-4" />,        href: '/attendance/devices/device-mappings' },
         { key: 'system-logs',        label: 'System Logs',       icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/system-logs' },
       ],
     },

@@ -15,6 +15,7 @@ const COMMON_COMMANDS = [
   { label: 'Clear Logs', command: 'CLEAR LOG', desc: 'Clear attendance logs on device' },
   { label: 'Sync Time', command: 'SET OPTION ServerTimeSync=1', desc: 'Force time sync with server' },
   { label: 'Get Info', command: 'INFO', desc: 'Request device information' },
+  { label: 'View Members', command: 'DATA QUERY USERINFO', desc: 'Request enrolled user list from device' },
   { label: 'Clear Data', command: 'CLEAR DATA', desc: 'Clear all user data on device' },
   { label: 'Check Status', command: 'CHECK', desc: 'Ping the device' },
 ];

@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import {
   Activity, Wifi, WifiOff, Server, Clock, MapPin, Hash,
-  ArrowUpDown, FileSearch, Fingerprint, Settings,
+  ArrowUpDown, FileSearch, Fingerprint, Settings, Users, Loader, CheckCircle, AlertTriangle,
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -162,6 +163,70 @@ export default function DeviceMonitorPage() {
 
 function DeviceCard({ device }: { device: Device }) {
   const isOnline = device.seconds_ago <= 120;
+  const [syncState, setSyncState] = useState<'idle' | 'pending' | 'sent' | 'acknowledged' | 'failed'>('idle');
+  const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [polling, setPolling] = useState(false);
+
+  // Poll sync status when a sync is in progress
+  useEffect(() => {
+    if (!polling) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/attendance/zk/devices/sync-members?device_sn=${device.sn}`);
+        const json = await res.json();
+        if (!json.success) return;
+
+        const status = json.sync_status;
+        setSyncState(status);
+        setMemberCount(json.member_count ?? null);
+
+        if (status === 'acknowledged' || status === 'failed' || status === 'expired' || status === 'idle') {
+          setPolling(false);
+          if (status === 'acknowledged') {
+            toast.success(`${json.member_count} members synced from ${device.device_name || device.sn}`);
+          } else if (status === 'failed' || status === 'expired') {
+            toast.error('Member sync failed — device may be offline');
+          }
+        }
+      } catch {
+        // silent
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [polling, device.sn, device.device_name]);
+
+  const startSync = useCallback(async () => {
+    setSyncState('pending');
+    setPolling(true);
+    try {
+      const res = await fetch('/api/attendance/zk/devices/sync-members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_sn: device.sn }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || 'Failed to queue sync');
+        setSyncState('idle');
+        setPolling(false);
+        return;
+      }
+      setSyncState(json.status || 'pending');
+      toast.success('Member sync queued — waiting for heartbeat…');
+    } catch (err: any) {
+      toast.error('Network error');
+      setSyncState('idle');
+      setPolling(false);
+    }
+  }, [device.sn]);
+
+  const syncLabel = {
+    idle: 'View Members',
+    pending: 'Waiting for heartbeat…',
+    sent: 'Device processing…',
+    acknowledged: `${memberCount ?? '?'} members synced`,
+    failed: 'Sync failed — retry?',
+  }[syncState];
 
   return (
     <div className={`relative bg-white dark:bg-gray-800 rounded-xl border overflow-hidden transition-all ${
@@ -234,6 +299,32 @@ function DeviceCard({ device }: { device: Device }) {
             </div>
           )}
         </div>
+
+        {/* Sync Members Button */}
+        <button
+          onClick={startSync}
+          disabled={syncState === 'pending' || syncState === 'sent'}
+          className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            syncState === 'pending' || syncState === 'sent'
+              ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 cursor-wait'
+              : syncState === 'acknowledged'
+              ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
+              : syncState === 'failed'
+              ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
+              : 'bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400'
+          }`}
+        >
+          {syncState === 'pending' || syncState === 'sent' ? (
+            <Loader className="w-3.5 h-3.5 animate-spin" />
+          ) : syncState === 'acknowledged' ? (
+            <CheckCircle className="w-3.5 h-3.5" />
+          ) : syncState === 'failed' ? (
+            <AlertTriangle className="w-3.5 h-3.5" />
+          ) : (
+            <Users className="w-3.5 h-3.5" />
+          )}
+          {syncLabel}
+        </button>
       </div>
     </div>
   );

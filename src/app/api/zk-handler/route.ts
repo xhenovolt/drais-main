@@ -115,7 +115,57 @@ function zkLog(
   }
 }
 
+/**
+ * Normalize CHECKTIME to MySQL DATETIME format (YYYY-MM-DD HH:mm:ss).
+ * ZKTeco devices may send: "2026-03-30 10:00:00", "2026/03/30 10:00:00",
+ * "20260330100000", or other variants.
+ */
+function normalizeCheckTime(raw: string): string | null {
+  if (!raw) return null;
+  const clean = raw.trim();
+
+  // Already correct format
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(clean)) return clean;
+
+  // Slash format → dash
+  if (/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/.test(clean)) {
+    return clean.replace(/\//g, '-');
+  }
+
+  // Compact format: 20260330100000
+  if (/^\d{14}$/.test(clean)) {
+    return `${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)} ${clean.slice(8, 10)}:${clean.slice(10, 12)}:${clean.slice(12, 14)}`;
+  }
+
+  // Date-only
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return `${clean} 00:00:00`;
+
+  // Let DB handle it; return as-is
+  return clean;
+}
+
 // ─── Database Operations (all wrapped in try/catch — NEVER crash) ─────────
+
+/** Write a structured event to system_logs. Fire-and-forget. */
+async function logSystemEvent(
+  deviceSn: string | null,
+  eventType: 'HEARTBEAT' | 'PUNCH' | 'COMMAND_SENT' | 'COMMAND_ACK' | 'USERINFO' | 'ERROR' | 'SYSTEM',
+  direction: 'INCOMING' | 'OUTGOING',
+  rawData: string | null,
+  ip: string,
+  ua: string,
+): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO system_logs (device_sn, event_type, direction, raw_data, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [deviceSn, eventType, direction, rawData, ip, ua],
+    );
+  } catch (err) {
+    // Never crash — this is a best-effort log
+    zkLog('warn', 'SYSTEM_LOG_WRITE_FAILED', { eventType, error: String(err) });
+  }
+}
 
 /** Log raw HTTP traffic to zk_raw_logs. */
 async function saveRawLog(
@@ -140,6 +190,19 @@ async function saveRawLog(
   }
 }
 
+/** Get the school_id for a device from the devices table. */
+async function getDeviceSchoolId(sn: string): Promise<number> {
+  try {
+    const rows = await query(
+      'SELECT school_id FROM devices WHERE sn = ? LIMIT 1',
+      [sn],
+    );
+    return rows?.[0]?.school_id ?? 1;
+  } catch {
+    return 1; // safe default
+  }
+}
+
 /** Register device or update heartbeat on first/every GET. Single source: `devices` table. */
 async function upsertDevice(
   sn: string,
@@ -149,8 +212,8 @@ async function upsertDevice(
 ): Promise<void> {
   try {
     await query(
-      `INSERT INTO devices (sn, ip_address, options, push_version, last_seen, is_online, status)
-       VALUES (?, ?, ?, ?, NOW(), TRUE, 'active')
+      `INSERT INTO devices (sn, school_id, ip_address, options, push_version, last_seen, is_online, status)
+       VALUES (?, 1, ?, ?, ?, NOW(), TRUE, 'active')
        ON DUPLICATE KEY UPDATE
          ip_address = VALUES(ip_address),
          options = COALESCE(VALUES(options), options),
@@ -203,35 +266,86 @@ async function markCommandSent(commandId: number): Promise<void> {
   }
 }
 
-/** Save a parsed attendance punch. */
+/**
+ * Match a device USERID to a student or staff record.
+ * Matching chain:
+ *   1. zk_user_mapping (ZK-specific mapping, per-device or global)
+ *   2. device_users (general biometric device mapping by device_user_id)
+ *   3. Unmatched — still saved for later manual mapping
+ */
+async function resolveUser(
+  deviceUserId: string,
+  deviceSn: string,
+  schoolId: number,
+): Promise<{ studentId: number | null; staffId: number | null; matched: boolean }> {
+  // 1. Check ZK user mapping (ZK-specific)
+  try {
+    const mapping = await query(
+      `SELECT user_type, student_id, staff_id FROM zk_user_mapping
+       WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL) AND school_id = ?
+       LIMIT 1`,
+      [deviceUserId, deviceSn, schoolId],
+    );
+    if (mapping && mapping.length > 0) {
+      return {
+        studentId: mapping[0].student_id ?? null,
+        staffId: mapping[0].staff_id ?? null,
+        matched: true,
+      };
+    }
+  } catch (err) {
+    zkLog('warn', 'ZK_MAPPING_QUERY_FAILED', { deviceUserId, error: String(err) });
+  }
+
+  // 2. Check device_users table (general biometric mapping)
+  try {
+    const deviceUser = await query(
+      `SELECT du.person_type, du.person_id
+       FROM device_users du
+       WHERE du.device_user_id = ? AND du.school_id = ? AND du.is_enrolled = 1
+       LIMIT 1`,
+      [deviceUserId, schoolId],
+    );
+    if (deviceUser && deviceUser.length > 0) {
+      const row = deviceUser[0];
+      return {
+        studentId: row.person_type === 'student' ? row.person_id : null,
+        staffId: row.person_type === 'teacher' ? row.person_id : null,
+        matched: true,
+      };
+    }
+  } catch (err) {
+    zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: String(err) });
+  }
+
+  // 3. No match found
+  return { studentId: null, staffId: null, matched: false };
+}
+
+/** Save a parsed attendance punch with full matching chain. */
 async function saveAttendancePunch(
   deviceSn: string,
   record: Record<string, string>,
   rawLogId: number | null,
+  schoolId: number,
 ): Promise<void> {
   const userId = record.USERID;
-  const checkTime = record.CHECKTIME;
-  if (!userId || !checkTime) return;
+  const rawCheckTime = record.CHECKTIME;
+  if (!userId || !rawCheckTime) return;
+
+  const checkTime = normalizeCheckTime(rawCheckTime);
+  if (!checkTime) return;
 
   try {
-    // Check user mapping
-    const mapping = await query(
-      `SELECT user_type, student_id, staff_id FROM zk_user_mapping
-       WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
-       LIMIT 1`,
-      [userId, deviceSn],
-    );
-
-    const studentId = mapping?.[0]?.student_id ?? null;
-    const staffId = mapping?.[0]?.staff_id ?? null;
-    const matched = mapping && mapping.length > 0 ? 1 : 0;
+    const { studentId, staffId, matched } = await resolveUser(userId, deviceSn, schoolId);
 
     await query(
       `INSERT INTO zk_attendance_logs
-         (device_sn, device_user_id, student_id, staff_id, check_time,
+         (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
           verify_type, io_mode, log_id, work_code, matched, raw_log_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        schoolId,
         deviceSn,
         userId,
         studentId,
@@ -241,7 +355,7 @@ async function saveAttendancePunch(
         record.INOUTMODE ? parseInt(record.INOUTMODE, 10) || null : null,
         record.LOGID || null,
         record.WORKCODE || null,
-        matched,
+        matched ? 1 : 0,
         rawLogId,
       ],
     );
@@ -250,18 +364,68 @@ async function saveAttendancePunch(
       deviceSn,
       userId,
       checkTime,
-      matched: !!matched,
+      matched,
       studentId,
       staffId,
+      schoolId,
     });
   } catch (err) {
     zkLog('error', 'PUNCH_SAVE_FAILED', {
       deviceSn,
       userId,
-      checkTime,
+      checkTime: rawCheckTime,
       error: String(err),
     });
   }
+}
+
+/**
+ * Process USERINFO data pushed by device after a DATA QUERY USERINFO command.
+ * Auto-creates zk_user_mapping entries so future punches resolve automatically.
+ */
+async function processUserInfo(
+  deviceSn: string,
+  records: Record<string, string>[],
+  schoolId: number,
+): Promise<void> {
+  let created = 0;
+  let skipped = 0;
+
+  for (const record of records) {
+    const userId = record.USERID || record.PIN;
+    if (!userId) continue;
+
+    const name = record.NAME || record.USERNAME || '';
+    const cardNo = record.CARDNO || record.CARD || '';
+
+    try {
+      // Upsert into zk_user_mapping (don't overwrite existing matched mappings)
+      await query(
+        `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, device_sn, card_number)
+         VALUES (?, ?, 'student', ?, ?)
+         ON DUPLICATE KEY UPDATE
+           card_number = COALESCE(VALUES(card_number), card_number),
+           updated_at = CURRENT_TIMESTAMP`,
+        [schoolId, String(userId).trim(), deviceSn, cardNo || null],
+      );
+      created++;
+    } catch (err) {
+      skipped++;
+      zkLog('warn', 'USERINFO_UPSERT_SKIP', { userId, error: String(err) });
+    }
+  }
+
+  // Mark any pending DATA QUERY USERINFO commands as acknowledged
+  try {
+    await query(
+      `UPDATE zk_device_commands
+       SET status = 'acknowledged', ack_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE device_sn = ? AND command LIKE '%USERINFO%' AND status = 'sent'`,
+      [deviceSn],
+    );
+  } catch { /* non-critical */ }
+
+  zkLog('info', 'USERINFO_PROCESSED', { deviceSn, created, skipped, total: records.length });
 }
 
 // ─── HTTP Handlers ────────────────────────────────────────────────────────────
@@ -295,15 +459,16 @@ export async function GET(req: NextRequest) {
       return textResponse('OK');
     }
 
-    // Fire-and-forget: log raw traffic + upsert device
+    // Fire-and-forget: log raw traffic + upsert device + system log
     const rawLogPromise = saveRawLog(sn, 'GET', qs, null, null, ip, ua);
     const upsertPromise = upsertDevice(sn, ip, options, pushVer);
+    const sysLogPromise = logSystemEvent(sn, 'HEARTBEAT', 'INCOMING', qs, ip, ua);
 
     // Check command queue
     const pending = await getPendingCommand(sn);
 
     // Await background writes (don't block response but ensure they complete)
-    await Promise.allSettled([rawLogPromise, upsertPromise]);
+    await Promise.allSettled([rawLogPromise, upsertPromise, sysLogPromise]);
 
     if (pending) {
       zkLog('info', 'COMMAND_DELIVERED', {
@@ -312,6 +477,9 @@ export async function GET(req: NextRequest) {
         command: pending.command.substring(0, 100),
       });
       await markCommandSent(pending.id);
+      // Log outgoing command to system_logs
+      await logSystemEvent(sn, 'COMMAND_SENT', 'OUTGOING',
+        JSON.stringify({ commandId: pending.id, command: pending.command }), ip, ua);
       return textResponse(`C:${pending.id}:${pending.command}`);
     }
 
@@ -325,7 +493,12 @@ export async function GET(req: NextRequest) {
 /**
  * POST /iclock/cdata
  *
- * Purpose: Device pushes attendance logs (punches)
+ * Purpose: Device pushes data — attendance logs, user info, or operation logs.
+ *
+ * The `table` query param tells us what kind of data:
+ *   - ATTLOG   → attendance punches (default)
+ *   - OPERLOG  → operation log
+ *   - USERINFO → user list (response to DATA QUERY USERINFO command)
  *
  * Body formats:
  *   Key=Value tab-separated:
@@ -342,6 +515,7 @@ export async function POST(req: NextRequest) {
   const qs = url.search;
   const ip = getClientIP(req);
   const ua = req.headers.get('user-agent') || '';
+  const table = (url.searchParams.get('table') || 'ATTLOG').toUpperCase();
 
   let rawBody = '';
 
@@ -351,6 +525,7 @@ export async function POST(req: NextRequest) {
     zkLog('info', 'DATA_RECEIVED', {
       sn,
       ip,
+      table,
       bodyLength: rawBody.length,
       bodyPreview: rawBody.substring(0, 200),
     });
@@ -364,19 +539,31 @@ export async function POST(req: NextRequest) {
 
     zkLog('info', 'DATA_PARSED', {
       sn,
+      table,
       recordCount: records.length,
       records: records.slice(0, 3), // Log first 3 for debugging
     });
 
-    // Save raw log first
+    // Save raw log first (all traffic types)
     const rawLogId = await saveRawLog(sn, 'POST', qs, rawBody, records, ip, ua);
 
-    // Process each attendance record
-    const savePromises = records.map(record =>
-      saveAttendancePunch(sn, record, rawLogId),
-    );
+    // Get device's school_id for tenant-scoped inserts
+    const schoolId = await getDeviceSchoolId(sn);
 
-    await Promise.allSettled(savePromises);
+    // Route based on data type + write system_log
+    if (table === 'USERINFO') {
+      await logSystemEvent(sn, 'USERINFO', 'INCOMING', rawBody.substring(0, 2000), ip, ua);
+      // Device responding to DATA QUERY USERINFO — save enrolled members
+      await processUserInfo(sn, records, schoolId);
+    } else {
+      // ATTLOG (default) — log each punch to system_logs, then save
+      await logSystemEvent(sn, 'PUNCH', 'INCOMING',
+        JSON.stringify({ recordCount: records.length, first: records[0] || null }), ip, ua);
+      const savePromises = records.map(record =>
+        saveAttendancePunch(sn, record, rawLogId, schoolId),
+      );
+      await Promise.allSettled(savePromises);
+    }
 
     // Update device last_activity
     try {
@@ -391,6 +578,7 @@ export async function POST(req: NextRequest) {
 
     zkLog('info', 'DATA_PROCESSED', {
       sn,
+      table,
       recordCount: records.length,
     });
 
@@ -401,6 +589,9 @@ export async function POST(req: NextRequest) {
       error: String(err),
       bodyLength: rawBody.length,
     });
+    // Best-effort error log
+    logSystemEvent(sn, 'ERROR', 'INCOMING',
+      JSON.stringify({ error: String(err), bodyLength: rawBody.length }), ip, ua).catch(() => {});
     return textResponse('OK'); // NEVER break protocol
   }
 }
