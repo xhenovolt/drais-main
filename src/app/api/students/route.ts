@@ -73,9 +73,9 @@ export async function POST(req: NextRequest) {
             console.warn('[students/POST] enrollments has missing columns (run migration 020). Falling back to minimal INSERT.');
             const [enrollResult]: any = await connection.execute(
               `INSERT INTO enrollments
-                 (student_id, class_id, stream_id, academic_year_id, term_id, status)
-               VALUES (?, ?, ?, ?, ?, 'active')`,
-              [studentId, class_id, stream_id || null, academic_year_id || null, term_id || null]
+                 (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status)
+               VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+              [schoolId, studentId, class_id, stream_id || null, academic_year_id || null, term_id || null]
             );
             enrollmentId = enrollResult.insertId;
           } else {

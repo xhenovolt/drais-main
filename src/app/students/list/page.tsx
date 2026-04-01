@@ -26,10 +26,12 @@ import {
   FileDown,
   Check,
   MoreHorizontal,
+  Upload,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
+import { ImportModal } from '@/components/students/ImportModal';
 import { useExport } from '@/hooks/useExport';
 import { toast } from 'react-hot-toast';
 import { 
@@ -114,6 +116,7 @@ export default function StudentsListPage() {
   // Bulk Action State
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
   
   // Enrollment Modal State
@@ -787,6 +790,12 @@ export default function StudentsListPage() {
             <Zap className="w-4 h-4" />
           </Link>
 
+          <button title="Bulk Import" onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors text-xs font-semibold">
+            <Upload className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Import</span>
+          </button>
+
           <Link href="/students/admit" title="Add new student"
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-colors">
             <Plus className="w-3.5 h-3.5" />
@@ -1050,6 +1059,15 @@ export default function StudentsListPage() {
         onUploadComplete={() => {
           setShowPhotoUploadModal(false);
           toast.success('Photos uploaded successfully');
+          fetchStudents();
+        }}
+      />
+
+      {/* BULK IMPORT MODAL */}
+      <ImportModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={() => {
           fetchStudents();
         }}
       />

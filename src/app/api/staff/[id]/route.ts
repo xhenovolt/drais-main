@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
  * Staff member API for individual operations
@@ -14,6 +16,12 @@ export async function PATCH(
   let connection;
 
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const staffId = parseInt(params.id);
     const body = await req.json();
 
@@ -28,10 +36,10 @@ export async function PATCH(
     await connection.beginTransaction();
 
     try {
-      // Check if staff exists
+      // Check if staff exists AND belongs to this school
       const [existingStaff]: any = await connection.execute(
-        'SELECT id, person_id FROM staff WHERE id = ? AND deleted_at IS NULL',
-        [staffId]
+        'SELECT id, person_id FROM staff WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+        [staffId, schoolId]
       );
 
       if (existingStaff.length === 0) {
@@ -83,8 +91,9 @@ export async function PATCH(
       // Update person table if there are updates
       if (updatedFields.length > 0) {
         updateValues.push(personId);
+        updateValues.push(schoolId);
         await connection.execute(
-          `UPDATE people SET ${updatedFields.join(', ')} WHERE id = ?`,
+          `UPDATE people SET ${updatedFields.join(', ')} WHERE id = ? AND school_id = ?`,
           updateValues
         );
       }
@@ -154,8 +163,9 @@ export async function PATCH(
       if (staffUpdatedFields.length > 0) {
         staffUpdatedFields.push('updated_at = CURRENT_TIMESTAMP');
         staffUpdateValues.push(staffId);
+        staffUpdateValues.push(schoolId);
         await connection.execute(
-          `UPDATE staff SET ${staffUpdatedFields.join(', ')} WHERE id = ?`,
+          `UPDATE staff SET ${staffUpdatedFields.join(', ')} WHERE id = ? AND school_id = ?`,
           staffUpdateValues
         );
       }
@@ -166,8 +176,8 @@ export async function PATCH(
         // Note: Staff typically don't have device mappings like students do
         // This is for future use if staff enrollment is needed
         const [deviceMapping]: any = await connection.execute(
-          `SELECT id FROM device_user_mappings WHERE staff_id = ? LIMIT 1`,
-          [staffId]
+          `SELECT id FROM device_user_mappings WHERE staff_id = ? AND school_id = ? LIMIT 1`,
+          [staffId, schoolId]
         );
 
         if (deviceMapping.length > 0) {
@@ -179,6 +189,16 @@ export async function PATCH(
       }
 
       await connection.commit();
+
+      // Audit log (non-blocking)
+      logAudit({
+        schoolId,
+        userId: session.userId,
+        action: AuditAction.UPDATED_STAFF,
+        entityType: 'staff',
+        entityId: staffId,
+        details: { updatedFields: [...updatedFields, ...staffUpdatedFields] },
+      }).catch(() => {});
 
       return NextResponse.json({
         success: true,
@@ -212,6 +232,12 @@ export async function DELETE(
   let connection;
 
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const staffId = parseInt(params.id);
 
     if (isNaN(staffId)) {
@@ -223,10 +249,10 @@ export async function DELETE(
 
     connection = await getConnection();
 
-    // Check if staff exists
+    // Check if staff exists AND belongs to this school
     const [existingStaff]: any = await connection.execute(
-      'SELECT id FROM staff WHERE id = ? AND deleted_at IS NULL',
-      [staffId]
+      'SELECT id FROM staff WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+      [staffId, schoolId]
     );
 
     if (existingStaff.length === 0) {
@@ -236,11 +262,20 @@ export async function DELETE(
       }, { status: 404 });
     }
 
-    // Soft delete by setting deleted_at
+    // Soft delete by setting deleted_at — scoped by school_id
     await connection.execute(
-      'UPDATE staff SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [staffId]
+      'UPDATE staff SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND school_id = ?',
+      [staffId, schoolId]
     );
+
+    // Audit log (non-blocking)
+    logAudit({
+      schoolId,
+      userId: session.userId,
+      action: AuditAction.DELETED_STAFF,
+      entityType: 'staff',
+      entityId: staffId,
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

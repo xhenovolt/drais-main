@@ -113,12 +113,10 @@ function getNames(row: any[], cm: ColMap): { firstName: string; lastName: string
 
 export async function POST(request: NextRequest) {
   // Auth
-  let session: { schoolId: number } | null = null;
-  try {
-    session = await getSessionSchoolId(request);
-  } catch { /* fall through */ }
+  const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
   const schoolId = session.schoolId;
+  const userId = session.userId;
 
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
@@ -213,8 +211,8 @@ export async function POST(request: NextRequest) {
 
         // Load lookup tables once
         const [rawClasses] = await conn.execute('SELECT id, name FROM classes WHERE school_id = ?', [schoolId]) as any[];
-        const [rawStreams] = await conn.execute('SELECT id, name FROM streams') as any[];
-        const [rawYears]   = await conn.execute('SELECT id FROM academic_years WHERE status = "active" LIMIT 1') as any[];
+        const [rawStreams] = await conn.execute('SELECT id, name FROM streams WHERE school_id = ?', [schoolId]) as any[];
+        const [rawYears]   = await conn.execute('SELECT id FROM academic_years WHERE status = "active" AND school_id = ? LIMIT 1', [schoolId]) as any[];
         const [rawTerms]   = await conn.execute('SELECT id FROM terms WHERE is_active = 1 AND school_id = ? LIMIT 1', [schoolId]) as any[];
 
         const classMap  = new Map((rawClasses  as any[]).map(c => [c.name.toLowerCase(), c.id]));
@@ -259,7 +257,7 @@ export async function POST(request: NextRequest) {
                          gender=COALESCE(?,gender), date_of_birth=COALESCE(?,date_of_birth),
                          phone=COALESCE(?,phone), address=COALESCE(?,address),
                          photo_url=COALESCE(?,photo_url), updated_at=CURRENT_TIMESTAMP
-                       WHERE id=(SELECT person_id FROM students WHERE id=?)`,
+                       WHERE id=(SELECT person_id FROM students WHERE id=? AND school_id=?)`,
                       [
                         firstName, lastName,
                         safe(cm.genderIdx  !== -1 ? row[cm.genderIdx]  : null),
@@ -267,7 +265,7 @@ export async function POST(request: NextRequest) {
                         safe(cm.phoneIdx   !== -1 ? row[cm.phoneIdx]   : null),
                         safe(cm.addressIdx !== -1 ? row[cm.addressIdx] : null),
                         safe(cm.photoUrlIdx !== -1 ? row[cm.photoUrlIdx] : null),
-                        studentId,
+                        studentId, schoolId,
                       ],
                     );
                   }
@@ -316,8 +314,8 @@ export async function POST(request: NextRequest) {
                     if (isUpdate) {
                       await conn.execute(
                         `UPDATE enrollments SET class_id=?, stream_id=?, updated_at=CURRENT_TIMESTAMP
-                         WHERE student_id=? AND status='active'`,
-                        [classId, streamId, studentId],
+                         WHERE student_id=? AND school_id=? AND status='active'`,
+                        [classId, streamId, studentId, schoolId],
                       );
                     } else {
                       await conn.execute(
@@ -350,15 +348,15 @@ export async function POST(request: NextRequest) {
         // Audit + Notification (non-critical)
         try {
           await conn.execute(
-            `INSERT INTO audit_logs (school_id, action, entity_type, metadata, source)
-             VALUES (?, 'BULK_IMPORT_STUDENTS', 'students', ?, 'WEB')`,
-            [schoolId, JSON.stringify({ imported: stats.imported, updated: stats.updated, skipped: stats.skipped, total: dataRows.length })],
+            `INSERT INTO audit_logs (school_id, user_id, action, action_type, entity_type, details, source)
+             VALUES (?, ?, 'BULK_IMPORT_STUDENTS', 'BULK_IMPORT_STUDENTS', 'students', ?, 'WEB')`,
+            [schoolId, userId, JSON.stringify({ imported: stats.imported, updated: stats.updated, skipped: stats.skipped, total: dataRows.length })],
           );
           await conn.execute(
-            `INSERT INTO notifications (school_id, action, entity_type, title, message, priority, channel, created_at)
-             VALUES (?, 'BULK_IMPORT_STUDENTS', 'students', 'Bulk Import Complete',
+            `INSERT INTO notifications (school_id, actor_user_id, action, entity_type, title, message, priority, channel, created_at)
+             VALUES (?, ?, 'BULK_IMPORT_STUDENTS', 'students', 'Bulk Import Complete',
                ?, 'normal', 'in_app', NOW())`,
-            [schoolId, `Imported ${stats.imported} new, updated ${stats.updated}, skipped ${stats.skipped} students`],
+            [schoolId, userId, `Imported ${stats.imported} new, updated ${stats.updated}, skipped ${stats.skipped} students`],
           );
         } catch { /* Non-critical */ }
 

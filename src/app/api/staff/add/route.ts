@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnection } from '@/lib/db';
+import { getConnection, query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/lib/apiResponse';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { logSystemError, logSystemEvent, LogLevel } from '@/lib/systemLogger';
 import { notifyStaffCreated, notifyErrorOccurred } from '@/lib/notificationTrigger';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: NextRequest) {
   let connection;
+  let session: Awaited<ReturnType<typeof getSessionSchoolId>> = null;
   const requestId = crypto.getRandomValues(new Uint8Array(16))
     .reduce((str, num) => str + num.toString(16).padStart(2, '0'), '');
   
   try {
-    const session = await getSessionSchoolId(req);
+    session = await getSessionSchoolId(req);
     if (!session) {
       return createErrorResponse(
         ApiErrorCode.UNAUTHORIZED,
@@ -93,69 +95,6 @@ export async function POST(req: NextRequest) {
     await connection.beginTransaction();
 
     try {
-      // Check which columns exist in the staff table
-      const [columnsResult] = await connection.execute(`
-        SELECT COLUMN_NAME 
-        FROM INFORMATION_SCHEMA.COLUMNS 
-        WHERE TABLE_SCHEMA = DATABASE() 
-        AND TABLE_NAME = 'staff'
-      `);
-      const existingColumns = (columnsResult as any[]).map(col => col.COLUMN_NAME);
-
-      // Fix: Ensure staff table has AUTO_INCREMENT on id and PRIMARY KEY
-      try {
-        const [autoIncResult] = await connection.execute(`
-          SELECT AUTO_INCREMENT 
-          FROM INFORMATION_SCHEMA.TABLES 
-          WHERE TABLE_SCHEMA = DATABASE() 
-          AND TABLE_NAME = 'staff'
-        `);
-        const autoIncrement = (autoIncResult as any[])[0]?.AUTO_INCREMENT;
-        
-        if (!autoIncrement) {
-          const [maxIdResult] = await connection.execute(`SELECT COALESCE(MAX(id), 0) as maxId FROM staff`);
-          const maxId = ((maxIdResult as any[])[0]?.maxId || 0) + 1;
-          
-          try {
-            await connection.execute(`ALTER TABLE staff ADD PRIMARY KEY (id)`);
-          } catch (e) {
-            // Primary key might already exist
-          }
-          
-          await connection.execute(`ALTER TABLE staff MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT`);
-          await connection.execute(`ALTER TABLE staff AUTO_INCREMENT = ?`, [maxId]);
-        }
-      } catch (autoIncError) {
-        // Ignore - table may already be fixed
-        console.warn('Auto increment check/fix skipped:', autoIncError);
-      }
-
-      // Add columns one by one if they don't exist
-      const columnsToAdd = [
-        { name: 'branch_id', def: 'BIGINT DEFAULT 1 AFTER school_id' },
-        { name: 'department_id', def: 'BIGINT DEFAULT NULL AFTER staff_no' },
-        { name: 'role_id', def: 'BIGINT DEFAULT NULL AFTER department_id' },
-        { name: 'employment_type', def: "ENUM('permanent','contract','volunteer','part-time') DEFAULT 'permanent' AFTER position" },
-        { name: 'qualification', def: 'VARCHAR(255) DEFAULT NULL AFTER employment_type' },
-        { name: 'experience_years', def: 'INT DEFAULT 0 AFTER qualification' },
-        { name: 'salary', def: 'DECIMAL(14,2) DEFAULT NULL AFTER hire_date' },
-        { name: 'bank_name', def: 'VARCHAR(150) DEFAULT NULL AFTER salary' },
-        { name: 'bank_account_no', def: 'VARCHAR(100) DEFAULT NULL AFTER bank_name' },
-        { name: 'nssf_no', def: 'VARCHAR(100) DEFAULT NULL AFTER bank_account_no' },
-        { name: 'tin_no', def: 'VARCHAR(100) DEFAULT NULL AFTER nssf_no' }
-      ];
-
-      for (const col of columnsToAdd) {
-        if (!existingColumns.includes(col.name)) {
-          try {
-            await connection.execute(`ALTER TABLE staff ADD COLUMN ${col.name} ${col.def}`);
-          } catch (e) {
-            // Column might have been added by concurrent request
-            console.warn(`Column ${col.name} add failed, probably already exists:`, e);
-          }
-        }
-      }
-
       // Handle photo upload if provided
       let photoUrl = null;
       const photoFile = formData.get('photo') as File;
@@ -181,73 +120,37 @@ export async function POST(req: NextRequest) {
       // Generate staff number if not provided
       const finalStaffNo = staffData.staff_no || `STAFF${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
-      // Build dynamic insert query based on existing columns
-      const baseColumns = ['school_id', 'person_id', 'staff_no', 'position', 'status'];
-      const baseValues = [staffData.schoolId, personId, finalStaffNo, staffData.position, 'active'];
-      
-      const optionalColumns: { [key: string]: any } = {
-        branch_id: staffData.branch_id,
-        department_id: staffData.department_id,
-        role_id: staffData.role_id,
-        employment_type: staffData.employment_type,
-        qualification: staffData.qualification,
-        experience_years: staffData.experience_years,
-        hire_date: staffData.hire_date,
-        salary: staffData.salary,
-        bank_name: staffData.bank_name,
-        bank_account_no: staffData.bank_account_no,
-        nssf_no: staffData.nssf_no,
-        tin_no: staffData.tin_no
-      };
-
-      // Add columns that exist in the table
-      Object.entries(optionalColumns).forEach(([column, value]) => {
-        if (existingColumns.includes(column)) {
-          baseColumns.push(column);
-          baseValues.push(value);
-        }
-      });
-
-      const placeholders = baseColumns.map(() => '?').join(', ');
-      const insertQuery = `
-        INSERT INTO staff (${baseColumns.join(', ')})
-        VALUES (${placeholders})
-      `;
-
       // 2. Insert into staff table
-      const [staffResult] = await connection.execute(insertQuery, baseValues);
+      const [staffResult] = await connection.execute(`
+        INSERT INTO staff (
+          school_id, person_id, staff_no, position, status,
+          department_id, employment_type, qualification, experience_years,
+          hire_date, salary, bank_name, bank_account_no, nssf_no, tin_no
+        ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        staffData.schoolId, personId, finalStaffNo, staffData.position,
+        staffData.department_id, staffData.employment_type, staffData.qualification,
+        staffData.experience_years, staffData.hire_date, staffData.salary,
+        staffData.bank_name, staffData.bank_account_no, staffData.nssf_no, staffData.tin_no
+      ]);
       const staffId = (staffResult as any).insertId;
 
       // 3. Create user account if requested
       let userId = null;
       if (staffData.create_account && staffData.username && staffData.password) {
-        // Hash password (in production, use bcrypt)
-        const hashedPassword = Buffer.from(staffData.password).toString('base64');
+        // Hash password with bcrypt (cost factor 12)
+        const hashedPassword = await bcrypt.hash(staffData.password, 12);
         
         const [userResult] = await connection.execute(`
           INSERT INTO users (
-            school_id, role_id, username, email, phone, password_hash, status
-          ) VALUES (?, ?, ?, ?, ?, ?, 'active')
+            school_id, person_id, role_id, username, email, phone, password_hash, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
         `, [
-          staffData.schoolId, staffData.role_id,
+          staffData.schoolId, personId, staffData.role_id,
           staffData.username, staffData.email, staffData.phone, hashedPassword
         ]);
 
         userId = (userResult as any).insertId;
-
-        // Create staff_user_accounts table if it doesn't exist and link staff to user
-        await connection.execute(`
-          CREATE TABLE IF NOT EXISTS staff_user_accounts (
-            staff_id BIGINT NOT NULL,
-            user_id BIGINT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (staff_id, user_id)
-          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        `);
-
-        await connection.execute(`
-          INSERT INTO staff_user_accounts (staff_id, user_id) VALUES (?, ?)
-        `, [staffId, userId]);
       }
 
       // 4. Handle document uploads if any
@@ -291,32 +194,25 @@ export async function POST(req: NextRequest) {
         context: { staffId, personId, userId }
       }).catch(err => console.error('System log failed:', err));
 
-      // Send notifications to admin users (try to get admin users for school)
-      try {
-        const [admins] = await connection.execute(`
-          SELECT DISTINCT u.id 
-          FROM users u
-          WHERE u.school_id = ? AND u.status = 'active'
-          LIMIT 10
-        `, [sessionSchoolId]);
-
-        const adminIds = (admins as any[]).map(admin => admin.id);
+      // Send notifications to admin users (non-blocking)
+      query(
+        `SELECT DISTINCT u.id FROM users u WHERE u.school_id = ? AND u.status = 'active' LIMIT 10`,
+        [sessionSchoolId]
+      ).then(admins => {
+        const adminIds = (admins as any[]).map((a: any) => a.id);
         if (adminIds.length > 0) {
-          await notifyStaffCreated(
+          notifyStaffCreated(
             sessionSchoolId,
             {
               staffId,
               staffName: `${staffData.first_name} ${staffData.last_name}`,
-              position: staffData.position,
+              position: staffData.position ?? '',
               userId
             },
             adminIds
           ).catch(err => console.error('Notification failed:', err));
         }
-      } catch (notifError) {
-        console.error('Failed to send notifications:', notifError);
-        // Don't fail the request over notification errors
-      }
+      }).catch(err => console.error('Failed to fetch admin recipients:', err));
 
       return createSuccessResponse({
         staff_id: staffId,
