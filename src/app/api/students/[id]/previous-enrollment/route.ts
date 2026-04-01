@@ -50,6 +50,10 @@ export async function GET(
          st.name                     AS stream_name,
          e.study_mode_id,
          sm.name                     AS study_mode_name,
+         e.curriculum_id,
+         cur.name                    AS curriculum_name,
+         e.program_id,
+         pr.name                     AS program_name,
          e.enrollment_type,
          e.status,
          e.enrollment_date
@@ -59,6 +63,8 @@ export async function GET(
        LEFT JOIN classes c          ON e.class_id         = c.id
        LEFT JOIN streams st         ON e.stream_id        = st.id
        LEFT JOIN study_modes sm     ON e.study_mode_id    = sm.id
+       LEFT JOIN curriculums cur    ON e.curriculum_id    = cur.id
+       LEFT JOIN programs pr        ON e.program_id       = pr.id
        WHERE e.student_id = ? AND e.school_id = ?
        ORDER BY ay.start_date DESC, t.start_date DESC, e.id DESC
        LIMIT 1`,

@@ -47,6 +47,8 @@ interface Result {
   results_type?: string;
   term?: string;
   term_name?: string;
+  academic_year_id?: number;
+  academic_year_name?: string;
   class_name: string;
   photo_url?: string;
   admission_no: string;
@@ -81,6 +83,19 @@ interface Filters {
   resultType: string;
   classId: string;
   student: string;
+  academicYearId: string;
+}
+
+interface AcademicYear {
+  id: number;
+  name: string;
+  status: string;
+}
+
+interface Term {
+  id: number;
+  name: string;
+  academic_year_id: number;
 }
 
 interface TeacherInitialsContextType {
@@ -120,7 +135,9 @@ const TeacherInitialsContext = createContext<TeacherInitialsContextType | null>(
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 
 const ReportsPage = () => {
-  const [filters, setFilters] = useState<Filters>({ term: '', resultType: '', classId: '', student: '' });
+  const [filters, setFilters] = useState<Filters>({ term: '', resultType: '', classId: '', student: '', academicYearId: '' });
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [termsData, setTermsData] = useState<Term[]>([]);
   const [allResults, setAllResults] = useState<Result[]>([]);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [showCustomization, setShowCustomization] = useState(false);
@@ -246,11 +263,36 @@ const ReportsPage = () => {
     return cleaned.replace(/[0-9]/g, d => map[d]);
   };
 
+  // Fetch academic years and terms on mount
+  useEffect(() => {
+    fetch('/api/academic_years')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.data) setAcademicYears(data.data);
+      })
+      .catch(() => {});
+    fetch('/api/terms')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.data) setTermsData(data.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Filtered terms based on selected academic year
+  const filteredTerms = filters.academicYearId
+    ? termsData.filter(t => String(t.academic_year_id) === filters.academicYearId)
+    : termsData;
+
   useEffect(() => {
     setLoading(true);
+    // Build query params for report fetch
+    const reportParams = new URLSearchParams();
+    if (filters.academicYearId) reportParams.set('academic_year_id', filters.academicYearId);
+    const reportUrl = `/api/reports/list${reportParams.toString() ? '?' + reportParams.toString() : ''}`;
     // Use new DB (Next.js API)
     Promise.all([
-      fetch(`/api/reports/list`)
+      fetch(reportUrl)
         .then(async r => {
           const data: ApiResponse = await r.json().catch(() => ({}));
           return data;
@@ -291,7 +333,7 @@ const ReportsPage = () => {
         setAllResults([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [filters.academicYearId]);
 
   // Load editable term value from localStorage on mount
   useEffect(() => {
@@ -837,14 +879,37 @@ const ReportsPage = () => {
         {/* Filter Section at the top - Hidden when printing */}
         <div className="flex flex-wrap gap-2 mb-0 no-print">
           <select
+            value={filters.academicYearId}
+            onChange={(e) => setFilters((f) => ({ ...f, academicYearId: e.target.value, term: '' }))}
+            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            title="Filter by academic year"
+          >
+            <option value="">All Years</option>
+            {academicYears.map((ay) => (
+              <option key={ay.id} value={ay.id}>
+                {ay.name} {ay.status === 'active' ? '(Current)' : ''}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={filters.term}
             onChange={(e) => setFilters((f) => ({ ...f, term: e.target.value }))}
             className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Terms</option>
-            <option value="Term 1">Term 1</option>
-            <option value="Term 2">Term 2</option>
-            <option value="Term 3">Term 3</option>
+            {filteredTerms.length > 0
+              ? filteredTerms.map((t) => (
+                  <option key={t.id} value={t.name}>
+                    {t.name}
+                  </option>
+                ))
+              : <>
+                  <option value="Term 1">Term 1</option>
+                  <option value="Term 2">Term 2</option>
+                  <option value="Term 3">Term 3</option>
+                </>
+            }
           </select>
 
           <select

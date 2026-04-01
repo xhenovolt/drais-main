@@ -21,6 +21,7 @@ import {
   User, BookOpen, Calendar, Layers, ArrowRight, Users,
   RotateCcw, AlertCircle, Clock, TrendingUp, TrendingDown,
   Minus, Award, ShieldAlert, BarChart2, History,
+  Plus, Check, Loader, X as XIcon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { fetcher } from '@/utils/fetcher';
@@ -48,6 +49,8 @@ interface PreviousEnrollment {
   class_id: number; class_name: string; class_level?: number | null;
   stream_id?: number; stream_name?: string;
   study_mode_id?: number; study_mode_name?: string;
+  curriculum_id?: number; curriculum_name?: string;
+  program_id?: number; program_name?: string;
   enrollment_type?: string; status: string;
   programs: { id: number; name: string }[];
   results_summary?: {
@@ -224,6 +227,8 @@ function PreviousContextBanner({ prev, loading }: { prev: PreviousEnrollment | n
         <CItem label="Academic Year" value={prev.academic_year_name} />
         <CItem label="Term" value={prev.term_name} />
         <CItem label="Study Mode" value={prev.study_mode_name ?? '—'} />
+        <CItem label="Curriculum" value={prev.curriculum_name ?? '—'} />
+        <CItem label="Program" value={prev.program_name ?? '—'} />
         <CItem label="Status" value={
           <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-bold uppercase',
             prev.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
@@ -301,8 +306,25 @@ export default function EnrollStudentPage() {
   const [selectedStream, setSelectedStream] = useState('');
   const [selectedStudyMode, setSelectedStudyMode] = useState('');
   const [studyModeError, setStudyModeError] = useState(false);
-  const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
+  const [selectedCurriculum, setSelectedCurriculum] = useState('');
+  const [selectedProgram, setSelectedProgram] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Inline Quick-Add program
+  const [isAddingProgram, setIsAddingProgram] = useState(false);
+  const [newProgramName, setNewProgramName] = useState('');
+  const [isSavingProgram, setIsSavingProgram] = useState(false);
+
+  // Inline Quick-Add curriculum
+  const [isAddingCurriculum, setIsAddingCurriculum] = useState(false);
+  const [newCurriculumCode, setNewCurriculumCode] = useState('');
+  const [newCurriculumName, setNewCurriculumName] = useState('');
+  const [isSavingCurriculum, setIsSavingCurriculum] = useState(false);
+
+  // Inline Quick-Add study mode
+  const [isAddingStudyMode, setIsAddingStudyMode] = useState(false);
+  const [newStudyModeName, setNewStudyModeName] = useState('');
+  const [isSavingStudyMode, setIsSavingStudyMode] = useState(false);
 
   // Bulk mode state
   const [bulkFromClass, setBulkFromClass] = useState('');
@@ -317,8 +339,9 @@ export default function EnrollStudentPage() {
   const { data: streamData } = useSWR<any>(
     selectedClass ? `/api/streams?class_id=${selectedClass}` : '/api/streams', fetcher,
   );
-  const { data: studyModeData } = useSWR<any>('/api/study-modes', fetcher);
-  const { data: programData } = useSWR<any>('/api/programs', fetcher);
+  const { data: studyModeData, mutate: mutateStudyModes } = useSWR<any>('/api/study-modes', fetcher);
+  const { data: programData, mutate: mutatePrograms } = useSWR<any>('/api/programs', fetcher);
+  const { data: curriculumData, mutate: mutateCurriculums } = useSWR<any>('/api/curriculums', fetcher);
 
   const currentTerm: TermOption | null = termData?.data?.current ?? null;
   const allTerms: TermOption[] = termData?.data?.all ?? [];
@@ -326,6 +349,7 @@ export default function EnrollStudentPage() {
   const streams: StreamOption[] = streamData?.data ?? [];
   const studyModes: { id: number; name: string; is_default: number }[] = studyModeData?.data ?? [];
   const programs: { id: number; name: string; description?: string }[] = programData?.data ?? [];
+  const curriculums: { id: number; code: string; name: string }[] = curriculumData?.data ?? [];
 
   const filteredTerms = selectedAcademicYear
     ? allTerms.filter(t => String(t.academic_year_id) === selectedAcademicYear)
@@ -387,8 +411,13 @@ export default function EnrollStudentPage() {
         if (prev?.study_mode_id) {
           setSelectedStudyMode(String(prev.study_mode_id));
         }
-        if (prev?.programs?.length) {
-          setSelectedPrograms(prev.programs.map(p => p.id));
+        if (prev?.curriculum_id) {
+          setSelectedCurriculum(String(prev.curriculum_id));
+        }
+        if (prev?.program_id) {
+          setSelectedProgram(String(prev.program_id));
+        } else if (prev?.programs?.length) {
+          setSelectedProgram(String(prev.programs[0].id));
         }
         if (prev?.class_id) {
           setSelectedClass(String(prev.class_id));
@@ -437,6 +466,16 @@ export default function EnrollStudentPage() {
       setStep(3);
       return;
     }
+    if (!selectedCurriculum) {
+      toast.error('Curriculum is required — select one before enrolling');
+      setStep(3);
+      return;
+    }
+    if (!selectedProgram) {
+      toast.error('Program is required — select one before enrolling');
+      setStep(4);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/enrollments', {
@@ -449,13 +488,14 @@ export default function EnrollStudentPage() {
           academic_year_id: parseInt(selectedAcademicYear),
           term_id: parseInt(selectedTerm),
           study_mode_id: parseInt(selectedStudyMode),
-          program_ids: selectedPrograms,
+          curriculum_id: parseInt(selectedCurriculum),
+          program_id: parseInt(selectedProgram),
           enrollment_type: enrollmentType,
           close_previous: true,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Enrollment failed');
+      if (!res.ok) throw new Error(data.message || data.error || 'Enrollment failed');
       toast.success(`${selectedStudent.first_name} enrolled successfully!`);
       setStep(6);
     } catch (err: any) {
@@ -464,7 +504,7 @@ export default function EnrollStudentPage() {
       setSubmitting(false);
     }
   }, [selectedStudent, selectedClass, selectedStream, selectedAcademicYear, selectedTerm,
-      selectedStudyMode, selectedPrograms, enrollmentType, decision]);
+      selectedStudyMode, selectedCurriculum, selectedProgram, enrollmentType, decision]);
 
   // ── Bulk promote submit ──────────────────────────────────────────────────
   const handleBulkPromote = useCallback(async () => {
@@ -496,6 +536,81 @@ export default function EnrollStudentPage() {
     }
   }, [bulkFromClass, bulkToClass, bulkAcademicYear, bulkTerm, router]);
 
+  const handleQuickAddProgram = async () => {
+    const name = newProgramName.trim();
+    if (!name) { toast.error('Program name is required'); return; }
+    setIsSavingProgram(true);
+    try {
+      const res = await fetch('/api/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create program');
+      // Optimistic: refresh list and auto-select new program
+      await mutatePrograms();
+      setSelectedProgram(String(json.data.id));
+      setIsAddingProgram(false);
+      setNewProgramName('');
+      toast.success(`Program "${name}" created`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to create program');
+    } finally {
+      setIsSavingProgram(false);
+    }
+  };
+
+  const handleQuickAddCurriculum = async () => {
+    const code = newCurriculumCode.trim();
+    const name = newCurriculumName.trim();
+    if (!code || !name) { toast.error('Code and name are required'); return; }
+    setIsSavingCurriculum(true);
+    try {
+      const res = await fetch('/api/curriculums', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, name }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create curriculum');
+      await mutateCurriculums();
+      setSelectedCurriculum(String(json.id));
+      setIsAddingCurriculum(false);
+      setNewCurriculumCode('');
+      setNewCurriculumName('');
+      toast.success(`Curriculum "${name}" created`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to create curriculum');
+    } finally {
+      setIsSavingCurriculum(false);
+    }
+  };
+
+  const handleQuickAddStudyMode = async () => {
+    const name = newStudyModeName.trim();
+    if (!name) { toast.error('Study mode name is required'); return; }
+    setIsSavingStudyMode(true);
+    try {
+      const res = await fetch('/api/study-modes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create study mode');
+      await mutateStudyModes();
+      setSelectedStudyMode(String(json.data.id));
+      setIsAddingStudyMode(false);
+      setNewStudyModeName('');
+      toast.success(`Study mode "${name}" created`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to create study mode');
+    } finally {
+      setIsSavingStudyMode(false);
+    }
+  };
+
   const resetSingle = () => {
     setStep(1);
     setSelectedStudent(null);
@@ -504,12 +619,13 @@ export default function EnrollStudentPage() {
     setSelectedClass('');
     setSelectedStream('');
     setSelectedStudyMode('');
-    setSelectedPrograms([]);
+    setSelectedCurriculum('');
+    setSelectedProgram('');
     setStudyModeError(false);
   };
 
   const TOTAL_STEPS = 5;
-  const STEP_LABELS = ['Select Student', 'Decision & Class', 'Study Mode', 'Programs', 'Confirm'];
+  const STEP_LABELS = ['Select Student', 'Decision & Class', 'Mode & Curriculum', 'Program', 'Confirm'];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 py-8 px-4">
@@ -575,7 +691,8 @@ export default function EnrollStudentPage() {
                       setDecision(null);
                       setSelectedClass('');
                       setSelectedStudyMode('');
-                      setSelectedPrograms([]);
+                      setSelectedCurriculum('');
+                      setSelectedProgram('');
                     }
                   }}
                 />
@@ -708,34 +825,59 @@ export default function EnrollStudentPage() {
               </div>
             )}
 
-            {/* ─────────────────── STEP 3: Study Mode (REQUIRED) ───────────── */}
+            {/* ─────────────────── STEP 3: Study Mode + Curriculum ──────── */}
             {step === 3 && (
               <div className="card-glass p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Layers className="w-5 h-5 text-indigo-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Study Mode</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Study Mode & Curriculum</h2>
                 </div>
 
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700 text-xs text-rose-700 dark:text-rose-400 font-semibold">
                   <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                  Study mode is <strong className="mx-1">required</strong>. Enrollment is blocked without it.
+                  Both study mode and curriculum are <strong className="mx-1">required</strong>. Enrollment is blocked without them.
                 </div>
 
+                {/* ── Study Mode Section ── */}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
+                    Study Mode <span className="text-rose-500">*</span>
+                  </p>
+
                 {studyModeError && !selectedStudyMode && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-xs text-red-700 dark:text-red-400 font-semibold">
+                  <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-xs text-red-700 dark:text-red-400 font-semibold">
                     <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                     No study mode selected — you must select one to proceed.
                   </div>
                 )}
 
-                {studyModes.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
-                    <p className="text-sm text-amber-700 dark:text-amber-400">
-                      No study modes configured for your school.{" "}
-                      <Link href="/settings/study-modes" className="font-bold underline">Set them up first →</Link>
-                    </p>
+                {studyModes.length === 0 && !isAddingStudyMode ? (
+                  <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-center justify-between">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">No study modes configured yet.</p>
+                    <button onClick={() => setIsAddingStudyMode(true)}
+                      className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:underline">
+                      <Plus className="w-4 h-4" /> Add Study Mode
+                    </button>
+                  </div>
+                ) : isAddingStudyMode ? (
+                  <div className="flex items-center gap-2 mb-2">
+                    <input autoFocus value={newStudyModeName}
+                      onChange={e => setNewStudyModeName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleQuickAddStudyMode(); if (e.key === 'Escape') { setIsAddingStudyMode(false); setNewStudyModeName(''); } }}
+                      placeholder="e.g. Day, Boarding…"
+                      className="flex-1 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                      disabled={isSavingStudyMode} />
+                    <button onClick={handleQuickAddStudyMode} disabled={isSavingStudyMode || !newStudyModeName.trim()}
+                      className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-colors">
+                      {isSavingStudyMode ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => { setIsAddingStudyMode(false); setNewStudyModeName(''); }}
+                      className="p-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors">
+                      <XIcon className="w-4 h-4" />
+                    </button>
                   </div>
                 ) : (
+                  <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {studyModes.map(sm => {
                       const active = selectedStudyMode === String(sm.id);
@@ -761,7 +903,85 @@ export default function EnrollStudentPage() {
                       );
                     })}
                   </div>
+                  <button onClick={() => setIsAddingStudyMode(true)}
+                    className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-2">
+                    <Plus className="w-3.5 h-3.5" /> Add study mode
+                  </button>
+                  </>
                 )}
+                </div>
+
+                {/* ── Curriculum Section ── */}
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-700/60">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
+                    Curriculum <span className="text-rose-500">*</span>
+                  </p>
+
+                {curriculums.length === 0 && !isAddingCurriculum ? (
+                  <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-center justify-between">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">No curriculums configured yet.</p>
+                    <button onClick={() => setIsAddingCurriculum(true)}
+                      className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:underline">
+                      <Plus className="w-4 h-4" /> Add Curriculum
+                    </button>
+                  </div>
+                ) : isAddingCurriculum ? (
+                  <div className="space-y-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <input autoFocus value={newCurriculumCode}
+                        onChange={e => setNewCurriculumCode(e.target.value)}
+                        placeholder="Code (e.g. UNEB)"
+                        className="w-24 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                        disabled={isSavingCurriculum} />
+                      <input value={newCurriculumName}
+                        onChange={e => setNewCurriculumName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleQuickAddCurriculum(); if (e.key === 'Escape') { setIsAddingCurriculum(false); setNewCurriculumCode(''); setNewCurriculumName(''); } }}
+                        placeholder="Name (e.g. National Curriculum)"
+                        className="flex-1 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                        disabled={isSavingCurriculum} />
+                      <button onClick={handleQuickAddCurriculum} disabled={isSavingCurriculum || !newCurriculumCode.trim() || !newCurriculumName.trim()}
+                        className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-colors">
+                        {isSavingCurriculum ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => { setIsAddingCurriculum(false); setNewCurriculumCode(''); setNewCurriculumName(''); }}
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors">
+                        <XIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400">Press Enter to save · Esc to cancel</p>
+                  </div>
+                ) : (
+                  <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {curriculums.map(cur => {
+                      const active = selectedCurriculum === String(cur.id);
+                      const isPrevious = previousEnrollment?.curriculum_id === cur.id;
+                      return (
+                        <button
+                          key={cur.id}
+                          onClick={() => setSelectedCurriculum(String(cur.id))}
+                          className={clsx(
+                            'relative py-4 px-4 rounded-2xl border-2 text-sm font-semibold transition-all text-left',
+                            active
+                              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 shadow-md'
+                              : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-300',
+                          )}
+                        >
+                          {active && <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute top-2.5 right-2.5" />}
+                          <span className="block">{cur.name}</span>
+                          <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{cur.code}</span>
+                          {isPrevious && <span className="block text-[10px] font-bold text-emerald-400 mt-0.5">← Previous</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button onClick={() => setIsAddingCurriculum(true)}
+                    className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-2">
+                    <Plus className="w-3.5 h-3.5" /> Add curriculum
+                  </button>
+                  </>
+                )}
+                </div>
 
                 <div className="flex justify-between pt-2">
                   <button onClick={() => setStep(2)} className="btn-secondary px-5 py-2 rounded-xl text-sm">Back</button>
@@ -772,9 +992,13 @@ export default function EnrollStudentPage() {
                         toast.error('Study mode is required — select one to continue');
                         return;
                       }
+                      if (!selectedCurriculum && curriculums.length > 0) {
+                        toast.error('Curriculum is required — select one to continue');
+                        return;
+                      }
                       setStep(4);
                     }}
-                    disabled={studyModes.length === 0}
+                    disabled={studyModes.length === 0 || curriculums.length === 0}
                     className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Next <ArrowRight className="w-4 h-4" />
@@ -783,35 +1007,73 @@ export default function EnrollStudentPage() {
               </div>
             )}
 
-            {/* ──────────────────────── STEP 4: Programs ───────────────────── */}
+            {/* ──────────────────────── STEP 4: Program (single) ──────── */}
             {step === 4 && (
               <div className="card-glass p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <BookOpen className="w-5 h-5 text-indigo-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Programs</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Program</h2>
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Programs are independent of class (e.g. Tahfiz, Secular, Theology). A student can be in multiple.
-                  Previous programs are pre-selected.
+                  Select the academic program for this enrollment (e.g. Tahfiz, General Education, Theology).
                 </p>
 
-                {programs.length === 0 ? (
-                  <p className="text-sm text-slate-400 italic">
-                    No programs configured.{" "}
-                    <Link href="/settings/programs" className="text-indigo-600 hover:underline">Set them up →</Link>
-                  </p>
+                {programs.length === 0 && !isAddingProgram ? (
+                  <div className="flex flex-col items-start gap-3 py-2">
+                    <p className="text-sm text-slate-400 italic">No programs configured yet.</p>
+                    <button
+                      onClick={() => setIsAddingProgram(true)}
+                      className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:underline"
+                    >
+                      <Plus className="w-4 h-4" /> Quick Add Program
+                    </button>
+                  </div>
+                ) : isAddingProgram ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={newProgramName}
+                        onChange={e => setNewProgramName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleQuickAddProgram(); if (e.key === 'Escape') { setIsAddingProgram(false); setNewProgramName(''); } }}
+                        placeholder="e.g. Secular Studies, Tahfiz..."
+                        className="flex-1 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                        disabled={isSavingProgram}
+                      />
+                      <button
+                        onClick={handleQuickAddProgram}
+                        disabled={isSavingProgram || !newProgramName.trim()}
+                        className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-colors"
+                      >
+                        {isSavingProgram ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => { setIsAddingProgram(false); setNewProgramName(''); }}
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        <XIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400">Press Enter to save · Esc to cancel</p>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {programs.map(prog => {
-                      const checked = selectedPrograms.includes(prog.id);
-                      const wasPrevious = previousEnrollment?.programs?.some(p => p.id === prog.id);
+                      const active = selectedProgram === String(prog.id);
+                      const wasPrevious = previousEnrollment?.program_id === prog.id
+                        || previousEnrollment?.programs?.some(p => p.id === prog.id);
                       return (
-                        <label key={prog.id} className={clsx(
-                          'flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all',
-                          checked ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-200',
-                        )}>
-                          <input type="checkbox" checked={checked} className="w-4 h-4 accent-indigo-600 mt-0.5 flex-shrink-0"
-                            onChange={() => setSelectedPrograms(prev => checked ? prev.filter(id => id !== prog.id) : [...prev, prog.id])} />
+                        <button key={prog.id} onClick={() => setSelectedProgram(String(prog.id))}
+                          className={clsx(
+                            'w-full flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all',
+                            active ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-200',
+                          )}>
+                          <div className={clsx(
+                            'w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center',
+                            active ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300 dark:border-slate-500',
+                          )}>
+                            {active && <Check className="w-3 h-3 text-white" />}
+                          </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-semibold text-slate-800 dark:text-white">{prog.name}</p>
@@ -821,15 +1083,39 @@ export default function EnrollStudentPage() {
                             </div>
                             {prog.description && <p className="text-xs text-slate-400 mt-0.5">{prog.description}</p>}
                           </div>
-                        </label>
+                        </button>
                       );
                     })}
                   </div>
                 )}
 
+                {programs.length > 0 && !isAddingProgram && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setIsAddingProgram(true)}
+                      className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add another program
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex justify-between pt-2">
                   <button onClick={() => setStep(3)} className="btn-secondary px-5 py-2 rounded-xl text-sm">Back</button>
-                  <button onClick={() => setStep(5)} className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (!selectedProgram && programs.length > 0) {
+                        toast.error('Please select a program to continue');
+                        return;
+                      }
+                      if (programs.length === 0 && !isAddingProgram) {
+                        toast.error('Please add at least one program');
+                        return;
+                      }
+                      setStep(5);
+                    }}
+                    className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2"
+                  >
                     Review <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -852,6 +1138,8 @@ export default function EnrollStudentPage() {
                       <p className="font-semibold text-slate-600 dark:text-slate-300">{previousEnrollment.class_name}</p>
                       <p className="text-slate-400">{previousEnrollment.academic_year_name} · {previousEnrollment.term_name}</p>
                       <p className="text-slate-400">{previousEnrollment.study_mode_name ?? '—'}</p>
+                      <p className="text-slate-400">{previousEnrollment.curriculum_name ?? '—'}</p>
+                      <p className="text-slate-400">{previousEnrollment.program_name ?? (previousEnrollment.programs?.length ? previousEnrollment.programs[0]?.name : '—')}</p>
                       {previousEnrollment.results_summary?.avg_score != null && (
                         <p className="text-slate-400">Avg score: {previousEnrollment.results_summary.avg_score}</p>
                       )}
@@ -861,6 +1149,8 @@ export default function EnrollStudentPage() {
                       <p className="font-semibold text-indigo-700 dark:text-indigo-300">{classes.find(c => String(c.id) === selectedClass)?.name ?? '—'}</p>
                       <p className="text-indigo-400">{academicYears.find(y => String(y.id) === selectedAcademicYear)?.name} · {allTerms.find(t => String(t.id) === selectedTerm)?.name}</p>
                       <p className="text-indigo-400">{studyModes.find(sm => String(sm.id) === selectedStudyMode)?.name ?? '—'}</p>
+                      <p className="text-indigo-400">{curriculums.find(c => String(c.id) === selectedCurriculum)?.name ?? '—'}</p>
+                      <p className="text-indigo-400">{programs.find(p => String(p.id) === selectedProgram)?.name ?? '—'}</p>
                     </div>
                   </div>
                 )}
@@ -889,15 +1179,22 @@ export default function EnrollStudentPage() {
                       ? studyModes.find(sm => String(sm.id) === selectedStudyMode)?.name ?? '—'
                       : <span className="text-red-500 font-bold flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Not selected</span>
                   } />
-                  {selectedPrograms.length > 0 && (
-                    <Row label="Programs" value={selectedPrograms.map(id => programs.find(p => p.id === id)?.name).filter(Boolean).join(', ')} />
-                  )}
+                  <Row label="Curriculum" value={
+                    selectedCurriculum
+                      ? curriculums.find(c => String(c.id) === selectedCurriculum)?.name ?? '—'
+                      : <span className="text-red-500 font-bold flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Not selected</span>
+                  } />
+                  <Row label="Program" value={
+                    selectedProgram
+                      ? programs.find(p => String(p.id) === selectedProgram)?.name ?? '—'
+                      : <span className="text-red-500 font-bold flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Not selected</span>
+                  } />
                 </div>
 
-                {!selectedStudyMode && (
+                {(!selectedStudyMode || !selectedCurriculum || !selectedProgram) && (
                   <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-sm text-red-700 dark:text-red-400 font-semibold">
                     <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                    Study mode missing — go back to Step 3 to select one before proceeding.
+                    Required dimensions missing — go back to select study mode, curriculum, and program before proceeding.
                   </div>
                 )}
 
@@ -909,7 +1206,7 @@ export default function EnrollStudentPage() {
                   <button onClick={() => setStep(4)} className="btn-secondary px-5 py-2 rounded-xl text-sm">Back</button>
                   <button
                     onClick={handleEnroll}
-                    disabled={submitting || !selectedStudyMode}
+                    disabled={submitting || !selectedStudyMode || !selectedCurriculum || !selectedProgram}
                     className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {submitting
