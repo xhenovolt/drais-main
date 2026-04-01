@@ -5,6 +5,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Building2, Plus, Pencil, Trash2, RefreshCw, Users, ChevronRight, X } from 'lucide-react';
 
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
+
 interface Department {
   id: number;
   name: string;
@@ -30,9 +33,7 @@ export default function AdminDepartmentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch('/api/admin/departments?include_staff_count=1');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Load failed');
+      const data = await apiFetch<{ departments: Department[] }>('/api/admin/departments?include_staff_count=1', { silent: true });
       setDepts(data.departments ?? []);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
@@ -60,9 +61,12 @@ export default function AdminDepartmentsPage() {
       const url    = isEdit ? `/api/admin/departments/${modal?.dept?.id}` : '/api/admin/departments';
       const method = isEdit ? 'PATCH' : 'POST';
       const body   = { name: form.name.trim(), description: form.description.trim() || null, head_id: form.head_id ? Number(form.head_id) : null };
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const data   = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Save failed');
+      await apiFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        successMessage: isEdit ? 'Department updated' : 'Department created',
+      });
       setModal(null);
       load();
     } catch (e: any) { setSaveErr(e.message); }
@@ -70,12 +74,15 @@ export default function AdminDepartmentsPage() {
   }
 
   async function del(d: Department) {
-    if (!confirm(`Delete "${d.name}"? This cannot be undone.`)) return;
-    const res = await fetch(`/api/admin/departments/${d.id}`, { method: 'DELETE' });
-    if (res.ok) load();
-    else {
-      const data = await res.json();
-      alert(data.error ?? 'Delete failed');
+    if (!await confirmAction(`Delete "${d.name}"?`, 'This cannot be undone.', 'Delete')) return;
+    try {
+      await apiFetch(`/api/admin/departments/${d.id}`, {
+        method: 'DELETE',
+        successMessage: 'Department deleted',
+      });
+      load();
+    } catch (e: any) {
+      showToast('error', e.message ?? 'Delete failed');
     }
   }
 

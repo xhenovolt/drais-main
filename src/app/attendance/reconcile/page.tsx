@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Activity, CheckCircle, XCircle, AlertTriangle, RefreshCw, Clock, Users, FileText, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
-import { fetcher } from '@/utils/fetcher';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import clsx from 'clsx';
 
 const ReconciliationPage: React.FC = () => {
@@ -13,8 +13,7 @@ const ReconciliationPage: React.FC = () => {
 
   // Fetch reconciliation data
   const { data: reconcileData, mutate: mutateReconcile } = useSWR(
-    `/api/attendance/reconcile?date=${selectedDate}`,
-    fetcher
+    `/api/attendance/reconcile?date=${selectedDate}`
   );
 
   const conflicts = (reconcileData as any)?.data?.conflicts || [];
@@ -23,21 +22,15 @@ const ReconciliationPage: React.FC = () => {
   const handleReconcile = async () => {
     setReconciling(true);
     try {
-      const response = await fetch('/api/attendance/reconcile', {
+      const data = await apiFetch<{ data: { resolved: number } }>('/api/attendance/reconcile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate })
+        body: JSON.stringify({ date: selectedDate }),
+        successMessage: 'Reconciliation complete',
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(`Reconciliation complete: ${data.data.resolved} conflicts resolved`);
-        mutateReconcile();
-      } else {
-        toast.error('Reconciliation failed');
-      }
+      mutateReconcile();
     } catch (error) {
-      toast.error(`Error: ${error}`);
+      // apiFetch already showed error toast
     } finally {
       setReconciling(false);
     }
@@ -45,23 +38,18 @@ const ReconciliationPage: React.FC = () => {
 
   const handleAutoResolve = async (conflictId: number, resolution: string) => {
     try {
-      const response = await fetch('/api/attendance/reconcile', {
+      await apiFetch('/api/attendance/reconcile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conflict_id: conflictId,
           resolution
-        })
+        }),
+        successMessage: 'Conflict resolved',
       });
-
-      if (response.ok) {
-        toast.success('Conflict resolved');
-        mutateReconcile();
-      } else {
-        toast.error('Failed to resolve conflict');
-      }
+      mutateReconcile();
     } catch (error) {
-      toast.error(`Error: ${error}`);
+      // apiFetch already showed error toast
     }
   };
 

@@ -10,6 +10,9 @@ import {
   Clock, Wifi, WifiOff, XCircle, Users, LogOut,
 } from 'lucide-react';
 
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
+
 interface Session {
   id: number;
   user_id: number;
@@ -64,9 +67,7 @@ export default function UserSessionsPage() {
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch('/api/admin/user-sessions');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Failed');
+      const json = await apiFetch<SessionSummary>('/api/admin/user-sessions', { silent: true });
       setData(json);
       setError(null);
     } catch (e: any) { setError(e.message); }
@@ -87,22 +88,26 @@ export default function UserSessionsPage() {
   }, [autoRefresh, load]);
 
   async function terminate(id: number) {
-    if (!confirm('Terminate this session? The user will be logged out immediately.')) return;
+    if (!await confirmAction('Terminate session?', 'The user will be logged out immediately.', 'Terminate')) return;
     setTerminating(id);
     try {
-      const res = await fetch(`/api/admin/user-sessions?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      await apiFetch(`/api/admin/user-sessions?id=${id}`, {
+        method: 'DELETE',
+        successMessage: 'Session terminated',
+      });
       load();
     } catch (e: any) { setError(e.message); }
     finally { setTerminating(null); }
   }
 
   async function terminateUser(userId: number, name: string) {
-    if (!confirm(`Force logout all sessions for ${name}?`)) return;
+    if (!await confirmAction(`Force logout ${name}?`, 'All sessions will be terminated.', 'Logout All')) return;
     setTerminating(userId);
     try {
-      const res = await fetch(`/api/admin/user-sessions?user_id=${userId}`, { method: 'DELETE' });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      await apiFetch(`/api/admin/user-sessions?user_id=${userId}`, {
+        method: 'DELETE',
+        successMessage: `All sessions for ${name} terminated`,
+      });
       load();
     } catch (e: any) { setError(e.message); }
     finally { setTerminating(null); }

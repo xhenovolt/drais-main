@@ -6,7 +6,8 @@ import {
   ChevronLeft, ChevronRight, Fingerprint, Loader,
 } from 'lucide-react';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -48,15 +49,15 @@ export default function UserMappingPage() {
 
   const handleSave = async () => {
     if (!form.device_user_id) {
-      toast.error('Device User ID is required');
+      showToast('error', 'Device User ID is required');
       return;
     }
     if (form.user_type === 'student' && !form.student_id) {
-      toast.error('Student ID is required for student mappings');
+      showToast('error', 'Student ID is required for student mappings');
       return;
     }
     if (form.user_type === 'staff' && !form.staff_id) {
-      toast.error('Staff ID is required for staff mappings');
+      showToast('error', 'Staff ID is required for staff mappings');
       return;
     }
 
@@ -72,36 +73,34 @@ export default function UserMappingPage() {
         card_number: form.card_number || undefined,
       };
 
-      const res = await fetch(
+      await apiFetch(
         isEdit ? `/api/attendance/zk/user-mapping?id=${editingId}` : '/api/attendance/zk/user-mapping',
         {
           method: isEdit ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
+          successMessage: isEdit ? 'Mapping updated' : 'Mapping created',
         },
       );
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      toast.success(isEdit ? 'Mapping updated' : 'Mapping created');
       resetForm();
       mutate();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save mapping');
+      // apiFetch already showed error toast
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this mapping?')) return;
+    if (!await confirmAction('Delete this mapping?', 'This action cannot be undone.', 'Delete')) return;
     try {
-      const res = await fetch(`/api/attendance/zk/user-mapping?id=${id}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      toast.success('Mapping deleted');
+      await apiFetch(`/api/attendance/zk/user-mapping?id=${id}`, {
+        method: 'DELETE',
+        successMessage: 'Mapping deleted',
+      });
       mutate();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete');
+      // apiFetch already showed error toast
     }
   };
 

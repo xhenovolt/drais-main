@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import useSWR from "swr";
 import { Plus, Trash, Eye } from "lucide-react";
-import Swal from "sweetalert2";
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const API_BASE = "/api/inventory";
 
@@ -14,22 +15,17 @@ const StoresPage: React.FC = () => {
 
   const handleAddStore = async () => {
     try {
-      const response = await fetch(`${API_BASE}/stores`, {
+      await apiFetch(`${API_BASE}/stores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        successMessage: 'Store added successfully.',
       });
-      const result = await response.json();
-      if (result.success) {
-        Swal.fire("Success!", "Store added successfully.", "success");
-        mutateStores(); // Refresh the store list after adding a new store
-        setIsModalOpen(false);
-        setFormData({ name: "", location: "" }); // Reset form data
-      } else {
-        Swal.fire("Error!", result.error || "Failed to add store.", "error");
-      }
+      mutateStores();
+      setIsModalOpen(false);
+      setFormData({ name: "", location: "" });
     } catch (error) {
-      Swal.fire("Error!", "An unexpected error occurred.", "error");
+      // apiFetch already showed error toast
     }
   };
 
@@ -72,7 +68,7 @@ const StoresPage: React.FC = () => {
                   <Eye className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => Swal.fire("Delete functionality not implemented")}
+                  onClick={() => showToast('info', 'Delete functionality not implemented')}
                   className="px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600"
                 >
                   <Trash className="w-4 h-4" />

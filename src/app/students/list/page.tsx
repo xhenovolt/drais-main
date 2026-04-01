@@ -33,7 +33,8 @@ import ReassignClassModal from '../_client/ReassignClassModal';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 import { ImportModal } from '@/components/students/ImportModal';
 import { useExport } from '@/hooks/useExport';
-import { toast } from 'react-hot-toast';
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import { 
   safeArray, 
   safeString, 
@@ -156,82 +157,49 @@ export default function StudentsListPage() {
   const loadOptions = async () => {
     logger.log('Loading dropdown options...');
     try {
-      const [classRes, streamRes, progRes, modeRes, yearRes, termRes] = await Promise.all([
-        fetch('/api/classes'),
-        fetch('/api/streams'),
-        fetch('/api/programs'),
-        fetch('/api/study-modes'),
-        fetch('/api/academic_years'),
-        fetch('/api/terms'),
+      const [classData, streamData, progData, modeData, yearData, termData] = await Promise.all([
+        apiFetch('/api/classes', { silent: true }),
+        apiFetch('/api/streams', { silent: true }),
+        apiFetch('/api/programs', { silent: true }),
+        apiFetch('/api/study-modes', { silent: true }),
+        apiFetch('/api/academic_years', { silent: true }),
+        apiFetch('/api/terms', { silent: true }),
       ]);
 
-      // Safely handle all responses
-      if (classRes.ok) {
-        const classData = await classRes.json();
-        const normalizedClasses = standardizeResponse<SelectOption>(classData);
-        setClasses(normalizedClasses.data);
-        logger.debug('[Classes]', normalizedClasses.data);
-      } else {
-        logger.warn('Failed to fetch classes:', classRes.status);
-        setClasses([]);
-      }
+      const normalizedClasses = standardizeResponse<SelectOption>(classData);
+      setClasses(normalizedClasses.data);
+      logger.debug('[Classes]', normalizedClasses.data);
 
-      if (streamRes.ok) {
-        const streamData = await streamRes.json();
-        const normalizedStreams = standardizeResponse<SelectOption>(streamData);
-        setStreams(normalizedStreams.data);
-        logger.debug('[Streams]', normalizedStreams.data);
-      } else {
-        setStreams([]);
-      }
+      const normalizedStreams = standardizeResponse<SelectOption>(streamData);
+      setStreams(normalizedStreams.data);
+      logger.debug('[Streams]', normalizedStreams.data);
 
-      if (progRes.ok) {
-        const progData = await progRes.json();
-        const normalizedPrograms = standardizeResponse<SelectOption>(progData);
-        setPrograms(normalizedPrograms.data);
-        logger.debug('[Programs]', normalizedPrograms.data);
-      } else {
-        setPrograms([]);
-      }
+      const normalizedPrograms = standardizeResponse<SelectOption>(progData);
+      setPrograms(normalizedPrograms.data);
+      logger.debug('[Programs]', normalizedPrograms.data);
 
-      if (modeRes.ok) {
-        const modeData = await modeRes.json();
-        const normalizedModes = standardizeResponse<SelectOption>(modeData);
-        setStudyModes(normalizedModes.data);
-        logger.debug('[StudyModes]', normalizedModes.data);
-      } else {
-        setStudyModes([]);
-      }
+      const normalizedModes = standardizeResponse<SelectOption>(modeData);
+      setStudyModes(normalizedModes.data);
+      logger.debug('[StudyModes]', normalizedModes.data);
 
-      if (yearRes.ok) {
-        const yearData = await yearRes.json();
-        const normalizedYears = standardizeResponse<SelectOption>(yearData);
-        setAcademicYears(normalizedYears.data);
-        logger.debug('[AcademicYears]', normalizedYears.data);
-      } else {
-        setAcademicYears([]);
-      }
+      const normalizedYears = standardizeResponse<SelectOption>(yearData);
+      setAcademicYears(normalizedYears.data);
+      logger.debug('[AcademicYears]', normalizedYears.data);
 
-      if (termRes.ok) {
-        const termData = await termRes.json();
-        const normalizedTerms = standardizeResponse<SelectOption>(termData);
-        setTerms(normalizedTerms.data);
-        logger.debug('[Terms]', normalizedTerms.data);
-      } else {
-        setTerms([]);
-      }
+      const normalizedTerms = standardizeResponse<SelectOption>(termData);
+      setTerms(normalizedTerms.data);
+      logger.debug('[Terms]', normalizedTerms.data);
 
       logger.log('✅ All dropdown options loaded');
     } catch (error) {
       logger.error('Failed to load options:', error);
-      // Set empty arrays on error
       setClasses([]);
       setStreams([]);
       setPrograms([]);
       setStudyModes([]);
       setAcademicYears([]);
       setTerms([]);
-      toast.error('Failed to load form options');
+      showToast('error', 'Failed to load form options');
     }
   };
 
@@ -248,44 +216,30 @@ export default function StudentsListPage() {
       if (filterClassId)  params.set('class_id',          String(filterClassId));
       if (filterYearId)  {
         params.set('academic_year_id', String(filterYearId));
-        // Show all terms for the chosen year, not just the current term
         params.set('historical',       'true');
       }
       logger.log('Fetching students — search:', search, 'class:', filterClassId, 'year:', filterYearId);
       
-      // Fetch enrolled students
-      const enrolledRes = await fetch(`/api/students/enrolled?${params}`);
-      if (enrolledRes.ok) {
-        const enrolledData = await enrolledRes.json();
-        const normalizedEnrolled = standardizeResponse<EnrolledStudent>(enrolledData);
-        const safeEnroled = assertArray(normalizedEnrolled.data, 'Enrolled students', logger)
-          ? normalizedEnrolled.data
-          : [];
-        setEnrolledStudents(safeEnroled);
-        logger.debug('[Enrolled Students]', safeEnroled.length, 'records');
-      } else {
-        logger.warn('Enrolled fetch failed:', enrolledRes.status);
-        setEnrolledStudents([]);
-      }
+      const [enrolledData, admittedData] = await Promise.all([
+        apiFetch(`/api/students/enrolled?${params}`, { silent: true }),
+        apiFetch(`/api/students/admitted?${params}`, { silent: true }),
+      ]);
 
-      // Fetch admitted students (no enrollment)
-      const admittedRes = await fetch(`/api/students/admitted?${params}`);
-      if (admittedRes.ok) {
-        const admittedData = await admittedRes.json();
-        const normalizedAdmitted = standardizeResponse<Student>(admittedData);
-        const safeAdmitted = assertArray(normalizedAdmitted.data, 'Admitted students', logger)
-          ? normalizedAdmitted.data
-          : [];
-        setAdmittedStudents(safeAdmitted);
-        logger.debug('[Admitted Students]', safeAdmitted.length, 'records');
-      } else {
-        logger.warn('Admitted fetch failed:', admittedRes.status);
-        setAdmittedStudents([]);
-      }
+      const normalizedEnrolled = standardizeResponse<EnrolledStudent>(enrolledData);
+      const safeEnrolled = assertArray(normalizedEnrolled.data, 'Enrolled students', logger)
+        ? normalizedEnrolled.data
+        : [];
+      setEnrolledStudents(safeEnrolled);
+      logger.debug('[Enrolled Students]', safeEnrolled.length, 'records');
+
+      const normalizedAdmitted = standardizeResponse<Student>(admittedData);
+      const safeAdmitted = assertArray(normalizedAdmitted.data, 'Admitted students', logger)
+        ? normalizedAdmitted.data
+        : [];
+      setAdmittedStudents(safeAdmitted);
+      logger.debug('[Admitted Students]', safeAdmitted.length, 'records');
     } catch (error) {
       logger.error('Failed to fetch students:', error);
-      toast.error('Failed to load students');
-      // Set empty arrays on error
       setEnrolledStudents([]);
       setAdmittedStudents([]);
     } finally {
@@ -321,19 +275,18 @@ export default function StudentsListPage() {
     if (edit.first_name === original.first_name && edit.last_name === original.last_name) return;
     setSavingIds(prev => new Set(prev).add(studentId));
     try {
-      const res = await fetch('/api/students/edit', {
+      await apiFetch('/api/students/edit', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: studentId, ...edit }),
+        silent: true,
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Save failed');
       setEnrolledStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...edit } : s));
       setAdmittedStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...edit } : s));
       setInlineEdits(prev => { const m = new Map(prev); m.delete(studentId); return m; });
     } catch {
       setInlineEdits(prev => { const m = new Map(prev); m.delete(studentId); return m; });
-      toast.error('Failed to save — changes reverted');
+      showToast('error', 'Failed to save — changes reverted');
     } finally {
       setSavingIds(prev => { const s = new Set(prev); s.delete(studentId); return s; });
     }
@@ -382,44 +335,32 @@ export default function StudentsListPage() {
   };
 
   const handleEnroll = async () => {
-    // Validation
     if (!validateEnrollForm(enrollForm)) {
-      toast.error('Please fill all required fields');
+      showToast('error', 'Please fill all required fields');
       setEnrollError('All fields marked with * are required');
       return;
     }
 
-    // Check for duplicate enrollment
     if (checkDuplicateEnrollment(enrollForm.student_id, enrollForm.academic_year_id)) {
       setEnrollError('Student is already enrolled in this academic year');
-      toast.error('Student is already enrolled in this academic year');
+      showToast('error', 'Student is already enrolled in this academic year');
       return;
     }
 
     setEnrollLoading(true);
     setEnrollError('');
     try {
-      const res = await fetch('/api/enrollments', {
+      await apiFetch('/api/enrollments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(enrollForm),
+        successMessage: 'Student enrolled successfully',
       });
-
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Student enrolled successfully');
-        setShowEnrollModal(false);
-        setSelectedIds(prev => { const next = new Set(prev); next.delete(enrollForm.student_id); return next; });
-        fetchStudents();
-      } else {
-        const errorMsg = data.message || data.error || 'Enrollment failed';
-        toast.error(errorMsg);
-        setEnrollError(errorMsg);
-      }
-    } catch (error) {
-      console.error('Enrollment error:', error);
-      const errorMsg = 'Enrollment failed - please try again';
-      toast.error(errorMsg);
+      setShowEnrollModal(false);
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(enrollForm.student_id); return next; });
+      fetchStudents();
+    } catch (error: any) {
+      const errorMsg = error.message || 'Enrollment failed - please try again';
       setEnrollError(errorMsg);
     } finally {
       setEnrollLoading(false);
@@ -441,30 +382,23 @@ export default function StudentsListPage() {
     const student = admittedStudents.find(s => s.id === studentId);
     if (!student) return;
 
-    // Confirmation dialog
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${safeString(student.first_name)} ${safeString(student.last_name)}? This action cannot be undone.`
+    const confirmed = await confirmAction(
+      'Delete Student',
+      `Are you sure you want to delete ${safeString(student.first_name)} ${safeString(student.last_name)}? This action cannot be undone.`,
+      'Delete'
     );
     if (!confirmed) return;
 
     try {
-      const res = await fetch('/api/students/delete', {
+      await apiFetch('/api/students/delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: studentId }),
+        successMessage: 'Student deleted successfully',
       });
-
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Student deleted successfully');
-        // Refresh the list
-        fetchStudents();
-      } else {
-        toast.error(data.message || 'Failed to delete student');
-      }
+      fetchStudents();
     } catch (error) {
       logger.error('Delete error:', error);
-      toast.error('Failed to delete student');
     }
   };
 
@@ -523,12 +457,12 @@ export default function StudentsListPage() {
   // Bulk class reassignment with optimistic UI update
   const handleReassignClass = async (newClassId: number, reason: string) => {
     if (selectedIds.size === 0) {
-      toast.error('Please select students first');
+      showToast('error', 'Please select students first');
       return;
     }
     setIsReassigning(true);
     try {
-      const res = await fetch('/api/students/reassign-class', {
+      const data = await apiFetch<any>('/api/students/reassign-class', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -536,36 +470,21 @@ export default function StudentsListPage() {
           new_class_id: newClassId,
           reason: reason || null,
         }),
+        successMessage: `${selectedIds.size} student(s) reassigned successfully`,
       });
-      const data = await res.json();
 
-      if (data.success) {
-        toast.success(data.message || `${selectedIds.size} student(s) reassigned successfully`);
-        // Optimistic update — reflect new class instantly, no page reload
-        const newClass = classes.find(c => c.id === newClassId);
-        setEnrolledStudents(prev =>
-          prev.map(s =>
-            selectedIds.has(s.id)
-              ? { ...s, class_id: newClassId, class_name: newClass?.name || '' }
-              : s
-          )
-        );
-        setSelectedIds(new Set());
-        setShowReassignModal(false);
-      } else {
-        if (data.error_code === 'PARTIAL_SUCCESS') {
-          toast.error(
-            `⚠️ Partial: ${data.data.success_count} reassigned, ${data.data.failed_count} failed`,
-            { duration: 5000 }
-          );
-        } else if (data.error_code === 'ALL_FAILED') {
-          toast.error(`❌ ${data.data.failed_count} students could not be reassigned`, { duration: 5000 });
-        } else {
-          toast.error(data.message || 'Failed to reassign students');
-        }
-      }
-    } catch {
-      toast.error('An error occurred while reassigning students');
+      const newClass = classes.find(c => c.id === newClassId);
+      setEnrolledStudents(prev =>
+        prev.map(s =>
+          selectedIds.has(s.id)
+            ? { ...s, class_id: newClassId, class_name: newClass?.name || '' }
+            : s
+        )
+      );
+      setSelectedIds(new Set());
+      setShowReassignModal(false);
+    } catch (error: any) {
+      // apiFetch already toasts, but check for partial success in error data
     } finally {
       setIsReassigning(false);
     }
@@ -1058,7 +977,7 @@ export default function StudentsListPage() {
           }))}
         onUploadComplete={() => {
           setShowPhotoUploadModal(false);
-          toast.success('Photos uploaded successfully');
+          showToast('success', 'Photos uploaded successfully');
           fetchStudents();
         }}
       />

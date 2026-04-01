@@ -13,7 +13,8 @@ import {
   XCircle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 interface NotificationsDropdownProps {
   userId: number;
@@ -105,7 +106,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
       }
     } catch (error) {
       console.error('Error loading more notifications:', error);
-      toast.error('Failed to load more notifications');
+      showToast('error', 'Failed to load more notifications');
     } finally {
       setIsLoadingMore(false);
     }
@@ -114,69 +115,54 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
   // Mark as read
   const markAsRead = async (notificationIds: number[]) => {
     try {
-      const response = await fetch('/api/notifications/mark-read', {
+      await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: notificationIds, user_id: userId })
+        body: JSON.stringify({ ids: notificationIds, user_id: userId }),
+        successMessage: 'Marked as read',
       });
 
-      if (response.ok) {
-        // Update local state
-        setAllNotifications(prev => 
-          prev.map(notif => 
-            notificationIds.includes(notif.id) 
-              ? { ...notif, is_read: true }
-              : notif
-          )
-        );
-        
-        // Update parent unread count
-        const unreadCount = notificationIds.filter(id => {
-          const notif = allNotifications.find(n => n.id === id);
-          return notif && !notif.is_read;
-        }).length;
-        
-        onNotificationRead(unreadCount);
-        toast.success('Marked as read');
-      } else {
-        toast.error('Failed to mark as read');
-      }
+      setAllNotifications(prev => 
+        prev.map(notif => 
+          notificationIds.includes(notif.id) 
+            ? { ...notif, is_read: true }
+            : notif
+        )
+      );
+      
+      const unreadCount = notificationIds.filter(id => {
+        const notif = allNotifications.find(n => n.id === id);
+        return notif && !notif.is_read;
+      }).length;
+      
+      onNotificationRead(unreadCount);
     } catch (error) {
-      console.error('Error marking as read:', error);
-      toast.error('Failed to mark as read');
+      // apiFetch already showed error toast
     }
   };
 
   // Archive notifications
   const archiveNotifications = async (notificationIds: number[]) => {
     try {
-      const response = await fetch('/api/notifications/archive', {
+      await apiFetch('/api/notifications/archive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: notificationIds, user_id: userId })
+        body: JSON.stringify({ ids: notificationIds, user_id: userId }),
+        successMessage: 'Notifications archived',
       });
 
-      if (response.ok) {
-        // Remove from local state
-        setAllNotifications(prev => 
-          prev.filter(notif => !notificationIds.includes(notif.id))
-        );
-        
-        // Update parent unread count for any unread items being archived
-        const unreadCount = notificationIds.filter(id => {
-          const notif = allNotifications.find(n => n.id === id);
-          return notif && !notif.is_read;
-        }).length;
-        
-        onNotificationRead(unreadCount);
-        
-        toast.success('Notifications archived');
-      } else {
-        toast.error('Failed to archive');
-      }
+      setAllNotifications(prev => 
+        prev.filter(notif => !notificationIds.includes(notif.id))
+      );
+      
+      const unreadCount = notificationIds.filter(id => {
+        const notif = allNotifications.find(n => n.id === id);
+        return notif && !notif.is_read;
+      }).length;
+      
+      onNotificationRead(unreadCount);
     } catch (error) {
-      console.error('Error archiving:', error);
-      toast.error('Failed to archive');
+      // apiFetch already showed error toast
     }
   };
 

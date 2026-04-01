@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const API = '/api/finance/ledger';
 interface Entry { id:number; wallet_id:number; wallet_name?:string; category_id:number; tx_type:string; amount:number; reference:string; description:string; created_at:string; }
@@ -26,9 +28,10 @@ export default function LedgerPage(){
 
   const submit=async()=>{
     if(!form.wallet_id||!form.category_id||!form.amount) return setMessage('Wallet, category, amount required');
-    const res=await fetch(API,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...form, amount: parseFloat(form.amount) })});
-    const d=await res.json();
-    if(d.error) setMessage(d.error); else { setMessage('Entry added'); setForm({ wallet_id:'', category_id:'', tx_type:'credit', amount:'', reference:'', description:''}); load(); }
+    try {
+      await apiFetch(API,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...form, amount: parseFloat(form.amount) }), successMessage: 'Entry added' });
+      setForm({ wallet_id:'', category_id:'', tx_type:'credit', amount:'', reference:'', description:''}); load();
+    } catch(e: any) { setMessage(e.message || 'Failed'); }
   };
 
   const doPrint=()=>{

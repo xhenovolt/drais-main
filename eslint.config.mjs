@@ -36,6 +36,30 @@ const eslintConfig = [
       "@typescript-eslint/no-unused-vars": "warn",
       "react-hooks/exhaustive-deps": "warn",
       "@next/next/no-img-element": "warn",
+
+      // Ban direct fetch() in client code — use apiFetch from @/lib/apiClient
+      "no-restricted-globals": [
+        "warn",
+        {
+          name: "fetch",
+          message: "Use apiFetch() from '@/lib/apiClient' instead of raw fetch().",
+        },
+      ],
+    },
+  },
+  {
+    // Allow raw fetch in server-side code and the apiClient itself
+    files: [
+      "src/lib/apiClient.ts",
+      "src/app/api/**/*.ts",
+      "src/lib/**/*.ts",
+      "src/services/**/*.ts",
+      "src/middleware/**/*.ts",
+      "src/workers/**/*.ts",
+      "src/cron/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-globals": "off",
     },
   },
 ];

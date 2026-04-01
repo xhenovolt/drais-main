@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import useSWR from "swr";
 import { Plus, Trash } from "lucide-react";
-import Swal from "sweetalert2";
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const API_BASE = "/api/inventory";
 
@@ -23,57 +24,44 @@ const ItemsPage: React.FC = () => {
   console.log("Stores Data:", storesData); // Debug log for stores data
 
   const handleDelete = async (id: number) => {
-    const confirm = await Swal.fire({
-      title: "Are you sure?",
-      text: "You are about to delete this item. This action cannot be undone!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel",
-    });
+    const confirmed = await confirmAction(
+      'Are you sure?',
+      'You are about to delete this item. This action cannot be undone!',
+      'Yes, delete it!'
+    );
 
-    if (confirm.isConfirmed) {
+    if (confirmed) {
       try {
-        const response = await fetch(`${API_BASE}/items/${id}`, {
+        await apiFetch(`${API_BASE}/items/${id}`, {
           method: "DELETE",
+          successMessage: 'Item has been deleted.',
         });
-        const result = await response.json();
-        if (result.success) {
-          Swal.fire("Deleted!", "Item has been deleted.", "success");
-          mutateItems();
-        } else {
-          Swal.fire("Error!", "Failed to delete item.", "error");
-        }
+        mutateItems();
       } catch (error) {
-        Swal.fire("Error!", "An unexpected error occurred.", "error");
+        // apiFetch already showed error toast
       }
     }
   };
 
   const handleAddItem = async () => {
     try {
-      const response = await fetch(`${API_BASE}/items`, {
+      await apiFetch(`${API_BASE}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        successMessage: 'Item added successfully.',
       });
-      const result = await response.json();
-      if (result.success) {
-        Swal.fire("Success!", "Item added successfully.", "success");
-        mutateItems();
-        setIsModalOpen(false);
-        setFormData({
-          store_id: "",
-          name: "",
-          unit: "",
-          capacity: "",
-          reorder_level: "",
-        });
-      } else {
-        Swal.fire("Error!", "Failed to add item.", "error");
-      }
+      mutateItems();
+      setIsModalOpen(false);
+      setFormData({
+        store_id: "",
+        name: "",
+        unit: "",
+        capacity: "",
+        reorder_level: "",
+      });
     } catch (error) {
-      Swal.fire("Error!", "An unexpected error occurred.", "error");
+      // apiFetch already showed error toast
     }
   };
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { ok, fail } from '@/lib/apiResponse';
 
 export async function GET(req: NextRequest) {
   let connection;
@@ -11,16 +12,14 @@ export async function GET(req: NextRequest) {
     // Enforce multi-tenant isolation: derive school_id from session
     session = await getSessionSchoolId(req);
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
+      return fail('Not authenticated', 401);
     }
     const schoolId = session.schoolId;
-
-    const { searchParams } = new URL(req.url);
-    // schoolId derived from session below
 
     connection = await getConnection();
 
     // Get all staff with basic information, including device_user_id
+    // JOIN via zk_user_mapping (has staff_id), NOT device_user_mappings (no staff_id)
     const [staffRows] = await connection.execute(`
       SELECT
         s.id,
@@ -37,22 +36,17 @@ export async function GET(req: NextRequest) {
         p.photo_url,
         p.address,
         p.date_of_birth,
-        dum.device_user_id,
-        dum.id as device_mapping_id,
-        bd.device_name,
-        bd.id as device_id
+        zum.device_user_id,
+        zum.id as device_mapping_id,
+        zum.device_sn
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      LEFT JOIN device_user_mappings dum ON dum.staff_id = s.id AND dum.school_id = s.school_id
-      LEFT JOIN biometric_devices bd ON dum.device_id = bd.id
+      LEFT JOIN zk_user_mapping zum ON zum.staff_id = s.id AND zum.school_id = s.school_id AND zum.user_type = 'staff'
       WHERE s.school_id = ? AND s.deleted_at IS NULL
       ORDER BY p.first_name, p.last_name
     `, [schoolId]);
 
-    return NextResponse.json({
-      success: true,
-      data: staffRows
-    });
+    return ok('Staff fetched successfully', staffRows);
 
   } catch (error: any) {
     console.error('Staff full fetch error:', error);
@@ -66,11 +60,7 @@ export async function GET(req: NextRequest) {
         details: { error: error.message || 'Unknown error' },
       });
     } catch {} // Don't let audit failure mask the original error
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to fetch staff data',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    }, { status: 500 });
+    return fail('Failed to fetch staff data', 500, { message: error.message });
   } finally {
     if (connection) await connection.end();
   }

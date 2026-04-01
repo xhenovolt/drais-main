@@ -17,8 +17,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
-import { toast } from 'react-hot-toast';
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
 import WalletModal from '@/components/finance/WalletModal';
 
@@ -49,7 +49,6 @@ const WalletsPage: React.FC = () => {
   // Fetch wallets
   const { data: walletsData, isLoading, mutate } = useSWR(
     `/api/finance/wallets?school_id=${schoolId}`,
-    fetcher,
     { refreshInterval: 30000 }
   );
 
@@ -101,21 +100,16 @@ const WalletsPage: React.FC = () => {
   };
 
   const handleDeleteWallet = async (wallet: WalletData) => {
-    if (!confirm(`Are you sure you want to delete ${wallet.name}?`)) return;
+    if (!await confirmAction(`Delete ${wallet.name}?`, 'This action cannot be undone.', 'Delete')) return;
 
     try {
-      const response = await fetch(`/api/finance/wallets/${wallet.id}`, {
-        method: 'DELETE'
+      await apiFetch(`/api/finance/wallets/${wallet.id}`, {
+        method: 'DELETE',
+        successMessage: 'Wallet deleted successfully',
       });
-
-      if (response.ok) {
-        toast.success('Wallet deleted successfully');
-        mutate();
-      } else {
-        toast.error('Failed to delete wallet');
-      }
+      mutate();
     } catch (error) {
-      toast.error('An error occurred');
+      // apiFetch already showed error toast
     }
   };
 

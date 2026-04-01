@@ -8,6 +8,9 @@ import {
   Key, X, CheckSquare, Square, Loader2, Pencil, Trash2,
 } from 'lucide-react';
 
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
+
 interface Role {
   id: number;
   name: string;
@@ -58,13 +61,10 @@ export default function AdminRolesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [rRes, pRes] = await Promise.all([
-        fetch('/api/admin/roles'),
-        fetch('/api/admin/permissions'),
+      const [rData, pData] = await Promise.all([
+        apiFetch<{ roles: Role[] }>('/api/admin/roles', { silent: true }),
+        apiFetch<{ permissions: Record<string, Permission[]> }>('/api/admin/permissions', { silent: true }),
       ]);
-      const rData = await rRes.json();
-      const pData = await pRes.json();
-      if (!rRes.ok) throw new Error(rData.error ?? 'Failed to load roles');
       setRoles(rData.roles ?? []);
       setAllPerms(pData.permissions ?? {});
     } catch (e: any) { setError(e.message); }
@@ -77,9 +77,7 @@ export default function AdminRolesPage() {
     setLoadingDetail(true);
     setPermsDirty(false);
     try {
-      const res  = await fetch(`/api/admin/roles/${role.id}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await apiFetch<{ role: RoleDetail }>(`/api/admin/roles/${role.id}`, { silent: true });
       setSelected(data.role);
       setPendingPerms(new Set((data.role.permissions ?? []).map((p: Permission) => p.id)));
     } catch (e: any) { setError(e instanceof Error ? e.message : 'Error loading role'); }
@@ -100,12 +98,12 @@ export default function AdminRolesPage() {
     if (!selected) return;
     setSavingPerms(true);
     try {
-      const res = await fetch(`/api/admin/roles/${selected.id}?action=set_permissions`, {
+      await apiFetch(`/api/admin/roles/${selected.id}?action=set_permissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ permission_ids: Array.from(pendingPerms) }),
+        successMessage: 'Permissions saved',
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       setPermsDirty(false);
       loadRoles();
     } catch (e: any) { setError(e.message); }
@@ -113,10 +111,15 @@ export default function AdminRolesPage() {
   }
 
   async function deleteRole(role: Role) {
-    if (!confirm(`Delete role "${role.name}"? This cannot be undone.`)) return;
-    const res = await fetch(`/api/admin/roles/${role.id}`, { method: 'DELETE' });
-    if (res.ok) { if (selected?.id === role.id) setSelected(null); loadRoles(); }
-    else { const d = await res.json(); alert(d.error ?? 'Delete failed'); }
+    if (!await confirmAction(`Delete role "${role.name}"?`, 'This cannot be undone.', 'Delete')) return;
+    try {
+      await apiFetch(`/api/admin/roles/${role.id}`, {
+        method: 'DELETE',
+        successMessage: 'Role deleted',
+      });
+      if (selected?.id === role.id) setSelected(null);
+      loadRoles();
+    } catch (e: any) { showToast('error', e.message ?? 'Delete failed'); }
   }
 
   const modules = Object.keys(allPerms);

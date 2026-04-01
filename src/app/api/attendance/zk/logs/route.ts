@@ -90,8 +90,8 @@ export async function GET(req: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[ZK Logs] Error:', err);
-    return NextResponse.json({ error: 'Failed to load logs' }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to load ZK logs', error: err?.message }, { status: 500 });
   }
 }

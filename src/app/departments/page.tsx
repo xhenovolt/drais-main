@@ -15,8 +15,8 @@ import {
   Filter
 } from 'lucide-react';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
-import { toast } from 'react-hot-toast';
+import { apiFetch } from '@/lib/apiClient';
+import { showToast, confirmAction } from '@/lib/toast';
 import NewBadge from '@/components/ui/NewBadge';
 
 interface Department {
@@ -42,7 +42,6 @@ const DepartmentsPage: React.FC = () => {
   // Fetch departments
   const { data: departmentsData, isLoading, mutate } = useSWR(
     `/api/departments?school_id=${schoolId}`,
-    fetcher,
     { refreshInterval: 30000 }
   );
 
@@ -61,23 +60,18 @@ const DepartmentsPage: React.FC = () => {
   };
 
   const handleDelete = async (department: Department) => {
-    if (!confirm(`Are you sure you want to delete ${department.name}?`)) return;
+    const confirmed = await confirmAction('Delete Department', `Are you sure you want to delete ${department.name}?`, 'Yes, delete');
+    if (!confirmed) return;
 
     try {
-      const response = await fetch('/api/departments', {
+      await apiFetch('/api/departments', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: department.id })
       });
-
-      if (response.ok) {
-        toast.success('Department deleted successfully');
-        mutate();
-      } else {
-        toast.error('Failed to delete department');
-      }
+      mutate();
     } catch (error) {
-      toast.error('An error occurred');
+      // apiFetch already showed toast
     }
   };
 

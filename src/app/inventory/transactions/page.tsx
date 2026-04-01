@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import useSWR from "swr";
 import { Plus, Trash } from "lucide-react";
-import Swal from "sweetalert2";
+import { confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import clsx from "clsx";
 
 const API_BASE = "/api/inventory";
@@ -14,51 +15,38 @@ const TransactionsPage: React.FC = () => {
   const [formData, setFormData] = useState({ item_id: "", tx_type: "", quantity: "", reference: "" });
 
   const handleDelete = async (id: number) => {
-    const confirm = await Swal.fire({
-      title: "Are you sure?",
-      text: "You are about to delete this transaction. This action cannot be undone!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel",
-    });
+    const confirmed = await confirmAction(
+      'Are you sure?',
+      'You are about to delete this transaction. This action cannot be undone!',
+      'Yes, delete it!'
+    );
 
-    if (confirm.isConfirmed) {
+    if (confirmed) {
       try {
-        const response = await fetch(`${API_BASE}/transactions/${id}`, {
+        await apiFetch(`${API_BASE}/transactions/${id}`, {
           method: "DELETE",
+          successMessage: 'Transaction has been deleted.',
         });
-        const result = await response.json();
-        if (result.success) {
-          Swal.fire("Deleted!", "Transaction has been deleted.", "success");
-          mutateTransactions();
-        } else {
-          Swal.fire("Error!", "Failed to delete transaction.", "error");
-        }
+        mutateTransactions();
       } catch (error) {
-        Swal.fire("Error!", "An unexpected error occurred.", "error");
+        // apiFetch already showed error toast
       }
     }
   };
 
   const handleAddTransaction = async () => {
     try {
-      const response = await fetch(`${API_BASE}/transactions`, {
+      await apiFetch(`${API_BASE}/transactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        successMessage: 'Transaction added successfully.',
       });
-      const result = await response.json();
-      if (result.success) {
-        Swal.fire("Success!", "Transaction added successfully.", "success");
-        mutateTransactions();
-        setIsModalOpen(false);
-        setFormData({ item_id: "", tx_type: "", quantity: "", reference: "" });
-      } else {
-        Swal.fire("Error!", "Failed to add transaction.", "error");
-      }
+      mutateTransactions();
+      setIsModalOpen(false);
+      setFormData({ item_id: "", tx_type: "", quantity: "", reference: "" });
     } catch (error) {
-      Swal.fire("Error!", "An unexpected error occurred.", "error");
+      // apiFetch already showed error toast
     }
   };
 

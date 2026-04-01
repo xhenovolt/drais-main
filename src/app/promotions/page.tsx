@@ -13,10 +13,10 @@ import {
   ChevronRight
 } from 'lucide-react';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api';
-const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 interface Student {
   id: number;
@@ -89,13 +89,13 @@ const PromotionsPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
 
   // Fetch academic years
-  const { data: yearsData } = useSWR(`${API_BASE}/academic_years`, fetcher, {
+  const { data: yearsData } = useSWR(`${API_BASE}/academic_years`, {
     revalidateOnFocus: false
   });
   const years = yearsData?.data || [];
 
   // Fetch classes
-  const { data: classesData } = useSWR(`${API_BASE}/classes`, fetcher, {
+  const { data: classesData } = useSWR(`${API_BASE}/classes`, {
     revalidateOnFocus: false
   });
   const classes = classesData?.data || [];
@@ -107,7 +107,6 @@ const PromotionsPage: React.FC = () => {
   
   const { data: studentsData, isLoading: isFetchingStudents, mutate } = useSWR(
     `${API_BASE}/promotions?${queryParams.toString()}`,
-    fetcher,
     { 
       revalidateOnFocus: false,
       revalidateOnReconnect: false
@@ -151,7 +150,7 @@ const PromotionsPage: React.FC = () => {
     if (!student) return;
 
     try {
-      const response = await fetch(`${API_BASE}/promotions`, {
+      await apiFetch(`${API_BASE}/promotions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,23 +160,14 @@ const PromotionsPage: React.FC = () => {
           from_academic_year_id: academicYearId,
           to_academic_year_id: academicYearId,
           promotion_status: 'promoted',
-          promoted_by: 1 // TODO: Get from session
-        })
+          promoted_by: 1
+        }),
+        successMessage: `${student.first_name} ${student.last_name} promoted successfully`,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.details || data.error || 'Failed to promote student');
-      }
-
-      // Get the new class name from the classes data
       const newClass = classes?.find(c => c.id === toClassId);
       const newClassName = newClass?.name || `Class ${toClassId}`;
 
-      toast.success(`${student.first_name} ${student.last_name} promoted successfully`);
-      
-      // Update the student's class immediately in local state
       setStudents(prev => 
         prev.map(s => 
           s.id === studentId 
@@ -191,15 +181,13 @@ const PromotionsPage: React.FC = () => {
         )
       );
       
-      // Revalidate data from API after a short delay to ensure consistency
       setTimeout(() => {
         mutate();
       }, 500);
       
       setSelectedStudents(new Set());
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to promote student';
-      toast.error(errorMessage);
+      // apiFetch already showed error toast
       console.error(error);
     }
   };
@@ -209,7 +197,7 @@ const PromotionsPage: React.FC = () => {
     if (!student) return;
 
     try {
-      const response = await fetch(`${API_BASE}/promotions`, {
+      await apiFetch(`${API_BASE}/promotions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,15 +208,10 @@ const PromotionsPage: React.FC = () => {
           to_academic_year_id: academicYearId,
           promotion_status: 'not_promoted',
           promoted_by: 1
-        })
+        }),
+        successMessage: `${student.first_name} ${student.last_name} marked as not promoted`,
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.details || data.error || 'Failed to mark as not promoted');
-
-      toast.success(`${student.first_name} ${student.last_name} marked as not promoted`);
-      
-      // Update student status in local state
       setStudents(prev => 
         prev.map(s => 
           s.id === studentId 
@@ -243,21 +226,20 @@ const PromotionsPage: React.FC = () => {
       
       setSelectedStudents(new Set());
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to mark as not promoted';
-      toast.error(errorMessage);
+      // apiFetch already showed error toast
       console.error(error);
     }
   };
 
   const handleBulkPromote = async () => {
     if (!academicYearId || !classFilter) {
-      toast.error('Please select academic year and class');
+      showToast('error', 'Please select academic year and class');
       return;
     }
 
     setBulkProcessing(true);
     try {
-      const response = await fetch(`${API_BASE}/promotions/bulk`, {
+      const result = await apiFetch<{ promoted_count: number; not_promoted_count: number }>(`${API_BASE}/promotions/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -265,16 +247,12 @@ const PromotionsPage: React.FC = () => {
           from_class_id: classFilter,
           criteria,
           promoted_by: 1
-        })
+        }),
+        successMessage: 'Bulk promotions processed',
       });
-
-      if (!response.ok) throw new Error('Failed to process bulk promotions');
-
-      const result = await response.json();
-      toast.success(`${result.promoted_count} students promoted, ${result.not_promoted_count} not promoted`);
       mutate();
     } catch (error) {
-      toast.error('Failed to process bulk promotions');
+      // apiFetch already showed error toast
       console.error(error);
     } finally {
       setBulkProcessing(false);

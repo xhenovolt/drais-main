@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error(`[Device Logs API] GET error: ${error.message}`);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to load device logs', error: error.message }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }
@@ -108,14 +108,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
 
     const requestData = await req.json();
     // schoolId from session auth (above)
 
     if (!schoolId) {
-      return NextResponse.json({ success: false, error: 'School ID required' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'School ID required' }, { status: 400 });
     }
 
     // TODO: Implement pulling fresh logs from device
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error(`[Device Logs API] POST error: ${error.message}`);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to sync device logs', error: error.message }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }

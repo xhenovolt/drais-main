@@ -6,7 +6,8 @@ import {
   Heart, Fingerprint, Send, AlertTriangle, X, Trash2, Eye, Zap,
 } from 'lucide-react';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -63,15 +64,15 @@ export default function SystemLogsPage() {
   const offlineDevices: any[] = data?.offline_devices || [];
 
   const handleCleanup = async () => {
-    if (!confirm('Delete heartbeat logs older than 7 days?')) return;
+    if (!await confirmAction('Clean up old logs?', 'Delete heartbeat logs older than 7 days?', 'Delete')) return;
     try {
-      const res = await fetch('/api/attendance/system-logs', { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      toast.success(json.message);
+      await apiFetch('/api/attendance/system-logs', {
+        method: 'DELETE',
+        successMessage: 'Old logs cleaned up',
+      });
       mutate();
     } catch (err: any) {
-      toast.error(err.message || 'Cleanup failed');
+      // apiFetch already showed error toast
     }
   };
 

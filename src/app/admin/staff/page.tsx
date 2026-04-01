@@ -11,6 +11,9 @@ import {
   MoreVertical, Eye, Pencil, Trash2, UserPlus,
 } from 'lucide-react';
 
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
+
 interface StaffMember {
   id: number;
   staff_no: string;
@@ -60,9 +63,7 @@ export default function AdminStaffPage() {
       const params = new URLSearchParams({ limit: '200' });
       if (search)      params.set('search', search);
       if (statusFilter) params.set('status', statusFilter);
-      const res  = await fetch(`/api/admin/staff?${params}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load staff');
+      const data = await apiFetch<{ staff: StaffMember[] }>(`/api/admin/staff?${params}`, { silent: true });
       setStaff(data.staff ?? []);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
@@ -74,15 +75,14 @@ export default function AdminStaffPage() {
     setActionLoading(true);
     setActionError(null);
     try {
-      const res = await fetch(`/api/admin/staff/${s.id}/account`, {
+      const data = await apiFetch<{ temp_password?: string }>(`/api/admin/staff/${s.id}/account`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
+        successMessage: `Account action '${action}' completed`,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Action failed');
       if (data.temp_password) {
-        alert(`Password reset successful!\n\nTemporary password: ${data.temp_password}\n\nUser must change password on next login.`);
+        showToast('info', `Temporary password: ${data.temp_password}`);
       }
       setModal(null);
       fetchStaff();
@@ -94,14 +94,13 @@ export default function AdminStaffPage() {
     setActionLoading(true);
     setActionError(null);
     try {
-      const res = await fetch(`/api/admin/staff/${s.id}/account`, {
+      const data = await apiFetch<{ temp_password: string }>(`/api/admin/staff/${s.id}/account`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username }),
+        successMessage: `Account created for ${username}`,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create account');
-      alert(`Account created!\n\nUsername: ${username}\nTemporary password: ${data.temp_password}\n\nUser must change password on first login.`);
+      showToast('info', `Temporary password: ${data.temp_password}`);
       setModal(null);
       fetchStaff();
     } catch (e: any) { setActionError(e.message); }
@@ -109,14 +108,18 @@ export default function AdminStaffPage() {
   }
 
   async function suspendStaff(s: StaffMember) {
-    if (!confirm(`${s.status === 'suspended' ? 'Reactivate' : 'Suspend'} ${s.first_name} ${s.last_name}?`)) return;
+    const label = s.status === 'suspended' ? 'Reactivate' : 'Suspend';
+    if (!await confirmAction(`${label} ${s.first_name} ${s.last_name}?`, '', label)) return;
     const newStatus = s.status === 'suspended' ? 'active' : 'suspended';
-    const res = await fetch(`/api/admin/staff/${s.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    if (res.ok) fetchStaff();
+    try {
+      await apiFetch(`/api/admin/staff/${s.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+        successMessage: `Staff ${newStatus === 'active' ? 'reactivated' : 'suspended'}`,
+      });
+      fetchStaff();
+    } catch (e) { /* apiFetch showed error toast */ }
   }
 
   return (

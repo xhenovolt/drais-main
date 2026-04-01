@@ -6,9 +6,7 @@ import {
   CheckCircle, XCircle, Fingerprint, Download,
 } from 'lucide-react';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { showToast } from '@/lib/toast';
 
 const verifyLabel = (v: number | null) => {
   const map: Record<number, string> = { 0: 'Password', 1: 'Fingerprint', 2: 'Card', 15: 'Face' };
@@ -41,12 +39,11 @@ export default function DeviceLogsPage() {
 
   const { data, isLoading, mutate } = useSWR<any>(
     `/api/attendance/zk/logs?${params.toString()}`,
-    fetcher,
     { refreshInterval: 30000 },
   );
 
   // Fetch devices for filter dropdown — uses the unified devices API
-  const { data: devicesData } = useSWR<any>('/api/devices/list', fetcher);
+  const { data: devicesData } = useSWR<any>('/api/devices/list');
   const devices = devicesData?.data || [];
 
   const logs = data?.data || [];
@@ -65,7 +62,7 @@ export default function DeviceLogsPage() {
     a.href = URL.createObjectURL(blob);
     a.download = `device-logs-${dateFrom}-${dateTo}.csv`;
     a.click();
-    toast.success('Exported CSV');
+    showToast('success', 'Exported CSV');
   };
 
   return (

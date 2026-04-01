@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
-import { fetcher } from '@/utils/fetcher';
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import clsx from 'clsx';
 
 interface Role {
@@ -34,8 +34,7 @@ const RolesPage: React.FC = () => {
 
   // Fetch roles
   const { data: rolesData, mutate: refreshRoles } = useSWR(
-    '/api/roles/list',
-    fetcher
+    '/api/roles/list'
   );
 
   const roles: Role[] = (rolesData as any)?.data || [];
@@ -49,51 +48,33 @@ const RolesPage: React.FC = () => {
         : '/api/roles';
       const method = editingRole ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
           school_id: 1
-        })
+        }),
+        successMessage: editingRole ? 'Role updated successfully' : 'Role created successfully',
       });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(editingRole ? 'Role updated successfully' : 'Role created successfully');
-        setShowAddModal(false);
-        setEditingRole(null);
-        setFormData({ name: '', description: '' });
-        refreshRoles();
-      } else {
-        toast.error(data.error || 'Failed to save role');
-      }
+      setShowAddModal(false);
+      setEditingRole(null);
+      setFormData({ name: '', description: '' });
+      refreshRoles();
     } catch (error) {
-      toast.error('Failed to save role');
+      // apiFetch already showed toast
     }
   };
 
   const handleDelete = async (role: Role) => {
-    if (!confirm(`Are you sure you want to delete "${role.name}"?`)) {
-      return;
-    }
+    const confirmed = await confirmAction('Delete Role', `Are you sure you want to delete "${role.name}"?`, 'Yes, delete');
+    if (!confirmed) return;
 
     try {
-      const response = await fetch(`/api/roles/${role.id}`, {
-        method: 'DELETE'
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Role deleted successfully');
-        refreshRoles();
-      } else {
-        toast.error(data.error || 'Failed to delete role');
-      }
+      await apiFetch(`/api/roles/${role.id}`, { method: 'DELETE' });
+      refreshRoles();
     } catch (error) {
-      toast.error('Failed to delete role');
+      // apiFetch already showed toast
     }
   };
 

@@ -229,3 +229,17 @@ export class ApiErrorFactory {
     };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shorthand helpers — MANDATORY for all new/updated routes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Return a success response with message */
+export function ok(message: string, data?: any, status = 200) {
+  return NextResponse.json({ success: true, message, data }, { status });
+}
+
+/** Return an error response with message */
+export function fail(message: string, status = 400, error?: any) {
+  return NextResponse.json({ success: false, message, error }, { status });
+}

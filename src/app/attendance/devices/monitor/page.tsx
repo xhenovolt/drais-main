@@ -7,7 +7,8 @@ import {
   Activity, Wifi, WifiOff, Server, Clock, MapPin, Hash,
   ArrowUpDown, FileSearch, Fingerprint, Settings, Users, Loader, CheckCircle, AlertTriangle,
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -183,9 +184,9 @@ function DeviceCard({ device }: { device: Device }) {
         if (status === 'acknowledged' || status === 'failed' || status === 'expired' || status === 'idle') {
           setPolling(false);
           if (status === 'acknowledged') {
-            toast.success(`${json.member_count} members synced from ${device.device_name || device.sn}`);
+            showToast('success', `${json.member_count} members synced from ${device.device_name || device.sn}`);
           } else if (status === 'failed' || status === 'expired') {
-            toast.error('Member sync failed — device may be offline');
+            showToast('error', 'Member sync failed — device may be offline');
           }
         }
       } catch {
@@ -199,22 +200,13 @@ function DeviceCard({ device }: { device: Device }) {
     setSyncState('pending');
     setPolling(true);
     try {
-      const res = await fetch('/api/attendance/zk/devices/sync-members', {
+      await apiFetch('/api/attendance/zk/devices/sync-members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_sn: device.sn }),
+        successMessage: 'Member sync queued — waiting for heartbeat…',
       });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error || 'Failed to queue sync');
-        setSyncState('idle');
-        setPolling(false);
-        return;
-      }
-      setSyncState(json.status || 'pending');
-      toast.success('Member sync queued — waiting for heartbeat…');
     } catch (err: any) {
-      toast.error('Network error');
       setSyncState('idle');
       setPolling(false);
     }

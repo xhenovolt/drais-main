@@ -19,6 +19,11 @@ import dynamic from 'next/dynamic';
 import { MainLayout } from "@/components/layout/MainLayout";
 import HeartbeatProvider from '@/components/providers/HeartbeatProvider';
 import { ToastProvider } from '@/components/ui/Toast';
+import { Toaster } from 'react-hot-toast';
+import { SWRConfig } from 'swr';
+import { swrFetcher } from '@/lib/apiClient';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
 const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
@@ -192,7 +197,12 @@ export default function RootLayout({
                   <ThemeProvider>
                     <I18nProvider>
                       <ToastProvider>
-                        <LayoutContent>{children}</LayoutContent>
+                        <SWRConfig value={{ fetcher: swrFetcher, revalidateOnFocus: false, shouldRetryOnError: false }}>
+                          <ErrorBoundary>
+                            <LayoutContent>{children}</LayoutContent>
+                          </ErrorBoundary>
+                          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+                        </SWRConfig>
                       </ToastProvider>
                     </I18nProvider>
                   </ThemeProvider>

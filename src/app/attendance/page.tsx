@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Users, UserCheck, UserX, Clock, Fingerprint, Search, Filter, Download, Smartphone, Shield, Server } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
-import { fetcher } from '@/utils/fetcher';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import BiometricModal from '@/components/attendance/BiometricModal';
 import DeviceConnectionModal from '@/components/attendance/DeviceConnectionModal';
 import AttendanceCard from '@/components/attendance/AttendanceCard';
@@ -27,18 +27,16 @@ const AttendancePage: React.FC = () => {
   // Fetch attendance data
   const { data: attendanceData, mutate } = useSWR(
     `/api/attendance?date=${selectedDate}${selectedClass ? `&class_id=${selectedClass}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`,
-    fetcher,
     { refreshInterval: 30000 }
   );
 
   // Fetch classes
-  const { data: classData } = useSWR('/api/classes', fetcher);
+  const { data: classData } = useSWR('/api/classes');
   const classes = classData?.data || [];
 
   // Fetch stats
   const { data: statsData } = useSWR(
     `/api/attendance/stats?date=${selectedDate}${selectedClass ? `&class_id=${selectedClass}` : ''}`,
-    fetcher,
     { refreshInterval: 30000 }
   );
 
@@ -55,7 +53,7 @@ const AttendancePage: React.FC = () => {
     const newStatus = currentStatus === 'present' ? 'absent' : 'present';
     
     try {
-      const response = await fetch('/api/attendance', {
+      await apiFetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -63,15 +61,12 @@ const AttendancePage: React.FC = () => {
           date: selectedDate,
           status: newStatus,
           method: 'manual'
-        })
+        }),
+        successMessage: `Attendance updated to ${newStatus}`,
       });
-
-      if (response.ok) {
-        mutate();
-        toast.success(`Attendance updated to ${newStatus}`);
-      }
+      mutate();
     } catch (error) {
-      toast.error('Failed to update attendance');
+      // apiFetch already showed error toast
     }
   };
 

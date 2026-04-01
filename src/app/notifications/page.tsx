@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
 
 interface Notification {
@@ -46,8 +46,7 @@ const NotificationsPage: React.FC = () => {
 
   // Fetch notifications
   const { data, isLoading, mutate } = useSWR(
-    `/api/notifications/list?user_id=${userId}&filter=${filter}&limit=50${schoolId ? `&school_id=${schoolId}` : ''}`,
-    fetcher
+    `/api/notifications/list?user_id=${userId}&filter=${filter}&limit=50${schoolId ? `&school_id=${schoolId}` : ''}`
   );
 
   const notifications: Notification[] = data?.notifications || [];
@@ -78,40 +77,30 @@ const NotificationsPage: React.FC = () => {
   // Mark as read
   const markAsRead = async (notificationIds: number[]) => {
     try {
-      const response = await fetch('/api/notifications/mark-read', {
+      await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: notificationIds, user_id: userId })
+        body: JSON.stringify({ ids: notificationIds, user_id: userId }),
+        successMessage: 'Marked as read',
       });
-
-      if (response.ok) {
-        toast.success('Marked as read');
-        mutate();
-      } else {
-        toast.error('Failed to mark as read');
-      }
+      mutate();
     } catch (error) {
-      toast.error('Failed to mark as read');
+      // apiFetch already shows error toast
     }
   };
 
   // Archive notifications
   const archiveNotifications = async (notificationIds: number[]) => {
     try {
-      const response = await fetch('/api/notifications/archive', {
+      await apiFetch('/api/notifications/archive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: notificationIds, user_id: userId })
+        body: JSON.stringify({ ids: notificationIds, user_id: userId }),
+        successMessage: 'Notifications archived',
       });
-
-      if (response.ok) {
-        toast.success('Notifications archived');
-        mutate();
-      } else {
-        toast.error('Failed to archive');
-      }
+      mutate();
     } catch (error) {
-      toast.error('Failed to archive');
+      // apiFetch already shows error toast
     }
   };
 

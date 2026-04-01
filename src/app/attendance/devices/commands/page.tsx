@@ -6,7 +6,8 @@ import {
   RefreshCw, ChevronLeft, ChevronRight, Plus, Loader,
 } from 'lucide-react';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -57,24 +58,22 @@ export default function DeviceCommandsPage() {
 
   const sendCommand = async () => {
     if (!newCommand.device_sn || !newCommand.command) {
-      toast.error('Device and command are required');
+      showToast('error', 'Device and command are required');
       return;
     }
     setSending(true);
     try {
-      const res = await fetch('/api/attendance/zk/commands', {
+      const json = await apiFetch<{ id: number }>('/api/attendance/zk/commands', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCommand),
+        successMessage: 'Command queued',
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      toast.success(`Command queued (ID: ${json.id})`);
       setShowNewForm(false);
       setNewCommand({ device_sn: '', command: '', priority: 0, expires_in_hours: 24 });
       mutate();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to queue command');
+      // apiFetch already showed error toast
     } finally {
       setSending(false);
     }
@@ -82,13 +81,13 @@ export default function DeviceCommandsPage() {
 
   const cancelCommand = async (id: number) => {
     try {
-      const res = await fetch(`/api/attendance/zk/commands?id=${id}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      toast.success('Command cancelled');
+      await apiFetch(`/api/attendance/zk/commands?id=${id}`, {
+        method: 'DELETE',
+        successMessage: 'Command cancelled',
+      });
       mutate();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to cancel');
+      // apiFetch already showed error toast
     }
   };
 

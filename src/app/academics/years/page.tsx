@@ -6,7 +6,8 @@ import {
   ChevronDown, ChevronRight, Loader2, X, BookOpen,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(r => r.json());
 
@@ -37,19 +38,16 @@ function YearModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/academic_years', {
+      await apiFetch('/api/academic_years', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(form),
+        successMessage: 'Academic year created',
       });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Academic year created');
-        onSaved();
-      } else {
-        toast.error(data.error || 'Failed to create year');
-      }
+      onSaved();
+    } catch {
+      // apiFetch already showed toast
     } finally {
       setSaving(false);
     }
@@ -117,19 +115,16 @@ function TermModal({ yearId, yearName, onClose, onSaved }: { yearId: number; yea
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/terms', {
+      await apiFetch('/api/terms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ ...form, academic_year_id: yearId }),
+        successMessage: 'Term created',
       });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Term created');
-        onSaved();
-      } else {
-        toast.error(data.error || 'Failed to create term');
-      }
+      onSaved();
+    } catch {
+      // apiFetch already showed toast
     } finally {
       setSaving(false);
     }
@@ -247,17 +242,17 @@ export default function AcademicYearsPage() {
     if (year.status === 'active') return;
     const confirmed = window.confirm(`Set "${year.name}" as the active academic year?`);
     if (!confirmed) return;
-    const res = await fetch(`/api/academic_years/${year.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ status: 'active' }),
-    });
-    if (res.ok) {
-      toast.success(`${year.name} is now active`);
+    try {
+      await apiFetch(`/api/academic_years/${year.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'active' }),
+        successMessage: `${year.name} is now active`,
+      });
       mutateYears();
-    } else {
-      toast.error('Failed to update year status');
+    } catch {
+      // apiFetch already showed toast
     }
   }
 

@@ -5,9 +5,9 @@ import {
   X, Upload, User, Briefcase, Building, CreditCard, 
   UserCog, Camera, FileText, Eye, EyeOff 
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
+import { apiFetch } from '@/lib/apiClient';
 import { useDropzone } from 'react-dropzone';
 
 interface AddStaffModalProps {
@@ -66,8 +66,8 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch dropdown data
-  const { data: departmentsData } = useSWR('/api/departments/list', fetcher);
-  const { data: rolesData } = useSWR('/api/roles/list', fetcher);
+  const { data: departmentsData } = useSWR('/api/departments/list');
+  const { data: rolesData } = useSWR('/api/roles/list');
 
   const departments = departmentsData?.data || [];
   const roles = rolesData?.data || [];
@@ -167,43 +167,18 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
         submitData.append(`document_${key}`, file);
       });
 
-      const response = await fetch('/api/staff/add', {
+      const result = await apiFetch<{ message?: string }>('/api/staff/add', {
         method: 'POST',
-        body: submitData
+        body: submitData,
+        successMessage: 'Staff member added successfully!',
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success('✅ ' + (result.data?.message || 'Staff member added successfully!'));
-        onSuccess();
-        onClose();
-        resetForm();
-      } else {
-        // Extract error message from structured response
-        const errorMessage = result.error?.message || result.error || 'Failed to add staff member';
-        const errorCode = result.error?.code;
-        
-        // Show detailed error message
-        const fullError = errorCode 
-          ? `❌ ${errorMessage} (${errorCode})` 
-          : `❌ ${errorMessage}`;
-        
-        toast.error(fullError, {
-          duration: 5000, // Show error for longer
-        });
-
-        // Log detailed error for debugging
-        console.error('Staff creation error:', {
-          errorCode,
-          message: errorMessage,
-          fullResponse: result
-        });
-      }
+      onSuccess();
+      onClose();
+      resetForm();
     } catch (error) {
+      // apiFetch already shows error toast
       console.error('Submit error:', error);
-      const errorMsg = error instanceof Error ? error.message : 'An unknown error occurred';
-      toast.error(`❌ Network error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }

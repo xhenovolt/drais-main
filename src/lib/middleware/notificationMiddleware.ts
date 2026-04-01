@@ -45,7 +45,10 @@ export class NotificationMiddleware {
 
       // Try template-based notification first
       if (context.action) {
-        await this.notificationService.autoLog(req, context);
+        await this.notificationService.autoLog(req, {
+          ...context,
+          action: context.action,
+        });
       }
 
       // Fallback to direct notification if title/message provided

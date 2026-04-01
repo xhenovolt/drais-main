@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
-import { toast } from 'react-hot-toast';
+import { apiFetch } from '@/lib/apiClient';
+import { showToast } from '@/lib/toast';
 import { format } from 'date-fns';
 
 const StaffAttendancePage: React.FC = () => {
@@ -31,15 +31,14 @@ const StaffAttendancePage: React.FC = () => {
 
   // Fetch attendance data
   const { data: attendanceData, isLoading, mutate } = useSWR(
-    `/api/staff/attendance?date=${selectedDate}${selectedDepartment ? `&department_id=${selectedDepartment}` : ''}${selectedStatus ? `&status=${selectedStatus}` : ''}`,
-    fetcher
+    `/api/staff/attendance?date=${selectedDate}${selectedDepartment ? `&department_id=${selectedDepartment}` : ''}${selectedStatus ? `&status=${selectedStatus}` : ''}`
   );
 
   // Fetch departments
-  const { data: departmentsData } = useSWR('/api/departments', fetcher);
+  const { data: departmentsData } = useSWR('/api/departments');
 
   // Fetch staff list
-  const { data: staffData } = useSWR('/api/staff/list', fetcher);
+  const { data: staffData } = useSWR('/api/staff/list');
 
   const attendanceRecords = attendanceData?.data || [];
   const departments = departmentsData?.data || [];
@@ -61,7 +60,7 @@ const StaffAttendancePage: React.FC = () => {
   // Handle bulk actions
   const handleBulkAction = async () => {
     if (selectedStaff.length === 0 || !bulkAction) {
-      toast.error('Please select staff and action');
+      showToast('error', 'Please select staff and action');
       return;
     }
 
@@ -73,30 +72,25 @@ const StaffAttendancePage: React.FC = () => {
         notes: `Bulk marked as ${bulkAction}`
       }));
 
-      const response = await fetch('/api/staff/attendance', {
+      await apiFetch('/api/staff/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bulk_data: bulkData })
+        body: JSON.stringify({ bulk_data: bulkData }),
+        successMessage: `${selectedStaff.length} staff marked as ${bulkAction}`,
       });
-
-      if (response.ok) {
-        toast.success(`${selectedStaff.length} staff marked as ${bulkAction}`);
-        setSelectedStaff([]);
-        setBulkAction('');
-        setShowBulkModal(false);
-        mutate();
-      } else {
-        toast.error('Failed to update attendance');
-      }
+      setSelectedStaff([]);
+      setBulkAction('');
+      setShowBulkModal(false);
+      mutate();
     } catch (error) {
-      toast.error('An error occurred');
+      // apiFetch already showed toast
     }
   };
 
   // Handle individual attendance update
   const updateAttendance = async (staffId: number, status: string) => {
     try {
-      const response = await fetch('/api/staff/attendance', {
+      await apiFetch('/api/staff/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,17 +98,12 @@ const StaffAttendancePage: React.FC = () => {
           date: selectedDate,
           status: status,
           time_in: status === 'present' ? '08:00' : null
-        })
+        }),
+        successMessage: 'Attendance updated',
       });
-
-      if (response.ok) {
-        toast.success('Attendance updated');
-        mutate();
-      } else {
-        toast.error('Failed to update attendance');
-      }
+      mutate();
     } catch (error) {
-      toast.error('An error occurred');
+      // apiFetch already showed toast
     }
   };
 

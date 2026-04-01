@@ -3,10 +3,11 @@ import React, { Fragment, useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { Tab, Dialog, Transition } from '@headlessui/react';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import { t } from '@/lib/i18n';
 
 const API_BASE = '/api';
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
 interface Curriculum {
   id: number;
@@ -291,9 +292,9 @@ function ClassModal({ open, onClose, onSave, edit, curriculums, teachers }: { op
 
 export default function ClassesCurriculumsPage() {
   // Defensive data parsing
-  const currSWR = useSWR(`${API_BASE}/curriculums`, fetcher);
-  const classSWR = useSWR(`${API_BASE}/classes`, fetcher);
-  const teacherSWR = useSWR(`${API_BASE}/teachers`, fetcher);
+  const currSWR = useSWR(`${API_BASE}/curriculums`);
+  const classSWR = useSWR(`${API_BASE}/classes`);
+  const teacherSWR = useSWR(`${API_BASE}/teachers`);
   const rawCurr = currSWR.data;
   const rawClass = classSWR.data;
   const rawTeachers = teacherSWR.data;
@@ -307,32 +308,54 @@ export default function ClassesCurriculumsPage() {
   const [tabIndex, setTabIndex] = useState(0);
 
   const saveCurriculum = async (v: Partial<Curriculum>) => {
-    if (currModal.edit) {
-      await fetch(`${API_BASE}/curriculums`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: currModal.edit.id, ...v }) });
-    } else {
-      await fetch(`${API_BASE}/curriculums`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
-    }
-    setCurrModal({ open: false });
-    currSWR.mutate();
+    const isEdit = !!currModal.edit;
+    try {
+      await apiFetch(`${API_BASE}/curriculums`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isEdit ? { id: currModal.edit!.id, ...v } : v),
+        successMessage: isEdit ? 'Curriculum updated' : 'Curriculum created',
+      });
+      setCurrModal({ open: false });
+      currSWR.mutate();
+    } catch (e) { /* apiFetch showed error toast */ }
   };
   const deleteCurr = async (id: number) => {
-    if (!confirm('Delete curriculum?')) return;
-    await fetch(`${API_BASE}/curriculums`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    currSWR.mutate();
+    if (!await confirmAction('Delete curriculum?', 'This action cannot be undone.', 'Delete')) return;
+    try {
+      await apiFetch(`${API_BASE}/curriculums`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+        successMessage: 'Curriculum deleted',
+      });
+      currSWR.mutate();
+    } catch (e) { /* apiFetch showed error toast */ }
   };
   const saveClass = async (v: Partial<ClassRec>) => {
-    if (classModal.edit) {
-      await fetch(`${API_BASE}/classes`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: classModal.edit.id, ...v }) });
-    } else {
-      await fetch(`${API_BASE}/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
-    }
-    setClassModal({ open: false });
-    classSWR.mutate();
+    const isEdit = !!classModal.edit;
+    try {
+      await apiFetch(`${API_BASE}/classes`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isEdit ? { id: classModal.edit!.id, ...v } : v),
+        successMessage: isEdit ? 'Class updated' : 'Class created',
+      });
+      setClassModal({ open: false });
+      classSWR.mutate();
+    } catch (e) { /* apiFetch showed error toast */ }
   };
   const deleteClass = async (id: number) => {
-    if (!confirm('Delete class?')) return;
-    await fetch(`${API_BASE}/classes`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    classSWR.mutate();
+    if (!await confirmAction('Delete class?', 'This action cannot be undone.', 'Delete')) return;
+    try {
+      await apiFetch(`${API_BASE}/classes`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+        successMessage: 'Class deleted',
+      });
+      classSWR.mutate();
+    } catch (e) { /* apiFetch showed error toast */ }
   };
 
   return (

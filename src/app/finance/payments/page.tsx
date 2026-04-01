@@ -16,8 +16,8 @@ import {
   Filter
 } from 'lucide-react';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
 import NewBadge from '@/components/ui/NewBadge';
 
@@ -54,7 +54,6 @@ const PaymentsPage: React.FC = () => {
   // Fetch payments
   const { data: paymentsData, isLoading, mutate } = useSWR(
     `/api/finance/payments?school_id=${schoolId}${statusFilter ? `&status=${statusFilter}` : ''}`,
-    fetcher,
     { refreshInterval: 30000 }
   );
 
@@ -119,10 +118,10 @@ const PaymentsPage: React.FC = () => {
         a.click();
         window.URL.revokeObjectURL(url);
       } else {
-        toast.error('Failed to download receipt');
+        showToast('error', 'Failed to download receipt');
       }
     } catch (error) {
-      toast.error('Error downloading receipt');
+      showToast('error', 'Error downloading receipt');
     }
   };
 

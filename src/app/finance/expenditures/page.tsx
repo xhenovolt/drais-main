@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, CheckCircle, Clock, XCircle } from 'lucide-react';
-import { fetcher } from '@/utils/fetcher';
-import { toast } from 'react-hot-toast';
+import { showToast, confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
 
 interface Expenditure {
@@ -40,10 +40,10 @@ export default function ExpendituresPage() {
     setIsLoading(true);
     try {
       const url = `/api/finance/expenditures?school_id=${schoolId}${categoryFilter ? `&category_id=${categoryFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${searchQuery ? `&search=${searchQuery}` : ''}`;
-      const response = await fetcher(url);
-      setExpenditures(response as { data: Expenditure[], summary: any });
+      const response = await apiFetch<{ data: Expenditure[], summary: any }>(url, { silent: true });
+      setExpenditures(response);
     } catch (error) {
-      toast.error('Failed to load expenditures');
+      showToast('error', 'Failed to load expenditures');
     } finally {
       setIsLoading(false);
     }
@@ -57,28 +57,30 @@ export default function ExpendituresPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch('/api/finance/expenditures', {
+      await apiFetch('/api/finance/expenditures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, school_id: schoolId, amount: parseFloat(formData.amount) })
+        body: JSON.stringify({ ...formData, school_id: schoolId, amount: parseFloat(formData.amount) }),
+        successMessage: 'Expenditure added successfully',
       });
-      toast.success('Expenditure added successfully');
       setShowModal(false);
       setFormData({ category_id: '', amount: '', description: '', vendor_name: '', vendor_contact: '', invoice_number: '', expense_date: '' });
       loadData();
     } catch (error) {
-      toast.error('Failed to add expenditure');
+      // apiFetch already showed error toast
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this expenditure?')) return;
+    if (!await confirmAction('Delete expenditure?', 'This action cannot be undone.', 'Delete')) return;
     try {
-      await fetch(`/api/finance/expenditures?id=${id}&school_id=${schoolId}`, { method: 'DELETE' });
-      toast.success('Expenditure deleted');
+      await apiFetch(`/api/finance/expenditures?id=${id}&school_id=${schoolId}`, {
+        method: 'DELETE',
+        successMessage: 'Expenditure deleted',
+      });
       loadData();
     } catch (error) {
-      toast.error('Failed to delete');
+      // apiFetch already showed error toast
     }
   };
 

@@ -6,7 +6,8 @@ import {
   UserCheck, UserX, Loader, CheckCircle, AlertTriangle, Radio, Download,
 } from 'lucide-react';
 import useSWR from 'swr';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -53,12 +54,12 @@ export default function DeviceMappingsPage() {
 
         if (s === 'acknowledged') {
           setPolling(false);
-          toast.success(`${json.member_count} members synced from device`);
+          showToast('success', `${json.member_count} members synced from device`);
           mutate(); // Refresh the table
         } else if (s === 'failed' || s === 'expired' || s === 'idle') {
           setPolling(false);
           if (s === 'failed' || s === 'expired') {
-            toast.error('Sync failed — device may be offline');
+            showToast('error', 'Sync failed — device may be offline');
           }
         }
       } catch { /* silent */ }
@@ -68,28 +69,19 @@ export default function DeviceMappingsPage() {
 
   const startSync = useCallback(async () => {
     if (!deviceSn) {
-      toast.error('Select a device first');
+      showToast('error', 'Select a device first');
       return;
     }
     setSyncState('pending');
     setPolling(true);
     try {
-      const res = await fetch('/api/attendance/zk/devices/sync-members', {
+      await apiFetch('/api/attendance/zk/devices/sync-members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_sn: deviceSn }),
+        successMessage: 'Sync queued — waiting for device heartbeat…',
       });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error || 'Failed');
-        setSyncState('idle');
-        setPolling(false);
-        return;
-      }
-      setSyncState(json.status || 'pending');
-      toast.success('Sync queued — waiting for device heartbeat…');
     } catch {
-      toast.error('Network error');
       setSyncState('idle');
       setPolling(false);
     }

@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
+import { apiFetch } from '@/lib/apiClient';
 import Link from 'next/link';
-import { toast } from 'react-hot-toast';
+import { showToast, confirmAction } from '@/lib/toast';
 import AddStaffModal from '@/components/staff/AddStaffModal';
 
 const StaffListPage: React.FC = () => {
@@ -22,16 +22,14 @@ const StaffListPage: React.FC = () => {
   const [isUpdatingDeviceId, setIsUpdatingDeviceId] = useState(false);
 
   // Fetch staff data using the corrected API endpoint
-  const { data: staffData, isLoading, mutate } = useSWR(
+  const { data: staffData, isLoading, error: staffError, mutate } = useSWR(
     `/api/staff/full`,
-    fetcher,
     { refreshInterval: 30000 }
   );
 
   // Fetch departments for filter
   const { data: departmentsData } = useSWR(
-    `/api/departments/list`,
-    fetcher
+    `/api/departments/list`
   );
 
   const allStaff = staffData?.data || [];
@@ -55,42 +53,29 @@ const StaffListPage: React.FC = () => {
 
   const handleStatusChange = async (staffId: number, newStatus: string) => {
     try {
-      const response = await fetch(`/api/staff/${staffId}`, {
+      await apiFetch(`/api/staff/${staffId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
-
-      if (response.ok) {
-        toast.success('Staff status updated successfully');
-        mutate();
-      } else {
-        toast.error('Failed to update staff status');
-      }
+      mutate();
     } catch (error) {
-      toast.error('An error occurred');
+      // apiFetch already showed toast
     }
   };
 
   const handleDeleteStaff = async (staffId: number, staffName: string) => {
-    const confirmed = window.confirm(`Are you sure you want to delete ${staffName}? This action cannot be undone.`);
+    const confirmed = await confirmAction('Delete Staff Member', `Are you sure you want to delete ${staffName}? This action cannot be undone.`, 'Yes, delete');
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`/api/staff/${staffId}`, {
+      await apiFetch(`/api/staff/${staffId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
-
-      if (response.ok) {
-        toast.success('Staff member deleted successfully');
-        mutate();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to delete staff member');
-      }
+      mutate();
     } catch (error) {
-      toast.error('An error occurred while deleting staff member');
+      // apiFetch already showed toast
     }
   };
 
@@ -124,18 +109,14 @@ const StaffListPage: React.FC = () => {
       if (newDeviceId === 0) {
         // Delete device mapping
         if (staffMember.device_mapping_id) {
-          const response = await fetch(`/api/device-mappings/${staffMember.device_mapping_id}`, {
+          await apiFetch(`/api/device-mappings/${staffMember.device_mapping_id}`, {
             method: 'DELETE'
           });
-
-          if (!response.ok) throw new Error('Failed to delete device mapping');
-          toast.success('Device ID removed successfully');
         }
       } else {
         // Update or create device mapping
         if (staffMember.device_mapping_id) {
-          // Update existing mapping
-          const response = await fetch(`/api/device-mappings/${staffMember.device_mapping_id}`, {
+          await apiFetch(`/api/device-mappings/${staffMember.device_mapping_id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -143,12 +124,8 @@ const StaffListPage: React.FC = () => {
               status: 'active'
             })
           });
-
-          if (!response.ok) throw new Error('Failed to update device mapping');
-          toast.success('Device ID updated successfully');
         } else {
-          // Create new mapping using the by-device endpoint which auto-selects default device
-          const response = await fetch(`/api/device-mappings/by-device`, {
+          await apiFetch(`/api/device-mappings/by-device`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -156,10 +133,6 @@ const StaffListPage: React.FC = () => {
               device_user_id: newDeviceId
             })
           });
-
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || 'Failed to create device mapping');
-          toast.success('Device ID assigned successfully');
         }
       }
 
@@ -167,7 +140,6 @@ const StaffListPage: React.FC = () => {
       cancelDeviceIdEdit();
     } catch (error: any) {
       console.error('Device ID update error:', error);
-      toast.error(`Failed to update device ID: ${error.message}`);
       setDeviceIdValue(staffMember.device_user_id?.toString() || '');
     } finally {
       setIsUpdatingDeviceId(false);
@@ -278,6 +250,12 @@ const StaffListPage: React.FC = () => {
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
               <p className="text-gray-500 dark:text-gray-400">Loading staff...</p>
+            </div>
+          ) : staffError ? (
+            <div className="text-center py-12">
+              <p className="text-red-500 text-lg font-medium mb-2">Failed to load staff data</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Check your connection and try again</p>
+              <button onClick={() => mutate()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Retry</button>
             </div>
           ) : (
             <div className="overflow-x-auto">

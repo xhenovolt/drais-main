@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import useSWR from "swr";
 import clsx from "clsx";
 import { Plus, Edit, Trash, Eye } from "lucide-react";
-import Swal from "sweetalert2";
+import { confirmAction } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 
 const API_BASE = "/api/inventory";
 
@@ -27,31 +28,23 @@ const InventoryPage: React.FC = () => {
   const transactions = transactionsData?.data || [];
 
   const handleDelete = async (id: number, type: "store" | "item" | "transaction") => {
-    const confirm = await Swal.fire({
-      title: "Are you sure?",
-      text: `You are about to delete this ${type}. This action cannot be undone!`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel",
-    });
+    const confirmed = await confirmAction(
+      'Are you sure?',
+      `You are about to delete this ${type}. This action cannot be undone!`,
+      'Yes, delete it!'
+    );
 
-    if (confirm.isConfirmed) {
+    if (confirmed) {
       try {
-        const response = await fetch(`${API_BASE}/${type}s/${id}`, {
+        await apiFetch(`${API_BASE}/${type}s/${id}`, {
           method: "DELETE",
+          successMessage: `${type} has been deleted.`,
         });
-        const result = await response.json();
-        if (result.success) {
-          Swal.fire("Deleted!", `${type} has been deleted.`, "success");
-          if (type === "store") mutateStores();
-          if (type === "item") mutateItems();
-          if (type === "transaction") mutateTransactions();
-        } else {
-          Swal.fire("Error!", `Failed to delete ${type}.`, "error");
-        }
+        if (type === "store") mutateStores();
+        if (type === "item") mutateItems();
+        if (type === "transaction") mutateTransactions();
       } catch (error) {
-        Swal.fire("Error!", "An unexpected error occurred.", "error");
+        // apiFetch already showed error toast
       }
     }
   };

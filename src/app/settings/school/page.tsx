@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { School, Save, Loader2, Upload, RefreshCw, CheckCircle } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 
 interface SchoolFormData {
@@ -71,7 +72,7 @@ export default function SchoolSettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/school-config', {
+      await apiFetch('/api/school-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -95,18 +96,12 @@ export default function SchoolSettingsPage() {
           school_type: form.schoolType,
           founded_year: form.foundedYear ? parseInt(form.foundedYear) : null,
         }),
+        successMessage: 'School settings saved successfully!',
       });
-      const result = await res.json();
-      if (result.success) {
-        toast.success('School settings saved successfully!');
-        setSaved(true);
-        // Refresh all consumers of useSchoolConfig
-        await refresh();
-      } else {
-        toast.error(result.error || 'Failed to save settings');
-      }
+      setSaved(true);
+      await refresh();
     } catch (err) {
-      toast.error('Network error saving settings');
+      // apiFetch already showed error toast
     } finally {
       setSaving(false);
     }

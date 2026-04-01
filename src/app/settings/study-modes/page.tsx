@@ -11,8 +11,8 @@ import {
   Layers, Plus, Star, Pencil, Trash2, Check, X,
   AlertCircle, ShieldAlert, RotateCcw,
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { fetcher } from '@/utils/fetcher';
+import { showToast } from '@/lib/toast';
+import { apiFetch } from '@/lib/apiClient';
 import clsx from 'clsx';
 
 interface StudyMode {
@@ -26,7 +26,6 @@ interface StudyMode {
 export default function StudyModesPage() {
   const { data, mutate } = useSWR<{ success: boolean; data: StudyMode[] }>(
     '/api/study-modes',
-    fetcher,
   );
 
   const modes: StudyMode[] = data?.data ?? [];
@@ -48,22 +47,20 @@ export default function StudyModesPage() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = addName.trim();
-    if (!name) { toast.error('Name is required'); return; }
+    if (!name) { showToast('error', 'Name is required'); return; }
     setAddLoading(true);
     try {
-      const res = await fetch('/api/study-modes', {
+      await apiFetch('/api/study-modes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, is_default: addDefault }),
+        successMessage: `"${name}" added`,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to create');
-      toast.success(`"${name}" added`);
       setAddName('');
       setAddDefault(false);
       mutate();
     } catch (err: any) {
-      toast.error(err.message);
+      // apiFetch already showed toast
     } finally {
       setAddLoading(false);
     }
@@ -81,21 +78,19 @@ export default function StudyModesPage() {
 
   const saveEdit = async (id: number) => {
     const name = editName.trim();
-    if (!name) { toast.error('Name cannot be empty'); return; }
+    if (!name) { showToast('error', 'Name cannot be empty'); return; }
     setEditLoading(true);
     try {
-      const res = await fetch('/api/study-modes', {
+      await apiFetch('/api/study-modes', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, name }),
+        successMessage: 'Renamed successfully',
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to update');
-      toast.success('Renamed successfully');
       setEditingId(null);
       mutate();
     } catch (err: any) {
-      toast.error(err.message);
+      // apiFetch already showed toast
     } finally {
       setEditLoading(false);
     }
@@ -103,30 +98,25 @@ export default function StudyModesPage() {
 
   const setDefault = async (id: number) => {
     try {
-      const res = await fetch('/api/study-modes', {
+      await apiFetch('/api/study-modes', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_default: true }),
+        successMessage: 'Default updated',
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to update');
-      toast.success('Default updated');
       mutate();
     } catch (err: any) {
-      toast.error(err.message);
+      // apiFetch already showed toast
     }
   };
 
   const confirmDelete = async (id: number) => {
     try {
-      const res = await fetch(`/api/study-modes?id=${id}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to delete');
-      toast.success('Study mode removed');
+      await apiFetch(`/api/study-modes?id=${id}`, { method: 'DELETE' });
       setDeletingId(null);
       mutate();
     } catch (err: any) {
-      toast.error(err.message);
+      // apiFetch already showed toast
     }
   };
 
