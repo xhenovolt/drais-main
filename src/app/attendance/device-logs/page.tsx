@@ -34,7 +34,6 @@ interface RawRow {
   query_string: string | null;
   raw_body_preview: string | null;
   body_length: number;
-  record_count: number | null;
   source_ip: string | null;
   user_agent: string | null;
   endpoint: string | null;
@@ -384,9 +383,6 @@ function RawTable({ rows, expandedId, setExpandedId }: { rows: RawRow[]; expande
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   {r.body_length > 0 ? `${r.body_length}B` : '—'}
-                  {r.record_count != null && r.record_count > 0 && (
-                    <span className="ml-1 text-gray-400">({r.record_count} rec)</span>
-                  )}
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-300 dark:text-gray-600 font-mono">#{r.id}</td>
               </tr>

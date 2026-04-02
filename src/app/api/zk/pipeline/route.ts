@@ -100,7 +100,6 @@ async function handleRaw(schoolId: number, f: Filters) {
          r.query_string,
          LEFT(r.raw_body, 500) AS raw_body_preview,
          LENGTH(r.raw_body) AS body_length,
-         r.record_count,
          r.source_ip,
          r.user_agent,
          r.endpoint,
@@ -109,7 +108,7 @@ async function handleRaw(schoolId: number, f: Filters) {
        WHERE ${where}
        ORDER BY r.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, f.limit, f.offset],
+      [...params, Number(f.limit), Number(f.offset)],
     ),
   ]);
 
@@ -189,7 +188,7 @@ async function handleParsed(schoolId: number, f: ParsedFilters) {
        WHERE ${where}
        ORDER BY p.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, f.limit, f.offset],
+      [...params, Number(f.limit), Number(f.offset)],
     ),
   ]);
 
