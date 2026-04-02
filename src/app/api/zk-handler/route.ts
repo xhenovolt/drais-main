@@ -32,19 +32,31 @@ function textResponse(body: string = 'OK', status: number = 200): NextResponse {
  *   - Tab-separated key=value pairs on a single line
  *   - Or newline-separated rows of tab-separated key=value
  *
+ * OPERLOG lines start with "OPLOG" — must be detected and tagged.
+ *
  * Examples:
  *   USERID=101\tCHECKTIME=2026-03-30 10:00:00\tLOGID=1
  *   101\t2026-03-30 10:00:00\t0\t1\t\t0\t0\t0\t0
+ *   OPLOG 4\t0\t2026-04-02 16:54:02\t1\t0\t0\t0
  */
-function parseZKBody(raw: string): Record<string, string>[] {
+function parseZKBody(raw: string, tableName: string): { records: Record<string, string>[]; lines: string[] } {
   const records: Record<string, string>[] = [];
-  if (!raw || !raw.trim()) return records;
+  const lines: string[] = [];
+  if (!raw || !raw.trim()) return { records, lines };
 
-  const lines = raw.trim().split('\n');
+  const rawLines = raw.trim().split('\n');
 
-  for (const line of lines) {
+  for (const line of rawLines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+    lines.push(trimmed);
+
+    // ── Skip OPERLOG lines when we're expecting ATTLOG ────────────────────
+    // OPERLOG lines start with "OPLOG" — they have a different schema
+    if (/^OPLOG\s/i.test(trimmed)) {
+      records.push({ _TYPE: 'OPERLOG', _RAW: trimmed });
+      continue;
+    }
 
     // Key=Value format (standard ADMS)
     if (trimmed.includes('=')) {
@@ -75,7 +87,7 @@ function parseZKBody(raw: string): Record<string, string>[] {
     }
   }
 
-  return records;
+  return { records, lines };
 }
 
 /** Extract device serial number from request. */
@@ -167,26 +179,99 @@ async function logSystemEvent(
   }
 }
 
-/** Log raw HTTP traffic to zk_raw_logs. */
+/**
+ * Save raw HTTP traffic to zk_raw_logs.
+ * THIS IS MANDATORY — if this fails, the caller must handle it.
+ * Raw data is the forensic source of truth. Nothing else matters if this doesn't write.
+ */
 async function saveRawLog(
-  deviceSn: string,
+  deviceSn: string | null,
   method: string,
   queryString: string,
   body: string | null,
   parsedData: unknown,
   sourceIp: string,
   userAgent: string,
-): Promise<number | null> {
+  headers: Record<string, string> | null,
+  endpoint: string,
+  schoolId: number,
+): Promise<number> {
+  const result = await query(
+    `INSERT INTO zk_raw_logs
+       (device_sn, http_method, query_string, raw_body, parsed_data, source_ip, user_agent, headers, endpoint, school_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      deviceSn ?? 'UNKNOWN',
+      method,
+      queryString,
+      body,
+      parsedData != null ? JSON.stringify(parsedData) : null,
+      sourceIp,
+      userAgent,
+      headers ? JSON.stringify(headers) : null,
+      endpoint,
+      schoolId,
+    ],
+  );
+  const insertId = (result as any)?.insertId;
+  if (!insertId) {
+    throw new Error('RAW_LOG_INSERT_RETURNED_NO_ID');
+  }
+  return insertId;
+}
+
+/**
+ * Save a single parsed record to zk_parsed_logs.
+ * Links back to the raw log via raw_log_id.
+ * On failure, saves with status='failed' + error_message.
+ */
+async function saveParsedLog(opts: {
+  rawLogId: number;
+  deviceSn: string;
+  schoolId: number;
+  tableName: string;
+  rawLine: string;
+  userId?: string | null;
+  checkTime?: string | null;
+  verifyType?: string | null;
+  inoutMode?: string | null;
+  workCode?: string | null;
+  logId?: string | null;
+  matched?: boolean;
+  studentId?: number | null;
+  staffId?: number | null;
+  status: 'success' | 'failed';
+  errorMessage?: string | null;
+}): Promise<void> {
   try {
-    const result = await query(
-      `INSERT INTO zk_raw_logs (device_sn, http_method, query_string, raw_body, parsed_data, source_ip, user_agent)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [deviceSn, method, queryString, body, JSON.stringify(parsedData), sourceIp, userAgent],
+    await query(
+      `INSERT INTO zk_parsed_logs
+         (raw_log_id, device_sn, school_id, table_name, raw_line,
+          user_id, check_time, verify_type, inout_mode, work_code, log_id,
+          matched, student_id, staff_id, status, error_message)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        opts.rawLogId,
+        opts.deviceSn,
+        opts.schoolId,
+        opts.tableName,
+        opts.rawLine?.substring(0, 65000) ?? null,
+        opts.userId ?? null,
+        opts.checkTime ?? null,
+        opts.verifyType ?? null,
+        opts.inoutMode ?? null,
+        opts.workCode ?? null,
+        opts.logId ?? null,
+        opts.matched ? 1 : 0,
+        opts.studentId ?? null,
+        opts.staffId ?? null,
+        opts.status,
+        opts.errorMessage ?? null,
+      ],
     );
-    return (result as any)?.insertId ?? null;
   } catch (err) {
-    zkLog('error', 'RAW_LOG_SAVE_FAILED', { deviceSn, error: String(err) });
-    return null;
+    // If even the parsed log INSERT fails, log to stdout as last resort
+    zkLog('error', 'PARSED_LOG_SAVE_FAILED', { rawLogId: opts.rawLogId, error: String(err) });
   }
 }
 
@@ -543,16 +628,17 @@ export async function GET(req: NextRequest) {
 
     if (!sn) {
       zkLog('warn', 'NO_SERIAL_NUMBER', { ip, qs });
+      // Still save raw even without SN — evidence is evidence
+      saveRawLog(null, 'GET', qs, null, null, ip, ua, null, '/iclock/cdata', 1).catch(() => {});
       return textResponse('OK');
     }
 
-    // Fire-and-forget: log raw traffic + upsert device + system log
-    const rawLogPromise = saveRawLog(sn, 'GET', qs, null, null, ip, ua);
+    const schoolId = await getDeviceSchoolId(sn);
+
+    // Fire-and-forget: log raw traffic + upsert device + system log + observability
+    const rawLogPromise = saveRawLog(sn, 'GET', qs, null, null, ip, ua, null, '/iclock/cdata', schoolId).catch(() => {});
     const upsertPromise = upsertDevice(sn, ip, options, pushVer);
     const sysLogPromise = logSystemEvent(sn, 'HEARTBEAT', 'INCOMING', qs, ip, ua);
-
-    // ── Observability: record every heartbeat ──────────────────────────────
-    const schoolId = await getDeviceSchoolId(sn);
     const heartbeatLogPromise = logDeviceEvent({
       deviceSn:   sn,
       ipAddress:  ip,
@@ -599,21 +685,17 @@ export async function GET(req: NextRequest) {
 /**
  * POST /iclock/cdata
  *
- * Purpose: Device pushes data — attendance logs, user info, or operation logs.
+ * RAW-FIRST PIPELINE:
+ *   1. Read body
+ *   2. MANDATORY: Save raw to zk_raw_logs (if this fails → error, but still return OK)
+ *   3. Parse
+ *   4. Per-record: Save to zk_parsed_logs + zk_attendance_logs + match
+ *   5. Every record gets a row in zk_parsed_logs (success OR failure)
  *
  * The `table` query param tells us what kind of data:
  *   - ATTLOG   → attendance punches (default)
- *   - OPERLOG  → operation log
+ *   - OPERLOG  → operation log (stored raw, not processed as punches)
  *   - USERINFO → user list (response to DATA QUERY USERINFO command)
- *
- * Body formats:
- *   Key=Value tab-separated:
- *     USERID=101\tCHECKTIME=2026-03-30 10:00:00\tVERIFYTYPE=1\tINOUTMODE=0
- *
- *   Positional tab-separated:
- *     101\t2026-03-30 10:00:00\t1\t0\t\t0
- *
- *   Can contain multiple lines (bulk push).
  */
 export async function POST(req: NextRequest) {
   const sn = getSerialNumber(req);
@@ -623,113 +705,234 @@ export async function POST(req: NextRequest) {
   const ua = req.headers.get('user-agent') || '';
   const table = (url.searchParams.get('table') || 'ATTLOG').toUpperCase();
 
+  // Capture select headers (avoid leaking auth tokens — only device-relevant ones)
+  const headerObj: Record<string, string> = {};
+  for (const key of ['content-type', 'content-length', 'user-agent', 'x-forwarded-for', 'x-real-ip']) {
+    const val = req.headers.get(key);
+    if (val) headerObj[key] = val;
+  }
+
   let rawBody = '';
+  let rawLogId: number | null = null;
+  let schoolId = 1; // safe default until we resolve
 
   try {
+    // ════════════════════════════════════════════════════════════════════════
+    // STEP 1: Read body
+    // ════════════════════════════════════════════════════════════════════════
     rawBody = await req.text();
 
     zkLog('info', 'DATA_RECEIVED', {
-      sn,
-      ip,
-      table,
+      sn, ip, table,
       bodyLength: rawBody.length,
       bodyPreview: rawBody.substring(0, 200),
     });
 
-    if (!sn) {
-      zkLog('warn', 'POST_NO_SERIAL', { ip, bodyPreview: rawBody.substring(0, 100) });
+    // Resolve school ASAP (needed for raw log)
+    if (sn) {
+      schoolId = await getDeviceSchoolId(sn);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // STEP 2: MANDATORY — Save raw to zk_raw_logs BEFORE any processing
+    //         Even if SN is missing, we still store the raw payload.
+    // ════════════════════════════════════════════════════════════════════════
+    try {
+      rawLogId = await saveRawLog(
+        sn, 'POST', qs, rawBody, null, ip, ua,
+        headerObj, '/iclock/cdata', schoolId,
+      );
+    } catch (rawErr) {
+      // Raw save failed — log loudly, but don't crash the device connection
+      zkLog('error', 'RAW_SAVE_CRITICAL_FAILURE', { sn, error: String(rawErr), bodyLength: rawBody.length });
+      // Best-effort: try observability table
+      logDeviceEvent({
+        deviceSn: sn, ipAddress: ip, eventType: 'ERROR',
+        rawPayload: rawBody.substring(0, 1000),
+        status: 'failed', errorMessage: `RAW_SAVE_FAILED: ${String(rawErr)}`, schoolId,
+      }).catch(() => {});
+      // Still return OK — we must not break the device
       return textResponse('OK');
     }
 
-    const records = parseZKBody(rawBody);
+    // If no SN, raw is saved (above), but we can't process further
+    if (!sn) {
+      zkLog('warn', 'POST_NO_SERIAL', { ip, rawLogId, bodyPreview: rawBody.substring(0, 100) });
+      return textResponse('OK');
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // STEP 3: Parse body
+    // ════════════════════════════════════════════════════════════════════════
+    const { records, lines } = parseZKBody(rawBody, table);
 
     zkLog('info', 'DATA_PARSED', {
-      sn,
-      table,
-      recordCount: records.length,
-      records: records.slice(0, 3), // Log first 3 for debugging
+      sn, table, recordCount: records.length,
+      records: records.slice(0, 3),
     });
 
-    // Save raw log first (all traffic types)
-    const rawLogId = await saveRawLog(sn, 'POST', qs, rawBody, records, ip, ua);
+    // ── Observability ─────────────────────────────────────────────────────
+    logDeviceEvent({
+      deviceSn: sn, ipAddress: ip, eventType: 'DATA_RECEIVED',
+      tableName: table, rawPayload: rawBody.substring(0, 65000),
+      recordCount: records.length, status: 'success', schoolId,
+    }).catch(() => {});
 
-    // Get device's school_id for tenant-scoped inserts
-    const schoolId = await getDeviceSchoolId(sn);
+    logDeviceEvent({
+      deviceSn: sn, eventType: 'DATA_PARSED', tableName: table,
+      parsedJson: records.slice(0, 50), recordCount: records.length,
+      status: 'success', schoolId,
+    }).catch(() => {});
 
-    // ── Observability: DATA_RECEIVED (raw body captured) ──────────────────
-    await logDeviceEvent({
-      deviceSn:     sn,
-      ipAddress:    ip,
-      eventType:    'DATA_RECEIVED',
-      tableName:    table,
-      rawPayload:   rawBody.substring(0, 65000), // TEXT col max-safe slice
-      recordCount:  records.length,
-      status:       'success',
-      schoolId,
-    });
-
-    // ── Observability: DATA_PARSED (structured snapshot) ──────────────────
-    await logDeviceEvent({
-      deviceSn:    sn,
-      eventType:   'DATA_PARSED',
-      tableName:   table,
-      parsedJson:  records.slice(0, 50), // cap to 50 for JSON column safety
-      recordCount: records.length,
-      status:      'success',
-      schoolId,
-    });
-
-    // Route based on data type + write system_log
+    // ════════════════════════════════════════════════════════════════════════
+    // STEP 4: Per-record processing
+    // ════════════════════════════════════════════════════════════════════════
     if (table === 'USERINFO') {
       await logSystemEvent(sn, 'USERINFO', 'INCOMING', rawBody.substring(0, 2000), ip, ua);
-      // Device responding to DATA QUERY USERINFO — save enrolled members
       await processUserInfo(sn, records, schoolId);
+
+      // Save each USERINFO record to zk_parsed_logs
+      for (let i = 0; i < records.length; i++) {
+        const rec = records[i];
+        const userId = rec.USERID || rec.PIN || '';
+        await saveParsedLog({
+          rawLogId: rawLogId!, deviceSn: sn, schoolId,
+          tableName: 'USERINFO', rawLine: lines[i] || '',
+          userId, status: 'success',
+        });
+      }
     } else {
-      // ATTLOG (default) — log each punch to system_logs, then save
+      // ATTLOG (or OPERLOG mixed in) — process each record individually
       await logSystemEvent(sn, 'PUNCH', 'INCOMING',
         JSON.stringify({ recordCount: records.length, first: records[0] || null }), ip, ua);
-      const savePromises = records.map(record =>
-        saveAttendancePunch(sn, record, rawLogId, schoolId),
-      );
-      await Promise.allSettled(savePromises);
+
+      for (let i = 0; i < records.length; i++) {
+        const record = records[i];
+        const rawLine = lines[i] || '';
+
+        // ── Skip OPERLOG records (stored raw but not processed as attendance) ──
+        if (record._TYPE === 'OPERLOG') {
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: 'OPERLOG', rawLine,
+            status: 'success',
+          });
+          continue;
+        }
+
+        const userId = record.USERID;
+        const rawCheckTime = record.CHECKTIME;
+
+        // ── Validate minimum fields ──────────────────────────────────────
+        if (!userId || !rawCheckTime) {
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: table, rawLine,
+            userId: userId || null, checkTime: null,
+            status: 'failed', errorMessage: `Missing required fields: USERID=${userId || 'EMPTY'}, CHECKTIME=${rawCheckTime || 'EMPTY'}`,
+          });
+          continue;
+        }
+
+        const checkTime = normalizeCheckTime(rawCheckTime);
+        if (!checkTime) {
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: table, rawLine, userId,
+            status: 'failed', errorMessage: `CHECKTIME normalization failed for: ${rawCheckTime}`,
+          });
+          continue;
+        }
+
+        // ── Match + Save attendance ──────────────────────────────────────
+        try {
+          const { studentId, staffId, matched } = await resolveUser(userId, sn, schoolId);
+
+          // Save to zk_attendance_logs (existing system)
+          await query(
+            `INSERT INTO zk_attendance_logs
+               (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
+                verify_type, io_mode, log_id, work_code, matched, raw_log_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              schoolId, sn, userId, studentId, staffId, checkTime,
+              record.VERIFYTYPE ? parseInt(record.VERIFYTYPE, 10) || null : null,
+              record.INOUTMODE ? parseInt(record.INOUTMODE, 10) || null : null,
+              record.LOGID || null,
+              record.WORKCODE || null,
+              matched ? 1 : 0,
+              rawLogId,
+            ],
+          );
+
+          // Save to zk_parsed_logs (per-record truth)
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: table, rawLine, userId, checkTime,
+            verifyType: record.VERIFYTYPE || null,
+            inoutMode: record.INOUTMODE || null,
+            workCode: record.WORKCODE || null,
+            logId: record.LOGID || null,
+            matched, studentId, staffId,
+            status: 'success',
+          });
+
+          // Observability: PUNCH_SAVED
+          logDeviceEvent({
+            deviceSn: sn, eventType: 'PUNCH_SAVED', tableName: 'ATTLOG',
+            userId, checkTime, matched, studentId, staffId,
+            status: 'success', schoolId,
+          }).catch(() => {});
+
+          zkLog('info', 'PUNCH_SAVED', { deviceSn: sn, userId, checkTime, matched, studentId, staffId, schoolId });
+
+        } catch (err) {
+          // ── Record-level failure: save to zk_parsed_logs with error ────
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: table, rawLine, userId, checkTime,
+            verifyType: record.VERIFYTYPE || null,
+            inoutMode: record.INOUTMODE || null,
+            status: 'failed', errorMessage: String(err),
+          });
+
+          logDeviceEvent({
+            deviceSn: sn, eventType: 'ERROR', tableName: 'ATTLOG',
+            userId, checkTime, status: 'failed', errorMessage: String(err), schoolId,
+          }).catch(() => {});
+
+          zkLog('error', 'PUNCH_SAVE_FAILED', { deviceSn: sn, userId, checkTime: rawCheckTime, error: String(err) });
+        }
+      }
     }
 
     // Update device last_activity
     try {
       await query(
-        `UPDATE devices SET last_activity = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE sn = ?`,
+        `UPDATE devices SET last_activity = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE sn = ?`,
         [sn],
       );
-    } catch {
-      // Non-critical
+    } catch { /* non-critical */ }
+
+    zkLog('info', 'DATA_PROCESSED', { sn, table, recordCount: records.length, rawLogId });
+    return textResponse('OK');
+
+  } catch (err) {
+    zkLog('error', 'POST_HANDLER_ERROR', { sn, error: String(err), bodyLength: rawBody.length, rawLogId });
+
+    // Best-effort: if raw wasn't saved yet, try now
+    if (!rawLogId && rawBody) {
+      saveRawLog(sn, 'POST', qs, rawBody, null, ip, ua, headerObj, '/iclock/cdata', schoolId).catch(() => {});
     }
 
-    zkLog('info', 'DATA_PROCESSED', {
-      sn,
-      table,
-      recordCount: records.length,
-    });
-
-    return textResponse('OK');
-  } catch (err) {
-    zkLog('error', 'POST_HANDLER_ERROR', {
-      sn,
-      error: String(err),
-      bodyLength: rawBody.length,
-    });
-    // Best-effort error log to system_logs AND zk_device_logs
     logSystemEvent(sn, 'ERROR', 'INCOMING',
       JSON.stringify({ error: String(err), bodyLength: rawBody.length }), ip, ua).catch(() => {});
     logDeviceEvent({
-      deviceSn:     sn,
-      ipAddress:    ip,
-      eventType:    'ERROR',
-      rawPayload:   rawBody.substring(0, 1000),
-      status:       'failed',
-      errorMessage: String(err),
-      schoolId:     1, // safe default — school lookup may have failed
+      deviceSn: sn, ipAddress: ip, eventType: 'ERROR',
+      rawPayload: rawBody.substring(0, 1000),
+      status: 'failed', errorMessage: String(err), schoolId,
     }).catch(() => {});
+
     return textResponse('OK'); // NEVER break protocol
   }
 }
