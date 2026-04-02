@@ -32,6 +32,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 import { ImportModal } from '@/components/students/ImportModal';
+import { LiveIdentityPopup } from '@/components/students/LiveIdentityPopup';
 import { useExport } from '@/hooks/useExport';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
@@ -990,6 +991,9 @@ export default function StudentsListPage() {
           fetchStudents();
         }}
       />
+
+      {/* LIVE IDENTITY POPUP — real-time biometric scan notifications */}
+      <LiveIdentityPopup />
     </div>
   );
 }
