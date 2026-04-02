@@ -74,6 +74,6 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Staff full fetch error:', error);
-    return fail('Failed to fetch staff data', 500, { message: error.message });
+    return fail('Staff fetch v2 failed: ' + (error.sqlMessage || error.code || error.message), 500);
   }
 }
