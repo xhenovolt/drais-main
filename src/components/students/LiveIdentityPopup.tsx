@@ -34,6 +34,8 @@ interface LearnerInfo {
   photo_url: string | null;
   class_name: string | null;
   stream_name: string | null;
+  student_status: string;
+  enrollment_status: string | null;
   fee_balance: number;
   attendance_today: number;
   guardian: Guardian | null;
@@ -305,9 +307,16 @@ export function LiveIdentityPopup() {
                         <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                           {learner.admission_no || `ID: ${scan.device_user_id}`}
                         </p>
-                        {(learner.class_name || learner.stream_name) && (
+                        {learner.class_name ? (
                           <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
                             {learner.class_name}{learner.stream_name ? ` · ${learner.stream_name}` : ''}
+                            {!learner.enrollment_status && (
+                              <span className="ml-1 text-amber-600 dark:text-amber-400">(Admitted)</span>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
+                            Admitted · Not Yet Enrolled
                           </p>
                         )}
                       </div>
