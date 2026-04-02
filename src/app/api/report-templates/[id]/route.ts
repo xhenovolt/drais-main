@@ -66,6 +66,22 @@ export async function PUT(
         [name, description || '', layoutStr, id, schoolId]
       );
 
+      // Auto-save version snapshot
+      try {
+        const [maxRows] = await conn.execute(
+          `SELECT COALESCE(MAX(version), 0) AS max_ver FROM report_template_versions WHERE template_id = ?`,
+          [id]
+        );
+        const nextVersion = ((maxRows as any[])[0]?.max_ver ?? 0) + 1;
+        await conn.execute(
+          `INSERT INTO report_template_versions (template_id, version, layout_json, change_note, created_by)
+           VALUES (?, ?, ?, ?, ?)`,
+          [id, nextVersion, layoutStr, body.change_note || 'Auto-save', session.userId ?? null]
+        );
+      } catch {
+        // Version save is best-effort — don't break the main save
+      }
+
       return NextResponse.json({ success: true, message: 'Template updated' });
     } finally {
       await conn.end();

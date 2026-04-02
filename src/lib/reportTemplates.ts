@@ -42,6 +42,7 @@ export interface ReportLayoutJSON {
     marginSidesPercent: string;
     borderRadius: number;
     textAlign: 'center' | 'left' | 'right';
+    boxShadow: string;
   };
   studentInfoBox: {
     border: string;
@@ -112,7 +113,55 @@ export interface ReportLayoutJSON {
       padding: number;
     };
   };
+  pageBorder: {
+    enabled: boolean;
+    color: string;
+    width: number;
+    radius: number;
+    style: 'solid' | 'double' | 'dashed' | 'none';
+  };
+  /** V2: Section ordering — controls which sections appear and in what order */
+  sections?: SectionConfig[];
 }
+
+// ─── V2: Section system ──────────────────────────────────────────────────────
+
+export type SectionType =
+  | 'header'
+  | 'banner'
+  | 'student_info'
+  | 'ribbon'
+  | 'results_table'
+  | 'assessment'
+  | 'comments'
+  | 'grade_table';
+
+export interface SectionConfig {
+  id: string;           // unique per template (e.g. 'header', 'banner-1')
+  type: SectionType;
+  label: string;        // human-readable (e.g. "School Header")
+  visible: boolean;
+}
+
+/** Registry of all section types with defaults */
+export const SECTION_REGISTRY: { type: SectionType; label: string; icon: string }[] = [
+  { type: 'header',        label: 'School Header',   icon: 'School' },
+  { type: 'banner',        label: 'Report Banner',   icon: 'Flag' },
+  { type: 'student_info',  label: 'Student Info',    icon: 'User' },
+  { type: 'ribbon',        label: 'Section Ribbon',  icon: 'Bookmark' },
+  { type: 'results_table', label: 'Results Table',   icon: 'Table' },
+  { type: 'assessment',    label: 'Assessment Box',  icon: 'Award' },
+  { type: 'comments',      label: 'Comments',        icon: 'MessageSquare' },
+  { type: 'grade_table',   label: 'Grade Scale',     icon: 'BarChart3' },
+];
+
+/** Default section order — used when layout_json.sections is missing */
+export const DEFAULT_SECTIONS: SectionConfig[] = SECTION_REGISTRY.map(s => ({
+  id: s.type,
+  type: s.type,
+  label: s.label,
+  visible: true,
+}));
 
 export interface ReportTemplate {
   id: number;
@@ -166,6 +215,7 @@ export const DEFAULT_TEMPLATE_JSON: ReportLayoutJSON = {
     marginSidesPercent: '15%',
     borderRadius: 0,
     textAlign: 'center',
+    boxShadow: 'none',
   },
   studentInfoBox: {
     border: '2px solid #1a4be7',
@@ -236,6 +286,13 @@ export const DEFAULT_TEMPLATE_JSON: ReportLayoutJSON = {
       padding: 6,
     },
   },
+  pageBorder: {
+    enabled: false,
+    color: '#000000',
+    width: 2,
+    radius: 0,
+    style: 'solid',
+  },
 };
 
 export const MODERN_CLEAN_TEMPLATE_JSON: ReportLayoutJSON = {
@@ -277,6 +334,7 @@ export const MODERN_CLEAN_TEMPLATE_JSON: ReportLayoutJSON = {
     marginSidesPercent: '5%',
     borderRadius: 4,
     textAlign: 'left',
+    boxShadow: 'none',
   },
   studentInfoBox: {
     border: '2px solid #16a34a',
@@ -347,6 +405,13 @@ export const MODERN_CLEAN_TEMPLATE_JSON: ReportLayoutJSON = {
       padding: 7,
     },
   },
+  pageBorder: {
+    enabled: false,
+    color: '#16a34a',
+    width: 2,
+    radius: 4,
+    style: 'solid',
+  },
 };
 
 /** Converts a raw DB row to a typed ReportTemplate */
@@ -355,7 +420,22 @@ function mergeLayout(partial: Record<string, any>): ReportLayoutJSON {
   const base = structuredClone(DEFAULT_TEMPLATE_JSON) as Record<string, any>;
   for (const key of Object.keys(base)) {
     if (partial[key] && typeof partial[key] === 'object' && !Array.isArray(partial[key])) {
-      base[key] = { ...base[key], ...partial[key] };
+      base[key] = { ...base[key] };
+      for (const sub of Object.keys(base[key])) {
+        if (partial[key][sub] !== undefined) {
+          if (typeof base[key][sub] === 'object' && typeof partial[key][sub] === 'object' && !Array.isArray(base[key][sub])) {
+            base[key][sub] = { ...base[key][sub], ...partial[key][sub] };
+          } else {
+            base[key][sub] = partial[key][sub];
+          }
+        }
+      }
+      // Copy keys from partial that don't exist in base
+      for (const sub of Object.keys(partial[key])) {
+        if (base[key][sub] === undefined) {
+          base[key][sub] = partial[key][sub];
+        }
+      }
     } else if (partial[key] !== undefined) {
       base[key] = partial[key];
     }

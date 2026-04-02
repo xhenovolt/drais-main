@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnection, query } from '@/lib/db';
+import { query } from '@/lib/db';
+import { withTenantTransaction } from '@/lib/dbTenant';
 import { getSessionSchoolId } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/lib/apiResponse';
 import { logAudit, AuditAction } from '@/lib/audit';
@@ -8,7 +9,6 @@ import { notifyStaffCreated, notifyErrorOccurred } from '@/lib/notificationTrigg
 import bcrypt from 'bcryptjs';
 
 export async function POST(req: NextRequest) {
-  let connection;
   let session: Awaited<ReturnType<typeof getSessionSchoolId>> = null;
   const requestId = crypto.getRandomValues(new Uint8Array(16))
     .reduce((str, num) => str + num.toString(16).padStart(2, '0'), '');
@@ -91,142 +91,139 @@ export async function POST(req: NextRequest) {
     }
 
 
-    connection = await getConnection();
-    await connection.beginTransaction();
+    // Pre-hash password outside of transaction (CPU-intensive)
+    let hashedPassword: string | null = null;
+    if (staffData.create_account && staffData.username && staffData.password) {
+      hashedPassword = await bcrypt.hash(staffData.password, 12);
+    }
 
-    try {
-      // Handle photo upload if provided
-      let photoUrl = null;
-      const photoFile = formData.get('photo') as File;
-      if (photoFile && photoFile.size > 0) {
-        // TODO: Implement proper photo upload logic to cloud storage
-        photoUrl = `/uploads/staff/photo_${Date.now()}.jpg`;
-      }
+    // Handle photo upload if provided
+    let photoUrl = null;
+    const photoFile = formData.get('photo') as File;
+    if (photoFile && photoFile.size > 0) {
+      // TODO: Implement proper photo upload logic to cloud storage
+      photoUrl = `/uploads/staff/photo_${Date.now()}.jpg`;
+    }
 
+    const result = await withTenantTransaction(sessionSchoolId, async ({ exec }) => {
       // 1. Insert into people table
-      const [personResult] = await connection.execute(`
-        INSERT INTO people (
+      const personResult = await exec(
+        `INSERT INTO people (
           school_id, first_name, last_name, other_name, gender, 
           date_of_birth, phone, email, address, photo_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        staffData.schoolId, staffData.first_name, staffData.last_name, 
-        staffData.other_name, staffData.gender, staffData.date_of_birth,
-        staffData.phone, staffData.email, staffData.address, photoUrl
-      ]);
-
-      const personId = (personResult as any).insertId;
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          staffData.schoolId, staffData.first_name, staffData.last_name, 
+          staffData.other_name, staffData.gender, staffData.date_of_birth,
+          staffData.phone, staffData.email, staffData.address, photoUrl
+        ]
+      );
+      const personId = personResult.insertId;
 
       // Generate staff number if not provided
       const finalStaffNo = staffData.staff_no || `STAFF${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
       // 2. Insert into staff table
-      const [staffResult] = await connection.execute(`
-        INSERT INTO staff (
+      const staffResult = await exec(
+        `INSERT INTO staff (
           school_id, person_id, staff_no, position, status,
           department_id, employment_type, qualification, experience_years,
           hire_date, salary, bank_name, bank_account_no, nssf_no, tin_no
-        ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        staffData.schoolId, personId, finalStaffNo, staffData.position,
-        staffData.department_id, staffData.employment_type, staffData.qualification,
-        staffData.experience_years, staffData.hire_date, staffData.salary,
-        staffData.bank_name, staffData.bank_account_no, staffData.nssf_no, staffData.tin_no
-      ]);
-      const staffId = (staffResult as any).insertId;
+        ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          staffData.schoolId, personId, finalStaffNo, staffData.position,
+          staffData.department_id, staffData.employment_type, staffData.qualification,
+          staffData.experience_years, staffData.hire_date, staffData.salary,
+          staffData.bank_name, staffData.bank_account_no, staffData.nssf_no, staffData.tin_no
+        ]
+      );
+      const staffId = staffResult.insertId;
 
       // 3. Create user account if requested
       let userId = null;
-      if (staffData.create_account && staffData.username && staffData.password) {
-        // Hash password with bcrypt (cost factor 12)
-        const hashedPassword = await bcrypt.hash(staffData.password, 12);
-        
-        const [userResult] = await connection.execute(`
-          INSERT INTO users (
+      if (hashedPassword && staffData.username) {
+        const userResult = await exec(
+          `INSERT INTO users (
             school_id, person_id, role_id, username, email, phone, password_hash, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
-        `, [
-          staffData.schoolId, personId, staffData.role_id,
-          staffData.username, staffData.email, staffData.phone, hashedPassword
-        ]);
-
-        userId = (userResult as any).insertId;
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+          [
+            staffData.schoolId, personId, staffData.role_id,
+            staffData.username, staffData.email, staffData.phone, hashedPassword
+          ]
+        );
+        userId = userResult.insertId;
       }
 
-      // 4. Handle document uploads if any
-      const documents = [];
-      for (const [key, value] of formData.entries()) {
-        if (key.startsWith('document_') && value instanceof File && value.size > 0) {
-          documents.push({
-            type: key.replace('document_', ''),
-            filename: value.name,
-            size: value.size
-          });
-        }
+      return { personId, staffId, userId, finalStaffNo };
+    });
+
+    // 4. Handle document uploads if any
+    const documents = [];
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith('document_') && value instanceof File && value.size > 0) {
+        documents.push({
+          type: key.replace('document_', ''),
+          filename: value.name,
+          size: value.size
+        });
       }
-
-      await connection.commit();
-
-      // Log to audit trail
-      await logAudit({
-        schoolId: sessionSchoolId,
-        userId: sessionUserId,
-        action: AuditAction.CREATED_STAFF,
-        entityType: 'staff',
-        entityId: staffId,
-        details: {
-          staffNo: finalStaffNo,
-          firstName: staffData.first_name,
-          lastName: staffData.last_name,
-          position: staffData.position,
-          hasUserAccount: !!userId
-        }
-      }).catch(err => console.error('Audit log failed:', err));
-
-      // Log success event
-      await logSystemEvent({
-        schoolId: sessionSchoolId,
-        level: LogLevel.INFO,
-        source: '/api/staff/add',
-        message: `Staff created successfully: ${staffData.first_name} ${staffData.last_name}`,
-        userId: sessionUserId,
-        requestId,
-        context: { staffId, personId, userId }
-      }).catch(err => console.error('System log failed:', err));
-
-      // Send notifications to admin users (non-blocking)
-      query(
-        `SELECT DISTINCT u.id FROM users u WHERE u.school_id = ? AND u.status = 'active' LIMIT 10`,
-        [sessionSchoolId]
-      ).then(admins => {
-        const adminIds = (admins as any[]).map((a: any) => a.id);
-        if (adminIds.length > 0) {
-          notifyStaffCreated(
-            sessionSchoolId,
-            {
-              staffId,
-              staffName: `${staffData.first_name} ${staffData.last_name}`,
-              position: staffData.position ?? '',
-              userId
-            },
-            adminIds
-          ).catch(err => console.error('Notification failed:', err));
-        }
-      }).catch(err => console.error('Failed to fetch admin recipients:', err));
-
-      return createSuccessResponse({
-        staff_id: staffId,
-        person_id: personId,
-        user_id: userId,
-        staff_no: finalStaffNo,
-        documents: documents,
-        message: 'Staff member added successfully'
-      }, 201);
-
-    } catch (dbError: any) {
-      await connection.rollback();
-      throw dbError;
     }
+
+    // Log to audit trail (non-blocking)
+    logAudit({
+      schoolId: sessionSchoolId,
+      userId: sessionUserId,
+      action: AuditAction.CREATED_STAFF,
+      entityType: 'staff',
+      entityId: result.staffId,
+      details: {
+        staffNo: result.finalStaffNo,
+        firstName: staffData.first_name,
+        lastName: staffData.last_name,
+        position: staffData.position,
+        hasUserAccount: !!result.userId
+      }
+    }).catch(err => console.error('Audit log failed:', err));
+
+    // Log success event (non-blocking)
+    logSystemEvent({
+      schoolId: sessionSchoolId,
+      level: LogLevel.INFO,
+      source: '/api/staff/add',
+      message: `Staff created successfully: ${staffData.first_name} ${staffData.last_name}`,
+      userId: sessionUserId,
+      requestId,
+      context: { staffId: result.staffId, personId: result.personId, userId: result.userId }
+    }).catch(err => console.error('System log failed:', err));
+
+    // Send notifications to admin users (non-blocking)
+    query(
+      `SELECT DISTINCT u.id FROM users u WHERE u.school_id = ? AND u.status = 'active' LIMIT 10`,
+      [sessionSchoolId]
+    ).then(admins => {
+      const adminIds = (admins as any[]).map((a: any) => a.id);
+      if (adminIds.length > 0) {
+        notifyStaffCreated(
+          sessionSchoolId,
+          {
+            staffId: result.staffId,
+            staffName: `${staffData.first_name} ${staffData.last_name}`,
+            position: staffData.position ?? '',
+            userId: result.userId
+          },
+          adminIds
+        ).catch(err => console.error('Notification failed:', err));
+      }
+    }).catch(err => console.error('Failed to fetch admin recipients:', err));
+
+    return createSuccessResponse({
+      staff_id: result.staffId,
+      person_id: result.personId,
+      user_id: result.userId,
+      staff_no: result.finalStaffNo,
+      documents: documents,
+      message: 'Staff member added successfully'
+    }, 201);
 
   } catch (error: any) {
     const isDevelopment = process.env.NODE_ENV === 'development';
@@ -286,12 +283,6 @@ export async function POST(req: NextRequest) {
       isDevelopment ? { message: error.message } : undefined
     );
   } finally {
-    if (connection) {
-      try {
-        await connection.end();
-      } catch (e) {
-        console.error('Connection cleanup error:', e);
-      }
-    }
+    // Connection cleanup handled by withTenantTransaction
   }
 }

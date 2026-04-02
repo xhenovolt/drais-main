@@ -16,6 +16,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { execTenant } from '@/lib/dbTenant';
 import * as XLSX from 'xlsx';
 import { getSessionSchoolId } from '@/lib/auth';
 
@@ -252,7 +253,7 @@ export async function POST(request: NextRequest) {
                   if ((existing as any[]).length > 0) {
                     studentId = (existing as any[])[0].id;
                     isUpdate = true;
-                    await conn.execute(
+                    await execTenant(conn,
                       `UPDATE people SET first_name=?, last_name=?,
                          gender=COALESCE(?,gender), date_of_birth=COALESCE(?,date_of_birth),
                          phone=COALESCE(?,phone), address=COALESCE(?,address),
@@ -266,7 +267,7 @@ export async function POST(request: NextRequest) {
                         safe(cm.addressIdx !== -1 ? row[cm.addressIdx] : null),
                         safe(cm.photoUrlIdx !== -1 ? row[cm.photoUrlIdx] : null),
                         studentId, schoolId,
-                      ],
+                      ], schoolId,
                     );
                   }
                 }
@@ -282,7 +283,7 @@ export async function POST(request: NextRequest) {
                   const notesExtra = cm.biometricIdIdx !== -1 && row[cm.biometricIdIdx]
                     ? `; biometric_id=${row[cm.biometricIdIdx]}` : '';
 
-                  const [pr] = await conn.execute(
+                  const pr = await execTenant(conn,
                     `INSERT INTO people (school_id, first_name, last_name, gender, date_of_birth, phone, address, photo_url)
                      VALUES (?,?,?,?,?,?,?,?)`,
                     [
@@ -292,16 +293,17 @@ export async function POST(request: NextRequest) {
                       safe(cm.phoneIdx   !== -1 ? row[cm.phoneIdx]   : null),
                       safe(cm.addressIdx !== -1 ? row[cm.addressIdx] : null),
                       safe(cm.photoUrlIdx !== -1 ? row[cm.photoUrlIdx] : null),
-                    ],
-                  ) as any[];
-                  const personId = (pr as any).insertId;
+                    ], schoolId,
+                  );
+                  const personId = pr.insertId;
 
-                  const [sr] = await conn.execute(
+                  const sr = await execTenant(conn,
                     `INSERT INTO students (school_id, person_id, admission_no, status, notes)
                      VALUES (?,?,?,'active',?)`,
                     [schoolId, personId, finalAdmNo, `Bulk imported ${new Date().toISOString()}${notesExtra}`],
-                  ) as any[];
-                  studentId = (sr as any).insertId;
+                    schoolId,
+                  );
+                  studentId = sr.insertId;
                 }
 
                 // Enroll
@@ -312,17 +314,17 @@ export async function POST(request: NextRequest) {
                       ? (streamMap.get(String(row[cm.sectionIdx]).trim().toLowerCase()) ?? null)
                       : null;
                     if (isUpdate) {
-                      await conn.execute(
+                      await execTenant(conn,
                         `UPDATE enrollments SET class_id=?, stream_id=?, updated_at=CURRENT_TIMESTAMP
                          WHERE student_id=? AND school_id=? AND status='active'`,
-                        [classId, streamId, studentId, schoolId],
+                        [classId, streamId, studentId, schoolId], schoolId,
                       );
                     } else {
-                      await conn.execute(
+                      await execTenant(conn,
                         `INSERT INTO enrollments (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status)
                          VALUES (?,?,?,?,?,?,'active')
                          ON DUPLICATE KEY UPDATE class_id=VALUES(class_id), stream_id=VALUES(stream_id)`,
-                        [schoolId, studentId, classId, streamId, yearId, termId],
+                        [schoolId, studentId, classId, streamId, yearId, termId], schoolId,
                       );
                     }
                   }
