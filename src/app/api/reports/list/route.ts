@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
     console.error('Reports list error:', error);
     return NextResponse.json({ 
       success: false, 
-      error: 'Reports v2 failed: ' + (error.sqlMessage || error.code || error.message)
+      error: 'Failed to fetch report data'
     }, { status: 500 });
   } finally {
     await connection.end(); // Ensure the connection is closed after all operations
