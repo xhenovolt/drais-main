@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import {
   Activity, Wifi, WifiOff, Server, Clock, MapPin, Hash,
   Trash2, Users, Loader, CheckCircle, AlertTriangle, Settings,
-  Fingerprint, RefreshCw, Edit2, X, Save,
+  Fingerprint, RefreshCw, Edit2, X, Save, UserPlus, Send,
 } from 'lucide-react';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
@@ -135,6 +135,11 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [polling, setPolling] = useState(false);
 
+  // ── Sync Identities state ──
+  const [idSyncing, setIdSyncing] = useState(false);
+  const [idProgress, setIdProgress] = useState<{ total: number; pending: number; sent: number; acknowledged: number; failed: number; status: string } | null>(null);
+  const [idPolling, setIdPolling] = useState(false);
+
   useEffect(() => {
     if (!polling) return;
     const interval = setInterval(async () => {
@@ -154,6 +159,55 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
     }, 2000);
     return () => clearInterval(interval);
   }, [polling, device.serial_number]);
+
+  // ── Sync Identities polling ──
+  useEffect(() => {
+    if (!idPolling) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/attendance/zk/devices/sync-identities?device_sn=${device.serial_number}`);
+        const json = await res.json();
+        if (!json.success) return;
+        setIdProgress({
+          total: json.total,
+          pending: json.pending,
+          sent: json.sent,
+          acknowledged: json.acknowledged,
+          failed: json.failed,
+          status: json.sync_status,
+        });
+        if (json.sync_status === 'complete' || json.sync_status === 'idle' || json.sync_status === 'failed') {
+          setIdPolling(false);
+          setIdSyncing(false);
+          if (json.sync_status === 'complete') showToast('success', `All ${json.acknowledged} identities synced to device`);
+          else if (json.sync_status === 'failed') showToast('error', `Sync had ${json.failed} failures`);
+          onMutate();
+        }
+      } catch { /* silent */ }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [idPolling, device.serial_number, onMutate]);
+
+  const startIdentitySync = useCallback(async () => {
+    setIdSyncing(true);
+    try {
+      const res = await apiFetch<any>('/api/attendance/zk/devices/sync-identities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_sn: device.serial_number }),
+        successMessage: 'Identity sync started',
+      });
+      if (res.queued === 0) {
+        showToast('info', res.message || 'All users already synced');
+        setIdSyncing(false);
+        return;
+      }
+      setIdProgress({ total: res.queued, pending: res.queued, sent: 0, acknowledged: 0, failed: 0, status: 'syncing' });
+      setIdPolling(true);
+    } catch {
+      setIdSyncing(false);
+    }
+  }, [device.serial_number]);
 
   const startSync = useCallback(async () => {
     setSyncState('pending');
@@ -308,18 +362,42 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               </div>
             </div>
 
+            {/* Sync Identities — progress bar */}
+            {(idSyncing || (idProgress && idProgress.status === 'syncing')) && idProgress && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-blue-600 font-medium flex items-center gap-1">
+                    <Send className="w-3 h-3" /> Syncing identities to device...
+                  </span>
+                  <span className="text-gray-500 font-mono">
+                    {idProgress.sent + idProgress.acknowledged}/{idProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${idProgress.total > 0 ? Math.round(((idProgress.sent + idProgress.acknowledged) / idProgress.total) * 100) : 0}%` }} />
+                </div>
+                <div className="flex gap-3 text-[10px] text-gray-400">
+                  <span>Pending: {idProgress.pending}</span>
+                  <span>Sent: {idProgress.sent}</span>
+                  <span className="text-green-600">Done: {idProgress.acknowledged}</span>
+                  {idProgress.failed > 0 && <span className="text-red-500">Failed: {idProgress.failed}</span>}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
-              <button onClick={startSync} disabled={syncState === 'pending' || syncState === 'sent'}
+              <button onClick={startIdentitySync} disabled={idSyncing || !isOnline}
                 className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                  syncState === 'pending' || syncState === 'sent' ? 'bg-blue-50 text-blue-600 cursor-wait'
-                    : syncState === 'acknowledged' ? 'bg-green-50 text-green-700 hover:bg-green-100'
-                      : 'bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-600'
+                  idSyncing ? 'bg-purple-50 text-purple-600 cursor-wait'
+                    : idProgress?.status === 'complete' ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                      : 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 hover:bg-purple-100'
                 }`}>
-                {syncState === 'pending' || syncState === 'sent'
+                {idSyncing
                   ? <Loader className="w-3.5 h-3.5 animate-spin" />
-                  : syncState === 'acknowledged' ? <CheckCircle className="w-3.5 h-3.5" />
-                    : <Users className="w-3.5 h-3.5" />}
-                {syncLabel[syncState]}
+                  : idProgress?.status === 'complete' ? <CheckCircle className="w-3.5 h-3.5" />
+                    : <UserPlus className="w-3.5 h-3.5" />}
+                {idSyncing ? 'Syncing...' : idProgress?.status === 'complete' ? 'Device Up to Date' : 'Sync Identities'}
               </button>
               <button onClick={() => { setEditForm({ device_name: device.device_name || '', location: device.location || '' }); setEditing(true); }}
                 className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-500" title="Edit">
@@ -330,6 +408,20 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 {deleting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
               </button>
             </div>
+
+            {/* Existing View Members button — smaller row */}
+            <button onClick={startSync} disabled={syncState === 'pending' || syncState === 'sent'}
+              className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                syncState === 'pending' || syncState === 'sent' ? 'bg-blue-50 text-blue-600 cursor-wait'
+                  : syncState === 'acknowledged' ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                    : 'bg-gray-50 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-blue-50 hover:text-blue-600'
+              }`}>
+              {syncState === 'pending' || syncState === 'sent'
+                ? <Loader className="w-3 h-3 animate-spin" />
+                : syncState === 'acknowledged' ? <CheckCircle className="w-3 h-3" />
+                  : <Users className="w-3 h-3" />}
+              {syncLabel[syncState]}
+            </button>
           </>
         )}
       </div>
