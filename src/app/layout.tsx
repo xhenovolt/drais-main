@@ -23,7 +23,6 @@ import { Toaster } from 'react-hot-toast';
 import { SWRConfig } from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import ErrorBoundary from '@/components/ErrorBoundary';
 
 const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
 const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
