@@ -410,8 +410,8 @@ export default function ClassResultsManager() {
 
   const sortedLearners = useMemo(() => {
     return [...rows].sort((a, b) => {
-      const nameA = `${a.last_name || ''} ${a.first_name || ''}`.toLowerCase();
-      const nameB = `${b.last_name || ''} ${b.first_name || ''}`.toLowerCase();
+      const nameA = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase();
+      const nameB = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase();
       return nameA.localeCompare(nameB);
     });
   }, [rows]);
@@ -679,20 +679,21 @@ export default function ClassResultsManager() {
   };
 
   return (
-    <div className="mt-8 space-y-10">
-      {/* Filters above the table */}
-      <div className="flex flex-wrap gap-2 items-center mb-4">
+    <div className="flex flex-col h-full">
+
+      {/* ── COMPACT TOOLBAR ─────────────────────────────────────────── */}
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-1.5 px-3 py-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <input
           type="text"
           placeholder={t('search')}
           value={filters.search}
           onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-          className="px-3 py-1.5 border rounded-md text-sm"
+          className="h-8 px-2.5 w-36 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         />
         <select
           value={filters.class_id}
           onChange={e => setFilters(f => ({ ...f, class_id: e.target.value }))}
-          className="px-3 py-1.5 border rounded-md text-sm"
+          className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
           <option value="">{t('all_classes')}</option>
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -700,7 +701,7 @@ export default function ClassResultsManager() {
         <select
           value={filters.subject_id}
           onChange={e => setFilters(f => ({ ...f, subject_id: e.target.value }))}
-          className="px-3 py-1.5 border rounded-md text-sm"
+          className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
           <option value="">{t('all_subjects')}</option>
           {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -708,7 +709,7 @@ export default function ClassResultsManager() {
         <select
           value={filters.result_type_id}
           onChange={e => setFilters(f => ({ ...f, result_type_id: e.target.value }))}
-          className="px-3 py-1.5 border rounded-md text-sm"
+          className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
           <option value="">{t('all_types')}</option>
           {types.map(rt => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
@@ -716,82 +717,57 @@ export default function ClassResultsManager() {
         <select
           value={filters.term_id}
           onChange={e => setFilters(f => ({ ...f, term_id: e.target.value }))}
-          className="px-3 py-1.5 border rounded-md text-sm"
+          className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
           <option value="">{t('all_terms')}</option>
           {terms.map(term => <option key={term.id} value={term.id}>{term.name}</option>)}
         </select>
+
+        <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
         <button
           onClick={handleOpenModal}
-          className="px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white"
+          className="h-8 px-3 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
         >
           {t('add_edit_results')}
         </button>
-        
-        {/* Export buttons moved here for better positioning */}
-        <div className="flex gap-2 ml-4">
-          <button
-            onClick={() => exportToPDF('learner', filteredMarklist)}
-            className="px-3 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 transition-all"
-          >
-            PDF
-          </button>
-          <button
-            onClick={() => exportToExcel('learner', filteredMarklist)}
-            className="px-3 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 transition-all"
-          >
-            Excel
-          </button>
-          <button
-            onClick={() => exportToCSV(filteredMarklist)}
-            className="px-3 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 transition-all"
-          >
-            CSV
-          </button>
-        </div>
-      </div>
-      
-      <div className="space-y-3">
-        {/* Table toolbar: title + limit selector + sort controls + refresh */}
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-sm font-semibold tracking-wide uppercase">{t('existing_results')}</h2>
-          <span className="text-xs text-slate-500">({listTotal} total)</span>
-          <button onClick={() => setFilters(f => ({ ...f }))} className="px-3 py-1.5 rounded-md text-xs font-medium bg-black/5 dark:bg-white/10 flex items-center gap-1">
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-500 font-medium">{listTotal} results</span>
+          <button onClick={() => setFilters(f => ({ ...f }))} className="h-8 px-2 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-1 transition-colors">
             <RefreshCw className="w-3 h-3"/>{t('refresh')}
           </button>
-          {/* Limit selector */}
-          <div className="ml-auto flex items-center gap-2 text-xs">
-            <span className="text-slate-500">Per page:</span>
-            {[20, 50, 100].map(n => (
-              <button
-                key={n}
-                onClick={() => { setListLimit(n); setListPage(1); }}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${listLimit === n ? 'bg-indigo-600 text-white' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10'}`}
-              >{n}</button>
-            ))}
-          </div>
-          {/* Sort selector */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="text-slate-500">Sort:</span>
-            {(['name', 'score', 'class'] as const).map(key => (
-              <button
-                key={key}
-                onClick={() => {
-                  if (listSortBy === key) setListSortOrder(o => o === 'asc' ? 'desc' : 'asc');
-                  else { setListSortBy(key); setListSortOrder('asc'); }
-                  setListPage(1);
-                }}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${listSortBy === key ? 'bg-fuchsia-600 text-white' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10'}`}
-              >
-                {key.charAt(0).toUpperCase() + key.slice(1)}
-                {listSortBy === key && <span className="ml-0.5">{listSortOrder === 'asc' ? '↑' : '↓'}</span>}
-              </button>
-            ))}
-          </div>
+          {[20, 50, 100].map(n => (
+            <button
+              key={n}
+              onClick={() => { setListLimit(n); setListPage(1); }}
+              className={`h-8 px-2 rounded-lg text-xs font-medium transition-colors ${listLimit === n ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+            >{n}</button>
+          ))}
+          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+          {(['name', 'score', 'class'] as const).map(key => (
+            <button
+              key={key}
+              onClick={() => {
+                if (listSortBy === key) setListSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+                else { setListSortBy(key); setListSortOrder('asc'); }
+                setListPage(1);
+              }}
+              className={`h-8 px-2 rounded-lg text-xs font-medium transition-colors ${listSortBy === key ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+            >
+              {key.charAt(0).toUpperCase() + key.slice(1)}
+              {listSortBy === key && <span className="ml-0.5">{listSortOrder === 'asc' ? '↑' : '↓'}</span>}
+            </button>
+          ))}
+          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+          <button onClick={() => exportToPDF('learner', filteredMarklist)} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">PDF</button>
+          <button onClick={() => exportToExcel('learner', filteredMarklist)} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">XLS</button>
+          <button onClick={() => exportToCSV(filteredMarklist)} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors">CSV</button>
         </div>
+      </div>
 
-        {/* Results table with sticky header */}
-        <div className="overflow-auto rounded-xl border border-white/30 dark:border-white/10 max-h-[70vh]">
+      {/* ── RESULTS TABLE (fills remaining space) ─────────────────── */}
+      <div className="flex-1 overflow-auto">
           <table className="w-full text-xs border-collapse">
             <thead className="bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur sticky top-0 z-10 shadow-sm">
               <tr>
@@ -868,30 +844,29 @@ export default function ClassResultsManager() {
           )}
         </div>
 
-        {/* Pagination */}
-        {listTotal > 0 && (
-          <div className="flex items-center justify-between text-xs pt-1">
-            <span className="text-slate-500">
-              Showing {Math.min((listPage - 1) * listLimit + 1, listTotal)}–{Math.min(listPage * listLimit, listTotal)} of {listTotal} results
+      {/* ── PAGINATION FOOTER ──────────────────────────────────── */}
+      {listTotal > 0 && (
+        <div className="flex-shrink-0 flex items-center justify-between text-xs px-3 py-1.5 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800">
+          <span className="text-slate-500">
+            {Math.min((listPage - 1) * listLimit + 1, listTotal)}–{Math.min(listPage * listLimit, listTotal)} of {listTotal}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              disabled={listPage === 1}
+              onClick={() => setListPage(p => Math.max(1, p - 1))}
+              className="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >← {t('prev')}</button>
+            <span className="h-7 px-2.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold flex items-center">
+              {listPage}/{Math.ceil(listTotal / listLimit)}
             </span>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={listPage === 1}
-                onClick={() => setListPage(p => Math.max(1, p - 1))}
-                className="px-3 py-1.5 rounded-md bg-black/5 dark:bg-white/10 disabled:opacity-30 hover:bg-black/10 transition-colors"
-              >← {t('prev')}</button>
-              <span className="px-3 py-1.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold">
-                {listPage} / {Math.ceil(listTotal / listLimit)}
-              </span>
-              <button
-                disabled={listPage >= Math.ceil(listTotal / listLimit)}
-                onClick={() => setListPage(p => p + 1)}
-                className="px-3 py-1.5 rounded-md bg-black/5 dark:bg-white/10 disabled:opacity-30 hover:bg-black/10 transition-colors"
-              >{t('next')} →</button>
-            </div>
+            <button
+              disabled={listPage >= Math.ceil(listTotal / listLimit)}
+              onClick={() => setListPage(p => p + 1)}
+              className="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >{t('next')} →</button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Modal for adding/editing results */}
       <Transition show={open} as={Fragment}>
@@ -1050,26 +1025,6 @@ export default function ClassResultsManager() {
 
 
 
-      {/* Add helpful hints for users */}
-      <div className="text-xs text-gray-500 flex items-center gap-4">
-        <div className="flex items-center gap-1">
-          <Edit3 className="w-3 h-3" />
-          <span>Click any score to edit</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-green-600">●</span>
-          <span>Press Enter to save</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-red-600">●</span>
-          <span>Press Escape to cancel</span>
-        </div>
-      </div>
-
-      <div id="report-area" className="hidden">
-        {/* Core report area to be exported */}
-        {/* ...existing report rendering code... */}
-      </div>
     </div>
   );
 }

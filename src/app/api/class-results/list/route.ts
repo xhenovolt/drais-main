@@ -65,9 +65,9 @@ export async function GET(req: NextRequest) {
 
       // Build ORDER BY
       const orderMap: Record<string, string> = {
-        name:  "COALESCE(p.last_name,'') ASC, COALESCE(p.first_name,'') ASC",
+        name:  "COALESCE(p.first_name,'') ASC, COALESCE(p.last_name,'') ASC",
         score: `cr.score ${sortOrder}`,
-        class: `c.name ${sortOrder}, COALESCE(p.last_name,'') ASC`,
+        class: `c.name ${sortOrder}, COALESCE(p.first_name,'') ASC`,
       };
       const orderBy = orderMap[sortBy] ?? orderMap['name'];
 

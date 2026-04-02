@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
          JOIN students s ON s.id = e.student_id
          JOIN people p ON p.id = s.person_id
          WHERE e.class_id = ? AND e.status = 'active' AND s.school_id = ?
-         ORDER BY p.last_name ASC, p.first_name ASC`,
+         ORDER BY p.first_name ASC, p.last_name ASC`,
         [classId, schoolId]
       );
       students = rows;
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
       query += `
         WHERE e.class_id = ? AND e.status = 'active' AND s.school_id = ?
           AND r.student_id IS NULL
-        ORDER BY p.last_name ASC, p.first_name ASC`;
+        ORDER BY p.first_name ASC, p.last_name ASC`;
 
       params.push(classId, schoolId);
 
