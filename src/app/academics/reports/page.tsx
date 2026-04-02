@@ -147,7 +147,7 @@ const ReportsPage = () => {
   const [isEditingTerm, setIsEditingTerm] = useState(false);
   const [teacherInitials, setTeacherInitials] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [nextTermBegins, setNextTermBegins] = useState('18-AUG-2025');
+  const [nextTermBegins, setNextTermBegins] = useState('');
   const [enableMarkConversion, setEnableMarkConversion] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
     name: '',
@@ -263,7 +263,7 @@ const ReportsPage = () => {
     return cleaned.replace(/[0-9]/g, d => map[d]);
   };
 
-  // Fetch academic years and terms on mount
+  // Fetch academic years, terms, persisted initials and next-term date on mount
   useEffect(() => {
     fetch('/api/academic_years')
       .then(r => r.json())
@@ -275,6 +275,22 @@ const ReportsPage = () => {
       .then(r => r.json())
       .then(data => {
         if (data?.data) setTermsData(data.data);
+      })
+      .catch(() => {});
+    fetch('/api/teacher-initials')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.success && data.data && typeof data.data === 'object') {
+          setTeacherInitials(data.data);
+        }
+      })
+      .catch(() => {});
+    fetch('/api/next-term')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.data?.nextTermBegins) {
+          setNextTermBegins(data.data.nextTermBegins);
+        }
       })
       .catch(() => {});
   }, []);
@@ -877,27 +893,29 @@ const ReportsPage = () => {
         )}
 
         {/* Filter Section at the top - Hidden when printing */}
-        <div className="flex flex-wrap gap-2 mb-0 no-print">
-          <select
-            value={filters.academicYearId}
-            onChange={(e) => setFilters((f) => ({ ...f, academicYearId: e.target.value, term: '' }))}
-            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            title="Filter by academic year"
-          >
-            <option value="">All Years</option>
-            {academicYears.map((ay) => (
-              <option key={ay.id} value={ay.id}>
-                {ay.name} {ay.status === 'active' ? '(Current)' : ''}
-              </option>
-            ))}
-          </select>
+        <div className="no-print mb-4 space-y-3">
+          {/* Row 1: Filter dropdowns */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filters.academicYearId}
+              onChange={(e) => setFilters((f) => ({ ...f, academicYearId: e.target.value, term: '' }))}
+              className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              title="Filter by academic year"
+            >
+              <option value="">All Years</option>
+              {academicYears.map((ay) => (
+                <option key={ay.id} value={ay.id}>
+                  {ay.name} {ay.status === 'active' ? '(Current)' : ''}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={filters.term}
-            onChange={(e) => setFilters((f) => ({ ...f, term: e.target.value }))}
-            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Terms</option>
+            <select
+              value={filters.term}
+              onChange={(e) => setFilters((f) => ({ ...f, term: e.target.value }))}
+              className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            >
+              <option value="">All Terms</option>
             {filteredTerms.length > 0
               ? filteredTerms.map((t) => (
                   <option key={t.id} value={t.name}>
@@ -915,7 +933,7 @@ const ReportsPage = () => {
           <select
             value={filters.resultType}
             onChange={(e) => setFilters((f) => ({ ...f, resultType: e.target.value }))}
-            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           >
             <option value="">All Result Types</option>
             {[...new Set(allResults.map((r) => r.result_type_name || r.results_type))]
@@ -930,7 +948,7 @@ const ReportsPage = () => {
           <select
             value={filters.classId}
             onChange={(e) => setFilters((f) => ({ ...f, classId: e.target.value }))}
-            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           >
             <option value="">All Classes</option>
             {[...new Set(
@@ -954,8 +972,8 @@ const ReportsPage = () => {
           <input
             value={filters.student}
             onChange={(e) => setFilters((f) => ({ ...f, student: e.target.value }))}
-            placeholder="Type student name or ID"
-            className="input border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Search student..."
+            className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-w-[160px]"
           />
 
           {/* Template selector — Phase 1 */}
@@ -965,11 +983,11 @@ const ReportsPage = () => {
               const key = e.target.value as TemplateKey;
               setSelectedTemplate(templateRegistry[key] ? key : 'default');
             }}
-            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
             title="Select report template"
           >
-            <option value="default">Default</option>
-            <option value="arabic">Arabic</option>
+            <option value="default">Default Template</option>
+            <option value="arabic">Arabic Template</option>
             <option value="dual">Dual Curriculum</option>
             <option value="default-clone">Default (Clone)</option>
             <option value="arabic-clone">Arabic (Clone)</option>
@@ -979,7 +997,7 @@ const ReportsPage = () => {
           <select
             value={curriculum}
             onChange={(e) => setCurriculum(e.target.value as 'all' | 'secular' | 'theology')}
-            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             title="Filter by curriculum"
           >
             <option value="all">All Subjects</option>
@@ -991,50 +1009,79 @@ const ReportsPage = () => {
           <select
             value={selectedLanguage === 'ar' ? 'Arabic' : 'English'}
             onChange={(e) => setSelectedLanguage(e.target.value === 'Arabic' ? 'ar' : 'en')}
-            className="dropdown border rounded px-3 py-2 text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             title="Display language"
           >
             <option value="English">English</option>
-            <option value="Arabic">Arabic</option>
+            <option value="Arabic">العربية</option>
           </select>
+          </div>
 
+          {/* Row 2: Action buttons */}
+          <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => window.print()}
-            className="button bg-blue-600 text-white px-4 py-2 rounded text-sm shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-blue-600 shadow-sm hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
           >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
             Print
           </button>
 
           <button
             onClick={exportToPDF}
-            className="button bg-green-600 text-white px-4 py-2 rounded text-sm shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-emerald-600 shadow-sm hover:bg-emerald-700 active:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 transition-colors"
           >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             Export PDF
           </button>
 
           <button
             onClick={exportToExcel}
-            className="button bg-teal-600 text-white px-4 py-2 rounded text-sm shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-teal-600 shadow-sm hover:bg-teal-700 active:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 transition-colors"
           >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
             Export Excel
           </button>
 
           <button
             onClick={() => setShowCustomization(true)}
-            className="button bg-gray-700 text-white px-4 py-2 rounded text-sm shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-gray-600 shadow-sm hover:bg-gray-700 active:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
           >
-            Customize Style
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Customize
           </button>
 
           <a
             href="/reports/kitchen"
-            className="button bg-amber-600 text-white px-4 py-2 rounded text-sm shadow-sm hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-amber-600 shadow-sm hover:bg-amber-700 active:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 transition-colors no-underline"
           >
-            🍳 Template Kitchen
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+            Template Kitchen
           </a>
+
+          <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
+            {loading && <span className="inline-flex items-center gap-1"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Loading...</span>}
+            {!loading && Object.keys(classGroupsWithPositions).length > 0 && (
+              <span>{Object.values(classGroupsWithPositions).reduce((sum, g) => sum + g.students.length, 0)} students in {Object.keys(classGroupsWithPositions).length} class(es)</span>
+            )}
+          </div>
+          </div>
         </div>
-        {loading && <div className="no-print">Loading..</div>}
         <div>
+          {!loading && Object.keys(classGroupsWithPositions).length === 0 && allResults.length > 0 && (
+            <div className="no-print text-center py-12 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <p className="font-medium">No reports match your filters</p>
+              <p className="text-sm mt-1">Try adjusting the year, term, class, or result type filters above.</p>
+            </div>
+          )}
+          {!loading && allResults.length === 0 && (
+            <div className="no-print text-center py-12 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <p className="font-medium">No report data found</p>
+              <p className="text-sm mt-1">Enter results in the Results page first, then come back here to generate reports.</p>
+            </div>
+          )}
           {Object.values(classGroupsWithPositions).map((classGroup: any) => (
             <div key={classGroup.className}>
               <div className="classHeading text-2xl font-bold text-center my-0">{classGroup.className}</div>
@@ -1335,9 +1382,8 @@ const ReportsPage = () => {
                       <thead>
                         <tr>
                           <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>SUBJECT</th>
-                          {isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'MT ' : 'MT'}</th>}
-                          {!isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'MT ' : 'MT'}</th>}
-                          {isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'EOT ' : 'EOT'}</th>}
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'MT (40)' : 'MT'}</th>
+                          {isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'EOT (60)' : 'EOT'}</th>}
                           <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>GRADE</th>
                           <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>COMMENT</th>
                           <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>INITIALS</th>
@@ -1345,10 +1391,10 @@ const ReportsPage = () => {
                       </thead>
                       <tbody>
                         {allGroupedResults.map((r: GroupedResult, i: number) => {
-                          const { midTermMarks, endTermMarks, totalMarks } = calculateMarks(r, filters.resultType?.toLowerCase() === 'end of term', enableMarkConversion);
+                          const { midTermMarks, endTermMarks, totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                           const isCore = (r.subject_type || 'core').toLowerCase() === 'core';
 
-                          const scoreToUse = filters.resultType?.toLowerCase() === 'end of term' ? endTermMarks : midTermMarks;
+                          const scoreToUse = isEndOfTerm ? totalMarks : midTermMarks;
 
                           const initialsKey = `${student.class_name}-${r.subject_name}`;
                           const currentInitials = teacherInitials[initialsKey] || 
@@ -1358,9 +1404,8 @@ const ReportsPage = () => {
                           return (
                             <tr key={i}>
                               <td style={{ ...tdStyle, cursor: 'text', direction: isArabicMode ? 'rtl' : 'ltr' }} contentEditable suppressContentEditableWarning>{getSubjectName(r, isArabicMode ? 'ar' : 'en')}</td>
-                              {filters.resultType?.toLowerCase() === 'mid term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
-                              {filters.resultType?.toLowerCase() === 'end of term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks}</td>}
-                              {filters.resultType?.toLowerCase() === 'end of term' && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{endTermMarks}</td>}
+                              <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks || '-'}</td>
+                              {isEndOfTerm && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{endTermMarks || '-'}</td>}
                               <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{getGrade(scoreToUse || 0, isNursery)}</td>
                               <td style={{ ...tdStyle, cursor: 'text', fontSize: activeLayout.table.fontSize - 1 }} contentEditable suppressContentEditableWarning>{commentsForGrade(getGrade(scoreToUse || 0, isNursery))}</td>
                               <td
@@ -1380,8 +1425,7 @@ const ReportsPage = () => {
                         })}
                         <tr style={{ fontWeight: 'bold' }}>
                           <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign }}>TOTAL MARKS:</td>
-                          {isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.midTermScore || 0), 0))}</td>}
-                          {!isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.midTermScore || 0), 0))}</td>}
+                          <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.midTermScore || 0), 0))}</td>
                           {isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(allGroupedResults.reduce((sum, r) => sum + (r.endTermScore || 0), 0))}</td>}
                           <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding }}></td>
                           <td colSpan={2} style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, cursor: 'text' }} contentEditable suppressContentEditableWarning>
@@ -1494,16 +1538,16 @@ const ReportsPage = () => {
         
         {/* Customization Modal - Enhanced layout and controls */}
         {showCustomization && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full p-6 relative overflow-y-auto max-h-[90vh]">
-              <button className="absolute top-2 right-2 text-2xl" onClick={() => setShowCustomization(false)}>&times;</button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 relative overflow-y-auto max-h-[90vh] mx-4">
+              <button className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors text-xl" onClick={() => setShowCustomization(false)}>&times;</button>
               <h2 className="text-xl font-bold mb-4">Customize Report Style</h2>
-              <div className="mb-4 flex gap-2 border-b">
-                <button className={`px-3 py-1 ${customTab==='school'?'border-b-2 border-blue-600 font-semibold':''}`} onClick={()=>setCustomTab('school')}>School</button>
-                <button className={`px-3 py-1 ${customTab==='banner'?'border-b-2 border-blue-600 font-semibold':''}`} onClick={()=>setCustomTab('banner')}>Banners</button>
-                <button className={`px-3 py-1 ${customTab==='table'?'border-b-2 border-blue-600 font-semibold':''}`} onClick={()=>setCustomTab('table')}>Tables</button>
-                <button className={`px-3 py-1 ${customTab==='comment'?'border-b-2 border-blue-600 font-semibold':''}`} onClick={()=>setCustomTab('comment')}>Comments</button>
-                <button className={`px-3 py-1 ${customTab==='other'?'border-b-2 border-blue-600 font-semibold':''}`} onClick={()=>setCustomTab('other')}>Other</button>
+              <div className="mb-4 flex gap-1 border-b border-gray-200">
+                <button className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${customTab==='school'?'border-b-2 border-blue-600 text-blue-600 bg-blue-50':'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={()=>setCustomTab('school')}>School</button>
+                <button className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${customTab==='banner'?'border-b-2 border-blue-600 text-blue-600 bg-blue-50':'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={()=>setCustomTab('banner')}>Banners</button>
+                <button className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${customTab==='table'?'border-b-2 border-blue-600 text-blue-600 bg-blue-50':'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={()=>setCustomTab('table')}>Tables</button>
+                <button className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${customTab==='comment'?'border-b-2 border-blue-600 text-blue-600 bg-blue-50':'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={()=>setCustomTab('comment')}>Comments</button>
+                <button className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${customTab==='other'?'border-b-2 border-blue-600 text-blue-600 bg-blue-50':'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={()=>setCustomTab('other')}>Other</button>
               </div>
               <form>
                 {customTab==='school' && (
@@ -1519,13 +1563,20 @@ const ReportsPage = () => {
                   </div>
                 )}
                 {/* Add other customization tabs content as needed */}
-                <div className="flex justify-end mt-4">
+                <div className="flex justify-end gap-2 mt-6">
                   <button
-                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                     type="button"
                     onClick={() => setShowCustomization(false)}
                   >
-                    Apply
+                    Cancel
+                  </button>
+                  <button
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm"
+                    type="button"
+                    onClick={() => setShowCustomization(false)}
+                  >
+                    Apply Changes
                   </button>
                 </div>
               </form>
