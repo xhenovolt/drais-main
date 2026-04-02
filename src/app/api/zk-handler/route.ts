@@ -190,6 +190,67 @@ async function saveRawLog(
   }
 }
 
+// ─── zk_device_logs — Unified Observability (NEVER remove) ───────────────────
+
+type ZkEventType = 'HEARTBEAT' | 'DATA_RECEIVED' | 'DATA_PARSED' | 'PUNCH_SAVED' | 'ERROR';
+
+interface ZkDeviceLogEntry {
+  deviceSn:     string | null;
+  ipAddress?:   string;
+  eventType:    ZkEventType;
+  tableName?:   string;
+  rawPayload?:  string;
+  parsedJson?:  unknown;
+  recordCount?: number;
+  userId?:      string;
+  checkTime?:   string | null;
+  matched?:     boolean;
+  studentId?:   number | null;
+  staffId?:     number | null;
+  status?:      'success' | 'failed';
+  errorMessage?: string;
+  schoolId:     number;
+}
+
+/**
+ * Write one row to zk_device_logs.
+ * Fire-and-forget: NEVER throws, NEVER crashes the request.
+ * This is the core observability write — every interaction lands here.
+ */
+async function logDeviceEvent(entry: ZkDeviceLogEntry): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO zk_device_logs
+         (device_sn, ip_address, event_type, table_name, raw_payload, parsed_json,
+          record_count, user_id, check_time, matched, student_id, staff_id,
+          status, error_message, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        entry.deviceSn ?? null,
+        entry.ipAddress ?? null,
+        entry.eventType,
+        entry.tableName ?? null,
+        entry.rawPayload ?? null,
+        entry.parsedJson != null ? JSON.stringify(entry.parsedJson) : null,
+        entry.recordCount ?? 0,
+        entry.userId ?? null,
+        entry.checkTime ?? null,
+        entry.matched ? 1 : 0,
+        entry.studentId ?? null,
+        entry.staffId ?? null,
+        entry.status ?? 'success',
+        entry.errorMessage ?? null,
+        entry.schoolId,
+      ],
+    );
+  } catch (err) {
+    // Best-effort — log to stdout but NEVER propagate the error
+    zkLog('warn', 'ZK_DEVICE_LOG_WRITE_FAILED', { event: entry.eventType, error: String(err) });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** Get the school_id for a device from the devices table. */
 async function getDeviceSchoolId(sn: string): Promise<number> {
   try {
@@ -360,6 +421,20 @@ async function saveAttendancePunch(
       ],
     );
 
+    // ── Observability: PUNCH_SAVED (truth record) ──────────────────────────
+    await logDeviceEvent({
+      deviceSn,
+      eventType:  'PUNCH_SAVED',
+      tableName:  'ATTLOG',
+      userId,
+      checkTime,
+      matched,
+      studentId,
+      staffId,
+      status:     'success',
+      schoolId,
+    });
+
     zkLog('info', 'PUNCH_SAVED', {
       deviceSn,
       userId,
@@ -370,6 +445,18 @@ async function saveAttendancePunch(
       schoolId,
     });
   } catch (err) {
+    // ── Observability: ERROR on punch failure ──────────────────────────────
+    logDeviceEvent({
+      deviceSn,
+      eventType:    'ERROR',
+      tableName:    'ATTLOG',
+      userId,
+      checkTime,
+      status:       'failed',
+      errorMessage: String(err),
+      schoolId,
+    }).catch(() => {});
+
     zkLog('error', 'PUNCH_SAVE_FAILED', {
       deviceSn,
       userId,
@@ -464,11 +551,21 @@ export async function GET(req: NextRequest) {
     const upsertPromise = upsertDevice(sn, ip, options, pushVer);
     const sysLogPromise = logSystemEvent(sn, 'HEARTBEAT', 'INCOMING', qs, ip, ua);
 
+    // ── Observability: record every heartbeat ──────────────────────────────
+    const schoolId = await getDeviceSchoolId(sn);
+    const heartbeatLogPromise = logDeviceEvent({
+      deviceSn:   sn,
+      ipAddress:  ip,
+      eventType:  'HEARTBEAT',
+      status:     'success',
+      schoolId,
+    });
+
     // Check command queue
     const pending = await getPendingCommand(sn);
 
     // Await background writes (don't block response but ensure they complete)
-    await Promise.allSettled([rawLogPromise, upsertPromise, sysLogPromise]);
+    await Promise.allSettled([rawLogPromise, upsertPromise, sysLogPromise, heartbeatLogPromise]);
 
     if (pending) {
       zkLog('info', 'COMMAND_DELIVERED', {
@@ -486,6 +583,15 @@ export async function GET(req: NextRequest) {
     return textResponse('OK');
   } catch (err) {
     zkLog('error', 'GET_HANDLER_ERROR', { sn, error: String(err) });
+    // Capture in observability table (best-effort, schoolId defaults to 1)
+    logDeviceEvent({
+      deviceSn:     sn,
+      ipAddress:    ip,
+      eventType:    'ERROR',
+      status:       'failed',
+      errorMessage: String(err),
+      schoolId:     1,
+    }).catch(() => {});
     return textResponse('OK'); // NEVER break protocol
   }
 }
@@ -550,6 +656,29 @@ export async function POST(req: NextRequest) {
     // Get device's school_id for tenant-scoped inserts
     const schoolId = await getDeviceSchoolId(sn);
 
+    // ── Observability: DATA_RECEIVED (raw body captured) ──────────────────
+    await logDeviceEvent({
+      deviceSn:     sn,
+      ipAddress:    ip,
+      eventType:    'DATA_RECEIVED',
+      tableName:    table,
+      rawPayload:   rawBody.substring(0, 65000), // TEXT col max-safe slice
+      recordCount:  records.length,
+      status:       'success',
+      schoolId,
+    });
+
+    // ── Observability: DATA_PARSED (structured snapshot) ──────────────────
+    await logDeviceEvent({
+      deviceSn:    sn,
+      eventType:   'DATA_PARSED',
+      tableName:   table,
+      parsedJson:  records.slice(0, 50), // cap to 50 for JSON column safety
+      recordCount: records.length,
+      status:      'success',
+      schoolId,
+    });
+
     // Route based on data type + write system_log
     if (table === 'USERINFO') {
       await logSystemEvent(sn, 'USERINFO', 'INCOMING', rawBody.substring(0, 2000), ip, ua);
@@ -589,9 +718,18 @@ export async function POST(req: NextRequest) {
       error: String(err),
       bodyLength: rawBody.length,
     });
-    // Best-effort error log
+    // Best-effort error log to system_logs AND zk_device_logs
     logSystemEvent(sn, 'ERROR', 'INCOMING',
       JSON.stringify({ error: String(err), bodyLength: rawBody.length }), ip, ua).catch(() => {});
+    logDeviceEvent({
+      deviceSn:     sn,
+      ipAddress:    ip,
+      eventType:    'ERROR',
+      rawPayload:   rawBody.substring(0, 1000),
+      status:       'failed',
+      errorMessage: String(err),
+      schoolId:     1, // safe default — school lookup may have failed
+    }).catch(() => {});
     return textResponse('OK'); // NEVER break protocol
   }
 }

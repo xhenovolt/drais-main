@@ -221,6 +221,7 @@ export function getNavigationItems(
         { key: 'att-reports',        label: 'Reports',           icon: <BarChart3 className="w-4 h-4" />,    href: '/attendance/reports' },
         { key: 'devices-monitor',    label: 'Devices',           icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices/monitor' },
         { key: 'devices-logs',       label: 'Device Logs',       icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/devices/logs' },
+        { key: 'device-observability', label: 'Observability',   icon: <Activity className="w-4 h-4" />,     href: '/attendance/device-logs' },
         { key: 'devices-commands',   label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/devices/commands', roles: ['admin', 'super_admin'] },
         { key: 'devices-mapping',    label: 'User Mapping',      icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices/user-mapping' },
         { key: 'device-mappings',    label: 'Device Mappings',   icon: <Users className="w-4 h-4" />,        href: '/attendance/devices/device-mappings' },
