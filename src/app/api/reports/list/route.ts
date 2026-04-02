@@ -102,8 +102,13 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ success: true, data: rows });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to fetch data' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Reports list error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to fetch data',
+      detail: error.sqlMessage || error.message || error.code 
+    }, { status: 500 });
   } finally {
     await connection.end(); // Ensure the connection is closed after all operations
   }
