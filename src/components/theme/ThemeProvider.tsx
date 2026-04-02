@@ -43,6 +43,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.style.setProperty("--glass-bg", store.glass ? "hsla(0,0%,100%,0.15)" : "transparent");
     root.style.setProperty("--glass-border", store.glass ? "1px solid rgba(255,255,255,0.2)" : "none");
     if (store.fontFamily) root.style.setProperty('--app-font-family', store.fontFamily);
+    // Border radius from appearance settings
+    const br = (store as any).borderRadius || 'lg';
+    const brMap: Record<string, string> = { none: '0px', sm: '2px', md: '6px', lg: '8px', full: '9999px' };
+    root.style.setProperty('--app-border-radius', brMap[br] || '8px');
   }, [hydrated, store.mode, store.primary, store.gradientFrom, store.gradientTo, store.fontScale, store.glass, store.fontFamily]);
 
   const value: ThemeContextValue = {

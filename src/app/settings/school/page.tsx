@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { School, Save, Loader2, Upload, RefreshCw, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { School, Save, Loader2, Upload, RefreshCw, CheckCircle, ImagePlus, X } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
@@ -36,6 +36,30 @@ export default function SchoolSettingsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'drais/logos');
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setForm(prev => ({ ...prev, logo: data.url }));
+      setSaved(false);
+      showToast('success', 'Logo uploaded — click Save to apply');
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to upload logo');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Populate form when school config loads
   useEffect(() => {
@@ -243,15 +267,42 @@ export default function SchoolSettingsPage() {
         {/* Branding */}
         <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branding & Logo</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Logo URL</label>
-              <div className="flex items-center gap-3">
-                <input name="logo" value={form.logo} onChange={handleChange} className={inputClass} placeholder="/uploads/logo.png" />
-                {form.logo && (
-                  <img src={form.logo} alt="School logo" className="w-12 h-12 object-contain rounded border border-gray-200 dark:border-gray-600" />
-                )}
-              </div>
+          <div className="flex items-start gap-6">
+            {/* Logo preview */}
+            <div className="flex-shrink-0">
+              {form.logo && form.logo !== '/uploads/logo.png' ? (
+                <div className="relative group">
+                  <img src={form.logo} alt="School logo" className="w-28 h-28 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white" />
+                  <button
+                    type="button"
+                    onClick={() => { setForm(prev => ({ ...prev, logo: '' })); setSaved(false); }}
+                    className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-28 h-28 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+                  <ImagePlus className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+            </div>
+            {/* Upload controls */}
+            <div className="flex-1 space-y-3">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Upload your school logo. Supported: JPEG, PNG, WebP, SVG. Max 5MB.</p>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {uploading ? 'Uploading...' : 'Upload Logo'}
+              </button>
+              {form.logo && form.logo.includes('cloudinary') && (
+                <p className="text-xs text-green-600 dark:text-green-400 truncate max-w-md">✓ Hosted on Cloudinary</p>
+              )}
             </div>
           </div>
         </section>
