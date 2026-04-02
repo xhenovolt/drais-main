@@ -22,14 +22,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
     }
 
-    // Verify device exists and belongs to school
+    // Verify device exists (no school_id filter — device may have legacy school_id)
     const device = await query(
-      'SELECT id, sn FROM devices WHERE sn = ? AND school_id = ?',
-      [device_sn, session.schoolId],
+      'SELECT id, sn, school_id FROM devices WHERE sn = ?',
+      [device_sn],
     );
     if (!device || device.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
+
+    const deviceSchoolId = device[0].school_id || session.schoolId;
 
     // Check if there's already a pending/sent USERINFO command
     const existing = await query(
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
          (school_id, device_sn, command, priority, max_retries, expires_at, created_by)
        VALUES (?, ?, 'DATA QUERY USERINFO', 10, 3,
                DATE_ADD(NOW(), INTERVAL 1 HOUR), ?)`,
-      [session.schoolId, device_sn, session.userId],
+      [deviceSchoolId, device_sn, session.userId],
     );
 
     const commandId = (result as any)?.insertId;
@@ -94,14 +96,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Look up device to get its school_id
+    const deviceRow = await query('SELECT school_id FROM devices WHERE sn = ?', [deviceSn]);
+    const deviceSchoolId = deviceRow?.[0]?.school_id || session.schoolId;
+
     // Get latest USERINFO command for this device
     const cmd = await query(
       `SELECT id, status, sent_at, ack_at, retry_count, created_at
        FROM zk_device_commands
-       WHERE device_sn = ? AND command = 'DATA QUERY USERINFO' AND school_id = ?
+       WHERE device_sn = ? AND command = 'DATA QUERY USERINFO'
        ORDER BY id DESC
        LIMIT 1`,
-      [deviceSn, session.schoolId],
+      [deviceSn],
     );
 
     if (!cmd || cmd.length === 0) {
@@ -126,7 +132,7 @@ export async function GET(req: NextRequest) {
        LEFT JOIN people tp ON st.person_id = tp.id
        WHERE (m.device_sn = ? OR m.device_sn IS NULL) AND m.school_id = ?
        ORDER BY CAST(m.device_user_id AS UNSIGNED) ASC`,
-      [deviceSn, session.schoolId],
+      [deviceSn, deviceSchoolId],
     );
 
     return NextResponse.json({
