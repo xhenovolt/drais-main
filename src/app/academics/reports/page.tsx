@@ -187,7 +187,7 @@ const ReportsPage = () => {
     fetch('/api/report-templates/active')
       .then(r => r.json())
       .then(data => {
-        if (data?.template?.layout_json) {
+        if (data?.template?.layout_json?.page) {
           setActiveLayout(data.template.layout_json);
         }
       })

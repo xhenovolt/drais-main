@@ -350,20 +350,33 @@ export const MODERN_CLEAN_TEMPLATE_JSON: ReportLayoutJSON = {
 };
 
 /** Converts a raw DB row to a typed ReportTemplate */
+/** Deep-merge layout_json with DEFAULT_TEMPLATE_JSON so missing keys get defaults */
+function mergeLayout(partial: Record<string, any>): ReportLayoutJSON {
+  const base = structuredClone(DEFAULT_TEMPLATE_JSON) as Record<string, any>;
+  for (const key of Object.keys(base)) {
+    if (partial[key] && typeof partial[key] === 'object' && !Array.isArray(partial[key])) {
+      base[key] = { ...base[key], ...partial[key] };
+    } else if (partial[key] !== undefined) {
+      base[key] = partial[key];
+    }
+  }
+  return base as ReportLayoutJSON;
+}
+
 export function parseTemplateRow(row: any): ReportTemplate {
-  let parsed: ReportLayoutJSON;
+  let raw: Record<string, any>;
   try {
-    parsed = typeof row.layout_json === 'string'
+    raw = typeof row.layout_json === 'string'
       ? JSON.parse(row.layout_json)
       : row.layout_json;
   } catch {
-    parsed = DEFAULT_TEMPLATE_JSON;
+    raw = {};
   }
   return {
     id: row.id,
     name: row.name,
     description: row.description || '',
-    layout_json: parsed,
+    layout_json: mergeLayout(raw ?? {}),
     is_default: Boolean(row.is_default),
     school_id: row.school_id ?? null,
   };
