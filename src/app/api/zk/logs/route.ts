@@ -41,8 +41,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const search    = url.searchParams.get('search')     || null;
 
   try {
-    const conditions: string[] = ['zdl.school_id = ?'];
-    const params: unknown[]    = [schoolId];
+    const conditions: string[] = ['1=1'];
+    const params: unknown[]    = [];
 
     if (deviceSn) {
       conditions.push('zdl.device_sn = ?');
@@ -86,9 +86,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
            SUM(CASE WHEN event_type = 'PUNCH_SAVED' AND matched = 0      THEN 1 ELSE 0 END) AS unmatched_24h,
            COUNT(DISTINCT device_sn)                                                         AS active_devices_24h
          FROM zk_device_logs
-         WHERE school_id = ?
-           AND created_at >= NOW() - INTERVAL 24 HOUR`,
-        [schoolId],
+         WHERE created_at >= NOW() - INTERVAL 24 HOUR`,
+        [],
       ),
       query(
         `SELECT COUNT(*) AS total FROM zk_device_logs zdl WHERE ${where}`,
@@ -129,8 +128,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
            ON tp.id = stf.person_id
          WHERE ${where}
          ORDER BY zdl.id DESC
-         LIMIT ? OFFSET ?`,
-        [...params, limit, offset],
+         LIMIT ${limit} OFFSET ${offset}`,
+        params,
       ),
     ]);
 

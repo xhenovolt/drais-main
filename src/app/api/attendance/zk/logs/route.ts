@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
   const search = url.searchParams.get('search');
 
   try {
-    const conditions: string[] = ['al.school_id = ?'];
-    const params: any[] = [schoolId];
+    const conditions: string[] = ['1=1'];
+    const params: any[] = [];
 
     if (dateFrom) {
       conditions.push('al.check_time >= ?');
@@ -76,8 +76,8 @@ export async function GET(req: NextRequest) {
        LEFT JOIN devices d ON al.device_sn = d.sn
        WHERE ${where}
        ORDER BY al.check_time DESC
-       LIMIT ? OFFSET ?`,
-      [...params, limit, offset],
+       LIMIT ${limit} OFFSET ${offset}`,
+      params,
     );
 
     return NextResponse.json({

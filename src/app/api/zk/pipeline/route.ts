@@ -70,8 +70,8 @@ interface ParsedFilters extends Filters {
 }
 
 async function handleRaw(schoolId: number, f: Filters) {
-  const conds: string[] = ['r.school_id = ?'];
-  const params: unknown[] = [schoolId];
+  const conds: string[] = ['1=1'];
+  const params: unknown[] = [];
 
   if (f.deviceSn) { conds.push('r.device_sn = ?'); params.push(f.deviceSn); }
   if (f.dateFrom) { conds.push('r.created_at >= ?'); params.push(`${f.dateFrom} 00:00:00`); }
@@ -88,8 +88,8 @@ async function handleRaw(schoolId: number, f: Filters) {
          SUM(CASE WHEN http_method = 'POST' THEN 1 ELSE 0 END) AS posts_24h,
          COUNT(DISTINCT device_sn) AS devices_24h
        FROM zk_raw_logs
-       WHERE school_id = ? AND created_at >= NOW() - INTERVAL 24 HOUR`,
-      [schoolId],
+       WHERE created_at >= NOW() - INTERVAL 24 HOUR`,
+      [],
     ),
     query(`SELECT COUNT(*) AS total FROM zk_raw_logs r WHERE ${where}`, params),
     query(
@@ -107,8 +107,8 @@ async function handleRaw(schoolId: number, f: Filters) {
        FROM zk_raw_logs r
        WHERE ${where}
        ORDER BY r.id DESC
-       LIMIT ? OFFSET ?`,
-      [...params, Number(f.limit), Number(f.offset)],
+       LIMIT ${f.limit} OFFSET ${f.offset}`,
+      params,
     ),
   ]);
 
@@ -130,8 +130,8 @@ async function handleRaw(schoolId: number, f: Filters) {
 }
 
 async function handleParsed(schoolId: number, f: ParsedFilters) {
-  const conds: string[] = ['p.school_id = ?'];
-  const params: unknown[] = [schoolId];
+  const conds: string[] = ['1=1'];
+  const params: unknown[] = [];
 
   if (f.errorsOnly) { conds.push("p.status = 'failed'"); }
   if (f.deviceSn)   { conds.push('p.device_sn = ?'); params.push(f.deviceSn); }
@@ -152,8 +152,8 @@ async function handleParsed(schoolId: number, f: ParsedFilters) {
          SUM(CASE WHEN matched = 0 AND table_name = 'ATTLOG' THEN 1 ELSE 0 END) AS unmatched_24h,
          COUNT(DISTINCT device_sn) AS devices_24h
        FROM zk_parsed_logs
-       WHERE school_id = ? AND created_at >= NOW() - INTERVAL 24 HOUR`,
-      [schoolId],
+       WHERE created_at >= NOW() - INTERVAL 24 HOUR`,
+      [],
     ),
     query(`SELECT COUNT(*) AS total FROM zk_parsed_logs p WHERE ${where}`, params),
     query(
@@ -187,8 +187,8 @@ async function handleParsed(schoolId: number, f: ParsedFilters) {
        LEFT JOIN people tp ON tp.id = stf.person_id
        WHERE ${where}
        ORDER BY p.id DESC
-       LIMIT ? OFFSET ?`,
-      [...params, Number(f.limit), Number(f.offset)],
+       LIMIT ${f.limit} OFFSET ${f.offset}`,
+      params,
     ),
   ]);
 
