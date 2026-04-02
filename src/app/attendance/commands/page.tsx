@@ -49,7 +49,6 @@ export default function DeviceCommandsPage() {
     { refreshInterval: 10000 },
   );
 
-  // Use unified devices API
   const { data: devicesData } = useSWR<any>('/api/devices/list', fetcher);
 
   const commands = data?.data || [];
@@ -63,7 +62,7 @@ export default function DeviceCommandsPage() {
     }
     setSending(true);
     try {
-      const json = await apiFetch<{ id: number }>('/api/attendance/zk/commands', {
+      await apiFetch<{ id: number }>('/api/attendance/zk/commands', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCommand),
@@ -72,7 +71,7 @@ export default function DeviceCommandsPage() {
       setShowNewForm(false);
       setNewCommand({ device_sn: '', command: '', priority: 0, expires_in_hours: 24 });
       mutate();
-    } catch (err: any) {
+    } catch {
       // apiFetch already showed error toast
     } finally {
       setSending(false);
@@ -86,7 +85,7 @@ export default function DeviceCommandsPage() {
         successMessage: 'Command cancelled',
       });
       mutate();
-    } catch (err: any) {
+    } catch {
       // apiFetch already showed error toast
     }
   };
@@ -97,7 +96,7 @@ export default function DeviceCommandsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <ArrowUpDown className="w-7 h-7 text-blue-500" />
-            Device Commands
+            Command Center
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
             Queue and monitor device commands

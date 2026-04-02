@@ -1,284 +1,474 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { Calendar, Users, UserCheck, UserX, Clock, Fingerprint, Search, Filter, Download, Smartphone, Shield, Server } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  UserCheck, Users, Briefcase, Fingerprint, Activity, Clock,
+  Wifi, WifiOff, Server, AlertTriangle, TrendingUp, Radio,
+  ChevronUp, ChevronDown,
+} from 'lucide-react';
 import useSWR from 'swr';
-import { showToast } from '@/lib/toast';
-import { apiFetch } from '@/lib/apiClient';
-import BiometricModal from '@/components/attendance/BiometricModal';
-import DeviceConnectionModal from '@/components/attendance/DeviceConnectionModal';
-import AttendanceCard from '@/components/attendance/AttendanceCard';
-import AttendanceStats from '@/components/attendance/AttendanceStats';
-import ModuleIntroCard from '@/components/onboarding/ModuleIntroCard';
-import VideoTutorial from '@/components/onboarding/VideoTutorial';
-import HelpButton from '@/components/onboarding/HelpButton';
-import EmptyState from '@/components/onboarding/EmptyState';
-import clsx from 'clsx';
+import Link from 'next/link';
 
-const AttendancePage: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedClass, setSelectedClass] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [biometricModalOpen, setBiometricModalOpen] = useState(false);
-  const [deviceModalOpen, setDeviceModalOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+// ── Helpers ────────────────────────────────────────────────────────────────
+const verifyLabel = (v: number | null) => {
+  const map: Record<number, string> = { 0: 'Password', 1: 'Fingerprint', 2: 'Card', 15: 'Face' };
+  return v != null ? map[v] ?? `Type ${v}` : '—';
+};
+const ioLabel = (m: number | null) => {
+  const map: Record<number, string> = { 0: 'Check-in', 1: 'Check-out', 2: 'Break Out', 3: 'Break In' };
+  return m != null ? map[m] ?? `Mode ${m}` : '—';
+};
 
-  // Fetch attendance data
-  const { data: attendanceData, mutate } = useSWR(
-    `/api/attendance?date=${selectedDate}${selectedClass ? `&class_id=${selectedClass}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`,
-    { refreshInterval: 30000 }
+// ── Live SSE Hook ──────────────────────────────────────────────────────────
+function useLiveFeed() {
+  const [events, setEvents] = useState<any[]>([]);
+  const [connected, setConnected] = useState(false);
+  const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    const es = new EventSource('/api/attendance/stream');
+    esRef.current = es;
+    es.onopen = () => setConnected(true);
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setEvents((prev) => [data, ...prev].slice(0, 30));
+      } catch { /* ignore */ }
+    };
+    es.onerror = () => setConnected(false);
+    return () => { es.close(); esRef.current = null; };
+  }, []);
+
+  return { events, connected };
+}
+
+// ── Dashboard Page ─────────────────────────────────────────────────────────
+export default function AttendanceDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const [date, setDate] = useState(today);
+  const [liveFeedOpen, setLiveFeedOpen] = useState(true);
+
+  const { data, isLoading } = useSWR<any>(
+    `/api/attendance/zk/dashboard?date=${date}`,
+    { refreshInterval: 15000 },
   );
 
-  // Fetch classes
-  const { data: classData } = useSWR('/api/classes');
-  const classes = classData?.data || [];
+  const { events: liveEvents, connected: sseConnected } = useLiveFeed();
 
-  // Fetch stats
-  const { data: statsData } = useSWR(
-    `/api/attendance/stats?date=${selectedDate}${selectedClass ? `&class_id=${selectedClass}` : ''}`,
-    { refreshInterval: 30000 }
+  const dashboard = data?.data || {};
+  const deviceStats = dashboard.devices || {};
+  const studentStats = dashboard.students || {};
+  const staffStats = dashboard.staff || {};
+  const punchStats = dashboard.punches || {};
+  const commandStats = dashboard.commands || {};
+  const hourly = dashboard.hourly || [];
+  const recentPunches = dashboard.recentPunches || [];
+  const deviceList = dashboard.deviceList || [];
+
+  const totalPunches = Number(punchStats.total_punches || 0);
+  const matchedPunches = Number(punchStats.matched_punches || 0);
+  const unmatchedPunches = Number(punchStats.unmatched_punches || 0);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100
+      dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
+      <div className="container mx-auto px-4 py-8 space-y-6">
+
+        {/* ── Header ───────────────────────────────────────────── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600
+              bg-clip-text text-transparent flex items-center gap-3">
+              <Fingerprint className="w-8 h-8 text-blue-600" />
+              Attendance Dashboard
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+              Real-time biometric data — single source of truth
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                bg-white dark:bg-slate-800 text-sm"
+            />
+          </div>
+        </div>
+
+        {/* ── Metric Cards ─────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Total Students */}
+          <MetricCard
+            label="Total Learners"
+            value={studentStats.total ?? '—'}
+            icon={<Users className="w-5 h-5 text-blue-600" />}
+            color="blue"
+          />
+          {/* Present Today */}
+          <MetricCard
+            label="Learners Present"
+            value={studentStats.present ?? 0}
+            sub={studentStats.rate != null ? `${studentStats.rate}%` : totalPunches === 0 ? 'No data yet' : null}
+            icon={<UserCheck className="w-5 h-5 text-green-600" />}
+            color="green"
+          />
+          {/* Staff Present */}
+          <MetricCard
+            label="Staff Present"
+            value={staffStats.present ?? 0}
+            sub={staffStats.rate != null ? `${staffStats.rate}%` : null}
+            icon={<Briefcase className="w-5 h-5 text-purple-600" />}
+            color="purple"
+          />
+          {/* Total Punches */}
+          <MetricCard
+            label="Total Punches"
+            value={totalPunches}
+            sub={`${matchedPunches} matched`}
+            icon={<Activity className="w-5 h-5 text-indigo-600" />}
+            color="indigo"
+          />
+          {/* Unmatched */}
+          <MetricCard
+            label="Unmatched"
+            value={unmatchedPunches}
+            sub={unmatchedPunches > 0 ? 'Needs mapping' : null}
+            icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
+            color="amber"
+            alert={unmatchedPunches > 0}
+          />
+        </div>
+
+        {/* ── Device Status Bar ────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
+            dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Devices</h3>
+              <Link href="/attendance/devices" className="text-xs text-blue-600 hover:underline">
+                Manage &rarr;
+              </Link>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Wifi className="w-4 h-4 text-green-500" />
+                <span className="text-lg font-bold text-green-600">
+                  {Number(deviceStats.online_devices || 0)}
+                </span>
+                <span className="text-xs text-gray-400">Online</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <WifiOff className="w-4 h-4 text-red-400" />
+                <span className="text-lg font-bold text-red-500">
+                  {Number(deviceStats.offline_devices || 0)}
+                </span>
+                <span className="text-xs text-gray-400">Offline</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Server className="w-4 h-4 text-gray-400" />
+                <span className="text-lg font-bold text-gray-600 dark:text-gray-300">
+                  {Number(deviceStats.total_devices || 0)}
+                </span>
+                <span className="text-xs text-gray-400">Total</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Commands Status */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
+            dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Commands</h3>
+              <Link href="/attendance/commands" className="text-xs text-blue-600 hover:underline">
+                View &rarr;
+              </Link>
+            </div>
+            <div className="flex items-center gap-6">
+              <div>
+                <span className="text-lg font-bold text-yellow-600">
+                  {Number(commandStats.total_pending || 0)}
+                </span>
+                <span className="text-xs text-gray-400 ml-1">Pending</span>
+              </div>
+              <div>
+                <span className="text-lg font-bold text-red-500">
+                  {Number(commandStats.failed || 0)}
+                </span>
+                <span className="text-xs text-gray-400 ml-1">Failed</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
+            dark:border-gray-700 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Links</h3>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/attendance/logs" className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700
+                dark:text-blue-300 rounded-lg text-xs font-medium hover:bg-blue-100">
+                Attendance Logs
+              </Link>
+              <Link href="/attendance/mapping" className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700
+                dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-100">
+                User Mapping
+              </Link>
+              <Link href="/attendance/device-logs" className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-700
+                dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-100">
+                Raw Pipeline
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Hourly Chart ─────────────────────────────────────── */}
+        {hourly.length > 0 && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
+            dark:border-gray-700 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Hourly Breakdown
+            </h3>
+            <div className="flex items-end gap-1 h-32">
+              {Array.from({ length: 24 }, (_, h) => {
+                const entry = hourly.find((e: any) => Number(e.hour) === h);
+                const punches = entry ? Number(entry.punches) : 0;
+                const maxPunches = Math.max(...hourly.map((e: any) => Number(e.punches)), 1);
+                const height = punches > 0 ? Math.max((punches / maxPunches) * 100, 4) : 0;
+                return (
+                  <div key={h} className="flex-1 flex flex-col items-center gap-1">
+                    {punches > 0 && (
+                      <span className="text-[9px] text-gray-400">{punches}</span>
+                    )}
+                    <div
+                      className={`w-full rounded-t transition-all ${
+                        punches > 0 ? 'bg-blue-500 dark:bg-blue-400' : 'bg-gray-100 dark:bg-gray-700'
+                      }`}
+                      style={{ height: `${height}%`, minHeight: punches > 0 ? '4px' : '2px' }}
+                    />
+                    {h % 3 === 0 && (
+                      <span className="text-[9px] text-gray-400">{h}:00</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Live Feed ────────────────────────────────────────── */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
+          dark:border-gray-700 overflow-hidden">
+          <button
+            onClick={() => setLiveFeedOpen(!liveFeedOpen)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50
+              dark:hover:bg-slate-700/50"
+          >
+            <div className="flex items-center gap-2">
+              <Radio className={`w-4 h-4 ${sseConnected ? 'text-green-500 animate-pulse' : 'text-red-400'}`} />
+              <span className="text-sm font-medium">Live Feed</span>
+              <span className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-400'}`} />
+              <span className="text-xs text-gray-400">{sseConnected ? 'Connected' : 'Reconnecting...'}</span>
+            </div>
+            {liveFeedOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {liveFeedOpen && (
+            <div className="max-h-48 overflow-y-auto border-t border-gray-200 dark:border-gray-700
+              divide-y divide-gray-100 dark:divide-gray-700">
+              {liveEvents.length === 0 && (
+                <p className="px-4 py-6 text-center text-sm text-gray-400">
+                  Waiting for new attendance events...
+                </p>
+              )}
+              {liveEvents.map((ev, i) => (
+                <div key={`${ev.id}-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
+                  <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="text-gray-500 text-xs whitespace-nowrap">
+                    {ev.check_time ? new Date(ev.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                  </span>
+                  {ev.person_name ? (
+                    <span className="font-medium">{ev.person_name}</span>
+                  ) : (
+                    <span className="text-amber-600 font-mono text-xs">UID: {ev.device_user_id}</span>
+                  )}
+                  <span className={`px-1.5 py-0.5 rounded text-xs
+                    ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                      : ev.person_type === 'staff' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                    {ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched'}
+                  </span>
+                  {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Recent Punches ───────────────────────────────────── */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
+          dark:border-gray-700 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200
+            dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Recent Punches (Last 20)
+            </h3>
+            <Link href="/attendance/logs" className="text-xs text-blue-600 hover:underline">
+              View all &rarr;
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-slate-900/50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Person</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Device UID</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Verify</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">IO</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {isLoading && recentPunches.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">Loading...</td></tr>
+                )}
+                {!isLoading && recentPunches.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    No attendance data yet. Punches will appear here when the device sends them.
+                  </td></tr>
+                )}
+                {recentPunches.map((p: any) => {
+                  const name = p.student_first_name
+                    ? `${p.student_first_name} ${p.student_last_name || ''}`
+                    : p.staff_first_name
+                      ? `${p.staff_first_name} ${p.staff_last_name || ''}`
+                      : null;
+                  return (
+                    <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">
+                        {p.check_time ? new Date(p.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {name ? (
+                          <span className="font-medium">{name}</span>
+                        ) : (
+                          <span className="text-amber-600 font-mono text-xs">UID: {p.device_user_id}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-sm font-mono text-gray-500">{p.device_user_id}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500">{verifyLabel(p.verify_type)}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`px-2 py-0.5 rounded text-xs ${
+                          p.io_mode === 0
+                            ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                        }`}>
+                          {ioLabel(p.io_mode)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {p.matched ? (
+                          <span className="text-green-600 text-xs font-medium flex items-center gap-1">
+                            <UserCheck className="w-3.5 h-3.5" /> Matched
+                          </span>
+                        ) : (
+                          <span className="text-red-500 text-xs font-medium flex items-center gap-1">
+                            <AlertTriangle className="w-3.5 h-3.5" /> Unmatched
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── Device List ──────────────────────────────────────── */}
+        {deviceList.length > 0 && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
+            dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Registered Devices
+              </h3>
+              <Link href="/attendance/devices" className="text-xs text-blue-600 hover:underline">
+                Manage &rarr;
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {deviceList.map((d: any) => (
+                <div
+                  key={d.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border ${
+                    d.connection_status === 'online'
+                      ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10'
+                      : 'border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-900/10'
+                  }`}
+                >
+                  {d.connection_status === 'online'
+                    ? <Wifi className="w-4 h-4 text-green-500 shrink-0" />
+                    : <WifiOff className="w-4 h-4 text-red-400 shrink-0" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">
+                      {d.device_name || d.serial_number}
+                    </p>
+                    <p className="text-xs text-gray-400 font-mono truncate">{d.serial_number}</p>
+                  </div>
+                  <span className={`shrink-0 text-xs font-medium ${
+                    d.connection_status === 'online' ? 'text-green-600' : 'text-red-500'
+                  }`}>
+                    {d.connection_status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
+}
 
-  const students = attendanceData?.data || [];
-  const stats = statsData?.data || {};
-
-  // Filter students based on search
-  const filteredStudents = students.filter((student: any) => {
-    const fullName = `${student.first_name} ${student.last_name} ${student.other_name || ''}`.toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase());
-  });
-
-  const handleAttendanceToggle = async (studentId: number, currentStatus: string) => {
-    const newStatus = currentStatus === 'present' ? 'absent' : 'present';
-    
-    try {
-      await apiFetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: studentId,
-          date: selectedDate,
-          status: newStatus,
-          method: 'manual'
-        }),
-        successMessage: `Attendance updated to ${newStatus}`,
-      });
-      mutate();
-    } catch (error) {
-      // apiFetch already showed error toast
-    }
-  };
-
-  const handleBiometricClick = (student: any) => {
-    setSelectedStudent(student);
-    setBiometricModalOpen(true);
-  };
-
-  const handleBiometricSuccess = () => {
-    mutate();
-    setBiometricModalOpen(false);
-    setSelectedStudent(null);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'present': return 'text-green-600 bg-green-50';
-      case 'absent': return 'text-red-600 bg-red-50';
-      case 'late': return 'text-yellow-600 bg-yellow-50';
-      case 'excused': return 'text-blue-600 bg-blue-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'present': return '✅';
-      case 'absent': return '❌';
-      case 'late': return '⏰';
-      case 'excused': return '📋';
-      default: return '⏳';
-    }
+// ── Metric Card Component ──────────────────────────────────────────────────
+function MetricCard({
+  label, value, sub, icon, color, alert,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string | null;
+  icon: React.ReactNode;
+  color: string;
+  alert?: boolean;
+}) {
+  const bgMap: Record<string, string> = {
+    blue: 'bg-blue-50 dark:bg-blue-900/20',
+    green: 'bg-green-50 dark:bg-green-900/20',
+    purple: 'bg-purple-50 dark:bg-purple-900/20',
+    indigo: 'bg-indigo-50 dark:bg-indigo-900/20',
+    amber: 'bg-amber-50 dark:bg-amber-900/20',
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
-      <div className="container mx-auto px-4 py-8">
-
-        {/* Phase 22: Module intro card (first visit only) */}
-        <ModuleIntroCard
-          moduleId="attendance"
-          icon="👆"
-          title="Attendance Module"
-          description="DRAIS is built attendance-first. Record who arrives, who is late, and who is absent — manually or automatically via fingerprint scanner. Fingerprint devices eliminate the need for roll calls entirely."
-          actions={[
-            { label: 'Connect Fingerprint Device', href: '#', onClick: () => setDeviceModalOpen(true), primary: true },
-          ]}
-          learnMoreHref="/documentation/attendance"
-          tip="Set up your fingerprint device first. Once connected, attendance is recorded automatically when students arrive."
-        />
-
-        {/* Phase 25: Video tutorial */}
-        <VideoTutorial
-          title="How Fingerprint Attendance Works"
-          description="Watch this 3-minute video before using the attendance module for the first time."
-          videoId={null}
-        />
-
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                📊 Smart Attendance System
-              </h1>
-              {/* Phase 23: Contextual help button */}
-              <HelpButton
-                title="About Attendance"
-                text="Attendance records show when each student arrives, is late, or is absent. Use the fingerprint device for automatic recording, or mark attendance manually here."
-                docsHref="/documentation/attendance"
-                side="bottom"
-              />
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Hybrid manual and biometric attendance tracking
-            </p>
-          </div>
-          <button
-            onClick={() => setDeviceModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg"
-          >
-            <Server className="w-5 h-5" />
-            Connect Device
-          </button>
-        </div>
-
-        {/* Controls */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          {/* Date Selector */}
-          <div className="card p-6">
-            <label className="block text-sm font-medium mb-2">Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800"
-            />
-          </div>
-
-          {/* Class Filter */}
-          <div className="card p-6">
-            <label className="block text-sm font-medium mb-2">Class</label>
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800"
-            >
-              <option value="">All Classes</option>
-              {classes.map((cls: any) => (
-                <option key={cls.id} value={cls.id}>{cls.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div className="card p-6">
-            <label className="block text-sm font-medium mb-2">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800"
-            >
-              <option value="">All Status</option>
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-              <option value="late">Late</option>
-              <option value="not_marked">Not Marked</option>
-            </select>
-          </div>
-
-          {/* Search */}
-          <div className="card p-6">
-            <label className="block text-sm font-medium mb-2">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search students..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <AttendanceStats stats={stats} />
-
-        {/* Student List */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold">Students ({filteredStudents.length})</h2>
-            <div className="flex gap-2">
-              <button className="btn-secondary flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Export
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <AnimatePresence>
-              {filteredStudents.map((student: any) => (
-                <AttendanceCard
-                  key={student.student_id}
-                  student={student}
-                  onAttendanceToggle={handleAttendanceToggle}
-                  onBiometricClick={handleBiometricClick}
-                  getStatusColor={getStatusColor}
-                  getStatusIcon={getStatusIcon}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-
-          {filteredStudents.length === 0 && !students.length && (
-            <EmptyState
-              icon="👆"
-              title="No students in attendance"
-              description="First admit students in the Students module, then come back here to take today's roll call or view biometric records."
-              action={{ label: 'Go to Students', href: '/students/list' }}
-              learnMoreHref="/documentation/attendance"
-            />
-          )}
-          {filteredStudents.length === 0 && students.length > 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No students match the current filter.</p>
-            </div>
-          )}
+    <div className={`rounded-xl border p-4 ${alert
+      ? 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10'
+      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800'}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</span>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${bgMap[color] || ''}`}>
+          {icon}
         </div>
       </div>
-
-      {/* Biometric Modal */}
-      <BiometricModal
-        open={biometricModalOpen}
-        onClose={() => setBiometricModalOpen(false)}
-        student={selectedStudent}
-        date={selectedDate}
-        onSuccess={handleBiometricSuccess}
-      />
-
-      {/* Device Connection Modal */}
-      <DeviceConnectionModal
-        open={deviceModalOpen}
-        onClose={() => setDeviceModalOpen(false)}
-        onSuccess={() => {
-          // Refresh device list if needed
-        }}
-      />
+      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+        {value}
+      </p>
+      {sub && (
+        <p className={`text-xs mt-0.5 ${alert ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-400'}`}>
+          {sub}
+        </p>
+      )}
     </div>
   );
-};
-
-export default AttendancePage;
+}

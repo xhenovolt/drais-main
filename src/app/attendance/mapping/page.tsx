@@ -34,7 +34,6 @@ export default function UserMappingPage() {
     fetcher,
   );
 
-  // Use unified devices API
   const { data: devicesData } = useSWR<any>('/api/devices/list', fetcher);
 
   const mappings = data?.data || [];
@@ -84,7 +83,7 @@ export default function UserMappingPage() {
       );
       resetForm();
       mutate();
-    } catch (err: any) {
+    } catch {
       // apiFetch already showed error toast
     } finally {
       setSaving(false);
@@ -99,7 +98,7 @@ export default function UserMappingPage() {
         successMessage: 'Mapping deleted',
       });
       mutate();
-    } catch (err: any) {
+    } catch {
       // apiFetch already showed error toast
     }
   };

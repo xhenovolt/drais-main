@@ -303,10 +303,10 @@ export default function UnifiedAttendancePage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600
             bg-clip-text text-transparent flex items-center gap-3">
             <Fingerprint className="w-8 h-8 text-blue-600" />
-            Attendance Intelligence
+            Attendance Logs
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Unified biometric identity resolution and attendance tracking
+            Human-readable logs from biometric devices — single source of truth
           </p>
         </div>
 

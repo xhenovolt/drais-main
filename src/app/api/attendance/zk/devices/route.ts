@@ -33,9 +33,8 @@ export async function GET(req: NextRequest) {
          (SELECT COUNT(*) FROM zk_user_mapping m
           WHERE m.device_sn = d.sn OR m.device_sn IS NULL) AS mapped_users
        FROM devices d
-       WHERE d.school_id = ?
        ORDER BY d.last_seen DESC`,
-      [session.schoolId],
+      [],
     );
 
     return NextResponse.json({ success: true, data: devices });
@@ -65,8 +64,8 @@ export async function PUT(req: NextRequest) {
 
     // Verify ownership
     const existing = await query(
-      'SELECT id FROM devices WHERE id = ? AND school_id = ?',
-      [id, session.schoolId],
+      'SELECT id FROM devices WHERE id = ?',
+      [id],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -79,8 +78,8 @@ export async function PUT(req: NextRequest) {
          model_name = COALESCE(?, model_name),
          status = COALESCE(?, status),
          updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND school_id = ?`,
-      [device_name || null, location || null, model || null, status || null, id, session.schoolId],
+       WHERE id = ?`,
+      [device_name || null, location || null, model || null, status || null, id],
     );
 
     await logAudit({
@@ -119,14 +118,14 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const existing = await query(
-      'SELECT sn FROM devices WHERE id = ? AND school_id = ?',
-      [id, session.schoolId],
+      'SELECT sn FROM devices WHERE id = ?',
+      [id],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
-    await query('DELETE FROM devices WHERE id = ? AND school_id = ?', [id, session.schoolId]);
+    await query('DELETE FROM devices WHERE id = ?', [id]);
 
     await logAudit({
       schoolId: session.schoolId,
