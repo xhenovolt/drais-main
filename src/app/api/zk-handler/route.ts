@@ -425,12 +425,14 @@ async function resolveUser(
   schoolId: number,
 ): Promise<{ studentId: number | null; staffId: number | null; matched: boolean }> {
   // 1. Check ZK user mapping (ZK-specific)
+  // NOTE: school_id intentionally NOT enforced — device may serve students
+  // from a different school than the device's registered school.
   try {
     const mapping = await query(
       `SELECT user_type, student_id, staff_id FROM zk_user_mapping
-       WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL) AND school_id = ?
+       WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
        LIMIT 1`,
-      [deviceUserId, deviceSn, schoolId],
+      [deviceUserId, deviceSn],
     );
     if (mapping && mapping.length > 0) {
       return {
@@ -444,13 +446,14 @@ async function resolveUser(
   }
 
   // 2. Check device_users table (general biometric mapping)
+  // NOTE: school_id intentionally NOT enforced — same reasoning as above.
   try {
     const deviceUser = await query(
       `SELECT du.person_type, du.person_id
        FROM device_users du
-       WHERE du.device_user_id = ? AND du.school_id = ? AND du.is_enrolled = 1
+       WHERE du.device_user_id = ? AND du.is_enrolled = 1
        LIMIT 1`,
-      [deviceUserId, schoolId],
+      [deviceUserId],
     );
     if (deviceUser && deviceUser.length > 0) {
       const row = deviceUser[0];
