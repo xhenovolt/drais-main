@@ -10,13 +10,14 @@ export const runtime = 'nodejs';
  * Queues a ZKTeco ENROLL command so the device prompts the student
  * to place their finger on the sensor.
  *
- * Body: { student_id: number }
+ * Body: { student_id: number, device_sn?: string }
  *
  * Flow:
- *   1. Resolve the student's device_user_id from device_user_mappings
- *   2. Find the device SN from the mapping
- *   3. Queue an ENROLL command into zk_device_commands
- *   4. On next heartbeat, the ZK handler delivers: C:{id}:ENROLL PIN={device_user_id} Name={name}
+ *   1. Resolve the student name and device_user_id
+ *      - If device_sn is provided, use it directly (Quick-Capture flow)
+ *      - Otherwise fall back to existing device_user_mappings lookup
+ *   2. Queue an ENROLL command into zk_device_commands
+ *   3. On next heartbeat, the ZK handler delivers: C:{id}:ENROLL PIN={device_user_id} Name={name}
  */
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -25,40 +26,81 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { student_id } = await req.json();
+    const body = await req.json();
+    const { student_id, device_sn: requestedDeviceSn } = body;
     if (!student_id) {
       return NextResponse.json({ error: 'student_id is required' }, { status: 400 });
     }
 
-    // 1. Find the student + device mapping + device SN
-    const rows = await query(
-      `SELECT
-         s.id AS student_id,
-         p.first_name,
-         p.last_name,
-         dum.device_user_id,
-         dum.device_id,
-         d.sn AS device_sn,
-         d.device_name
-       FROM students s
-       JOIN people p ON s.person_id = p.id
-       JOIN device_user_mappings dum ON s.id = dum.student_id
-       JOIN devices d ON dum.device_id = d.id
-       WHERE s.id = ? AND s.school_id = ?
-       LIMIT 1`,
-      [student_id, session.schoolId],
-    );
+    let device_user_id: string | number;
+    let device_sn: string;
+    let fullName: string;
 
-    if (!rows || rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Student has no device mapping. Assign a Device ID first.' },
-        { status: 404 },
+    if (requestedDeviceSn) {
+      // Quick-Capture flow: device_sn provided by the DeviceSelector modal.
+      // Look up the student name and their zk_user_mapping device_user_id.
+      const studentRows = await query(
+        `SELECT s.id, p.first_name, p.last_name
+         FROM students s
+         JOIN people p ON s.person_id = p.id
+         WHERE s.id = ? AND s.school_id = ?
+         LIMIT 1`,
+        [student_id, session.schoolId],
       );
-    }
 
-    const student = rows[0];
-    const { device_user_id, device_sn, first_name, last_name } = student;
-    const fullName = `${first_name} ${last_name}`.trim();
+      if (!studentRows || studentRows.length === 0) {
+        return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      }
+
+      fullName = `${studentRows[0].first_name} ${studentRows[0].last_name}`.trim();
+      device_sn = requestedDeviceSn;
+
+      // Try to find an existing zk_user_mapping device_user_id
+      const mappingRows = await query(
+        `SELECT device_user_id FROM zk_user_mapping
+         WHERE student_id = ? AND school_id = ?
+         LIMIT 1`,
+        [student_id, session.schoolId],
+      );
+
+      if (mappingRows && mappingRows.length > 0) {
+        device_user_id = mappingRows[0].device_user_id;
+      } else {
+        // No mapping yet — use the student.id as PIN (will be registered on device)
+        device_user_id = student_id;
+      }
+    } else {
+      // Legacy flow: resolve from device_user_mappings
+      const rows = await query(
+        `SELECT
+           s.id AS student_id,
+           p.first_name,
+           p.last_name,
+           dum.device_user_id,
+           dum.device_id,
+           d.sn AS device_sn,
+           d.device_name
+         FROM students s
+         JOIN people p ON s.person_id = p.id
+         JOIN device_user_mappings dum ON s.id = dum.student_id
+         JOIN devices d ON dum.device_id = d.id
+         WHERE s.id = ? AND s.school_id = ?
+         LIMIT 1`,
+        [student_id, session.schoolId],
+      );
+
+      if (!rows || rows.length === 0) {
+        return NextResponse.json(
+          { error: 'Student has no device mapping. Assign a Device ID first.' },
+          { status: 404 },
+        );
+      }
+
+      const student = rows[0];
+      device_user_id = student.device_user_id;
+      device_sn = student.device_sn;
+      fullName = `${student.first_name} ${student.last_name}`.trim();
+    }
 
     // 2. Check if there's already a pending/sent ENROLL command for this student
     const existing = await query(

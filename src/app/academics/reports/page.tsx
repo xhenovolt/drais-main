@@ -1276,11 +1276,10 @@ const ReportsPage = () => {
                         <img
                           src={schoolInfo.logo_url || '/uploads/logo.png'}
                           alt="School Logo"
-                          width={90}
-                          height={90}
-                          style={{ objectFit: 'contain', borderRadius: 4, border: '2px dashed transparent' }}
+                          style={{ maxHeight: 80, width: 'auto', objectFit: 'contain', borderRadius: 4, border: '2px dashed transparent' }}
                           onMouseEnter={(e) => { (e.currentTarget as HTMLImageElement).style.border = '2px dashed #4f8cf7'; }}
                           onMouseLeave={(e) => { (e.currentTarget as HTMLImageElement).style.border = '2px dashed transparent'; }}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/uploads/logo.png'; }}
                         />
                         {defaultLogoUploading && (
                           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)', borderRadius: 4, fontSize: 10 }}>

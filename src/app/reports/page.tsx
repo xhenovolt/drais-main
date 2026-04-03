@@ -276,7 +276,8 @@ const ReportsPage: React.FC = () => {
           <img 
             src={reportData?.schoolInfo.logo} 
             alt="School Logo" 
-            className="h-16 w-16 mr-4"
+            className="mr-4"
+            style={{ maxHeight: 80, width: 'auto' }}
             onError={(e) => {
               e.currentTarget.src = '/images/default-school-logo.png';
             }}
@@ -332,7 +333,11 @@ const ReportsPage: React.FC = () => {
             <img 
               src={reportData?.schoolInfo.logo} 
               alt="School Logo" 
-              className="h-20 w-20 mr-6 bg-white rounded-lg p-2"
+              className="mr-6 bg-white rounded-lg p-2"
+              style={{ maxHeight: 80, width: 'auto' }}
+              onError={(e) => {
+                e.currentTarget.src = '/images/default-school-logo.png';
+              }}
             />
             <div>
               <h1 className="text-4xl font-bold">{reportData?.schoolInfo.name}</h1>
