@@ -274,9 +274,9 @@ export default function StudentsListPage() {
         const status = data?.data?.status;
 
         if (status === 'sent') {
-          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: 'DEVICE READY: Place finger 3 times.' });
+          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: 'Syncing to device…' });
         } else if (status === 'acknowledged') {
-          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Fingerprint Saved.' });
+          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Synced! Enroll fingerprint on device now.' });
           // Add to enrolled set
           setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
           // Stop polling & auto-clear after 4s
@@ -307,7 +307,7 @@ export default function StudentsListPage() {
   }, []);
 
   const sendEnrollCommand = async (studentId: number, deviceSn: string, deviceName: string) => {
-    setStudentEnrollStep(studentId, { step: 'waking', deviceName, message: 'Waking up device…' });
+    setStudentEnrollStep(studentId, { step: 'waking', deviceName, message: 'Syncing identity to device…' });
     try {
       const result = await apiFetch('/api/students/enroll-fingerprint', {
         method: 'POST',
@@ -321,12 +321,12 @@ export default function StudentsListPage() {
       if (commandId) {
         // If the server says command was already sent (existing pending/sent)
         if (result?.status === 'sent') {
-          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: `DEVICE READY: Place finger for ${studentName}.` });
+          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: `Syncing ${studentName} to device…` });
         } else {
-          setStudentEnrollStep(studentId, { step: 'waking', commandId, deviceName, message: `Waking up device for ${studentName}…` });
+          setStudentEnrollStep(studentId, { step: 'waking', commandId, deviceName, message: `Sending ${studentName} to device…` });
         }
         startPolling(studentId, commandId, deviceName);
-        showToast('info', `Enrollment queued for ${studentName} on ${deviceName}`);
+        showToast('info', `Syncing ${studentName} to ${deviceName}`);
       } else {
         clearStudentEnroll(studentId);
         showToast('success', result?.message || 'Enrollment command sent');

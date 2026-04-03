@@ -603,6 +603,74 @@ async function processUserInfo(
   zkLog('info', 'USERINFO_PROCESSED', { deviceSn, created, skipped, total: records.length });
 }
 
+/**
+ * Process a fingerprint template received from the device via OPERLOG.
+ * Format: FP PIN={pin}\tFID={fid}\tSize={size}\tValid={v}\tTMP={base64data}
+ *
+ * This is sent when someone enrolls their fingerprint locally on the K40 device.
+ * We store it in student_fingerprints (if the PIN maps to a student).
+ */
+async function processFingerprint(
+  deviceSn: string,
+  pin: string,
+  fid: string,
+  size: string,
+  valid: string,
+  templateData: string,
+  schoolId: number,
+): Promise<void> {
+  // Look up who this PIN belongs to
+  const mapping = await query(
+    `SELECT student_id, staff_id FROM zk_user_mapping
+     WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
+     LIMIT 1`,
+    [pin, deviceSn],
+  );
+
+  const studentId = mapping?.[0]?.student_id || null;
+  const staffId = mapping?.[0]?.staff_id || null;
+
+  if (studentId) {
+    // Map ZK FID (0-9) to finger_position enum
+    // ZK convention: 0-4 = right hand (thumb→pinky), 5-9 = left hand (thumb→pinky)
+    const fidNum = parseInt(fid, 10) || 0;
+    const fingerNames = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+    const fingerPosition = fingerNames[fidNum % 5] || 'unknown';
+    const hand = fidNum < 5 ? 'right' : 'left';
+
+    // Resolve device_id from sn
+    const deviceRow = await query('SELECT id FROM devices WHERE sn = ? LIMIT 1', [deviceSn]);
+    const deviceId = deviceRow?.[0]?.id || null;
+
+    // Upsert into student_fingerprints
+    await query(
+      `INSERT INTO student_fingerprints
+         (school_id, student_id, device_id, finger_position, hand, template_data,
+          template_format, quality_score, enrollment_timestamp, is_active, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'ZK_ADMS', ?, CURRENT_TIMESTAMP, 1, 'active')
+       ON DUPLICATE KEY UPDATE
+         template_data = VALUES(template_data),
+         quality_score = VALUES(quality_score),
+         enrollment_timestamp = CURRENT_TIMESTAMP,
+         is_active = 1,
+         status = 'active'`,
+      [
+        schoolId,
+        studentId,
+        deviceId,
+        fingerPosition,
+        hand,
+        templateData,
+        parseInt(size, 10) || 0,
+      ],
+    );
+    zkLog('info', 'FP_CAPTURED', { deviceSn, pin, fid, size, studentId, fingerPosition, hand, valid });
+  } else {
+    // Store raw even without student mapping — can be linked later
+    zkLog('info', 'FP_CAPTURED_UNMAPPED', { deviceSn, pin, fid, size, staffId, valid });
+  }
+}
+
 // ─── HTTP Handlers ────────────────────────────────────────────────────────────
 
 /**
@@ -707,6 +775,7 @@ export async function POST(req: NextRequest) {
   const ip = getClientIP(req);
   const ua = req.headers.get('user-agent') || '';
   const table = (url.searchParams.get('table') || 'ATTLOG').toUpperCase();
+  const path = (url.searchParams.get('path') || '').toLowerCase();
 
   // Capture select headers (avoid leaking auth tokens — only device-relevant ones)
   const headerObj: Record<string, string> = {};
@@ -765,6 +834,42 @@ export async function POST(req: NextRequest) {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // STEP 2b: Handle command acknowledgments (path=devicecmd)
+    //
+    // When a device receives C:{id}:{command}, it POSTs back:
+    //   path=devicecmd  body: "ID={id}&Return={code}&CMD={type}\n"
+    //   Return=0 → success, Return=-1002 → unsupported, etc.
+    // ════════════════════════════════════════════════════════════════════════
+    if (path === 'devicecmd') {
+      try {
+        const params = new URLSearchParams(rawBody.replace(/\n$/, ''));
+        const cmdId = params.get('ID');
+        const returnCode = parseInt(params.get('Return') || '', 10);
+
+        if (cmdId) {
+          const newStatus = returnCode === 0 ? 'acknowledged' : 'failed';
+          const errorMsg = returnCode !== 0 ? `Device returned code ${returnCode}` : null;
+
+          await query(
+            `UPDATE zk_device_commands
+             SET status = ?, ack_at = CURRENT_TIMESTAMP, error_message = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND status = 'sent'`,
+            [newStatus, errorMsg, cmdId],
+          );
+
+          zkLog('info', 'COMMAND_ACK', {
+            sn, commandId: cmdId, returnCode, newStatus,
+            cmd: params.get('CMD') || '',
+          });
+        }
+      } catch (err) {
+        zkLog('warn', 'DEVICECMD_PARSE_ERROR', { sn, error: String(err), body: rawBody.substring(0, 200) });
+      }
+      return textResponse('OK');
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // STEP 3: Parse body
     // ════════════════════════════════════════════════════════════════════════
     const { records, lines } = parseZKBody(rawBody, table);
@@ -802,6 +907,50 @@ export async function POST(req: NextRequest) {
           rawLogId: rawLogId!, deviceSn: sn, schoolId,
           tableName: 'USERINFO', rawLine: lines[i] || '',
           userId, status: 'success',
+        });
+      }
+    } else if (table === 'OPERLOG') {
+      // OPERLOG contains mixed data: OPLOG lines, FP templates, USER records
+      await logSystemEvent(sn, 'SYSTEM', 'INCOMING', rawBody.substring(0, 2000), ip, ua);
+
+      for (let i = 0; i < records.length; i++) {
+        const rec = records[i];
+        const rawLine = lines[i] || '';
+
+        // ── FP template: device sends after local fingerprint enrollment ──
+        // Format: FP PIN=4\tFID=6\tSize=816\tValid=1\tTMP=<base64data>
+        const fpPin = rec['FP PIN'] || rec.PIN;
+        if (fpPin && rec.FID && rec.TMP) {
+          try {
+            await processFingerprint(sn, fpPin, rec.FID, rec.SIZE || '0', rec.VALID || '1', rec.TMP, schoolId);
+          } catch (err) {
+            zkLog('warn', 'FP_PROCESS_ERROR', { sn, pin: fpPin, fid: rec.FID, error: String(err) });
+          }
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),
+            userId: fpPin, status: 'success',
+          });
+          continue;
+        }
+
+        // ── USER record: device confirms user info ──
+        // Format: USER PIN=4\tName=...\tPri=0\tPasswd=\tCard=\tGrp=1\t...
+        const userPin = rec['USER PIN'];
+        if (userPin) {
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),
+            userId: userPin, status: 'success',
+          });
+          continue;
+        }
+
+        // ── OPLOG or other OPERLOG record ──
+        await saveParsedLog({
+          rawLogId: rawLogId!, deviceSn: sn, schoolId,
+          tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),
+          status: 'success',
         });
       }
     } else {

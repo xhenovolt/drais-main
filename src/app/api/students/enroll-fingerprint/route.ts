@@ -22,14 +22,19 @@ function zkName(first: string, last: string): string {
 /**
  * POST /api/students/enroll-fingerprint
  *
- * Mirrors the sync-identities pattern:
- *   1. Verify device exists → use device.school_id (not session)
+ * Mirrors the sync-identities pattern exactly:
+ *   1. Verify device exists → use device.school_id
  *   2. Resolve student name from people table
  *   3. Look up zk_user_mapping by student_id + device_sn
- *   4. If NO mapping → auto-assign next sequential PIN, upsert mapping,
- *      queue DATA UPDATE USERINFO (same as sync-identities) so the device
- *      knows this user before we try to enroll their finger
- *   5. Queue ENROLL command with priority 50
+ *   4. If NO mapping → auto-assign next sequential PIN, upsert mapping
+ *   5. Queue DATA UPDATE USERINFO command (same format that sync uses)
+ *      so the device registers the user — this is the only ADMS command
+ *      supported by the K40 for user management.
+ *
+ * NOTE: ZKTeco K40 ADMS push does NOT support remote ENROLL commands
+ * (Return=-1002). Fingerprint enrollment must happen locally on the device
+ * after the identity is synced. The device sends templates back via OPERLOG
+ * as FP PIN=X\tFID=Y\tTMP=... which the zk-handler captures automatically.
  *
  * Body: { student_id: number, device_sn: string }
  */
@@ -108,59 +113,52 @@ export async function POST(req: NextRequest) {
            updated_at = CURRENT_TIMESTAMP`,
         [deviceSchoolId, String(device_user_id), student_id, device_sn],
       );
-
-      // ── 4b. Queue DATA UPDATE USERINFO so device registers this user first ──
-      const syncCmd = `DATA UPDATE USERINFO PIN=${device_user_id}\tName=${safeName}\tPri=0\tPasswd=\tCard=\tGrp=0\tTZ=0000000100000000`;
-      await query(
-        `INSERT INTO zk_device_commands (school_id, device_sn, command, priority, max_retries, expires_at, created_by)
-         VALUES (?, ?, ?, 5, 5, DATE_ADD(NOW(), INTERVAL 24 HOUR), ?)`,
-        [deviceSchoolId, device_sn, syncCmd, session.userId],
-      );
-
-      console.log(
-        `[enroll-fingerprint] Auto-synced identity for student ${student_id} → PIN ${device_user_id} on ${device_sn}`,
-      );
     }
 
-    // ── 5. Check for existing pending/sent ENROLL command ──
+    // ── 5. Check for existing pending/sent DATA UPDATE USERINFO command for this PIN ──
     const existing = await query(
       `SELECT id, status FROM zk_device_commands
        WHERE device_sn = ?
          AND command LIKE ?
          AND status IN ('pending', 'sent')
        LIMIT 1`,
-      [device_sn, `%ENROLL PIN=${device_user_id}%`],
+      [device_sn, `DATA UPDATE USERINFO PIN=${device_user_id}%`],
     );
 
     if (existing && existing.length > 0) {
       return NextResponse.json({
         success: true,
-        message: `Enroll command already queued for ${safeName}. Waiting for device heartbeat.`,
+        message: `Identity sync already queued for ${safeName} (PIN ${device_user_id}). Waiting for device heartbeat.`,
         command_id: existing[0].id,
         status: existing[0].status,
         student_name: safeName,
+        device_user_id,
         device_sn,
+        already_queued: true,
       });
     }
 
-    // ── 6. Queue ENROLL command — priority 50 (highest) ──
-    const enrollCmd = `ENROLL PIN=${device_user_id}\tName=${safeName}\tFinger=0`;
+    // ── 6. Queue DATA UPDATE USERINFO — same command sync-identities uses ──
+    //    This is the ONLY ADMS command the K40 supports for user registration.
+    //    After the device acks this, the user appears on device and can enroll
+    //    their fingerprint locally. Device sends FP template back via OPERLOG.
+    const syncCmd = `DATA UPDATE USERINFO PIN=${device_user_id}\tName=${safeName}\tPri=0\tPasswd=\tCard=\tGrp=0\tTZ=0000000100000000`;
     const result = await query(
       `INSERT INTO zk_device_commands
          (school_id, device_sn, command, priority, max_retries, expires_at, created_by)
-       VALUES (?, ?, ?, 50, 5, DATE_ADD(NOW(), INTERVAL 30 MINUTE), ?)`,
-      [deviceSchoolId, device_sn, enrollCmd, session.userId],
+       VALUES (?, ?, ?, 5, 5, DATE_ADD(NOW(), INTERVAL 24 HOUR), ?)`,
+      [deviceSchoolId, device_sn, syncCmd, session.userId],
     );
 
     const commandId = (result as any)?.insertId;
 
     console.log(
-      `[enroll-fingerprint] Queued ENROLL for ${safeName} (PIN=${device_user_id}) on ${device_sn}, cmd=${commandId}`,
+      `[enroll-fingerprint] Synced identity for ${safeName} (PIN=${device_user_id}) on ${device_sn}, cmd=${commandId}`,
     );
 
     return NextResponse.json({
       success: true,
-      message: `Command Sent! Please check the device screen for ${safeName}.`,
+      message: `${safeName} synced to device (PIN ${device_user_id}). Enroll fingerprint on device now.`,
       command_id: commandId,
       student_name: safeName,
       device_user_id,
