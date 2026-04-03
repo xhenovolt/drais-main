@@ -7,7 +7,6 @@
 // ============================================================================
 
 import React from 'react';
-import Image from 'next/image';
 import type { ReportLayoutJSON } from '@/lib/reportTemplates';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -350,6 +349,10 @@ export default function DualCurriculumTemplate({
         pageBreakAfter: 'always',
       }}
     >
+      {/* Cairo font for Arabic sections */}
+      {/* eslint-disable-next-line @next/next/no-css-tags */}
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" />
+
       {/* ── Header: school info bilingual ── */}
       <div
         style={{
@@ -376,17 +379,18 @@ export default function DualCurriculumTemplate({
 
         {/* Logo center */}
         <div style={{ textAlign: 'center', flex: 'none', margin: '0 12px' }}>
-          <Image
-            src={schoolInfo.logo_url}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={schoolInfo.logo_url || '/uploads/logo.png'}
             alt="School Logo"
             width={65}
             height={65}
-            style={{ objectFit: 'contain' }}
+            style={{ objectFit: 'contain', display: 'inline-block' }}
           />
         </div>
 
         {/* Arabic right - use only arabic_* fields, show em dash if missing */}
-        <div style={{ flex: 1, direction: 'rtl', textAlign: 'right' }}>
+        <div style={{ flex: 1, direction: 'rtl', textAlign: 'right', fontFamily: "'Cairo', sans-serif" }}>
           <strong style={{ fontSize: 15 }}>{schoolInfo.arabic_name || '—'}</strong>
           {schoolInfo.arabic_motto ? (
             <div style={{ fontSize: 10, fontStyle: 'italic', color: '#555' }}>{schoolInfo.arabic_motto}</div>

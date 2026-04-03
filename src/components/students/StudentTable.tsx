@@ -116,6 +116,7 @@ export const StudentTable: React.FC = () => {
   const [photoEditorStudent, setPhotoEditorStudent] = useState<Student | null>(null);
   const [fingerprintStatuses, setFingerprintStatuses] = useState<Record<number, {hasFingerprint: boolean, loading: boolean, lastFetched?: number}>>({});
   const [showDuplicatesManager, setShowDuplicatesManager] = useState(false);
+  const [enrollingFingerprint, setEnrollingFingerprint] = useState<Record<number, boolean>>({});
 
   // Inline editing state
   const [editingCell, setEditingCell] = useState<{studentId: number, field: 'first_name' | 'last_name'} | null>(null);
@@ -863,6 +864,76 @@ export const StudentTable: React.FC = () => {
         title="Register Fingerprint"
       >
         {getFingerprintIcon(student)}
+      </button>
+    );
+  };
+
+  // Capture Fingerprint: queue ENROLL command on the ZK device
+  const handleEnrollFingerprint = async (student: Student) => {
+    const sid = student.id;
+    if (enrollingFingerprint[sid]) return; // already in-flight
+
+    // Must have a device_user_id (biometric ID) assigned
+    if (!(student as any).device_user_id) {
+      toast.error('Assign a Device ID first before capturing fingerprint.');
+      return;
+    }
+
+    setEnrollingFingerprint(prev => ({ ...prev, [sid]: true }));
+
+    try {
+      const res = await fetch('/api/students/enroll-fingerprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: sid }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(data.message || `Command Sent! Check the device for ${student.first_name} ${student.last_name}.`, { duration: 6000 });
+      } else {
+        toast.error(data.error || 'Failed to queue fingerprint enrollment.');
+      }
+    } catch (err: any) {
+      toast.error('Network error — could not reach server.');
+      console.error('[enroll-fingerprint]', err);
+    } finally {
+      // Keep the "sent" visual for 8 seconds, then reset
+      setTimeout(() => {
+        setEnrollingFingerprint(prev => ({ ...prev, [sid]: false }));
+      }, 8000);
+    }
+  };
+
+  // Capture fingerprint button — shown when student has device_user_id but fingerprint not yet captured
+  const getCaptureButton = (student: Student, isMobile = false) => {
+    const hasDeviceId = !!(student as any).device_user_id;
+    const fpStatus = fingerprintStatuses[student.id];
+    const hasFingerprint = fpStatus?.hasFingerprint;
+    const isEnrolling = enrollingFingerprint[student.id];
+
+    // Only show for students with a device_user_id who are missing a fingerprint
+    if (!hasDeviceId || hasFingerprint) return null;
+
+    if (isEnrolling) {
+      return (
+        <button
+          disabled
+          className={`p-2 rounded-lg transition-all ${isMobile ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'text-amber-500 bg-amber-50 dark:bg-amber-900/20'} animate-pulse cursor-wait`}
+          title="Waiting for Device..."
+        >
+          <Loader2 className="w-4 h-4 animate-spin" />
+        </button>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => handleEnrollFingerprint(student)}
+        className={`p-2 rounded-lg transition-all ${isMobile ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 hover:bg-teal-200' : 'text-teal-500 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-900/20'}`}
+        title="Capture Fingerprint on Device"
+      >
+        <Fingerprint className="w-4 h-4" />
       </button>
     );
   };
@@ -1889,6 +1960,7 @@ export const StudentTable: React.FC = () => {
                         <Eye className="w-4 h-4" />
                       </button>
                       {getFingerprintButton(student)}
+                      {getCaptureButton(student)}
                       <button
                         onClick={() => handleEdit(student)}
                         className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all dark:hover:bg-orange-900/20"
@@ -2051,6 +2123,7 @@ export const StudentTable: React.FC = () => {
                     <Eye className="w-4 h-4" />
                   </button>
                   {getFingerprintButton(student, true)}
+                  {getCaptureButton(student, true)}
                   <button
                     onClick={() => handleEdit(student)}
                     className="p-2 rounded-lg bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-orange-100 hover:text-orange-600 dark:hover:bg-orange-900/20 transition-all"

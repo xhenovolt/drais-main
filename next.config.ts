@@ -16,9 +16,14 @@ const nextConfig: NextConfig = {
         port: '3000',
         pathname: '/uploads/students/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
     ],
     // Also allow local uploads path
-    domains: ['localhost'],
+    domains: ['localhost', 'res.cloudinary.com'],
   },
 
   // ZKTeco ADMS Push Protocol — all /iclock/* traffic → /api/zk-handler
