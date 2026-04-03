@@ -127,7 +127,10 @@ export default function StudentsListPage() {
   const [fingerprintEnrolledIds, setFingerprintEnrolledIds] = useState<Set<number>>(new Set());
   const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [captureStudentId, setCaptureStudentId] = useState<number | null>(null);
-  const [enrollingFingerprint, setEnrollingFingerprint] = useState<Set<number>>(new Set());
+  // Enrollment lifecycle: studentId → { step, commandId, deviceName }
+  type EnrollStep = 'waking' | 'sent' | 'success' | 'failed';
+  const [enrollProgress, setEnrollProgress] = useState<Map<number, { step: EnrollStep; commandId?: number; deviceName?: string; message?: string }>>(new Map());
+  const pollTimers = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
   
   // Enrollment Modal State
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -226,12 +229,12 @@ export default function StudentsListPage() {
 
   // Quick-Capture fingerprint flow
   const handleQuickCapture = (studentId: number) => {
+    // If already in progress, ignore
+    if (enrollProgress.has(studentId)) return;
     const preferred = getPreferredDevice();
     if (preferred) {
-      // Skip modal — send enroll command directly
       sendEnrollCommand(studentId, preferred.sn, preferred.name);
     } else {
-      // Open device selector modal
       setCaptureStudentId(studentId);
       setShowDeviceSelector(true);
     }
@@ -245,8 +248,66 @@ export default function StudentsListPage() {
     setCaptureStudentId(null);
   };
 
+  const setStudentEnrollStep = (studentId: number, data: { step: EnrollStep; commandId?: number; deviceName?: string; message?: string }) => {
+    setEnrollProgress(prev => {
+      const m = new Map(prev);
+      m.set(studentId, data);
+      return m;
+    });
+  };
+
+  const clearStudentEnroll = (studentId: number) => {
+    // Stop any active poll timer
+    const timer = pollTimers.current.get(studentId);
+    if (timer) { clearInterval(timer); pollTimers.current.delete(studentId); }
+    setEnrollProgress(prev => { const m = new Map(prev); m.delete(studentId); return m; });
+  };
+
+  const startPolling = (studentId: number, commandId: number, deviceName: string) => {
+    // Clear existing timer if any
+    const existing = pollTimers.current.get(studentId);
+    if (existing) clearInterval(existing);
+
+    const timer = setInterval(async () => {
+      try {
+        const data = await apiFetch(`/api/students/enroll-fingerprint/status?command_id=${commandId}`, { silent: true });
+        const status = data?.data?.status;
+
+        if (status === 'sent') {
+          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: 'DEVICE READY: Place finger 3 times.' });
+        } else if (status === 'acknowledged') {
+          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Fingerprint Saved.' });
+          // Add to enrolled set
+          setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
+          // Stop polling & auto-clear after 4s
+          clearInterval(timer);
+          pollTimers.current.delete(studentId);
+          setTimeout(() => clearStudentEnroll(studentId), 4000);
+        } else if (status === 'expired' || status === 'failed') {
+          setStudentEnrollStep(studentId, { step: 'failed', commandId, deviceName, message: data?.data?.error_message || 'Command expired or failed.' });
+          clearInterval(timer);
+          pollTimers.current.delete(studentId);
+          setTimeout(() => clearStudentEnroll(studentId), 5000);
+        }
+        // If still 'pending', keep polling
+      } catch {
+        // Poll failed — keep trying
+      }
+    }, 2000);
+
+    pollTimers.current.set(studentId, timer);
+  };
+
+  // Clean up poll timers on unmount
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      pollTimers.current.forEach(timer => clearInterval(timer));
+    };
+  }, []);
+
   const sendEnrollCommand = async (studentId: number, deviceSn: string, deviceName: string) => {
-    setEnrollingFingerprint(prev => new Set(prev).add(studentId));
+    setStudentEnrollStep(studentId, { step: 'waking', deviceName, message: 'Waking up device…' });
     try {
       const result = await apiFetch('/api/students/enroll-fingerprint', {
         method: 'POST',
@@ -255,11 +316,25 @@ export default function StudentsListPage() {
         silent: true,
       });
       const studentName = result?.student_name || 'Student';
-      showToast('success', `Device Ready! Please have ${studentName} place their finger on the ${deviceName}.`);
+      const commandId = result?.command_id;
+
+      if (commandId) {
+        // If the server says command was already sent (existing pending/sent)
+        if (result?.status === 'sent') {
+          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: `DEVICE READY: Place finger for ${studentName}.` });
+        } else {
+          setStudentEnrollStep(studentId, { step: 'waking', commandId, deviceName, message: `Waking up device for ${studentName}…` });
+        }
+        startPolling(studentId, commandId, deviceName);
+        showToast('info', `Enrollment queued for ${studentName} on ${deviceName}`);
+      } else {
+        clearStudentEnroll(studentId);
+        showToast('success', result?.message || 'Enrollment command sent');
+      }
     } catch (err: any) {
+      setStudentEnrollStep(studentId, { step: 'failed', deviceName, message: err?.message || 'Failed to send command' });
       showToast('error', err?.message || 'Failed to send enrollment command');
-    } finally {
-      setEnrollingFingerprint(prev => { const s = new Set(prev); s.delete(studentId); return s; });
+      setTimeout(() => clearStudentEnroll(studentId), 4000);
     }
   };
 
@@ -848,23 +923,56 @@ export default function StudentsListPage() {
                         </button>
                       </td>
 
-                      {/* Fingerprint Quick-Capture */}
+                      {/* Fingerprint Quick-Capture with Waiting Room */}
                       <td className="px-2 py-2.5 w-9 text-center">
-                        {enrollingFingerprint.has(student.id) ? (
-                          <Loader className="w-4 h-4 text-indigo-400 animate-spin mx-auto" />
-                        ) : (
-                          <button
-                            onClick={() => handleQuickCapture(student.id)}
-                            title={fingerprintEnrolledIds.has(student.id) ? 'Re-enroll fingerprint' : 'Enroll fingerprint'}
-                            className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors mx-auto ${
-                              fingerprintEnrolledIds.has(student.id)
-                                ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                                : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-                            }`}
-                          >
-                            <Fingerprint className="w-4 h-4" />
-                          </button>
-                        )}
+                        {(() => {
+                          const progress = enrollProgress.get(student.id);
+                          if (progress) {
+                            // Waiting Room states
+                            if (progress.step === 'waking') {
+                              return (
+                                <div className="flex items-center justify-center" title={progress.message}>
+                                  <Loader className="w-4 h-4 text-amber-500 animate-spin mx-auto" />
+                                </div>
+                              );
+                            }
+                            if (progress.step === 'sent') {
+                              return (
+                                <div className="flex items-center justify-center" title={progress.message}>
+                                  <Fingerprint className="w-4 h-4 text-blue-500 animate-pulse mx-auto" />
+                                </div>
+                              );
+                            }
+                            if (progress.step === 'success') {
+                              return (
+                                <div className="flex items-center justify-center" title={progress.message}>
+                                  <Check className="w-4 h-4 text-emerald-500 mx-auto" />
+                                </div>
+                              );
+                            }
+                            if (progress.step === 'failed') {
+                              return (
+                                <div className="flex items-center justify-center" title={progress.message}>
+                                  <AlertCircle className="w-4 h-4 text-red-500 mx-auto" />
+                                </div>
+                              );
+                            }
+                          }
+                          // Default: idle fingerprint button
+                          return (
+                            <button
+                              onClick={() => handleQuickCapture(student.id)}
+                              title={fingerprintEnrolledIds.has(student.id) ? 'Re-enroll fingerprint' : 'Enroll fingerprint'}
+                              className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors mx-auto ${
+                                fingerprintEnrolledIds.has(student.id)
+                                  ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                  : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                              }`}
+                            >
+                              <Fingerprint className="w-4 h-4" />
+                            </button>
+                          );
+                        })()}
                       </td>
 
                       {/* Student name (inline editable) */}

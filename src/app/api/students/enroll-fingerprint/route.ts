@@ -56,18 +56,33 @@ export async function POST(req: NextRequest) {
       device_sn = requestedDeviceSn;
 
       // Try to find an existing zk_user_mapping device_user_id
+      // Check by student_id across school_id OR device_sn (device may have been
+      // auto-registered under a different school_id during initial sync)
       const mappingRows = await query(
         `SELECT device_user_id FROM zk_user_mapping
-         WHERE student_id = ? AND school_id = ?
+         WHERE student_id = ?
+           AND (school_id = ? OR device_sn = ?)
          LIMIT 1`,
-        [student_id, session.schoolId],
+        [student_id, session.schoolId, requestedDeviceSn],
       );
 
       if (mappingRows && mappingRows.length > 0) {
         device_user_id = mappingRows[0].device_user_id;
       } else {
-        // No mapping yet — use the student.id as PIN (will be registered on device)
+        // No mapping yet — auto-generate biometric_id from student.id
         device_user_id = student_id;
+
+        // Auto-create zk_user_mapping so the device can resolve this user on future punches
+        await query(
+          `INSERT INTO zk_user_mapping
+             (school_id, device_user_id, user_type, student_id, device_sn)
+           VALUES (?, ?, 'student', ?, ?)
+           ON DUPLICATE KEY UPDATE
+             student_id = VALUES(student_id),
+             updated_at = CURRENT_TIMESTAMP`,
+          [session.schoolId, String(device_user_id), student_id, requestedDeviceSn],
+        );
+        console.log(`[enroll-fingerprint] Auto-created zk_user_mapping for student ${student_id} → PIN ${device_user_id}`);
       }
     } else {
       // Legacy flow: resolve from device_user_mappings
@@ -123,14 +138,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. Queue the ENROLL command with high priority
+    // 3. Queue the ENROLL command with HIGHEST priority (50)
+    //    ENROLL commands must be delivered BEFORE any DATA UPDATE or QUERY commands.
     //    ZKTeco ENROLL format: ENROLL PIN={userid} Name={name} Finger=0
     const command = `ENROLL PIN=${device_user_id}\tName=${fullName}\tFinger=0`;
 
     const result = await query(
       `INSERT INTO zk_device_commands
          (school_id, device_sn, command, priority, max_retries, expires_at, created_by)
-       VALUES (?, ?, ?, 20, 5, DATE_ADD(NOW(), INTERVAL 30 MINUTE), ?)`,
+       VALUES (?, ?, ?, 50, 5, DATE_ADD(NOW(), INTERVAL 30 MINUTE), ?)`,
       [session.schoolId, device_sn, command, session.userId],
     );
 
