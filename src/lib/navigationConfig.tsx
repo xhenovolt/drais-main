@@ -217,6 +217,7 @@ export function getNavigationItems(
         { key: 'att-logs',           label: 'Attendance Logs',   icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/logs' },
         { key: 'att-device-logs',    label: 'Device Logs',       icon: <Activity className="w-4 h-4" />,     href: '/attendance/device-logs' },
         { key: 'att-devices',        label: 'Devices',           icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices' },
+        { key: 'att-enrollment',     label: 'Enrollment Station', icon: <UserPlus className="w-4 h-4" />,    href: '/attendance/enrollment' },
         { key: 'att-mapping',        label: 'User Mapping',      icon: <Users className="w-4 h-4" />,        href: '/attendance/mapping' },
         { key: 'att-commands',       label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/commands', roles: ['admin', 'super_admin'] },
       ],
