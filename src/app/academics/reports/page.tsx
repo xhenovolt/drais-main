@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, createContext, useContext, useRef } from 'react';
-import Image from 'next/image';
+import Image from 'next/image'; // kept for possible legacy use
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
@@ -154,6 +154,8 @@ const ReportsPage = () => {
   const [saving, setSaving] = useState(false);
   const [nextTermBegins, setNextTermBegins] = useState('');
   const [enableMarkConversion, setEnableMarkConversion] = useState(false);
+  const defaultLogoInputRef = useRef<HTMLInputElement>(null);
+  const [defaultLogoUploading, setDefaultLogoUploading] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
     name: '',
     address: '',
@@ -170,6 +172,32 @@ const ReportsPage = () => {
     arabic_motto: '',
   });
   const customizationRef = useRef<CustomizationRef>({ current: {} });
+
+  // ── Logo upload handler: uploads to Cloudinary, saves to DB, updates local state
+  const handleLogoUpload = async (file: File): Promise<string | null> => {
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('folder', 'drais/logos');
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: form });
+      const uploadData = await uploadRes.json();
+      if (!uploadData.success || !uploadData.url) return null;
+
+      // Persist to DB via school-config
+      await fetch('/api/school-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logo: uploadData.url }),
+      });
+
+      // Update local state so all reports on the page reflect the new logo
+      setSchoolInfo(prev => ({ ...prev, logo_url: uploadData.url }));
+      return uploadData.url;
+    } catch (err) {
+      console.error('Logo upload failed:', err);
+      return null;
+    }
+  };
 
   // ── Template engine: active layout JSON loaded from /api/report-templates/active
   const [activeLayout, setActiveLayout] = useState<ReportLayoutJSON>(DEFAULT_TEMPLATE_JSON);
@@ -1182,6 +1210,7 @@ const ReportsPage = () => {
                       onInitialsChange={handleInitialsChange}
                       onInitialsSave={saveInitialsToBackend}
                       onNextTermChange={handleNextTermChange}
+                      onLogoUpload={handleLogoUpload}
                     />
                   );
                 }
@@ -1223,8 +1252,41 @@ const ReportsPage = () => {
                         <p>{schoolInfo.center_no}</p>
                         <p>{schoolInfo.registration_no}</p>
                       </div>
-                      <div className="text-center" style={{ flex: 'none' }}>
-                        <Image src={schoolInfo.logo_url} alt="School Logo" width={90} height={90} />
+                      <div
+                        className="text-center"
+                        style={{ flex: 'none', cursor: 'pointer', position: 'relative' }}
+                        onClick={() => defaultLogoInputRef.current?.click()}
+                        title="Click to change logo"
+                      >
+                        <input
+                          ref={defaultLogoInputRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setDefaultLogoUploading(true);
+                            await handleLogoUpload(file);
+                            setDefaultLogoUploading(false);
+                            e.target.value = '';
+                          }}
+                        />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={schoolInfo.logo_url || '/uploads/logo.png'}
+                          alt="School Logo"
+                          width={90}
+                          height={90}
+                          style={{ objectFit: 'contain', borderRadius: 4, border: '2px dashed transparent' }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLImageElement).style.border = '2px dashed #4f8cf7'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLImageElement).style.border = '2px dashed transparent'; }}
+                        />
+                        {defaultLogoUploading && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)', borderRadius: 4, fontSize: 10 }}>
+                            Uploading…
+                          </div>
+                        )}
                       </div>
                       <div className="text-right font-bold text-xl rtl:text-right ltr:text-left" style={{ direction: 'rtl', textAlign: 'right', flex: 1 }}>
                         <h1 className="text-xl font-bold">{schoolInfo.arabic_name}</h1>
@@ -1270,12 +1332,14 @@ const ReportsPage = () => {
                           <img src={`/api/barcode?id=${student.student_id}`} style={{ width: 90, height: 40, marginRight: -30, marginLeft: -20, transform: 'rotate(270deg)' }} alt="Barcode" />
                           <span style={{ fontSize: 15, fontWeight: 500, margin: 0, transform: 'rotate(180deg)', writingMode: 'vertical-rl' as any }}>{student.student_id}</span>
                         </div>
-                        <Image
-                          src={`${student.photo || '/logo.png'}`}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={student.photo || '/default-avatar.png'}
                           alt={`${student.first_name} ${student.last_name}`}
                           width={100}
                           height={115}
-                          style={{ width: 100, height: 115, objectFit: 'cover', marginRight: 20, border: '2px solid #eee' }}
+                          style={{ width: 100, height: 115, objectFit: 'cover', marginRight: 20, border: '2px solid #eee', background: '#f0f0f0' }}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
                         />
                         <div>
                           <div style={{

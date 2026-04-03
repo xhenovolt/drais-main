@@ -6,7 +6,7 @@
 // Created as part of Phase 3 of the DRAIS reports multi-dimension upgrade.
 // ============================================================================
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import type { ReportLayoutJSON } from '@/lib/reportTemplates';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,6 +103,8 @@ export interface DualCurriculumTemplateProps {
   onInitialsChange: (classId: string, subjectId: string, initials: string) => void;
   onInitialsSave: (classId: string, subjectId: string, initials: string) => void;
   onNextTermChange: (date: string) => void;
+  /** Called after user picks a logo file; parent uploads to Cloudinary + saves to DB. */
+  onLogoUpload?: (file: File) => Promise<string | null>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -314,7 +316,30 @@ export default function DualCurriculumTemplate({
   onInitialsChange,
   onInitialsSave,
   onNextTermChange,
+  onLogoUpload,
 }: DualCurriculumTemplateProps) {
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  const handleLogoClick = () => {
+    if (onLogoUpload) logoInputRef.current?.click();
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onLogoUpload) return;
+    // Instant local preview
+    setLogoPreview(URL.createObjectURL(file));
+    setLogoUploading(true);
+    try {
+      const url = await onLogoUpload(file);
+      if (url) setLogoPreview(url);
+    } finally {
+      setLogoUploading(false);
+      e.target.value = '';
+    }
+  };
   const allGrouped = groupBySubject(student.results || []);
 
   // Split by subject_type: theology subjects go right, secular left
@@ -377,16 +402,34 @@ export default function DualCurriculumTemplate({
           {schoolInfo.registration_no && <div style={{ fontSize: 11 }}>Reg. No: {schoolInfo.registration_no}</div>}
         </div>
 
-        {/* Logo center */}
-        <div style={{ textAlign: 'center', flex: 'none', margin: '0 12px' }}>
+        {/* Logo center — click to upload */}
+        <div
+          style={{ textAlign: 'center', flex: 'none', margin: '0 12px', position: 'relative', cursor: onLogoUpload ? 'pointer' : 'default' }}
+          onClick={handleLogoClick}
+          title={onLogoUpload ? 'Click to change logo' : undefined}
+        >
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleLogoFileChange}
+          />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={schoolInfo.logo_url || '/uploads/logo.png'}
+            src={logoPreview || schoolInfo.logo_url || '/uploads/logo.png'}
             alt="School Logo"
             width={65}
             height={65}
-            style={{ objectFit: 'contain', display: 'inline-block' }}
+            style={{ objectFit: 'contain', display: 'inline-block', borderRadius: 4, border: onLogoUpload ? '2px dashed transparent' : 'none' }}
+            onMouseEnter={(e) => { if (onLogoUpload) (e.currentTarget as HTMLImageElement).style.border = '2px dashed #4f8cf7'; }}
+            onMouseLeave={(e) => { if (onLogoUpload) (e.currentTarget as HTMLImageElement).style.border = '2px dashed transparent'; }}
           />
+          {logoUploading && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)', borderRadius: 4, fontSize: 10 }}>
+              Uploading…
+            </div>
+          )}
         </div>
 
         {/* Arabic right - use only arabic_* fields, show em dash if missing */}
