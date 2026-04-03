@@ -23,6 +23,7 @@ interface SchoolFormData {
   arabicName: string;
   arabicAddress: string;
   arabicPhone: string;
+  arabicPoBox: string;
   arabicCenterNo: string;
   arabicRegistrationNo: string;
   arabicMotto: string;
@@ -36,9 +37,8 @@ export default function SchoolSettingsPage() {
     name: '', shortName: '', address: '', city: '', country: 'Uganda',
     phone: '', email: '', website: '', principalName: '', motto: '',
     logo: '/uploads/logo.png', poBox: '', centerNo: '', registrationNo: '',
-    arabicName: '', arabicAddress: '', arabicPhone: '', arabicCenterNo: '', arabicRegistrationNo: '', arabicMotto: '',
+    arabicName: '', arabicAddress: '', arabicPhone: '', arabicPoBox: '', arabicCenterNo: '', arabicRegistrationNo: '', arabicMotto: '',
     schoolType: '', foundedYear: '',
-  });
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -88,6 +88,7 @@ export default function SchoolSettingsPage() {
         arabicName: school.arabicName || '',
         arabicAddress: school.arabicAddress || '',
         arabicPhone: school.arabicPhone || '',
+        arabicPoBox: school.arabicPoBox || '',
         arabicCenterNo: school.arabicCenterNo || '',
         arabicRegistrationNo: school.arabicRegistrationNo || '',
         arabicMotto: school.arabicMotto || '',
@@ -128,6 +129,7 @@ export default function SchoolSettingsPage() {
           arabic_name: form.arabicName,
           arabic_address: form.arabicAddress,
           arabic_phone: form.arabicPhone,
+          arabic_po_box: form.arabicPoBox,
           arabic_center_no: form.arabicCenterNo,
           arabic_registration_no: form.arabicRegistrationNo,
           arabic_motto: form.arabicMotto,
@@ -337,6 +339,10 @@ export default function SchoolSettingsPage() {
             <div>
               <label className={labelClass}>Arabic Phone (هاتف)</label>
               <input name="arabicPhone" value={form.arabicPhone} onChange={handleChange} className={inputClass} dir="ltr" placeholder="e.g. +256 700 123 456" />
+            </div>
+            <div>
+              <label className={labelClass}>Arabic P.O. Box (صندوق البريد)</label>
+              <input name="arabicPoBox" value={form.arabicPoBox} onChange={handleChange} className={inputClass} dir="rtl" placeholder="صندوق البريد" />
             </div>
             <div>
               <label className={labelClass}>Arabic UNEB Center No (رقم مركز يونيب)</label>

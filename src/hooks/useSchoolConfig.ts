@@ -31,6 +31,7 @@ export interface SchoolConfig {
   arabicName: string;
   arabicAddress: string;
   arabicPhone: string;
+  arabicPoBox: string;
   arabicCenterNo: string;
   arabicRegistrationNo: string;
   arabicMotto: string;
@@ -60,6 +61,7 @@ const EMPTY_SCHOOL: SchoolConfig = {
   arabicName: '',
   arabicAddress: '',
   arabicPhone: '',
+  arabicPoBox: '',
   arabicCenterNo: '',
   arabicRegistrationNo: '',
   arabicMotto: '',
@@ -93,6 +95,7 @@ const fetcher = async (url: string): Promise<SchoolConfig> => {
     arabicName: s.arabic_name || EMPTY_SCHOOL.arabicName,
     arabicAddress: s.arabic_address || EMPTY_SCHOOL.arabicAddress,
     arabicPhone: s.arabic_phone || EMPTY_SCHOOL.arabicPhone,
+    arabicPoBox: s.arabic_po_box || EMPTY_SCHOOL.arabicPoBox,
     arabicCenterNo: s.arabic_center_no || EMPTY_SCHOOL.arabicCenterNo,
     arabicRegistrationNo: s.arabic_registration_no || EMPTY_SCHOOL.arabicRegistrationNo,
     arabicMotto: s.arabic_motto || EMPTY_SCHOOL.arabicMotto,

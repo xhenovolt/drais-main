@@ -81,6 +81,7 @@ export interface DualSchoolInfo {
   registration_no: string;
   arabic_name: string;
   arabic_address: string;
+  arabic_po_box: string;
   arabic_contact: string;
   arabic_center_no: string;
   arabic_registration_no: string;
@@ -390,7 +391,10 @@ export default function DualCurriculumTemplate({
           {(schoolInfo.arabic_motto || schoolInfo.motto) && (
             <div style={{ fontSize: 10, fontStyle: 'italic', color: '#555' }}>{schoolInfo.arabic_motto || schoolInfo.motto}</div>
           )}
-          <div style={{ fontSize: 11 }}>{schoolInfo.arabic_address || schoolInfo.address}{schoolInfo.po_box ? `، ${schoolInfo.po_box}` : ''}</div>
+          <div style={{ fontSize: 11 }}>
+            {schoolInfo.arabic_address || schoolInfo.address}
+            {(schoolInfo.arabic_po_box || schoolInfo.po_box) ? `، ${schoolInfo.arabic_po_box || schoolInfo.po_box}` : ''}
+          </div>
           {(schoolInfo.arabic_contact || schoolInfo.contact) && (
             <div style={{ fontSize: 11 }}>هاتف: {schoolInfo.arabic_contact || schoolInfo.contact}</div>
           )}

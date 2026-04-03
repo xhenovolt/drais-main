@@ -120,6 +120,7 @@ interface SchoolInfo {
   registration_no: string;
   arabic_name: string;
   arabic_address: string;
+  arabic_po_box: string;
   arabic_contact: string;
   arabic_center_no: string;
   arabic_registration_no: string;
@@ -164,11 +165,8 @@ const ReportsPage = () => {
     motto: '',
     center_no: '',
     registration_no: '',
-    arabic_name: '',
-    arabic_address: '',
-    arabic_contact: '',
-    arabic_center_no: '',
-    arabic_registration_no: '',
+    arabic_name: '', arabic_address: '', arabic_po_box: '',
+    arabic_contact: '', arabic_center_no: '', arabic_registration_no: '',
     arabic_motto: '',
   });
   const customizationRef = useRef<CustomizationRef>({ current: {} });
@@ -244,18 +242,13 @@ const ReportsPage = () => {
 
   // School info default — generic placeholders that get overridden by DB-driven API
   const schoolInfoDefault: SchoolInfo = {
-    name: '',
-    address: '',
-    po_box: '',
+    name: '', address: '', po_box: '',
     logo_url: '/uploads/logo.png',
-    contact: '',
-    center_no: '',
-    registration_no: '',
-    arabic_name: '',
-    arabic_address: '',
-    arabic_contact: '',
-    arabic_center_no: '',
-    arabic_registration_no: '',
+    contact: '', email: '', website: '', motto: '',
+    center_no: '', registration_no: '',
+    arabic_name: '', arabic_address: '', arabic_po_box: '',
+    arabic_contact: '', arabic_center_no: '', arabic_registration_no: '',
+    arabic_motto: '',
   };
 
   // Add Arabic-Indic digits converter (strip dash characters before mapping)
@@ -349,7 +342,8 @@ const ReportsPage = () => {
             registration_no: s.registration_no || schoolInfoDefault.registration_no,
             arabic_name: s.arabic_name || schoolInfoDefault.arabic_name,
             arabic_address: s.arabic_address || schoolInfoDefault.arabic_address,
-            arabic_contact: s.contact?.phone || s.arabic_phone || schoolInfoDefault.arabic_contact,
+            arabic_po_box: s.arabic_po_box || schoolInfoDefault.arabic_po_box,
+            arabic_contact: s.arabic_phone || s.contact?.phone || schoolInfoDefault.arabic_contact,
             arabic_center_no: s.arabic_center_no || s.center_no || schoolInfoDefault.arabic_center_no,
             arabic_registration_no: s.arabic_registration_no || s.registration_no || schoolInfoDefault.arabic_registration_no,
             arabic_motto: s.arabic_motto || schoolInfoDefault.arabic_motto,
