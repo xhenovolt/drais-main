@@ -895,7 +895,44 @@ export async function POST(req: NextRequest) {
     // ════════════════════════════════════════════════════════════════════════
     // STEP 4: Per-record processing
     // ════════════════════════════════════════════════════════════════════════
-    if (table === 'USERINFO') {
+    // ── Biometric template tables (TEMPLATEV10 / BIODATA) ──────────────
+    // After a successful ENROLL_BIO, the device POSTs fingerprint templates
+    // via table=templatev10 or table=biodata. The payload may contain:
+    //   PIN, FID, SIZE, VALID, TMP (same fields as FP lines in OPERLOG)
+    if (table === 'TEMPLATEV10' || table === 'BIODATA') {
+      await logSystemEvent(sn, 'SYSTEM', 'INCOMING', rawBody.substring(0, 2000), ip, ua);
+
+      for (let i = 0; i < records.length; i++) {
+        const rec = records[i];
+        const rawLine = lines[i] || '';
+        const pin = rec.PIN || rec.No || '';
+        const fid = rec.FID || rec.Idx || '0';
+        const size = rec.SIZE || rec.Size || '0';
+        const valid = rec.VALID || rec.Valid || '1';
+        const tmp = rec.TMP || rec.Template || '';
+
+        if (pin && tmp) {
+          try {
+            await processFingerprint(sn, pin, fid, size, valid, tmp, schoolId);
+          } catch (err) {
+            zkLog('warn', `${table}_FP_ERROR`, { sn, pin, fid, error: String(err) });
+          }
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: table, rawLine: rawLine.substring(0, 2000),
+            userId: pin, status: 'success',
+          });
+        } else {
+          // Record without template — save for reference
+          await saveParsedLog({
+            rawLogId: rawLogId!, deviceSn: sn, schoolId,
+            tableName: table, rawLine: rawLine.substring(0, 2000),
+            userId: pin || null, status: pin && !tmp ? 'failed' : 'success',
+            errorMessage: pin && !tmp ? 'No template data in record' : undefined,
+          });
+        }
+      }
+    } else if (table === 'USERINFO') {
       await logSystemEvent(sn, 'USERINFO', 'INCOMING', rawBody.substring(0, 2000), ip, ua);
       await processUserInfo(sn, records, schoolId);
 
