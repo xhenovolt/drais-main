@@ -220,6 +220,7 @@ export function getNavigationItems(
         { key: 'att-enrollment',     label: 'Enrollment Station', icon: <UserPlus className="w-4 h-4" />,    href: '/attendance/enrollment' },
         { key: 'att-mapping',        label: 'User Mapping',      icon: <Users className="w-4 h-4" />,        href: '/attendance/mapping' },
         { key: 'att-commands',       label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/commands', roles: ['admin', 'super_admin'] },
+        { key: 'att-device-ctrl',    label: 'Device Control',    icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/device-control', roles: ['admin', 'super_admin'] },
         { key: 'att-remote',         label: 'Remote Features',   icon: <Activity className="w-4 h-4" />,    href: '/attendance/remote-features', roles: ['admin', 'super_admin'] },
       ],
     },
