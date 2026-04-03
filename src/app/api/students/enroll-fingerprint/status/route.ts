@@ -38,9 +38,9 @@ export async function GET(req: NextRequest) {
          d.device_name
        FROM zk_device_commands c
        LEFT JOIN devices d ON c.device_sn = d.sn
-       WHERE c.id = ? AND c.school_id = ?
+       WHERE c.id = ?
        LIMIT 1`,
-      [commandId, session.schoolId],
+      [commandId],
     );
 
     if (!rows || rows.length === 0) {

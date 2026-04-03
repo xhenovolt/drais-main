@@ -39,14 +39,17 @@ export async function GET(req: NextRequest) {
     );
 
     // Source 3: Acknowledged ENROLL commands (device confirmed capture)
+    // Commands use device school_id (not student school_id), so join through
+    // students table to filter by session school instead of command school_id.
     const ackRows = await query(
       `SELECT DISTINCT m.student_id
        FROM zk_device_commands c
        JOIN zk_user_mapping m
          ON c.device_sn = m.device_sn
          AND c.command LIKE CONCAT('%ENROLL PIN=', m.device_user_id, '%')
+       JOIN students s ON m.student_id = s.id
        WHERE c.status = 'acknowledged'
-         AND c.school_id = ?
+         AND s.school_id = ?
          AND m.student_id IS NOT NULL`,
       [session.schoolId],
     );
