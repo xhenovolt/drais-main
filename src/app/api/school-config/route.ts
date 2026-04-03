@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
         arabic_phone: info.arabic_phone || '',
         arabic_center_no: info.arabic_center_no || '',
         arabic_registration_no: info.arabic_registration_no || '',
+        arabic_motto: info.arabic_motto || '',
         school_type: info.school_type || '',
         district: info.district || '',
         website: info.website || '',
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
       arabic_phone: 'arabic_phone',
       arabic_center_no: 'arabic_center_no',
       arabic_registration_no: 'arabic_registration_no',
+      arabic_motto: 'arabic_motto',
       founded_year: 'founded_year',
     };
 

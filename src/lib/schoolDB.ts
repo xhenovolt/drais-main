@@ -25,6 +25,7 @@ export interface SchoolInfo {
   arabic_phone: string | null;
   arabic_center_no: string | null;
   arabic_registration_no: string | null;
+  arabic_motto: string | null;
 }
 
 const DEFAULT_SCHOOL: SchoolInfo = {
@@ -52,6 +53,7 @@ const DEFAULT_SCHOOL: SchoolInfo = {
   arabic_phone: null,
   arabic_center_no: null,
   arabic_registration_no: null,
+  arabic_motto: null,
 };
 
 // In-memory cache to avoid repeated DB calls
@@ -106,6 +108,7 @@ export async function getSchoolFromDB(schoolId: number = 1): Promise<SchoolInfo>
         arabic_phone: r.arabic_phone || null,
         arabic_center_no: r.arabic_center_no || null,
         arabic_registration_no: r.arabic_registration_no || null,
+        arabic_motto: r.arabic_motto || null,
       };
 
       // Update cache

@@ -25,6 +25,7 @@ interface SchoolFormData {
   arabicPhone: string;
   arabicCenterNo: string;
   arabicRegistrationNo: string;
+  arabicMotto: string;
   schoolType: string;
   foundedYear: string;
 }
@@ -35,8 +36,9 @@ export default function SchoolSettingsPage() {
     name: '', shortName: '', address: '', city: '', country: 'Uganda',
     phone: '', email: '', website: '', principalName: '', motto: '',
     logo: '/uploads/logo.png', poBox: '', centerNo: '', registrationNo: '',
-    arabicName: '', arabicAddress: '', arabicPhone: '', arabicCenterNo: '', arabicRegistrationNo: '',
-    schoolType: '', foundedYear: '',,
+    arabicName: '', arabicAddress: '', arabicPhone: '', arabicCenterNo: '', arabicRegistrationNo: '', arabicMotto: '',
+    schoolType: '', foundedYear: '',
+  });
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -88,6 +90,7 @@ export default function SchoolSettingsPage() {
         arabicPhone: school.arabicPhone || '',
         arabicCenterNo: school.arabicCenterNo || '',
         arabicRegistrationNo: school.arabicRegistrationNo || '',
+        arabicMotto: school.arabicMotto || '',
         schoolType: school.schoolType || '',
         foundedYear: school.foundedYear ? String(school.foundedYear) : '',
       });
@@ -127,6 +130,7 @@ export default function SchoolSettingsPage() {
           arabic_phone: form.arabicPhone,
           arabic_center_no: form.arabicCenterNo,
           arabic_registration_no: form.arabicRegistrationNo,
+          arabic_motto: form.arabicMotto,
           school_type: form.schoolType,
           founded_year: form.foundedYear ? parseInt(form.foundedYear) : null,
         }),
@@ -341,6 +345,10 @@ export default function SchoolSettingsPage() {
             <div>
               <label className={labelClass}>Arabic Registration No (رقم التسجيل)</label>
               <input name="arabicRegistrationNo" value={form.arabicRegistrationNo} onChange={handleChange} className={inputClass} dir="ltr" placeholder="e.g. IBB-2015-001234" />
+            </div>
+            <div>
+              <label className={labelClass}>Arabic Motto (الشعار)</label>
+              <input name="arabicMotto" value={form.arabicMotto} onChange={handleChange} className={inputClass} dir="rtl" placeholder="الشعار بالعربية" />
             </div>
           </div>
         </section>

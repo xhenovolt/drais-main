@@ -113,6 +113,9 @@ interface SchoolInfo {
   po_box: string;
   logo_url: string;
   contact: string;
+  email: string;
+  website: string;
+  motto: string;
   center_no: string;
   registration_no: string;
   arabic_name: string;
@@ -120,6 +123,7 @@ interface SchoolInfo {
   arabic_contact: string;
   arabic_center_no: string;
   arabic_registration_no: string;
+  arabic_motto: string;
 }
 
 interface ApiResponse {
@@ -155,6 +159,9 @@ const ReportsPage = () => {
     po_box: '',
     logo_url: '/uploads/logo.png',
     contact: '',
+    email: '',
+    website: '',
+    motto: '',
     center_no: '',
     registration_no: '',
     arabic_name: '',
@@ -162,6 +169,7 @@ const ReportsPage = () => {
     arabic_contact: '',
     arabic_center_no: '',
     arabic_registration_no: '',
+    arabic_motto: '',
   });
   const customizationRef = useRef<CustomizationRef>({ current: {} });
 
@@ -334,6 +342,9 @@ const ReportsPage = () => {
             po_box: s.po_box || schoolInfoDefault.po_box,
             logo_url: s.branding?.logo || s.logo_url || schoolInfoDefault.logo_url,
             contact: s.contact?.phone || schoolInfoDefault.contact,
+            email: s.contact?.email || schoolInfoDefault.email,
+            website: s.website || schoolInfoDefault.website,
+            motto: s.branding?.motto || schoolInfoDefault.motto,
             center_no: s.center_no || schoolInfoDefault.center_no,
             registration_no: s.registration_no || schoolInfoDefault.registration_no,
             arabic_name: s.arabic_name || schoolInfoDefault.arabic_name,
@@ -341,6 +352,7 @@ const ReportsPage = () => {
             arabic_contact: s.contact?.phone || s.arabic_phone || schoolInfoDefault.arabic_contact,
             arabic_center_no: s.arabic_center_no || s.center_no || schoolInfoDefault.arabic_center_no,
             arabic_registration_no: s.arabic_registration_no || s.registration_no || schoolInfoDefault.arabic_registration_no,
+            arabic_motto: s.arabic_motto || schoolInfoDefault.arabic_motto,
           });
         }
       })

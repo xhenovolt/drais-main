@@ -74,6 +74,9 @@ export interface DualSchoolInfo {
   po_box: string;
   logo_url: string;
   contact: string;
+  email: string;
+  website: string;
+  motto: string;
   center_no: string;
   registration_no: string;
   arabic_name: string;
@@ -81,6 +84,7 @@ export interface DualSchoolInfo {
   arabic_contact: string;
   arabic_center_no: string;
   arabic_registration_no: string;
+  arabic_motto: string;
 }
 
 export interface DualCurriculumTemplateProps {
@@ -360,8 +364,11 @@ export default function DualCurriculumTemplate({
         {/* English left */}
         <div style={{ flex: 1, direction: 'ltr', textAlign: 'left' }}>
           <strong style={{ fontSize: 15 }}>{schoolInfo.name}</strong>
-          <div style={{ fontSize: 11 }}>{schoolInfo.address}</div>
+          {schoolInfo.motto && <div style={{ fontSize: 10, fontStyle: 'italic', color: '#555' }}>{schoolInfo.motto}</div>}
+          <div style={{ fontSize: 11 }}>{schoolInfo.address}{schoolInfo.po_box ? `, ${schoolInfo.po_box}` : ''}</div>
           {schoolInfo.contact && <div style={{ fontSize: 11 }}>Tel: {schoolInfo.contact}</div>}
+          {schoolInfo.email && <div style={{ fontSize: 11 }}>Email: {schoolInfo.email}</div>}
+          {schoolInfo.website && <div style={{ fontSize: 11 }}>Web: {schoolInfo.website}</div>}
           {schoolInfo.center_no && <div style={{ fontSize: 11 }}>UNEB Center No: {schoolInfo.center_no}</div>}
           {schoolInfo.registration_no && <div style={{ fontSize: 11 }}>Reg. No: {schoolInfo.registration_no}</div>}
         </div>
@@ -379,11 +386,15 @@ export default function DualCurriculumTemplate({
 
         {/* Arabic right */}
         <div style={{ flex: 1, direction: 'rtl', textAlign: 'right' }}>
-          <strong style={{ fontSize: 15 }}>{schoolInfo.arabic_name}</strong>
-          <div style={{ fontSize: 11 }}>{schoolInfo.arabic_address}</div>
+          <strong style={{ fontSize: 15 }}>{schoolInfo.arabic_name || schoolInfo.name}</strong>
+          {(schoolInfo.arabic_motto || schoolInfo.motto) && (
+            <div style={{ fontSize: 10, fontStyle: 'italic', color: '#555' }}>{schoolInfo.arabic_motto || schoolInfo.motto}</div>
+          )}
+          <div style={{ fontSize: 11 }}>{schoolInfo.arabic_address || schoolInfo.address}{schoolInfo.po_box ? `، ${schoolInfo.po_box}` : ''}</div>
           {(schoolInfo.arabic_contact || schoolInfo.contact) && (
             <div style={{ fontSize: 11 }}>هاتف: {schoolInfo.arabic_contact || schoolInfo.contact}</div>
           )}
+          {schoolInfo.email && <div style={{ fontSize: 11 }}>البريد: {schoolInfo.email}</div>}
           {(schoolInfo.arabic_center_no || schoolInfo.center_no) && (
             <div style={{ fontSize: 11 }}>رقم مركز يونيب: {schoolInfo.arabic_center_no || schoolInfo.center_no}</div>
           )}
