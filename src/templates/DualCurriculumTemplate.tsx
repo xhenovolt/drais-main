@@ -385,26 +385,22 @@ export default function DualCurriculumTemplate({
           />
         </div>
 
-        {/* Arabic right */}
+        {/* Arabic right - use only arabic_* fields, show em dash if missing */}
         <div style={{ flex: 1, direction: 'rtl', textAlign: 'right' }}>
-          <strong style={{ fontSize: 15 }}>{schoolInfo.arabic_name || schoolInfo.name}</strong>
-          {(schoolInfo.arabic_motto || schoolInfo.motto) && (
-            <div style={{ fontSize: 10, fontStyle: 'italic', color: '#555' }}>{schoolInfo.arabic_motto || schoolInfo.motto}</div>
+          <strong style={{ fontSize: 15 }}>{schoolInfo.arabic_name || '—'}</strong>
+          {schoolInfo.arabic_motto ? (
+            <div style={{ fontSize: 10, fontStyle: 'italic', color: '#555' }}>{schoolInfo.arabic_motto}</div>
+          ) : (
+            <div style={{ fontSize: 10, fontStyle: 'italic', color: '#bbb' }}>—</div>
           )}
           <div style={{ fontSize: 11 }}>
-            {schoolInfo.arabic_address || schoolInfo.address}
-            {(schoolInfo.arabic_po_box || schoolInfo.po_box) ? `، ${schoolInfo.arabic_po_box || schoolInfo.po_box}` : ''}
+            {schoolInfo.arabic_address || '—'}
+            {schoolInfo.arabic_po_box ? `، ${schoolInfo.arabic_po_box}` : ''}
           </div>
-          {(schoolInfo.arabic_contact || schoolInfo.contact) && (
-            <div style={{ fontSize: 11 }}>هاتف: {schoolInfo.arabic_contact || schoolInfo.contact}</div>
-          )}
-          {schoolInfo.email && <div style={{ fontSize: 11 }}>البريد: {schoolInfo.email}</div>}
-          {(schoolInfo.arabic_center_no || schoolInfo.center_no) && (
-            <div style={{ fontSize: 11 }}>رقم مركز يونيب: {schoolInfo.arabic_center_no || schoolInfo.center_no}</div>
-          )}
-          {(schoolInfo.arabic_registration_no || schoolInfo.registration_no) && (
-            <div style={{ fontSize: 11 }}>رقم التسجيل: {schoolInfo.arabic_registration_no || schoolInfo.registration_no}</div>
-          )}
+          <div style={{ fontSize: 11 }}>هاتف: {schoolInfo.arabic_contact || '—'}</div>
+          <div style={{ fontSize: 11 }}>البريد: {schoolInfo.email || '—'}</div>
+          <div style={{ fontSize: 11 }}>رقم مركز يونيب: {schoolInfo.arabic_center_no || '—'}</div>
+          <div style={{ fontSize: 11 }}>رقم التسجيل: {schoolInfo.arabic_registration_no || '—'}</div>
         </div>
       </div>
 
