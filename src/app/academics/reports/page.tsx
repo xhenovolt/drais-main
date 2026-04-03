@@ -338,9 +338,9 @@ const ReportsPage = () => {
             registration_no: s.registration_no || schoolInfoDefault.registration_no,
             arabic_name: s.arabic_name || schoolInfoDefault.arabic_name,
             arabic_address: s.arabic_address || schoolInfoDefault.arabic_address,
-            arabic_contact: s.contact?.phone || schoolInfoDefault.arabic_contact,
-            arabic_center_no: schoolInfoDefault.arabic_center_no,
-            arabic_registration_no: schoolInfoDefault.arabic_registration_no,
+            arabic_contact: s.contact?.phone || s.arabic_phone || schoolInfoDefault.arabic_contact,
+            arabic_center_no: s.arabic_center_no || s.center_no || schoolInfoDefault.arabic_center_no,
+            arabic_registration_no: s.arabic_registration_no || s.registration_no || schoolInfoDefault.arabic_registration_no,
           });
         }
       })

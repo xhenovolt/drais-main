@@ -30,6 +30,9 @@ export interface SchoolConfig {
   registrationNo: string;
   arabicName: string;
   arabicAddress: string;
+  arabicPhone: string;
+  arabicCenterNo: string;
+  arabicRegistrationNo: string;
   schoolType: string;
   district: string;
   website: string;
@@ -55,6 +58,9 @@ const EMPTY_SCHOOL: SchoolConfig = {
   registrationNo: '',
   arabicName: '',
   arabicAddress: '',
+  arabicPhone: '',
+  arabicCenterNo: '',
+  arabicRegistrationNo: '',
   schoolType: '',
   district: '',
   website: '',
@@ -84,6 +90,9 @@ const fetcher = async (url: string): Promise<SchoolConfig> => {
     registrationNo: s.registration_no || EMPTY_SCHOOL.registrationNo,
     arabicName: s.arabic_name || EMPTY_SCHOOL.arabicName,
     arabicAddress: s.arabic_address || EMPTY_SCHOOL.arabicAddress,
+    arabicPhone: s.arabic_phone || EMPTY_SCHOOL.arabicPhone,
+    arabicCenterNo: s.arabic_center_no || EMPTY_SCHOOL.arabicCenterNo,
+    arabicRegistrationNo: s.arabic_registration_no || EMPTY_SCHOOL.arabicRegistrationNo,
     schoolType: s.school_type || EMPTY_SCHOOL.schoolType,
     district: s.district || EMPTY_SCHOOL.district,
     website: s.website || EMPTY_SCHOOL.website,

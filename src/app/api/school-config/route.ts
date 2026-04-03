@@ -49,6 +49,9 @@ export async function GET(request: NextRequest) {
         registration_no: info.registration_number || '',
         arabic_name: info.arabic_name || '',
         arabic_address: info.arabic_address || '',
+        arabic_phone: info.arabic_phone || '',
+        arabic_center_no: info.arabic_center_no || '',
+        arabic_registration_no: info.arabic_registration_no || '',
         school_type: info.school_type || '',
         district: info.district || '',
         website: info.website || '',
@@ -105,6 +108,9 @@ export async function POST(request: NextRequest) {
       registration_no: 'registration_number',
       arabic_name: 'arabic_name',
       arabic_address: 'arabic_address',
+      arabic_phone: 'arabic_phone',
+      arabic_center_no: 'arabic_center_no',
+      arabic_registration_no: 'arabic_registration_no',
       founded_year: 'founded_year',
     };
 

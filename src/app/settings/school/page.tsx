@@ -22,6 +22,9 @@ interface SchoolFormData {
   registrationNo: string;
   arabicName: string;
   arabicAddress: string;
+  arabicPhone: string;
+  arabicCenterNo: string;
+  arabicRegistrationNo: string;
   schoolType: string;
   foundedYear: string;
 }
@@ -32,7 +35,8 @@ export default function SchoolSettingsPage() {
     name: '', shortName: '', address: '', city: '', country: 'Uganda',
     phone: '', email: '', website: '', principalName: '', motto: '',
     logo: '/uploads/logo.png', poBox: '', centerNo: '', registrationNo: '',
-    arabicName: '', arabicAddress: '', schoolType: '', foundedYear: '',
+    arabicName: '', arabicAddress: '', arabicPhone: '', arabicCenterNo: '', arabicRegistrationNo: '',
+    schoolType: '', foundedYear: '',,
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -81,6 +85,9 @@ export default function SchoolSettingsPage() {
         registrationNo: school.registrationNo || '',
         arabicName: school.arabicName || '',
         arabicAddress: school.arabicAddress || '',
+        arabicPhone: school.arabicPhone || '',
+        arabicCenterNo: school.arabicCenterNo || '',
+        arabicRegistrationNo: school.arabicRegistrationNo || '',
         schoolType: school.schoolType || '',
         foundedYear: school.foundedYear ? String(school.foundedYear) : '',
       });
@@ -117,6 +124,9 @@ export default function SchoolSettingsPage() {
           registration_no: form.registrationNo,
           arabic_name: form.arabicName,
           arabic_address: form.arabicAddress,
+          arabic_phone: form.arabicPhone,
+          arabic_center_no: form.arabicCenterNo,
+          arabic_registration_no: form.arabicRegistrationNo,
           school_type: form.schoolType,
           founded_year: form.foundedYear ? parseInt(form.foundedYear) : null,
         }),
@@ -310,14 +320,27 @@ export default function SchoolSettingsPage() {
         {/* Arabic (Bilingual) */}
         <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Arabic / Bilingual</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">These translations appear on the Arabic side of bilingual reports. Leave blank to fall back to the English values.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Arabic Name</label>
-              <input name="arabicName" value={form.arabicName} onChange={handleChange} className={inputClass} dir="rtl" />
+              <label className={labelClass}>Arabic Name (اسم المدرسة)</label>
+              <input name="arabicName" value={form.arabicName} onChange={handleChange} className={inputClass} dir="rtl" placeholder="مدرسة ..." />
             </div>
             <div>
-              <label className={labelClass}>Arabic Address</label>
-              <input name="arabicAddress" value={form.arabicAddress} onChange={handleChange} className={inputClass} dir="rtl" />
+              <label className={labelClass}>Arabic Address (العنوان)</label>
+              <input name="arabicAddress" value={form.arabicAddress} onChange={handleChange} className={inputClass} dir="rtl" placeholder="العنوان بالعربية" />
+            </div>
+            <div>
+              <label className={labelClass}>Arabic Phone (هاتف)</label>
+              <input name="arabicPhone" value={form.arabicPhone} onChange={handleChange} className={inputClass} dir="ltr" placeholder="e.g. +256 700 123 456" />
+            </div>
+            <div>
+              <label className={labelClass}>Arabic UNEB Center No (رقم مركز يونيب)</label>
+              <input name="arabicCenterNo" value={form.arabicCenterNo} onChange={handleChange} className={inputClass} dir="ltr" placeholder="e.g. TBD" />
+            </div>
+            <div>
+              <label className={labelClass}>Arabic Registration No (رقم التسجيل)</label>
+              <input name="arabicRegistrationNo" value={form.arabicRegistrationNo} onChange={handleChange} className={inputClass} dir="ltr" placeholder="e.g. IBB-2015-001234" />
             </div>
           </div>
         </section>

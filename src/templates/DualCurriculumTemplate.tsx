@@ -361,8 +361,9 @@ export default function DualCurriculumTemplate({
         <div style={{ flex: 1, direction: 'ltr', textAlign: 'left' }}>
           <strong style={{ fontSize: 15 }}>{schoolInfo.name}</strong>
           <div style={{ fontSize: 11 }}>{schoolInfo.address}</div>
-          <div style={{ fontSize: 11 }}>{schoolInfo.contact}</div>
-          <div style={{ fontSize: 11 }}>{schoolInfo.center_no}</div>
+          {schoolInfo.contact && <div style={{ fontSize: 11 }}>Tel: {schoolInfo.contact}</div>}
+          {schoolInfo.center_no && <div style={{ fontSize: 11 }}>UNEB Center No: {schoolInfo.center_no}</div>}
+          {schoolInfo.registration_no && <div style={{ fontSize: 11 }}>Reg. No: {schoolInfo.registration_no}</div>}
         </div>
 
         {/* Logo center */}
@@ -380,8 +381,15 @@ export default function DualCurriculumTemplate({
         <div style={{ flex: 1, direction: 'rtl', textAlign: 'right' }}>
           <strong style={{ fontSize: 15 }}>{schoolInfo.arabic_name}</strong>
           <div style={{ fontSize: 11 }}>{schoolInfo.arabic_address}</div>
-          <div style={{ fontSize: 11 }}>{schoolInfo.arabic_contact}</div>
-          <div style={{ fontSize: 11 }}>{schoolInfo.arabic_center_no}</div>
+          {(schoolInfo.arabic_contact || schoolInfo.contact) && (
+            <div style={{ fontSize: 11 }}>هاتف: {schoolInfo.arabic_contact || schoolInfo.contact}</div>
+          )}
+          {(schoolInfo.arabic_center_no || schoolInfo.center_no) && (
+            <div style={{ fontSize: 11 }}>رقم مركز يونيب: {schoolInfo.arabic_center_no || schoolInfo.center_no}</div>
+          )}
+          {(schoolInfo.arabic_registration_no || schoolInfo.registration_no) && (
+            <div style={{ fontSize: 11 }}>رقم التسجيل: {schoolInfo.arabic_registration_no || schoolInfo.registration_no}</div>
+          )}
         </div>
       </div>
 
