@@ -92,6 +92,21 @@ function DynamicTitle() {
   return null;
 }
 
+// Lock the PWA to portrait orientation when the Screen Orientation API is available
+// (works in Chrome Android when installed as PWA / fullscreen)
+function OrientationLock() {
+  useEffect(() => {
+    const nav = navigator as any;
+    const orientation = screen.orientation || nav.mozOrientation || nav.msOrientation;
+    if (orientation && typeof orientation.lock === 'function') {
+      orientation.lock('portrait').catch(() => {
+        // lock() throws if not in fullscreen — ignore silently
+      });
+    }
+  }, []);
+  return null;
+}
+
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -131,6 +146,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <DynamicTitle />
+      <OrientationLock />
       {hideSidebarAndNavbar ? (
         // For public/auth routes: no layout
         <main className="pt-0 ml-0">

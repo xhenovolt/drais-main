@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { mutate as swrMutate } from 'swr';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -197,6 +198,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(data.user);
         setSetupComplete(data.setupComplete ?? true);
         
+        // Invalidate school-config cache so the new user's school data loads fresh
+        await swrMutate('/api/school-config', undefined, { revalidate: true });
+        
         // Redirect based on setup status
         if (!data.setupComplete) {
           router.push('/settings/school-setup');
@@ -280,6 +284,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear user state immediately for instant UI update
       setUser(null);
       setSetupComplete(true);
+
+      // Invalidate school-config SWR cache so next login loads fresh school data
+      await swrMutate('/api/school-config', undefined, { revalidate: false });
 
       // Call logout API to invalidate session
       await fetch('/api/auth/logout', {

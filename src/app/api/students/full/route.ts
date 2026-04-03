@@ -3,8 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSchoolFromDB } from '@/lib/schoolDB';
 import { getNextAdmissionNumber, formatAdmissionNumber } from '@/lib/admissionNumber';
 import { getSessionSchoolId } from '@/lib/auth';
-import path from 'path';
-import fs from 'fs/promises';
+import { uploadStudentPhoto } from '@/lib/cloudinary';
 import puppeteer from 'puppeteer';
 
 export const config = {
@@ -172,13 +171,15 @@ export async function POST(req: NextRequest) {
     const body: any = {};
     for (const [key, value] of form.entries()) {
       if (key === 'photo' && value instanceof File) {
-        // Save photo file
+        // Upload photo to Cloudinary instead of saving locally
         const buffer = Buffer.from(await value.arrayBuffer());
-        const fileName = Date.now() + '-' + value.name;
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'students');
-        await fs.mkdir(uploadDir, { recursive: true });
-        await fs.writeFile(path.join(uploadDir, fileName), buffer);
-        body.photo_url = '/uploads/students/' + fileName;
+        try {
+          const result = await uploadStudentPhoto(buffer, value.size, 'drais/students');
+          body.photo_url = result.secure_url;
+        } catch (uploadErr) {
+          console.error('[students/full] Cloudinary upload failed:', uploadErr);
+          body.photo_url = null;
+        }
       } else if (key === 'contacts') {
         try { body.contacts = JSON.parse(value as string); } catch { body.contacts = []; }
       } else {

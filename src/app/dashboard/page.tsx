@@ -34,10 +34,12 @@ import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import SetupChecklist from '@/components/onboarding/SetupChecklist';
 import QuickActions from '@/components/onboarding/QuickActions';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const DashboardPage: React.FC = () => {
   const [mode, setMode] = useState<'simple' | 'advanced' | 'analytics'>('simple');
-  const [schoolId] = useState(1); // TODO: Get from auth context
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? null;
   const [dateRange, setDateRange] = useState({
     from: new Date().toISOString().split('T')[0],
     to: new Date().toISOString().split('T')[0]
@@ -45,7 +47,7 @@ const DashboardPage: React.FC = () => {
 
   // Fetch dashboard overview data
   const { data: overviewData, isLoading, mutate } = useSWR(
-    `/api/dashboard/overview?school_id=${schoolId}&from=${dateRange.from}&to=${dateRange.to}`,
+    schoolId ? `/api/dashboard/overview?school_id=${schoolId}&from=${dateRange.from}&to=${dateRange.to}` : null,
     fetcher,
     { 
       refreshInterval: 30000, // Refresh every 30 seconds
