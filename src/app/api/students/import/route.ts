@@ -384,7 +384,7 @@ export async function POST(request: NextRequest) {
           const className = safe(row[cm.classIdx]);
           if (className) {
             if (!classNames.has(className.toLowerCase())) {
-              errors.push({ row: rowNum, field: 'class', value: className, message: `Class "${className}" does not exist` });
+              errors.push({ row: rowNum, field: 'class', value: className, message: `Class "${className}" does not exist — will be auto-created` });
               hasWarning = true;
               missingClasses.add(className);
             } else {
@@ -396,7 +396,7 @@ export async function POST(request: NextRequest) {
                   if (classId) {
                     const classStreams = streamNames.get(classId);
                     if (!classStreams || !classStreams.has(sectionName.toLowerCase())) {
-                      errors.push({ row: rowNum, field: 'section', value: sectionName, message: `Section "${sectionName}" does not exist under "${className}"` });
+                      errors.push({ row: rowNum, field: 'section', value: sectionName, message: `Section "${sectionName}" does not exist under "${className}" — will be auto-created` });
                       hasWarning = true;
                       missingStreams.add(`${className}:${sectionName}`);
                     }
@@ -483,8 +483,14 @@ export async function POST(request: NextRequest) {
 
         const [rawClasses] = await conn.execute('SELECT id, LOWER(name) as name FROM classes WHERE school_id = ?', [schoolId]) as any[];
         const [rawStreams] = await conn.execute('SELECT id, LOWER(name) as name, class_id FROM streams WHERE school_id = ?', [schoolId]) as any[];
-        const [rawYears] = await conn.execute('SELECT id FROM academic_years WHERE status = "active" AND school_id = ? LIMIT 1', [schoolId]) as any[];
-        const [rawTerms] = await conn.execute('SELECT id FROM terms WHERE is_active = 1 AND school_id = ? LIMIT 1', [schoolId]) as any[];
+        const [rawYears] = await conn.execute(
+          'SELECT id FROM academic_years WHERE school_id = ? ORDER BY (status = \'active\') DESC, id DESC LIMIT 1',
+          [schoolId],
+        ) as any[];
+        const [rawTerms] = await conn.execute(
+          'SELECT id FROM terms WHERE school_id = ? ORDER BY is_active DESC, id DESC LIMIT 1',
+          [schoolId],
+        ) as any[];
 
         const classMap = new Map((rawClasses as any[]).map((c: any) => [c.name, c.id]));
         const streamsByClass = new Map<number, Map<string, number>>();
@@ -582,27 +588,51 @@ export async function POST(request: NextRequest) {
                   studentId = sr.insertId;
                 }
 
-                // Enroll
+                // Enroll — auto-create class/stream if not found
                 if (studentId && cm.classIdx !== -1 && row[cm.classIdx]) {
-                  const classId = classMap.get(String(row[cm.classIdx]).trim().toLowerCase());
-                  if (classId) {
-                    const streamId = cm.sectionIdx !== -1 && row[cm.sectionIdx]
-                      ? (streamsByClass.get(classId)?.get(String(row[cm.sectionIdx]).trim().toLowerCase()) ?? null)
-                      : null;
-                    if (isUpdate) {
-                      await execTenant(conn,
-                        `UPDATE enrollments SET class_id=?, stream_id=?, updated_at=CURRENT_TIMESTAMP
-                         WHERE student_id=? AND school_id=? AND status='active'`,
-                        [classId, streamId, studentId, schoolId], schoolId,
-                      );
-                    } else {
-                      await execTenant(conn,
-                        `INSERT INTO enrollments (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status)
-                         VALUES (?,?,?,?,?,?,'active')
-                         ON DUPLICATE KEY UPDATE class_id=VALUES(class_id), stream_id=VALUES(stream_id)`,
-                        [schoolId, studentId, classId, streamId, yearId, termId], schoolId,
-                      );
+                  const className = String(row[cm.classIdx]).trim();
+                  const classNameLower = className.toLowerCase();
+                  let classId = classMap.get(classNameLower);
+
+                  if (!classId) {
+                    const [cr] = await conn.execute(
+                      'INSERT INTO classes (school_id, name) VALUES (?, ?)',
+                      [schoolId, className],
+                    ) as any[];
+                    classId = (cr as any).insertId;
+                    classMap.set(classNameLower, classId);
+                    streamsByClass.set(classId, new Map());
+                  }
+
+                  let streamId: number | null = null;
+                  if (cm.sectionIdx !== -1 && row[cm.sectionIdx]) {
+                    const streamName = String(row[cm.sectionIdx]).trim();
+                    const streamNameLower = streamName.toLowerCase();
+                    streamId = streamsByClass.get(classId)?.get(streamNameLower) ?? null;
+                    if (!streamId) {
+                      const [sr2] = await conn.execute(
+                        'INSERT INTO streams (school_id, class_id, name) VALUES (?, ?, ?)',
+                        [schoolId, classId, streamName],
+                      ) as any[];
+                      streamId = (sr2 as any).insertId;
+                      if (!streamsByClass.has(classId)) streamsByClass.set(classId, new Map());
+                      streamsByClass.get(classId)!.set(streamNameLower, streamId);
                     }
+                  }
+
+                  if (isUpdate) {
+                    await execTenant(conn,
+                      `UPDATE enrollments SET class_id=?, stream_id=?, updated_at=CURRENT_TIMESTAMP
+                       WHERE student_id=? AND school_id=? AND status='active'`,
+                      [classId, streamId, studentId, schoolId], schoolId,
+                    );
+                  } else {
+                    await execTenant(conn,
+                      `INSERT INTO enrollments (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status)
+                       VALUES (?,?,?,?,?,?,'active')
+                       ON DUPLICATE KEY UPDATE class_id=VALUES(class_id), stream_id=VALUES(stream_id)`,
+                      [schoolId, studentId, classId, streamId, yearId, termId], schoolId,
+                    );
                   }
                 }
 
