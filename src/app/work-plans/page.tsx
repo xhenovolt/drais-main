@@ -5,7 +5,6 @@ import {
   Clipboard, 
   Plus, 
   Search, 
-  Filter,
   Calendar,
   Clock,
   CheckCircle,
@@ -14,11 +13,12 @@ import {
   Pause,
   Target,
   Users,
-  Building
+  Building,
+  X,
+  Loader2,
 } from 'lucide-react';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
-import { toast } from 'react-hot-toast';
+import { swrFetcher, apiFetch } from '@/lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
 import NewBadge from '@/components/ui/NewBadge';
 
@@ -40,7 +40,6 @@ interface WorkPlan {
 }
 
 const WorkPlansPage: React.FC = () => {
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -48,8 +47,8 @@ const WorkPlansPage: React.FC = () => {
 
   // Fetch work plans
   const { data: workPlansData, isLoading, mutate } = useSWR(
-    `/api/work-plans?school_id=${schoolId}${statusFilter ? `&status=${statusFilter}` : ''}${priorityFilter ? `&priority=${priorityFilter}` : ''}`,
-    fetcher,
+    `/api/work-plans${statusFilter ? `?status=${statusFilter}` : ''}${priorityFilter ? `${statusFilter ? '&' : '?'}priority=${priorityFilter}` : ''}`,
+    swrFetcher,
     { refreshInterval: 30000 }
   );
 
@@ -292,8 +291,129 @@ const WorkPlansPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Add Work Plan Modal */}
+      {showAddModal && (
+        <AddWorkPlanModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={() => { setShowAddModal(false); mutate(); }}
+        />
+      )}
     </div>
   );
 };
 
 export default WorkPlansPage;
+
+// ────────────────────────────────────────────────────────────────
+// Add Work Plan Modal
+// ────────────────────────────────────────────────────────────────
+function AddWorkPlanModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    start_datetime: '',
+    end_datetime: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState<string | null>(null);
+
+  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function submit() {
+    if (!form.title.trim()) { setErr('Title is required.'); return; }
+    setSaving(true);
+    setErr(null);
+    try {
+      await apiFetch('/api/work-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description.trim() || null,
+          priority: form.priority,
+          start_datetime: form.start_datetime || null,
+          end_datetime: form.end_datetime || null,
+          owner_type: 'school',
+        }),
+        successMessage: 'Work plan created',
+      });
+      onCreated();
+    } catch (e: any) { setErr(e.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md space-y-4 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clipboard className="w-5 h-5 text-blue-500" />
+            <h2 className="font-semibold text-gray-900 dark:text-white">Create Work Plan</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {err && (
+          <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{err}</div>
+        )}
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <input value={form.title} onChange={e => set('title', e.target.value)}
+              placeholder="Enter work plan title…"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)}
+              placeholder="Optional description…"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+            <select value={form.priority} onChange={e => set('priority', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+              <input type="datetime-local" value={form.start_datetime} onChange={e => set('start_datetime', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+              <input type="datetime-local" value={form.end_datetime} onChange={e => set('end_datetime', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800">
+            Cancel
+          </button>
+          <button onClick={submit} disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white disabled:opacity-50">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            {saving ? 'Creating…' : 'Create'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

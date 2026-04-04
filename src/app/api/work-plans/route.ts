@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     const [result] = await connection.execute(`
       INSERT INTO workplans (
-        schoolId, title, description, owner_type, owner_id, 
+        school_id, title, description, owner_type, owner_id, 
         start_datetime, end_datetime, priority, assigned_to
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

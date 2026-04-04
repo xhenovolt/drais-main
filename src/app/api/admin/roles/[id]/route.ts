@@ -46,11 +46,10 @@ export const GET = withErrorHandling(async function GET(req: NextRequest, { para
     ),
     query(
       `SELECT
-         s.id AS staff_id,
-         p.first_name,
-         p.last_name,
-         s.position,
-         u.id AS user_id
+         u.id AS user_id,
+         TRIM(CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.last_name,''))) AS staff_name,
+         u.email,
+         s.position
        FROM user_roles ur
        JOIN users u  ON ur.user_id = u.id AND u.school_id = ?
        LEFT JOIN people p ON u.person_id = p.id

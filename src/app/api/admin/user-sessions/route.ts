@@ -23,18 +23,17 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
 
   const rows = await query(
     `SELECT
-       s.id              AS session_id,
+       s.id              AS id,
        s.user_id,
-       s.created_at      AS login_time,
+       s.created_at,
        s.last_activity_at,
        s.logout_time,
        s.ip_address,
        s.device_info,
        s.user_agent,
        s.is_active,
-       p.first_name,
-       p.last_name,
-       u.email,
+       TRIM(CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.last_name,''))) AS staff_name,
+       u.email           AS username,
        p.photo_url,
        TIMESTAMPDIFF(MINUTE, s.created_at, IFNULL(s.last_activity_at, s.created_at)) AS duration_minutes
      FROM sessions s

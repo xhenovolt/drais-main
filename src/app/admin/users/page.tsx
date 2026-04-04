@@ -11,9 +11,10 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Users, RefreshCw, Search, ChevronDown, Shield, X,
   MoreVertical, Power, Trash2, Lock, UserCheck, UserX,
-  Monitor, Smartphone, Wifi, WifiOff, Copy, Check,
+  Monitor, Smartphone, Wifi, WifiOff, Copy, Check, UserPlus, Loader2,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { apiFetch } from '@/lib/apiClient';
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -196,9 +197,14 @@ function PermissionsModal({ roleName, onClose }: { roleName: string; onClose: ()
 
   useEffect(() => {
     setBusy(true);
-    fetch(`/api/admin/roles?name=${encodeURIComponent(roleName)}`)
-      .then(r => r.json())
-      .then(d => setRole(d.roles?.[0] ?? null))
+    setErr(null);
+    apiFetch<{ data: any[] }>('/api/admin/roles', { silent: true })
+      .then(resp => {
+        const found = resp.data?.find((r: any) => r.name === roleName);
+        if (!found) throw new Error('Role not found');
+        return apiFetch<{ data: any }>(`/api/admin/roles/${found.id}`, { silent: true });
+      })
+      .then(d => setRole(d.data ?? null))
       .catch(() => setErr('Failed to load permissions'))
       .finally(() => setBusy(false));
   }, [roleName]);
@@ -439,6 +445,8 @@ export default function AdminUsersPage() {
 
   const onlineCount = filtered.filter(u => onlineMap.get(u.id)).length;
 
+  const [showAddUser, setShowAddUser] = useState(false);
+
   // ── Render ───────────────────────────────────────────────────
   return (
     <div className="space-y-5 p-4 md:p-6">
@@ -453,11 +461,18 @@ export default function AdminUsersPage() {
             {filtered.length} users · <span className="text-emerald-600 dark:text-emerald-400 font-medium">{onlineCount} online</span>
           </p>
         </div>
-        <button onClick={fetchUsers} disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowAddUser(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+            <UserPlus className="w-4 h-4" />
+            Add User
+          </button>
+          <button onClick={fetchUsers} disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* ── Filters ── */}
@@ -688,6 +703,92 @@ export default function AdminUsersPage() {
 
       {/* ── Temp Password ── */}
       {tempPwd && <TempPasswordDialog password={tempPwd} onClose={() => setTempPwd(null)} />}
+
+      {/* ── Add User Modal ── */}
+      {showAddUser && (
+        <AddUserModal
+          onClose={() => setShowAddUser(false)}
+          onCreated={() => { setShowAddUser(false); fetchUsers(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+// Add User Modal
+// ────────────────────────────────────────────────────────────────
+function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '' });
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState<string | null>(null);
+
+  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function submit() {
+    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || !form.password) {
+      setErr('All fields are required.'); return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      await apiFetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+        successMessage: 'User created',
+      });
+      onCreated();
+    } catch (e: any) { setErr(e.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-blue-500" />
+            <h2 className="font-semibold text-gray-900 dark:text-white">Add User</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {err && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{err}</div>}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">First Name <span className="text-red-500">*</span></label>
+            <input value={form.first_name} onChange={e => set('first_name', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name <span className="text-red-500">*</span></label>
+            <input value={form.last_name} onChange={e => set('last_name', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email <span className="text-red-500">*</span></label>
+          <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Password <span className="text-red-500">*</span></label>
+          <input type="password" value={form.password} onChange={e => set('password', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+            Cancel
+          </button>
+          <button onClick={submit} disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+            {saving ? 'Creating…' : 'Create User'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -12,7 +12,7 @@ interface Department {
   id: number;
   name: string;
   description: string | null;
-  head_id: number | null;
+  head_staff_id: number | null;
   head_name: string | null;
   staff_count: number;
 }
@@ -48,7 +48,7 @@ export default function AdminDepartmentsPage() {
   }
 
   function openEdit(d: Department) {
-    setForm({ name: d.name, description: d.description ?? '', head_id: d.head_id ? String(d.head_id) : '' });
+    setForm({ name: d.name, description: d.description ?? '', head_id: d.head_staff_id ? String(d.head_staff_id) : '' });
     setSaveErr(null);
     setModal({ type: 'edit', dept: d });
   }
