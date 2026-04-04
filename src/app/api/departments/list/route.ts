@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
     console.error('Departments list error:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to fetch departments'
+      message: 'Failed to fetch departments',
+      data: []
     }, { status: 500 });
   } finally {
     if (connection) await connection.end();

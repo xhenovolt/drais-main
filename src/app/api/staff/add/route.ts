@@ -141,17 +141,27 @@ export async function POST(req: NextRequest) {
 
       // 3. Create user account if requested
       let userId = null;
-      if (hashedPassword && staffData.username) {
+      if (hashedPassword && staffData.email) {
         const userResult = await exec(
           `INSERT INTO users (
-            school_id, person_id, role_id, username, email, phone, password_hash, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+            school_id, person_id, first_name, last_name, email, phone,
+            password_hash, is_active, is_verified, must_change_password, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, FALSE, TRUE, 'active')`,
           [
-            staffData.schoolId, personId, staffData.role_id,
-            staffData.username, staffData.email, staffData.phone, hashedPassword
+            staffData.schoolId, personId, staffData.first_name, staffData.last_name,
+            staffData.email, staffData.phone, hashedPassword
           ]
         );
         userId = userResult.insertId;
+
+        // Assign role via user_roles table if role_id is provided
+        if (staffData.role_id && userId) {
+          await exec(
+            `INSERT INTO user_roles (user_id, role_id, school_id, is_active, assigned_by)
+             VALUES (?, ?, ?, TRUE, ?)`,
+            [userId, staffData.role_id, staffData.schoolId, sessionUserId]
+          );
+        }
       }
 
       return { personId, staffId, userId, finalStaffNo };

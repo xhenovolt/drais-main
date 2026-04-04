@@ -64,7 +64,9 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
   const total = Number((countRows as any[])[0]?.total ?? 0);
 
   return NextResponse.json({
-    logs:       rows,
+    success: true,
+    message: 'Audit logs loaded',
+    data:       rows,
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
 });

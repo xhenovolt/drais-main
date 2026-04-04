@@ -22,7 +22,8 @@
  *   RELAY_KEY    — Authentication key (must match server's RELAY_KEY env var)
  *   DEVICE_SN    — Device serial number
  *   POLL_MS      — Polling interval in ms (default: 2000)
- *
+ *cd workers
+DRAIS_URL=https://your-drais-url DEVICE_IP=192.168.1.197 DEVICE_SN=GED7254601154 RELAY_KEY=your-secret node zk-relay-agent.js
  * Install dependencies:
  *   npm install node-zklib
  * ══════════════════════════════════════════════════════════════

@@ -33,8 +33,8 @@ export default function AdminDepartmentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<{ departments: Department[] }>('/api/admin/departments?include_staff_count=1', { silent: true });
-      setDepts(data.departments ?? []);
+      const data = await apiFetch<{ data: Department[] }>('/api/admin/departments?include_staff_count=1', { silent: true });
+      setDepts(data.data ?? []);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
@@ -60,7 +60,7 @@ export default function AdminDepartmentsPage() {
       const isEdit = modal?.type === 'edit';
       const url    = isEdit ? `/api/admin/departments/${modal?.dept?.id}` : '/api/admin/departments';
       const method = isEdit ? 'PATCH' : 'POST';
-      const body   = { name: form.name.trim(), description: form.description.trim() || null, head_id: form.head_id ? Number(form.head_id) : null };
+      const body   = { name: form.name.trim(), description: form.description.trim() || null, head_staff_id: form.head_id ? Number(form.head_id) : null };
       await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },

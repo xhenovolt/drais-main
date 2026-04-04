@@ -28,7 +28,7 @@ export const GET = withErrorHandling(async function GET(req: NextRequest, { para
   );
   if (!rows.length) return NextResponse.json({ error: 'Department not found' }, { status: 404 });
 
-  return NextResponse.json({ department: rows[0] });
+  return NextResponse.json({ success: true, data: rows[0] });
 });
 
 export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

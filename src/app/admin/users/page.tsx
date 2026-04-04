@@ -335,7 +335,7 @@ export default function AdminUsersPage() {
       const res  = await fetch(`/api/admin/users?${params}`);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error ?? 'Failed to load users');
-      const rows: UserRow[] = data.users ?? [];
+      const rows: UserRow[] = data.data ?? [];
       setUsers(rows);
       // Seed online map
       const map = new Map<number, boolean>();
@@ -357,7 +357,7 @@ export default function AdminUsersPage() {
         const res  = await fetch('/api/admin/users?status=online');
         const data = await res.json();
         if (!data.success) return;
-        const onlineIds = new Set<number>((data.users ?? []).map((u: UserRow) => u.id));
+        const onlineIds = new Set<number>((data.data ?? []).map((u: UserRow) => u.id));
         setOnlineMap(prev => {
           const next = new Map(prev);
           // Mark all previously known IDs

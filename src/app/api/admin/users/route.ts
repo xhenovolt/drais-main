@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
   if (statusFilter === 'inactive') users = users.filter(u => !u.is_active);
   if (statusFilter === 'online')   users = users.filter(u => u.is_online);
 
-  return NextResponse.json({ success: true, users, total: users.length });
+  return NextResponse.json({ success: true, message: 'Users loaded', data: users, total: users.length });
 }
 
 /**

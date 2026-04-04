@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
         c.name as class_name,
         t.name as term_name,
         w.name as wallet_name,
-        w.currency,
+        COALESCE(w.currency, 'UGX') as currency,
         r.receipt_no as receipt_number,
         r.file_url as receipt_url,
         pr.status as reconciliation_status
@@ -136,7 +136,8 @@ export async function GET(req: NextRequest) {
     console.error('Payments fetch error:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to fetch payments'
+      message: 'Failed to fetch payments',
+      data: []
     }, { status: 500 });
   } finally {
     if (connection) await connection.end();
@@ -173,7 +174,7 @@ export async function POST(req: NextRequest) {
     if (!student_id || !term_id || !wallet_id || !amount || !method || !items?.length) {
       return NextResponse.json({
         success: false,
-        error: 'Missing required payment fields'
+        message: 'Missing required payment fields'
       }, { status: 400 });
     }
 

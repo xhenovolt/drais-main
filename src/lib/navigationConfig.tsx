@@ -173,7 +173,6 @@ export function getNavigationItems(
         { key: 'admin-users',       label: 'User Management',    icon: <UserCog className="w-4 h-4" />,    href: '/admin/users',         roles: ['admin', 'super_admin'] },
         { key: 'staff-view',        label: 'View Staff',         icon: <Briefcase className="w-4 h-4" />,  href: '/staff' },
         { key: 'staff-add',         label: 'Add Staff',          icon: <UserPlus className="w-4 h-4" />,   href: '/staff/add' },
-        { key: 'staff-attendance',  label: 'Staff Attendance',   icon: <UserCheck className="w-4 h-4" />,  href: '/staff/attendance' },
         { key: 'workplans',         label: 'Workplans',          icon: <Clipboard className="w-4 h-4" />,  href: '/work-plans' },
         { key: 'admin-departments', label: 'Departments',        icon: <Building className="w-4 h-4" />,   href: '/admin/departments',   roles: ['admin', 'super_admin'] },
         { key: 'admin-roles',       label: 'Roles & Permissions',icon: <Shield className="w-4 h-4" />,     href: '/admin/roles',         roles: ['admin', 'super_admin'] },

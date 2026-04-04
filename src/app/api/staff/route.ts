@@ -91,8 +91,8 @@ export async function GET(req: NextRequest) {
     console.error('Staff fetch error:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to fetch staff data',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Failed to fetch staff data',
+      data: []
     }, { status: 500 });
   } finally {
     if (connection) await connection.end();
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     if (!first_name || !last_name || !position) {
       return NextResponse.json({
         success: false,
-        error: 'First name, last name, and position are required'
+        message: 'First name, last name, and position are required'
       }, { status: 400 });
     }
 
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
     console.error('Staff creation error:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to create staff member'
+      message: 'Failed to create staff member'
     }, { status: 500 });
   } finally {
     if (connection) await connection.end();

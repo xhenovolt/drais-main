@@ -36,7 +36,7 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
     [session.schoolId],
   );
 
-  return NextResponse.json({ departments: rows });
+  return NextResponse.json({ success: true, message: 'Departments loaded', data: rows });
 });
 
 export const POST = withErrorHandling(async function POST(req: NextRequest) {

@@ -16,7 +16,7 @@ interface Role {
   name: string;
   slug: string;
   description: string | null;
-  is_system: boolean | number;
+  is_system_role: boolean | number;
   user_count: number;
   permission_count: number;
 }
@@ -62,11 +62,11 @@ export default function AdminRolesPage() {
     setError(null);
     try {
       const [rData, pData] = await Promise.all([
-        apiFetch<{ roles: Role[] }>('/api/admin/roles', { silent: true }),
-        apiFetch<{ permissions: Record<string, Permission[]> }>('/api/admin/permissions', { silent: true }),
+        apiFetch<{ data: Role[] }>('/api/admin/roles', { silent: true }),
+        apiFetch<{ data: Record<string, Permission[]> }>('/api/admin/permissions', { silent: true }),
       ]);
-      setRoles(rData.roles ?? []);
-      setAllPerms(pData.permissions ?? {});
+      setRoles(rData.data ?? []);
+      setAllPerms(pData.data ?? {});
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
@@ -77,15 +77,15 @@ export default function AdminRolesPage() {
     setLoadingDetail(true);
     setPermsDirty(false);
     try {
-      const data = await apiFetch<{ role: RoleDetail }>(`/api/admin/roles/${role.id}`, { silent: true });
-      setSelected(data.role);
-      setPendingPerms(new Set((data.role.permissions ?? []).map((p: Permission) => p.id)));
+      const data = await apiFetch<{ data: RoleDetail }>(`/api/admin/roles/${role.id}`, { silent: true });
+      setSelected(data.data);
+      setPendingPerms(new Set((data.data.permissions ?? []).map((p: Permission) => p.id)));
     } catch (e: any) { setError(e instanceof Error ? e.message : 'Error loading role'); }
     finally { setLoadingDetail(false); }
   }
 
   function togglePerm(permId: number) {
-    if (selected?.is_system) return;
+    if (selected?.is_system_role) return;
     setPendingPerms(prev => {
       const next = new Set(prev);
       next.has(permId) ? next.delete(permId) : next.add(permId);
@@ -157,7 +157,7 @@ export default function AdminRolesPage() {
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-800 dark:text-white">{role.name}</span>
-                {role.is_system ? (
+                {role.is_system_role ? (
                   <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">system</span>
                 ) : (
                   <button onClick={e => { e.stopPropagation(); deleteRole(role); }}
@@ -195,13 +195,13 @@ export default function AdminRolesPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-bold text-slate-800 dark:text-white">{selected.name}</h2>
-                  {selected.is_system && (
+                  {selected.is_system_role && (
                     <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">System Role</span>
                   )}
                 </div>
                 {selected.description && <p className="text-sm text-slate-500 mt-0.5">{selected.description}</p>}
               </div>
-              {!selected.is_system && permsDirty && (
+              {!selected.is_system_role && permsDirty && (
                 <button onClick={savePermissions} disabled={savingPerms}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50">
                   {savingPerms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
@@ -223,7 +223,7 @@ export default function AdminRolesPage() {
                 <div key={mod} className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                   <div className={`px-4 py-3 flex items-center justify-between ${MODULE_COLORS[mod] ?? 'bg-slate-50 dark:bg-slate-800'}`}>
                     <span className="font-medium text-sm capitalize">{mod}</span>
-                    {!selected.is_system && (
+                    {!selected.is_system_role && (
                       <button
                         onClick={() => {
                           setPendingPerms(prev => {
@@ -247,10 +247,10 @@ export default function AdminRolesPage() {
                         <button
                           key={p.id}
                           onClick={() => togglePerm(p.id)}
-                          disabled={!!selected.is_system}
+                          disabled={!!selected.is_system_role}
                           className={`flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-slate-800 text-left transition-colors
                             ${checked ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}
-                            ${!selected.is_system ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer' : 'cursor-default'}
+                            ${!selected.is_system_role ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer' : 'cursor-default'}
                           `}
                         >
                           {checked
@@ -310,13 +310,12 @@ function CreateRoleModal({ onClose, onCreate }: { onClose: () => void; onCreate:
     setSaving(true);
     setErr(null);
     try {
-      const res = await fetch('/api/admin/roles', {
+      await apiFetch('/api/admin/roles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description: desc || null }),
+        successMessage: 'Role created',
       });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? 'Failed');
       onCreate();
     } catch (e: any) { setErr(e.message); }
     finally { setSaving(false); }

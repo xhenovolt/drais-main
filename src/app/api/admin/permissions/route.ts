@@ -28,7 +28,7 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
     grouped[mod].push(row);
   }
 
-  return NextResponse.json({ permissions: rows, grouped });
+  return NextResponse.json({ success: true, data: grouped, all: rows });
 });
 
 export const POST = withErrorHandling(async function POST(req: NextRequest) {

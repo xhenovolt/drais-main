@@ -60,7 +60,7 @@ export const GET = withErrorHandling(async function GET(req: NextRequest, { para
     ),
   ]);
 
-  return NextResponse.json({ role: { ...role, permissions, staff } });
+  return NextResponse.json({ success: true, data: { ...role, permissions, staff } });
 });
 
 export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

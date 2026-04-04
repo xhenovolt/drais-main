@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -17,11 +17,9 @@ import Link from 'next/link';
 import NewBadge from '@/components/ui/NewBadge';
 
 const StaffOverviewPage: React.FC = () => {
-  const [schoolId] = useState(1);
-
-  // Fetch staff overview data
+  // Fetch staff overview data (school_id derived from session on server)
   const { data: staffData, isLoading } = useSWR(
-    `/api/staff/overview?school_id=${schoolId}`,
+    `/api/staff/overview`,
     { refreshInterval: 30000 }
   );
 
