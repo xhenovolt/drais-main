@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drais SDK — Control Panel</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --surface2: #252840;
+    --border: #2e3155; --accent: #6366f1; --accent2: #818cf8;
+    --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+    --text: #e2e8f0; --muted: #94a3b8; --code: #a5b4fc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+  header { border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; background: var(--surface); }
+  .logo { font-size: 18px; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
+  .badge-ok { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-warn { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .badge-err { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-gray { background: rgba(148,163,184,0.12); color: var(--muted); }
+  .ml-auto { margin-left: auto; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 768px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .card-body { padding: 16px; }
+  .status-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .status-row:last-child { border-bottom: none; }
+  .status-label { color: var(--muted); font-size: 12px; }
+  .status-value { font-weight: 600; font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: var(--yellow); animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% {opacity:1} 50% {opacity:0.4} }
+  .logs { background: var(--surface2); border-radius: 8px; padding: 12px; height: 280px; overflow-y: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11.5px; line-height: 1.7; }
+  .log-line { display: flex; gap: 8px; }
+  .log-time { color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .log-src { color: var(--code); flex-shrink: 0; min-width: 50px; }
+  .log-msg-ok { color: var(--green); }
+  .log-msg-info { color: var(--text); }
+  .log-msg-warn { color: var(--yellow); }
+  .log-msg-error { color: var(--red); }
+  form label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; margin-top: 12px; }
+  form label:first-child { margin-top: 0; }
+  input[type=text], input[type=number], input[type=password] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; font-family: inherit;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s, transform .1s; }
+  .btn:hover { opacity: 0.88; }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .full-col { grid-column: 1 / -1; }
+  .enroll-row { display: flex; gap: 8px; align-items: flex-end; }
+  .enroll-row > div { flex: 1; }
+  #toast { position: fixed; bottom: 24px; right: 24px; max-width: 360px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 13px; box-shadow: 0 4px 24px rgba(0,0,0,0.4); opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 100; }
+  #toast.show { opacity: 1; pointer-events: auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Drais <span>SDK</span></div>
+  <span class="badge badge-gray" id="version-badge">v1.0.0</span>
+  <div class="ml-auto" style="display:flex;gap:8px;align-items:center">
+    <span class="badge badge-gray" id="cloud-badge">Cloud: connecting…</span>
+    <span class="badge badge-gray" id="device-badge">Device: checking…</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Status Dashboard -->
+  <div class="card">
+    <div class="card-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span class="card-title">Status Dashboard</span>
+      <button class="btn btn-ghost ml-auto" style="padding:4px 10px;font-size:11px" onclick="refreshStatus()">Refresh</button>
+    </div>
+    <div class="card-body">
+      <div class="status-row">
+        <span class="status-label">Device</span>
+        <span class="status-value" id="device-status"><span class="dot dot-yellow"></span>Checking…</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Device IP</span>
+        <span class="status-value" id="device-ip" style="font-family:monospace">—</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Cloud Bridge</span>
+        <span class="status-value" id="cloud-status"><span class="dot dot-yellow"></span>Connecting…</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Last Heartbeat</span>
+        <span class="status-value" id="last-hb" style="font-size:12px">—</span>
+      </div>
+    </div>
+    <div style="padding:0 16px 16px">
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="testBeep()">🔔 Test Beep</button>
+        <button class="btn btn-ghost" onclick="refreshStatus()">↻ Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enroll Panel -->
+  <div class="card">
+    <div class="card-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span class="card-title">Trigger Enrollment</span>
+    </div>
+    <div class="card-body">
+      <div class="enroll-row">
+        <div>
+          <label>Device UID (1–65535)</label>
+          <input type="number" id="enroll-uid" value="2" min="1" max="65535" placeholder="2" />
+        </div>
+        <div style="max-width:90px">
+          <label>Finger (0–9)</label>
+          <input type="number" id="enroll-finger" value="0" min="0" max="9" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="triggerEnroll()">⚡ Trigger Now</button>
+      </div>
+      <div id="enroll-result" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <!-- Live Logs -->
+  <div class="card full-col">
+    <div class="card-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span class="card-title">Live Logs</span>
+      <button class="btn btn-ghost ml-auto" style="padding:4px 10px;font-size:11px" onclick="clearLogs()">Clear</button>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="logs" id="logs"></div>
+    </div>
+  </div>
+
+  <!-- Configuration -->
+  <div class="card full-col">
+    <div class="card-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 1 21.99 12a10 10 0 0 1-2.92 7.07M14.12 2.08A10 10 0 0 0 2.01 12a10 10 0 0 0 12.11 9.92M7 2.5a10 10 0 0 0-4.07 4.5"/></svg>
+      <span class="card-title">Configuration</span>
+    </div>
+    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px">
+      <div>
+        <label>Device IP</label>
+        <input type="text" id="cfg-device-ip" placeholder="192.168.1.197" />
+        <label>Device Port</label>
+        <input type="number" id="cfg-device-port" placeholder="4370" />
+        <label>School ID</label>
+        <input type="number" id="cfg-school-id" placeholder="12004" />
+      </div>
+      <div>
+        <label>Drais Auth Token</label>
+        <input type="password" id="cfg-token" placeholder="••••••••" />
+        <label>Cloud WebSocket URL</label>
+        <input type="text" id="cfg-ws-url" placeholder="wss://sims.drais.pro/api/device/ws-bridge" />
+      </div>
+      <div class="btn-row" style="grid-column:1/-1">
+        <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+        <button class="btn btn-ghost" onclick="loadConfig()">↻ Reload</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+let logCount = 0;
+const $ = id => document.getElementById(id);
+
+// ── SSE Live Logs ─────────────────────────────────────────────────────────────
+const evtSource = new EventSource('/events');
+evtSource.onmessage = e => {
+  try { appendLog(JSON.parse(e.data)); } catch {}
+};
+
+function appendLog(ev) {
+  const el = $('logs');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  const t = new Date(ev.time).toLocaleTimeString('en-GB', { hour12: false });
+  const cls = {'ok':'ok','info':'info','warn':'warn','error':'error'}[ev.level] || 'info';
+  line.innerHTML = `<span class="log-time">${t}</span><span class="log-src">[${ev.source}]</span><span class="log-msg-${cls}">${escHtml(ev.message)}</span>`;
+  el.appendChild(line);
+  if (++logCount > 200) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLogs() { $('logs').innerHTML = ''; logCount = 0; }
+
+// ── Status ─────────────────────────────────────────────────────────────────────
+async function refreshStatus() {
+  const data = await apiFetch('/api/status');
+  $('device-ip').textContent = data.device_ip || '—';
+  const dOnline = data.device_online;
+  $('device-status').innerHTML = dOnline
+    ? '<span class="dot dot-green"></span>Online'
+    : '<span class="dot dot-red"></span>Offline';
+  $('device-badge').className = 'badge ' + (dOnline ? 'badge-ok' : 'badge-err');
+  $('device-badge').textContent = dOnline ? `Device: ${data.device_ip}` : 'Device: Offline';
+
+  const cloud = data.cloud_status || 'disconnected';
+  const cloudMap = { connected: ['dot-green','badge-ok','Connected'], reconnecting: ['dot-yellow','badge-warn','Reconnecting…'], disconnected: ['dot-red','badge-err','Disconnected'] };
+  const [dotCls, badgeCls, label] = cloudMap[cloud] || cloudMap.disconnected;
+  $('cloud-status').innerHTML = `<span class="dot ${dotCls}"></span>${label}`;
+  $('cloud-badge').className = 'badge ' + badgeCls;
+  $('cloud-badge').textContent = 'Cloud: ' + label;
+
+  if (data.last_heartbeat && data.last_heartbeat !== '0001-01-01T00:00:00Z') {
+    $('last-hb').textContent = new Date(data.last_heartbeat).toLocaleString();
+  }
+}
+
+// ── Config ─────────────────────────────────────────────────────────────────────
+async function loadConfig() {
+  const cfg = await apiFetch('/api/config');
+  $('cfg-device-ip').value = cfg.device_ip || '';
+  $('cfg-device-port').value = cfg.device_port || 4370;
+  $('cfg-school-id').value = cfg.school_id || '';
+  $('cfg-token').value = '';  // never pre-fill token
+  $('cfg-ws-url').value = cfg.cloud_ws_url || '';
+}
+
+async function saveConfig() {
+  const body = {
+    device_ip: $('cfg-device-ip').value.trim(),
+    device_port: parseInt($('cfg-device-port').value) || 4370,
+    school_id: parseInt($('cfg-school-id').value) || 0,
+    cloud_ws_url: $('cfg-ws-url').value.trim(),
+  };
+  const token = $('cfg-token').value.trim();
+  if (token) body.auth_token = token;
+
+  const res = await apiFetch('/api/config', { method: 'POST', body: JSON.stringify(body) });
+  toast('Configuration saved ✓', 'ok');
+  await refreshStatus();
+}
+
+// ── Device Test ────────────────────────────────────────────────────────────────
+async function testBeep() {
+  toast('Sending beep…', 'info');
+  const res = await apiFetch('/api/test');
+  toast(res.ok ? `Beep sent to ${res.message || 'device'} ✓` : `Error: ${res.error}`, res.ok ? 'ok' : 'err');
+  await refreshStatus();
+}
+
+// ── Enroll ─────────────────────────────────────────────────────────────────────
+async function triggerEnroll() {
+  const uid = parseInt($('enroll-uid').value);
+  const finger = parseInt($('enroll-finger').value) || 0;
+  if (!uid || uid < 1 || uid > 65535) { toast('UID must be 1–65535', 'err'); return; }
+  $('enroll-result').textContent = '⚡ Sending…';
+  $('enroll-result').style.color = 'var(--yellow)';
+  const res = await apiFetch('/api/enroll', { method: 'POST', body: JSON.stringify({ uid, finger }) });
+  if (res.ok) {
+    $('enroll-result').textContent = '✓ ' + res.message;
+    $('enroll-result').style.color = 'var(--green)';
+    toast(res.message, 'ok');
+  } else {
+    $('enroll-result').textContent = '✗ ' + (res.error || 'Failed');
+    $('enroll-result').style.color = 'var(--red)';
+    toast('Enroll failed: ' + (res.error || ''), 'err');
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+async function apiFetch(url, opts = {}) {
+  opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  const r = await fetch(url, opts);
+  return r.json().catch(() => ({}));
+}
+
+let toastTimer;
+function toast(msg, type = 'info') {
+  const el = $('toast');
+  const colors = { ok: 'var(--green)', err: 'var(--red)', warn: 'var(--yellow)', info: 'var(--text)' };
+  el.style.color = colors[type] || colors.info;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+refreshStatus();
+loadConfig();
+setInterval(refreshStatus, 5000);
+</script>
+</body>
+</html>

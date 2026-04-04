@@ -30,6 +30,7 @@ import {
   Fingerprint,
   Wifi,
   Globe,
+  DollarSign,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
@@ -79,6 +80,10 @@ interface EnrolledStudent extends Student {
   enrollment_status: string;
   enrollment_date: string;
   enrollment_type?: string;
+  // Finance fields (populated when showFees toggle is on)
+  balance?: number;
+  total_charged?: number;
+  total_paid?: number;
 }
 
 interface EnrollmentFormData {
@@ -175,13 +180,16 @@ export default function StudentsListPage() {
   const [academicYears, setAcademicYears] = useState<SelectOption[]>([]);
   const [terms, setTerms] = useState<SelectOption[]>([]);
 
+  // Fees column toggle — fetches balances for visible students on demand
+  const [showFees, setShowFees] = useState(false);
+  const [feesLoading, setFeesLoading] = useState(false);
+  const [studentBalances, setStudentBalances] = useState<Map<number, { balance: number; total_charged: number; total_paid: number }>>(new Map());
+
   // Persist capture mode settings
   useEffect(() => {
     localStorage.setItem('drais_capture_mode', captureMode);
     localStorage.setItem('drais_local_device_ip', localDeviceIp);
-  }, [captureMode, localDeviceIp]);
-
-  // Close mode settings dropdown on outside click
+  }, [captureMode, localDeviceIp]);  // Close mode settings dropdown on outside click
   useEffect(() => {
     if (!showModeSettings) return;
     const handler = (e: MouseEvent) => {
@@ -448,6 +456,41 @@ export default function StudentsListPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Fees column toggle ────────────────────────────────────────────────────
+  const fetchFeesForVisible = async (students: EnrolledStudent[]) => {
+    if (students.length === 0) return;
+    setFeesLoading(true);
+    try {
+      const ids = students.map(s => s.id);
+      const data = await apiFetch('/api/finance/balances-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: ids }),
+        silent: true,
+      });
+      const raw: Record<string, { balance: number; total_charged: number; total_paid: number }> = data?.balances ?? {};
+      const map = new Map<number, { balance: number; total_charged: number; total_paid: number }>();
+      for (const [key, val] of Object.entries(raw)) {
+        map.set(Number(key), val);
+      }
+      setStudentBalances(map);
+    } catch {
+      showToast('error', 'Failed to load fee balances');
+    } finally {
+      setFeesLoading(false);
+    }
+  };
+
+  const handleToggleFees = () => {
+    if (!showFees) {
+      // Turning on — fetch balances for visible enrolled students
+      fetchFeesForVisible(enrolledStudents);
+    } else {
+      setStudentBalances(new Map());
+    }
+    setShowFees(v => !v);
   };
 
   // ── Inline name editing (optimistic UI) ──────────────────────────────────
@@ -1010,6 +1053,25 @@ export default function StudentsListPage() {
             <Zap className="w-4 h-4" />
           </Link>
 
+          {/* Show Fees toggle — enrolled only */}
+          {activeTab === 'enrolled' && (
+            <button
+              onClick={handleToggleFees}
+              disabled={feesLoading}
+              title={showFees ? 'Hide fee balances' : 'Show fee balances'}
+              className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-xs font-semibold transition-colors ${
+                showFees
+                  ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              {feesLoading
+                ? <Loader className="w-3.5 h-3.5 animate-spin" />
+                : <DollarSign className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">Fees</span>
+            </button>
+          )}
+
           <button title="Bulk Import" onClick={() => setShowImportModal(true)}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors text-xs font-semibold">
             <Upload className="w-3.5 h-3.5" />
@@ -1055,6 +1117,9 @@ export default function StudentsListPage() {
                 )}
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">Type</th>
+                {activeTab === 'enrolled' && showFees && (
+                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">Balance</th>
+                )}
                 <th className="w-9 px-3 py-2.5" />
               </tr>
             </thead>
@@ -1063,7 +1128,7 @@ export default function StudentsListPage() {
                 Array.from({ length: 12 }).map((_, i) => <SkeletonRow key={i} />)
               ) : pageData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-20 text-center">
+                  <td colSpan={showFees && activeTab === 'enrolled' ? 9 : 8} className="px-4 py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                         <Users className="w-6 h-6 text-slate-400" />
@@ -1183,6 +1248,35 @@ export default function StudentsListPage() {
                           </span>
                         ) : null}
                       </td>
+
+                      {/* Fee balance (visible only when toggle is on) */}
+                      {activeTab === 'enrolled' && showFees && (
+                        <td className="px-3 py-2.5 hidden lg:table-cell text-right whitespace-nowrap">
+                          {feesLoading ? (
+                            <span className="inline-block w-12 h-3 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                          ) : (() => {
+                            const bal = studentBalances.get(student.id);
+                            if (!bal) return <span className="text-[11px] text-slate-300 dark:text-slate-600">—</span>;
+                            const owing = bal.balance > 0;
+                            const clear = bal.balance <= 0;
+                            return (
+                              <Link
+                                href={`/students/${student.id}/fees`}
+                                title={`Charged: ${bal.total_charged.toFixed(2)} · Paid: ${bal.total_paid.toFixed(2)}`}
+                                className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-80 ${
+                                  owing
+                                    ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                                    : clear && bal.total_charged > 0
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                                }`}
+                              >
+                                {owing ? '+' : ''}{Math.abs(bal.balance).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              </Link>
+                            );
+                          })()}
+                        </td>
+                      )}
 
                       {/* Row actions */}
                       <td className="px-3 py-2.5 w-9">

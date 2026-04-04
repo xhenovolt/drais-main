@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1d2e"/>
+      <stop offset="100%" style="stop-color:#252840"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#818cf8"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="256" height="256" rx="52" ry="52" fill="url(#bg)"/>
+  <!-- Outer ring -->
+  <circle cx="128" cy="128" r="88" fill="none" stroke="url(#accent)" stroke-width="8" opacity="0.4"/>
+  <!-- Inner ring -->
+  <circle cx="128" cy="128" r="60" fill="none" stroke="url(#accent)" stroke-width="5" opacity="0.7"/>
+  <!-- Center dot -->
+  <circle cx="128" cy="128" r="18" fill="url(#accent)"/>
+  <!-- Top connector -->
+  <line x1="128" y1="40" x2="128" y2="68" stroke="#818cf8" stroke-width="6" stroke-linecap="round"/>
+  <!-- Right connector -->
+  <line x1="188" y1="68" x2="167" y2="89" stroke="#818cf8" stroke-width="5" stroke-linecap="round"/>
+  <!-- Left connector -->
+  <line x1="68" y1="68" x2="89" y2="89" stroke="#818cf8" stroke-width="5" stroke-linecap="round"/>
+  <!-- Pulse arcs -->
+  <path d="M 80 128 Q 104 108 128 128 Q 152 148 176 128" fill="none" stroke="#22c55e" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+  <!-- "D" letter -->
+  <text x="117" y="137" font-family="'Inter','Arial Black',sans-serif" font-weight="900" font-size="28" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">D</text>
+</svg>
