@@ -28,6 +28,8 @@ import {
   MoreHorizontal,
   Upload,
   Fingerprint,
+  Wifi,
+  Globe,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
@@ -123,6 +125,18 @@ export default function StudentsListPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
 
+  // Capture mode: 'adms' (cloud / device_commands table) | 'local' (direct TCP)
+  const [captureMode, setCaptureMode] = useState<'adms' | 'local'>(() => {
+    if (typeof window === 'undefined') return 'adms';
+    return (localStorage.getItem('drais_capture_mode') as 'adms' | 'local') ?? 'adms';
+  });
+  const [localDeviceIp, setLocalDeviceIp] = useState<string>(() => {
+    if (typeof window === 'undefined') return '192.168.1.197';
+    return localStorage.getItem('drais_local_device_ip') ?? '192.168.1.197';
+  });
+  const [showModeSettings, setShowModeSettings] = useState(false);
+  const modeSettingsRef = useRef<HTMLDivElement>(null);
+
   // Fingerprint Quick-Capture State
   const [fingerprintEnrolledIds, setFingerprintEnrolledIds] = useState<Set<number>>(new Set());
   const [showDeviceSelector, setShowDeviceSelector] = useState(false);
@@ -160,6 +174,24 @@ export default function StudentsListPage() {
   const [studyModes, setStudyModes] = useState<SelectOption[]>([]);
   const [academicYears, setAcademicYears] = useState<SelectOption[]>([]);
   const [terms, setTerms] = useState<SelectOption[]>([]);
+
+  // Persist capture mode settings
+  useEffect(() => {
+    localStorage.setItem('drais_capture_mode', captureMode);
+    localStorage.setItem('drais_local_device_ip', localDeviceIp);
+  }, [captureMode, localDeviceIp]);
+
+  // Close mode settings dropdown on outside click
+  useEffect(() => {
+    if (!showModeSettings) return;
+    const handler = (e: MouseEvent) => {
+      if (modeSettingsRef.current && !modeSettingsRef.current.contains(e.target as Node)) {
+        setShowModeSettings(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showModeSettings]);
 
   // Load options
   useEffect(() => {
@@ -227,10 +259,48 @@ export default function StudentsListPage() {
     }
   };
 
+  // ── Local Direct Enrollment ────────────────────────────────────────────────
+  const sendLocalEnrollCommand = async (studentId: number) => {
+    const label = `Direct (${localDeviceIp})`;
+    setStudentEnrollStep(studentId, { step: 'waking', deviceName: label, message: `Connecting to ${localDeviceIp}…` });
+    try {
+      const res = await apiFetch('/api/device/local-enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, device_ip: localDeviceIp }),
+        silent: true,
+      });
+      if (res?.success) {
+        setStudentEnrollStep(studentId, {
+          step: 'success',
+          deviceName: label,
+          message: `Direct Connection Established. K40 Triggered. Please scan finger now.`,
+        });
+        setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
+        // Auto-clear after 30s (enough time for 3-finger scan)
+        setTimeout(() => clearStudentEnroll(studentId), 30000);
+      } else {
+        throw new Error(res?.error || 'Local enrollment failed');
+      }
+    } catch (err: any) {
+      setStudentEnrollStep(studentId, {
+        step: 'failed',
+        deviceName: label,
+        message: err?.message || 'Direct connection failed',
+      });
+      setTimeout(() => clearStudentEnroll(studentId), 5000);
+    }
+  };
+
   // Quick-Capture fingerprint flow
   const handleQuickCapture = (studentId: number) => {
     // If already in progress, ignore
     if (enrollProgress.has(studentId)) return;
+    if (captureMode === 'local') {
+      sendLocalEnrollCommand(studentId);
+      return;
+    }
+    // ADMS cloud path
     const preferred = getPreferredDevice();
     if (preferred) {
       sendEnrollCommand(studentId, preferred.sn, preferred.name);
@@ -848,6 +918,69 @@ export default function StudentsListPage() {
 
         {/* Right: action buttons */}
         <div className="flex items-center gap-1">
+
+          {/* ── Capture Mode Toggle ─────────────────────────────────────────── */}
+          <div className="relative" ref={modeSettingsRef}>
+            <button
+              onClick={() => setShowModeSettings(v => !v)}
+              title={captureMode === 'local' ? `Local Direct Mode — ${localDeviceIp}` : 'Cloud ADMS Mode'}
+              className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-xs font-semibold transition-colors ${
+                captureMode === 'local'
+                  ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              {captureMode === 'local' ? <Wifi className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{captureMode === 'local' ? 'Local' : 'ADMS'}</span>
+            </button>
+
+            {showModeSettings && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowModeSettings(false)} />
+                <div className="absolute right-0 top-9 z-50 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 text-xs">
+                  <p className="font-semibold text-slate-700 dark:text-slate-200 mb-2">Fingerprint Capture Mode</p>
+
+                  <button
+                    onClick={() => setCaptureMode('adms')}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-1 transition-colors ${captureMode === 'adms' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                  >
+                    <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+                    <div className="text-left">
+                      <div>Cloud / ADMS</div>
+                      <div className="text-[10px] opacity-60 font-normal">Queues command via device_commands table</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setCaptureMode('local')}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-2 transition-colors ${captureMode === 'local' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                  >
+                    <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
+                    <div className="text-left">
+                      <div>Local / Direct ⚡</div>
+                      <div className="text-[10px] opacity-60 font-normal">Instant TCP — same LAN as device</div>
+                    </div>
+                  </button>
+
+                  {captureMode === 'local' && (
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
+                      <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+                        Device IP
+                      </label>
+                      <input
+                        type="text"
+                        value={localDeviceIp}
+                        onChange={e => setLocalDeviceIp(e.target.value.trim())}
+                        placeholder="192.168.1.197"
+                        className="w-full h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Export dropdown */}
           <div className="relative">
             <button
