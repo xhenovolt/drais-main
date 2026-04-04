@@ -114,7 +114,7 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
       const json = await res.json();
       if (res.ok && json.success) {
         Swal.fire('Uploaded', 'Photo uploaded successfully.', 'success');
-        onUpdated && onUpdated();
+        onUpdated?.();
       } else {
         Swal.fire('Upload failed', json.error || 'An error occurred during upload.', 'error');
       }
@@ -147,7 +147,7 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
       const json = await res.json();
       if (res.ok && json.success) {
         Swal.fire('Deleted', 'Learner photo removed.', 'success');
-        onUpdated && onUpdated();
+        onUpdated?.();
       } else {
         Swal.fire('Delete failed', json.error || 'An error occurred while deleting the photo.', 'error');
       }
@@ -172,7 +172,6 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
           <div className="flex flex-col items-center">
             <div className="w-48 h-48 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
               {previewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
               ) : (
                 <div className="text-center text-gray-400">

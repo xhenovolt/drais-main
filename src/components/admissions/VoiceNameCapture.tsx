@@ -21,7 +21,6 @@ interface VoiceNameCaptureProps {
 type State = 'idle' | 'listening' | 'processing' | 'suggestions' | 'error';
 
 // Web Speech API — not in standard TS lib; use `any` wrappers safely
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecognition = any;
 
 export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNameCaptureProps) {
@@ -32,7 +31,6 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
 
   const isSupported =
     typeof window !== 'undefined' &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (!!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition);
 
   const stopListening = useCallback(() => {
@@ -44,7 +42,6 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
     if (!isSupported) return;
 
     const SR: AnyRecognition =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     if (!SR) return;
     const rec: AnyRecognition = new SR();

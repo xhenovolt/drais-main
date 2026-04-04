@@ -17,4 +17,5 @@ export const TEMPLATE_LABEL = 'Default (Clone)';
  * falls through to the standard default inline renderer — same output as
  * 'default', verifying template switching without altering the layout.
  */
-export default null;
+const DefaultTemplateClone = null;
+export default DefaultTemplateClone;

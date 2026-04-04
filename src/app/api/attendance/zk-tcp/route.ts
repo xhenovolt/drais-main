@@ -17,7 +17,6 @@ import { getSessionSchoolId } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const ZKLib = require('node-zklib');
 const { COMMANDS } = require('node-zklib/constants');
 

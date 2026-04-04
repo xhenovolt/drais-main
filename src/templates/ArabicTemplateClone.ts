@@ -16,4 +16,5 @@ export const TEMPLATE_LABEL = 'Arabic (Clone)';
  * Arabic layout = default layout with RTL direction emphasis on the header
  * and Arabic subject name preference (via getSubjectName(r, 'ar')).
  */
-export default null;
+const ArabicTemplateClone = null;
+export default ArabicTemplateClone;

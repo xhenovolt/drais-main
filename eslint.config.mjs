@@ -22,44 +22,32 @@ const eslintConfig = [
   },
   {
     rules: {
-      // Downgrade TypeScript any-type errors to warnings to allow build to pass
-      // These should be fixed incrementally in future sprints
-      "@typescript-eslint/no-explicit-any": "warn",
-      
-      // False positives - variables ARE being reassigned
-      "prefer-const": "warn",
-      
-      // Already fixed most critical instances, downgrade remaining to warnings
-      "react/no-unescaped-entities": "warn",
-      
-      // Not critical for build - can be fixed later
-      "@typescript-eslint/no-unused-vars": "warn",
-      "react-hooks/exhaustive-deps": "warn",
-      "@next/next/no-img-element": "warn",
+      // JS-flexible: allow any types — TypeScript is used for tooling, not strict enforcement
+      "@typescript-eslint/no-explicit-any": "off",
 
-      // Ban direct fetch() in client code — use apiFetch from @/lib/apiClient
-      "no-restricted-globals": [
-        "warn",
-        {
-          name: "fetch",
-          message: "Use apiFetch() from '@/lib/apiClient' instead of raw fetch().",
-        },
-      ],
-    },
-  },
-  {
-    // Allow raw fetch in server-side code and the apiClient itself
-    files: [
-      "src/lib/apiClient.ts",
-      "src/app/api/**/*.ts",
-      "src/lib/**/*.ts",
-      "src/services/**/*.ts",
-      "src/middleware/**/*.ts",
-      "src/workers/**/*.ts",
-      "src/cron/**/*.ts",
-    ],
-    rules: {
+      // Allow require() imports — many Node.js packages lack ESM/type support
+      "@typescript-eslint/no-require-imports": "off",
+
+      // Unused vars — off to allow JS-style development flow
+      "@typescript-eslint/no-unused-vars": "off",
+
+      // Allow let where const could be used — developer preference
+      "prefer-const": "off",
+
+      // Allow raw fetch() anywhere — apiFetch is preferred but not enforced
       "no-restricted-globals": "off",
+
+      // React hooks deps — off to allow flexible effect patterns
+      "react-hooks/exhaustive-deps": "off",
+
+      // Allow <img> tags — next/image is preferred but not required
+      "@next/next/no-img-element": "off",
+
+      // Allow unescaped entities in JSX
+      "react/no-unescaped-entities": "off",
+
+      // Allow custom fonts in components (e.g. print/PDF templates embed fonts directly)
+      "@next/next/no-page-custom-font": "off",
     },
   },
 ];

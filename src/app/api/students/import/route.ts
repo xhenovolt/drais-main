@@ -631,7 +631,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 await conn.commit();
-                isUpdate ? stats.updated++ : stats.imported++;
+                if (isUpdate) { stats.updated++; } else { stats.imported++; }
                 send({
                   type: 'progress',
                   imported: stats.imported,

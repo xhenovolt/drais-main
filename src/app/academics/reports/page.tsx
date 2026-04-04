@@ -1272,7 +1272,6 @@ const ReportsPage = () => {
                             e.target.value = '';
                           }}
                         />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={schoolInfo.logo_url || '/uploads/logo.png'}
                           alt="School Logo"
@@ -1331,7 +1330,6 @@ const ReportsPage = () => {
                           <img src={`/api/barcode?id=${student.student_id}`} style={{ width: 90, height: 40, marginRight: -30, marginLeft: -20, transform: 'rotate(270deg)' }} alt="Barcode" />
                           <span style={{ fontSize: 15, fontWeight: 500, margin: 0, transform: 'rotate(180deg)', writingMode: 'vertical-rl' as any }}>{student.student_id}</span>
                         </div>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={student.photo || '/default-avatar.png'}
                           alt={`${student.first_name} ${student.last_name}`}

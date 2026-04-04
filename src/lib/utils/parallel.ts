@@ -343,8 +343,9 @@ export class BatchSyncManager {
   }
 }
 
-export default {
+const parallelUtils = {
   SyncWorkerPool,
   BatchSyncManager,
   SyncJobStatus
 };
+export default parallelUtils;

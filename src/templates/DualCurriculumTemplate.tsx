@@ -375,7 +375,6 @@ export default function DualCurriculumTemplate({
       }}
     >
       {/* Cairo font for Arabic sections */}
-      {/* eslint-disable-next-line @next/next/no-css-tags */}
       <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" />
 
       {/* ── Header: school info bilingual ── */}
@@ -415,7 +414,6 @@ export default function DualCurriculumTemplate({
             style={{ display: 'none' }}
             onChange={handleLogoFileChange}
           />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={logoPreview || schoolInfo.logo_url || '/uploads/logo.png'}
             alt="School Logo"

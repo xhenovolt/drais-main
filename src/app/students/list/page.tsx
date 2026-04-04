@@ -301,7 +301,6 @@ export default function StudentsListPage() {
   // Clean up poll timers on unmount
   useEffect(() => {
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       pollTimers.current.forEach(timer => clearInterval(timer));
     };
   }, []);
@@ -341,7 +340,6 @@ export default function StudentsListPage() {
   // Main data fetching
   useEffect(() => {
     fetchStudents();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filterClassId, filterYearId]);
 
   const fetchStudents = async () => {

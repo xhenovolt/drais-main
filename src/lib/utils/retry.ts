@@ -348,7 +348,7 @@ export function getCircuitBreaker(name: string): CircuitBreaker {
   return circuitBreakers.get(name)!;
 }
 
-export default {
+const retryUtils = {
   CircuitBreaker,
   RetryQueue,
   withRetry,
@@ -356,3 +356,4 @@ export default {
   createCircuitBreaker,
   getCircuitBreaker
 };
+export default retryUtils;

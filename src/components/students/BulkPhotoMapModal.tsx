@@ -185,7 +185,6 @@ export default function BulkPhotoMapModal({ isOpen, onClose, allStudents }: Prop
                 >
                   {/* Thumbnail */}
                   <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`data:${pm.mime_type};base64,${pm.buffer_b64}`}
                       alt={pm.file_name}

@@ -380,7 +380,6 @@ export default function EnrollStudentPage() {
         }
       })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // ── Auto-select current term on load ────────────────────────────────────
@@ -425,7 +424,6 @@ export default function EnrollStudentPage() {
       })
       .catch(() => {})
       .finally(() => setPreviousEnrollmentLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudent]);
 
   // ── Auto-select default study mode when modes load (nothing selected yet) ─

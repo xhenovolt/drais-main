@@ -415,8 +415,9 @@ export class SyncCheckpoint {
   }
 }
 
-export default {
+const idempotencyUtils = {
   AttendanceIdempotency,
   StudentAttendanceIdempotency,
   SyncCheckpoint
 };
+export default idempotencyUtils;
