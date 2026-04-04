@@ -91,6 +91,21 @@ async function resolveDeviceIP(sn: string, schoolId: number): Promise<string | n
   return rows?.[0]?.ip_address || null;
 }
 
+// ─── Validate raw IP address (IPv4 private/LAN only) ─────────────────────────
+
+function isValidLanIP(ip: string): boolean {
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const match = ip.match(ipv4);
+  if (!match) return false;
+  const octets = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
+  if (octets.some(o => o > 255)) return false;
+  // Block loopback and link-local
+  if (octets[0] === 127) return false;
+  if (octets[0] === 169 && octets[1] === 254) return false;
+  if (octets[0] === 0) return false;
+  return true;
+}
+
 // ─── API Routes ───────────────────────────────────────────────────────────────
 
 /**
@@ -104,19 +119,27 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const deviceSn = url.searchParams.get('device_sn');
+  const directIp = url.searchParams.get('device_ip');
+  const devicePort = parseInt(url.searchParams.get('device_port') || '4370', 10);
   const action = url.searchParams.get('action') || 'info';
 
-  if (!deviceSn) {
-    return NextResponse.json({ error: 'device_sn required' }, { status: 400 });
+  // Resolve IP: prefer direct IP, fallback to SN lookup
+  let ip: string | null = null;
+  if (directIp) {
+    if (!isValidLanIP(directIp)) {
+      return NextResponse.json({ error: 'Invalid IP address' }, { status: 400 });
+    }
+    ip = directIp;
+  } else if (deviceSn) {
+    ip = await resolveDeviceIP(deviceSn, session.schoolId);
   }
 
-  const ip = await resolveDeviceIP(deviceSn, session.schoolId);
   if (!ip) {
-    return NextResponse.json({ error: 'Device not found or no IP address' }, { status: 404 });
+    return NextResponse.json({ error: 'Provide device_ip or a valid device_sn' }, { status: 400 });
   }
 
   try {
-    const zk = await getConnection(ip);
+    const zk = await getConnection(ip, devicePort);
 
     switch (action) {
       case 'info': {
@@ -216,14 +239,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { device_sn, action } = body;
-  if (!device_sn || !action) {
-    return NextResponse.json({ error: 'device_sn and action are required' }, { status: 400 });
+  const { device_sn, device_ip: directIpPost, device_port: directPortPost, action } = body;
+  if (!action) {
+    return NextResponse.json({ error: 'action is required' }, { status: 400 });
   }
 
-  const ip = await resolveDeviceIP(device_sn, session.schoolId);
+  // Resolve IP: prefer direct IP, fallback to SN lookup
+  let ip: string | null = null;
+  const port = parseInt(directPortPost || '4370', 10);
+  if (directIpPost) {
+    if (!isValidLanIP(directIpPost)) {
+      return NextResponse.json({ error: 'Invalid IP address' }, { status: 400 });
+    }
+    ip = directIpPost;
+  } else if (device_sn) {
+    ip = await resolveDeviceIP(device_sn, session.schoolId);
+  }
+
   if (!ip) {
-    return NextResponse.json({ error: 'Device not found or no IP address' }, { status: 404 });
+    return NextResponse.json({ error: 'Provide device_ip or a valid device_sn' }, { status: 400 });
   }
 
   try {
@@ -234,26 +268,26 @@ export async function POST(req: NextRequest) {
       }
 
       case 'restart': {
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         await zk.executeCmd(COMMANDS.CMD_RESTART, '');
         pool.delete(ip); // Connection will be dead after restart
         return NextResponse.json({ success: true, message: 'Device restarting' });
       }
 
       case 'unlock': {
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         await zk.executeCmd(COMMANDS.CMD_UNLOCK, '');
         return NextResponse.json({ success: true, message: 'Door unlocked' });
       }
 
       case 'disable': {
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         await zk.disableDevice();
         return NextResponse.json({ success: true, message: 'Device disabled (FP/RFID/keyboard off)' });
       }
 
       case 'enable': {
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         await zk.enableDevice();
         return NextResponse.json({ success: true, message: 'Device enabled (normal work)' });
       }
@@ -263,14 +297,14 @@ export async function POST(req: NextRequest) {
         if (!text) {
           return NextResponse.json({ error: 'text is required' }, { status: 400 });
         }
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         const buf = Buffer.from(text + '\0');
         await zk.executeCmd(COMMANDS.CMD_WRITE_LCD, buf);
         return NextResponse.json({ success: true, message: `LCD: "${text}"` });
       }
 
       case 'clear_lcd': {
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         await zk.executeCmd(COMMANDS.CMD_CLEAR_LCD, '');
         return NextResponse.json({ success: true, message: 'LCD cleared' });
       }
@@ -287,7 +321,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'finger must be 0-9' }, { status: 400 });
         }
 
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
 
         // Step 1: Cancel any ongoing capture
         try {
@@ -314,7 +348,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'cancel_enroll': {
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         await zk.executeCmd(COMMANDS.CMD_CANCELCAPTURE, '');
         return NextResponse.json({ success: true, message: 'Enrollment cancelled' });
       }
@@ -329,7 +363,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'uid is required' }, { status: 400 });
         }
 
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         const reqBuf = Buffer.alloc(3);
         reqBuf.writeUInt16LE(uid, 0);
         reqBuf.writeUInt8(finger, 2);
@@ -348,7 +382,7 @@ export async function POST(req: NextRequest) {
 
       case 'capture_finger': {
         // CMD_CAPTUREFINGER(1009): One-shot capture (device shows "Place finger")
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         const result = await zk.executeCmd(COMMANDS.CMD_CAPTUREFINGER, '');
         const replyCmd = result?.readUInt16LE?.(0);
 
@@ -369,7 +403,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'uid is required' }, { status: 400 });
         }
 
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
 
         // Read the template from device
         const reqBuf = Buffer.alloc(3);
@@ -444,7 +478,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'command (numeric) is required' }, { status: 400 });
         }
         const data = body.data ? Buffer.from(body.data, 'hex') : '';
-        const zk = await getConnection(ip);
+        const zk = await getConnection(ip, port);
         const result = await zk.executeCmd(command, data);
 
         return NextResponse.json({

@@ -109,8 +109,8 @@ export async function POST(req: NextRequest){
       const studentIds = students.map((s:any)=>s.student_id);
       const [existing]:any = await conn.execute(`
         SELECT student_id,item FROM student_fee_items 
-        WHERE term_id=? AND school_id=? AND student_id IN (${studentIds.map(()=>'?').join(',')})
-      `,[term_id, schoolId, ...studentIds]);
+        WHERE term_id=? AND student_id IN (${studentIds.map(()=>'?').join(',')})
+      `,[term_id, ...studentIds]);
       
       const existingSet = new Set(existing.map((r:any)=>`${r.student_id}__${r.item}`));
       const toInsert:any[]=[];
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest){
       for(const s of students){
         for(const it of items){
           const key=`${s.student_id}__${it.item}`;
-          if(!existingSet.has(key)) toInsert.push([s.student_id, term_id, it.item, it.amount, 0, 0, schoolId]);
+          if(!existingSet.has(key)) toInsert.push([s.student_id, term_id, it.item, it.amount]);
         }
       }
       
@@ -127,11 +127,11 @@ export async function POST(req: NextRequest){
         const chunks:number = Math.ceil(toInsert.length/500);
         for(let i=0;i<chunks;i++){
           const slice = toInsert.slice(i*500,(i+1)*500);
-          const placeholders = slice.map(()=>'(?,?,?,?,0,0,?)').join(',');
-          // columns: student_id, term_id, item, amount, discount, paid, school_id
-          const flat = slice.flatMap(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6]]);
+          const placeholders = slice.map(()=>'(?,?,?,?,0,0)').join(',');
+          // columns: student_id, term_id, item, amount, discount, paid
+          const flat = slice.flatMap(r=>[r[0],r[1],r[2],r[3]]);
           await conn.execute(`
-            INSERT INTO student_fee_items (student_id,term_id,item,amount,discount,paid,school_id) 
+            INSERT INTO student_fee_items (student_id,term_id,item,amount,discount,paid) 
             VALUES ${placeholders}
           `, flat);
         }
@@ -152,16 +152,16 @@ export async function POST(req: NextRequest){
     if (!student) return NextResponse.json({ error:'Student not found' },{ status:404 });
     
     await conn.execute(`
-      INSERT INTO student_fee_items (student_id,term_id,item,amount,discount,paid,school_id) 
-      VALUES (?,?,?,?,?,0,?)
-    `,[student_id,term_id,item,amount,discount, schoolId]);
+      INSERT INTO student_fee_items (student_id,term_id,item,amount,discount,paid) 
+      VALUES (?,?,?,?,?,0)
+    `,[student_id,term_id,item,amount,discount]);
     
     const [rows]:any = await conn.execute(`
       SELECT id,student_id,term_id,item,amount,discount,paid,balance 
       FROM student_fee_items 
-      WHERE student_id=? AND term_id=? AND school_id=? 
+      WHERE student_id=? AND term_id=?
       ORDER BY id DESC LIMIT 1
-    `,[student_id,term_id, schoolId]);
+    `,[student_id,term_id]);
     
     return NextResponse.json({ message:'Student fee item added', data: rows[0] });
   } catch (err: any) {
@@ -193,19 +193,18 @@ export async function PATCH(req: NextRequest){
     if(!sets.length) return NextResponse.json({ error:'Nothing to update' },{ status:400 });
     
     params.push(id);
-    params.push(schoolId);
     
     await conn.execute(`
       UPDATE student_fee_items 
       SET ${sets.join(', ')} 
-      WHERE id=? AND school_id=?
+      WHERE id=?
     `,params);
     
     const [[row]]:any = await conn.execute(`
       SELECT id,student_id,term_id,item,amount,discount,paid,balance 
       FROM student_fee_items 
-      WHERE id=? AND school_id=?
-    `,[id, schoolId]);
+      WHERE id=?
+    `,[id]);
     
     if (!row) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     

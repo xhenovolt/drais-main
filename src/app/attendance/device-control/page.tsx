@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import {
   Wifi, WifiOff, Power, Lock, Unlock, Fingerprint, Monitor, RefreshCw,
   Send, Loader, Users, Clock, Terminal, Type, AlertTriangle,
-  CheckCircle, XCircle, ChevronDown, ChevronRight, Trash2, Download,
+  CheckCircle, XCircle, ChevronDown, ChevronRight, Trash2, Download, Globe,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
@@ -14,6 +14,9 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function DeviceControlPage() {
   const [deviceSn, setDeviceSn] = useState('');
+  const [directIp, setDirectIp] = useState('');
+  const [directPort, setDirectPort] = useState('4370');
+  const [useDirectIp, setUseDirectIp] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [results, setResults] = useState<any[]>([]);
   const [enrollUid, setEnrollUid] = useState('');
@@ -47,10 +50,18 @@ export default function DeviceControlPage() {
 
   // GET actions
   const doGet = async (action: string, label: string) => {
-    if (!deviceSn) return showToast('error', 'Select a device');
+    if (!useDirectIp && !deviceSn) return showToast('error', 'Select a device or enter an IP');
+    if (useDirectIp && !directIp) return showToast('error', 'Enter a device IP address');
     setBusy(action);
     try {
-      const res = await fetch(`/api/attendance/zk-tcp?device_sn=${deviceSn}&action=${action}`);
+      const params = new URLSearchParams({ action });
+      if (useDirectIp) {
+        params.set('device_ip', directIp);
+        params.set('device_port', directPort);
+      } else {
+        params.set('device_sn', deviceSn);
+      }
+      const res = await fetch(`/api/attendance/zk-tcp?${params}`);
       const json = await res.json();
       addResult(label, json, json.success);
       if (!json.success) showToast('error', json.error || 'Failed');
@@ -64,13 +75,21 @@ export default function DeviceControlPage() {
 
   // POST actions
   const doPost = async (action: string, label: string, extra: Record<string, any> = {}) => {
-    if (!deviceSn) return showToast('error', 'Select a device');
+    if (!useDirectIp && !deviceSn) return showToast('error', 'Select a device or enter an IP');
+    if (useDirectIp && !directIp) return showToast('error', 'Enter a device IP address');
     setBusy(action);
     try {
+      const payload: any = { action, ...extra };
+      if (useDirectIp) {
+        payload.device_ip = directIp;
+        payload.device_port = directPort;
+      } else {
+        payload.device_sn = deviceSn;
+      }
       const res = await fetch('/api/attendance/zk-tcp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_sn: deviceSn, action, ...extra }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       addResult(label, json, json.success);
@@ -104,33 +123,83 @@ export default function DeviceControlPage() {
       </div>
 
       {/* Device Selector */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex-1 min-w-0">
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Target Device</label>
-            <select
-              value={deviceSn}
-              onChange={(e) => setDeviceSn(e.target.value)}
-              className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
-            >
-              <option value="">Select device...</option>
-              {devices.map((d: any) => (
-                <option key={d.sn} value={d.sn}>
-                  {d.sn} {d.device_name ? `— ${d.device_name}` : ''} ({d.ip_address || 'no IP'})
-                </option>
-              ))}
-            </select>
-          </div>
-          {selectedDevice && (
-            <div className="flex items-center gap-3 text-xs">
-              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full font-medium ${isOnline ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                {isOnline ? 'Online' : 'Offline'}
-              </span>
-              <span className="text-gray-400">IP: {selectedDevice.ip_address || '—'}</span>
-            </div>
-          )}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+        {/* Mode Toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setUseDirectIp(false)}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition ${!useDirectIp ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}
+          >
+            Registered Devices
+          </button>
+          <button
+            onClick={() => setUseDirectIp(true)}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition flex items-center gap-1.5 ${useDirectIp ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            Direct IP (LAN Test)
+          </button>
         </div>
+
+        {useDirectIp ? (
+          /* Direct IP Input */
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+            <div className="flex-1 min-w-0">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Device IP Address</label>
+              <input
+                type="text"
+                value={directIp}
+                onChange={(e) => setDirectIp(e.target.value)}
+                placeholder="e.g. 192.168.1.197"
+                className="w-full sm:w-64 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Port</label>
+              <input
+                type="number"
+                value={directPort}
+                onChange={(e) => setDirectPort(e.target.value)}
+                placeholder="4370"
+                className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
+              />
+            </div>
+            {directIp && (
+              <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                <Globe className="w-3 h-3" />
+                Direct → {directIp}:{directPort}
+              </span>
+            )}
+          </div>
+        ) : (
+          /* Registered Device Selector */
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Target Device</label>
+              <select
+                value={deviceSn}
+                onChange={(e) => setDeviceSn(e.target.value)}
+                className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+              >
+                <option value="">Select device...</option>
+                {devices.map((d: any) => (
+                  <option key={d.sn} value={d.sn}>
+                    {d.sn} {d.device_name ? `— ${d.device_name}` : ''} ({d.ip_address || 'no IP'})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedDevice && (
+              <div className="flex items-center gap-3 text-xs">
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full font-medium ${isOnline ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                  {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+                <span className="text-gray-400">IP: {selectedDevice.ip_address || '—'}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions Grid */}

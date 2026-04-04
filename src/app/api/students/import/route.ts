@@ -611,20 +611,21 @@ export async function POST(request: NextRequest) {
                   const feesVal = parseFloat(String(row[cm.feesBalanceIdx]).replace(/[,\s]/g, ''));
                   if (!isNaN(feesVal) && feesVal > 0) {
                     // Check if already has an "Imported Balance" item for this term
+                    // student_fee_items has no school_id column — filter by student_id + term_id only
                     const [existingFee] = await conn.execute(
-                      `SELECT id FROM student_fee_items WHERE student_id = ? AND term_id = ? AND item = 'Imported Balance' AND school_id = ? LIMIT 1`,
-                      [studentId, termId, schoolId],
+                      `SELECT id FROM student_fee_items WHERE student_id = ? AND term_id = ? AND item = 'Imported Balance' LIMIT 1`,
+                      [studentId, termId],
                     ) as any[];
                     if ((existingFee as any[]).length > 0) {
-                      await execTenant(conn,
-                        `UPDATE student_fee_items SET amount = ? WHERE id = ? AND school_id = ?`,
-                        [feesVal, (existingFee as any[])[0].id, schoolId], schoolId,
+                      await conn.execute(
+                        `UPDATE student_fee_items SET amount = ? WHERE id = ?`,
+                        [feesVal, (existingFee as any[])[0].id],
                       );
                     } else {
-                      await execTenant(conn,
-                        `INSERT INTO student_fee_items (school_id, student_id, term_id, item, amount, discount, paid)
-                         VALUES (?, ?, ?, 'Imported Balance', ?, 0, 0)`,
-                        [schoolId, studentId, termId, feesVal], schoolId,
+                      await conn.execute(
+                        `INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, paid)
+                         VALUES (?, ?, 'Imported Balance', ?, 0, 0)`,
+                        [studentId, termId, feesVal],
                       );
                     }
                   }

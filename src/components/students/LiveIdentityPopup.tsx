@@ -338,9 +338,7 @@ export function LiveIdentityPopup() {
                           <p className={`text-sm font-bold truncate ${
                             learner.fee_balance > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
                           }`}>
-                            {learner.fee_balance > 0
-                              ? `UGX ${learner.fee_balance.toLocaleString()}`
-                              : 'Cleared'}
+                            UGX {learner.fee_balance.toLocaleString()}
                           </p>
                         </div>
                       </div>
