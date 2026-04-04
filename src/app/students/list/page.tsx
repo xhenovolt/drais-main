@@ -510,6 +510,41 @@ export default function StudentsListPage() {
     }));
   };
 
+  // Delete ALL learners for this school (destructive)
+  const handleDeleteAllLearners = async () => {
+    const total = enrolledStudents.length + admittedStudents.length;
+    const confirmed = await confirmAction(
+      '⚠️ Remove ALL Learners',
+      `This will permanently remove all ${total > 0 ? total : ''} learners from this school. Enrollments, fee records, and fingerprint mappings will become orphaned. This action CANNOT be undone. Are you absolutely sure?`,
+      'Yes, Delete All Learners',
+    );
+    if (!confirmed) return;
+
+    // Second confirmation — type-check style via a second SweetAlert prompt
+    const { value: typed } = await (await import('sweetalert2')).default.fire({
+      title: 'Type DELETE to confirm',
+      input: 'text',
+      inputPlaceholder: 'DELETE',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Confirm',
+      inputValidator: (v) => v !== 'DELETE' ? 'You must type DELETE exactly' : null,
+    });
+    if (typed !== 'DELETE') return;
+
+    try {
+      const res = await apiFetch('/api/students/bulk/delete-all', {
+        method: 'DELETE',
+        successMessage: `All learners removed successfully`,
+      });
+      showToast('success', res?.message || 'All learners removed');
+      setSelectedIds(new Set());
+      fetchStudents();
+    } catch (error) {
+      logger.error('Delete-all error:', error);
+    }
+  };
+
   // Delete student handler
   const handleDeleteStudent = async (studentId: number) => {
     const student = admittedStudents.find(s => s.id === studentId);
@@ -846,6 +881,12 @@ export default function StudentsListPage() {
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors text-xs font-semibold">
             <Upload className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Import</span>
+          </button>
+
+          <button title="Remove ALL learners from this school — destructive" onClick={handleDeleteAllLearners}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors text-xs font-semibold">
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Delete All</span>
           </button>
 
           <Link href="/students/admit" title="Add new student"
