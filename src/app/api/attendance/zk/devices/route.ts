@@ -31,8 +31,13 @@ export async function GET(req: NextRequest) {
          (SELECT COUNT(*) FROM zk_device_commands c
           WHERE c.device_sn = d.sn AND c.status = 'pending') AS pending_commands,
          (SELECT COUNT(*) FROM zk_user_mapping m
-          WHERE m.device_sn = d.sn OR m.device_sn IS NULL) AS mapped_users
+          WHERE m.device_sn = d.sn OR m.device_sn IS NULL) AS mapped_users,
+         ss.sync_status,
+         ss.expected_user_count,
+         ss.last_known_device_user_count,
+         ss.last_sync_at
        FROM devices d
+       LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
        ORDER BY d.last_seen DESC`,
       [],
     );

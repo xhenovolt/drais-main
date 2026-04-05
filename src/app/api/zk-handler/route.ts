@@ -349,6 +349,50 @@ async function getDeviceSchoolId(sn: string): Promise<number> {
   }
 }
 
+/**
+ * Update device_sync_state on every heartbeat.
+ * Compares expected user count (zk_user_mapping) vs acknowledged commands.
+ * Sets sync_status = 'out_of_sync' when they diverge.
+ * Fire-and-forget — NEVER throws.
+ */
+async function updateDeviceSyncState(sn: string, schoolId: number): Promise<void> {
+  try {
+    // Expected = users mapped to this device in DB
+    const expectedRow = await query(
+      `SELECT COUNT(*) AS cnt FROM zk_user_mapping WHERE device_sn = ? OR device_sn IS NULL`,
+      [sn],
+    );
+    const expectedCount = Number(expectedRow?.[0]?.cnt ?? 0);
+
+    // Known = how many DATA UPDATE USERINFO commands were acknowledged (proxy for "on device")
+    const ackedRow = await query(
+      `SELECT COUNT(*) AS cnt FROM zk_device_commands
+       WHERE device_sn = ? AND status = 'acknowledged' AND command LIKE 'DATA UPDATE USERINFO%'`,
+      [sn],
+    );
+    const ackedCount = Number(ackedRow?.[0]?.cnt ?? 0);
+
+    const syncStatus =
+      expectedCount === 0 ? 'unknown'
+      : ackedCount === expectedCount ? 'synced'
+      : 'out_of_sync';
+
+    await query(
+      `INSERT INTO device_sync_state
+         (id, device_sn, school_id, expected_user_count, last_known_device_user_count, sync_status, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         expected_user_count = VALUES(expected_user_count),
+         last_known_device_user_count = VALUES(last_known_device_user_count),
+         sync_status = VALUES(sync_status),
+         updated_at = NOW()`,
+      [sn, sn, schoolId, expectedCount, ackedCount, syncStatus],
+    );
+  } catch (err) {
+    zkLog('warn', 'SYNC_STATE_UPDATE_FAILED', { sn, error: String(err) });
+  }
+}
+
 /** Register device or update heartbeat on first/every GET. Single source: `devices` table. */
 async function upsertDevice(
   sn: string,
@@ -706,7 +750,7 @@ export async function GET(req: NextRequest) {
 
     const schoolId = await getDeviceSchoolId(sn);
 
-    // Fire-and-forget: log raw traffic + upsert device + system log + observability
+    // Fire-and-forget: log raw traffic + upsert device + system log + observability + sync state
     const rawLogPromise = saveRawLog(sn, 'GET', qs, null, null, ip, ua, null, '/iclock/cdata', schoolId).catch(() => {});
     const upsertPromise = upsertDevice(sn, ip, options, pushVer);
     const sysLogPromise = logSystemEvent(sn, 'HEARTBEAT', 'INCOMING', qs, ip, ua);
@@ -717,12 +761,13 @@ export async function GET(req: NextRequest) {
       status:     'success',
       schoolId,
     });
+    const syncStatePromise = updateDeviceSyncState(sn, schoolId);
 
     // Check command queue
     const pending = await getPendingCommand(sn);
 
     // Await background writes (don't block response but ensure they complete)
-    await Promise.allSettled([rawLogPromise, upsertPromise, sysLogPromise, heartbeatLogPromise]);
+    await Promise.allSettled([rawLogPromise, upsertPromise, sysLogPromise, heartbeatLogPromise, syncStatePromise]);
 
     if (pending) {
       zkLog('info', 'COMMAND_DELIVERED', {
