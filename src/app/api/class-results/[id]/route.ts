@@ -10,7 +10,7 @@ export async function PUT(
     const body = await req.json();
     const { score, grade, remarks, actor_user_id } = body;
     const resolvedParams = await params;
-    const resultId = parseInt(resolvedParams.id);
+    const resultId = parseInt(resolvedParams.id, 10);
 
     if (!resultId || isNaN(resultId)) {
       return NextResponse.json({ error: 'Invalid result ID' }, { status: 400 });

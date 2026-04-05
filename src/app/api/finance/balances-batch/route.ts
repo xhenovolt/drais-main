@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   // Validate all IDs are positive integers
   const ids = student_ids
-    .map((id) => (typeof id === 'number' ? Math.floor(id) : parseInt(String(id), 10)))
+    .map((id) => (typeof id === 'number' ? Math.floor(id) : parseInt(String(id, 10), 10)))
     .filter((id) => Number.isFinite(id) && id > 0);
 
   if (ids.length === 0) {

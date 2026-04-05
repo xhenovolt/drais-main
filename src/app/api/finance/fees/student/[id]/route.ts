@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   
   try {
     const resolvedParams = await params;
-    const feeItemId = parseInt(resolvedParams.id);
+    const feeItemId = parseInt(resolvedParams.id, 10);
     const body = await req.json();
     const { amount, discount, waived, due_date } = body;
 

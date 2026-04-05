@@ -44,14 +44,14 @@ export async function POST(req: NextRequest) {
       position: (formData.get('position') as string)?.trim() || null,
       employment_type: (formData.get('employment_type') as string)?.trim() || 'permanent',
       qualification: (formData.get('qualification') as string)?.trim() || null,
-      experience_years: parseInt(formData.get('experience_years') as string) || 0,
+      experience_years: parseInt(formData.get('experience_years', 10) as string) || 0,
       hire_date: formData.get('hire_date') as string || null,
       salary: parseFloat(formData.get('salary') as string) || null,
       
       // Organizational Info
-      department_id: formData.get('department_id') ? parseInt(formData.get('department_id') as string) : null,
-      branch_id: formData.get('branch_id') ? parseInt(formData.get('branch_id') as string) : 1,
-      role_id: formData.get('role_id') ? parseInt(formData.get('role_id') as string) : null,
+      department_id: formData.get('department_id') ? parseInt(formData.get('department_id', 10) as string) : null,
+      branch_id: formData.get('branch_id') ? parseInt(formData.get('branch_id', 10) as string) : 1,
+      role_id: formData.get('role_id') ? parseInt(formData.get('role_id', 10) as string) : null,
       
       // Bank Info
       bank_name: (formData.get('bank_name') as string)?.trim() || null,

@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     const studentId = searchParams.get('student_id');
     const termId = searchParams.get('term_id');
     const status = searchParams.get('status'); // pending, approved, rejected
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = parseInt(searchParams.get('page', 10) || '1');
+    const limit = parseInt(searchParams.get('limit', 10) || '50');
     
     connection = await getConnection();
     
@@ -59,12 +59,12 @@ export async function GET(req: NextRequest) {
     
     if (studentId) {
       sql += ' AND w.student_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
     
     if (termId) {
       sql += ' AND w.term_id = ?';
-      params.push(parseInt(termId));
+      params.push(parseInt(termId, 10));
     }
     
     if (status) {
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     // Insert waiver
     const [result] = await connection.execute(`
       INSERT INTO waivers_discounts (
-        schoolId, student_id, term_id, fee_item_id, waiver_type,
+        school_id, student_id, term_id, fee_item_id, waiver_type,
         discount_type, amount, reason, created_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [

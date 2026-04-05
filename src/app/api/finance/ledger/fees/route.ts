@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
     const academicYear = searchParams.get('academic_year');
     const status = searchParams.get('status'); // paid, partial, pending, overdue, waived
     const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = parseInt(searchParams.get('page', 10) || '1');
+    const limit = parseInt(searchParams.get('limit', 10) || '50');
     
     connection = await getConnection();
     
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     const params: any[] = [];
     
     if (termId) {
-      params.push(parseInt(termId));
+      params.push(parseInt(termId, 10));
     }
     if (academicYear) {
       params.push(academicYear);
@@ -78,12 +78,12 @@ export async function GET(req: NextRequest) {
     
     if (classId) {
       sql += ' AND c.id = ?';
-      params.push(parseInt(classId));
+      params.push(parseInt(classId, 10));
     }
     
     if (sectionId) {
       sql += ' AND (e.section_id = ? OR s.section_id = ?)';
-      params.push(parseInt(sectionId), parseInt(sectionId));
+      params.push(parseInt(sectionId, 10), parseInt(sectionId, 10));
     }
     
     if (status) {
@@ -125,11 +125,11 @@ export async function GET(req: NextRequest) {
     
     if (classId) {
       countSql += ' AND c.id = ?';
-      countParams.push(parseInt(classId));
+      countParams.push(parseInt(classId, 10));
     }
     if (sectionId) {
       countSql += ' AND (e.section_id = ? OR s.section_id = ?)';
-      countParams.push(parseInt(sectionId), parseInt(sectionId));
+      countParams.push(parseInt(sectionId, 10), parseInt(sectionId, 10));
     }
     
     const [countResult] = await connection.execute(countSql, countParams);

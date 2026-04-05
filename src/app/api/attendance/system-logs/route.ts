@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const eventType = url.searchParams.get('event_type');
   const deviceSn = url.searchParams.get('device_sn');
-  const sinceId = parseInt(url.searchParams.get('since_id') || '0', 10) || 0;
-  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
-  const rawLimit = parseInt(url.searchParams.get('limit') || '100', 10);
+  const sinceId = parseInt(url.searchParams.get('since_id', 10) || '0', 10) || 0;
+  const page = Math.max(1, parseInt(url.searchParams.get('page', 10) || '1', 10));
+  const rawLimit = parseInt(url.searchParams.get('limit', 10) || '100', 10);
   const limit = Math.min(Math.max(rawLimit, 1), 200);
   const offset = (page - 1) * limit;
 

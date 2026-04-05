@@ -1,56 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
-// CRUD for payroll_definitions
 export async function GET(req: NextRequest) {
+  let connection;
   try {
-    const connection = await getConnection();
-    const [rows] = await connection.execute('SELECT * FROM payroll_definitions');
-    await connection.end();
-    return NextResponse.json(rows);
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
+    connection = await getConnection();
+    const [rows] = await connection.execute(
+      'SELECT * FROM payroll_definitions WHERE school_id = ? ORDER BY name',
+      [schoolId]
+    );
+    return NextResponse.json({ success: true, data: rows });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('payroll_definitions GET error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }
 
 export async function POST(req: NextRequest) {
+  let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { name, type } = await req.json();
-    const connection = await getConnection();
+    connection = await getConnection();
     await connection.execute(
-      'INSERT INTO payroll_definitions (name, type) VALUES (?, ?)',
-      [name, type]
+      'INSERT INTO payroll_definitions (school_id, name, type) VALUES (?, ?, ?)',
+      [schoolId, name, type]
     );
-    await connection.end();
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Payroll definition created' });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('payroll_definitions POST error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }
 
 export async function PUT(req: NextRequest) {
+  let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { id, name, type } = await req.json();
-    const connection = await getConnection();
+    connection = await getConnection();
     await connection.execute(
-      'UPDATE payroll_definitions SET name = ?, type = ? WHERE id = ?',
-      [name, type, id]
+      'UPDATE payroll_definitions SET name = ?, type = ? WHERE id = ? AND school_id = ?',
+      [name, type, id, schoolId]
     );
-    await connection.end();
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Payroll definition updated' });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('payroll_definitions PUT error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const { id } = await req.json();
-    const connection = await getConnection();
-    await connection.execute('DELETE FROM payroll_definitions WHERE id = ?', [id]);
-    await connection.end();
-    return NextResponse.json({ success: true });
+    connection = await getConnection();
+    await connection.execute('DELETE FROM payroll_definitions WHERE id = ? AND school_id = ?', [id, schoolId]);
+    return NextResponse.json({ success: true, message: 'Payroll definition deleted' });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('payroll_definitions DELETE error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }

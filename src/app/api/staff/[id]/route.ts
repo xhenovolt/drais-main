@@ -11,7 +11,7 @@ import { logAudit, AuditAction } from '@/lib/audit';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let connection;
 
@@ -22,7 +22,8 @@ export async function PATCH(
     }
     const schoolId = session.schoolId;
 
-    const staffId = parseInt(params.id);
+    const { id } = await params;
+    const staffId = parseInt(id, 10);
     const body = await req.json();
 
     if (isNaN(staffId)) {
@@ -227,7 +228,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let connection;
 
@@ -238,7 +239,8 @@ export async function DELETE(
     }
     const schoolId = session.schoolId;
 
-    const staffId = parseInt(params.id);
+    const { id } = await params;
+    const staffId = parseInt(id, 10);
 
     if (isNaN(staffId)) {
       return NextResponse.json({

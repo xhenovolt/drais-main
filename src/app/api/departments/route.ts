@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const body = await req.json();
-    const { name, description, head_staff_id, budget = 0 } = body;
+    const { name, description, head_staff_id } = body;
 
     if (!name) {
       return NextResponse.json({
@@ -77,9 +77,9 @@ export async function POST(req: NextRequest) {
     connection = await getConnection();
 
     const [result] = await connection.execute(`
-      INSERT INTO departments (school_id, name, description, head_staff_id, budget)
-      VALUES (?, ?, ?, ?, ?)
-    `, [schoolId, name, description, head_staff_id, budget]);
+      INSERT INTO departments (school_id, name, description, head_staff_id)
+      VALUES (?, ?, ?, ?)
+    `, [schoolId, name, description, head_staff_id]);
 
     return NextResponse.json({
       success: true,
@@ -102,6 +102,13 @@ export async function DELETE(req: NextRequest) {
   let connection;
   
   try {
+    // Enforce multi-tenant isolation
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const { id } = body;
 
@@ -117,8 +124,8 @@ export async function DELETE(req: NextRequest) {
     await connection.execute(`
       UPDATE departments 
       SET deleted_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `, [id]);
+      WHERE id = ? AND school_id = ?
+    `, [id, schoolId]);
 
     return NextResponse.json({
       success: true,

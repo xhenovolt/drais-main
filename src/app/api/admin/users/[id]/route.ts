@@ -5,7 +5,7 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 /** Verify the target user belongs to the caller's school. */
 async function getTargetUser(userId: number, schoolId: number) {
@@ -29,7 +29,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const targetId = parseInt(params.id, 10);
+  const { id } = await params;
+  const targetId = parseInt(id, 10);
   if (!targetId || isNaN(targetId)) return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
 
   // Prevent self-modification of critical security fields
@@ -97,7 +98,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const targetId = parseInt(params.id, 10);
+  const { id } = await params;
+  const targetId = parseInt(id, 10);
   if (!targetId || isNaN(targetId)) return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
 
   if (targetId === session.userId) {

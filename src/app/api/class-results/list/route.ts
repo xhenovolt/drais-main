@@ -35,8 +35,8 @@ export async function GET(req: NextRequest) {
     const search       = sp.get('search')?.trim();
     const sortBy       = sp.get('sort_by') || 'name';
     const sortOrder    = sp.get('sort_order')?.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
-    const page         = Math.max(1, parseInt(sp.get('page') || '1', 10));
-    const limit        = Math.min(200, Math.max(1, parseInt(sp.get('limit') || '50', 10)));
+    const page         = Math.max(1, parseInt(sp.get('page', 10) || '1', 10));
+    const limit        = Math.min(200, Math.max(1, parseInt(sp.get('limit', 10) || '50', 10)));
     const offset       = (page - 1) * limit;
 
     if (!Number.isInteger(limit) || !Number.isInteger(offset) || limit < 1 || offset < 0) {

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const type    = searchParams.get('type') || 'debtors';
-  const limit   = Math.min(parseInt(searchParams.get('limit') ?? '50'), 200);
+  const limit   = Math.min(parseInt(searchParams.get('limit', 10) ?? '50'), 200);
   const classId = searchParams.get('class_id');
   const termId  = searchParams.get('term_id');
 

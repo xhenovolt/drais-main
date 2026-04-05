@@ -152,13 +152,13 @@ export async function GET(req: NextRequest) {
     );
 
     // Calculate rates
-    const totalStudents = parseInt(stats.total_students) || 0;
-    const totalMarked = parseInt(stats.total_marked) || 0;
-    const present = parseInt(stats.present) || 0;
-    const absent = parseInt(stats.absent) || 0;
-    const late = parseInt(stats.late) || 0;
-    const excused = parseInt(stats.excused) || 0;
-    const notMarked = parseInt(stats.not_marked) || 0;
+    const totalStudents = parseInt(stats.total_students, 10) || 0;
+    const totalMarked = parseInt(stats.total_marked, 10) || 0;
+    const present = parseInt(stats.present, 10) || 0;
+    const absent = parseInt(stats.absent, 10) || 0;
+    const late = parseInt(stats.late, 10) || 0;
+    const excused = parseInt(stats.excused, 10) || 0;
+    const notMarked = parseInt(stats.not_marked, 10) || 0;
 
     const attendanceRate = totalStudents > 0 ? Math.round((present / totalStudents) * 100) : 0;
     const presentRate = totalMarked > 0 ? Math.round((present / totalMarked) * 100) : 0;
@@ -166,20 +166,20 @@ export async function GET(req: NextRequest) {
     const lateRate = totalMarked > 0 ? Math.round((late / totalMarked) * 100) : 0;
 
     // Male rates
-    const maleTotal = parseInt(stats.male_total) || 0;
-    const malePresent = parseInt(stats.male_present) || 0;
+    const maleTotal = parseInt(stats.male_total, 10) || 0;
+    const malePresent = parseInt(stats.male_present, 10) || 0;
     const maleAttendanceRate = maleTotal > 0 ? Math.round((malePresent / maleTotal) * 100) : 0;
 
     // Female rates
-    const femaleTotal = parseInt(stats.female_total) || 0;
-    const femalePresent = parseInt(stats.female_present) || 0;
+    const femaleTotal = parseInt(stats.female_total, 10) || 0;
+    const femalePresent = parseInt(stats.female_present, 10) || 0;
     const femaleAttendanceRate = femaleTotal > 0 ? Math.round((femalePresent / femaleTotal) * 100) : 0;
 
     // Device stats
     const deviceStatsData = Array.isArray(deviceStats) ? deviceStats[0] : {};
-    const totalDevices = parseInt(deviceStatsData.total_devices) || 0;
-    const activeDevices = parseInt(deviceStatsData.active_devices) || 0;
-    const todayRecords = parseInt(deviceStatsData.today_records) || 0;
+    const totalDevices = parseInt(deviceStatsData.total_devices, 10) || 0;
+    const activeDevices = parseInt(deviceStatsData.active_devices, 10) || 0;
+    const todayRecords = parseInt(deviceStatsData.today_records, 10) || 0;
 
     return NextResponse.json({
       success: true,
@@ -215,23 +215,23 @@ export async function GET(req: NextRequest) {
         gender_breakdown: {
           male: {
             total: maleTotal,
-            present: parseInt(stats.male_present) || 0,
-            absent: parseInt(stats.male_absent) || 0,
-            late: parseInt(stats.male_late) || 0,
+            present: parseInt(stats.male_present, 10) || 0,
+            absent: parseInt(stats.male_absent, 10) || 0,
+            late: parseInt(stats.male_late, 10) || 0,
             attendance_rate: maleAttendanceRate
           },
           female: {
             total: femaleTotal,
-            present: parseInt(stats.female_present) || 0,
-            absent: parseInt(stats.female_absent) || 0,
-            late: parseInt(stats.female_late) || 0,
+            present: parseInt(stats.female_present, 10) || 0,
+            absent: parseInt(stats.female_absent, 10) || 0,
+            late: parseInt(stats.female_late, 10) || 0,
             attendance_rate: femaleAttendanceRate
           }
         },
         method_breakdown: {
-          biometric: parseInt(stats.biometric_marked) || 0,
-          manual: parseInt(stats.manual_marked) || 0,
-          hybrid: parseInt(stats.hybrid_marked) || 0
+          biometric: parseInt(stats.biometric_marked, 10) || 0,
+          manual: parseInt(stats.manual_marked, 10) || 0,
+          hybrid: parseInt(stats.hybrid_marked, 10) || 0
         },
         device_stats: {
           total_devices: totalDevices,

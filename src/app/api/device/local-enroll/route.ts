@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   const schoolId = session.schoolId;
-  const port = Math.max(1, Math.min(65535, parseInt(String(device_port), 10) || 4370));
+  const port = Math.max(1, Math.min(65535, parseInt(String(device_port, 10), 10) || 4370));
 
   // ── 1. Resolve student name ─────────────────────────────────────────────────
   let studentName = 'Student';
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     // CMD_STARTENROLL payload: uid (2 bytes LE) + finger_index (1 byte)
     const payload = Buffer.alloc(3);
     payload.writeUInt16LE(uid, 0);
-    payload.writeUInt8(Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), 2);
+    payload.writeUInt8(Math.max(0, Math.min(9, parseInt(String(finger, 10), 10) || 0)), 2);
 
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
     await zk.zklibTcp.enableDevice();

@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       // Fetch detailed information for each duplicate group
       const detailedDuplicates = await Promise.all(
         duplicateGroups.map(async (group: any) => {
-          const ids = group.student_ids.split(',').map((id: string) => parseInt(id));
+          const ids = group.student_ids.split(',').map((id: string) => parseInt(id, 10));
           
           const [students]: any = await connection.execute(`
             SELECT 

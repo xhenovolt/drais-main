@@ -11,7 +11,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSessionSchoolId(req);
@@ -23,7 +23,8 @@ export async function PUT(
     }
     const tenant = { schoolId: session.schoolId };
 
-    const mappingId = parseInt(params.id);
+    const { id } = await params;
+    const mappingId = parseInt(id, 10);
     const body = await req.json();
 
     if (isNaN(mappingId)) {
@@ -105,7 +106,7 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSessionSchoolId(req);
@@ -117,7 +118,8 @@ export async function DELETE(
     }
     const tenant = { schoolId: session.schoolId };
 
-    const mappingId = parseInt(params.id);
+    const { id } = await params;
+    const mappingId = parseInt(id, 10);
 
     if (isNaN(mappingId)) {
       return NextResponse.json(

@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = req.nextUrl;
-  const page    = Math.max(1, parseInt(searchParams.get("page")  ?? "1", 10));
-  const rawLimit = parseInt(searchParams.get("limit") ?? String(DEFAULT_LIMIT), 10);
+  const page    = Math.max(1, parseInt(searchParams.get("page", 10)  ?? "1", 10));
+  const rawLimit = parseInt(searchParams.get("limit", 10) ?? String(DEFAULT_LIMIT), 10);
   const limit   = Math.min(isNaN(rawLimit) ? DEFAULT_LIMIT : rawLimit, MAX_LIMIT);
   const offset  = (page - 1) * limit;
   const section = searchParams.get("section") ?? "all";

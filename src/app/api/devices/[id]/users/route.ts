@@ -20,7 +20,7 @@ import { getSessionSchoolId } from '@/lib/auth';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const connection = await getConnection();
   try {
@@ -31,7 +31,7 @@ export async function GET(
     }
     
     const schoolId = session.schoolId;
-    const deviceId = params.id;
+    const { id: deviceId } = await params;
     
     // Verify device belongs to school
     const [devices] = await connection.execute<any[]>(
@@ -108,7 +108,7 @@ export async function GET(
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const connection = await getConnection();
   try {
@@ -119,7 +119,7 @@ export async function POST(
     }
     
     const schoolId = session.schoolId;
-    const deviceId = params.id;
+    const { id: deviceId } = await params;
     const body = await req.json();
     
     // Validate required fields
@@ -214,7 +214,7 @@ export async function POST(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const connection = await getConnection();
   try {
@@ -225,7 +225,7 @@ export async function DELETE(
     }
     
     const schoolId = session.schoolId;
-    const deviceId = params.id;
+    const { id: deviceId } = await params;
     const { searchParams } = new URL(req.url);
     const mappingId = searchParams.get('mapping_id');
     

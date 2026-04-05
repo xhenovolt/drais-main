@@ -59,12 +59,12 @@ export async function GET(req: NextRequest) {
 
       if (deviceId) {
         query += ` AND dum.device_id = ?`;
-        params.push(parseInt(deviceId));
+        params.push(parseInt(deviceId, 10));
       }
 
       if (studentId) {
         query += ` AND dum.student_id = ?`;
-        params.push(parseInt(studentId));
+        params.push(parseInt(studentId, 10));
       }
 
       if (status) {

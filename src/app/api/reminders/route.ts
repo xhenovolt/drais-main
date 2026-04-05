@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConnection } from "@/lib/db";
+import { getSessionSchoolId } from '@/lib/auth';
 import AfricasTalking from "africastalking";
 
 const africasTalkingClient = AfricasTalking({
@@ -47,15 +48,21 @@ async function sendSMS(to: string, message: string) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  let connection;
   try {
-    const connection = await getConnection();
-    const [rows] = await connection.execute('SELECT * FROM reminders');
-    await connection.end();
-    return NextResponse.json({ data: rows });
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
+    connection = await getConnection();
+    const [rows] = await connection.execute('SELECT * FROM reminders WHERE school_id = ? ORDER BY due_date DESC', [schoolId]);
+    return NextResponse.json({ success: true, data: rows });
   } catch (error: unknown) {
     console.error('Error fetching reminders:', error);
-    return NextResponse.json({ error: 'Failed to fetch reminders. Please try again later.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to fetch reminders' }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }
 
@@ -93,9 +100,13 @@ export async function POST(req: NextRequest) {
     // Logic for creating a reminder
     try {
       const connection = await getConnection();
+      const session = await getSessionSchoolId(req);
+      if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+      const schoolId = session.schoolId;
+
       await connection.execute(
-        'INSERT INTO reminders (title, description, target_role, due_date, is_recurring, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-        [body.title, body.description || null, body.targetRole || null, body.dueDate, body.isRecurring || false, body.createdBy || null]
+        'INSERT INTO reminders (school_id, title, description, target_role, due_date, is_recurring, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [schoolId, body.title, body.description || null, body.targetRole || null, body.dueDate, body.isRecurring || false, session.userId]
       );
       const [result] = await connection.query('SELECT LAST_INSERT_ID() as id');
       await connection.end();
@@ -116,39 +127,51 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const body = await req.json();
-  if (!body.id || !body.title || !body.dueDate) {
-    return NextResponse.json({ error: 'id, title, and dueDate are required' }, { status: 400 });
-  }
-
+  let connection;
   try {
-    const connection = await getConnection();
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
+    const body = await req.json();
+    if (!body.id || !body.title || !body.dueDate) {
+      return NextResponse.json({ success: false, error: 'id, title, and dueDate are required' }, { status: 400 });
+    }
+
+    connection = await getConnection();
     await connection.execute(
-      'UPDATE reminders SET title=?, description=?, target_role=?, due_date=?, is_recurring=?, created_by=? WHERE id=?',
-      [body.title, body.description || null, body.targetRole || null, body.dueDate, body.isRecurring || false, body.createdBy || null, body.id]
+      'UPDATE reminders SET title=?, description=?, target_role=?, due_date=?, is_recurring=? WHERE id=? AND school_id=?',
+      [body.title, body.description || null, body.targetRole || null, body.dueDate, body.isRecurring || false, body.id, schoolId]
     );
-    await connection.end();
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Reminder updated' });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error updating reminder:', message);
-    return NextResponse.json({ error: 'Failed to update reminder. Please try again later.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to update reminder' }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }
 
 export async function DELETE(req: NextRequest) {
-  const body = await req.json();
-  if (!body.id) {
-    return NextResponse.json({ error: 'id is required' }, { status: 400 });
-  }
-
+  let connection;
   try {
-    const connection = await getConnection();
-    await connection.execute('DELETE FROM reminders WHERE id=?', [body.id]);
-    await connection.end();
-    return NextResponse.json({ success: true });
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
+    const body = await req.json();
+    if (!body.id) {
+      return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
+    }
+
+    connection = await getConnection();
+    await connection.execute('DELETE FROM reminders WHERE id=? AND school_id=?', [body.id, schoolId]);
+    return NextResponse.json({ success: true, message: 'Reminder deleted' });
   } catch (error: any) {
     console.error('Error deleting reminder:', error.message);
-    return NextResponse.json({ error: 'Failed to delete reminder. Please try again later.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to delete reminder' }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
   }
 }

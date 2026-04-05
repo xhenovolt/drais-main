@@ -22,7 +22,7 @@ export async function DELETE(req: NextRequest) {
   let id: number;
   try {
     const body = await req.json();
-    id = parseInt(String(body.id), 10);
+    id = parseInt(String(body.id, 10), 10);
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }

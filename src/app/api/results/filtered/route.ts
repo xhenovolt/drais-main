@@ -68,8 +68,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const ayId = parseInt(academicYearId);
-    const tId = parseInt(termId);
+    const ayId = parseInt(academicYearId, 10);
+    const tId = parseInt(termId, 10);
 
     // OPTIONAL filters
     const studentId = req.nextUrl.searchParams.get('student_id');
@@ -85,15 +85,15 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       whereClause += ' AND cr.student_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
     if (classId) {
       whereClause += ' AND cr.class_id = ?';
-      params.push(parseInt(classId));
+      params.push(parseInt(classId, 10));
     }
     if (subjectId) {
       whereClause += ' AND cr.subject_id = ?';
-      params.push(parseInt(subjectId));
+      params.push(parseInt(subjectId, 10));
     }
 
     // Get academic year and term names

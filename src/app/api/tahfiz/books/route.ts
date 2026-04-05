@@ -70,10 +70,10 @@ export async function POST(request: NextRequest) {
     // For now, returning success response
     const bookData = {
       id: Date.now(), // Replace with actual DB insert
-      schoolId: parseInt(schoolId),
+      schoolId: parseInt(schoolId, 10),
       title,
       description: description || '',
-      total_units: parseInt(totalUnits),
+      total_units: parseInt(totalUnits, 10),
       unit_type: unitType,
       cover_image: coverImagePath,
       pdf_file: pdfFilePath,
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     const books = [
       {
         id: 1,
-        schoolId: parseInt(schoolId),
+        schoolId: parseInt(schoolId, 10),
         title: 'The Holy Quran',
         description: 'Complete Quran for memorization',
         total_units: 114,

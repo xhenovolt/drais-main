@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
 
-    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50', 10);
-    const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0', 10);
+    const limit = parseInt(req.nextUrl.searchParams.get('limit', 10) || '50', 10);
+    const offset = parseInt(req.nextUrl.searchParams.get('offset', 10) || '0', 10);
     const status = req.nextUrl.searchParams.get('status'); // Filter: 'success', 'failed', 'timeout', etc.
 
     if (!schoolId) {

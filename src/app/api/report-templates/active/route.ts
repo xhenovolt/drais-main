@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
       let templateId: number | null = null;
       if ((settingRows as any[]).length > 0) {
-        templateId = parseInt((settingRows as any[])[0].value_text, 10) || null;
+        templateId = parseInt((settingRows as any[], 10)[0].value_text, 10) || null;
       }
 
       if (templateId) {

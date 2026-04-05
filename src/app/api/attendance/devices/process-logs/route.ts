@@ -172,7 +172,7 @@ async function matchByCardNo(
        WHERE s.school_id = ? 
        AND (s.student_id_number = ? OR s.id = ?)
        LIMIT 1`,
-      [schoolId, cardNo, parseInt(cardNo) || 0]
+      [schoolId, cardNo, parseInt(cardNo, 10) || 0]
     );
 
     if ((students as any[]).length > 0) {
@@ -185,7 +185,7 @@ async function matchByCardNo(
        WHERE t.school_id = ? 
        AND (t.teacher_id_number = ? OR t.id = ?)
        LIMIT 1`,
-      [schoolId, cardNo, parseInt(cardNo) || 0]
+      [schoolId, cardNo, parseInt(cardNo, 10) || 0]
     );
 
     if ((teachers as any[]).length > 0) {

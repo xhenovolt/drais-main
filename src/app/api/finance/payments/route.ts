@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     const termId = searchParams.get('term_id');
     const status = searchParams.get('status');
     const walletId = searchParams.get('wallet_id');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const limit = parseInt(searchParams.get('limit', 10) || '50');
+    const offset = parseInt(searchParams.get('offset', 10) || '0');
 
     connection = await getConnection();
 
@@ -69,12 +69,12 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       sql += ' AND fp.student_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
 
     if (termId) {
       sql += ' AND fp.term_id = ?';
-      params.push(parseInt(termId));
+      params.push(parseInt(termId, 10));
     }
 
     if (status) {
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
 
     if (walletId) {
       sql += ' AND fp.wallet_id = ?';
-      params.push(parseInt(walletId));
+      params.push(parseInt(walletId, 10));
     }
 
     const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
@@ -104,19 +104,19 @@ export async function GET(req: NextRequest) {
     const countParams = [schoolId];
     if (studentId) {
       countSql += ' AND fp.student_id = ?';
-      countParams.push(parseInt(studentId));
+      countParams.push(parseInt(studentId, 10));
     }
     if (termId) {
       countSql += ' AND fp.term_id = ?';
-      countParams.push(parseInt(termId));
+      countParams.push(parseInt(termId, 10));
     }
     if (status) {
-      countSql += ' AND fp.status = ?';
+      countSql += ' AND fp.payment_status = ?';
       countParams.push(status);
     }
     if (walletId) {
       countSql += ' AND fp.wallet_id = ?';
-      countParams.push(parseInt(walletId));
+      countParams.push(parseInt(walletId, 10));
     }
 
     const [countResult] = await connection.execute(countSql, countParams);

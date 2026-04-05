@@ -51,12 +51,12 @@ export async function GET(request: NextRequest) {
 
     if (classId) {
       studentsSql += ' AND c.id = ?';
-      studentsParams.push(parseInt(classId));
+      studentsParams.push(parseInt(classId, 10));
     }
 
     if (sectionId) {
       studentsSql += ' AND st.id = ?';
-      studentsParams.push(parseInt(sectionId));
+      studentsParams.push(parseInt(sectionId, 10));
     }
 
     if (search) {
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     if (termId) {
       feeItemsSql += ' AND fi.term_id = ?';
-      feeItemsParams.push(parseInt(termId));
+      feeItemsParams.push(parseInt(termId, 10));
     }
 
     const [feeItems] = await connection.execute(feeItemsSql, feeItemsParams);
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     if (termId) {
       feeStructureSql += ' AND fs.term_id = ?';
-      feeStructureParams.push(parseInt(termId));
+      feeStructureParams.push(parseInt(termId, 10));
     }
 
     if (year) {

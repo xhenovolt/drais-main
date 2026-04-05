@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     const studentId = searchParams.get('student_id');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = parseInt(searchParams.get('page', 10) || '1');
+    const limit = parseInt(searchParams.get('limit', 10) || '50');
 
     if (!schoolId) {
       return NextResponse.json({

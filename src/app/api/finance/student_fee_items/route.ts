@@ -14,8 +14,8 @@ export async function GET(req: NextRequest){
   const student_id = searchParams.get('student_id');
   const term_id = searchParams.get('term_id');
   const class_id = searchParams.get('class_id');
-  const page = parseInt(searchParams.get('page')||'1');
-  const per_page = parseInt(searchParams.get('per_page')||'50');
+  const page = parseInt(searchParams.get('page', 10)||'1');
+  const per_page = parseInt(searchParams.get('per_page', 10)||'50');
   const unbalanced = searchParams.get('unbalanced');
   const offset=(page-1)*per_page;
   

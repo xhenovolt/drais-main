@@ -12,7 +12,7 @@ export async function POST(
   let connection;
   try {
     const resolvedParams = await params;
-    const studentId = parseInt(resolvedParams.id);
+    const studentId = parseInt(resolvedParams.id, 10);
     if (isNaN(studentId)) {
       return NextResponse.json({ error: 'Invalid student ID' }, { status: 400 });
     }

@@ -26,12 +26,13 @@ async function fetchRole(roleId: number, schoolId: number) {
   return rows.length ? (rows as any[])[0] : null;
 }
 
-export const GET = withErrorHandling(async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export const GET = withErrorHandling(async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'roles.read', session.isSuperAdmin);
 
-  const roleId = Number(params.id);
+  const { id } = await params;
+  const roleId = Number(id);
   const role   = await fetchRole(roleId, session.schoolId);
   if (!role) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
 
@@ -62,12 +63,13 @@ export const GET = withErrorHandling(async function GET(req: NextRequest, { para
   return NextResponse.json({ success: true, data: { ...role, permissions, staff } });
 });
 
-export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'roles.manage', session.isSuperAdmin);
 
-  const roleId = Number(params.id);
+  const { id } = await params;
+  const roleId = Number(id);
   const role   = await fetchRole(roleId, session.schoolId);
   if (!role) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
 
@@ -93,12 +95,13 @@ export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { 
   return NextResponse.json({ success: true });
 });
 
-export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'roles.manage', session.isSuperAdmin);
 
-  const roleId = Number(params.id);
+  const { id } = await params;
+  const roleId = Number(id);
   const role   = await fetchRole(roleId, session.schoolId);
   if (!role) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
   if (role.is_system_role) return NextResponse.json({ error: 'System roles cannot be deleted' }, { status: 403 });
@@ -118,11 +121,12 @@ export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, 
   return NextResponse.json({ success: true });
 });
 
-export const POST = withErrorHandling(async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export const POST = withErrorHandling(async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const roleId = Number(params.id);
+  const { id } = await params;
+  const roleId = Number(id);
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action');
   const ip = getIp(req);

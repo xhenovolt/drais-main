@@ -15,10 +15,10 @@ import { query } from '@/lib/db';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const schoolId = parseInt(searchParams.get('school_id') || '1', 10) || 1;
-    const rawLimit = parseInt(searchParams.get('limit') || '50', 10);
+    const schoolId = parseInt(searchParams.get('school_id', 10) || '1', 10) || 1;
+    const rawLimit = parseInt(searchParams.get('limit', 10) || '50', 10);
     const limit = Math.min(Math.max(rawLimit, 1), 200);
-    const sinceId = parseInt(searchParams.get('since_id') || '0', 10) || 0;
+    const sinceId = parseInt(searchParams.get('since_id', 10) || '0', 10) || 0;
 
     // ── Fetch latest punches with resolved identities ──────────────────────
     const sinceClause = sinceId > 0 ? 'AND al.id > ?' : '';

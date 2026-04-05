@@ -8,17 +8,18 @@ import { getSessionSchoolId } from '@/lib/auth';
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
+  const { sessionId: sessionIdParam } = await params;
   const conn = await getConnection();
   try {
     const userId = session.userId || 0;
-    const sessionId = parseInt(params.sessionId, 10);
+    const sessionId = parseInt(sessionIdParam, 10);
 
     // Verify session belongs to current user and school
     const [existing]: any = await conn.execute(

@@ -52,23 +52,25 @@ const STAFF_SELECT = `
            d.name, u.id, u.username, u.status, u.last_login
 `;
 
-export const GET = withErrorHandling(async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export const GET = withErrorHandling(async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'staff.read', session.isSuperAdmin);
 
-  const staffId = Number(params.id);
+  const { id } = await params;
+  const staffId = Number(id);
   const rows = await query(STAFF_SELECT, [staffId, session.schoolId]);
   if (!rows.length) return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
 
   return NextResponse.json({ staff: rows[0] });
 });
 
-export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const staffId = Number(params.id);
+  const { id } = await params;
+  const staffId = Number(id);
   const ip = getIp(req);
 
   // Fetch existing record (school-scoped)
@@ -144,12 +146,13 @@ export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { 
   return NextResponse.json({ success: true });
 });
 
-export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'staff.delete', session.isSuperAdmin);
 
-  const staffId = Number(params.id);
+  const { id } = await params;
+  const staffId = Number(id);
   const ip = getIp(req);
 
   const existing = await query(

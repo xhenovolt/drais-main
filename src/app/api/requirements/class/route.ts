@@ -42,12 +42,12 @@ export async function GET(req: NextRequest) {
 
     if (classId) {
       sql += ' AND cr.class_id = ?';
-      params.push(parseInt(classId));
+      params.push(parseInt(classId, 10));
     }
 
     if (termId) {
       sql += ' AND cr.term_id = ?';
-      params.push(parseInt(termId));
+      params.push(parseInt(termId, 10));
     }
 
     sql += ' ORDER BY c.name, t.name, cr.requirement_item';

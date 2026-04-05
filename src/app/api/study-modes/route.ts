@@ -108,7 +108,7 @@ export async function PATCH(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const body = await req.json();
-    const id = body.id ? parseInt(body.id) : null;
+    const id = body.id ? parseInt(body.id, 10) : null;
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
     const updates: string[] = [];

@@ -17,7 +17,7 @@ import { getSessionSchoolId } from '@/lib/auth';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const conn = await getConnection();
   try {
@@ -27,7 +27,7 @@ export async function GET(
     }
     const schoolId = session.schoolId;
 
-    const studentId = params.id;
+    const { id: studentId } = await params;
     if (!studentId || !/^\d+$/.test(studentId)) {
       return NextResponse.json({ error: 'Invalid student id' }, { status: 400 });
     }

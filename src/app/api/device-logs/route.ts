@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
     // schoolId from session auth (above)
-    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '100', 10);
-    const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0', 10);
+    const limit = parseInt(req.nextUrl.searchParams.get('limit', 10) || '100', 10);
+    const offset = parseInt(req.nextUrl.searchParams.get('offset', 10) || '0', 10);
     const accessResult = req.nextUrl.searchParams.get('accessResult'); // Filter: 'granted' or 'denied'
 
     if (!schoolId) {

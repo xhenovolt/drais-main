@@ -51,8 +51,8 @@ export async function GET(req: NextRequest) {
   const conn = await getConnection();
   try {
     const schoolId = session.schoolId;
-    const threshold = Math.min(100, Math.max(0, parseInt(req.nextUrl.searchParams.get('threshold') || '80')));
-    const limit = Math.min(500, parseInt(req.nextUrl.searchParams.get('limit') || '100'));
+    const threshold = Math.min(100, Math.max(0, parseInt(req.nextUrl.searchParams.get('threshold', 10) || '80')));
+    const limit = Math.min(500, parseInt(req.nextUrl.searchParams.get('limit', 10) || '100'));
 
     // Fetch all non-deleted students for this school
     const [students]: any = await conn.execute(`

@@ -13,30 +13,32 @@ function getIp(r: NextRequest) {
   return r.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null;
 }
 
-export const GET = withErrorHandling(async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export const GET = withErrorHandling(async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'departments.read', session.isSuperAdmin);
 
+  const { id } = await params;
   const rows = await query(
     `SELECT d.*, CONCAT(p.first_name,' ',p.last_name) AS head_name
      FROM departments d
      LEFT JOIN staff h ON d.head_staff_id = h.id
      LEFT JOIN people p ON h.person_id = p.id
      WHERE d.id = ? AND d.school_id = ? AND d.deleted_at IS NULL LIMIT 1`,
-    [Number(params.id), session.schoolId],
+    [Number(id), session.schoolId],
   );
   if (!rows.length) return NextResponse.json({ error: 'Department not found' }, { status: 404 });
 
   return NextResponse.json({ success: true, data: rows[0] });
 });
 
-export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'departments.manage', session.isSuperAdmin);
 
-  const id   = Number(params.id);
+  const { id: rawId } = await params;
+  const id   = Number(rawId);
   const body = await req.json();
 
   const existing = await query(
@@ -70,12 +72,13 @@ export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { 
   return NextResponse.json({ success: true });
 });
 
-export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'departments.manage', session.isSuperAdmin);
 
-  const id = Number(params.id);
+  const { id: rawId } = await params;
+  const id = Number(rawId);
 
   const existing = await query(
     `SELECT id FROM departments WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,

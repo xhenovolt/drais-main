@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = parseInt(searchParams.get('page', 10) || '1');
+    const limit = parseInt(searchParams.get('limit', 10) || '50');
     const offset = Math.max(0, (page - 1) * limit);
 
     connection = await getConnection();

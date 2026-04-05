@@ -29,8 +29,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { schoolId } = session;
 
   const url = new URL(req.url);
-  const limit     = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
-  const page      = Math.max(1,               parseInt(url.searchParams.get('page')  || '1',  10));
+  const limit     = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit', 10) || '50', 10)));
+  const page      = Math.max(1,               parseInt(url.searchParams.get('page', 10)  || '1',  10));
   const offset    = (page - 1) * limit;
   const deviceSn  = url.searchParams.get('device_sn')  || null;
   const eventType = url.searchParams.get('event_type') || null;

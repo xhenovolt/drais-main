@@ -53,17 +53,17 @@ export async function GET(req: NextRequest) {
 
     if (classId) {
       sql += ' AND c.id = ?';
-      params.push(parseInt(classId));
+      params.push(parseInt(classId, 10));
     }
 
     if (termId) {
       sql += ' AND sfi.term_id = ?';
-      params.push(parseInt(termId));
+      params.push(parseInt(termId, 10));
     }
 
     if (studentId) {
       sql += ' AND sfi.student_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
 
     sql += ' ORDER BY sfi.created_at DESC';

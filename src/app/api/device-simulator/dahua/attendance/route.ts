@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
-    const count = parseInt(searchParams.get('count') || '5', 10);
+    const count = parseInt(searchParams.get('count', 10) || '5', 10);
     
     // Validate action (real Dahua device requires this)
     if (action !== 'getRecords') {

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
-    const days = parseInt(searchParams.get('days') || '30');
+    const days = parseInt(searchParams.get('days', 10) || '30');
     
     const connection = await getConnection();
     

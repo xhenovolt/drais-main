@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
   const userType = url.searchParams.get('user_type'); // 'student' | 'staff'
   const deviceSn = url.searchParams.get('device_sn');
   const search = url.searchParams.get('search');
-  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+  const page = Math.max(1, parseInt(url.searchParams.get('page', 10) || '1', 10));
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit', 10) || '50', 10)));
   const offset = (page - 1) * limit;
 
   try {

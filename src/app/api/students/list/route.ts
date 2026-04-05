@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
       view,
       total,
       returned: rows.length,
-      schools_id: schoolId,
+      school_id: schoolId,
       data: rows
     });
   } catch (error: any) {

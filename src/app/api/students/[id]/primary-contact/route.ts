@@ -10,7 +10,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let connection;
 
@@ -19,7 +19,8 @@ export async function POST(
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
 
-    const studentId = parseInt(params.id);
+    const { id } = await params;
+    const studentId = parseInt(id, 10);
 
     if (isNaN(studentId)) {
       return NextResponse.json({

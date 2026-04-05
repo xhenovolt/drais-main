@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const schoolId = session.schoolId;
 
     const resolvedParams = await params;
-    const paymentId = parseInt(resolvedParams.id);
+    const paymentId = parseInt(resolvedParams.id, 10);
 
     connection = await getConnection();
 

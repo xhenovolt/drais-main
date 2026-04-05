@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
   // ── QUICK-CREATE STREAM ─────────────────────────────────────────────────
   if (mode === 'create-stream') {
     const name = (formData.get('name') as string || '').trim();
-    const classId = parseInt(formData.get('class_id') as string || '0', 10);
+    const classId = parseInt(formData.get('class_id', 10) as string || '0', 10);
     if (!name || !classId) return NextResponse.json({ success: false, error: 'Stream name and class_id required' }, { status: 400 });
     let conn: any;
     try {

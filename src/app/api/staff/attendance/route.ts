@@ -53,12 +53,12 @@ export async function GET(req: NextRequest) {
 
     if (departmentId) {
       sql += ' AND d.id = ?';
-      params.push(parseInt(departmentId));
+      params.push(parseInt(departmentId, 10));
     }
 
     if (staffId) {
       sql += ' AND sa.staff_id = ?';
-      params.push(parseInt(staffId));
+      params.push(parseInt(staffId, 10));
     }
 
     if (date) {

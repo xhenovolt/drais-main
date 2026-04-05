@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const { searchParams } = new URL(req.url);
     const useMock = searchParams.get('mock') === 'true';
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
+    const limit = parseInt(searchParams.get('limit', 10) || '100', 10);
     const dateFilter = searchParams.get('date');
 
     connection = await getConnection();

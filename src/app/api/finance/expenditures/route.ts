@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
     const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = parseInt(searchParams.get('page', 10) || '1');
+    const limit = parseInt(searchParams.get('limit', 10) || '50');
     
     connection = await getConnection();
     
@@ -57,12 +57,12 @@ export async function GET(req: NextRequest) {
     
     if (categoryId) {
       sql += ' AND e.category_id = ?';
-      params.push(parseInt(categoryId));
+      params.push(parseInt(categoryId, 10));
     }
     
     if (walletId) {
       sql += ' AND e.wallet_id = ?';
-      params.push(parseInt(walletId));
+      params.push(parseInt(walletId, 10));
     }
     
     if (status) {
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
     `;
     const countParams = [schoolId];
     
-    if (categoryId) countParams.push(parseInt(categoryId));
+    if (categoryId) countParams.push(parseInt(categoryId, 10));
     if (status) countParams.push(status as string);
     
     const [countResult] = await connection.execute(countSql, countParams as any);
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
     // Insert expenditure
     const [result] = await connection.execute(`
       INSERT INTO expenditures (
-        schoolId, category_id, wallet_id, amount, description,
+        school_id, category_id, wallet_id, amount, description,
         vendor_name, vendor_contact, invoice_number, expense_date,
         status, created_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

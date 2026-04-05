@@ -10,8 +10,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   const { q = '', page = '1', size = '20', class_id = '' } = req.query;
-  const pageNum = Math.max(1, parseInt(page as string));
-  const pageSize = Math.max(1, Math.min(100, parseInt(size as string)));
+  const pageNum = Math.max(1, parseInt(page as string, 10));
+  const pageSize = Math.max(1, Math.min(100, parseInt(size as string, 10)));
   const offset = (pageNum - 1) * pageSize;
   let where = 'WHERE s.deleted_at IS NULL';
   let params: any[] = [];

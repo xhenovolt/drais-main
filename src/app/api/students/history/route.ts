@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       sql += ' AND cr.student_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
 
     sql += ' ORDER BY COALESCE(p.last_name, \'\') ASC, COALESCE(p.first_name, \'\') ASC, t.name DESC, sub.name';
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       historySQL += ' AND sh.student_id = ?';
-      historyParams.push(parseInt(studentId));
+      historyParams.push(parseInt(studentId, 10));
     }
 
     const [historyRows] = await connection.execute(historySQL, historyParams);
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       enrollmentSQL += ' AND e.student_id = ?';
-      enrollParams.push(parseInt(studentId));
+      enrollParams.push(parseInt(studentId, 10));
     }
 
     enrollmentSQL += ' ORDER BY ay.start_date DESC, e.id DESC';

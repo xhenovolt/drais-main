@@ -105,10 +105,14 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     if (!body.id) return NextResponse.json({ success: false, message: 'Class ID is required' }, { status: 400 });
     connection = await getConnection();
-    await connection.execute('DELETE FROM classes WHERE id=?', [body.id]);
+    await connection.execute('DELETE FROM classes WHERE id=? AND school_id=?', [body.id, schoolId]);
     return NextResponse.json({ success: true, message: 'Class deleted' });
   } catch (error: any) {
     console.error('Classes DELETE error:', error);

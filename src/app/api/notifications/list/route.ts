@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const userId = session.userId; // From authenticated session
     const cursor = searchParams.get('cursor') || undefined;
-    const limit = parseInt(searchParams.get('limit') || '25');
+    const limit = parseInt(searchParams.get('limit', 10) || '25');
     const filter = searchParams.get('filter') as 'unread' | 'archived' | 'all' || 'all';
     // schoolId from session auth (above)
 

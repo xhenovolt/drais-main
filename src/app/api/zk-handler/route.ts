@@ -844,7 +844,7 @@ export async function POST(req: NextRequest) {
       try {
         const params = new URLSearchParams(rawBody.replace(/\n$/, ''));
         const cmdId = params.get('ID');
-        const returnCode = parseInt(params.get('Return') || '', 10);
+        const returnCode = parseInt(params.get('Return', 10) || '', 10);
 
         if (cmdId) {
           const newStatus = returnCode === 0 ? 'acknowledged' : 'failed';

@@ -8,8 +8,8 @@ export async function GET(req: NextRequest){
   const { searchParams } = new URL(req.url);
   const wallet_id = searchParams.get('wallet_id');
   const student_id = searchParams.get('student_id');
-  const page = parseInt(searchParams.get('page')||'1');
-  const per_page = parseInt(searchParams.get('per_page')||'25');
+  const page = parseInt(searchParams.get('page', 10)||'1');
+  const per_page = parseInt(searchParams.get('per_page', 10)||'25');
   const offset = (page-1)*per_page;
   const where: string[] = [];
   const params: any[] = [];

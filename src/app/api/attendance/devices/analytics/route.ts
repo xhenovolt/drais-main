@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
     const deviceId = searchParams.get('device_id');
-    const days = parseInt(searchParams.get('days') || '7');
+    const days = parseInt(searchParams.get('days', 10) || '7');
 
     connection = await getConnection();
 

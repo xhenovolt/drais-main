@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const start = lines[0].toLowerCase().startsWith('student') ? 1 : 0; // skip header
     for (const line of lines.slice(start)) {
       const parts = line.split(',').map(s => s.trim());
-      const sid = parseInt(parts[0]);
+      const sid = parseInt(parts[0], 10);
       const bal = parseFloat(parts[1]);
       if (!sid || isNaN(bal)) continue;
       rows.push({ student_id: sid, balance: bal, reference: parts[2] || 'Opening Balance' });
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   // ── Accept JSON array ──────────────────────────────────────────────────
   if (Array.isArray(body.rows)) {
     for (const r of body.rows) {
-      const sid = parseInt(r.student_id);
+      const sid = parseInt(r.student_id, 10);
       const bal = parseFloat(r.balance);
       if (!sid || isNaN(bal)) continue;
       rows.push({ student_id: sid, balance: bal, reference: r.reference || 'Opening Balance' });

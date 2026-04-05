@@ -49,12 +49,12 @@ export async function GET(req: NextRequest) {
 
     if (termId) {
       sql += ' AND sr.term_id = ?';
-      params.push(parseInt(termId));
+      params.push(parseInt(termId, 10));
     }
 
     if (studentId) {
       sql += ' AND sr.student_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
 
     sql += ' ORDER BY COALESCE(p.last_name, \'\') ASC, COALESCE(p.first_name, \'\') ASC, t.name';

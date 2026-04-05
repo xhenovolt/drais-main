@@ -188,7 +188,7 @@ function getNextClass(currentClass: string): string {
   // Handle various naming conventions
   const classMatch = currentClass.match(/(\d+)/);
   if (classMatch) {
-    const level = parseInt(classMatch[1]);
+    const level = parseInt(classMatch[1], 10);
     if (level === 7) return 'S.1 (Secondary)';
     if (level < 7) return currentClass.replace(String(level), String(level + 1));
   }
@@ -196,7 +196,7 @@ function getNextClass(currentClass: string): string {
   // Handle P1-P7 explicitly
   const primaryMatch = currentClass.match(/P(\d)/i);
   if (primaryMatch) {
-    const level = parseInt(primaryMatch[1]);
+    const level = parseInt(primaryMatch[1], 10);
     if (level === 7) return 'S.1';
     return `P${level + 1}`;
   }

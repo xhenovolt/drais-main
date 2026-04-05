@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
   const deviceSn = url.searchParams.get('device_sn');
   const status = url.searchParams.get('status'); // linked | unlinked
   const search = url.searchParams.get('search');
-  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
-  const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '100', 10)));
+  const page = Math.max(1, parseInt(url.searchParams.get('page', 10) || '1', 10));
+  const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit', 10) || '100', 10)));
   const offset = (page - 1) * limit;
 
   try {

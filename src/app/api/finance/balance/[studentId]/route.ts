@@ -13,7 +13,7 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const { studentId } = await params;
-  const id = parseInt(studentId);
+  const id = parseInt(studentId, 10);
   if (!id) return NextResponse.json({ error: 'Invalid student ID' }, { status: 400 });
 
   const balance = await getStudentBalance(id, session.schoolId);

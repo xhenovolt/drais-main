@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
     if (branchId) {
       sql += ' AND w.branch_id = ?';
-      params.push(parseInt(branchId));
+      params.push(parseInt(branchId, 10));
     }
 
     sql += ' GROUP BY w.id ORDER BY w.is_active DESC, w.current_balance DESC';

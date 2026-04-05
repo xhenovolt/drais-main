@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       sql += ' AND d.owner_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
 
     sql += ' ORDER BY COALESCE(p.last_name, \'\') ASC, COALESCE(p.first_name, \'\') ASC, d.uploaded_at DESC';
@@ -86,8 +86,8 @@ export async function POST(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const formData = await req.formData();
-    const studentId = parseInt(formData.get('student_id') as string);
-    const documentTypeId = parseInt(formData.get('document_type_id') as string);
+    const studentId = parseInt(formData.get('student_id', 10) as string);
+    const documentTypeId = parseInt(formData.get('document_type_id', 10) as string);
     const issuedBy = formData.get('issued_by') as string;
     const issueDate = formData.get('issue_date') as string;
     const notes = formData.get('notes') as string;

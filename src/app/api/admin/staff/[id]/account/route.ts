@@ -16,12 +16,13 @@ function getIp(req: NextRequest) {
 }
 
 // POST — create new user account for a staff member
-export const POST = withErrorHandling(async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export const POST = withErrorHandling(async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'staff.account.manage', session.isSuperAdmin);
 
-  const staffId = Number(params.id);
+  const { id } = await params;
+  const staffId = Number(id);
   const ip = getIp(req);
 
   // Verify staff exists in this school
@@ -95,12 +96,13 @@ export const POST = withErrorHandling(async function POST(req: NextRequest, { pa
 });
 
 // PATCH — enable, disable, or reset password
-export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'staff.account.manage', session.isSuperAdmin);
 
-  const staffId = Number(params.id);
+  const { id } = await params;
+  const staffId = Number(id);
   const ip = getIp(req);
 
   const userRows = await query(

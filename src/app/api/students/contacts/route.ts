@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     if (studentId) {
       sql += ' AND sc.student_id = ?';
-      params.push(parseInt(studentId));
+      params.push(parseInt(studentId, 10));
     }
 
     sql += ' ORDER BY COALESCE(sp.last_name, \'\') ASC, COALESCE(sp.first_name, \'\') ASC, sc.is_primary DESC';

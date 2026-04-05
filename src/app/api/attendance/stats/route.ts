@@ -43,21 +43,21 @@ export async function GET(req: NextRequest) {
     const stats = Array.isArray(result) ? result[0] : result;
 
     // Calculate percentage
-    const total = parseInt(stats.total) || 0;
-    const present = parseInt(stats.present) || 0;
+    const total = parseInt(stats.total, 10) || 0;
+    const present = parseInt(stats.present, 10) || 0;
     const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
     return NextResponse.json({
       success: true,
       data: {
         present: present,
-        absent: parseInt(stats.absent) || 0,
-        late: parseInt(stats.late) || 0,
-        not_marked: parseInt(stats.not_marked) || 0,
+        absent: parseInt(stats.absent, 10) || 0,
+        late: parseInt(stats.late, 10) || 0,
+        not_marked: parseInt(stats.not_marked, 10) || 0,
         total: total,
         percentage: percentage,
-        biometric_count: parseInt(stats.biometric_count) || 0,
-        manual_count: parseInt(stats.manual_count) || 0
+        biometric_count: parseInt(stats.biometric_count, 10) || 0,
+        manual_count: parseInt(stats.manual_count, 10) || 0
       }
     });
 

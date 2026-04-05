@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get('end_date');
     const search = searchParams.get('search');
     const processed = searchParams.get('processed') || 'all';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = parseInt(searchParams.get('page', 10) || '1');
+    const limit = parseInt(searchParams.get('limit', 10) || '50');
     const offset = (page - 1) * limit;
 
     connection = await getConnection();

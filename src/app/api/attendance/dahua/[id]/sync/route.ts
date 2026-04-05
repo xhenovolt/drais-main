@@ -321,7 +321,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = parseInt(searchParams.get('limit', 10) || '20', 10);
 
     connection = await getConnection();
 

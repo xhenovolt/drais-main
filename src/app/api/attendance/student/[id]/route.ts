@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = parseInt(searchParams.get('limit', 10) || '50', 10);
 
     // Default to last 30 days if no dates provided
     const today = new Date().toISOString().split('T')[0];
@@ -108,9 +108,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     );
 
     const stats = Array.isArray(statsResult) ? statsResult[0] : statsResult;
-    const totalRecords = parseInt(stats.total_records) || 0;
-    const present = parseInt(stats.present) || 0;
-    const daysMarked = parseInt(stats.days_marked) || 0;
+    const totalRecords = parseInt(stats.total_records, 10) || 0;
+    const present = parseInt(stats.present, 10) || 0;
+    const daysMarked = parseInt(stats.days_marked, 10) || 0;
 
     // Calculate attendance rate
     const daysInPeriod = Math.ceil(
@@ -171,10 +171,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         statistics: {
           total_records: totalRecords,
           present: present,
-          absent: parseInt(stats.absent) || 0,
-          late: parseInt(stats.late) || 0,
-          excused: parseInt(stats.excused) || 0,
-          days_present: parseInt(stats.days_present) || 0,
+          absent: parseInt(stats.absent, 10) || 0,
+          late: parseInt(stats.late, 10) || 0,
+          excused: parseInt(stats.excused, 10) || 0,
+          days_present: parseInt(stats.days_present, 10) || 0,
           days_marked: daysMarked,
           attendance_rate: attendanceRate
         },

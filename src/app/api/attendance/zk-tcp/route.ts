@@ -97,7 +97,7 @@ function isValidLanIP(ip: string): boolean {
   const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
   const match = ip.match(ipv4);
   if (!match) return false;
-  const octets = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
+  const octets = [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10), parseInt(match[4], 10)];
   if (octets.some(o => o > 255)) return false;
   // Block loopback and link-local
   if (octets[0] === 127) return false;
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const deviceSn = url.searchParams.get('device_sn');
   const directIp = url.searchParams.get('device_ip');
-  const devicePort = parseInt(url.searchParams.get('device_port') || '4370', 10);
+  const devicePort = parseInt(url.searchParams.get('device_port', 10) || '4370', 10);
   const action = url.searchParams.get('action') || 'info';
 
   // Resolve IP: prefer direct IP, fallback to SN lookup

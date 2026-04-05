@@ -31,12 +31,12 @@ export async function GET(req: NextRequest) {
 
     if (assignedTo) {
       whereConditions.push('w.assigned_to = ?');
-      queryParams.push(parseInt(assignedTo));
+      queryParams.push(parseInt(assignedTo, 10));
     }
 
     if (department) {
       whereConditions.push('w.owner_type = "department" AND w.owner_id = ?');
-      queryParams.push(parseInt(department));
+      queryParams.push(parseInt(department, 10));
     }
 
     const whereClause = whereConditions.join(' AND ');

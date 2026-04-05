@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const id = parseInt(searchParams.get('id') ?? '0');
+  const id = parseInt(searchParams.get('id', 10) ?? '0');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const body = await req.json();
@@ -117,7 +117,7 @@ export async function DELETE(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const id = parseInt(searchParams.get('id') ?? '0');
+  const id = parseInt(searchParams.get('id', 10) ?? '0');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const conn = await getConnection();

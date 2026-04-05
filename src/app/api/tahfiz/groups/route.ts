@@ -164,14 +164,14 @@ export async function DELETE(request: NextRequest) {
 
     // First delete all group members
     await connection.execute(
-      'DELETE FROM tahfiz_group_members WHERE group_id = ?',
-      [groupId]
+      'DELETE FROM tahfiz_group_members WHERE group_id = ? AND EXISTS (SELECT 1 FROM tahfiz_groups g WHERE g.id = tahfiz_group_members.group_id AND g.school_id = ?)',
+      [groupId, schoolId]
     );
 
     // Then delete the group
     const [result] = await connection.execute(
-      'DELETE FROM tahfiz_groups WHERE id = ?',
-      [groupId]
+      'DELETE FROM tahfiz_groups WHERE id = ? AND school_id = ?',
+      [groupId, schoolId]
     );
 
     if ((result as any).affectedRows === 0) {

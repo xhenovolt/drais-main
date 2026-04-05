@@ -165,7 +165,7 @@ function parseDeviceResponse(responseText: string): DeviceLog[] {
   const logs: DeviceLog[] = [];
 
   const lines = responseText.toString().split('\n');
-  const found = parseInt(lines[0]?.split('=')[1] || '0');
+  const found = parseInt(lines[0]?.split('=', 10)[1] || '0');
 
   const recordMap: { [key: string]: any } = {};
 
@@ -173,7 +173,7 @@ function parseDeviceResponse(responseText: string): DeviceLog[] {
     const match = line.match(/records\[(\d+)\]\.(\w+)=(.*)/);
     if (match) {
       const [, indexStr, field, value] = match;
-      const index = parseInt(indexStr);
+      const index = parseInt(indexStr, 10);
 
       if (!recordMap[index]) {
         recordMap[index] = { RecNo: index };
@@ -181,9 +181,9 @@ function parseDeviceResponse(responseText: string): DeviceLog[] {
 
       // Convert types
       if (field === 'CreateTime' || field === 'RecNo') {
-        recordMap[index][field] = parseInt(value);
+        recordMap[index][field] = parseInt(value, 10);
       } else if (field === 'Method' || field === 'UserID' || field === 'ReaderID' || field === 'ErrorCode') {
-        recordMap[index][field] = parseInt(value) || undefined;
+        recordMap[index][field] = parseInt(value, 10) || undefined;
       } else {
         recordMap[index][field] = value;
       }

@@ -17,7 +17,7 @@ export async function PUT(
     const body = await request.json();
     const { score, grade, remarks } = body;
     const resolvedParams = await params;
-    const resultId = parseInt(resolvedParams.id);
+    const resultId = parseInt(resolvedParams.id, 10);
 
     if (isNaN(resultId)) {
       return NextResponse.json({ error: 'Invalid result ID' }, { status: 400 });
@@ -66,7 +66,7 @@ export async function DELETE(
     const schoolId = session.schoolId;
 
     const resolvedParams = await params;
-    const resultId = parseInt(resolvedParams.id);
+    const resultId = parseInt(resolvedParams.id, 10);
     if (isNaN(resultId)) {
       return NextResponse.json({ error: 'Invalid result ID' }, { status: 400 });
     }

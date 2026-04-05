@@ -44,12 +44,12 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       message: `Payment of ${parsedAmount.toLocaleString()} recorded — Receipt ${result.receiptNo}`,
-      ...result,
+      data: result,
     }, { status: 201 });
   } catch (err: any) {
     console.error('[record-payment]', err);
-    return NextResponse.json({ error: 'Failed to record payment', detail: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to record payment', error: err.message }, { status: 500 });
   }
 }
