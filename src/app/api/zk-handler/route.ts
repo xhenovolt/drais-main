@@ -889,24 +889,63 @@ export async function POST(req: NextRequest) {
       try {
         const params = new URLSearchParams(rawBody.replace(/\n$/, ''));
         const cmdId = params.get('ID');
-        const returnCode = parseInt(params.get('Return', 10) || '', 10);
+        const returnCode = parseInt(params.get('Return') || '', 10);
 
         if (cmdId) {
-          const newStatus = returnCode === 0 ? 'acknowledged' : 'failed';
-          const errorMsg = returnCode !== 0 ? `Device returned code ${returnCode}` : null;
+          if (returnCode === 0) {
+            await query(
+              `UPDATE zk_device_commands
+               SET status = 'acknowledged', ack_at = CURRENT_TIMESTAMP,
+                   error_message = NULL, updated_at = CURRENT_TIMESTAMP
+               WHERE id = ? AND status = 'sent'`,
+              [cmdId],
+            );
+            zkLog('info', 'COMMAND_ACK', {
+              sn, commandId: cmdId, returnCode, newStatus: 'acknowledged',
+              cmd: params.get('CMD') || '',
+            });
+          } else {
+            // Non-zero return code — check whether to retry or permanently fail.
+            // markCommandSent() already incremented retry_count when the command
+            // was delivered, so retry_count reflects how many deliveries have
+            // been attempted so far.
+            const cmdRows = await query(
+              `SELECT retry_count, max_retries FROM zk_device_commands WHERE id = ?`,
+              [cmdId],
+            ).catch(() => null);
 
-          await query(
-            `UPDATE zk_device_commands
-             SET status = ?, ack_at = CURRENT_TIMESTAMP, error_message = ?,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = ? AND status = 'sent'`,
-            [newStatus, errorMsg, cmdId],
-          );
+            const retryCount = Number(cmdRows?.[0]?.retry_count ?? 0);
+            const maxRetries = Number(cmdRows?.[0]?.max_retries ?? 0);
 
-          zkLog('info', 'COMMAND_ACK', {
-            sn, commandId: cmdId, returnCode, newStatus,
-            cmd: params.get('CMD') || '',
-          });
+            if (retryCount < maxRetries) {
+              // Still have retries left — reset to pending so the device
+              // gets another chance on its next heartbeat.
+              await query(
+                `UPDATE zk_device_commands
+                 SET status = 'pending', error_message = ?,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ? AND status = 'sent'`,
+                [`Retrying (code ${returnCode}, attempt ${retryCount}/${maxRetries})`, cmdId],
+              );
+              zkLog('info', 'COMMAND_RETRY', {
+                sn, commandId: cmdId, returnCode,
+                retryCount, maxRetries, cmd: params.get('CMD') || '',
+              });
+            } else {
+              // Max retries exhausted — permanently failed.
+              await query(
+                `UPDATE zk_device_commands
+                 SET status = 'failed', ack_at = CURRENT_TIMESTAMP,
+                     error_message = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ? AND status = 'sent'`,
+                [`Device returned code ${returnCode}`, cmdId],
+              );
+              zkLog('info', 'COMMAND_FAILED', {
+                sn, commandId: cmdId, returnCode,
+                retryCount, maxRetries, cmd: params.get('CMD') || '',
+              });
+            }
+          }
         }
       } catch (err) {
         zkLog('warn', 'DEVICECMD_PARSE_ERROR', { sn, error: String(err), body: rawBody.substring(0, 200) });
