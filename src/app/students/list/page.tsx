@@ -658,14 +658,14 @@ export default function StudentsListPage() {
     }
   };
 
-  // Delete student handler
+  // Soft-delete student handler
   const handleDeleteStudent = async (studentId: number) => {
     const student = admittedStudents.find(s => s.id === studentId);
     if (!student) return;
 
     const confirmed = await confirmAction(
       'Delete Student',
-      `Are you sure you want to delete ${safeString(student.first_name)} ${safeString(student.last_name)}? This action cannot be undone.`,
+      `Remove ${safeString(student.first_name)} ${safeString(student.last_name)}? They will be soft-deleted and recoverable.`,
       'Delete'
     );
     if (!confirmed) return;
@@ -675,11 +675,32 @@ export default function StudentsListPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: studentId }),
-        successMessage: 'Student deleted successfully',
+        successMessage: 'Student removed',
       });
       fetchStudents();
     } catch (error) {
       logger.error('Delete error:', error);
+    }
+  };
+
+  // Hard (permanent) delete — only for already-soft-deleted students
+  const handlePermanentDelete = async (studentId: number, name: string) => {
+    const confirmed = await confirmAction(
+      '⚠️ Permanently Delete',
+      `This will PERMANENTLY delete ${name} and all their records. This CANNOT be undone.`,
+      'Delete Forever',
+    );
+    if (!confirmed) return;
+    try {
+      await apiFetch('/api/students/delete-permanent', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: studentId }),
+        successMessage: 'Permanently deleted',
+      });
+      fetchStudents();
+    } catch (error) {
+      logger.error('Permanent delete error:', error);
     }
   };
 
@@ -1108,18 +1129,21 @@ export default function StudentsListPage() {
                   <Fingerprint className="w-3.5 h-3.5 text-slate-400 mx-auto" />
                 </th>
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Student</th>
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Adm. No</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Reg No</th>
                 {activeTab === 'enrolled' && (
-                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">Year · Term</th>
+                  <>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">Class</th>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">Stream</th>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">Type</th>
+                  </>
                 )}
                 {activeTab === 'admitted' && (
                   <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">Admitted</th>
                 )}
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">Type</th>
-                {activeTab === 'enrolled' && showFees && (
-                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">Balance</th>
-                )}
+                <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">
+                  {activeTab === 'enrolled' ? 'Balance' : 'Gender'}
+                </th>
                 <th className="w-9 px-3 py-2.5" />
               </tr>
             </thead>
@@ -1128,7 +1152,7 @@ export default function StudentsListPage() {
                 Array.from({ length: 12 }).map((_, i) => <SkeletonRow key={i} />)
               ) : pageData.length === 0 ? (
                 <tr>
-                  <td colSpan={showFees && activeTab === 'enrolled' ? 9 : 8} className="px-4 py-20 text-center">
+                  <td colSpan={activeTab === 'enrolled' ? 8 : 7} className="px-4 py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                         <Users className="w-6 h-6 text-slate-400" />
@@ -1217,21 +1241,34 @@ export default function StudentsListPage() {
                         <NameCell student={student} />
                       </td>
 
-                      {/* Admission No */}
+                      {/* Reg No */}
                       <td className="px-3 py-2.5 text-xs font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                        {safeString(student.admission_no) || <span className="text-slate-300 dark:text-slate-600">—</span>}
+                        {safeString(student.admission_no) || <span className="text-slate-400">—</span>}
                       </td>
 
-                      {/* Year · Term (enrolled) or Admitted date */}
-                      {activeTab === 'enrolled' ? (
+                      {/* Class · Stream · Type (enrolled) */}
+                      {activeTab === 'enrolled' && (
+                        <>
+                          <td className="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap hidden sm:table-cell">
+                            {enrolled.class_name || <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap hidden md:table-cell">
+                            {enrolled.stream_name || <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">
+                            {enrolled.enrollment_type ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 capitalize">
+                                {enrolled.enrollment_type}
+                              </span>
+                            ) : null}
+                          </td>
+                        </>
+                      )}
+
+                      {/* Admitted date (admitted tab) */}
+                      {activeTab === 'admitted' && (
                         <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap hidden sm:table-cell">
-                          {enrolled.academic_year_name ? (
-                            <span>{enrolled.academic_year_name}{enrolled.term_name ? ` · ${enrolled.term_name}` : ''}</span>
-                          ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
-                        </td>
-                      ) : (
-                        <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap hidden sm:table-cell">
-                          {student.admission_date ? new Date(student.admission_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                          {student.admission_date ? new Date(student.admission_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : <span className="text-slate-400">—</span>}
                         </td>
                       )}
 
@@ -1240,58 +1277,64 @@ export default function StudentsListPage() {
                         <StatusBadge status={(student as any).status ?? (activeTab === 'enrolled' ? (enrolled.enrollment_status ?? 'active') : 'admitted')} />
                       </td>
 
-                      {/* Enrollment type */}
-                      <td className="px-3 py-2.5 hidden md:table-cell">
-                        {enrolled.enrollment_type ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 capitalize">
-                            {enrolled.enrollment_type}
-                          </span>
-                        ) : null}
-                      </td>
-
-                      {/* Fee balance (visible only when toggle is on) */}
-                      {activeTab === 'enrolled' && showFees && (
-                        <td className="px-3 py-2.5 hidden lg:table-cell text-right whitespace-nowrap">
-                          {feesLoading ? (
+                      {/* Balance (enrolled) or Gender (admitted) — always shown */}
+                      <td className="px-3 py-2.5 hidden lg:table-cell text-right whitespace-nowrap">
+                        {activeTab === 'enrolled' ? (
+                          feesLoading ? (
                             <span className="inline-block w-12 h-3 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
                           ) : (() => {
                             const bal = studentBalances.get(student.id);
-                            if (!bal) return <span className="text-[11px] text-slate-300 dark:text-slate-600">—</span>;
-                            const owing = bal.balance > 0;
-                            const clear = bal.balance <= 0;
+                            const balance = bal?.balance ?? 0;
+                            const charged = bal?.total_charged ?? 0;
+                            const paid    = bal?.total_paid ?? 0;
+                            const owing = balance > 0;
                             return (
                               <Link
                                 href={`/students/${student.id}/fees`}
-                                title={`Charged: ${bal.total_charged.toFixed(2)} · Paid: ${bal.total_paid.toFixed(2)}`}
+                                title={`Charged: ${charged.toFixed(2)} · Paid: ${paid.toFixed(2)}`}
                                 className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-80 ${
                                   owing
                                     ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-                                    : clear && bal.total_charged > 0
+                                    : charged > 0
                                     ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                                 }`}
                               >
-                                {owing ? '+' : ''}{Math.abs(bal.balance).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                {balance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                               </Link>
                             );
-                          })()}
-                        </td>
-                      )}
+                          })()
+                        ) : (
+                          <span className="text-xs text-slate-500 dark:text-slate-400 capitalize">{student.gender || '—'}</span>
+                        )}
+                      </td>
 
                       {/* Row actions */}
-                      <td className="px-3 py-2.5 w-9">
+                      <td className="px-3 py-2.5 w-16">
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {activeTab === 'enrolled' ? (
-                            <Link href={`/students/${student.id}`} title="View profile" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-slate-400 hover:text-indigo-600 transition-colors">
-                              <Eye className="w-3.5 h-3.5" />
-                            </Link>
+                            <>
+                              <Link href={`/students/${student.id}`} title="View profile" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-slate-400 hover:text-indigo-600 transition-colors">
+                                <Eye className="w-3.5 h-3.5" />
+                              </Link>
+                              <Link href={`/students/${student.id}/fees`} title="Fees ledger" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 transition-colors">
+                                <DollarSign className="w-3.5 h-3.5" />
+                              </Link>
+                            </>
                           ) : (
                             <div className="flex items-center gap-1">
                               <button onClick={() => openEnrollModal(student)} title="Enroll student" className="flex items-center justify-center w-6 h-6 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
                                 <UserPlus className="w-3.5 h-3.5" />
                               </button>
-                              <button onClick={() => handleDeleteStudent(student.id)} title="Delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
+                              <button onClick={() => handleDeleteStudent(student.id)} title="Soft delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
                                 <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handlePermanentDelete(student.id, `${student.first_name} ${student.last_name}`)}
+                                title="Permanently delete"
+                                className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50 text-red-400 hover:text-red-700 transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           )}

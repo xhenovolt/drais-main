@@ -235,7 +235,7 @@ export function getNavigationItems(
         { key: 'learners-fees',      label: 'Learner Fees',      icon: <Users className="w-4 h-4" />,        href: '/finance/learners-fees' },
         { key: 'payments',           label: 'Payments',          icon: <Receipt className="w-4 h-4" />,      href: '/finance/payments' },
         { key: 'wallets',            label: 'Wallets',           icon: <Wallet className="w-4 h-4" />,       href: '/finance/wallets' },
-        { key: 'ledger',             label: 'Ledger',            icon: <FileText className="w-4 h-4" />,     href: '/finance/ledger' },
+        { key: 'ledger',             label: 'Ledger',            icon: <FileText className="w-4 h-4" />,     href: '/finance/ledger-v2' },
         { key: 'waivers',            label: 'Waivers',           icon: <Percent className="w-4 h-4" />,      href: '/finance/waivers' },
         { key: 'expenditures',       label: 'Expenditures',      icon: <TrendingDown className="w-4 h-4" />, href: '/finance/expenditures' },
         { key: 'payroll-salaries',   label: 'Payroll',           icon: <Coins className="w-4 h-4" />,        href: '/payroll/salaries' },
