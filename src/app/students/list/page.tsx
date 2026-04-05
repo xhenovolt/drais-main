@@ -30,6 +30,7 @@ import {
   Fingerprint,
   Wifi,
   Globe,
+  Radio,
   DollarSign,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -130,14 +131,18 @@ export default function StudentsListPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
 
-  // Capture mode: 'adms' (cloud / device_commands table) | 'local' (direct TCP)
-  const [captureMode, setCaptureMode] = useState<'adms' | 'local'>(() => {
+  // Capture mode: 'adms' (cloud / device_commands table) | 'local' (direct TCP) | 'relay' (relay bridge)
+  const [captureMode, setCaptureMode] = useState<'adms' | 'local' | 'relay'>(() => {
     if (typeof window === 'undefined') return 'adms';
-    return (localStorage.getItem('drais_capture_mode') as 'adms' | 'local') ?? 'adms';
+    return (localStorage.getItem('drais_capture_mode') as 'adms' | 'local' | 'relay') ?? 'adms';
   });
   const [localDeviceIp, setLocalDeviceIp] = useState<string>(() => {
     if (typeof window === 'undefined') return '192.168.1.197';
     return localStorage.getItem('drais_local_device_ip') ?? '192.168.1.197';
+  });
+  const [relayDeviceSn, setRelayDeviceSn] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('drais_relay_device_sn') ?? '';
   });
   const [showModeSettings, setShowModeSettings] = useState(false);
   const modeSettingsRef = useRef<HTMLDivElement>(null);
@@ -189,7 +194,8 @@ export default function StudentsListPage() {
   useEffect(() => {
     localStorage.setItem('drais_capture_mode', captureMode);
     localStorage.setItem('drais_local_device_ip', localDeviceIp);
-  }, [captureMode, localDeviceIp]);  // Close mode settings dropdown on outside click
+    localStorage.setItem('drais_relay_device_sn', relayDeviceSn);
+  }, [captureMode, localDeviceIp, relayDeviceSn]);  // Close mode settings dropdown on outside click
   useEffect(() => {
     if (!showModeSettings) return;
     const handler = (e: MouseEvent) => {
@@ -300,12 +306,101 @@ export default function StudentsListPage() {
     }
   };
 
+  // ── Relay Bridge Enrollment ───────────────────────────────────────────────
+  const sendRelayEnrollCommand = async (studentId: number) => {
+    const sn = relayDeviceSn || getPreferredDevice()?.sn || '';
+    if (!sn) {
+      setCaptureStudentId(studentId);
+      setShowDeviceSelector(true);
+      return;
+    }
+    const label = `Relay (${sn})`;
+    setStudentEnrollStep(studentId, { step: 'waking', deviceName: label, message: 'Queuing relay command…' });
+    try {
+      const res = await apiFetch('/api/device/relay-enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, device_sn: sn }),
+        silent: true,
+      });
+      if (!res?.success) throw new Error(res?.error || 'Relay enroll failed');
+      const commandId = res.command_id;
+      const hint = res.relay_online ? '' : ' (relay agent offline — command queued)';
+      setStudentEnrollStep(studentId, {
+        step: 'waking',
+        commandId,
+        deviceName: label,
+        message: `Sent to relay agent${hint}…`,
+      });
+      startRelayPolling(studentId, commandId, label, sn);
+      showToast('info', `Relay enroll queued for ${res.student_name}${hint}`);
+    } catch (err: any) {
+      setStudentEnrollStep(studentId, { step: 'failed', deviceName: label, message: err?.message || 'Relay enroll failed' });
+      showToast('error', err?.message || 'Relay enroll failed');
+      setTimeout(() => clearStudentEnroll(studentId), 5000);
+    }
+  };
+
+  const startRelayPolling = (studentId: number, commandId: number, deviceName: string, deviceSn: string) => {
+    const existing = pollTimers.current.get(studentId);
+    if (existing) clearInterval(existing);
+
+    let pendingSeconds = 0;
+
+    const timer = setInterval(async () => {
+      try {
+        const data = await apiFetch(
+          `/api/device/relay-enroll/status?command_id=${commandId}`,
+          { silent: true },
+        );
+        const status = data?.data?.status;
+        const agentOnline = data?.data?.relay_online;
+
+        if (status === 'sent') {
+          pendingSeconds = 0;
+          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: 'Relay agent executing on device…' });
+        } else if (status === 'completed') {
+          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Device ready — scan finger now ⬆' });
+          clearInterval(timer);
+          pollTimers.current.delete(studentId);
+          setTimeout(() => clearStudentEnroll(studentId), 30000);
+        } else if (status === 'failed') {
+          setStudentEnrollStep(studentId, {
+            step: 'failed', commandId, deviceName,
+            message: data?.data?.error_message || 'Relay command failed',
+          });
+          clearInterval(timer);
+          pollTimers.current.delete(studentId);
+          setTimeout(() => clearStudentEnroll(studentId), 5000);
+        } else {
+          // still pending
+          pendingSeconds += 2;
+          const hint = !agentOnline && pendingSeconds >= 10
+            ? ' — relay agent offline?'
+            : `… (${pendingSeconds}s)`;
+          setStudentEnrollStep(studentId, {
+            step: 'waking', commandId, deviceName,
+            message: `Waiting for relay agent${hint}`,
+          });
+        }
+      } catch {
+        // keep polling
+      }
+    }, 2000);
+
+    pollTimers.current.set(studentId, timer);
+  };
+
   // Quick-Capture fingerprint flow
   const handleQuickCapture = (studentId: number) => {
     // If already in progress, ignore
     if (enrollProgress.has(studentId)) return;
     if (captureMode === 'local') {
       sendLocalEnrollCommand(studentId);
+      return;
+    }
+    if (captureMode === 'relay') {
+      sendRelayEnrollCommand(studentId);
       return;
     }
     // ADMS cloud path
@@ -987,21 +1082,23 @@ export default function StudentsListPage() {
           <div className="relative" ref={modeSettingsRef}>
             <button
               onClick={() => setShowModeSettings(v => !v)}
-              title={captureMode === 'local' ? `Local Direct Mode — ${localDeviceIp}` : 'Cloud ADMS Mode'}
+              title={captureMode === 'local' ? `Local Direct — ${localDeviceIp}` : captureMode === 'relay' ? `Relay Bridge — ${relayDeviceSn || 'no device'}` : 'Cloud ADMS Mode'}
               className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-xs font-semibold transition-colors ${
                 captureMode === 'local'
                   ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                  : captureMode === 'relay'
+                  ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
                   : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
-              {captureMode === 'local' ? <Wifi className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{captureMode === 'local' ? 'Local' : 'ADMS'}</span>
+              {captureMode === 'local' ? <Wifi className="w-3.5 h-3.5" /> : captureMode === 'relay' ? <Radio className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{captureMode === 'local' ? 'Local' : captureMode === 'relay' ? 'Relay' : 'ADMS'}</span>
             </button>
 
             {showModeSettings && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowModeSettings(false)} />
-                <div className="absolute right-0 top-9 z-50 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 text-xs">
+                <div className="absolute right-0 top-9 z-50 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 text-xs">
                   <p className="font-semibold text-slate-700 dark:text-slate-200 mb-2">Fingerprint Capture Mode</p>
 
                   <button
@@ -1011,7 +1108,18 @@ export default function StudentsListPage() {
                     <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                     <div className="text-left">
                       <div>Cloud / ADMS</div>
-                      <div className="text-[10px] opacity-60 font-normal">Queues command via device_commands table</div>
+                      <div className="text-[10px] opacity-60 font-normal">Queues ENROLL_FP via device heartbeat</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setCaptureMode('relay')}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-1 transition-colors ${captureMode === 'relay' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-semibold' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                  >
+                    <Radio className="w-3.5 h-3.5 flex-shrink-0" />
+                    <div className="text-left">
+                      <div>Relay Bridge ☁→🖧</div>
+                      <div className="text-[10px] opacity-60 font-normal">CMD_STARTENROLL via relay agent on LAN</div>
                     </div>
                   </button>
 
@@ -1022,10 +1130,27 @@ export default function StudentsListPage() {
                     <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
                     <div className="text-left">
                       <div>Local / Direct ⚡</div>
-                      <div className="text-[10px] opacity-60 font-normal">Instant TCP — same LAN as device</div>
+                      <div className="text-[10px] opacity-60 font-normal">Instant TCP — server on same LAN</div>
                     </div>
                   </button>
 
+                  {captureMode === 'relay' && (
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
+                      <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+                        Device Serial Number
+                      </label>
+                      <input
+                        type="text"
+                        value={relayDeviceSn}
+                        onChange={e => setRelayDeviceSn(e.target.value.trim())}
+                        placeholder="e.g. GED7254601154"
+                        className="w-full h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                        Relay agent must be running on school LAN
+                      </p>
+                    </div>
+                  )}
                   {captureMode === 'local' && (
                     <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
                       <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">

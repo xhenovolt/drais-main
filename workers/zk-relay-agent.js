@@ -16,16 +16,21 @@
  *   DRAIS_URL=https://your-server.com DEVICE_IP=192.168.1.197 RELAY_KEY=secret node zk-relay-agent.js
  *
  * Environment Variables:
- *   DRAIS_URL    — Base URL of the DRAIS server (e.g. https://drais.example.com)
- *   DEVICE_IP    — IP address of the ZKTeco device on the LAN
+ *   DRAIS_URL    — Base URL of the DRAIS server (e.g. https://sims.drais.pro)
+ *   DEVICE_IP    — IP address of the ZKTeco device on the LAN (e.g. 192.168.1.197)
  *   DEVICE_PORT  — TCP port (default: 4370)
  *   RELAY_KEY    — Authentication key (must match server's RELAY_KEY env var)
- *   DEVICE_SN    — Device serial number
+ *   DEVICE_SN    — Device serial number (e.g. GED7254601154)
  *   POLL_MS      — Polling interval in ms (default: 2000)
- *cd workers
-DRAIS_URL=https://your-drais-url DEVICE_IP=192.168.1.197 DEVICE_SN=GED7254601154 RELAY_KEY=your-secret node zk-relay-agent.js
- * Install dependencies:
+ *
+ * Quick start (run on school LAN machine):
+ *   cd workers
  *   npm install node-zklib
+ *   DRAIS_URL=https://sims.drais.pro \
+ *     DEVICE_IP=192.168.1.197 \
+ *     DEVICE_SN=GED7254601154 \
+ *     RELAY_KEY=drais-relay-default-key \
+ *     node zk-relay-agent.js
  * ══════════════════════════════════════════════════════════════
  */
 
@@ -212,13 +217,25 @@ async function handleCommand(msg) {
     case 'enroll': {
       const uid = parseInt(params?.uid, 10);
       const finger = parseInt(params?.finger ?? '0', 10);
+
+      if (isNaN(uid) || uid < 1 || uid > 65535) {
+        throw new Error(`Invalid uid: ${params?.uid}`);
+      }
+
+      // Cancel any in-progress capture, then disable to prevent punch collisions
       try { await zk.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
+      try { await zk.disableDevice(); } catch {}
 
       const enrollData = Buffer.alloc(3);
       enrollData.writeUInt16LE(uid, 0);
-      enrollData.writeUInt8(finger, 2);
+      enrollData.writeUInt8(Math.max(0, Math.min(9, finger)), 2);
 
       const reply = await zk.executeCmd(COMMANDS.CMD_STARTENROLL, enrollData);
+
+      // Re-enable so device can still collect attendance while waiting for finger scan
+      try { await zk.enableDevice(); } catch {}
+
+      log('info', `Enrollment started uid=${uid} finger=${finger} reply=${reply?.readUInt16LE?.(0)}`);
       return { message: `Enrollment started for UID=${uid}, finger=${finger}`, reply: reply?.readUInt16LE?.(0) };
     }
 
