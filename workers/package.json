@@ -6,9 +6,10 @@
   "bin": "zk-relay-agent.js",
   "scripts": {
     "start": "node zk-relay-agent.js",
-    "build": "pkg zk-relay-agent.js --output drais-relay --targets node18-win-x64,node18-linux-x64,node18-macos-x64",
+    "build": "pkg zk-relay-agent.js --output dist/drais-relay --targets node18-win-x64,node18-linux-x64,node18-linux-arm64",
     "build:win": "pkg zk-relay-agent.js --output dist/drais-relay-win.exe --targets node18-win-x64",
-    "build:linux": "pkg zk-relay-agent.js --output dist/drais-relay-linux --targets node18-linux-x64"
+    "build:linux": "pkg zk-relay-agent.js --output dist/drais-relay-linux --targets node18-linux-x64",
+    "build:android": "pkg zk-relay-agent.js --output dist/drais-relay-android --targets node18-linux-arm64"
   },
   "keywords": [],
   "author": "",

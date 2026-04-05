@@ -40,33 +40,76 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 
-// ─── Configuration (env > CLI args > config file > defaults) ──────────────────
+// ─── Config file path — next to executable (works both as pkg binary or script)
+const CONFIG_DIR  = process.pkg ? path.dirname(process.execPath) : __dirname;
+const CONFIG_FILE = path.join(CONFIG_DIR, 'drais-relay.config.json');
 
-// Load optional config file
-let fileConfig = {};
-const configPath = path.join(__dirname, 'drais-relay.config.json');
-if (fs.existsSync(configPath)) {
-  try { fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
+// ─── Interactive first-run setup wizard ───────────────────────────────────────
+async function runSetupWizard() {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const ask = (prompt) => new Promise(resolve => rl.question(prompt, a => resolve(a.trim())));
+
+  console.log('');
+  console.log('╔══════════════════════════════════════════════════════╗');
+  console.log('║        DRAIS Relay Agent — First-Time Setup          ║');
+  console.log('╚══════════════════════════════════════════════════════╝');
+  console.log('');
+  console.log('Answer the questions below. Press Enter to keep the default.');
+  console.log('');
+
+  const url  = await ask('  DRAIS server URL      [https://sims.drais.pro]  : ') || 'https://sims.drais.pro';
+  const ip   = await ask('  Fingerprint device IP  [192.168.1.197]           : ') || '192.168.1.197';
+  const sn   = await ask('  Device serial number   [GED7254601154]           : ') || 'GED7254601154';
+  const key  = await ask('  Relay key              [drais-relay-default-key] : ') || 'drais-relay-default-key';
+  rl.close();
+
+  const cfg = { drais_url: url, device_ip: ip, device_sn: sn, relay_key: key, device_port: 4370, poll_ms: 2000 };
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+  console.log('');
+  console.log(`  Config saved to: ${CONFIG_FILE}`);
+  console.log('  (Edit this file anytime to change settings)');
+  console.log('');
+  return cfg;
 }
 
-// CLI args: --key=value or positional DRAIS_URL DEVICE_IP DEVICE_SN RELAY_KEY
-const args = {};
-process.argv.slice(2).forEach(a => {
-  const m = a.match(/^--([\w_]+)=(.+)$/);
-  if (m) args[m[1].toLowerCase()] = m[2];
-});
+// ─── Load configuration (config file > env vars > CLI --key=value) ───────────
+async function loadConfig() {
+  // CLI args
+  const args = {};
+  process.argv.slice(2).forEach(a => {
+    const m = a.match(/^--([\w_]+)=(.+)$/);
+    if (m) args[m[1].toLowerCase()] = m[2];
+  });
 
-function cfg(envKey, argKey, fileKey, def) {
-  return process.env[envKey] || args[argKey] || fileConfig[fileKey] || def;
+  // Config file (created by setup wizard or hand-crafted)
+  let fileCfg = {};
+  if (fs.existsSync(CONFIG_FILE)) {
+    try { fileCfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch {}
+  }
+
+  const get = (envKey, argKey, fileKey) =>
+    process.env[envKey] || args[argKey] || fileCfg[fileKey];
+
+  const drais_url  = get('DRAIS_URL',  'url',        'drais_url');
+  const device_ip  = get('DEVICE_IP',  'device_ip',  'device_ip');
+  const device_sn  = get('DEVICE_SN',  'device_sn',  'device_sn');
+  const relay_key  = get('RELAY_KEY',  'relay_key',  'relay_key');
+  const device_port = parseInt(get('DEVICE_PORT', 'device_port', 'device_port') || '4370', 10);
+  const poll_ms    = parseInt(get('POLL_MS', 'poll_ms', 'poll_ms') || '2000', 10);
+
+  // Run wizard if required fields are missing
+  if (!drais_url || !device_ip || !device_sn || !relay_key) {
+    const wizard = await runSetupWizard();
+    return { ...wizard, device_port, poll_ms };
+  }
+
+  return { drais_url, device_ip, device_sn, relay_key, device_port, poll_ms };
 }
 
-const DRAIS_URL   = cfg('DRAIS_URL',   'url',        'drais_url',   'http://localhost:3000');
-const DEVICE_IP   = cfg('DEVICE_IP',   'device_ip',  'device_ip',   '192.168.1.197');
-const DEVICE_PORT = parseInt(cfg('DEVICE_PORT', 'device_port', 'device_port', '4370'), 10);
-const RELAY_KEY   = cfg('RELAY_KEY',   'relay_key',  'relay_key',   'drais-relay-default-key');
-const DEVICE_SN   = cfg('DEVICE_SN',   'device_sn',  'device_sn',   'GED7254601154');
-const POLL_MS     = parseInt(cfg('POLL_MS', 'poll_ms', 'poll_ms', '2000'), 10);
+// ─── Config placeholder (filled by loadConfig() before main() runs) ──────────
+let DRAIS_URL, DEVICE_IP, DEVICE_PORT, RELAY_KEY, DEVICE_SN, POLL_MS;
 
 // ─── Keep-alive HTTP agents (prevents ECONNRESET on idle connections) ─────────
 const httpAgent  = new http.Agent({ keepAlive: true, maxSockets: 2 });
@@ -369,6 +412,15 @@ async function pollAndExecute() {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // Load config (runs setup wizard on first launch if no config exists)
+  const cfg = await loadConfig();
+  DRAIS_URL   = cfg.drais_url;
+  DEVICE_IP   = cfg.device_ip;
+  DEVICE_PORT = cfg.device_port;
+  RELAY_KEY   = cfg.relay_key;
+  DEVICE_SN   = cfg.device_sn;
+  POLL_MS     = cfg.poll_ms;
+
   console.log('');
   console.log('═══════════════════════════════════════════════════════');
   console.log('  DRAIS ZK Relay Agent v1.0');
