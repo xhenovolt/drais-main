@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+workers/node_modules
+workers/dist
+workers/drais-relay.config.json
 /.pnp
 .pnp.*
 .yarn/*

@@ -38,15 +38,39 @@ const ZKLib = require('node-zklib');
 const { COMMANDS } = require('node-zklib/constants');
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
-// ─── Configuration ────────────────────────────────────────────────────────────
+// ─── Configuration (env > CLI args > config file > defaults) ──────────────────
 
-const DRAIS_URL    = process.env.DRAIS_URL    || 'http://localhost:3000';
-const DEVICE_IP    = process.env.DEVICE_IP    || '192.168.1.197';
-const DEVICE_PORT  = parseInt(process.env.DEVICE_PORT || '4370', 10);
-const RELAY_KEY    = process.env.RELAY_KEY    || 'drais-relay-default-key';
-const DEVICE_SN    = process.env.DEVICE_SN    || 'GED7254601154';
-const POLL_MS      = parseInt(process.env.POLL_MS || '2000', 10);
+// Load optional config file
+let fileConfig = {};
+const configPath = path.join(__dirname, 'drais-relay.config.json');
+if (fs.existsSync(configPath)) {
+  try { fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
+}
+
+// CLI args: --key=value or positional DRAIS_URL DEVICE_IP DEVICE_SN RELAY_KEY
+const args = {};
+process.argv.slice(2).forEach(a => {
+  const m = a.match(/^--([\w_]+)=(.+)$/);
+  if (m) args[m[1].toLowerCase()] = m[2];
+});
+
+function cfg(envKey, argKey, fileKey, def) {
+  return process.env[envKey] || args[argKey] || fileConfig[fileKey] || def;
+}
+
+const DRAIS_URL   = cfg('DRAIS_URL',   'url',        'drais_url',   'http://localhost:3000');
+const DEVICE_IP   = cfg('DEVICE_IP',   'device_ip',  'device_ip',   '192.168.1.197');
+const DEVICE_PORT = parseInt(cfg('DEVICE_PORT', 'device_port', 'device_port', '4370'), 10);
+const RELAY_KEY   = cfg('RELAY_KEY',   'relay_key',  'relay_key',   'drais-relay-default-key');
+const DEVICE_SN   = cfg('DEVICE_SN',   'device_sn',  'device_sn',   'GED7254601154');
+const POLL_MS     = parseInt(cfg('POLL_MS', 'poll_ms', 'poll_ms', '2000'), 10);
+
+// ─── Keep-alive HTTP agents (prevents ECONNRESET on idle connections) ─────────
+const httpAgent  = new http.Agent({ keepAlive: true, maxSockets: 2 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 2 });
 
 // ─── Globals ──────────────────────────────────────────────────────────────────
 
@@ -110,15 +134,17 @@ async function ensureConnection() {
 function httpRequest(method, path, body = null) {
   return new Promise((resolve, reject) => {
     const url = new URL(path, DRAIS_URL);
-    const mod = url.protocol === 'https:' ? https : http;
+    const isHttps = url.protocol === 'https:';
+    const mod = isHttps ? https : http;
 
     const options = {
       method,
       hostname: url.hostname,
-      port: url.port,
+      port: url.port || (isHttps ? 443 : 80),
       path: url.pathname + url.search,
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 10000,
+      headers: { 'Content-Type': 'application/json', 'Connection': 'keep-alive' },
+      agent: isHttps ? httpsAgent : httpAgent,
+      timeout: 15000,
     };
 
     const req = mod.request(options, (res) => {
@@ -332,8 +358,9 @@ async function pollAndExecute() {
       });
     }
   } catch (err) {
-    // Suppress polling errors (server may be down temporarily)
-    if (err.message !== 'HTTP timeout') {
+    // Suppress transient errors (server may be down temporarily or connection reset)
+    const silent = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'HTTP timeout'];
+    if (!silent.some(s => err.message.includes(s))) {
       log('warn', `Poll error: ${err.message}`);
     }
   }

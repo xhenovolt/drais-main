@@ -1,0 +1,8 @@
+{
+  "drais_url":   "https://sims.drais.pro",
+  "device_ip":   "192.168.1.197",
+  "device_port": 4370,
+  "device_sn":   "GED7254601154",
+  "relay_key":   "drais-relay-default-key",
+  "poll_ms":     2000
+}
