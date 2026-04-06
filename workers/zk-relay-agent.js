@@ -297,21 +297,29 @@ async function handleCommand(msg) {
         throw new Error(`Invalid uid: ${params?.uid}`);
       }
 
-      // Cancel any in-progress capture, then disable to prevent punch collisions
-      try { await zk.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
-      try { await zk.disableDevice(); } catch {}
+      // Use a fresh short-lived connection for enrollment (matching the local-enroll path).
+      // The persistent relay connection + real-time listener interferes with the K40's
+      // enrollment mode — sending CMD_STARTENROLL on the shared socket doesn't trigger
+      // the fingerprint prompt on the device screen.
+      const enrollZk = new ZKLib(DEVICE_IP, DEVICE_PORT, 8000, 5200);
+      try {
+        await enrollZk.createSocket();
 
-      const enrollData = Buffer.alloc(3);
-      enrollData.writeUInt16LE(uid, 0);
-      enrollData.writeUInt8(Math.max(0, Math.min(9, finger)), 2);
+        try { await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
+        await enrollZk.zklibTcp.disableDevice();
 
-      const reply = await zk.executeCmd(COMMANDS.CMD_STARTENROLL, enrollData);
+        const payload = Buffer.alloc(3);
+        payload.writeUInt16LE(uid, 0);
+        payload.writeUInt8(Math.max(0, Math.min(9, finger)), 2);
 
-      // Re-enable so device can still collect attendance while waiting for finger scan
-      try { await zk.enableDevice(); } catch {}
+        await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
+        await enrollZk.zklibTcp.enableDevice();
+      } finally {
+        try { await enrollZk.disconnect(); } catch {}
+      }
 
-      log('info', `Enrollment started uid=${uid} finger=${finger} reply=${reply?.readUInt16LE?.(0)}`);
-      return { message: `Enrollment started for UID=${uid}, finger=${finger}`, reply: reply?.readUInt16LE?.(0) };
+      log('info', `Enrollment started uid=${uid} finger=${finger} (fresh connection)`);
+      return { message: `Enrollment started for UID=${uid}, finger=${finger}` };
     }
 
     case 'cancel_enroll': {
