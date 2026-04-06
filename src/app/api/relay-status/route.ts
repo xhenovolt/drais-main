@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   // ── Relay Agent Poll Mode ───────────────────────────────────────────────
   if (poll === '1' && deviceSn && relayKey) {
     // Validate relay key
-    const validKey = process.env.RELAY_KEY || 'drais-relay-default-key';
+    const validKey = process.env.RELAY_KEY || 'DRAIS-355DF9C35EB60899009C01DD948EAD14';
     if (relayKey !== validKey) {
       return NextResponse.json({ error: 'Invalid relay key' }, { status: 403 });
     }
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 
   // ── Relay Agent Reporting Results ───────────────────────────────────────
   if (body.relay_key && body.results) {
-    const validKey = process.env.RELAY_KEY || 'drais-relay-default-key';
+    const validKey = process.env.RELAY_KEY || 'DRAIS-355DF9C35EB60899009C01DD948EAD14';
     if (body.relay_key !== validKey) {
       return NextResponse.json({ error: 'Invalid relay key' }, { status: 403 });
     }

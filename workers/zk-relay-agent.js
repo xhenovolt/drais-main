@@ -116,8 +116,10 @@ const httpAgent  = new http.Agent({ keepAlive: true, maxSockets: 2 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 2 });
 
 // ─── Globals ──────────────────────────────────────────────────────────────────
-
-let zk = null;
+// Two separate TCP connections prevent real-time event packets from
+// swallowing command reply frames (ZKLib uses socket.once('data') for cmds).
+let zkCmd = null;       // used for all executeCmd calls
+let zkRt  = null;       // used only for getRealTimeLogs
 let connected = false;
 let realTimeActive = false;
 
@@ -129,52 +131,59 @@ function log(level, msg, data = null) {
 
 // ─── ZK Device Connection ─────────────────────────────────────────────────────
 
-async function connectDevice() {
-  if (connected) return;
+async function connectCmd() {
+  if (connected) return true;
 
   log('info', `Connecting to ZK device at ${DEVICE_IP}:${DEVICE_PORT}...`);
-  zk = new ZKLib(DEVICE_IP, DEVICE_PORT, 10000, 5200);
+  zkCmd = new ZKLib(DEVICE_IP, DEVICE_PORT, 10000, 5200);
 
   try {
-    await zk.createSocket(
-      (err) => {
-        log('error', 'ZK socket error', err.message);
-        connected = false;
-      },
-      () => {
-        log('warn', 'ZK socket closed');
-        connected = false;
-      },
+    await zkCmd.createSocket(
+      (err) => { log('error', 'ZK cmd socket error', err.message); connected = false; },
+      ()    => { log('warn',  'ZK cmd socket closed'); connected = false; },
     );
     connected = true;
-    log('info', 'Connected to ZK device via TCP');
-
-    // Get device info
-    try {
-      const info = await zk.getInfo();
-      log('info', 'Device info', info);
-    } catch {}
-
+    log('info', 'Connected to ZK device via TCP (cmd)');
+    try { const info = await zkCmd.getInfo(); log('info', 'Device info', info); } catch {}
     return true;
   } catch (err) {
-    log('error', `Failed to connect to device: ${err.message}`);
+    log('error', `Failed to connect (cmd): ${err.message}`);
     connected = false;
     return false;
   }
 }
 
-async function ensureConnection() {
-  if (!connected) {
-    await connectDevice();
+async function connectRealtime() {
+  if (realTimeActive) return;
+  log('info', 'Opening real-time event connection...');
+  zkRt = new ZKLib(DEVICE_IP, DEVICE_PORT, 10000, 5200);
+  try {
+    await zkRt.createSocket(
+      () => { realTimeActive = false; },
+      () => { realTimeActive = false; },
+    );
+    await zkRt.getRealTimeLogs((data) => {
+      log('event', 'Real-time event', data);
+      httpRequest('POST', '/api/relay-status', {
+        relay_key: RELAY_KEY,
+        results: [{ id: 0, success: true, data: { type: 'realtime_event', event: data } }],
+      }).catch(() => {});
+    });
+    realTimeActive = true;
+    log('info', 'Real-time event listener active');
+  } catch (err) {
+    log('error', `Real-time init failed: ${err.message}`);
+    realTimeActive = false;
   }
-  // Retry once if first attempt failed (handles brief TCP drops)
+}
+
+async function ensureConnection() {
+  if (!connected) await connectCmd();
   if (!connected) {
     await new Promise(r => setTimeout(r, 1000));
-    await connectDevice();
+    await connectCmd();
   }
-  if (!connected) {
-    throw new Error('Device not connected');
-  }
+  if (!connected) throw new Error('Device not connected');
 }
 
 // ─── HTTP Helpers ─────────────────────────────────────────────────────────────
@@ -215,34 +224,16 @@ function httpRequest(method, path, body = null) {
 // ─── Real-time Events ─────────────────────────────────────────────────────────
 
 async function startRealTimeLogs() {
-  if (realTimeActive) return;
-  await ensureConnection();
-
-  try {
-    await zk.getRealTimeLogs((data) => {
-      log('event', 'Real-time event', data);
-      // Report real-time event to DRAIS
-      httpRequest('POST', '/api/relay-status', {
-        relay_key: RELAY_KEY,
-        results: [{
-          id: 0,
-          success: true,
-          data: { type: 'realtime_event', event: data },
-        }],
-      }).catch(() => {});
-    });
-    realTimeActive = true;
-    log('info', 'Real-time event listener active');
-  } catch (err) {
-    log('error', `Real-time init failed: ${err.message}`);
-  }
+  await connectRealtime();
 }
 
-// ─── Command Handlers ─────────────────────────────────────────────────────────
+// ─── Command Handlers ────────────────────────────────────────────────────────
 
 async function handleCommand(msg) {
   const { action, params } = msg;
   await ensureConnection();
+
+  const zk = zkCmd; // dedicated cmd socket, no real-time listener attached
 
   switch (action) {
     case 'info': {
@@ -435,10 +426,10 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════');
   console.log('');
 
-  // Step 1: Connect to device
-  const deviceOk = await connectDevice();
+  // Step 1: Connect to device — two separate sockets (cmd + realtime)
+  const deviceOk = await connectCmd();
   if (deviceOk) {
-    await startRealTimeLogs();
+    await connectRealtime().catch(() => {});
   }
 
   // Step 2: Start polling loop
@@ -450,11 +441,14 @@ async function main() {
   // Step 3: Device health check every 30s
   setInterval(async () => {
     if (!connected) {
-      log('info', 'Attempting device reconnect...');
-      const ok = await connectDevice().catch(() => false);
-      if (ok && !realTimeActive) {
-        await startRealTimeLogs().catch(() => {});
+      log('info', 'Attempting device reconnect (cmd)...');
+      const ok = await connectCmd().catch(() => false);
+      if (ok) {
+        await connectRealtime().catch(() => {});
       }
+    } else if (!realTimeActive) {
+      // cmd socket is up but real-time dropped — reconnect just the RT socket
+      await connectRealtime().catch(() => {});
     }
   }, 30000);
 }
