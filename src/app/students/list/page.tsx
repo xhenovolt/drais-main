@@ -133,8 +133,8 @@ export default function StudentsListPage() {
 
   // Capture mode: 'adms' (cloud / device_commands table) | 'local' (direct TCP) | 'relay' (relay bridge)
   const [captureMode, setCaptureMode] = useState<'adms' | 'local' | 'relay'>(() => {
-    if (typeof window === 'undefined') return 'adms';
-    return (localStorage.getItem('drais_capture_mode') as 'adms' | 'local' | 'relay') ?? 'adms';
+    if (typeof window === 'undefined') return 'relay';
+    return (localStorage.getItem('drais_capture_mode') as 'adms' | 'local' | 'relay') ?? 'relay';
   });
   const [localDeviceIp, setLocalDeviceIp] = useState<string>(() => {
     if (typeof window === 'undefined') return '192.168.1.197';

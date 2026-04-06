@@ -167,6 +167,11 @@ async function ensureConnection() {
   if (!connected) {
     await connectDevice();
   }
+  // Retry once if first attempt failed (handles brief TCP drops)
+  if (!connected) {
+    await new Promise(r => setTimeout(r, 1000));
+    await connectDevice();
+  }
   if (!connected) {
     throw new Error('Device not connected');
   }
