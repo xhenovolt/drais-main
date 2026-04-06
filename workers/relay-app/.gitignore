@@ -1,0 +1,6 @@
+node_modules/
+dist-gui/
+*.AppImage
+*.deb
+*.exe
+package-lock.json

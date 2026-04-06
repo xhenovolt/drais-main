@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DRAIS Relay</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --bg:       #0a0a12;
+    --surface:  #13131f;
+    --card:     #1a1a2e;
+    --border:   #252540;
+    --accent:   #00d4aa;
+    --accent2:  #0099cc;
+    --danger:   #ff4757;
+    --warn:     #ffa502;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --green:    #00d4aa;
+    --red:      #ff4757;
+    --radius:   12px;
+  }
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;}
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+  /* ── Layout ── */
+  .app{display:flex;flex-direction:column;height:100%;gap:0;}
+
+  /* ── Titlebar ── */
+  .titlebar{
+    display:flex;align-items:center;gap:10px;
+    padding:14px 20px 12px;
+    background:linear-gradient(135deg,#0d0d1e,#13131f);
+    border-bottom:1px solid var(--border);
+    -webkit-app-region:drag;
+    flex-shrink:0;
+  }
+  .titlebar-logo{
+    width:36px;height:36px;border-radius:9px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:900;color:#fff;letter-spacing:-.5px;
+    flex-shrink:0;
+  }
+  .titlebar-text h1{font-size:16px;font-weight:700;line-height:1.2;}
+  .titlebar-text p{font-size:11px;color:var(--muted);}
+  .titlebar-right{margin-left:auto;display:flex;align-items:center;gap:8px;-webkit-app-region:no-drag;}
+
+  /* ── Status Bar ── */
+  .statusbar{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 20px;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .status-dot{
+    width:10px;height:10px;border-radius:50%;flex-shrink:0;
+    transition:background .3s;
+  }
+  .status-dot.ok    {background:var(--green);box-shadow:0 0 8px var(--green);}
+  .status-dot.warn  {background:var(--warn);box-shadow:0 0 8px var(--warn);animation:pulse 1.4s infinite;}
+  .status-dot.off   {background:var(--muted);}
+  .status-dot.error {background:var(--red);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  .status-label{font-size:13px;font-weight:600;}
+  .status-sub  {font-size:11px;color:var(--muted);margin-left:auto;}
+
+  /* ── Main Scroll Area ── */
+  .scroll-area{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px;}
+
+  /* ── Card ── */
+  .card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);overflow:hidden;
+  }
+  .card-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-bottom:1px solid var(--border);
+    cursor:pointer;user-select:none;
+  }
+  .card-header h3{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;}
+  .card-body{padding:16px;}
+
+  /* ── Big Control Button ── */
+  .control-section{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 16px;}
+
+  .btn-main{
+    width:140px;height:140px;border-radius:50%;border:none;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    font-size:16px;font-weight:700;color:#fff;
+    transition:transform .15s,box-shadow .15s,background .3s;
+    position:relative;overflow:hidden;
+  }
+  .btn-main:before{
+    content:'';position:absolute;inset:0;border-radius:50%;
+    background:rgba(255,255,255,.07);opacity:0;transition:opacity .15s;
+  }
+  .btn-main:hover:before{opacity:1;}
+  .btn-main:active{transform:scale(.96);}
+  .btn-main.start{
+    background:linear-gradient(145deg,#00d4aa,#0099cc);
+    box-shadow:0 0 30px rgba(0,212,170,.35),0 4px 20px rgba(0,0,0,.4);
+  }
+  .btn-main.stop{
+    background:linear-gradient(145deg,#ff4757,#cc2d3b);
+    box-shadow:0 0 30px rgba(255,71,87,.35),0 4px 20px rgba(0,0,0,.4);
+  }
+  .btn-main .btn-icon{font-size:38px;line-height:1;}
+  .btn-main .btn-text{font-size:14px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+
+  .btn-main.running-ring::after{
+    content:'';position:absolute;inset:-4px;border-radius:50%;
+    border:3px solid transparent;
+    border-top-color:rgba(255,255,255,.4);
+    animation:spin 1.5s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .control-meta{font-size:12px;color:var(--muted);text-align:center;line-height:1.5;}
+
+  /* ── Stats Row ── */
+  .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 16px 16px;}
+  .stat-cell{
+    background:var(--surface);border:1px solid var(--border);border-radius:9px;
+    padding:10px;text-align:center;
+  }
+  .stat-cell .sv{font-size:18px;font-weight:700;line-height:1.2;}
+  .stat-cell .sk{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+  .sv.ok    {color:var(--green);}
+  .sv.warn  {color:var(--warn);}
+  .sv.off   {color:var(--muted);}
+
+  /* ── Config Form ── */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .form-group{display:flex;flex-direction:column;gap:5px;}
+  .form-group.full{grid-column:1/-1;}
+  .form-group label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;}
+  .form-group input{
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:8px 10px;color:var(--text);font-size:13px;outline:none;
+    transition:border-color .2s;
+  }
+  .form-group input:focus{border-color:var(--accent);}
+
+  .config-actions{display:flex;gap:8px;margin-top:12px;}
+
+  /* ── Buttons ── */
+  .btn{
+    padding:8px 16px;border-radius:8px;border:none;cursor:pointer;
+    font-size:13px;font-weight:600;transition:opacity .15s,transform .1s;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+  .btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--text);}
+  .btn-sm{padding:6px 12px;font-size:12px;}
+  .btn-danger{background:var(--danger);color:#fff;}
+
+  /* ── Toggle ── */
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
+  .toggle-row label{font-size:13px;color:var(--text);}
+  .toggle{position:relative;width:42px;height:24px;flex-shrink:0;}
+  .toggle input{opacity:0;width:0;height:0;}
+  .toggle-slider{
+    position:absolute;inset:0;border-radius:24px;background:var(--border);
+    cursor:pointer;transition:background .25s;
+  }
+  .toggle-slider:before{
+    content:'';position:absolute;height:18px;width:18px;left:3px;top:3px;
+    background:#fff;border-radius:50%;transition:transform .25s;
+  }
+  input:checked + .toggle-slider{background:var(--accent);}
+  input:checked + .toggle-slider:before{transform:translateX(18px);}
+
+  /* ── Log Panel ── */
+  .log-panel{
+    background:#080810;border:1px solid var(--border);border-radius:var(--radius);
+    padding:10px 12px;height:180px;overflow-y:auto;font-size:11px;
+    font-family:'Consolas','Fira Code',monospace;line-height:1.6;
+  }
+  .log-line      {color:#8892a6;}
+  .log-line.ok   {color:var(--green);}
+  .log-line.err  {color:var(--red);}
+  .log-line.warn {color:var(--warn);}
+  .log-line.info {color:#74b9ff;}
+
+  /* ── Chevron ── */
+  .chevron{transition:transform .25s;font-size:12px;color:var(--muted);}
+  .chevron.open{transform:rotate(180deg);}
+  .collapsible{overflow:hidden;max-height:0;transition:max-height .3s ease;}
+  .collapsible.open{max-height:600px;}
+
+  /* ── Pill badge ── */
+  .badge{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;
+  }
+  .badge.green{background:rgba(0,212,170,.15);color:var(--green);}
+  .badge.red  {background:rgba(255,71,87,.15);color:var(--red);}
+  .badge.gray {background:rgba(100,116,139,.15);color:var(--muted);}
+  .badge.warn {background:rgba(255,165,2,.15);color:var(--warn);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-logo">DR</div>
+    <div class="titlebar-text">
+      <h1>DRAIS Relay</h1>
+      <p>Biometric Bridge Control</p>
+    </div>
+    <div class="titlebar-right">
+      <span id="autostart-badge" class="badge gray">⚙ Autostart</span>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <div id="status-dot" class="status-dot off"></div>
+    <span id="status-label" class="status-label">Stopped</span>
+    <span id="status-sub" class="status-sub">—</span>
+  </div>
+
+  <!-- Scrollable Content -->
+  <div class="scroll-area">
+
+    <!-- Control Card -->
+    <div class="card">
+      <div class="control-section">
+        <button id="btn-main" class="btn-main start">
+          <span class="btn-icon">▶</span>
+          <span class="btn-text">Start</span>
+        </button>
+        <p id="control-meta" class="control-meta">Relay is stopped</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-cell">
+          <div id="stat-relay" class="sv off">OFF</div>
+          <div class="sk">Relay</div>
+        </div>
+        <div class="stat-cell">
+          <div id="stat-device" class="sv off">—</div>
+          <div class="sk">Device</div>
+        </div>
+        <div class="stat-cell">
+          <div id="stat-pid" class="sv off">—</div>
+          <div class="sk">PID</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Card -->
+    <div class="card">
+      <div class="card-header" onclick="toggleConfig()">
+        <h3>⚙ Configuration</h3>
+        <span id="cfg-chevron" class="chevron">▼</span>
+      </div>
+      <div id="cfg-body" class="collapsible">
+        <div class="card-body">
+          <div class="form-grid">
+
+            <div class="form-group full">
+              <label>DRAIS Server URL</label>
+              <input id="f-url" type="url" placeholder="https://sims.drais.pro"/>
+            </div>
+
+            <div class="form-group full">
+              <label>Relay Key</label>
+              <input id="f-key" type="text" placeholder="DRAIS-xxxxxxxx"/>
+            </div>
+
+            <div class="form-group">
+              <label>Device IP</label>
+              <input id="f-ip" type="text" placeholder="192.168.1.197"/>
+            </div>
+
+            <div class="form-group">
+              <label>Device Port</label>
+              <input id="f-port" type="number" min="1" max="65535" placeholder="4370"/>
+            </div>
+
+            <div class="form-group">
+              <label>Device Serial</label>
+              <input id="f-sn" type="text" placeholder="GED7254601154"/>
+            </div>
+
+            <div class="form-group">
+              <label>Poll Interval (ms)</label>
+              <input id="f-poll" type="number" min="500" max="30000" placeholder="2000"/>
+            </div>
+
+            <div class="form-group full">
+              <div class="toggle-row">
+                <label>Auto-start relay on app launch</label>
+                <label class="toggle">
+                  <input id="toggle-autostart" type="checkbox"/>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <label>Launch app on system startup</label>
+                <label class="toggle">
+                  <input id="toggle-loginitem" type="checkbox"/>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="config-actions">
+            <button class="btn btn-primary" onclick="saveConfig()">💾 Save &amp; Apply</button>
+            <button class="btn btn-ghost btn-sm" onclick="window.relay.openConfigDir()">📂 Config Folder</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Card -->
+    <div class="card">
+      <div class="card-header" onclick="toggleLog()">
+        <h3>📋 Live Log</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-ghost btn-sm" onclick="clearLog(event)">Clear</button>
+          <span id="log-chevron" class="chevron open">▼</span>
+        </div>
+      </div>
+      <div id="log-body" class="collapsible open">
+        <div style="padding:10px 12px 12px;">
+          <div id="log" class="log-panel"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /scroll-area -->
+</div><!-- /app -->
+
+<script>
+/* ── State ── */
+let running = false, deviceOk = false, pid = null;
+let cfgOpen = false, logOpen = true;
+let autostartEnabled = false;
+
+/* ── DOM refs ── */
+const $dot    = document.getElementById('status-dot');
+const $label  = document.getElementById('status-label');
+const $sub    = document.getElementById('status-sub');
+const $btn    = document.getElementById('btn-main');
+const $meta   = document.getElementById('control-meta');
+const $sRelay = document.getElementById('stat-relay');
+const $sDev   = document.getElementById('stat-device');
+const $sPid   = document.getElementById('stat-pid');
+const $log    = document.getElementById('log');
+const $asBadge = document.getElementById('autostart-badge');
+
+/* ── Status update ── */
+function applyStatus(s) {
+  running  = s.running;
+  deviceOk = s.deviceOk;
+  pid      = s.pid;
+
+  // Dot + label
+  if (!running) {
+    $dot.className   = 'status-dot off';
+    $label.textContent = 'Stopped';
+    $sub.textContent  = 'Click Start to connect';
+  } else if (!deviceOk) {
+    $dot.className   = 'status-dot warn';
+    $label.textContent = 'Connecting…';
+    $sub.textContent  = 'Waiting for device response';
+  } else {
+    $dot.className   = 'status-dot ok';
+    $label.textContent = 'Running — Device OK';
+    $sub.textContent  = `PID ${pid}`;
+  }
+
+  // Big button
+  if (running) {
+    $btn.className = 'btn-main stop' + (deviceOk ? '' : ' running-ring');
+    $btn.querySelector('.btn-icon').textContent = '⏹';
+    $btn.querySelector('.btn-text').textContent = 'STOP';
+    $meta.textContent = deviceOk ? 'Relay is running and connected' : 'Relay started — awaiting device…';
+  } else {
+    $btn.className = 'btn-main start';
+    $btn.querySelector('.btn-icon').textContent = '▶';
+    $btn.querySelector('.btn-text').textContent = 'START';
+    $meta.textContent = 'Relay is stopped';
+  }
+
+  // Stats
+  $sRelay.className = 'sv ' + (running ? 'ok' : 'off');
+  $sRelay.textContent = running ? 'ON' : 'OFF';
+  $sDev.className   = 'sv ' + (deviceOk ? 'ok' : running ? 'warn' : 'off');
+  $sDev.textContent = deviceOk ? 'OK' : running ? 'WAIT' : '—';
+  $sPid.className   = 'sv ' + (pid ? 'ok' : 'off');
+  $sPid.textContent = pid ?? '—';
+}
+
+/* ── Button ── */
+$btn.addEventListener('click', async () => {
+  if (running) {
+    await window.relay.stop();
+  } else {
+    await window.relay.start();
+  }
+});
+
+/* ── Log helpers ── */
+function colorClass(line) {
+  if (/✓|ok|connected|success/i.test(line)) return 'ok';
+  if (/✗|error|failed|refused/i.test(line)) return 'err';
+  if (/⚠|warn|retry/i.test(line))           return 'warn';
+  if (/→|starting|poll/i.test(line))         return 'info';
+  return '';
+}
+function appendLog(line) {
+  const d = document.createElement('div');
+  d.className = 'log-line ' + colorClass(line);
+  d.textContent = line;
+  $log.appendChild(d);
+  if ($log.children.length > 300) $log.removeChild($log.firstChild);
+  $log.scrollTop = $log.scrollHeight;
+}
+function clearLog(e) {
+  e.stopPropagation();
+  $log.innerHTML = '';
+}
+
+/* ── Collapses ── */
+function toggleConfig() {
+  cfgOpen = !cfgOpen;
+  document.getElementById('cfg-body').classList.toggle('open', cfgOpen);
+  document.getElementById('cfg-chevron').classList.toggle('open', cfgOpen);
+}
+function toggleLog() {
+  logOpen = !logOpen;
+  document.getElementById('log-body').classList.toggle('open', logOpen);
+  document.getElementById('log-chevron').classList.toggle('open', logOpen);
+}
+
+/* ── Config ── */
+async function loadConfig() {
+  const c = await window.relay.getConfig();
+  document.getElementById('f-url').value  = c.drais_url   ?? '';
+  document.getElementById('f-key').value  = c.relay_key   ?? '';
+  document.getElementById('f-ip').value   = c.device_ip   ?? '';
+  document.getElementById('f-port').value = c.device_port ?? 4370;
+  document.getElementById('f-sn').value   = c.device_sn   ?? '';
+  document.getElementById('f-poll').value = c.poll_ms     ?? 2000;
+  document.getElementById('toggle-autostart').checked = c.auto_start !== false;
+
+  autostartEnabled = await window.relay.getAutostart();
+  document.getElementById('toggle-loginitem').checked = autostartEnabled;
+  $asBadge.className = 'badge ' + (autostartEnabled ? 'green' : 'gray');
+  $asBadge.textContent = autostartEnabled ? '⚙ Autostart: ON' : '⚙ Autostart: OFF';
+}
+
+async function saveConfig() {
+  const cfg = {
+    drais_url:   document.getElementById('f-url').value.trim(),
+    relay_key:   document.getElementById('f-key').value.trim(),
+    device_ip:   document.getElementById('f-ip').value.trim(),
+    device_port: parseInt(document.getElementById('f-port').value) || 4370,
+    device_sn:   document.getElementById('f-sn').value.trim(),
+    poll_ms:     parseInt(document.getElementById('f-poll').value) || 2000,
+    auto_start:  document.getElementById('toggle-autostart').checked,
+  };
+
+  const loginItem = document.getElementById('toggle-loginitem').checked;
+  await window.relay.saveConfig(cfg);
+  await window.relay.setAutostart(loginItem);
+
+  autostartEnabled = loginItem;
+  $asBadge.className = 'badge ' + (loginItem ? 'green' : 'gray');
+  $asBadge.textContent = loginItem ? '⚙ Autostart: ON' : '⚙ Autostart: OFF';
+
+  appendLog('[APP] Configuration saved' + (running ? ' — restarting relay…' : ''));
+}
+
+/* ── Subscribe to events ── */
+window.relay.onStatus(applyStatus);
+window.relay.onLog(appendLog);
+window.relay.onHistory(lines => lines.forEach(appendLog));
+
+/* ── Init ── */
+(async () => {
+  const s = await window.relay.getStatus();
+  applyStatus(s);
+  await loadConfig();
+})();
+</script>
+</body>
+</html>

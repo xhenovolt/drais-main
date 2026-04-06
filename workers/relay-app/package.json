@@ -1,0 +1,77 @@
+{
+  "name": "drais-relay",
+  "version": "2.0.0",
+  "description": "DRAIS Biometric Relay — Control Panel",
+  "homepage": "https://sims.drais.pro",
+  "author": {
+    "name": "DRAIS",
+    "email": "admin@drais.pro"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:linux": "npx electron-builder --linux",
+    "build:win": "npx electron-builder --win",
+    "build:all": "npx electron-builder --linux --win"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "pro.drais.relay",
+    "productName": "DRAIS Relay",
+    "copyright": "Copyright © 2026 DRAIS",
+    "directories": {
+      "output": "../dist-gui"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "assets/**"
+    ],
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb",      "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.png",
+      "category": "Network",
+      "maintainer": "DRAIS <admin@drais.pro>",
+      "description": "DRAIS Biometric Relay Control Panel",
+      "desktop": {
+        "Name": "DRAIS Relay",
+        "Comment": "Control biometric device relay bridge",
+        "Categories": "Network;Utility;",
+        "StartupWMClass": "drais-relay"
+      },
+      "extraResources": [
+        {
+          "from": "../dist/drais-relay-linux-x64",
+          "to": "drais-relay"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.png",
+      "extraResources": [
+        {
+          "from": "../dist/drais-relay-win-x64.exe",
+          "to": "drais-relay.exe"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DRAIS Relay"
+    }
+  }
+}
