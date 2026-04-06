@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Menu, Bell, Cloud, CloudOff, Wifi, WifiOff, Check, CheckCheck, Loader, AlertCircle } from 'lucide-react';
+import { Menu, Bell, Cloud, CloudOff, Wifi, WifiOff, Check, CheckCheck, Loader, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -80,7 +80,53 @@ function DeviceStatusBadge() {
     </Link>
   );
 }
+/** Global badge to cancel stale relay commands — only visible when queue has pending/sent rows. */
+function RelayQueueDrainBadge() {
+  const [count, setCount] = useState(0);
+  const [draining, setDraining] = useState(false);
 
+  const fetchCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/relay-commands/drain');
+      if (!res.ok) return;
+      const data = await res.json();
+      setCount(data.count ?? 0);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchCount();
+    const iv = setInterval(fetchCount, 10000);
+    return () => clearInterval(iv);
+  }, [fetchCount]);
+
+  if (count === 0) return null;
+
+  const drain = async () => {
+    if (draining) return;
+    setDraining(true);
+    try {
+      await fetch('/api/relay-commands/drain', { method: 'POST' });
+      setCount(0);
+    } catch {}
+    setDraining(false);
+  };
+
+  return (
+    <button
+      onClick={drain}
+      disabled={draining}
+      title={`${count} stale relay command${count !== 1 ? 's' : ''} — click to cancel all`}
+      className="hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border
+                 bg-amber-50 border-amber-300 text-amber-700
+                 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400
+                 hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-60 transition-colors"
+    >
+      {draining ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+      <span>Clear queue ({count})</span>
+    </button>
+  );
+}
 // ─── Notification Bell Dropdown ───────────────────────────────────────────────
 
 function timeAgo(dateStr: string): string {
@@ -297,6 +343,9 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
 
           {/* Device Status Badge — desktop only */}
           <DeviceStatusBadge />
+
+          {/* Relay queue drain — desktop only, appears only when queue is non-empty */}
+          <RelayQueueDrainBadge />
 
           {/* Notification Bell */}
           <NotificationBell />

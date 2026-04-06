@@ -3,11 +3,10 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Trash2, Loader2 } from 'lucide-react';
 
 
 export const Navbar: React.FC = () => {
@@ -55,33 +54,16 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* School Name (optional) */}
-          {user.school_id && (
+          {user.schoolId && (
             <div className="hidden md:flex items-center text-sm text-gray-600">
-              <span className="text-gray-900 font-medium">{user.display_name}</span>
+              <span className="text-gray-900 font-medium">{user.displayName}</span>
               <span className="mx-2 text-gray-300">•</span>
               <span>{/* School name can be added from context if needed */}</span>
             </div>
           )}
 
           {/* Right side: User menu */}
-          <div className="flex items-center gap-3">
-
-            {/* Relay queue drain button — only visible when there are stale commands */}
-            {queueCount > 0 && (
-              <button
-                onClick={drainQueue}
-                disabled={draining}
-                title={`${queueCount} stale relay command${queueCount > 1 ? 's' : ''} queued — click to cancel`}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                           bg-amber-50 text-amber-700 border border-amber-200
-                           hover:bg-amber-100 transition-colors disabled:opacity-60"
-              >
-                {draining
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : <Trash2 className="w-3.5 h-3.5" />}
-                Clear queue ({queueCount})
-              </button>
-            )}
+          <div className="flex items-center gap-4">
             {/* User Avatar & Name Dropdown */}
             <div className="relative" ref={menuRef}>
               <button
@@ -92,12 +74,12 @@ export const Navbar: React.FC = () => {
               >
                 {/* Avatar Circle */}
                 <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                  {user.first_name?.[0]?.toUpperCase()}
-                  {user.last_name?.[0]?.toUpperCase()}
+                  {user.firstName?.[0]?.toUpperCase()}
+                  {user.lastName?.[0]?.toUpperCase()}
                 </div>
 
                 {/* Display Name */}
-                <span className="hidden sm:inline">{user.display_name}</span>
+                <span className="hidden sm:inline">{user.displayName}</span>
 
                 {/* Dropdown Arrow */}
                 <svg
@@ -125,7 +107,7 @@ export const Navbar: React.FC = () => {
                 >
                   {/* User Info */}
                   <div className="px-4 py-2 border-b border-gray-100">
-                    <div className="text-sm font-medium text-gray-900">{user.display_name}</div>
+                    <div className="text-sm font-medium text-gray-900">{user.displayName}</div>
                     <div className="text-xs text-gray-500">{user.email}</div>
                   </div>
 
