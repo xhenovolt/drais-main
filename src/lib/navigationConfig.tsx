@@ -73,6 +73,7 @@ import {
   Book,
   FileSearch,
   ArrowUpDown,
+  Radio,
 } from 'lucide-react';
 
 // Alias so callers don't have to worry about icon substitution
@@ -288,6 +289,7 @@ export function getNavigationItems(
         { key: 'profile',         label: 'My Profile',     icon: <UserCog className="w-4 h-4" />,  href: '/settings/profile' },
         { key: 'templates',       label: 'Templates',      icon: <FileCog className="w-4 h-4" />,  href: '/settings/templates' },
         { key: 'system-status',   label: 'System Status',  icon: <Activity className="w-4 h-4" />, href: '/settings/system' },
+        { key: 'relay-setup',     label: 'Relay Setup',    icon: <Radio className="w-4 h-4" />,    href: '/settings/relay' },
         { key: 'inventory',       label: 'Inventory',      icon: <Package className="w-4 h-4" />,  href: '/inventory/stores' },
         { key: 'help',            label: 'Help & Support', icon: <HelpCircle className="w-4 h-4" />, href: '/help' },
       ],
