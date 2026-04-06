@@ -9,45 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Trash2, Loader2 } from 'lucide-react';
 
-export const Navbar: React.FC = () => {
-  const { user, logout, setupComplete } = useAuth();
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-
-  // ── Relay queue drain state ──────────────────────────────────────────────
-  const [queueCount, setQueueCount] = useState(0);
-  const [draining, setDraining] = useState(false);
-
-  const fetchQueueCount = useCallback(async () => {
-    try {
-      const res = await fetch('/api/relay-commands/drain');
-      if (!res.ok) return;
-      const data = await res.json();
-      setQueueCount(data.count ?? 0);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    fetchQueueCount();
-    const iv = setInterval(fetchQueueCount, 10000);
-    return () => clearInterval(iv);
-  }, [user, fetchQueueCount]);
-
-  const drainQueue = async () => {
-    if (draining) return;
-    setDraining(true);
-    try {
-      const res = await fetch('/api/relay-commands/drain', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setQueueCount(0);
-      }
-    } catch {}
-    setDraining(false);
-  };
-  // ────────────────────────────────────────────────────────────────────────
 
 export const Navbar: React.FC = () => {
   const { user, logout, setupComplete } = useAuth();
