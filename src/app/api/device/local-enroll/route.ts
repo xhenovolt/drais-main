@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
 
   const schoolId = session.schoolId;
   const port = Math.max(1, Math.min(65535, parseInt(String(device_port), 10) || 4370));
+  const fingerIdx = Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0));
 
   // ── 1. Resolve student name ─────────────────────────────────────────────────
   let studentName = 'Student';
@@ -75,39 +76,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `DB error: ${e.message}` }, { status: 500 });
   }
 
-  // ── 2. Get or create zk_user_mapping → device UID ──────────────────────────
-  let uid: number;
-  try {
-    const mappingRows = await query(
-      `SELECT device_user_id FROM zk_user_mapping
-       WHERE student_id = ? AND school_id = ?
-       LIMIT 1`,
-      [student_id, schoolId],
-    );
+  const zkName = studentName.replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim() || `S${student_id}`;
 
-    if (mappingRows?.length) {
-      uid = Number(mappingRows[0].device_user_id);
-    } else {
-      // Auto-assign next sequential UID
-      const maxRow = await query(
-        `SELECT COALESCE(MAX(CAST(device_user_id AS UNSIGNED)), 0) AS max_uid
-         FROM zk_user_mapping`,
-      );
-      uid = Math.max(1, (Number(maxRow?.[0]?.max_uid) || 0) + 1);
-      if (uid > 65535) {
-        return NextResponse.json({ error: 'UID limit reached (max 65535)' }, { status: 409 });
-      }
-      await query(
-        `INSERT INTO zk_user_mapping (school_id, student_id, device_user_id, user_type, device_sn)
-         VALUES (?, ?, ?, 'student', 'LOCAL')`,
-        [schoolId, student_id, uid],
-      );
-    }
-  } catch (e: any) {
-    return NextResponse.json({ error: `Mapping error: ${e.message}` }, { status: 500 });
-  }
-
-  // ── 3. Connect + send CMD_STARTENROLL ───────────────────────────────────────
+  // ── 2. Connect to device ────────────────────────────────────────────────────
   const zk = new ZKLib(device_ip, port, 8000, 5200);
   try {
     await zk.createSocket();
@@ -118,43 +89,82 @@ export async function POST(req: NextRequest) {
     }, { status: 502 });
   }
 
-  let deviceUid = uid; // may be updated by fetch-first lookup below
+  // ── 3. Fetch device users — resolve the CORRECT device slot (uid) ──────────
+  //
+  // Why this is required (not optional):
+  //   userId (ZK bytes 48-55) = DRAIS student_id stored as ASCII PIN.
+  //   uid    (ZK bytes  0- 1) = device-assigned slot number (≠ student_id).
+  //
+  // Physically-enrolled students may have uid=1 but userId="9" (student_id=9).
+  // If we send CMD_STARTENROLL with uid=9 (wrong slot), the device creates a
+  // NEW anonymous slot 9 — the "phantom" — and the fingerprint goes there.
+  //
+  // getUsers() failure is therefore FATAL: we must not guess.
+  let deviceUid: number;
   try {
-    // Cancel any in-progress capture
-    try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
+    await zk.zklibTcp.enableDevice();
+    const zkUsers = await zk.getUsers();
+    const users: Array<{ uid: any; name: string; userId: any }> = zkUsers?.data || [];
 
-    // ── Fetch-first: find existing device slot by userId (PIN = DRAIS student_id) ──
-    // userId (bytes 48-55) is the device's PRIMARY KEY — the PIN students type.
-    // It equals the DRAIS student_id, and may differ from the device slot (uid bytes 0-1).
-    const zkName = studentName.replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim() || `UID${uid}`;
-    try {
-      await zk.zklibTcp.enableDevice();
-      const zkUsers = await zk.getUsers();
-      const existing = (zkUsers?.data || []).find(
-        (u: any) => String(u.userId ?? '').trim() === String(student_id),
+    // Match by userId (PIN) = DRAIS student_id
+    const existing = users.find(u => String(u.userId ?? '').trim() === String(student_id));
+
+    if (existing) {
+      deviceUid = parseInt(String(existing.uid), 10);
+      console.log(`[LOCAL-ENROLL] Found: student_id=${student_id} → device uid=${deviceUid} name="${existing.name}"`);
+    } else {
+      // Student not on device yet — find a free slot.
+      // Prefer using student_id as the slot number (clean 1:1 mapping),
+      // fall back to first unused slot if that slot is already taken.
+      const taken = new Set(
+        users.map(u => parseInt(String(u.uid), 10)).filter(n => n > 0 && !isNaN(n)),
       );
-      if (existing) {
-        deviceUid = parseInt(String(existing.uid), 10);
-        console.log(`[LOCAL-ENROLL] Found user: student_id=${student_id} → device uid=${deviceUid} name="${existing.name}"`);
+      let candidate = parseInt(String(student_id), 10);
+      if (isNaN(candidate) || candidate < 1 || taken.has(candidate)) {
+        candidate = 1;
+        while (taken.has(candidate) && candidate <= 65535) candidate++;
       }
-    } catch (fetchErr: any) {
-      console.warn('[LOCAL-ENROLL] getUsers() failed (non-fatal), using DB uid:', fetchErr.message);
+      deviceUid = candidate;
+      console.log(`[LOCAL-ENROLL] New: student_id=${student_id} → assigning device uid=${deviceUid}`);
     }
+  } catch (e: any) {
+    try { await zk.zklibTcp.enableDevice(); } catch {}
+    try { await zk.disconnect(); } catch {}
+    return NextResponse.json({
+      error: `Cannot read device users — ${e.message}. Please retry.`,
+    }, { status: 502 });
+  }
+
+  // ── 4. Sync DB mapping to resolved device uid ───────────────────────────────
+  // Store the ACTUAL device slot so relay-enroll has a correct fallback uid.
+  await query(
+    `INSERT INTO zk_user_mapping (school_id, student_id, device_user_id, user_type, device_sn)
+     VALUES (?, ?, ?, 'student', ?)
+     ON DUPLICATE KEY UPDATE device_user_id = VALUES(device_user_id), device_sn = VALUES(device_sn)`,
+    [schoolId, student_id, deviceUid, device_ip],
+  ).catch((e: any) => console.warn('[LOCAL-ENROLL] Mapping upsert failed (non-fatal):', e.message));
+
+  // ── 5. Write identity + trigger enrollment ──────────────────────────────────
+  try {
+    try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
     await zk.zklibTcp.disableDevice();
 
-    // ── Write user record — userId MUST be DRAIS student_id (PIN), not device slot ──
-    // ZK 72-byte record: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
+    // ZK 72-byte record layout:
+    //   bytes  0-1  : uid (device slot — what CMD_STARTENROLL uses)
+    //   bytes  2    : role (0 = regular user)
+    //   bytes  3-10 : password (zeros)
+    //   bytes 11-33 : name (ASCII, null-padded)
+    //   bytes 35-38 : cardno (zeros)
+    //   bytes 48-55 : userId (PIN = DRAIS student_id as ASCII) ← device PRIMARY KEY
     const userBuf = Buffer.alloc(72, 0);
     userBuf.writeUInt16LE(deviceUid, 0);
     Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);
-    Buffer.from(String(student_id), 'ascii').copy(userBuf, 48, 0, 8); // userId = DRAIS student_id (PIN)
-    await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);     // throws → aborts enrollment
+    Buffer.from(String(student_id), 'ascii').copy(userBuf, 48, 0, 8);
+    await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
 
-    // CMD_STARTENROLL payload: uid (2 bytes LE) + finger_index (1 byte)
     const payload = Buffer.alloc(3);
     payload.writeUInt16LE(deviceUid, 0);
-    payload.writeUInt8(Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), 2);
-
+    payload.writeUInt8(fingerIdx, 2);
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
     await zk.zklibTcp.enableDevice();
   } catch (e: any) {
@@ -163,20 +173,18 @@ export async function POST(req: NextRequest) {
     await query(
       `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, error_message, created_at)
        VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'failed', ?, NOW())`,
-      [schoolId, student_id, deviceUid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), e.message],
+      [schoolId, student_id, deviceUid, fingerIdx, e.message],
     ).catch(() => {});
-    return NextResponse.json({
-      error: `Enrollment failed: ${e.message}`,
-    }, { status: 502 });
+    return NextResponse.json({ error: `Enrollment failed: ${e.message}` }, { status: 502 });
   }
 
   try { await zk.disconnect(); } catch {}
 
-  // ── Audit log ──────────────────────────────────────────────────────────────
+  // ── 6. Audit log ────────────────────────────────────────────────────────────
   await query(
     `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, created_at)
      VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'initiated', NOW())`,
-    [schoolId, student_id, deviceUid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0))],
+    [schoolId, student_id, deviceUid, fingerIdx],
   ).catch(() => {});
 
   return NextResponse.json({
@@ -184,6 +192,6 @@ export async function POST(req: NextRequest) {
     uid: deviceUid,
     student_name: studentName,
     device_ip,
-    message: `Direct Connection Established. K40 Triggered for ${studentName} (UID ${deviceUid}). Please scan finger now.`,
+    message: `K40 ready — scan finger now for ${studentName} (slot ${deviceUid}).`,
   });
 }
