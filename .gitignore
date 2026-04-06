@@ -45,3 +45,10 @@ next-env.d.ts
 
 .vercel
 cookies.txt
+
+# Ignore large files
+.next/cache/webpack/server-production/*.pack
+workers/dist-gui/linux-unpacked/drais-relay
+workers/dist-gui/DRAIS Relay-2.0.0.AppImage
+workers/dist-gui/win-unpacked/DRAIS Relay.exe
+workers/dist/DRAIS-Relay-Windows.zip
