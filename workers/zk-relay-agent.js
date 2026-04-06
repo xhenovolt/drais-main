@@ -334,8 +334,19 @@ async function handleCommand(msg) {
         try { await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
         await enrollZk.zklibTcp.disableDevice();
 
-        // Write the user record (name + uid) to the device before enrollment.
-        // MANDATORY — if this fails the fingerprint MUST NOT be enrolled on an anonymous slot.
+        // ── Collision check: read existing user at this UID before overwriting ──
+        // If a different name is already bound to this slot, log it — our DB is
+        // authoritative so we overwrite, but we flag it as a data integrity event.
+        try {
+          const existingUsers = await enrollZk.getUsers();
+          const slot = (existingUsers?.data || []).find(u => parseInt(String(u.uid), 10) === uid);
+          if (slot && slot.name && slot.name.trim() !== '' && slot.name.trim() !== name) {
+            log('warn', `[COLLISION] UID ${uid} occupied by "${slot.name}" on device — overwriting with "${name}" (DB is authoritative)`);
+          }
+        } catch { /* non-fatal — proceed with write */ }
+
+        // ── Step 1: User Pre-Registration ────────────────────────────────────
+        // Write user record (name + uid) so K40 shows student name during scan.
         // ZK user record is 72 bytes: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
         const userBuf = Buffer.alloc(72, 0);
         userBuf.writeUInt16LE(uid, 0);                               // uid (bytes 0-1)
@@ -344,14 +355,20 @@ async function handleCommand(msg) {
         Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);         // name (bytes 11-34, max 23 + null)
         // bytes 35-38: cardno = 0
         Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);   // userId string (bytes 48-56)
-        await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); // throws → aborts enrollment
 
+        log('info', `[ENROLL] Step 1 — Registering ${name} (PIN=${uid})…`);
+        await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); // throws → aborts enrollment
+        log('info', `[ENROLL] Registering ${name}… Success.`);
+
+        // ── Step 2: Trigger Enrollment ────────────────────────────────────────
         const payload = Buffer.alloc(3);
         payload.writeUInt16LE(uid, 0);
         payload.writeUInt8(Math.max(0, Math.min(9, finger)), 2);
 
+        log('info', `[ENROLL] Step 2 — Triggering Scan for ${name} (finger=${finger})…`);
         await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
         await enrollZk.zklibTcp.enableDevice();
+        log('info', `[ENROLL] Triggering Scan… Success. K40 screen now shows "${name}".`);
       } finally {
         try { await enrollZk.disconnect(); } catch {}
       }

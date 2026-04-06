@@ -155,6 +155,8 @@ export default function StudentsListPage() {
   type EnrollStep = 'waking' | 'sent' | 'success' | 'failed';
   const [enrollProgress, setEnrollProgress] = useState<Map<number, { step: EnrollStep; commandId?: number; deviceName?: string; message?: string }>>(new Map());
   const pollTimers = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
+  // Last Enrolled confirmation panel
+  const [lastEnrolled, setLastEnrolled] = useState<{ name: string; studentId: number; uid?: number; device: string; ts: Date } | null>(null);
   
   // Enrollment Modal State
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -288,9 +290,10 @@ export default function StudentsListPage() {
         setStudentEnrollStep(studentId, {
           step: 'success',
           deviceName: label,
-          message: `Direct Connection Established. K40 Triggered. Please scan finger now.`,
+          message: `Identity Synchronized. K40 ready — scan finger now.`,
         });
         setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
+        setLastEnrolled({ name: res.student_name || 'Student', studentId, uid: res.uid, device: label, ts: new Date() });
         // Auto-clear after 30s (enough time for 3-finger scan)
         setTimeout(() => clearStudentEnroll(studentId), 30000);
       } else {
@@ -324,6 +327,22 @@ export default function StudentsListPage() {
         silent: true,
       });
       if (!res?.success) throw new Error(res?.error || 'Relay enroll failed');
+      const studentName = res.student_name || 'Student';
+
+      // Local warm-up succeeded — server reached device directly, no polling needed
+      if (res.local_warmup) {
+        setStudentEnrollStep(studentId, {
+          step: 'success',
+          deviceName: label,
+          message: res.message || 'Identity Synchronized. Machine is ready for scanning.',
+        });
+        setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
+        setLastEnrolled({ name: studentName, studentId, uid: res.uid, device: label, ts: new Date() });
+        showToast('success', `Identity Synchronized for ${studentName}`);
+        setTimeout(() => clearStudentEnroll(studentId), 30000);
+        return;
+      }
+
       const commandId = res.command_id;
       const hint = res.relay_online ? '' : ' (relay agent offline — command queued)';
       setStudentEnrollStep(studentId, {
@@ -332,8 +351,8 @@ export default function StudentsListPage() {
         deviceName: label,
         message: `Sent to relay agent${hint}…`,
       });
-      startRelayPolling(studentId, commandId, label, sn);
-      showToast('info', `Relay enroll queued for ${res.student_name}${hint}`);
+      startRelayPolling(studentId, commandId, label, sn, studentName);
+      showToast('info', `Relay enroll queued for ${studentName}${hint}`);
     } catch (err: any) {
       setStudentEnrollStep(studentId, { step: 'failed', deviceName: label, message: err?.message || 'Relay enroll failed' });
       showToast('error', err?.message || 'Relay enroll failed');
@@ -341,7 +360,7 @@ export default function StudentsListPage() {
     }
   };
 
-  const startRelayPolling = (studentId: number, commandId: number, deviceName: string, deviceSn: string) => {
+  const startRelayPolling = (studentId: number, commandId: number, deviceName: string, deviceSn: string, studentName?: string) => {
     const existing = pollTimers.current.get(studentId);
     if (existing) clearInterval(existing);
 
@@ -360,7 +379,8 @@ export default function StudentsListPage() {
           pendingSeconds = 0;
           setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: 'Relay agent executing on device…' });
         } else if (status === 'completed') {
-          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Device ready — scan finger now ⬆' });
+          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Identity Synchronized — scan finger now ⬆' });
+          if (studentName) setLastEnrolled({ name: studentName, studentId, device: deviceName, ts: new Date() });
           clearInterval(timer);
           pollTimers.current.delete(studentId);
           setTimeout(() => clearStudentEnroll(studentId), 30000);
@@ -1077,6 +1097,21 @@ export default function StudentsListPage() {
 
         {/* Right: action buttons */}
         <div className="flex items-center gap-1">
+
+          {/* ── Last Enrolled Confirmation ──────────────────────────────── */}
+          {lastEnrolled && (
+            <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium max-w-[220px] truncate">
+              <Check className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />
+              <span className="truncate" title={`${lastEnrolled.name}${lastEnrolled.uid ? ` · UID ${lastEnrolled.uid}` : ''} · ${lastEnrolled.device} · ${lastEnrolled.ts.toLocaleTimeString()}`}>
+                {lastEnrolled.name}
+                {lastEnrolled.uid ? <span className="opacity-60 ml-1">UID {lastEnrolled.uid}</span> : null}
+                <span className="opacity-50 ml-1">{lastEnrolled.ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </span>
+              <button onClick={() => setLastEnrolled(null)} className="flex-shrink-0 ml-0.5 opacity-50 hover:opacity-100">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
 
           {/* ── Capture Mode Toggle ─────────────────────────────────────────── */}
           <div className="relative" ref={modeSettingsRef}>

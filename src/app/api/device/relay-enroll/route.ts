@@ -24,6 +24,20 @@ import { getSessionSchoolId } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
+const ZKLib = require('node-zklib');
+const { COMMANDS } = require('node-zklib/constants');
+
+// ─── IP Validator (LAN only) ──────────────────────────────────────────────────
+function isValidLanIP(ip: string): boolean {
+  const match = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const o = [+match[1], +match[2], +match[3], +match[4]];
+  if (o.some(n => n > 255)) return false;
+  if (o[0] === 127 || o[0] === 0) return false;
+  if (o[0] === 169 && o[1] === 254) return false;
+  return true;
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
@@ -148,11 +162,72 @@ export async function POST(req: NextRequest) {
   const secAgo = agentRows?.[0]?.sec_ago;
   const relayOnline = secAgo != null && Number(secAgo) < 60;
 
-  // ── 6. Queue relay command ──────────────────────────────────────────────────
-  // Truncate name to 23 chars (ZK name field is 24 bytes incl. null terminator)
-  // Strip non-ASCII chars so the device receives a clean name
+  // ── 6. Name formatting (ZK 23-char limit, ASCII only) ──────────────────────
   const zkName = studentName.replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim() || `UID${uid}`;
 
+  // ── 7. Local warm-up: if server can reach the device directly, skip relay ───
+  // Look up device IP from devices table. If the Next.js server is on the same
+  // LAN as the K40 (school on-prem deployment), use direct TCP for zero latency.
+  // On failure, fall through to the relay queue path.
+  const deviceIpRows = await query(
+    'SELECT ip_address FROM devices WHERE sn = ? AND school_id = ? LIMIT 1',
+    [device_sn, deviceSchoolId],
+  ).catch(() => null) as Array<{ ip_address: string }> | null;
+  const deviceIp = deviceIpRows?.[0]?.ip_address || null;
+
+  if (deviceIp && isValidLanIP(deviceIp)) {
+    try {
+      const zk = new ZKLib(deviceIp, 4370, 8000, 5200);
+      await zk.createSocket();
+      try {
+        try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
+        await zk.zklibTcp.disableDevice();
+
+        // Step 1: Pre-register identity
+        const userBuf = Buffer.alloc(72, 0);
+        userBuf.writeUInt16LE(uid, 0);
+        Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);
+        Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);
+        console.log(`[relay-enroll:warmup] Step 1 — Registering ${zkName} (PIN=${uid})…`);
+        await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
+        console.log(`[relay-enroll:warmup] Registering ${zkName}… Success.`);
+
+        // Step 2: Trigger scan
+        const payload = Buffer.alloc(3);
+        payload.writeUInt16LE(uid, 0);
+        payload.writeUInt8(fingerIdx, 2);
+        console.log(`[relay-enroll:warmup] Step 2 — Triggering Scan for ${zkName} (finger=${fingerIdx})…`);
+        await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
+        await zk.zklibTcp.enableDevice();
+        console.log(`[relay-enroll:warmup] Triggering Scan… Success. K40 screen now shows "${zkName}".`);
+      } finally {
+        try { await zk.disconnect(); } catch {}
+      }
+
+      // Audit log for the local warm-up enrollment
+      await query(
+        `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, created_at)
+         VALUES (?, ?, ?, ?, ?, 'local', 'initiated', NOW())`,
+        [session.schoolId, student_id, uid, fingerIdx, device_sn],
+      ).catch(() => {});
+
+      console.log(`[relay-enroll:warmup] Identity Synchronized for ${studentName} (UID=${uid}). Machine is ready for scanning.`);
+
+      return NextResponse.json({
+        success: true,
+        uid,
+        student_name: studentName,
+        device_sn,
+        local_warmup: true,
+        message: `Identity Synchronized for ${studentName}. Machine is ready for scanning.`,
+      });
+    } catch (warmupErr: any) {
+      // Local attempt failed — fall through to relay queue
+      console.warn(`[relay-enroll:warmup] Local TCP failed (${warmupErr.message}), falling back to relay queue`);
+    }
+  }
+
+  // ── 8. Queue relay command ──────────────────────────────────────────────────
   const insertResult = await query(
     `INSERT INTO relay_commands (device_sn, action, params, status, created_at)
      VALUES (?, 'enroll', ?, 'pending', NOW())`,
@@ -160,7 +235,7 @@ export async function POST(req: NextRequest) {
   );
   const commandId = (insertResult as any)?.insertId;
 
-  // ── 7. Audit log ────────────────────────────────────────────────────────────
+  // ── 9. Audit log ────────────────────────────────────────────────────────────
   await query(
     `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, relay_cmd_id, created_at)
      VALUES (?, ?, ?, ?, ?, 'relay', 'initiated', ?, NOW())`,
