@@ -122,6 +122,7 @@ let zkCmd = null;       // used for all executeCmd calls
 let zkRt  = null;       // used only for getRealTimeLogs
 let connected = false;
 let realTimeActive = false;
+let consecutivePollFails = 0; // track server unreachable
 
 function log(level, msg, data = null) {
   const ts = new Date().toISOString().slice(11, 23);
@@ -131,16 +132,31 @@ function log(level, msg, data = null) {
 
 // ─── ZK Device Connection ─────────────────────────────────────────────────────
 
+function teardownCmd() {
+  connected = false;
+  if (zkCmd) { try { zkCmd.disconnect(); } catch {} }
+  zkCmd = null;
+}
+
+function teardownRealtime() {
+  realTimeActive = false;
+  if (zkRt) { try { zkRt.disconnect(); } catch {} }
+  zkRt = null;
+}
+
 async function connectCmd() {
   if (connected) return true;
+
+  // Always start fresh — destroy any stale socket
+  teardownCmd();
 
   log('info', `Connecting to ZK device at ${DEVICE_IP}:${DEVICE_PORT}...`);
   zkCmd = new ZKLib(DEVICE_IP, DEVICE_PORT, 10000, 5200);
 
   try {
     await zkCmd.createSocket(
-      (err) => { log('error', 'ZK cmd socket error', err.message); connected = false; },
-      ()    => { log('warn',  'ZK cmd socket closed'); connected = false; },
+      (err) => { log('error', 'ZK cmd socket error', err.message); teardownCmd(); },
+      ()    => { log('warn',  'ZK cmd socket closed'); teardownCmd(); },
     );
     connected = true;
     log('info', 'Connected to ZK device via TCP (cmd)');
@@ -148,19 +164,23 @@ async function connectCmd() {
     return true;
   } catch (err) {
     log('error', `Failed to connect (cmd): ${err.message}`);
-    connected = false;
+    teardownCmd();
     return false;
   }
 }
 
 async function connectRealtime() {
   if (realTimeActive) return;
+
+  // Always start fresh — destroy any stale RT socket
+  teardownRealtime();
+
   log('info', 'Opening real-time event connection...');
   zkRt = new ZKLib(DEVICE_IP, DEVICE_PORT, 10000, 5200);
   try {
     await zkRt.createSocket(
-      () => { realTimeActive = false; },
-      () => { realTimeActive = false; },
+      () => { teardownRealtime(); },
+      () => { teardownRealtime(); },
     );
     await zkRt.getRealTimeLogs((data) => {
       log('event', 'Real-time event', data);
@@ -173,19 +193,20 @@ async function connectRealtime() {
     log('info', 'Real-time event listener active');
   } catch (err) {
     log('error', `Real-time init failed: ${err.message}`);
-    realTimeActive = false;
+    teardownRealtime();
   }
 }
 
 async function ensureConnection() {
   // Check if the socket is actually alive — the 'connected' flag can be stale
-  // if the device dropped the TCP connection without sending a FIN (ECONNRESET).
-  const socketDead = zkCmd?._socket && !zkCmd._socket.writable;
-  if (socketDead) {
-    log('warn', 'ZK cmd socket is dead — forcing reconnect');
-    connected = false;
-    try { zkCmd.disconnect(); } catch {}
-    zkCmd = null;
+  // if WiFi dropped or device silently closed the connection.
+  if (zkCmd) {
+    const tcp = zkCmd.zklibTcp || {};
+    const sock = tcp.socket;
+    if (!sock || sock.destroyed || !sock.writable) {
+      log('warn', 'ZK cmd socket is dead — forcing reconnect');
+      teardownCmd();
+    }
   }
 
   if (!connected) await connectCmd();
@@ -389,6 +410,9 @@ async function pollAndExecute() {
       `/api/relay-status?poll=1&device_sn=${encodeURIComponent(DEVICE_SN)}&relay_key=${encodeURIComponent(RELAY_KEY)}`,
     );
 
+    // Server reachable — reset failure counter
+    consecutivePollFails = 0;
+
     const commands = resp.commands || [];
     if (commands.length === 0) return;
 
@@ -434,10 +458,22 @@ async function pollAndExecute() {
       });
     }
   } catch (err) {
-    // Suppress transient errors (server may be down temporarily or connection reset)
-    const silent = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'HTTP timeout'];
-    if (!silent.some(s => err.message.includes(s))) {
-      log('warn', `Poll error: ${err.message}`);
+    consecutivePollFails++;
+    const msg = err.message || '';
+    const networkDead = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH', 'EAI_AGAIN', 'ENOTFOUND', 'HTTP timeout'];
+    const isNetworkErr = networkDead.some(s => msg.includes(s));
+
+    if (isNetworkErr && consecutivePollFails === 3) {
+      log('warn', `Network appears down (${consecutivePollFails} consecutive failures) — will auto-recover when back`);
+    } else if (!isNetworkErr) {
+      log('warn', `Poll error: ${msg}`);
+    }
+
+    // After several failures, tear down device sockets too — they're likely dead
+    if (consecutivePollFails >= 5 && connected) {
+      log('warn', 'Tearing down stale device connections after network loss');
+      teardownCmd();
+      teardownRealtime();
     }
   }
 }
@@ -475,19 +511,19 @@ async function main() {
     await pollAndExecute();
   }, POLL_MS);
 
-  // Step 3: Device health check every 30s
+  // Step 3: Device health check every 10s — recovers quickly after WiFi drop
   setInterval(async () => {
     if (!connected) {
       log('info', 'Attempting device reconnect (cmd)...');
       const ok = await connectCmd().catch(() => false);
       if (ok) {
         await connectRealtime().catch(() => {});
+        log('info', 'Device reconnected successfully');
       }
     } else if (!realTimeActive) {
-      // cmd socket is up but real-time dropped — reconnect just the RT socket
       await connectRealtime().catch(() => {});
     }
-  }, 30000);
+  }, 10000);
 }
 
 main().catch(err => {
