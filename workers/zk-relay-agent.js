@@ -311,61 +311,82 @@ async function handleCommand(msg) {
     }
 
     case 'enroll': {
-      const uid = parseInt(params?.uid, 10);
       const finger = parseInt(params?.finger ?? '0', 10);
       const name = String(params?.name || '').replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim();
+      // student_id is the DRAIS student ID — used as the userId/PIN on the ZK device
+      // It MUST be different from the device's internal slot uid (which can differ)
+      const studentId = String(params?.student_id || params?.uid || '').replace(/[^\x20-\x7E]/g, '').slice(0, 8).trim();
 
       // ── HARD BLOCK — identity binding is non-negotiable ─────────────────────
-      if (isNaN(uid) || uid < 1 || uid > 65535) {
-        throw new Error(`BLOCKED: Enrollment requires valid UID — got "${params?.uid}"`);
-      }
       if (!name) {
         throw new Error('BLOCKED: Enrollment requires student name. Identity must be bound before biometric capture.');
       }
+      if (!studentId || isNaN(Number(studentId)) || Number(studentId) < 1) {
+        throw new Error(`BLOCKED: Enrollment requires a valid student_id — got "${params?.student_id}"`);
+      }
 
-      // Use a fresh short-lived connection for enrollment (matching the local-enroll path).
-      // The persistent relay connection + real-time listener interferes with the K40's
-      // enrollment mode — sending CMD_STARTENROLL on the shared socket doesn't trigger
-      // the fingerprint prompt on the device screen.
+      // Use a fresh short-lived connection for enrollment.
       const enrollZk = new ZKLib(DEVICE_IP, DEVICE_PORT, 8000, 5200);
       try {
         await enrollZk.createSocket();
 
+        // ── Fetch-First: resolve the DEVICE UID by matching userId=studentId ────
+        // Key insight (confirmed by probe tests 2026-04-06):
+        //   Device's userId (PIN, bytes 48-55) = DRAIS student_id (ASCII string)
+        //   Device's uid (slot, bytes 0-1) = auto-assigned by device, may differ
+        // We must send CMD_STARTENROLL with the DEVICE SLOT uid, not the DRAIS id.
+        let deviceUid = null;
+        let takenUids = [];
+        try {
+          const existing = await enrollZk.getUsers();
+          const users = (existing?.data || [])
+            .map(u => ({ uid: parseInt(String(u.uid), 10), name: u.name || '', userId: (u.userId || '').trim() }))
+            .filter(u => !isNaN(u.uid) && u.uid > 0);
+          takenUids = users.map(u => u.uid);
+          const match = users.find(u => u.userId === studentId);
+          if (match) {
+            deviceUid = match.uid;
+            log('info', `[ENROLL] Found user: student_id=${studentId} → device uid=${deviceUid} name="${match.name}"`);
+          }
+        } catch (e) {
+          log('warn', `[ENROLL] getUsers failed (non-fatal): ${e.message}`);
+        }
+
+        // Student not on device yet — assign/find an available slot
+        if (deviceUid === null) {
+          const fallbackUid = parseInt(params?.uid, 10);
+          if (!isNaN(fallbackUid) && fallbackUid >= 1 && fallbackUid <= 65535 && !takenUids.includes(fallbackUid)) {
+            deviceUid = fallbackUid;
+          } else {
+            // Find first unused slot starting from 1
+            let next = 1;
+            while (takenUids.includes(next) && next <= 65535) next++;
+            deviceUid = next;
+          }
+          log('info', `[ENROLL] student_id=${studentId} not on device yet — will create at uid=${deviceUid}`);
+        }
+
         try { await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
         await enrollZk.zklibTcp.disableDevice();
 
-        // ── Collision check: read existing user at this UID before overwriting ──
-        // If a different name is already bound to this slot, log it — our DB is
-        // authoritative so we overwrite, but we flag it as a data integrity event.
-        try {
-          const existingUsers = await enrollZk.getUsers();
-          const slot = (existingUsers?.data || []).find(u => parseInt(String(u.uid), 10) === uid);
-          if (slot && slot.name && slot.name.trim() !== '' && slot.name.trim() !== name) {
-            log('warn', `[COLLISION] UID ${uid} occupied by "${slot.name}" on device — overwriting with "${name}" (DB is authoritative)`);
-          }
-        } catch { /* non-fatal — proceed with write */ }
-
         // ── Step 1: User Pre-Registration ────────────────────────────────────
-        // Write user record (name + uid) so K40 shows student name during scan.
-        // ZK user record is 72 bytes: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
+        // userId (PIN) = studentId (DRAIS student ID as ASCII) — NOT the device slot number
+        // ZK 72-byte: [uid=device_slot(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId=drais_id(9)][pad(15)]
         const userBuf = Buffer.alloc(72, 0);
-        userBuf.writeUInt16LE(uid, 0);                               // uid (bytes 0-1)
-        // byte 2: role = 0 (regular user)
-        // bytes 3-10: password = all zeros
-        Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);         // name (bytes 11-34, max 23 + null)
-        // bytes 35-38: cardno = 0
-        Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);   // userId string (bytes 48-56)
+        userBuf.writeUInt16LE(deviceUid, 0);
+        Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);          // name bytes 11-34
+        Buffer.from(studentId, 'ascii').copy(userBuf, 48, 0, 8);      // userId = DRAIS student_id (PIN)
 
-        log('info', `[ENROLL] Step 1 — Registering ${name} (PIN=${uid})…`);
-        await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); // throws → aborts enrollment
+        log('info', `[ENROLL] Step 1 — Registering ${name} device_uid=${deviceUid} PIN=${studentId}…`);
+        await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); // throws → aborts
         log('info', `[ENROLL] Registering ${name}… Success.`);
 
         // ── Step 2: Trigger Enrollment ────────────────────────────────────────
         const payload = Buffer.alloc(3);
-        payload.writeUInt16LE(uid, 0);
+        payload.writeUInt16LE(deviceUid, 0);
         payload.writeUInt8(Math.max(0, Math.min(9, finger)), 2);
 
-        log('info', `[ENROLL] Step 2 — Triggering Scan for ${name} (finger=${finger})…`);
+        log('info', `[ENROLL] Step 2 — Triggering Scan device_uid=${deviceUid} finger=${finger}…`);
         await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
         await enrollZk.zklibTcp.enableDevice();
         log('info', `[ENROLL] Triggering Scan… Success. K40 screen now shows "${name}".`);
@@ -373,8 +394,8 @@ async function handleCommand(msg) {
         try { await enrollZk.disconnect(); } catch {}
       }
 
-      log('info', `[ENROLL] uid=${uid} name="${name}" finger=${finger} — identity bound + prompt active`);
-      return { message: `Enrollment started for UID=${uid} (${name}), finger=${finger}` };
+      log('info', `[ENROLL] COMPLETE student_id=${studentId} name="${name}" finger=${finger}`);
+      return { message: `Enrollment started for student_id=${studentId} (${name}), finger=${finger}` };
     }
 
     case 'cancel_enroll': {

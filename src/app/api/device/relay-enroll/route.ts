@@ -176,25 +176,39 @@ export async function POST(req: NextRequest) {
   const deviceIp = deviceIpRows?.[0]?.ip_address || null;
 
   if (deviceIp && isValidLanIP(deviceIp)) {
+    let warmupDeviceUid = uid; // may be updated by fetch-first inside the try block
     try {
       const zk = new ZKLib(deviceIp, 4370, 8000, 5200);
       await zk.createSocket();
       try {
         try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
+
+        // ── Fetch-first: resolve device slot by userId (PIN = DRAIS student_id) ──
+        try {
+          await zk.zklibTcp.enableDevice();
+          const zkUsers = await zk.getUsers();
+          const existing = (zkUsers?.data || []).find(
+            (u: any) => String(u.userId ?? '').trim() === String(student_id),
+          );
+          if (existing) {
+            warmupDeviceUid = parseInt(String(existing.uid), 10);
+            console.log(`[relay-enroll:warmup] Found user: student_id=${student_id} → device uid=${warmupDeviceUid} name="${existing.name}"`);
+          }
+        } catch {}
         await zk.zklibTcp.disableDevice();
 
-        // Step 1: Pre-register identity
+        // Step 1: Pre-register identity — userId MUST be student_id (PIN), not device slot
         const userBuf = Buffer.alloc(72, 0);
-        userBuf.writeUInt16LE(uid, 0);
+        userBuf.writeUInt16LE(warmupDeviceUid, 0);
         Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);
-        Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);
-        console.log(`[relay-enroll:warmup] Step 1 — Registering ${zkName} (PIN=${uid})…`);
+        Buffer.from(String(student_id), 'ascii').copy(userBuf, 48, 0, 8); // userId = DRAIS student_id (PIN)
+        console.log(`[relay-enroll:warmup] Step 1 — Registering ${zkName} device_uid=${warmupDeviceUid} PIN=${student_id}…`);
         await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
         console.log(`[relay-enroll:warmup] Registering ${zkName}… Success.`);
 
         // Step 2: Trigger scan
         const payload = Buffer.alloc(3);
-        payload.writeUInt16LE(uid, 0);
+        payload.writeUInt16LE(warmupDeviceUid, 0);
         payload.writeUInt8(fingerIdx, 2);
         console.log(`[relay-enroll:warmup] Step 2 — Triggering Scan for ${zkName} (finger=${fingerIdx})…`);
         await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
@@ -208,14 +222,14 @@ export async function POST(req: NextRequest) {
       await query(
         `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, created_at)
          VALUES (?, ?, ?, ?, ?, 'local', 'initiated', NOW())`,
-        [session.schoolId, student_id, uid, fingerIdx, device_sn],
+        [session.schoolId, student_id, warmupDeviceUid, fingerIdx, device_sn],
       ).catch(() => {});
 
-      console.log(`[relay-enroll:warmup] Identity Synchronized for ${studentName} (UID=${uid}). Machine is ready for scanning.`);
+      console.log(`[relay-enroll:warmup] Identity Synchronized for ${studentName} (UID=${warmupDeviceUid}). Machine is ready for scanning.`);
 
       return NextResponse.json({
         success: true,
-        uid,
+        uid: warmupDeviceUid,
         student_name: studentName,
         device_sn,
         local_warmup: true,
@@ -231,7 +245,7 @@ export async function POST(req: NextRequest) {
   const insertResult = await query(
     `INSERT INTO relay_commands (device_sn, action, params, status, created_at)
      VALUES (?, 'enroll', ?, 'pending', NOW())`,
-    [device_sn, JSON.stringify({ uid, finger: fingerIdx, name: zkName })],
+    [device_sn, JSON.stringify({ uid, finger: fingerIdx, name: zkName, student_id })],
   );
   const commandId = (insertResult as any)?.insertId;
 

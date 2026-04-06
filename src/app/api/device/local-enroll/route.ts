@@ -118,27 +118,41 @@ export async function POST(req: NextRequest) {
     }, { status: 502 });
   }
 
+  let deviceUid = uid; // may be updated by fetch-first lookup below
   try {
     // Cancel any in-progress capture
     try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
+
+    // ── Fetch-first: find existing device slot by userId (PIN = DRAIS student_id) ──
+    // userId (bytes 48-55) is the device's PRIMARY KEY — the PIN students type.
+    // It equals the DRAIS student_id, and may differ from the device slot (uid bytes 0-1).
+    const zkName = studentName.replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim() || `UID${uid}`;
+    try {
+      await zk.zklibTcp.enableDevice();
+      const zkUsers = await zk.getUsers();
+      const existing = (zkUsers?.data || []).find(
+        (u: any) => String(u.userId ?? '').trim() === String(student_id),
+      );
+      if (existing) {
+        deviceUid = parseInt(String(existing.uid), 10);
+        console.log(`[LOCAL-ENROLL] Found user: student_id=${student_id} → device uid=${deviceUid} name="${existing.name}"`);
+      }
+    } catch (fetchErr: any) {
+      console.warn('[LOCAL-ENROLL] getUsers() failed (non-fatal), using DB uid:', fetchErr.message);
+    }
     await zk.zklibTcp.disableDevice();
 
-    // ── Write user record (name + uid) BEFORE enrollment — MANDATORY ──────────
-    // A fingerprint must NEVER be enrolled on an anonymous slot.
-    // ZK 72-byte user record: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
-    const zkName = studentName.replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim() || `UID${uid}`;
+    // ── Write user record — userId MUST be DRAIS student_id (PIN), not device slot ──
+    // ZK 72-byte record: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
     const userBuf = Buffer.alloc(72, 0);
-    userBuf.writeUInt16LE(uid, 0);                                    // uid (bytes 0-1)
-    // byte 2: role = 0 (regular user)
-    // bytes 3-10: password = all zeros
-    Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);            // name (bytes 11-34, max 23 + null)
-    // bytes 35-38: cardno = 0
-    Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);        // userId string (bytes 48-56)
+    userBuf.writeUInt16LE(deviceUid, 0);
+    Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);
+    Buffer.from(String(student_id), 'ascii').copy(userBuf, 48, 0, 8); // userId = DRAIS student_id (PIN)
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);     // throws → aborts enrollment
 
     // CMD_STARTENROLL payload: uid (2 bytes LE) + finger_index (1 byte)
     const payload = Buffer.alloc(3);
-    payload.writeUInt16LE(uid, 0);
+    payload.writeUInt16LE(deviceUid, 0);
     payload.writeUInt8(Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), 2);
 
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
@@ -149,7 +163,7 @@ export async function POST(req: NextRequest) {
     await query(
       `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, error_message, created_at)
        VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'failed', ?, NOW())`,
-      [schoolId, student_id, uid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), e.message],
+      [schoolId, student_id, deviceUid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), e.message],
     ).catch(() => {});
     return NextResponse.json({
       error: `Enrollment failed: ${e.message}`,
@@ -162,14 +176,14 @@ export async function POST(req: NextRequest) {
   await query(
     `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, created_at)
      VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'initiated', NOW())`,
-    [schoolId, student_id, uid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0))],
+    [schoolId, student_id, deviceUid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0))],
   ).catch(() => {});
 
   return NextResponse.json({
     success: true,
-    uid,
+    uid: deviceUid,
     student_name: studentName,
     device_ip,
-    message: `Direct Connection Established. K40 Triggered for ${studentName} (UID ${uid}). Please scan finger now.`,
+    message: `Direct Connection Established. K40 Triggered for ${studentName} (UID ${deviceUid}). Please scan finger now.`,
   });
 }
