@@ -1,22 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import {
-  Fingerprint,
-  User,
-  Phone,
-  Wallet,
-  Clock,
-  ExternalLink,
-  Printer,
-  X,
-  AlertTriangle,
-  CheckCircle2,
-  ShieldAlert,
-  UserX,
-} from 'lucide-react';
-import Link from 'next/link';
+import { useEffect, useState, useRef } from 'react';
+import { Fingerprint } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -142,24 +128,118 @@ function formatTime(iso: string): string {
   }
 }
 
+/* ── XSS-safe HTML builder for Swal ─────────────────────────────────── */
+
+function escHtml(s: string | null | undefined): string {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+function buildSwalHtml(scan: ScanEvent): string {
+  const learner = scan.learner;
+
+  let headerBg = '#10b981'; // emerald
+  let headerLabel = 'Check-in Successful';
+  if (!scan.matched) {
+    headerBg = '#ef4444'; headerLabel = 'Unrecognized ID';
+  } else if (learner && learner.fee_balance > 0) {
+    headerBg = '#f59e0b'; headerLabel = 'Low Fee Balance';
+  } else if (scan.person_type === 'staff') {
+    headerBg = '#6366f1'; headerLabel = 'Staff Check-in';
+  }
+
+  const headerHtml = `
+    <div style="background:${headerBg};color:#fff;padding:10px 16px;margin:-20px -20px 12px;border-radius:12px 12px 0 0;font-weight:700;font-size:14px;text-align:left">
+      ${escHtml(headerLabel)}
+    </div>`;
+
+  // ── Student ──
+  if (scan.person_type === 'student' && learner) {
+    const photoHtml = learner.photo_url
+      ? `<img src="${escHtml(learner.photo_url)}" alt="" style="width:56px;height:56px;border-radius:12px;object-fit:cover" />`
+      : `<div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0">${escHtml((learner.first_name?.[0] ?? '') + (learner.last_name?.[0] ?? ''))}</div>`;
+
+    const classHtml = learner.class_name
+      ? `${escHtml(learner.class_name)}${learner.stream_name ? ' · ' + escHtml(learner.stream_name) : ''}`
+      : 'Admitted · Not Yet Enrolled';
+
+    const balanceBg = learner.fee_balance > 0 ? '#fff7ed' : '#f0fdf4';
+    const balanceColor = learner.fee_balance > 0 ? '#b45309' : '#15803d';
+
+    const guardianHtml = learner.guardian
+      ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;margin-top:8px">
+          <span style="font-size:11px;color:#374151">👤 <strong>${escHtml(learner.guardian.name)}</strong> (${escHtml(learner.guardian.relationship)})<br/><a href="tel:${escHtml(learner.guardian.phone)}" style="color:#2563eb;text-decoration:none">${escHtml(learner.guardian.phone)}</a></span>
+        </div>`
+      : '';
+
+    const profileUrl = `/students/${learner.student_id}`;
+
+    return `
+      ${headerHtml}
+      <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+          ${photoHtml}
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(learner.first_name)} ${escHtml(learner.last_name)}</div>
+            <div style="font-size:11px;color:#6b7280;font-family:monospace">${escHtml(learner.admission_no || 'ID: ' + scan.device_user_id)}</div>
+            <div style="font-size:11px;color:#4f46e5;font-weight:600;margin-top:2px">${classHtml}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="background:${balanceBg};border-radius:8px;padding:8px 10px;border:1px solid #e5e7eb">
+            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Balance</div>
+            <div style="font-weight:700;color:${balanceColor}">UGX ${learner.fee_balance.toLocaleString()}</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;border:1px solid #e5e7eb">
+            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Today</div>
+            <div style="font-weight:700;color:#374151">${learner.attendance_today} scan${learner.attendance_today !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+        ${guardianHtml}
+        <div style="margin-top:10px;display:flex;gap:6px">
+          <a href="${escHtml(profileUrl)}" onclick="window.location.href='${escHtml(profileUrl)}';Swal.close();return false;" style="flex:1;display:block;text-align:center;padding:8px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:600;font-size:12px;text-decoration:none">View Profile</a>
+          ${learner.guardian?.phone ? `<a href="tel:${escHtml(learner.guardian.phone)}" style="padding:8px 12px;border:1px solid #93c5fd;color:#2563eb;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">Call Parent</a>` : ''}
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between">
+          <span>${escHtml(verifyLabel(scan.verify_type))} · ${escHtml(ioLabel(scan.io_mode))}</span>
+          <span>${escHtml(formatTime(scan.check_time))}</span>
+          ${scan.device_name ? `<span>${escHtml(scan.device_name)}</span>` : ''}
+        </div>
+      </div>`;
+  }
+
+  // ── Staff ──
+  if (scan.person_type === 'staff' && scan.staff) {
+    return `
+      ${headerHtml}
+      <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
+        <div style="font-size:16px;font-weight:700">${escHtml(scan.staff.first_name)} ${escHtml(scan.staff.last_name)}</div>
+        <div style="color:#6366f1;font-weight:600;margin:2px 0 6px">Staff Member</div>
+        <div style="color:#6b7280;font-size:11px">${escHtml(ioLabel(scan.io_mode))} · ${escHtml(formatTime(scan.check_time))}</div>
+      </div>`;
+  }
+
+  // ── Unmatched ──
+  return `
+    ${headerHtml}
+    <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
+      <div style="font-size:16px;font-weight:700;color:#ef4444">Unrecognized ID</div>
+      <div style="font-family:monospace;color:#6b7280;font-size:11px;margin-top:4px">Device User: ${escHtml(scan.device_user_id)}</div>
+      <div style="color:#ef4444;font-weight:600;font-size:11px;margin-top:4px">Not mapped to any student or staff</div>
+    </div>`;
+}
+
 /* ── Component ───────────────────────────────────────────────────────── */
 
-const AUTO_DISMISS_MS = 10_000;
-
 export function LiveIdentityPopup() {
-  const [currentScan, setCurrentScan] = useState<ScanEvent | null>(null);
-  const [visible, setVisible] = useState(false);
   const [connected, setConnected] = useState(false);
-  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const seenIds = useRef(new Set<number>());
-
-  const dismiss = useCallback(() => {
-    setVisible(false);
-    if (dismissTimer.current) clearTimeout(dismissTimer.current);
-    // Clear scan data after exit animation
-    setTimeout(() => setCurrentScan(null), 400);
-  }, []);
 
   // SSE connection
   useEffect(() => {
@@ -191,12 +271,23 @@ export function LiveIdentityPopup() {
         }
 
         playChime(soundType);
-        setCurrentScan(scan);
-        setVisible(true);
 
-        // Auto-dismiss
-        if (dismissTimer.current) clearTimeout(dismissTimer.current);
-        dismissTimer.current = setTimeout(dismiss, AUTO_DISMISS_MS);
+        // Close any previous popup and show new one
+        Swal.close();
+        Swal.fire({
+          html: buildSwalHtml(scan),
+          timer: 4000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          showCloseButton: false,
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          width: 380,
+          padding: '20px',
+          backdrop: false,
+          position: 'center',
+          customClass: { popup: 'swal-scan-popup' },
+        });
       } catch {
         // Ignore parse errors (heartbeats)
       }
@@ -209,33 +300,9 @@ export function LiveIdentityPopup() {
 
     return () => {
       es.close();
-      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      Swal.close();
     };
-  }, [dismiss]);
-
-  const scan = currentScan;
-  const learner = scan?.learner;
-  const isUnmatched = scan && !scan.matched;
-  const isLowBalance = learner && learner.fee_balance > 0;
-  const isStaff = scan?.person_type === 'staff';
-
-  // Status config
-  let statusColor = 'from-emerald-500 to-green-600';
-  let statusLabel = 'Check-in Successful';
-  let StatusIcon = CheckCircle2;
-  if (isUnmatched) {
-    statusColor = 'from-red-500 to-rose-600';
-    statusLabel = 'Unrecognized ID';
-    StatusIcon = UserX;
-  } else if (isLowBalance) {
-    statusColor = 'from-amber-500 to-orange-600';
-    statusLabel = 'Low Fee Balance';
-    StatusIcon = AlertTriangle;
-  } else if (isStaff) {
-    statusColor = 'from-blue-500 to-indigo-600';
-    statusLabel = 'Staff Check-in';
-    StatusIcon = CheckCircle2;
-  }
+  }, []);
 
   return (
     <>
@@ -251,213 +318,6 @@ export function LiveIdentityPopup() {
           {connected ? 'Live Scan' : 'Reconnecting…'}
         </div>
       </div>
-
-      {/* Identity Popup */}
-      <AnimatePresence>
-        {visible && scan && (
-          <motion.div
-            key={scan.scan_id}
-            initial={{ opacity: 0, y: -30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="fixed top-4 right-4 z-50 w-[380px] max-w-[calc(100vw-2rem)]"
-          >
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/20 dark:shadow-black/50 border border-white/20 dark:border-slate-700/50 backdrop-blur-xl">
-
-              {/* Status banner */}
-              <div className={`bg-gradient-to-r ${statusColor} px-4 py-2.5 flex items-center justify-between`}>
-                <div className="flex items-center gap-2 text-white">
-                  <StatusIcon className="w-4 h-4" />
-                  <span className="text-sm font-bold">{statusLabel}</span>
-                </div>
-                <button
-                  onClick={dismiss}
-                  className="p-1 rounded-full hover:bg-white/20 transition-colors text-white/80 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-4">
-
-                {/* ── Student scan ─────────────────────────── */}
-                {scan.person_type === 'student' && learner && (
-                  <div className="space-y-3">
-                    {/* Photo + name row */}
-                    <div className="flex items-center gap-3">
-                      {learner.photo_url ? (
-                        <img
-                          src={learner.photo_url}
-                          alt={`${learner.first_name} ${learner.last_name}`}
-                          className="w-16 h-16 rounded-xl object-cover ring-2 ring-white dark:ring-slate-700 shadow-lg"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center ring-2 ring-white dark:ring-slate-700 shadow-lg">
-                          <span className="text-xl font-bold text-white">
-                            {(learner.first_name?.[0] || '') + (learner.last_name?.[0] || '')}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
-                          {learner.first_name} {learner.last_name}
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                          {learner.admission_no || `ID: ${scan.device_user_id}`}
-                        </p>
-                        {learner.class_name ? (
-                          <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                            {learner.class_name}{learner.stream_name ? ` · ${learner.stream_name}` : ''}
-                            {!learner.enrollment_status && (
-                              <span className="ml-1 text-amber-600 dark:text-amber-400">(Admitted)</span>
-                            )}
-                          </p>
-                        ) : (
-                          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
-                            Admitted · Not Yet Enrolled
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Info grid */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Fee Balance */}
-                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                        learner.fee_balance > 0
-                          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
-                          : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
-                      }`}>
-                        <Wallet className={`w-4 h-4 flex-shrink-0 ${
-                          learner.fee_balance > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
-                        }`} />
-                        <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Balance</p>
-                          <p className={`text-sm font-bold truncate ${
-                            learner.fee_balance > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
-                          }`}>
-                            UGX {learner.fee_balance.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Today's Attendance */}
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                        <Clock className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Today</p>
-                          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                            {learner.attendance_today} scan{learner.attendance_today !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Guardian */}
-                    {learner.guardian && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                        <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            {learner.guardian.relationship}
-                          </p>
-                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
-                            {learner.guardian.name} — {learner.guardian.phone}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2 pt-1">
-                      <Link
-                        href={`/students/${learner.student_id}`}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        View Profile
-                      </Link>
-                      {learner.guardian?.phone && (
-                        <a
-                          href={`tel:${learner.guardian.phone}`}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                          Contact Parent
-                        </a>
-                      )}
-                      <button
-                        onClick={() => window.print()}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Staff scan ───────────────────────────── */}
-                {scan.person_type === 'staff' && scan.staff && (
-                  <div className="flex items-center gap-3 py-1">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ring-2 ring-white dark:ring-slate-700 shadow-lg">
-                      <User className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                        {scan.staff.first_name} {scan.staff.last_name}
-                      </h3>
-                      <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold">Staff Member</p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {ioLabel(scan.io_mode)} · {formatTime(scan.check_time)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Unmatched scan ───────────────────────── */}
-                {!scan.matched && (
-                  <div className="flex items-center gap-3 py-1">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center ring-2 ring-white dark:ring-slate-700 shadow-lg">
-                      <ShieldAlert className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                        Unrecognized ID
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                        Device User: {scan.device_user_id}
-                      </p>
-                      <p className="text-[11px] text-red-600 dark:text-red-400 font-semibold mt-0.5">
-                        Not mapped to any student or staff
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Scan metadata footer */}
-                <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <Fingerprint className="w-3 h-3" />
-                    {verifyLabel(scan.verify_type)} · {ioLabel(scan.io_mode)}
-                  </span>
-                  <span>{formatTime(scan.check_time)}</span>
-                  {scan.device_name && <span>{scan.device_name}</span>}
-                </div>
-              </div>
-
-              {/* Auto-dismiss progress bar */}
-              <motion.div
-                initial={{ scaleX: 1 }}
-                animate={{ scaleX: 0 }}
-                transition={{ duration: AUTO_DISMISS_MS / 1000, ease: 'linear' }}
-                className={`h-0.5 origin-left bg-gradient-to-r ${statusColor}`}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }
