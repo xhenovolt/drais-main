@@ -241,39 +241,28 @@ export default function RelaySetupPage() {
                 <>
                   <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
                     <Monitor className="w-3.5 h-3.5" />
-                    Works on Windows 10 and Windows 11 — no installation required
+                    Works on Windows 10 and Windows 11 — full GUI with system tray icon
                   </div>
                   <div className="space-y-5">
-                    <StepBlock num={1} title="Get the relay files">
-                      <p>Copy both files from your DRAIS admin&apos;s machine (<code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">workers/dist/</code>) to any folder on this computer:</p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li><code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">drais-relay-win.exe</code></li>
-                        <li><code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">install-windows.bat</code></li>
-                      </ul>
+                    <StepBlock num={1} title="Get the relay package">
+                      <p>Copy <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">DRAIS-Relay-Windows.zip</code> from your DRAIS admin&apos;s machine (<code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">workers/dist/</code>) to this computer, then extract it.</p>
                     </StepBlock>
-                    <StepBlock num={2} title="Run the installer">
-                      <p>Double-click <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">install-windows.bat</code>. A command prompt will open and ask 4 questions:</p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li>DRAIS server URL</li>
-                        <li>ZKTeco device IP (e.g. 192.168.1.197)</li>
-                        <li>Device serial number</li>
-                        <li>Relay key (copy from above)</li>
-                      </ul>
+                    <StepBlock num={2} title="Run DRAIS Relay.exe">
+                      <p>Inside the extracted folder, double-click <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">DRAIS Relay.exe</code>. A tray icon appears in the bottom-right corner of the taskbar.</p>
+                      <p>The app starts the relay automatically and shows live connection status.</p>
                     </StepBlock>
-                    <StepBlock num={3} title="What the installer sets up">
-                      <ul className="list-disc pl-4 space-y-1">
-                        <li>Binary copied to <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">%APPDATA%\DRAIS\Relay\</code></li>
-                        <li>Silent VBS launcher added to Windows Startup folder</li>
-                        <li>Relay starts immediately in the background</li>
-                        <li>Restarts automatically on every Windows login</li>
-                      </ul>
+                    <StepBlock num={3} title="Configure your device (first time only)">
+                      <p>Click the tray icon → <strong>Open Control Panel</strong> → expand <strong>Settings</strong>. Enter your device IP, serial number, and the relay key from above, then click <strong>Save &amp; Restart</strong>.</p>
+                    </StepBlock>
+                    <StepBlock num={4} title="Enable auto-start with Windows">
+                      <p>In the Settings panel, toggle <strong>Start with Windows login</strong> to ON — or double-click <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">install-windows.bat</code> (inside the extracted folder) to create a startup shortcut automatically.</p>
                     </StepBlock>
                     <Collapsible title="If Windows Defender blocks the .exe">
-                      <p className="text-xs">Click <strong>More info</strong> → <strong>Run anyway</strong> when prompted. The binary is safe — Windows Defender flags unsigned executables from unknown publishers.</p>
-                      <p className="text-xs mt-1">Alternatively, right-click the .exe → Properties → Unblock → Apply.</p>
+                      <p className="text-xs">Click <strong>More info</strong> → <strong>Run anyway</strong>. The binary is safe — Defender flags unsigned apps from unknown publishers.</p>
+                      <p className="text-xs mt-1">Alternatively, right-click the .exe → Properties → tick <strong>Unblock</strong> → Apply.</p>
                     </Collapsible>
                     <Collapsible title="Verify the relay is running">
-                      <p className="text-xs">Press <kbd className="bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs">Win + R</kbd> → type <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">taskmgr</code> → look for <strong>drais-relay-win.exe</strong> in Background Processes. The status card above will turn green within 5 seconds.</p>
+                      <p className="text-xs">The tray icon turns <strong>green</strong> when connected to the device. The status card at the top of this page also turns green within 5 seconds. You can also check Task Manager → Background processes → <strong>DRAIS Relay.exe</strong>.</p>
                     </Collapsible>
                   </div>
                 </>
