@@ -313,6 +313,7 @@ async function handleCommand(msg) {
     case 'enroll': {
       const uid = parseInt(params?.uid, 10);
       const finger = parseInt(params?.finger ?? '0', 10);
+      const name = String(params?.name || '').replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim();
 
       if (isNaN(uid) || uid < 1 || uid > 65535) {
         throw new Error(`Invalid uid: ${params?.uid}`);
@@ -329,6 +330,22 @@ async function handleCommand(msg) {
         try { await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
         await enrollZk.zklibTcp.disableDevice();
 
+        // Write the user record (name + uid) to the device before enrollment.
+        // This ensures the K40 screen shows the student's name during the scan prompt.
+        // ZK user record is 72 bytes: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
+        if (name) {
+          const userBuf = Buffer.alloc(72, 0);
+          userBuf.writeUInt16LE(uid, 0);                               // uid (bytes 0-1)
+          // byte 2: role = 0 (regular user)
+          // bytes 3-10: password = all zeros
+          Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);         // name (bytes 11-34, max 23 + null)
+          // bytes 35-38: cardno = 0
+          Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);   // userId string (bytes 48-56)
+          try { await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); } catch (e) {
+            log('warn', `CMD_USER_WRQ failed (non-fatal): ${e.message}`);
+          }
+        }
+
         const payload = Buffer.alloc(3);
         payload.writeUInt16LE(uid, 0);
         payload.writeUInt8(Math.max(0, Math.min(9, finger)), 2);
@@ -339,8 +356,8 @@ async function handleCommand(msg) {
         try { await enrollZk.disconnect(); } catch {}
       }
 
-      log('info', `Enrollment started uid=${uid} finger=${finger} (fresh connection)`);
-      return { message: `Enrollment started for UID=${uid}, finger=${finger}` };
+      log('info', `Enrollment started uid=${uid} name="${name}" finger=${finger}`);
+      return { message: `Enrollment started for UID=${uid} (${name}), finger=${finger}` };
     }
 
     case 'cancel_enroll': {
@@ -401,7 +418,27 @@ async function handleCommand(msg) {
   }
 }
 
-// ─── Poll Loop — Fetch & Execute Commands from DRAIS ──────────────────────────
+// ─── User Sync — report live device users to server to remove phantom mappings ─
+
+async function syncUsersToServer() {
+  try {
+    const users = await zkCmd.getUsers();
+    const userList = (users?.data || [])
+      .map(u => ({ uid: parseInt(String(u.uid), 10), name: u.name || '', userId: u.userId || '' }))
+      .filter(u => !isNaN(u.uid) && u.uid > 0);
+
+    await httpRequest('POST', '/api/relay-status', {
+      relay_key: RELAY_KEY,
+      device_sn: DEVICE_SN,
+      user_sync: userList,
+    });
+    log('info', `User sync: reported ${userList.length} device users (phantom cleanup done server-side)`);
+  } catch (err) {
+    log('warn', `User sync failed: ${err.message}`);
+  }
+}
+
+
 
 async function pollAndExecute() {
   try {
@@ -503,6 +540,8 @@ async function main() {
   const deviceOk = await connectCmd();
   if (deviceOk) {
     await connectRealtime().catch(() => {});
+    // Sync users to server on startup — clears phantom zk_user_mapping entries
+    setTimeout(() => syncUsersToServer().catch(() => {}), 6000);
   }
 
   // Step 2: Start polling loop
@@ -519,11 +558,16 @@ async function main() {
       if (ok) {
         await connectRealtime().catch(() => {});
         log('info', 'Device reconnected successfully');
+        // Re-sync after reconnect to catch any changes during downtime
+        setTimeout(() => syncUsersToServer().catch(() => {}), 3000);
       }
     } else if (!realTimeActive) {
       await connectRealtime().catch(() => {});
     }
   }, 10000);
+
+  // Step 4: Periodic user sync every 30 minutes (catches manual device deletions)
+  setInterval(() => syncUsersToServer().catch(() => {}), 30 * 60 * 1000);
 }
 
 main().catch(err => {

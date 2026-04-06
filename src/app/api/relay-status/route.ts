@@ -146,6 +146,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, processed: body.results.length });
   }
 
+  // ── Relay Agent User Sync — remove phantom zk_user_mapping entries ──────
+  // Relay sends this on connect and periodically with the live device user list.
+  // Any mapping for this device whose UID is no longer on the device is deleted.
+  if (body.relay_key && body.user_sync !== undefined) {
+    const validKey = process.env.RELAY_KEY || 'DRAIS-355DF9C35EB60899009C01DD948EAD14';
+    if (body.relay_key !== validKey) {
+      return NextResponse.json({ error: 'Invalid relay key' }, { status: 403 });
+    }
+
+    const deviceSn: string = body.device_sn;
+    const deviceUsers: Array<{ uid: number }> = body.user_sync;
+
+    // Safety: never delete everything when device returns empty (could be a read error)
+    if (!deviceSn || deviceUsers.length === 0) {
+      return NextResponse.json({ success: true, deleted: 0, note: 'skipped — empty list' });
+    }
+
+    const liveUids = deviceUsers.map((u) => String(u.uid));
+    const placeholders = liveUids.map(() => '?').join(',');
+    const deleteResult = await query(
+      `DELETE FROM zk_user_mapping
+       WHERE device_sn = ? AND CAST(device_user_id AS UNSIGNED) NOT IN (${placeholders})`,
+      [deviceSn, ...liveUids],
+    ).catch(() => null);
+
+    const deleted = (deleteResult as any)?.affectedRows ?? 0;
+    if (deleted > 0) {
+      console.log(`[relay-status] Removed ${deleted} phantom zk_user_mapping entries for device ${deviceSn}`);
+    }
+
+    return NextResponse.json({ success: true, synced: deviceUsers.length, deleted });
+  }
+
   // ── UI Queuing Command ─────────────────────────────────────────────────
   const { device_sn, action, params } = body;
   if (!device_sn || !action) {

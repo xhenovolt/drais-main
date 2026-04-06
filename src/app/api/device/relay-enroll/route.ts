@@ -149,10 +149,14 @@ export async function POST(req: NextRequest) {
   const relayOnline = secAgo != null && Number(secAgo) < 60;
 
   // ── 6. Queue relay command ──────────────────────────────────────────────────
+  // Truncate name to 23 chars (ZK name field is 24 bytes incl. null terminator)
+  // Strip non-ASCII chars so the device receives a clean name
+  const zkName = studentName.replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim() || `UID${uid}`;
+
   const insertResult = await query(
     `INSERT INTO relay_commands (device_sn, action, params, status, created_at)
      VALUES (?, 'enroll', ?, 'pending', NOW())`,
-    [device_sn, JSON.stringify({ uid, finger: fingerIdx })],
+    [device_sn, JSON.stringify({ uid, finger: fingerIdx, name: zkName })],
   );
   const commandId = (insertResult as any)?.insertId;
 
