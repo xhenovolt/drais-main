@@ -178,6 +178,16 @@ async function connectRealtime() {
 }
 
 async function ensureConnection() {
+  // Check if the socket is actually alive — the 'connected' flag can be stale
+  // if the device dropped the TCP connection without sending a FIN (ECONNRESET).
+  const socketDead = zkCmd?._socket && !zkCmd._socket.writable;
+  if (socketDead) {
+    log('warn', 'ZK cmd socket is dead — forcing reconnect');
+    connected = false;
+    try { zkCmd.disconnect(); } catch {}
+    zkCmd = null;
+  }
+
   if (!connected) await connectCmd();
   if (!connected) {
     await new Promise(r => setTimeout(r, 1000));
@@ -378,14 +388,33 @@ async function pollAndExecute() {
 
     const results = [];
     for (const cmd of commands) {
+      let result;
       try {
-        const result = await handleCommand({ id: cmd.id, action: cmd.action, params: cmd.params });
-        results.push({ id: cmd.id, success: true, data: result });
-        log('info', `CMD ${cmd.action} → OK`);
+        result = await handleCommand({ id: cmd.id, action: cmd.action, params: cmd.params });
       } catch (err) {
-        results.push({ id: cmd.id, success: false, error: err.message || String(err) });
-        log('error', `CMD ${cmd.action} → FAIL: ${err.message}`);
+        // On a dead-socket error, force reconnect and retry once
+        const retriable = ['ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'Device not connected'];
+        if (retriable.some(s => (err.message || '').includes(s))) {
+          log('warn', `CMD ${cmd.action} socket error — reconnecting and retrying...`);
+          connected = false;
+          try { zkCmd?.disconnect(); } catch {}
+          zkCmd = null;
+          await new Promise(r => setTimeout(r, 800));
+          try {
+            result = await handleCommand({ id: cmd.id, action: cmd.action, params: cmd.params });
+          } catch (retryErr) {
+            results.push({ id: cmd.id, success: false, error: retryErr.message || String(retryErr) });
+            log('error', `CMD ${cmd.action} → FAIL after retry: ${retryErr.message}`);
+            continue;
+          }
+        } else {
+          results.push({ id: cmd.id, success: false, error: err.message || String(err) });
+          log('error', `CMD ${cmd.action} → FAIL: ${err.message}`);
+          continue;
+        }
       }
+      results.push({ id: cmd.id, success: true, data: result });
+      log('info', `CMD ${cmd.action} → OK`);
     }
 
     // Report results back
