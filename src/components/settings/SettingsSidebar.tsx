@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { School, Palette, User, FileText, Activity, Settings } from 'lucide-react';
+import { School, Palette, User, FileText, Activity, Settings, Radio } from 'lucide-react';
 
 const settingsNav = [
   { label: 'School',      href: '/settings/school',      icon: School },
@@ -10,6 +10,7 @@ const settingsNav = [
   { label: 'Profile',     href: '/settings/profile',      icon: User },
   { label: 'Templates',   href: '/settings/templates',    icon: FileText },
   { label: 'System Status', href: '/settings/system',     icon: Activity },
+  { label: 'Relay Setup', href: '/settings/relay',        icon: Radio },
 ];
 
 export default function SettingsSidebar() {
