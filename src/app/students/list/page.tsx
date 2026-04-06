@@ -155,6 +155,8 @@ export default function StudentsListPage() {
   type EnrollStep = 'waking' | 'sent' | 'success' | 'failed';
   const [enrollProgress, setEnrollProgress] = useState<Map<number, { step: EnrollStep; commandId?: number; deviceName?: string; message?: string }>>(new Map());
   const pollTimers = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
+  // Synchronous in-flight guard — prevents double-click race before React re-renders
+  const enrollInFlight = useRef<Set<number>>(new Set());
   // Last Enrolled confirmation panel
   const [lastEnrolled, setLastEnrolled] = useState<{ name: string; studentId: number; uid?: number; device: string; ts: Date } | null>(null);
   
@@ -294,12 +296,14 @@ export default function StudentsListPage() {
         });
         setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
         setLastEnrolled({ name: res.student_name || 'Student', studentId, uid: res.uid, device: label, ts: new Date() });
+        enrollInFlight.current.delete(studentId);
         // Auto-clear after 30s (enough time for 3-finger scan)
         setTimeout(() => clearStudentEnroll(studentId), 30000);
       } else {
         throw new Error(res?.error || 'Local enrollment failed');
       }
     } catch (err: any) {
+      enrollInFlight.current.delete(studentId);
       setStudentEnrollStep(studentId, {
         step: 'failed',
         deviceName: label,
@@ -413,8 +417,10 @@ export default function StudentsListPage() {
 
   // Quick-Capture fingerprint flow
   const handleQuickCapture = (studentId: number) => {
-    // If already in progress, ignore
+    // Synchronous ref guard — blocks double-click race before React re-renders enrollProgress state
+    if (enrollInFlight.current.has(studentId)) return;
     if (enrollProgress.has(studentId)) return;
+    enrollInFlight.current.add(studentId);
     if (captureMode === 'local') {
       sendLocalEnrollCommand(studentId);
       return;

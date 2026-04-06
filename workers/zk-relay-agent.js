@@ -330,63 +330,77 @@ async function handleCommand(msg) {
       try {
         await enrollZk.createSocket();
 
-        // ── Fetch-First: resolve the DEVICE UID by matching userId=studentId ────
-        // Key insight (confirmed by probe tests 2026-04-06):
-        //   Device's userId (PIN, bytes 48-55) = DRAIS student_id (ASCII string)
-        //   Device's uid (slot, bytes 0-1) = auto-assigned by device, may differ
-        // We must send CMD_STARTENROLL with the DEVICE SLOT uid, not the DRAIS id.
+        // ── Resolve device slot ───────────────────────────────────────────────
+        // params.uid = device_user_id from DB mapping = our small sequential slot.
+        // PIN written to device (bytes 48-55) = String(deviceUid) = the slot number.
+        // Must NOT be studentId (the SQL PK) — it can be millions, silently overflows
+        // writeUInt16LE (2 bytes), and causes phantom slots on the device.
+        const preferredUid = parseInt(params?.uid, 10);
         let deviceUid = null;
         let takenUids = [];
         try {
+          await enrollZk.zklibTcp.enableDevice();
           const existing = await enrollZk.getUsers();
           const users = (existing?.data || [])
-            .map(u => ({ uid: parseInt(String(u.uid), 10), name: u.name || '', userId: (u.userId || '').trim() }))
-            .filter(u => !isNaN(u.uid) && u.uid > 0);
+            .map(u => ({ uid: parseInt(String(u.uid), 10), name: (u.name || '').trim(), userId: (u.userId || '').trim() }))
+            .filter(u => !isNaN(u.uid) && u.uid >= 1 && u.uid <= 65535);
           takenUids = users.map(u => u.uid);
-          const match = users.find(u => u.userId === studentId);
-          if (match) {
-            deviceUid = match.uid;
-            log('info', `[ENROLL] Found user: student_id=${studentId} → device uid=${deviceUid} name="${match.name}"`);
+
+          // Priority 1: DB-mapped slot (device_user_id) — match by uid directly
+          if (!isNaN(preferredUid) && preferredUid >= 1 && preferredUid <= 65535) {
+            const byUid = users.find(u => u.uid === preferredUid);
+            if (byUid) {
+              deviceUid = byUid.uid;
+              log('info', `[ENROLL] Slot match: uid=${deviceUid} name="${byUid.name}"`);
+            }
+          }
+
+          // Priority 2: Name match (physically-enrolled students not yet in DB mapping)
+          if (deviceUid === null && name) {
+            const upper = name.toUpperCase();
+            const byName = users.find(u => u.name.toUpperCase() === upper);
+            if (byName) {
+              deviceUid = byName.uid;
+              log('info', `[ENROLL] Name match: "${name}" → slot ${deviceUid}`);
+            }
           }
         } catch (e) {
           log('warn', `[ENROLL] getUsers failed (non-fatal): ${e.message}`);
         }
 
-        // Student not on device yet — assign/find an available slot
+        // Priority 3: Preferred slot is free, or find first free slot from 1
         if (deviceUid === null) {
-          const fallbackUid = parseInt(params?.uid, 10);
-          if (!isNaN(fallbackUid) && fallbackUid >= 1 && fallbackUid <= 65535 && !takenUids.includes(fallbackUid)) {
-            deviceUid = fallbackUid;
+          if (!isNaN(preferredUid) && preferredUid >= 1 && preferredUid <= 65535 && !takenUids.includes(preferredUid)) {
+            deviceUid = preferredUid;
           } else {
-            // Find first unused slot starting from 1
             let next = 1;
             while (takenUids.includes(next) && next <= 65535) next++;
             deviceUid = next;
           }
-          log('info', `[ENROLL] student_id=${studentId} not on device yet — will create at uid=${deviceUid}`);
+          log('info', `[ENROLL] New slot for "${name}" → uid=${deviceUid}`);
         }
 
         try { await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
         await enrollZk.zklibTcp.disableDevice();
 
         // ── Step 1: User Pre-Registration ────────────────────────────────────
-        // userId (PIN) = studentId (DRAIS student ID as ASCII) — NOT the device slot number
-        // ZK 72-byte: [uid=device_slot(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId=drais_id(9)][pad(15)]
+        // ZK 72-byte: [uid=slot(2)] [role(1)] [pwd(8)] [name(24)] [cardno(4)] [pad(9)] [userId PIN(9)]
+        // PIN (bytes 48-55) = String(deviceUid) — same small slot number, NOT the SQL student_id PK
         const userBuf = Buffer.alloc(72, 0);
         userBuf.writeUInt16LE(deviceUid, 0);
-        Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);          // name bytes 11-34
-        Buffer.from(studentId, 'ascii').copy(userBuf, 48, 0, 8);      // userId = DRAIS student_id (PIN)
+        Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);
+        Buffer.from(String(deviceUid), 'ascii').copy(userBuf, 48, 0, 8); // PIN = slot number
 
-        log('info', `[ENROLL] Step 1 — Registering ${name} device_uid=${deviceUid} PIN=${studentId}…`);
+        log('info', `[ENROLL] Step 1 — Registering "${name}" slot=${deviceUid}…`);
         await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); // throws → aborts
-        log('info', `[ENROLL] Registering ${name}… Success.`);
+        log('info', `[ENROLL] Registering "${name}"… Success.`);
 
         // ── Step 2: Trigger Enrollment ────────────────────────────────────────
         const payload = Buffer.alloc(3);
         payload.writeUInt16LE(deviceUid, 0);
         payload.writeUInt8(Math.max(0, Math.min(9, finger)), 2);
 
-        log('info', `[ENROLL] Step 2 — Triggering Scan device_uid=${deviceUid} finger=${finger}…`);
+        log('info', `[ENROLL] Step 2 — Triggering Scan slot=${deviceUid} finger=${finger}…`);
         await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
         await enrollZk.zklibTcp.enableDevice();
         log('info', `[ENROLL] Triggering Scan… Success. K40 screen now shows "${name}".`);
@@ -394,8 +408,8 @@ async function handleCommand(msg) {
         try { await enrollZk.disconnect(); } catch {}
       }
 
-      log('info', `[ENROLL] COMPLETE student_id=${studentId} name="${name}" finger=${finger}`);
-      return { message: `Enrollment started for student_id=${studentId} (${name}), finger=${finger}` };
+      log('info', `[ENROLL] COMPLETE name="${name}" slot=${params?.uid} finger=${finger}`);
+      return { message: `Enrollment started for "${name}" (slot ${params?.uid}), finger=${finger}` };
     }
 
     case 'cancel_enroll': {

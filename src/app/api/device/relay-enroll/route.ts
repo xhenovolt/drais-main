@@ -183,26 +183,43 @@ export async function POST(req: NextRequest) {
       try {
         try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
 
-        // ── Fetch-first: resolve device slot by userId (PIN = DRAIS student_id) ──
+        // ── Fetch-first: resolve device slot using DB mapping, name match, or free slot ──
+        // PIN written to device = String(warmupDeviceUid) = the slot number itself.
+        // Must NOT be String(student_id) — the SQL PK can be millions which overflows
+        // writeUInt16LE and corrupts or phantoms the device record.
         try {
           await zk.zklibTcp.enableDevice();
           const zkUsers = await zk.getUsers();
-          const existing = (zkUsers?.data || []).find(
-            (u: any) => String(u.userId ?? '').trim() === String(student_id),
-          );
-          if (existing) {
-            warmupDeviceUid = parseInt(String(existing.uid), 10);
-            console.log(`[relay-enroll:warmup] Found user: student_id=${student_id} → device uid=${warmupDeviceUid} name="${existing.name}"`);
+          const deviceUsers = (zkUsers?.data || [])
+            .map((u: any) => ({ uid: parseInt(String(u.uid), 10), name: String(u.name||'').trim(), userId: String(u.userId??'').trim() }))
+            .filter((u: any) => !isNaN(u.uid) && u.uid >= 1 && u.uid <= 65535);
+          // DB mapping uid match (device_user_id stores our small sequential number)
+          const byUid = deviceUsers.find((u: any) => u.uid === warmupDeviceUid);
+          if (!byUid) {
+            // Name match fallback
+            const upper = zkName.toUpperCase();
+            const byName = deviceUsers.find((u: any) => u.name.toUpperCase() === upper);
+            if (byName) {
+              warmupDeviceUid = byName.uid;
+              console.log(`[relay-enroll:warmup] Name match "${zkName}" → slot ${warmupDeviceUid}`);
+            } else {
+              // New — find first free slot
+              const taken = new Set(deviceUsers.map((u: any) => u.uid));
+              let s = warmupDeviceUid;
+              if (taken.has(s)) { s = 1; while (taken.has(s) && s <= 65535) s++; }
+              warmupDeviceUid = s;
+            }
           }
         } catch {}
         await zk.zklibTcp.disableDevice();
 
-        // Step 1: Pre-register identity — userId MUST be student_id (PIN), not device slot
+        // Step 1: Pre-register identity
+        // PIN (bytes 48-55) = String(warmupDeviceUid), the same small slot number.
         const userBuf = Buffer.alloc(72, 0);
         userBuf.writeUInt16LE(warmupDeviceUid, 0);
         Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);
-        Buffer.from(String(student_id), 'ascii').copy(userBuf, 48, 0, 8); // userId = DRAIS student_id (PIN)
-        console.log(`[relay-enroll:warmup] Step 1 — Registering ${zkName} device_uid=${warmupDeviceUid} PIN=${student_id}…`);
+        Buffer.from(String(warmupDeviceUid), 'ascii').copy(userBuf, 48, 0, 8); // PIN = slot number
+        console.log(`[relay-enroll:warmup] Step 1 — Registering ${zkName} slot=${warmupDeviceUid}…`);
         await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
         console.log(`[relay-enroll:warmup] Registering ${zkName}… Success.`);
 
