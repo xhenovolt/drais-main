@@ -200,6 +200,20 @@ export async function POST(req: NextRequest) {
     payload.writeUInt8(fingerIdx, 2);
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
     await zk.zklibTcp.enableDevice();
+
+    // ── Post-enrollment name re-confirmation ───────────────────────────────
+    // Some ZK devices clear or corrupt the name when finalising a fingerprint
+    // template. Write the name a second time (fire-and-forget) so the slot is
+    // always labelled correctly on the device, regardless of what it did during
+    // the biometric capture.
+    try {
+      await zk.zklibTcp.disableDevice();
+      await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
+      await zk.zklibTcp.enableDevice();
+      console.log(`[LOCAL-ENROLL] Post-enroll name re-confirmed: "${zkName}" slot=${deviceSlot}`);
+    } catch {
+      // Non-fatal — device may still be capturing; name will be fixed on next enrollment
+    }
   } catch (e: any) {
     try { await zk.zklibTcp.enableDevice(); } catch {}
     try { await zk.disconnect(); } catch {}

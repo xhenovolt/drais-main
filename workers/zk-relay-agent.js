@@ -404,6 +404,17 @@ async function handleCommand(msg) {
         await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
         await enrollZk.zklibTcp.enableDevice();
         log('info', `[ENROLL] Triggering Scan… Success. K40 screen now shows "${name}".`);
+
+        // Post-enrollment name re-confirmation: some devices reset the name when
+        // finalising the fingerprint template — write it again to lock it in.
+        try {
+          await enrollZk.zklibTcp.disableDevice();
+          await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
+          await enrollZk.zklibTcp.enableDevice();
+          log('info', `[ENROLL] Post-enroll name re-confirmed: "${name}" slot=${deviceUid}`);
+        } catch (e) {
+          log('warn', `[ENROLL] Post-enroll name re-confirm failed (non-fatal): ${e.message}`);
+        }
       } finally {
         try { await enrollZk.disconnect(); } catch {}
       }
