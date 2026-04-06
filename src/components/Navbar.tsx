@@ -3,10 +3,51 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { Trash2, Loader2 } from 'lucide-react';
+
+export const Navbar: React.FC = () => {
+  const { user, logout, setupComplete } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // ── Relay queue drain state ──────────────────────────────────────────────
+  const [queueCount, setQueueCount] = useState(0);
+  const [draining, setDraining] = useState(false);
+
+  const fetchQueueCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/relay-commands/drain');
+      if (!res.ok) return;
+      const data = await res.json();
+      setQueueCount(data.count ?? 0);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchQueueCount();
+    const iv = setInterval(fetchQueueCount, 10000);
+    return () => clearInterval(iv);
+  }, [user, fetchQueueCount]);
+
+  const drainQueue = async () => {
+    if (draining) return;
+    setDraining(true);
+    try {
+      const res = await fetch('/api/relay-commands/drain', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setQueueCount(0);
+      }
+    } catch {}
+    setDraining(false);
+  };
+  // ────────────────────────────────────────────────────────────────────────
 
 export const Navbar: React.FC = () => {
   const { user, logout, setupComplete } = useAuth();
@@ -62,7 +103,24 @@ export const Navbar: React.FC = () => {
           )}
 
           {/* Right side: User menu */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+
+            {/* Relay queue drain button — only visible when there are stale commands */}
+            {queueCount > 0 && (
+              <button
+                onClick={drainQueue}
+                disabled={draining}
+                title={`${queueCount} stale relay command${queueCount > 1 ? 's' : ''} queued — click to cancel`}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                           bg-amber-50 text-amber-700 border border-amber-200
+                           hover:bg-amber-100 transition-colors disabled:opacity-60"
+              >
+                {draining
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />}
+                Clear queue ({queueCount})
+              </button>
+            )}
             {/* User Avatar & Name Dropdown */}
             <div className="relative" ref={menuRef}>
               <button

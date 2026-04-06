@@ -117,11 +117,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 4. Deduplicate — skip if pending/sent enroll already exists for this UID ─
+  // ── 4. Deduplicate — skip if a *fresh* pending/sent enroll already exists ─
+  // "sent" commands older than 60s are stale (relay was offline), allow re-queueing
   const existing = await query(
     `SELECT id, status FROM relay_commands
      WHERE device_sn = ? AND action = 'enroll' AND status IN ('pending', 'sent')
-     AND JSON_EXTRACT(params, '$.uid') = ?
+       AND JSON_EXTRACT(params, '$.uid') = ?
+       AND (status = 'pending' OR TIMESTAMPDIFF(SECOND, created_at, NOW()) < 60)
      LIMIT 1`,
     [device_sn, uid],
   );
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
     [device_sn],
   ).catch(() => null);
   const secAgo = agentRows?.[0]?.sec_ago;
-  const relayOnline = secAgo != null && Number(secAgo) < 30;
+  const relayOnline = secAgo != null && Number(secAgo) < 60;
 
   // ── 6. Queue relay command ──────────────────────────────────────────────────
   const insertResult = await query(

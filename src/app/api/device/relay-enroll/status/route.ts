@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     [cmd.device_sn],
   ).catch(() => null);
   const secAgo = agentRows?.[0]?.sec_ago;
-  const relayOnline = secAgo != null && Number(secAgo) < 30;
+  const relayOnline = secAgo != null && Number(secAgo) < 60;
 
   return NextResponse.json({
     success: true,
