@@ -160,6 +160,13 @@ export async function POST(req: NextRequest) {
   );
   const commandId = (insertResult as any)?.insertId;
 
+  // ── 7. Audit log ────────────────────────────────────────────────────────────
+  await query(
+    `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, relay_cmd_id, created_at)
+     VALUES (?, ?, ?, ?, ?, 'relay', 'initiated', ?, NOW())`,
+    [session.schoolId, student_id, uid, fingerIdx, device_sn, commandId],
+  ).catch((e: any) => console.warn('[relay-enroll] enrollment_log insert failed (non-fatal):', e.message));
+
   console.log(
     `[relay-enroll] Queued enroll for ${studentName} (UID=${uid}) on ${device_sn}, cmd=${commandId}, relay_online=${relayOnline}`,
   );

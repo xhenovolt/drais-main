@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   const schoolId = session.schoolId;
-  const port = Math.max(1, Math.min(65535, parseInt(String(device_port, 10), 10) || 4370));
+  const port = Math.max(1, Math.min(65535, parseInt(String(device_port), 10) || 4370));
 
   // ── 1. Resolve student name ─────────────────────────────────────────────────
   let studentName = 'Student';
@@ -123,22 +123,47 @@ export async function POST(req: NextRequest) {
     try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
     await zk.zklibTcp.disableDevice();
 
+    // ── Write user record (name + uid) BEFORE enrollment — MANDATORY ──────────
+    // A fingerprint must NEVER be enrolled on an anonymous slot.
+    // ZK 72-byte user record: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
+    const zkName = studentName.replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim() || `UID${uid}`;
+    const userBuf = Buffer.alloc(72, 0);
+    userBuf.writeUInt16LE(uid, 0);                                    // uid (bytes 0-1)
+    // byte 2: role = 0 (regular user)
+    // bytes 3-10: password = all zeros
+    Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);            // name (bytes 11-34, max 23 + null)
+    // bytes 35-38: cardno = 0
+    Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);        // userId string (bytes 48-56)
+    await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);     // throws → aborts enrollment
+
     // CMD_STARTENROLL payload: uid (2 bytes LE) + finger_index (1 byte)
     const payload = Buffer.alloc(3);
     payload.writeUInt16LE(uid, 0);
-    payload.writeUInt8(Math.max(0, Math.min(9, parseInt(String(finger, 10), 10) || 0)), 2);
+    payload.writeUInt8(Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), 2);
 
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
     await zk.zklibTcp.enableDevice();
   } catch (e: any) {
     try { await zk.zklibTcp.enableDevice(); } catch {}
     try { await zk.disconnect(); } catch {}
+    await query(
+      `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, error_message, created_at)
+       VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'failed', ?, NOW())`,
+      [schoolId, student_id, uid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0)), e.message],
+    ).catch(() => {});
     return NextResponse.json({
-      error: `CMD_STARTENROLL failed: ${e.message}`,
+      error: `Enrollment failed: ${e.message}`,
     }, { status: 502 });
   }
 
   try { await zk.disconnect(); } catch {}
+
+  // ── Audit log ──────────────────────────────────────────────────────────────
+  await query(
+    `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, created_at)
+     VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'initiated', NOW())`,
+    [schoolId, student_id, uid, Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0))],
+  ).catch(() => {});
 
   return NextResponse.json({
     success: true,

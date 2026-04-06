@@ -315,8 +315,12 @@ async function handleCommand(msg) {
       const finger = parseInt(params?.finger ?? '0', 10);
       const name = String(params?.name || '').replace(/[^\x20-\x7E]/g, '').slice(0, 23).trim();
 
+      // ── HARD BLOCK — identity binding is non-negotiable ─────────────────────
       if (isNaN(uid) || uid < 1 || uid > 65535) {
-        throw new Error(`Invalid uid: ${params?.uid}`);
+        throw new Error(`BLOCKED: Enrollment requires valid UID — got "${params?.uid}"`);
+      }
+      if (!name) {
+        throw new Error('BLOCKED: Enrollment requires student name. Identity must be bound before biometric capture.');
       }
 
       // Use a fresh short-lived connection for enrollment (matching the local-enroll path).
@@ -331,20 +335,16 @@ async function handleCommand(msg) {
         await enrollZk.zklibTcp.disableDevice();
 
         // Write the user record (name + uid) to the device before enrollment.
-        // This ensures the K40 screen shows the student's name during the scan prompt.
+        // MANDATORY — if this fails the fingerprint MUST NOT be enrolled on an anonymous slot.
         // ZK user record is 72 bytes: [uid(2)][role(1)][password(8)][name(24)][cardno(4)][pad(9)][userId(9)][pad(15)]
-        if (name) {
-          const userBuf = Buffer.alloc(72, 0);
-          userBuf.writeUInt16LE(uid, 0);                               // uid (bytes 0-1)
-          // byte 2: role = 0 (regular user)
-          // bytes 3-10: password = all zeros
-          Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);         // name (bytes 11-34, max 23 + null)
-          // bytes 35-38: cardno = 0
-          Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);   // userId string (bytes 48-56)
-          try { await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); } catch (e) {
-            log('warn', `CMD_USER_WRQ failed (non-fatal): ${e.message}`);
-          }
-        }
+        const userBuf = Buffer.alloc(72, 0);
+        userBuf.writeUInt16LE(uid, 0);                               // uid (bytes 0-1)
+        // byte 2: role = 0 (regular user)
+        // bytes 3-10: password = all zeros
+        Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23);         // name (bytes 11-34, max 23 + null)
+        // bytes 35-38: cardno = 0
+        Buffer.from(String(uid), 'ascii').copy(userBuf, 48, 0, 8);   // userId string (bytes 48-56)
+        await enrollZk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf); // throws → aborts enrollment
 
         const payload = Buffer.alloc(3);
         payload.writeUInt16LE(uid, 0);
@@ -356,7 +356,7 @@ async function handleCommand(msg) {
         try { await enrollZk.disconnect(); } catch {}
       }
 
-      log('info', `Enrollment started uid=${uid} name="${name}" finger=${finger}`);
+      log('info', `[ENROLL] uid=${uid} name="${name}" finger=${finger} — identity bound + prompt active`);
       return { message: `Enrollment started for UID=${uid} (${name}), finger=${finger}` };
     }
 
@@ -427,12 +427,22 @@ async function syncUsersToServer() {
       .map(u => ({ uid: parseInt(String(u.uid), 10), name: u.name || '', userId: u.userId || '' }))
       .filter(u => !isNaN(u.uid) && u.uid > 0);
 
-    await httpRequest('POST', '/api/relay-status', {
+    const resp = await httpRequest('POST', '/api/relay-status', {
       relay_key: RELAY_KEY,
       device_sn: DEVICE_SN,
       user_sync: userList,
     });
-    log('info', `User sync: reported ${userList.length} device users (phantom cleanup done server-side)`);
+    const deleted = resp?.deleted ?? 0;
+    log('info', `User sync: ${userList.length} device users reported, ${deleted} phantom mapping(s) removed`);
+
+    // ── Log broken users (empty name or unmapped) ────────────────────────────
+    const broken = resp?.broken || [];
+    if (broken.length > 0) {
+      log('warn', `[BROKEN USERS] ${broken.length} user(s) on device have no identity binding:`);
+      for (const u of broken) {
+        log('warn', `  uid=${u.uid} reason=${u.reason} — fingerprint was enrolled anonymously`);
+      }
+    }
   } catch (err) {
     log('warn', `User sync failed: ${err.message}`);
   }

@@ -149,6 +149,7 @@ export async function POST(req: NextRequest) {
   // ── Relay Agent User Sync — remove phantom zk_user_mapping entries ──────
   // Relay sends this on connect and periodically with the live device user list.
   // Any mapping for this device whose UID is no longer on the device is deleted.
+  // Users with empty names are flagged as "unlinked" and returned so the agent can log them.
   if (body.relay_key && body.user_sync !== undefined) {
     const validKey = process.env.RELAY_KEY || 'DRAIS-355DF9C35EB60899009C01DD948EAD14';
     if (body.relay_key !== validKey) {
@@ -156,11 +157,11 @@ export async function POST(req: NextRequest) {
     }
 
     const deviceSn: string = body.device_sn;
-    const deviceUsers: Array<{ uid: number }> = body.user_sync;
+    const deviceUsers: Array<{ uid: number; name?: string; userId?: string }> = body.user_sync;
 
     // Safety: never delete everything when device returns empty (could be a read error)
     if (!deviceSn || deviceUsers.length === 0) {
-      return NextResponse.json({ success: true, deleted: 0, note: 'skipped — empty list' });
+      return NextResponse.json({ success: true, deleted: 0, broken: [], note: 'skipped — empty list' });
     }
 
     const liveUids = deviceUsers.map((u) => String(u.uid));
@@ -176,7 +177,37 @@ export async function POST(req: NextRequest) {
       console.log(`[relay-status] Removed ${deleted} phantom zk_user_mapping entries for device ${deviceSn}`);
     }
 
-    return NextResponse.json({ success: true, synced: deviceUsers.length, deleted });
+    // ── Detect broken users: on device but have no name (anonymous fingerprint) ──
+    // These are slots that were enrolled without identity binding.
+    // Also cross-check UIDs that exist on device but have no mapping in the DB.
+    const emptyNameUsers = deviceUsers.filter(u => !u.name || u.name.trim() === '');
+
+    let unlinkedUids: number[] = [];
+    if (liveUids.length > 0) {
+      const mappedRows = await query(
+        `SELECT CAST(device_user_id AS UNSIGNED) AS uid FROM zk_user_mapping
+         WHERE device_sn = ? AND CAST(device_user_id AS UNSIGNED) IN (${placeholders})`,
+        [deviceSn, ...liveUids],
+      ).catch(() => []) as Array<{ uid: number }>;
+      const mappedUidSet = new Set((mappedRows || []).map(r => Number(r.uid)));
+      unlinkedUids = deviceUsers
+        .map(u => u.uid)
+        .filter(uid => !mappedUidSet.has(uid));
+    }
+
+    const broken = [
+      ...emptyNameUsers.map(u => ({ uid: u.uid, reason: 'empty_name' })),
+      ...unlinkedUids
+        .filter(uid => !emptyNameUsers.some(u => u.uid === uid))
+        .map(uid => ({ uid, reason: 'unmapped' })),
+    ];
+
+    if (broken.length > 0) {
+      console.warn(`[relay-status] Device ${deviceSn}: ${broken.length} broken user(s) detected:`,
+        broken.map(b => `uid=${b.uid}(${b.reason})`).join(', '));
+    }
+
+    return NextResponse.json({ success: true, synced: deviceUsers.length, deleted, broken });
   }
 
   // ── UI Queuing Command ─────────────────────────────────────────────────
