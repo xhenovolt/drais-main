@@ -18,7 +18,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
+import { swrFetcher } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import Pagination from '@/components/ui/Pagination';
 
@@ -52,7 +52,6 @@ interface Meta {
 }
 
 const LearnersFeesPage: React.FC = () => {
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -68,21 +67,21 @@ const LearnersFeesPage: React.FC = () => {
 
   // Fetch learners fees data
   const { data, isLoading, mutate, error } = useSWR<{ data: LearnerFees[], meta: Meta }>(
-    `/api/finance/learners-fees?school_id=${schoolId}${classFilter ? `&class_id=${classFilter}` : ''}${sectionFilter ? `&section_id=${sectionFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${termFilter ? `&term_id=${termFilter}` : ''}${yearFilter ? `&year=${yearFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`,
-    fetcher,
+    `/api/finance/learners-fees?${classFilter ? `class_id=${classFilter}` : ''}${sectionFilter ? `&section_id=${sectionFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${termFilter ? `&term_id=${termFilter}` : ''}${yearFilter ? `&year=${yearFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`,
+    swrFetcher,
     { refreshInterval: 60000 }
   );
 
   // Fetch classes for filter
-  const { data: classesData } = useSWR('/api/classes', fetcher);
+  const { data: classesData } = useSWR('/api/classes', swrFetcher);
   const classes = (classesData as any)?.data || [];
 
   // Fetch streams for filter
-  const { data: streamsData } = useSWR('/api/streams', fetcher);
+  const { data: streamsData } = useSWR('/api/streams', swrFetcher);
   const streams = (streamsData as any)?.data || [];
 
   // Fetch terms for filter
-  const { data: termsData } = useSWR('/api/terms', fetcher);
+  const { data: termsData } = useSWR('/api/terms', swrFetcher);
   const terms = (termsData as any)?.data || [];
 
   // Filter and paginate learners

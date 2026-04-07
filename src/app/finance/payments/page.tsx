@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, swrFetcher } from '@/lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
 import NewBadge from '@/components/ui/NewBadge';
 
@@ -45,7 +45,6 @@ interface Payment {
 }
 
 const PaymentsPage: React.FC = () => {
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
@@ -53,7 +52,8 @@ const PaymentsPage: React.FC = () => {
 
   // Fetch payments
   const { data: paymentsData, isLoading, mutate } = useSWR(
-    `/api/finance/payments?school_id=${schoolId}${statusFilter ? `&status=${statusFilter}` : ''}`,
+    `/api/finance/payments${statusFilter ? `?status=${statusFilter}` : ''}`,
+    swrFetcher,
     { refreshInterval: 30000 }
   );
 

@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     const termId = searchParams.get('term_id');
     const status = searchParams.get('status');
     const walletId = searchParams.get('wallet_id');
-    const limit = parseInt(searchParams.get('limit', 10) || '50');
-    const offset = parseInt(searchParams.get('offset', 10) || '0');
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     connection = await getConnection();
 

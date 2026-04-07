@@ -25,7 +25,6 @@ interface Expenditure {
 }
 
 export default function ExpendituresPage() {
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -39,7 +38,7 @@ export default function ExpendituresPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const url = `/api/finance/expenditures?school_id=${schoolId}${categoryFilter ? `&category_id=${categoryFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${searchQuery ? `&search=${searchQuery}` : ''}`;
+      const url = `/api/finance/expenditures?${categoryFilter ? `category_id=${categoryFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${searchQuery ? `&search=${searchQuery}` : ''}`;
       const response = await apiFetch<{ data: Expenditure[], summary: any }>(url, { silent: true });
       setExpenditures(response);
     } catch (error) {
@@ -49,7 +48,7 @@ export default function ExpendituresPage() {
     }
   };
 
-  React.useEffect(() => { loadData(); }, [schoolId, categoryFilter, statusFilter]);
+  React.useEffect(() => { loadData(); }, [categoryFilter, statusFilter]);
 
   const entries = expenditures?.data || [];
   const summary = expenditures?.summary || {};
@@ -60,7 +59,7 @@ export default function ExpendituresPage() {
       await apiFetch('/api/finance/expenditures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, school_id: schoolId, amount: parseFloat(formData.amount) }),
+        body: JSON.stringify({ ...formData, amount: parseFloat(formData.amount) }),
         successMessage: 'Expenditure added successfully',
       });
       setShowModal(false);
@@ -74,7 +73,7 @@ export default function ExpendituresPage() {
   const handleDelete = async (id: number) => {
     if (!await confirmAction('Delete expenditure?', 'This action cannot be undone.', 'Delete')) return;
     try {
-      await apiFetch(`/api/finance/expenditures?id=${id}&school_id=${schoolId}`, {
+      await apiFetch(`/api/finance/expenditures?id=${id}`, {
         method: 'DELETE',
         successMessage: 'Expenditure deleted',
       });

@@ -21,7 +21,7 @@ interface WalletModalProps {
   onSubmit: () => void;
   mode: 'add' | 'edit';
   initialData?: WalletData;
-  schoolId: number;
+  schoolId?: number;
 }
 
 const WalletModal: React.FC<WalletModalProps> = ({
@@ -30,8 +30,7 @@ const WalletModal: React.FC<WalletModalProps> = ({
   onSubmit,
   mode,
   initialData,
-  schoolId
-}) => {
+}: WalletModalProps) => {
   const [formData, setFormData] = useState<WalletData>({
     name: '',
     method: '',
@@ -118,10 +117,7 @@ const WalletModal: React.FC<WalletModalProps> = ({
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          school_id: schoolId
-        })
+        body: JSON.stringify(formData)
       });
 
       const result = await response.json();
@@ -163,9 +159,8 @@ const WalletModal: React.FC<WalletModalProps> = ({
   return (
     <Modal
       title={mode === 'edit' ? 'Edit Wallet' : 'Add New Wallet'}
-      open={open}
+      isOpen={open}
       onClose={onClose}
-      size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Wallet Name */}

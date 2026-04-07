@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast, confirmAction } from '@/lib/toast';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, swrFetcher } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
 import WalletModal from '@/components/finance/WalletModal';
 
@@ -40,7 +40,6 @@ interface WalletData {
 }
 
 const WalletsPage: React.FC = () => {
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWallet, setSelectedWallet] = useState<WalletData | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -48,7 +47,8 @@ const WalletsPage: React.FC = () => {
 
   // Fetch wallets
   const { data: walletsData, isLoading, mutate } = useSWR(
-    `/api/finance/wallets?school_id=${schoolId}`,
+    '/api/finance/wallets',
+    swrFetcher,
     { refreshInterval: 30000 }
   );
 
@@ -360,7 +360,6 @@ const WalletsPage: React.FC = () => {
           onSubmit={() => mutate()}
           mode={modalMode}
           initialData={selectedWallet}
-          schoolId={schoolId}
         />
       </div>
     </div>

@@ -19,7 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import useSWR from 'swr';
-import { fetcher } from '@/utils/fetcher';
+import { swrFetcher } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import NewBadge from '@/components/ui/NewBadge';
 
@@ -42,7 +42,6 @@ interface FeeItem {
 }
 
 const FeesPage: React.FC = () => {
-  const [schoolId] = useState(1);
   const [activeTab, setActiveTab] = useState<'structure' | 'students' | 'templates'>('students');
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
@@ -51,8 +50,8 @@ const FeesPage: React.FC = () => {
 
   // Fetch fee items
   const { data: feesData, isLoading, mutate } = useSWR(
-    `/api/finance/fees?school_id=${schoolId}${classFilter ? `&class_id=${classFilter}` : ''}${termFilter ? `&term_id=${termFilter}` : ''}`,
-    fetcher,
+    `/api/finance/fees${classFilter ? `?class_id=${classFilter}` : ''}${termFilter ? `${classFilter ? '&' : '?'}term_id=${termFilter}` : ''}`,
+    swrFetcher,
     { refreshInterval: 30000 }
   );
 
@@ -75,6 +74,23 @@ const FeesPage: React.FC = () => {
   const totalPaid = filteredItems.reduce((sum, item) => sum + item.paid, 0);
   const totalBalance = filteredItems.reduce((sum, item) => sum + item.balance, 0);
   const overdueCount = filteredItems.filter(item => item.status === 'overdue').length;
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':    return 'text-green-600 bg-green-100 dark:bg-green-900/30';
+      case 'partial': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30';
+      case 'overdue': return 'text-red-600 bg-red-100 dark:bg-red-900/30';
+      default:        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'paid':    return <CheckCircle className="w-3 h-3" />;
+      case 'overdue': return <AlertCircle className="w-3 h-3" />;
+      default:        return <Clock className="w-3 h-3" />;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">

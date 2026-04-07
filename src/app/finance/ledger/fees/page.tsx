@@ -6,7 +6,7 @@ import {
   CheckCircle, Clock, AlertCircle, TrendingUp, GraduationCap,
   Send, Edit, Eye
 } from 'lucide-react';
-import { fetcher } from '@/utils/fetcher';
+import { apiFetch } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import NewBadge from '@/components/ui/NewBadge';
 
@@ -32,7 +32,6 @@ interface FeeLedgerEntry {
 }
 
 export default function FeesLedgerPage() {
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -44,9 +43,9 @@ export default function FeesLedgerPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const url = `/api/finance/ledger/fees?school_id=${schoolId}${classFilter ? `&class_id=${classFilter}` : ''}${sectionFilter ? `&section_id=${sectionFilter}` : ''}${termFilter ? `&term_id=${termFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${searchQuery ? `&search=${searchQuery}` : ''}`;
-      const response = await fetcher(url);
-      setLedgerData(response as { data: FeeLedgerEntry[], summary: any });
+      const url = `/api/finance/ledger/fees?${classFilter ? `class_id=${classFilter}` : ''}${sectionFilter ? `&section_id=${sectionFilter}` : ''}${termFilter ? `&term_id=${termFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${searchQuery ? `&search=${searchQuery}` : ''}`;
+      const response = await apiFetch<{ data: FeeLedgerEntry[], summary: any }>(url, { silent: true });
+      setLedgerData(response);
     } catch (error) {
       toast.error('Failed to load fees ledger');
     } finally {
@@ -56,7 +55,7 @@ export default function FeesLedgerPage() {
 
   React.useEffect(() => {
     loadData();
-  }, [schoolId, classFilter, sectionFilter, termFilter, statusFilter]);
+  }, [classFilter, sectionFilter, termFilter, statusFilter]);
 
   const entries = ledgerData?.data || [];
   const summary = ledgerData?.summary || {};

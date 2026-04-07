@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
     const academicYear = searchParams.get('academic_year');
     const status = searchParams.get('status'); // paid, partial, pending, overdue, waived
     const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page', 10) || '1');
-    const limit = parseInt(searchParams.get('limit', 10) || '50');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
     
     connection = await getConnection();
     

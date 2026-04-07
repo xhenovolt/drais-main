@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const studentId = parseInt(searchParams.get('student_id', 10) ?? '0');
-  const limit = Math.min(parseInt(searchParams.get('limit', 10) ?? '200'), 500);
+  const studentId = parseInt(searchParams.get('student_id') ?? '0', 10);
+  const limit = Math.min(parseInt(searchParams.get('limit') ?? '200', 10), 500);
 
   if (!studentId) return NextResponse.json({ error: 'student_id required' }, { status: 400 });
 

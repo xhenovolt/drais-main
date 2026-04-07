@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const type    = searchParams.get('type') || 'debtors';
-  const limit   = Math.min(parseInt(searchParams.get('limit', 10) ?? '50'), 200);
+  const limit   = Math.min(parseInt(searchParams.get('limit') ?? '50', 10), 200);
   const classId = searchParams.get('class_id');
   const termId  = searchParams.get('term_id');
 
@@ -67,7 +67,16 @@ export async function GET(req: NextRequest) {
          WHERE school_id = ?`,
         [session.schoolId]
       );
-      return NextResponse.json({ type: 'summary', ...rows[0] });
+      const r = rows[0] as any;
+      return NextResponse.json({
+        type: 'summary',
+        summary: {
+          total_charged:      Number(r.total_charged)      || 0,
+          total_paid:         Number(r.total_paid)         || 0,
+          balance:            Number(r.total_outstanding)  || 0,
+          students_with_entries: Number(r.students_with_entries) || 0,
+        },
+      });
     }
 
     if (type === 'class-breakdown') {
