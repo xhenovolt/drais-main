@@ -12,23 +12,26 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'roles.read', session.isSuperAdmin);
 
-  const rows = await query(
-    `SELECT id, code, name, description, module, route, action, category, is_active
+  const rows: any[] = await query(
+    `SELECT id, code, name, category
      FROM permissions
      WHERE is_active = TRUE
-     ORDER BY module, action, code`,
+     ORDER BY category, code`,
     [],
   );
 
-  // Group by module for easy UI rendering
-  const grouped: Record<string, typeof rows> = {};
-  for (const row of rows as any[]) {
-    const mod = row.module || 'general';
+  // Group by category, derive module/action from code
+  const grouped: Record<string, any[]> = {};
+  for (const row of rows) {
+    const mod    = row.category || 'general';
+    const parts  = String(row.code).split('.');
+    const action = parts.length > 1 ? parts[parts.length - 1] : row.code;
+
     if (!grouped[mod]) grouped[mod] = [];
-    grouped[mod].push(row);
+    grouped[mod].push({ id: row.id, code: row.code, name: row.name || row.code, module: mod, action });
   }
 
-  return NextResponse.json({ success: true, data: grouped, all: rows });
+  return NextResponse.json({ success: true, data: grouped });
 });
 
 export const POST = withErrorHandling(async function POST(req: NextRequest) {
@@ -36,7 +39,7 @@ export const POST = withErrorHandling(async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   await requirePermission(session.userId, session.schoolId, 'permissions.manage', session.isSuperAdmin);
 
-  const { code, name, description = null, module: mod = 'general', route = null, action = 'read', category = 'general' } = await req.json();
+  const { code, name, description = null, category = 'general' } = await req.json();
   if (!code?.trim() || !name?.trim()) {
     return NextResponse.json({ error: 'code and name are required' }, { status: 400 });
   }
@@ -45,9 +48,8 @@ export const POST = withErrorHandling(async function POST(req: NextRequest) {
   if (dup.length) return NextResponse.json({ error: 'Permission code already exists' }, { status: 409 });
 
   const result = await query(
-    `INSERT INTO permissions (code, name, description, module, route, action, category, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, TRUE)`,
-    [code.trim(), name.trim(), description, mod, route, action, category],
+    `INSERT INTO permissions (code, name, description, category, is_active) VALUES (?, ?, ?, ?, TRUE)`,
+    [code.trim(), name.trim(), description, category],
   );
 
   return NextResponse.json({ success: true, id: (result as any).insertId }, { status: 201 });

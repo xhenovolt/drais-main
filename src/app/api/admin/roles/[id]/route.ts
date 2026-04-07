@@ -38,11 +38,13 @@ export const GET = withErrorHandling(async function GET(req: NextRequest, { para
 
   const [permissions, staff] = await Promise.all([
     query(
-      `SELECT p.id, p.code, p.name, p.module, p.route, p.action, p.category
+      `SELECT p.id, p.code, p.name, p.category,
+              p.category AS module,
+              SUBSTRING_INDEX(p.code, '.', -1) AS action
        FROM role_permissions rp
        JOIN permissions p ON rp.permission_id = p.id
        WHERE rp.role_id = ? AND p.is_active = TRUE
-       ORDER BY p.module, p.action`,
+       ORDER BY p.category, p.code`,
       [roleId],
     ),
     query(

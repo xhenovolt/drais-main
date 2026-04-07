@@ -2,92 +2,67 @@
  * GET /api/audit-logs
  * Returns paginated audit log entries for the caller's school.
  * Query params:
- *   page?         number (default 1)
- *   limit?        number (default 50, max 200)
- *   action?       string  — filter by action name
- *   entity_type?  string  — filter by entity type
- *   entity_id?    number  — filter by entity id
+ *   page?    number (default 1)
+ *   limit?   number (default 50, max 200)
+ *   action?  string — filter by action name (partial match)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnection } from '@/lib/db';
+import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission, withErrorHandling } from '@/lib/rbac';
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'audit.read', session.isSuperAdmin);
 
   const { searchParams } = new URL(req.url);
-  const page        = Math.max(1, Number(searchParams.get('page')  ?? 1));
-  const limit       = Math.min(200, Math.max(1, Number(searchParams.get('limit') ?? 50)));
-  const action      = searchParams.get('action')      ?? null;
-  const entityType  = searchParams.get('entity_type') ?? null;
-  const entityIdRaw = searchParams.get('entity_id');
-  const entityId    = entityIdRaw ? Number(entityIdRaw) : null;
-
+  const page   = Math.max(1, parseInt(searchParams.get('page')  ?? '1',  10));
+  const limit  = Math.min(200, parseInt(searchParams.get('limit') ?? '50', 10));
+  const action = searchParams.get('action')?.trim() || null;
   const offset = (page - 1) * limit;
 
-  let connection;
-  try {
-    connection = await getConnection();
+  const whereClauses = ['al.school_id = ?'];
+  const params: any[] = [session.schoolId];
 
-    // Build dynamic WHERE clause — restrict to users of this school via actor_user_id
-    const conditions: string[]  = [
-      `al.actor_user_id IN (SELECT id FROM users WHERE school_id = ?)`,
-    ];
-    const values: any[] = [session.schoolId];
-
-    if (action)     { conditions.push('al.action = ?');      values.push(action);     }
-    if (entityType) { conditions.push('al.entity_type = ?'); values.push(entityType); }
-    if (entityId)   { conditions.push('al.entity_id = ?');   values.push(entityId);   }
-
-    const where = `WHERE ${conditions.join(' AND ')}`;
-
-    const [countRows]: any = await connection.execute(
-      `SELECT COUNT(*) AS total FROM audit_log al ${where}`,
-      values,
-    );
-    const total = Number(countRows[0].total);
-
-    const [rows]: any = await connection.execute(
-      `SELECT al.id,
-              al.actor_user_id,
-              CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')) AS actor_name,
-              al.action,
-              al.entity_type,
-              al.entity_id,
-              al.changes_json,
-              al.ip,
-              al.user_agent,
-              al.created_at
-         FROM audit_log al
-         LEFT JOIN users u ON u.id = al.actor_user_id
-        ${where}
-        ORDER BY al.id DESC
-        LIMIT ? OFFSET ?`,
-      [...values, limit, offset],
-    );
-
-    // Parse changes_json safely
-    const logs = rows.map((r: any) => ({
-      ...r,
-      changes: (() => { try { return JSON.parse(r.changes_json); } catch { return r.changes_json; } })(),
-      changes_json: undefined,
-    }));
-
-    return NextResponse.json({
-      success: true,
-      data:    logs,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    });
-
-  } catch (error: any) {
-    console.error('[audit-logs] error:', error);
-    return NextResponse.json({
-      success: false,
-      error:   'Failed to fetch audit logs',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    }, { status: 500 });
-  } finally {
-    if (connection) await connection.end().catch(() => {});
+  if (action) {
+    whereClauses.push('al.action LIKE ?');
+    params.push(`%${action}%`);
   }
-}
+
+  const where = whereClauses.join(' AND ');
+
+  const [countRows, rows] = await Promise.all([
+    query(`SELECT COUNT(*) AS total FROM audit_logs al WHERE ${where}`, params),
+    query(
+      `SELECT
+         al.id,
+         al.action,
+         al.entity_type,
+         al.entity_id,
+         al.ip_address   AS ip,
+         al.created_at,
+         COALESCE(
+           NULLIF(TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,''))), ''),
+           u.email,
+           'System'
+         ) AS actor_name,
+         COALESCE(al.details, al.new_values, al.old_values) AS changes
+       FROM audit_logs al
+       LEFT JOIN users u ON al.user_id = u.id
+       WHERE ${where}
+       ORDER BY al.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset],
+    ),
+  ]);
+
+  const total = Number((countRows as any[])[0]?.total ?? 0);
+
+  return NextResponse.json({
+    success: true,
+    data:    rows,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  });
+});
+
