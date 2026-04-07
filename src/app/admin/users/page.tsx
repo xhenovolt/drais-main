@@ -719,14 +719,21 @@ export default function AdminUsersPage() {
 // Add User Modal
 // ────────────────────────────────────────────────────────────────
 function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '' });
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', role_id: '' });
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState<string | null>(null);
+  const [roles,  setRoles]  = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    apiFetch<{ data: { id: number; name: string }[] }>('/api/admin/roles', { silent: true })
+      .then(r => setRoles(r.data ?? []))
+      .catch(() => {});
+  }, []);
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
 
   async function submit() {
-    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || !form.password) {
+    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || !form.password || !form.role_id) {
       setErr('All fields are required.'); return;
     }
     setSaving(true);
@@ -735,7 +742,7 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       await apiFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, role_id: Number(form.role_id) }),
         successMessage: 'User created',
       });
       onCreated();
@@ -777,6 +784,14 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Password <span className="text-red-500">*</span></label>
           <input type="password" value={form.password} onChange={e => set('password', e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Role <span className="text-red-500">*</span></label>
+          <select value={form.role_id} onChange={e => set('role_id', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Select a role…</option>
+            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
         </div>
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">

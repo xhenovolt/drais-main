@@ -468,14 +468,6 @@ async function resolveUser(
   deviceSn: string,
   schoolId: number,
 ): Promise<{ studentId: number | null; staffId: number | null; matched: boolean }> {
-  // K40 firmware rewrites the PIN field to a raw binary byte after a fingerprint
-  // is finalized (e.g. slot 2 → 0x02 → "\u0002"). Normalise to the integer string
-  // so lookups match even before a DATA UPDATE USERINFO command restores the ASCII.
-  let lookupId = deviceUserId;
-  if (deviceUserId.length === 1 && deviceUserId.charCodeAt(0) < 32) {
-    lookupId = String(deviceUserId.charCodeAt(0));
-  }
-
   // 1. Check ZK user mapping (ZK-specific)
   // NOTE: school_id intentionally NOT enforced — device may serve students
   // from a different school than the device's registered school.
@@ -484,7 +476,7 @@ async function resolveUser(
       `SELECT user_type, student_id, staff_id FROM zk_user_mapping
        WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
        LIMIT 1`,
-      [lookupId, deviceSn],
+      [deviceUserId, deviceSn],
     );
     if (mapping && mapping.length > 0) {
       return {

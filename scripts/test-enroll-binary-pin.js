@@ -53,7 +53,7 @@ async function main() {
   userBuf.writeUInt16LE(SLOT, 0);          // uid
   userBuf.writeUInt8(0, 2);               // role = normal
   Buffer.from(name, 'ascii').copy(userBuf, 11, 0, 23); // name
-  userBuf.writeUInt32LE(SLOT, 48);        // PIN as binary uint32LE (correct architecture)
+  userBuf.writeUInt32LE(SLOT, 48);        // PIN as binary uint32LE ← THE FIX
 
   console.log(`\nWriting user: uid=${SLOT} name="${name}" PIN(uint32LE)=${SLOT}`);
   console.log('Buffer hex (bytes 45-55):', userBuf.slice(45, 56).toString('hex'));

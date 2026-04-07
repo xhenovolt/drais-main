@@ -207,22 +207,34 @@ export async function POST(req: NextRequest) {
     try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
     await zk.zklibTcp.disableDevice();
 
-    // ZK 72-byte record layout:
-    //   bytes  0-1  = uid         → deviceSlot (small sequential, 1-65535)
-    //   bytes 11-33 = name        → student name (ASCII, null-padded)
-    //   bytes 48-55 = userId PIN  → String(deviceSlot)  ← MUST equal our managed slot,
-    //                               NOT String(student_id) which can be millions and
-    //                               silently overflows writeUInt16LE causing phantom slots
+    // ── ZK 72-byte CMD_USER_WRQ payload layout ────────────────────────────
+    //   bytes  0-1  uid  → deviceSlot (UInt16LE)
+    //   bytes 11-33 name → ASCII name, null-padded
+    //   bytes 48-56 PIN  → ASCII slot number, null-padded
+    //                       (decodeUserData72 reads bytes 48-56 as ASCII string)
+    const pinStr = String(deviceSlot);
     const userBuf = Buffer.alloc(72, 0);
     userBuf.writeUInt16LE(deviceSlot, 0);
     Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);
-    Buffer.from(String(deviceSlot), 'ascii').copy(userBuf, 48, 0, 8); // PIN = slot number (ASCII, matches decodeUserData72)
+    Buffer.from(pinStr, 'ascii').copy(userBuf, 48, 0, 8);
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
 
-    const payload = Buffer.alloc(3);
-    payload.writeUInt16LE(deviceSlot, 0);
-    payload.writeUInt8(fingerIdx, 2);
-    await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, payload);
+    // CMD_REFRESHDATA — flush user record to device RAM before enrollment.
+    // Without this the firmware may not find the just-written slot when
+    // CMD_STARTENROLL fires, causing it to silently create an orphan at uid 0.
+    try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_REFRESHDATA, ''); } catch {}
+
+    // ── CMD_STARTENROLL — Format B (9-byte null-terminated ASCII PIN) ────────
+    // Format A used UInt16LE uid (3 bytes). Format B uses the PIN string field
+    // (9 bytes, null-terminated) followed by the finger index byte.
+    // The device resolves the enrollment target by matching the PIN string to
+    // the PIN field written via CMD_USER_WRQ — byte-for-byte identical match.
+    // This eliminates the uid/PIN ambiguity that caused \u0001 phantom slots.
+    const enrollPayload = Buffer.alloc(10, 0);
+    Buffer.from(pinStr, 'ascii').copy(enrollPayload, 0, 0, 9); // PIN, null-padded
+    enrollPayload[9] = fingerIdx;                               // finger index
+    await zk.zklibTcp.executeCmd(COMMANDS.CMD_STARTENROLL, enrollPayload);
+    console.log(`[LOCAL-ENROLL] CMD_USER_WRQ + CMD_STARTENROLL(FormatB) → slot=${deviceSlot} PIN="${pinStr}" finger=${fingerIdx}`);
     await zk.zklibTcp.enableDevice();
 
     // ── Post-enrollment name re-confirmation ───────────────────────────────
@@ -230,14 +242,9 @@ export async function POST(req: NextRequest) {
     // template. Write the name a second time (fire-and-forget) so the slot is
     // always labelled correctly on the device, regardless of what it did during
     // the biometric capture.
-    try {
-      await zk.zklibTcp.disableDevice();
-      await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
-      await zk.zklibTcp.enableDevice();
-      console.log(`[LOCAL-ENROLL] Post-enroll name re-confirmed: "${zkName}" slot=${deviceSlot}`);
-    } catch {
-      // Non-fatal — device may still be capturing; name will be fixed on next enrollment
-    }
+    // Post-enroll: the K40 firmware overwrites the user record with a binary PIN
+    // after fingerprint finalization. The ADMS DATA UPDATE USERINFO command
+    // (queued below) restores it at the next heartbeat — no second TCP write needed.
   } catch (e: any) {
     try { await zk.zklibTcp.enableDevice(); } catch {}
     try { await zk.disconnect(); } catch {}
@@ -286,25 +293,6 @@ export async function POST(req: NextRequest) {
       [sessionId],
     ).catch(() => {});
   }
-
-  // ── Queue DATA UPDATE USERINFO via ADMS command ──────────────────────────
-  // The K40 firmware rewrites the user record (setting PIN to raw binary and
-  // clearing the name) when the fingerprint is finalised — which happens AFTER
-  // we disconnect. Queue a DATA UPDATE USERINFO command so the device gets the
-  // correct ASCII PIN and name restored on its very next heartbeat poll.
-  // device_sn from the device registry (fallback to device_ip used on LAN path)
-  const deviceSn = await query(
-    `SELECT sn FROM devices WHERE ip_address = ? LIMIT 1`,
-    [device_ip],
-  ).then((r: any[]) => r?.[0]?.sn ?? device_ip).catch(() => device_ip);
-
-  const updateCmd = `DATA UPDATE USERINFO PIN=${deviceSlot}\tName=${zkName}\tPri=0\tPasswd=\tCard=\tGrp=1\tTZ=0000000000000000\tVerify=0\tVoiceVerify=0`;
-  await query(
-    `INSERT INTO zk_device_commands
-       (device_sn, command, priority, status, school_id, expires_at)
-     VALUES (?, ?, 8, 'pending', ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
-    [deviceSn, updateCmd, schoolId],
-  ).catch(() => {}); // non-fatal
 
   return NextResponse.json({
     success: true,

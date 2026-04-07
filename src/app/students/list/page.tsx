@@ -1124,7 +1124,7 @@ export default function StudentsListPage() {
             <button
               onClick={() => setShowModeSettings(v => !v)}
               title={captureMode === 'local' ? `Local Direct — ${localDeviceIp}` : captureMode === 'relay' ? `Relay Bridge — ${relayDeviceSn || 'no device'}` : 'Cloud ADMS Mode'}
-              className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-xs font-semibold transition-colors ${
+              className={`flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
                 captureMode === 'local'
                   ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
                   : captureMode === 'relay'
@@ -1133,7 +1133,6 @@ export default function StudentsListPage() {
               }`}
             >
               {captureMode === 'local' ? <Wifi className="w-3.5 h-3.5" /> : captureMode === 'relay' ? <Radio className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{captureMode === 'local' ? 'Local' : captureMode === 'relay' ? 'Relay' : 'ADMS'}</span>
             </button>
 
             {showModeSettings && (
@@ -1246,7 +1245,7 @@ export default function StudentsListPage() {
               onClick={handleToggleFees}
               disabled={feesLoading}
               title={showFees ? 'Hide fee balances' : 'Show fee balances'}
-              className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-xs font-semibold transition-colors ${
+              className={`flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
                 showFees
                   ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                   : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -1255,26 +1254,22 @@ export default function StudentsListPage() {
               {feesLoading
                 ? <Loader className="w-3.5 h-3.5 animate-spin" />
                 : <DollarSign className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">Fees</span>
             </button>
           )}
 
           <button title="Bulk Import" onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors text-xs font-semibold">
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors">
             <Upload className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Import</span>
           </button>
 
           <button title="Remove ALL learners from this school — destructive" onClick={handleDeleteAllLearners}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors text-xs font-semibold">
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Delete All</span>
           </button>
 
           <Link href="/students/admit" title="Add new student"
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-colors">
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors">
             <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Add</span>
           </Link>
         </div>
       </div>

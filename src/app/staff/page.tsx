@@ -13,6 +13,7 @@ import {
   Eye
 } from 'lucide-react';
 import useSWR from 'swr';
+import { swrFetcher } from '@/lib/apiClient';
 import Link from 'next/link';
 import NewBadge from '@/components/ui/NewBadge';
 
@@ -20,6 +21,7 @@ const StaffOverviewPage: React.FC = () => {
   // Fetch staff overview data (school_id derived from session on server)
   const { data: staffData, isLoading } = useSWR(
     `/api/staff/overview`,
+    swrFetcher,
     { refreshInterval: 30000 }
   );
 
