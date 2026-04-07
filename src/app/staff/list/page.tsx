@@ -1,12 +1,13 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2 } from 'lucide-react';
+import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2, Wifi } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { apiFetch } from '@/lib/apiClient';
 import Link from 'next/link';
 import { showToast, confirmAction } from '@/lib/toast';
 import AddStaffModal from '@/components/staff/AddStaffModal';
+import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 
 const StaffListPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -15,6 +16,7 @@ const StaffListPage: React.FC = () => {
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   // Device ID editing state
   const [deviceIdEditingCell, setDeviceIdEditingCell] = useState<{staffId: number} | null>(null);
@@ -186,6 +188,14 @@ const StaffListPage: React.FC = () => {
               {staff.length} staff members
             </p>
           </div>
+          <button
+            onClick={() => setShowSyncModal(true)}
+            className="btn-secondary flex items-center gap-2 border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg px-4 py-3 transition-colors"
+            title="Sync users &amp; fingerprints from ZKTeco device"
+          >
+            <Wifi className="w-5 h-5" />
+            Sync Device
+          </button>
           <button
             onClick={() => setShowAddModal(true)}
             className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
@@ -458,6 +468,12 @@ const StaffListPage: React.FC = () => {
           setShowAddModal(false);
           mutate();
         }}
+      />
+
+      {/* Sync from Device Modal */}
+      <SyncDeviceModal
+        open={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
       />
 
       {/* Staff Details Modal */}

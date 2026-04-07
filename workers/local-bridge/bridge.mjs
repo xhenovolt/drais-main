@@ -60,7 +60,7 @@ if (existsSync(envFile)) {
 const SECRET      = process.env.DR_BRIDGE_SECRET || '';
 const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT || '7430', 10);
 const BRIDGE_HOST = process.env.BRIDGE_HOST || '127.0.0.1';
-const VERSION     = '1.0.0';
+const VERSION     = '1.1.0';
 
 if (SECRET.length < 16) {
   console.error(
@@ -159,6 +159,24 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // ── GET /templates?ip=X&port=Y ─────────────────────────────────────────────
+  if (method === 'GET' && path_ === '/templates') {
+    const deviceIp   = url.searchParams.get('ip');
+    const devicePort = parseInt(url.searchParams.get('port') || '4370', 10);
+    if (!deviceIp || !isValidIP(deviceIp)) return json(res, 400, { error: 'Invalid ip param' });
+
+    const zk = new ZKLib(deviceIp, devicePort, 8000, 5200);
+    try {
+      await zk.createSocket();
+      const result = await zk.getTemplates();
+      await zk.disconnect();
+      return json(res, 200, { ok: true, templates: result?.data ?? [] });
+    } catch (e) {
+      try { await zk.disconnect(); } catch {}
+      return json(res, 502, { error: e.message });
+    }
+  }
+
   // ── POST endpoints — parse body ─────────────────────────────────────────────
   let body;
   try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
@@ -238,6 +256,69 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // ── POST /sync ──────────────────────────────────────────────────────────────
+  // Pull ALL users + templates from device and POST to DRAIS cloud for merging.
+  // Body: { deviceIp, devicePort?, cloudUrl }
+  // The bridge injects its own secret via Authorization header automatically.
+  if (method === 'POST' && path_ === '/sync') {
+    if (!deviceIp || !isValidIP(deviceIp)) {
+      return json(res, 400, { error: 'deviceIp is required and must be a valid IPv4 address' });
+    }
+    const cloudUrl = body.cloudUrl || body.cloud_url;
+    if (!cloudUrl || typeof cloudUrl !== 'string') {
+      return json(res, 400, { error: 'cloudUrl is required' });
+    }
+
+    const zk = new ZKLib(deviceIp, devicePort, 10000, 5200);
+    let users = [], templates = [];
+    try {
+      await zk.createSocket();
+      const [usersResult, templatesResult] = await Promise.allSettled([
+        zk.getUsers(),
+        zk.getTemplates(),
+      ]);
+      await zk.disconnect();
+
+      if (usersResult.status === 'fulfilled') users = usersResult.value?.data ?? [];
+      if (templatesResult.status === 'fulfilled') templates = templatesResult.value?.data ?? [];
+    } catch (e) {
+      try { await zk.disconnect(); } catch {}
+      console.error(`[BRIDGE] /sync device pull failed:`, e.message);
+      return json(res, 502, { error: `Device connection failed: ${e.message}` });
+    }
+
+    // POST to cloud manual-upload
+    const uploadUrl = `${cloudUrl.replace(/\/$/, '')}/api/sync/manual-upload`;
+
+    try {
+      const cloudRes = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Bridge-Secret': SECRET,
+        },
+        body: JSON.stringify({
+          users,
+          templates,
+          device_ip: deviceIp,
+          device_port: devicePort,
+        }),
+      });
+      const cloudBody = await cloudRes.json().catch(() => null);
+
+      console.log(`[BRIDGE] ${new Date().toISOString()} SYNC device=${deviceIp} users=${users.length} templates=${templates.length} cloud_status=${cloudRes.status}`);
+      return json(res, cloudRes.ok ? 200 : 502, {
+        ok: cloudRes.ok,
+        users_pulled: users.length,
+        templates_pulled: templates.length,
+        cloud_response: cloudBody,
+      });
+    } catch (e) {
+      console.error(`[BRIDGE] /sync cloud upload failed:`, e.message);
+      return json(res, 502, { error: `Cloud upload failed: ${e.message}`, users_pulled: users.length, templates_pulled: templates.length });
+    }
+  }
+
   json(res, 404, { error: 'Not found' });
 });
 
@@ -251,5 +332,7 @@ server.listen(BRIDGE_PORT, BRIDGE_HOST, () => {
   console.log(`    POST /cancel  { deviceIp }`);
   console.log(`    POST /beep    { deviceIp }`);
   console.log(`    GET  /users?ip=...`);
+  console.log(`    GET  /templates?ip=...`);
+  console.log(`    POST /sync    { deviceIp, cloudUrl }`);
   console.log(`\n  TIP: Run as a background service with pm2 start bridge.mjs`);
 });

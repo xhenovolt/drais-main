@@ -42,6 +42,7 @@ import { useExport } from '@/hooks/useExport';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import DeviceSelector, { getPreferredDevice } from '@/components/modals/DeviceSelector';
+import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 import { 
   safeArray, 
   safeString, 
@@ -130,6 +131,9 @@ export default function StudentsListPage() {
   const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
+
+  // Sync from Device
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   // Capture mode: 'adms' (cloud / device_commands table) | 'local' (direct TCP) | 'relay' (relay bridge)
   const [captureMode, setCaptureMode] = useState<'adms' | 'local' | 'relay'>(() => {
@@ -1262,6 +1266,11 @@ export default function StudentsListPage() {
             <Upload className="w-3.5 h-3.5" />
           </button>
 
+          <button title="Sync from Device — pull users &amp; fingerprints from ZKTeco K40" onClick={() => setShowSyncModal(true)}
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+            <Wifi className="w-3.5 h-3.5" />
+          </button>
+
           <button title="Remove ALL learners from this school — destructive" onClick={handleDeleteAllLearners}
             className="flex items-center justify-center w-8 h-8 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
@@ -1659,6 +1668,14 @@ export default function StudentsListPage() {
         isOpen={showDeviceSelector}
         onClose={() => { setShowDeviceSelector(false); setCaptureStudentId(null); }}
         onDeviceSelected={handleDeviceSelected}
+      />
+
+      {/* SYNC FROM DEVICE MODAL */}
+      <SyncDeviceModal
+        open={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        defaultDeviceIp={localDeviceIp}
+        defaultDeviceSn={relayDeviceSn}
       />
     </div>
   );
