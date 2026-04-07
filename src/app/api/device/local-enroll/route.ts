@@ -178,6 +178,30 @@ export async function POST(req: NextRequest) {
     [schoolId, student_id, deviceSlot, device_ip],
   ).catch((e: any) => console.warn('[LOCAL-ENROLL] Mapping upsert (non-fatal):', e.message));
 
+  // ── 5b. Open enrollment session + INITIATED record ────────────────────────
+  // device_sn stored as device_ip (K40 identifies itself by IP on LAN path)
+  let sessionId: number | null = null;
+  let enrollmentId: number | null = null;
+  try {
+    const sessRes = await query(
+      `INSERT INTO enrollment_sessions
+         (school_id, device_sn, initiated_by, student_id, status, expires_at)
+       VALUES (?, ?, ?, ?, 'ACTIVE', DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+      [schoolId, device_ip, session.userId, student_id],
+    );
+    sessionId = (sessRes as any).insertId ?? null;
+
+    const enrRes = await query(
+      `INSERT INTO biometric_enrollments
+         (school_id, device_sn, device_slot, student_id, status, source, session_id, finger_index)
+       VALUES (?, ?, ?, ?, 'INITIATED', 'local', ?, ?)`,
+      [schoolId, device_ip, deviceSlot, student_id, sessionId, fingerIdx],
+    );
+    enrollmentId = (enrRes as any).insertId ?? null;
+  } catch (e: any) {
+    console.warn('[LOCAL-ENROLL] Session/enrollment record (non-fatal):', e.message);
+  }
+
   // ── 6. Write identity + trigger enrollment ──────────────────────────────────
   try {
     try { await zk.zklibTcp.executeCmd(COMMANDS.CMD_CANCELCAPTURE, ''); } catch {}
@@ -222,6 +246,19 @@ export async function POST(req: NextRequest) {
        VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'failed', ?, NOW())`,
       [schoolId, student_id, deviceSlot, fingerIdx, e.message],
     ).catch(() => {});
+    // Mark session/enrollment as FAILED
+    if (enrollmentId) {
+      query(
+        `UPDATE biometric_enrollments SET status='ORPHANED', updated_at=NOW() WHERE id=?`,
+        [enrollmentId],
+      ).catch(() => {});
+    }
+    if (sessionId) {
+      query(
+        `UPDATE enrollment_sessions SET status='FAILED', completed_at=NOW() WHERE id=?`,
+        [sessionId],
+      ).catch(() => {});
+    }
     return NextResponse.json({ error: `Enrollment failed: ${e.message}` }, { status: 502 });
   }
 
@@ -233,6 +270,22 @@ export async function POST(req: NextRequest) {
      VALUES (?, ?, ?, ?, 'LOCAL', 'local', 'initiated', NOW())`,
     [schoolId, student_id, deviceSlot, fingerIdx],
   ).catch(() => {});
+
+  // ── Flip enrollment state: INITIATED → ASSIGNED (identity was pre-known) ──
+  if (enrollmentId) {
+    query(
+      `UPDATE biometric_enrollments
+       SET status='ASSIGNED', assigned_at=NOW(), updated_at=NOW()
+       WHERE id=?`,
+      [enrollmentId],
+    ).catch(() => {});
+  }
+  if (sessionId) {
+    query(
+      `UPDATE enrollment_sessions SET status='COMPLETED', completed_at=NOW() WHERE id=?`,
+      [sessionId],
+    ).catch(() => {});
+  }
 
   return NextResponse.json({
     success: true,
