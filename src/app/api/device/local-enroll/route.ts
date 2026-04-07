@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
     const userBuf = Buffer.alloc(72, 0);
     userBuf.writeUInt16LE(deviceSlot, 0);
     Buffer.from(zkName, 'ascii').copy(userBuf, 11, 0, 23);
-    Buffer.from(String(deviceSlot), 'ascii').copy(userBuf, 48, 0, 8); // PIN = slot number
+    Buffer.from(String(deviceSlot), 'ascii').copy(userBuf, 48, 0, 8); // PIN = slot number (ASCII, matches decodeUserData72)
     await zk.zklibTcp.executeCmd(COMMANDS.CMD_USER_WRQ, userBuf);
 
     const payload = Buffer.alloc(3);
@@ -286,6 +286,25 @@ export async function POST(req: NextRequest) {
       [sessionId],
     ).catch(() => {});
   }
+
+  // ── Queue DATA UPDATE USERINFO via ADMS command ──────────────────────────
+  // The K40 firmware rewrites the user record (setting PIN to raw binary and
+  // clearing the name) when the fingerprint is finalised — which happens AFTER
+  // we disconnect. Queue a DATA UPDATE USERINFO command so the device gets the
+  // correct ASCII PIN and name restored on its very next heartbeat poll.
+  // device_sn from the device registry (fallback to device_ip used on LAN path)
+  const deviceSn = await query(
+    `SELECT sn FROM devices WHERE ip_address = ? LIMIT 1`,
+    [device_ip],
+  ).then((r: any[]) => r?.[0]?.sn ?? device_ip).catch(() => device_ip);
+
+  const updateCmd = `DATA UPDATE USERINFO PIN=${deviceSlot}\tName=${zkName}\tPri=0\tPasswd=\tCard=\tGrp=1\tTZ=0000000000000000\tVerify=0\tVoiceVerify=0`;
+  await query(
+    `INSERT INTO zk_device_commands
+       (device_sn, command, priority, status, school_id, expires_at)
+     VALUES (?, ?, 8, 'pending', ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
+    [deviceSn, updateCmd, schoolId],
+  ).catch(() => {}); // non-fatal
 
   return NextResponse.json({
     success: true,
