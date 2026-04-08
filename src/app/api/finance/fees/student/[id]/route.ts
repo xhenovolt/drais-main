@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 import { computeFeeItemStatus, updateFeeItemStatus } from '@/lib/services/FeeService';
 import FeeStatusMiddleware from '@/lib/middleware/feeStatusMiddleware';
 
@@ -7,6 +8,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   let connection;
   
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+
     const resolvedParams = await params;
     const feeItemId = parseInt(resolvedParams.id, 10);
     const body = await req.json();
