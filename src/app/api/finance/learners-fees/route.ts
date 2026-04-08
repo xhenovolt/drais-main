@@ -85,8 +85,9 @@ export async function GET(request: NextRequest) {
         fi.due_date,
         t.name as term_name
       FROM student_fee_items fi
+      JOIN students s_inner ON fi.student_id = s_inner.id
       LEFT JOIN terms t ON fi.term_id = t.id
-      WHERE fi.school_id = ?
+      WHERE s_inner.school_id = ?
     `;
 
     const feeItemsParams: any[] = [schoolId];
@@ -108,7 +109,6 @@ export async function GET(request: NextRequest) {
         fsi.item_name,
         fsi.amount as item_amount
       FROM fee_structures fs
-      LEFT JOIN fee_structure_items fsi ON fs.id = fsi.fee_structure_id
       WHERE fs.school_id = ?
     `;
 
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (year) {
-      feeStructureSql += ' AND fs.year = ?';
+      feeStructureSql += ' AND fs.academic_year = ?';
       feeStructureParams.push(year);
     }
 
