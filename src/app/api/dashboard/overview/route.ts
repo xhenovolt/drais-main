@@ -254,12 +254,16 @@ export async function GET(req: NextRequest) {
         photoUrl: null
       }] : [],
       fees: {
-        totalExpected: (paymentData?.total_outstanding || 0) + 1000000, // Mock expected amount
-        totalCollected: 1000000, // Mock collected amount
-        collectionPercentage: 75, // Mock percentage
+        totalExpected: Number(paymentData?.total_outstanding || 0) + Number(paymentData?.total_paid || 0),
+        totalCollected: Number(paymentData?.total_paid || 0),
+        collectionPercentage: (() => {
+          const expected = Number(paymentData?.total_outstanding || 0) + Number(paymentData?.total_paid || 0);
+          const collected = Number(paymentData?.total_paid || 0);
+          return expected > 0 ? Math.round((collected / expected) * 100) : 0;
+        })(),
         defaultersCount: (paymentData?.not_paid || 0) + (paymentData?.partially_paid || 0)
       },
-      subjects: [], // Will be populated with actual subject data
+      subjects: [], // Requires results data — shown as empty when no term is active
       termProgress: termData || {
         term_name: "No Active Term",
         remaining_days: 0,
