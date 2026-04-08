@@ -34,6 +34,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!hydrated) return;
     
     const root = document.documentElement;
+
+    // Tailwind dark mode requires class="dark" on <html> (darkMode: 'class' in tailwind.config)
+    if (store.mode === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+
     root.dataset.themeMode = store.mode;
     root.style.setProperty("--color-primary", store.primary);
     root.style.setProperty("--gradient-from", store.gradientFrom);
