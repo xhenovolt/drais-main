@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Search, Archive, TrendingUp, TrendingDown, BarChart3, User, Award } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
 import { fetcher } from "@/utils/fetcher";
@@ -12,7 +13,8 @@ const AcademicHistoryPage: React.FC = () => {
   const searchParams = useSearchParams();
   const studentIdFromUrl = searchParams?.get("studentId") || "";
 
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");

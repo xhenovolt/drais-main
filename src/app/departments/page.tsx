@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import { apiFetch } from '@/lib/apiClient';
+import { useAuth } from '@/contexts/AuthContext';
 import { showToast, confirmAction } from '@/lib/toast';
 import NewBadge from '@/components/ui/NewBadge';
 
@@ -33,7 +34,8 @@ interface Department {
 }
 
 const DepartmentsPage: React.FC = () => {
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);

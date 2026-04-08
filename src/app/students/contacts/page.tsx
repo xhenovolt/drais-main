@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { Search, Plus, Phone, Mail, User, Users, Heart, Edit2, MessageSquare } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
@@ -8,7 +9,8 @@ import AddContactModal from '@/components/students/AddContactModal';
 import ContactsListModal from '@/components/students/ContactsListModal';
 
 const ContactsPage: React.FC = () => {
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, CheckSquare, Plus, Settings, Eye, School } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
@@ -9,7 +10,8 @@ import AddRequirementModal from '@/components/students/AddRequirementModal';
 import ClassRequirementsManager from '@/components/students/ClassRequirementsManager';
 
 const RequirementsPage: React.FC = () => {
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [termFilter, setTermFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');

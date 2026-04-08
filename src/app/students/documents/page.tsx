@@ -1,13 +1,15 @@
 "use client";
 import React, { useState } from 'react';
 import { Search, Plus, FileText, Download, Eye, Upload, Calendar } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import AddDocumentModal from '@/components/students/AddDocumentModal';
 
 const DocumentsPage: React.FC = () => {
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
