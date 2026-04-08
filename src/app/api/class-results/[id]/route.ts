@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function PUT(
@@ -7,8 +8,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
     const body = await req.json();
-    const { score, grade, remarks, actor_user_id } = body;
+    const { score, grade, remarks } = body;
     const resolvedParams = await params;
     const resultId = parseInt(resolvedParams.id, 10);
 
@@ -57,25 +61,23 @@ export async function PUT(
     const afterData = updatedRecordRows[0];
 
     // Log the change in audit_log
-    if (actor_user_id) {
-      const changes = {
-        before: beforeData,
-        after: afterData
-      };
+    const changes = {
+      before: beforeData,
+      after: afterData
+    };
 
-      await connection.execute(
-        `INSERT INTO audit_log 
-         (actor_user_id, action, entity_type, entity_id, changes_json, ip, user_agent, created_at) 
-         VALUES (?, 'edit_result', 'class_result', ?, ?, ?, ?, NOW())`,
-        [
-          actor_user_id,
-          resultId,
-          JSON.stringify(changes),
-          req.headers.get('x-forwarded-for') || 'unknown',
-          req.headers.get('user-agent') || 'unknown'
-        ]
-      );
-    }
+    await connection.execute(
+      `INSERT INTO audit_log 
+       (actor_user_id, action, entity_type, entity_id, changes_json, ip, user_agent, created_at) 
+       VALUES (?, 'edit_result', 'class_result', ?, ?, ?, ?, NOW())`,
+      [
+        session.userId,
+        resultId,
+        JSON.stringify(changes),
+        req.headers.get('x-forwarded-for') || 'unknown',
+        req.headers.get('user-agent') || 'unknown'
+      ]
+    );
 
     await connection.end();
 

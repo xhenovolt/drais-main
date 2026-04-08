@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConnection } from "@/lib/db";
+import { getSessionSchoolId } from "@/lib/auth";
 import AfricasTalking from "africastalking";
 
-const africasTalkingClient = AfricasTalking({
-  apiKey: 'atsk_3baf21e161cca165c4f5ccb67bc38f5a50a192e3208fafc3b575014f35793d9a1994a774',
-  username: 'xhenovolt',
-});
-
-const sms = africasTalkingClient.SMS;
+function getAfricasTalkingClient() {
+  const apiKey = process.env.AFRICASTALKING_API_KEY;
+  const username = process.env.AFRICASTALKING_USERNAME;
+  if (!apiKey || !username) {
+    throw new Error('Africa\'s Talking credentials not configured in environment');
+  }
+  return AfricasTalking({ apiKey, username });
+}
 
 async function formatPhoneNumber(contact: string): Promise<string> {
   if (/^0\d{9}$/.test(contact)) {
@@ -22,6 +25,10 @@ async function formatPhoneNumber(contact: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
   const body = await req.json();
   const message = body.message;
 
@@ -30,18 +37,19 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const client = getAfricasTalkingClient();
+    const sms = client.SMS;
+
     const connection = await getConnection();
     const [rows] = await connection.execute(
-      'SELECT p.phone FROM staff s JOIN people p ON s.person_id = p.id WHERE s.status = "active" AND p.phone IS NOT NULL'
+      'SELECT p.phone FROM staff s JOIN people p ON s.person_id = p.id WHERE s.school_id = ? AND s.status = "active" AND p.phone IS NOT NULL',
+      [schoolId]
     );
     await connection.end();
 
-    const contacts = rows.map((row: any) => row.phone);
+    const contacts = (rows as any[]).map((row: any) => row.phone);
     if (contacts.length === 0) {
-      // No teachers found, send to test number
-      const testNumber = '+256741341483';
-      const response = await sms.send({ to: [testNumber], message });
-      return NextResponse.json({ success: true, message: 'No teachers found. Test SMS sent.', response });
+      return NextResponse.json({ success: false, message: 'No active teachers with phone numbers found.' }, { status: 404 });
     }
 
     // Send SMS to all teacher contacts
