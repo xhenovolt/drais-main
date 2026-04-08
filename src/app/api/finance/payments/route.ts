@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
       `, [
         schoolId, wallet_id, incomeCategory[0]?.id || 1, amount,
         reference || receiptNo, `Payment from ${paid_by} for ${feeItems.map((f: any) => f.item).join(', ')}`,
-        student_id, 1 // TODO: Get from session
+        student_id, session.userId // from authenticated session
       ]);
 
       // 6. Create receipt record
@@ -261,7 +261,7 @@ export async function POST(req: NextRequest) {
         INSERT INTO receipts (school_id, payment_id, receipt_no, generated_by, metadata)
         VALUES (?, ?, ?, ?, ?)
       `, [
-        schoolId, paymentId, receiptNo, 1,
+        schoolId, paymentId, receiptNo, session.userId,
         JSON.stringify({
           items: feeItems.map((f: any) => ({ item: f.item, amount: f.amount })),
           payment_method: method,
@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
         INSERT INTO finance_actions (school_id, actor_user_id, action, entity_type, entity_id, metadata)
         VALUES (?, ?, 'create_payment', 'payment', ?, ?)
       `, [
-        schoolId, 1, paymentId,
+        schoolId, session.userId, paymentId,
         JSON.stringify({ amount, method, student_id, items_count: items.length })
       ]);
 

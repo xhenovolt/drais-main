@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     );
 
     // record audit_log as status history
-    const actor_user_id = null; // TODO: read from session or auth
+    const actor_user_id = session.userId;
     const changes = {
       action,
       details: details || null,

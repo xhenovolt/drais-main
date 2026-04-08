@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
           action: 'student_enrolled',
           entity_type: 'student',
           entity_id: studentId,
-          actor_user_id: 1, // TODO: Get from session
+          actor_user_id: session.userId,
           school_id: schoolId,
           recipients: adminRecipients,
           metadata: {
