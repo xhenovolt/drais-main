@@ -1,16 +1,18 @@
+'use client';
 import React from 'react';
 import DashboardAnalytics from '@/components/analytics/DashboardAnalytics';
-import { loadDictionary } from '@/lib/i18nServer';
+import { useAuth } from '@/contexts/AuthContext';
 
-export default async function AnalyticsPage() {
-  const { dict } = await loadDictionary();
-  
+export default function AnalyticsPage() {
+  const { user } = useAuth();
+  const schoolId = user?.schoolId?.toString() ?? '';
+
   return (
     <div className="p-6">
-      <DashboardAnalytics 
-        schoolId="1" 
-        termId={undefined} 
-        classId={undefined} 
+      <DashboardAnalytics
+        schoolId={schoolId}
+        termId={undefined}
+        classId={undefined}
       />
     </div>
   );
