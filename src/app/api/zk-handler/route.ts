@@ -401,19 +401,44 @@ async function upsertDevice(
   pushVer: string | null,
 ): Promise<void> {
   try {
-    await query(
-      `INSERT INTO devices (sn, school_id, ip_address, options, push_version, last_seen, is_online, status)
-       VALUES (?, 1, ?, ?, ?, NOW(), TRUE, 'active')
-       ON DUPLICATE KEY UPDATE
-         ip_address = VALUES(ip_address),
-         options = COALESCE(VALUES(options), options),
-         push_version = COALESCE(VALUES(push_version), push_version),
-         last_seen = NOW(),
-         is_online = TRUE,
-         status = 'active',
-         updated_at = CURRENT_TIMESTAMP`,
-      [sn, ip, options, pushVer],
+    // Preserve existing school_id if device already registered; otherwise use
+    // the school_id set during manual registration. Never hardcode to 1.
+    const existing = await query(
+      'SELECT school_id FROM devices WHERE sn = ? LIMIT 1',
+      [sn],
     );
+    const schoolId = existing?.[0]?.school_id ?? null;
+
+    if (schoolId) {
+      // Device already exists — just update heartbeat fields, keep school_id
+      await query(
+        `UPDATE devices SET
+           ip_address = ?,
+           options = COALESCE(?, options),
+           push_version = COALESCE(?, push_version),
+           last_seen = NOW(),
+           is_online = TRUE,
+           status = 'active',
+           updated_at = CURRENT_TIMESTAMP
+         WHERE sn = ?`,
+        [ip, options, pushVer, sn],
+      );
+    } else {
+      // Brand new device — insert without school_id (will be set during registration)
+      await query(
+        `INSERT INTO devices (sn, ip_address, options, push_version, last_seen, is_online, status)
+         VALUES (?, ?, ?, ?, NOW(), TRUE, 'active')
+         ON DUPLICATE KEY UPDATE
+           ip_address = VALUES(ip_address),
+           options = COALESCE(VALUES(options), options),
+           push_version = COALESCE(VALUES(push_version), push_version),
+           last_seen = NOW(),
+           is_online = TRUE,
+           status = 'active',
+           updated_at = CURRENT_TIMESTAMP`,
+        [sn, ip, options, pushVer],
+      );
+    }
   } catch (err) {
     zkLog('error', 'DEVICE_UPSERT_FAILED', { sn, error: String(err) });
   }
@@ -600,7 +625,8 @@ async function saveAttendancePunch(
 
 /**
  * Process USERINFO data pushed by device after a DATA QUERY USERINFO command.
- * Auto-creates zk_user_mapping entries so future punches resolve automatically.
+ * Creates zk_user_mapping entries AND actual people + students records
+ * so learners appear immediately in the DRAIS system.
  */
 async function processUserInfo(
   deviceSn: string,
@@ -609,25 +635,91 @@ async function processUserInfo(
 ): Promise<void> {
   let created = 0;
   let skipped = 0;
+  let learnersCreated = 0;
 
   for (const record of records) {
     const userId = record.USERID || record.PIN;
     if (!userId) continue;
 
-    const name = record.NAME || record.USERNAME || '';
+    const name = (record.NAME || record.USERNAME || '').trim();
     const cardNo = record.CARDNO || record.CARD || '';
+    const deviceUserId = String(userId).trim();
+
+    // Skip unnamed / admin accounts
+    if (!name || name.toLowerCase() === 'admin') {
+      skipped++;
+      continue;
+    }
 
     try {
-      // Upsert into zk_user_mapping (don't overwrite existing matched mappings)
+      // Check if this device user already has a student record linked
+      const existingMapping = await query(
+        `SELECT student_id FROM zk_user_mapping
+         WHERE device_user_id = ? AND school_id = ? AND student_id IS NOT NULL LIMIT 1`,
+        [deviceUserId, schoolId],
+      );
+
+      if (existingMapping?.[0]?.student_id) {
+        // Already linked — just update card number if changed
+        await query(
+          `UPDATE zk_user_mapping SET
+             card_number = COALESCE(NULLIF(?, ''), card_number),
+             device_sn = COALESCE(?, device_sn),
+             updated_at = CURRENT_TIMESTAMP
+           WHERE device_user_id = ? AND school_id = ?`,
+          [cardNo || null, deviceSn, deviceUserId, schoolId],
+        );
+        created++;
+        continue;
+      }
+
+      // Split name intelligently
+      const nameParts = name.split(/\s+/);
+      const firstName = nameParts[0] || name;
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+      // Create person record
+      const personResult: any = await query(
+        `INSERT INTO people (school_id, first_name, last_name, created_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+        [schoolId, firstName, lastName],
+      );
+      const personId = personResult?.insertId;
+
+      if (!personId) {
+        skipped++;
+        zkLog('warn', 'USERINFO_PERSON_CREATE_FAILED', { userId, name });
+        continue;
+      }
+
+      // Create student record
+      const studentResult: any = await query(
+        `INSERT INTO students (school_id, person_id, status, admission_date, created_at)
+         VALUES (?, ?, 'active', CURDATE(), CURRENT_TIMESTAMP)`,
+        [schoolId, personId],
+      );
+      const studentId = studentResult?.insertId;
+
+      if (!studentId) {
+        skipped++;
+        zkLog('warn', 'USERINFO_STUDENT_CREATE_FAILED', { userId, name, personId });
+        continue;
+      }
+
+      // Upsert into zk_user_mapping with the new student_id
       await query(
-        `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, device_sn, card_number)
-         VALUES (?, ?, 'student', ?, ?)
+        `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, student_id, device_sn, card_number)
+         VALUES (?, ?, 'student', ?, ?, ?)
          ON DUPLICATE KEY UPDATE
+           student_id = VALUES(student_id),
            card_number = COALESCE(VALUES(card_number), card_number),
            updated_at = CURRENT_TIMESTAMP`,
-        [schoolId, String(userId).trim(), deviceSn, cardNo || null],
+        [schoolId, deviceUserId, studentId, deviceSn, cardNo || null],
       );
+
       created++;
+      learnersCreated++;
+      zkLog('info', 'USERINFO_LEARNER_CREATED', { userId, name, studentId, personId, schoolId });
     } catch (err) {
       skipped++;
       zkLog('warn', 'USERINFO_UPSERT_SKIP', { userId, error: String(err) });
@@ -644,7 +736,7 @@ async function processUserInfo(
     );
   } catch { /* non-critical */ }
 
-  zkLog('info', 'USERINFO_PROCESSED', { deviceSn, created, skipped, total: records.length });
+  zkLog('info', 'USERINFO_PROCESSED', { deviceSn, created, skipped, learnersCreated, total: records.length });
 }
 
 /**

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const requestedSn = (body.device_sn as string) || null;
 
   // Resolve target devices
-  const deviceRows = await query(
+  const deviceRows = await query<{ sn: string; device_name: string }[]>(
     `SELECT sn, device_name FROM devices
      WHERE school_id = ? AND status = 'active'
      ${requestedSn ? 'AND sn = ?' : ''}
