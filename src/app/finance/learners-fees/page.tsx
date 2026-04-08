@@ -437,13 +437,13 @@ const LearnersFeesPage: React.FC = () => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[640px]">
                   <thead className="bg-gray-50 dark:bg-slate-700">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Learner
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Class
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -482,7 +482,7 @@ const LearnersFeesPage: React.FC = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="hidden sm:table-cell px-6 py-4">
                           <div className="text-sm text-gray-900 dark:text-white">
                             {learner.class_name}
                           </div>
@@ -492,7 +492,7 @@ const LearnersFeesPage: React.FC = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {learner.total_expected 
                               ? `UGX ${learner.total_expected.toLocaleString()}` 
@@ -500,12 +500,12 @@ const LearnersFeesPage: React.FC = () => {
                             }
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-green-600 dark:text-green-400 font-medium">
                             UGX {learner.total_paid.toLocaleString()}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`text-sm font-medium ${
                             learner.balance > 0 
                               ? 'text-red-600 dark:text-red-400' 
@@ -524,10 +524,11 @@ const LearnersFeesPage: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleViewDetails(learner)}
+                              title="View fee details"
                               className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                             >
                               <Eye className="w-4 h-4" />
-                              View
+                              <span className="hidden sm:inline">View</span>
                             </button>
                           </div>
                         </td>
