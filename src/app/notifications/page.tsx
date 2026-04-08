@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, 
@@ -38,15 +38,13 @@ interface Notification {
 }
 
 const NotificationsPage: React.FC = () => {
-  const [userId] = useState(1);
-  const [schoolId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread' | 'archived'>('all');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  // Fetch notifications
+  // Fetch notifications — userId and schoolId come from the session server-side
   const { data, isLoading, mutate } = useSWR(
-    `/api/notifications/list?user_id=${userId}&filter=${filter}&limit=50${schoolId ? `&school_id=${schoolId}` : ''}`
+    `/api/notifications/list?filter=${filter}&limit=50`
   );
 
   const notifications: Notification[] = data?.notifications || [];
@@ -80,7 +78,7 @@ const NotificationsPage: React.FC = () => {
       await apiFetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: notificationIds, user_id: userId }),
+        body: JSON.stringify({ ids: notificationIds }),
         successMessage: 'Marked as read',
       });
       mutate();
@@ -95,7 +93,7 @@ const NotificationsPage: React.FC = () => {
       await apiFetch('/api/notifications/archive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: notificationIds, user_id: userId }),
+        body: JSON.stringify({ ids: notificationIds }),
         successMessage: 'Notifications archived',
       });
       mutate();
