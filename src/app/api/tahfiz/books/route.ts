@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { getSessionSchoolId } from '@/lib/auth';
+import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,25 +67,27 @@ export async function POST(request: NextRequest) {
       pdfFilePath = `/uploads/tahfiz/pdfs/${filename}`;
     }
 
-    // Here you would save to your database
-    // For now, returning success response
-    const bookData = {
-      id: Date.now(), // Replace with actual DB insert
-      schoolId: parseInt(schoolId, 10),
-      title,
-      description: description || '',
-      total_units: parseInt(totalUnits, 10),
-      unit_type: unitType,
-      cover_image: coverImagePath,
-      pdf_file: pdfFilePath,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    // Insert into database (cover_image/pdf_file not in schema — files saved to disk only)
+    const result: any[] = await query(
+      `INSERT INTO tahfiz_books (school_id, title, description, total_units, unit_type)
+       VALUES (?, ?, ?, ?, ?)`,
+      [schoolId, title, description || null, parseInt(totalUnits, 10), unitType]
+    );
+    const insertedId = result[0]?.insertId ?? null;
 
     return NextResponse.json({
       success: true,
       message: 'Book created successfully',
-      data: bookData
+      data: {
+        id: insertedId,
+        school_id: schoolId,
+        title,
+        description: description || '',
+        total_units: parseInt(totalUnits, 10),
+        unit_type: unitType,
+        cover_image: coverImagePath,
+        pdf_file: pdfFilePath,
+      }
     });
 
   } catch (error) {
@@ -112,25 +115,26 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Here you would fetch from your database
-    // For now, returning mock data
-    const books = [
-      {
-        id: 1,
-        schoolId: parseInt(schoolId, 10),
-        title: 'The Holy Quran',
-        description: 'Complete Quran for memorization',
-        total_units: 114,
-        unit_type: 'surah',
-        cover_image: null,
-        pdf_file: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        total_portions: 5,
-        active_learners: 12,
-        completion_rate: 75
-      }
-    ];
+    // Fetch books from database with portion stats
+    const books = await query(
+      `SELECT
+         b.id,
+         b.school_id,
+         b.title,
+         b.description,
+         b.total_units,
+         b.unit_type,
+         b.created_at,
+         b.updated_at,
+         COUNT(DISTINCT tp.id) AS total_portions,
+         COUNT(DISTINCT tp.student_id) AS active_learners
+       FROM tahfiz_books b
+       LEFT JOIN tahfiz_plans tp ON tp.book_id = b.id AND tp.status IN ('active','in_progress')
+       WHERE b.school_id = ?
+       GROUP BY b.id
+       ORDER BY b.created_at DESC`,
+      [schoolId]
+    );
 
     return NextResponse.json({
       success: true,
@@ -162,8 +166,11 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Here you would delete from your database
-    // Also delete associated files if they exist
+    // Delete from database (school_id check ensures tenant isolation)
+    await query(
+      `DELETE FROM tahfiz_books WHERE id = ? AND school_id = ?`,
+      [bookId, schoolId]
+    );
 
     return NextResponse.json({
       success: true,
