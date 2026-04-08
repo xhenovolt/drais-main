@@ -6,6 +6,7 @@ import {
   Calendar, Clock, BookOpen, Award, User, X, Trash2
 } from 'lucide-react';
 import GroupMembersModal from '@/components/tahfiz/GroupMembersModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Group {
   id: number;
@@ -49,7 +50,8 @@ export default function TahfizGroups() {
     notes: ''
   });
 
-  const schoolId = 1; // Replace with actual school ID
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0; // real session school
 
   useEffect(() => {
     fetchGroups();

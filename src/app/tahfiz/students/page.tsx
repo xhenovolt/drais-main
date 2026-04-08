@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { StudentWizard } from '@/components/students/StudentWizard';
 
 interface TahfizStudent {
@@ -45,7 +46,8 @@ function TahfizStudentsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   
   // Add state for StudentWizard modal
   const [showStudentWizard, setShowStudentWizard] = useState(false);

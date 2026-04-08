@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import AssignPortionModal from '@/components/tahfiz/AssignPortionModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TahfizBook {
   id: number;
@@ -32,7 +33,8 @@ function TahfizBooksContent() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   const { showToast } = useToast();
 
   const [showAddModal, setShowAddModal] = useState(false);

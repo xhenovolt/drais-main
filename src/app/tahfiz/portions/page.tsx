@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/contexts/AuthContext';
 import LearnerCard from '@/components/tahfiz/LearnerCard';
 import AssignPortionModal from '@/components/tahfiz/AssignPortionModal';
 import PresentModal from '@/components/tahfiz/PresentModal';
@@ -48,7 +49,8 @@ function TahfizPortionsContent() {
   const [groupFilter, setGroupFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [schoolId] = useState(1);
+  const { user } = useAuth();
+  const schoolId = user?.schoolId ?? 0;
   const [selectedLearners, setSelectedLearners] = useState<number[]>([]);
   
   const [showAssignModal, setShowAssignModal] = useState(false);
