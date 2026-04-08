@@ -1,44 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionSchoolId } from '@/lib/auth';
+import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    // This would connect to your database
-    // For now, returning mock data structure
-    const mockResults = [
-      {
-        student_id: 1,
-        student_name: 'John Doe',
-        class_name: 'P.1',
-        subject_name: 'Mathematics',
-        term_name: 'Term 1',
-        result_type: 'Mid Term',
-        score: 85,
-        grade: 'B',
-        remarks: 'Good performance',
-        table_type: 'class_results',
-        class_id: 1,
-        subject_id: 1,
-        term_id: 1,
-        result_type_id: 1
-      },
-      {
-        student_id: 2,
-        student_name: 'Jane Smith',
-        class_name: 'P.2',
-        subject_name: 'English',
-        term_name: 'Term 1',
-        result_type: 'End Term',
-        score: 92,
-        grade: 'A',
-        remarks: 'Excellent work',
-        table_type: 'results',
-        exam_id: 1
-      }
-    ];
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
+    // Fetch class_results (term-based) scoped to school via students.school_id
+    const classResults = await query(
+      `SELECT
+         cr.id,
+         cr.student_id,
+         CONCAT(p.first_name, ' ', p.last_name) AS student_name,
+         c.name AS class_name,
+         sub.name AS subject_name,
+         t.name AS term_name,
+         rt.name AS result_type,
+         cr.score,
+         cr.grade,
+         cr.remarks,
+         'class_results' AS table_type,
+         cr.class_id,
+         cr.subject_id,
+         cr.term_id,
+         cr.result_type_id
+       FROM class_results cr
+       JOIN students s ON s.id = cr.student_id AND s.school_id = ? AND s.deleted_at IS NULL
+       JOIN people p ON p.id = s.person_id
+       LEFT JOIN classes c ON c.id = cr.class_id
+       LEFT JOIN subjects sub ON sub.id = cr.subject_id
+       LEFT JOIN terms t ON t.id = cr.term_id
+       LEFT JOIN result_types rt ON rt.id = cr.result_type_id
+       ORDER BY p.first_name, p.last_name, sub.name
+       LIMIT 500`,
+      [schoolId]
+    );
 
     return NextResponse.json({
       success: true,
-      data: mockResults
+      data: classResults
     });
   } catch (error) {
     return NextResponse.json({
