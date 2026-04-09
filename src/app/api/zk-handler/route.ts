@@ -337,15 +337,15 @@ async function logDeviceEvent(entry: ZkDeviceLogEntry): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Get the school_id for a device from the devices table. */
-async function getDeviceSchoolId(sn: string): Promise<number> {
+async function getDeviceSchoolId(sn: string): Promise<number | null> {
   try {
     const rows = await query(
       'SELECT school_id FROM devices WHERE sn = ? LIMIT 1',
       [sn],
     );
-    return rows?.[0]?.school_id ?? 1;
+    return rows?.[0]?.school_id ?? null;
   } catch {
-    return 1; // safe default
+    return null; // unknown — will show to all admins via OR school_id IS NULL
   }
 }
 
@@ -355,7 +355,7 @@ async function getDeviceSchoolId(sn: string): Promise<number> {
  * Sets sync_status = 'out_of_sync' when they diverge.
  * Fire-and-forget — NEVER throws.
  */
-async function updateDeviceSyncState(sn: string, schoolId: number): Promise<void> {
+async function updateDeviceSyncState(sn: string, schoolId: number | null): Promise<void> {
   try {
     // Expected = users mapped to this device in DB
     const expectedRow = await query(
@@ -403,7 +403,7 @@ async function upsertDevice(
   ip: string,
   options: string | null,
   pushVer: string | null,
-  schoolId: number,
+  schoolId: number | null,
 ): Promise<void> {
   try {
     // Log heartbeat for forensics / debugging (fire-and-forget)
@@ -915,7 +915,7 @@ export async function POST(req: NextRequest) {
 
   let rawBody = '';
   let rawLogId: number | null = null;
-  let schoolId = 1; // safe default until we resolve
+  let schoolId: number | null = null; // resolved from device record
 
   try {
     // ════════════════════════════════════════════════════════════════════════
