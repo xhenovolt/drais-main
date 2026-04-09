@@ -6,6 +6,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Shield, Plus, RefreshCw, ChevronRight, Users as UsersIcon,
   Key, X, CheckSquare, Square, Loader2, Pencil, Trash2,
+  ArrowLeft,
 } from 'lucide-react';
 
 import { showToast, confirmAction } from '@/lib/toast';
@@ -126,8 +127,8 @@ export default function AdminRolesPage() {
 
   return (
     <div className="flex h-full min-h-screen gap-0">
-      {/* Left: Role list */}
-      <div className="w-72 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col">
+      {/* Left: Role list — full-width on mobile, sidebar on md+ */}
+      <div className={`w-full md:w-72 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col ${selected ? 'hidden md:flex' : 'flex'}`}>
         <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-indigo-500" />
@@ -175,8 +176,8 @@ export default function AdminRolesPage() {
         </div>
       </div>
 
-      {/* Right: Permission matrix */}
-      <div className="flex-1 overflow-y-auto p-6">
+      {/* Right: Permission matrix — full-width on mobile, flex-1 on md+ */}
+      <div className={`flex-1 overflow-y-auto p-4 md:p-6 ${selected ? 'block' : 'hidden md:block'}`}>
         {!selected ? (
           <div className="flex items-center justify-center h-full text-slate-400">
             <div className="text-center">
@@ -194,6 +195,12 @@ export default function AdminRolesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="md:hidden p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
                   <h2 className="text-xl font-bold text-slate-800 dark:text-white">{selected.name}</h2>
                   {selected.is_system_role && (
                     <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">System Role</span>
