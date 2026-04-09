@@ -34,6 +34,8 @@ const PUBLIC_ROUTES = [
   '/api/internal',
   // JETON external control channel — authenticated via x-api-key + x-api-secret headers
   '/api/control',
+  // Cron jobs — authenticated via CRON_SECRET header
+  '/api/cron',
 ];
 
 /**
