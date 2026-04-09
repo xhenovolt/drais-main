@@ -30,9 +30,8 @@ export async function GET(req: NextRequest) {
           WHERE al.device_sn = d.sn AND al.check_time > DATE_SUB(NOW(), INTERVAL 1 HOUR)) AS punches_1h
        FROM devices d
        WHERE d.deleted_at IS NULL
-         AND (d.school_id = ? OR d.school_id IS NULL)
        ORDER BY d.last_seen DESC`,
-      [session.schoolId],
+      [],
     );
 
     // 2. Last 50 attendance events (real-time feed)
@@ -57,10 +56,9 @@ export async function GET(req: NextRequest) {
        LEFT JOIN staff st ON al.staff_id = st.id
        LEFT JOIN people sp ON st.person_id = sp.id
        LEFT JOIN devices d ON d.sn = al.device_sn
-       WHERE al.school_id = ?
        ORDER BY al.check_time DESC
        LIMIT 50`,
-      [session.schoolId],
+      [],
     );
 
     // 3. Recent heartbeats (last 20)
@@ -78,9 +76,8 @@ export async function GET(req: NextRequest) {
          status,
          COUNT(*) AS count
        FROM zk_device_commands
-       WHERE school_id = ?
        GROUP BY status`,
-      [session.schoolId],
+      [],
     );
 
     return NextResponse.json({

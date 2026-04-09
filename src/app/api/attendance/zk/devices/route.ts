@@ -39,9 +39,8 @@ export async function GET(req: NextRequest) {
        FROM devices d
        LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
        WHERE d.deleted_at IS NULL
-         AND (d.school_id = ? OR d.school_id IS NULL)
        ORDER BY d.last_seen DESC`,
-      [session.schoolId],
+      [],
     );
 
     // Fallback: if no registered devices, discover from recent ADMS traffic (any school)
@@ -98,10 +97,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Device ID required' }, { status: 400 });
     }
 
-    // Verify ownership (school-scoped)
+    // Verify device exists
     const existing = await query(
-      'SELECT id FROM devices WHERE id = ? AND school_id = ?',
-      [id, session.schoolId],
+      'SELECT id FROM devices WHERE id = ? AND deleted_at IS NULL',
+      [id],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -114,8 +113,8 @@ export async function PUT(req: NextRequest) {
          model_name = COALESCE(?, model_name),
          status = COALESCE(?, status),
          updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND school_id = ?`,
-      [device_name || null, location || null, model || null, status || null, id, session.schoolId],
+       WHERE id = ?`,
+      [device_name || null, location || null, model || null, status || null, id],
     );
 
     await logAudit({
@@ -154,16 +153,16 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const existing = await query(
-      'SELECT sn FROM devices WHERE id = ? AND school_id = ?',
-      [id, session.schoolId],
+      'SELECT sn FROM devices WHERE id = ? AND deleted_at IS NULL',
+      [id],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
     await query(
-      `UPDATE devices SET deleted_at = NOW(), status = 'inactive', is_online = FALSE WHERE id = ? AND school_id = ?`,
-      [id, session.schoolId],
+      `UPDATE devices SET deleted_at = NOW(), status = 'inactive', is_online = FALSE WHERE id = ?`,
+      [id],
     );
 
     await logAudit({

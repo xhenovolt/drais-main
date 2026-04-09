@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
   const offset = (page - 1) * limit;
 
   try {
-    const conditions: string[] = ['c.school_id = ?'];
-    const params: any[] = [session.schoolId];
+    const conditions: string[] = ['1=1'];
+    const params: any[] = [];
 
     if (deviceSn) {
       conditions.push('c.device_sn = ?');
@@ -95,10 +95,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Command too long (max 2000 chars)' }, { status: 400 });
     }
 
-    // Verify device exists and belongs to school
+    // Verify device exists (devices are school-agnostic)
     const device = await query(
-      'SELECT id FROM devices WHERE sn = ? AND school_id = ?',
-      [device_sn, session.schoolId],
+      'SELECT id FROM devices WHERE sn = ? AND deleted_at IS NULL',
+      [device_sn],
     );
     if (!device || device.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -154,8 +154,8 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const existing = await query(
-      'SELECT id, status FROM zk_device_commands WHERE id = ? AND school_id = ?',
-      [id, session.schoolId],
+      'SELECT id, status FROM zk_device_commands WHERE id = ?',
+      [id],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Command not found' }, { status: 404 });

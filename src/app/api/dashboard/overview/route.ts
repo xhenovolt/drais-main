@@ -164,8 +164,8 @@ export async function GET(req: NextRequest) {
           COUNT(*) AS total_devices,
           SUM(CASE WHEN TIMESTAMPDIFF(SECOND, last_seen, NOW()) <= 120 THEN 1 ELSE 0 END) AS online_devices
         FROM devices
-        WHERE (school_id = ? OR school_id IS NULL) AND deleted_at IS NULL
-      `, [schoolId]),
+        WHERE deleted_at IS NULL
+      `, []),
 
       // Today biometric punches from ZKTeco devices
       connection.execute(`

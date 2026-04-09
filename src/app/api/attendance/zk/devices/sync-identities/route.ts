@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
     }
 
-    // Verify device exists and belongs to this school
-    const device = await query('SELECT id, sn, school_id FROM devices WHERE sn = ? AND school_id = ?', [device_sn, session.schoolId]);
+    // Verify device exists (devices are school-agnostic)
+    const device = await query('SELECT id, sn, school_id FROM devices WHERE sn = ? AND deleted_at IS NULL', [device_sn]);
     if (!device || device.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
@@ -274,9 +274,9 @@ export async function GET(req: NextRequest) {
          status,
          COUNT(*) AS cnt
        FROM zk_device_commands
-       WHERE school_id = ? AND device_sn = ? AND command LIKE 'DATA UPDATE USERINFO PIN=%'
+       WHERE device_sn = ? AND command LIKE 'DATA UPDATE USERINFO PIN=%'
        GROUP BY status`,
-      [session.schoolId, deviceSn],
+      [deviceSn],
     );
 
     const statusMap: Record<string, number> = {};
@@ -307,8 +307,8 @@ export async function GET(req: NextRequest) {
 
     // Get total mapped users for this device
     const mappedRow = await query(
-      `SELECT COUNT(*) AS cnt FROM zk_user_mapping WHERE school_id = ? AND (device_sn = ? OR device_sn IS NULL)`,
-      [session.schoolId, deviceSn],
+      `SELECT COUNT(*) AS cnt FROM zk_user_mapping WHERE device_sn = ? OR device_sn IS NULL`,
+      [deviceSn],
     );
     const totalMapped = Number(mappedRow?.[0]?.cnt || 0);
 
