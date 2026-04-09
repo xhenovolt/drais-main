@@ -29,7 +29,7 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
   const conditions: string[] = ['al.school_id = ?'];
   const values: any[]        = [session.schoolId];
 
-  if (action)     { conditions.push('al.action_type = ?');    values.push(action); }
+  if (action)     { conditions.push('al.action = ?');         values.push(action); }
   if (entityType) { conditions.push('al.entity_type = ?');    values.push(entityType); }
   if (userId)     { conditions.push('al.user_id = ?');        values.push(Number(userId)); }
   if (dateFrom)   { conditions.push('al.created_at >= ?');    values.push(dateFrom); }

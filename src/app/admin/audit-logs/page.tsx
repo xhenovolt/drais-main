@@ -9,10 +9,12 @@ import { Shield, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-rea
 interface AuditLog {
   id: number;
   actor_name: string;
+  actor_email: string | null;
   action: string;
   entity_type: string;
   entity_id: number | null;
-  changes: Record<string, unknown> | string;
+  details: Record<string, unknown> | string | null;
+  source: string | null;
   ip: string | null;
   created_at: string;
 }
@@ -57,7 +59,7 @@ export default function AuditLogsPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: '50' });
       if (actionFilter.trim()) params.set('action', actionFilter.trim());
-      const res  = await fetch(`/api/audit-logs?${params}`);
+      const res  = await fetch(`/api/admin/audit-logs?${params}`);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error ?? 'Failed to load logs');
       setLogs(data.data);
@@ -172,7 +174,7 @@ export default function AuditLogsPage() {
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-500 font-mono text-xs">{log.entity_id ?? '—'}</td>
                       <td className="px-4 py-3 text-slate-400 dark:text-slate-500 font-mono text-xs">{log.ip ?? '—'}</td>
                       <td className="px-4 py-3">
-                        {log.changes && Object.keys(log.changes).length > 0 && (
+                        {log.details && typeof log.details === 'object' && Object.keys(log.details).length > 0 && (
                           <button
                             onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                             className="text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-200"
@@ -186,7 +188,7 @@ export default function AuditLogsPage() {
                       <tr>
                         <td colSpan={7} className="px-4 pb-3 pt-0 bg-slate-50/60 dark:bg-slate-800/40">
                           <pre className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 rounded-lg p-3 overflow-x-auto max-h-48">
-                            {JSON.stringify(log.changes, null, 2)}
+                            {JSON.stringify(log.details, null, 2)}
                           </pre>
                         </td>
                       </tr>
