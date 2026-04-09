@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
   const offset = (page - 1) * limit;
 
   try {
-    const conditions: string[] = ['1=1'];
-    const params: any[] = [];
+    const conditions: string[] = ['m.school_id = ?'];
+    const params: any[] = [session.schoolId];
 
     if (userType === 'student' || userType === 'staff') {
       conditions.push('m.user_type = ?');
@@ -97,11 +97,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'staff_id required for staff mapping' }, { status: 400 });
     }
 
-    // Check for duplicate (no school_id filter — data is school_id=1, session=8002)
+    // Check for duplicate (school-scoped)
     const existing = await query(
       `SELECT id FROM zk_user_mapping
-       WHERE device_user_id = ? AND (device_sn = ? OR (? IS NULL AND device_sn IS NULL))`,
-      [device_user_id, device_sn || null, device_sn || null],
+       WHERE school_id = ? AND device_user_id = ? AND (device_sn = ? OR (? IS NULL AND device_sn IS NULL))`,
+      [session.schoolId, device_user_id, device_sn || null, device_sn || null],
     );
     if (existing && existing.length > 0) {
       return NextResponse.json({ error: 'Mapping already exists for this device user ID' }, { status: 409 });
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, student_id, staff_id, device_sn, card_number)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
-        1, // device data is always school_id=1
+        session.schoolId,
         trimmedUserId,
         user_type,
         mappedStudentId,
@@ -131,8 +131,8 @@ export async function POST(req: NextRequest) {
       const rematchResult = await query(
         `UPDATE zk_attendance_logs
          SET student_id = ?, staff_id = ?, matched = 1
-         WHERE device_user_id = ? AND matched = 0`,
-        [mappedStudentId, mappedStaffId, trimmedUserId],
+         WHERE school_id = ? AND device_user_id = ? AND matched = 0`,
+        [mappedStudentId, mappedStaffId, session.schoolId, trimmedUserId],
       );
       rematched = (rematchResult as any)?.affectedRows || 0;
     } catch (rematchErr) {
@@ -171,8 +171,8 @@ export async function PUT(req: NextRequest) {
     }
 
     const existing = await query(
-      'SELECT id, device_user_id FROM zk_user_mapping WHERE id = ?',
-      [id],
+      'SELECT id, device_user_id FROM zk_user_mapping WHERE id = ? AND school_id = ?',
+      [id, session.schoolId],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Mapping not found' }, { status: 404 });
@@ -190,7 +190,7 @@ export async function PUT(req: NextRequest) {
          device_sn = ?,
          card_number = ?,
          updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
+       WHERE id = ? AND school_id = ?`,
       [
         device_user_id || null,
         user_type || null,
@@ -199,6 +199,7 @@ export async function PUT(req: NextRequest) {
         device_sn || null,
         card_number || null,
         id,
+        session.schoolId,
       ],
     );
 
@@ -209,8 +210,8 @@ export async function PUT(req: NextRequest) {
       const rematchResult = await query(
         `UPDATE zk_attendance_logs
          SET student_id = ?, staff_id = ?, matched = 1
-         WHERE device_user_id = ? AND matched = 0`,
-        [mappedStudentId, mappedStaffId, String(targetDeviceUserId).trim()],
+         WHERE school_id = ? AND device_user_id = ? AND matched = 0`,
+        [mappedStudentId, mappedStaffId, session.schoolId, String(targetDeviceUserId).trim()],
       );
       rematched = (rematchResult as any)?.affectedRows || 0;
     } catch (rematchErr) {
@@ -247,16 +248,16 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const existing = await query(
-      'SELECT id FROM zk_user_mapping WHERE id = ?',
-      [id],
+      'SELECT id FROM zk_user_mapping WHERE id = ? AND school_id = ?',
+      [id, session.schoolId],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Mapping not found' }, { status: 404 });
     }
 
     await query(
-      'DELETE FROM zk_user_mapping WHERE id = ?',
-      [id],
+      'DELETE FROM zk_user_mapping WHERE id = ? AND school_id = ?',
+      [id, session.schoolId],
     );
 
     return NextResponse.json({ success: true, message: 'Mapping deleted' });

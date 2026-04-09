@@ -38,8 +38,9 @@ export async function GET(req: NextRequest) {
          ss.last_sync_at
        FROM devices d
        LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
+       WHERE d.school_id = ?
        ORDER BY d.last_seen DESC`,
-      [],
+      [session.schoolId],
     );
 
     return NextResponse.json({ success: true, data: devices });
@@ -67,10 +68,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Device ID required' }, { status: 400 });
     }
 
-    // Verify ownership
+    // Verify ownership (school-scoped)
     const existing = await query(
-      'SELECT id FROM devices WHERE id = ?',
-      [id],
+      'SELECT id FROM devices WHERE id = ? AND school_id = ?',
+      [id, session.schoolId],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -83,8 +84,8 @@ export async function PUT(req: NextRequest) {
          model_name = COALESCE(?, model_name),
          status = COALESCE(?, status),
          updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [device_name || null, location || null, model || null, status || null, id],
+       WHERE id = ? AND school_id = ?`,
+      [device_name || null, location || null, model || null, status || null, id, session.schoolId],
     );
 
     await logAudit({
@@ -123,14 +124,14 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const existing = await query(
-      'SELECT sn FROM devices WHERE id = ?',
-      [id],
+      'SELECT sn FROM devices WHERE id = ? AND school_id = ?',
+      [id, session.schoolId],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
-    await query('DELETE FROM devices WHERE id = ?', [id]);
+    await query('DELETE FROM devices WHERE id = ? AND school_id = ?', [id, session.schoolId]);
 
     await logAudit({
       schoolId: session.schoolId,

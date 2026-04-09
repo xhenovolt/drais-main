@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
     }
 
-    // Verify device exists (no school_id filter — device may have legacy school_id)
+    // Verify device exists and belongs to this school
     const device = await query(
-      'SELECT id, sn, school_id FROM devices WHERE sn = ?',
-      [device_sn],
+      'SELECT id, sn, school_id FROM devices WHERE sn = ? AND school_id = ?',
+      [device_sn, session.schoolId],
     );
     if (!device || device.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
     // Check if there's already a pending/sent USERINFO command
     const existing = await query(
       `SELECT id, status FROM zk_device_commands
-       WHERE device_sn = ? AND command = 'DATA QUERY USERINFO'
+       WHERE school_id = ? AND device_sn = ? AND command = 'DATA QUERY USERINFO'
          AND status IN ('pending', 'sent')
        LIMIT 1`,
-      [device_sn],
+      [session.schoolId, device_sn],
     );
     if (existing && existing.length > 0) {
       return NextResponse.json({
@@ -96,18 +96,21 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Look up device to get its school_id
-    const deviceRow = await query('SELECT school_id FROM devices WHERE sn = ?', [deviceSn]);
-    const deviceSchoolId = deviceRow?.[0]?.school_id || session.schoolId;
+    // Look up device to verify ownership
+    const deviceRow = await query('SELECT school_id FROM devices WHERE sn = ? AND school_id = ?', [deviceSn, session.schoolId]);
+    if (!deviceRow || deviceRow.length === 0) {
+      return NextResponse.json({ error: 'Device not found' }, { status: 404 });
+    }
+    const deviceSchoolId = session.schoolId;
 
     // Get latest USERINFO command for this device
     const cmd = await query(
       `SELECT id, status, sent_at, ack_at, retry_count, created_at
        FROM zk_device_commands
-       WHERE device_sn = ? AND command = 'DATA QUERY USERINFO'
+       WHERE school_id = ? AND device_sn = ? AND command = 'DATA QUERY USERINFO'
        ORDER BY id DESC
        LIMIT 1`,
-      [deviceSn],
+      [session.schoolId, deviceSn],
     );
 
     if (!cmd || cmd.length === 0) {

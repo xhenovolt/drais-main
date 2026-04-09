@@ -19,15 +19,16 @@ export async function GET(req: NextRequest) {
   const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   try {
-    // Device stats (no school_id filter — device data is school_id=1, session is 8002)
+    // Device stats (school-scoped)
     const deviceStats = await query(
       `SELECT
          COUNT(*) AS total_devices,
          SUM(CASE WHEN status = 'active' AND last_seen > DATE_SUB(NOW(), INTERVAL 5 MINUTE) THEN 1 ELSE 0 END) AS online_devices,
          SUM(CASE WHEN status = 'active' AND (last_seen IS NULL OR last_seen <= DATE_SUB(NOW(), INTERVAL 5 MINUTE)) THEN 1 ELSE 0 END) AS offline_devices,
          SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenance_devices
-       FROM devices`,
-      [],
+       FROM devices
+       WHERE school_id = ?`,
+      [schoolId],
     );
 
     // Total students (school-scoped for accuracy)
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
       [schoolId],
     );
 
-    // Today's punches (no school_id filter on zk tables)
+    // Today's punches (school-scoped)
     const punchStats = await query(
       `SELECT
          COUNT(*) AS total_punches,
@@ -54,22 +55,22 @@ export async function GET(req: NextRequest) {
          COUNT(DISTINCT CASE WHEN staff_id IS NOT NULL THEN staff_id END) AS unique_staff_present,
          COUNT(DISTINCT device_user_id) AS unique_users
        FROM zk_attendance_logs
-       WHERE DATE(check_time) = ?`,
-      [date],
+       WHERE school_id = ? AND DATE(check_time) = ?`,
+      [schoolId, date],
     );
 
-    // Pending commands (no school_id filter)
+    // Pending commands (school-scoped)
     const commandStats = await query(
       `SELECT
          COUNT(*) AS total_pending,
          SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) AS sent,
          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed
        FROM zk_device_commands
-       WHERE status IN ('pending', 'sent', 'failed')`,
-      [],
+       WHERE school_id = ? AND status IN ('pending', 'sent', 'failed')`,
+      [schoolId],
     );
 
-    // Hourly breakdown for chart (no school_id filter)
+    // Hourly breakdown for chart (school-scoped)
     const hourlyData = await query(
       `SELECT
          HOUR(check_time) AS hour,
@@ -77,13 +78,13 @@ export async function GET(req: NextRequest) {
          SUM(CASE WHEN io_mode = 0 THEN 1 ELSE 0 END) AS check_ins,
          SUM(CASE WHEN io_mode = 1 THEN 1 ELSE 0 END) AS check_outs
        FROM zk_attendance_logs
-       WHERE DATE(check_time) = ?
+       WHERE school_id = ? AND DATE(check_time) = ?
        GROUP BY HOUR(check_time)
        ORDER BY hour`,
-      [date],
+      [schoolId, date],
     );
 
-    // Recent punches (live feed, no school_id filter)
+    // Recent punches (live feed, school-scoped)
     const recentPunches = await query(
       `SELECT
          al.id, al.device_sn, al.device_user_id, al.check_time,
@@ -99,12 +100,13 @@ export async function GET(req: NextRequest) {
        LEFT JOIN students st ON al.student_id = st.id
        LEFT JOIN people sp ON st.person_id = sp.id
        LEFT JOIN staff stf ON al.staff_id = stf.id
+       WHERE al.school_id = ?
        ORDER BY al.check_time DESC
        LIMIT 20`,
-      [],
+      [schoolId],
     );
 
-    // Devices with last heartbeat (no school_id filter)
+    // Devices with last heartbeat (school-scoped)
     const devices = await query(
       `SELECT
          id, sn AS serial_number, device_name, location, ip_address, status,
@@ -115,8 +117,9 @@ export async function GET(req: NextRequest) {
            ELSE 'offline'
          END AS connection_status
        FROM devices
+       WHERE school_id = ?
        ORDER BY last_seen DESC`,
-      [],
+      [schoolId],
     );
 
     const totalStudents = Number(studentCount[0]?.total || 0);

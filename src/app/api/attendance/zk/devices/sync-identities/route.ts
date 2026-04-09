@@ -47,16 +47,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
     }
 
-    // Verify device exists
-    const device = await query('SELECT id, sn, school_id FROM devices WHERE sn = ?', [device_sn]);
+    // Verify device exists and belongs to this school
+    const device = await query('SELECT id, sn, school_id FROM devices WHERE sn = ? AND school_id = ?', [device_sn, session.schoolId]);
     if (!device || device.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
-    const deviceSchoolId = device[0].school_id || session.schoolId;
+    const deviceSchoolId = session.schoolId;
 
-    // ── Step 1: Find the current max PIN across ALL zk_user_mapping ──
+    // ── Step 1: Find the current max PIN for this school's zk_user_mapping ──
     const maxRow = await query(
-      `SELECT MAX(CAST(device_user_id AS UNSIGNED)) AS max_pin FROM zk_user_mapping`,
+      `SELECT MAX(CAST(device_user_id AS UNSIGNED)) AS max_pin FROM zk_user_mapping WHERE school_id = ?`,
+      [session.schoolId],
     );
     let nextPin = Math.max(1, (Number(maxRow?.[0]?.max_pin) || 0) + 1);
 
@@ -86,8 +87,8 @@ export async function POST(req: NextRequest) {
     const existingMappings = await query(
       `SELECT student_id, staff_id, device_user_id
        FROM zk_user_mapping
-       WHERE (device_sn = ? OR device_sn IS NULL)`,
-      [device_sn],
+       WHERE school_id = ? AND (device_sn = ? OR device_sn IS NULL)`,
+      [session.schoolId, device_sn],
     );
 
     const syncedStudents = new Set<number>();
@@ -273,9 +274,9 @@ export async function GET(req: NextRequest) {
          status,
          COUNT(*) AS cnt
        FROM zk_device_commands
-       WHERE device_sn = ? AND command LIKE 'DATA UPDATE USERINFO PIN=%'
+       WHERE school_id = ? AND device_sn = ? AND command LIKE 'DATA UPDATE USERINFO PIN=%'
        GROUP BY status`,
-      [deviceSn],
+      [session.schoolId, deviceSn],
     );
 
     const statusMap: Record<string, number> = {};
@@ -306,8 +307,8 @@ export async function GET(req: NextRequest) {
 
     // Get total mapped users for this device
     const mappedRow = await query(
-      `SELECT COUNT(*) AS cnt FROM zk_user_mapping WHERE (device_sn = ? OR device_sn IS NULL)`,
-      [deviceSn],
+      `SELECT COUNT(*) AS cnt FROM zk_user_mapping WHERE school_id = ? AND (device_sn = ? OR device_sn IS NULL)`,
+      [session.schoolId, deviceSn],
     );
     const totalMapped = Number(mappedRow?.[0]?.cnt || 0);
 

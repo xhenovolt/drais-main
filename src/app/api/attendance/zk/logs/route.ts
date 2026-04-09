@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
   const search = url.searchParams.get('search');
 
   try {
-    const conditions: string[] = ['1=1'];
-    const params: any[] = [];
+    const conditions: string[] = ['al.school_id = ?'];
+    const params: any[] = [schoolId];
 
     if (dateFrom) {
       conditions.push('al.check_time >= ?');
