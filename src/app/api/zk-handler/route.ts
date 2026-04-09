@@ -436,10 +436,25 @@ async function upsertDevice(
   }
 }
 
-/** Fetch the highest-priority pending command for a device. */
+/**
+ * Fetch pending command(s) for a device.
+ *
+ * BATCHING: When the highest-priority pending command is DATA UPDATE USERINFO,
+ * we grab ALL pending USERINFO commands and combine them into a single
+ * multi-record payload. ZKTeco devices accept multiple records per push:
+ *
+ *   DATA UPDATE USERINFO PIN=1\tName=John\t…
+ *   PIN=2\tName=Jane\t…
+ *   PIN=3\tName=Bob\t…
+ *
+ * This turns 500+ individual commands (one per heartbeat = 8+ hours) into
+ * a single delivery on one heartbeat.
+ *
+ * Returns { id (primary), batchIds (all IDs), command (combined) }.
+ */
 async function getPendingCommand(
   sn: string,
-): Promise<{ id: number; command: string } | null> {
+): Promise<{ id: number; command: string; batchIds?: number[] } | null> {
   try {
     const rows = await query(
       `SELECT id, command FROM zk_device_commands
@@ -451,23 +466,80 @@ async function getPendingCommand(
       [sn],
     );
     if (!rows || rows.length === 0) return null;
-    return { id: rows[0].id, command: rows[0].command };
+
+    const first = rows[0];
+
+    // If this is a USERINFO push, batch ALL pending USERINFO commands together
+    if (first.command.startsWith('DATA UPDATE USERINFO PIN=')) {
+      try {
+        const allRows = await query(
+          `SELECT id, command FROM zk_device_commands
+           WHERE device_sn = ? AND status = 'pending'
+             AND command LIKE 'DATA UPDATE USERINFO PIN=%'
+             AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+             AND retry_count < max_retries
+           ORDER BY id ASC`,
+          [sn],
+        );
+
+        if (allRows && allRows.length > 1) {
+          // First record keeps the full header, the rest are just the PIN= lines
+          const lines: string[] = [];
+          const batchIds: number[] = [];
+          for (const row of allRows) {
+            // Each command is: "DATA UPDATE USERINFO PIN=X\tName=Y\t..."
+            // Strip the "DATA UPDATE USERINFO " prefix from records after the first
+            const payload = row.command.replace(/^DATA UPDATE USERINFO /, '');
+            lines.push(payload);
+            batchIds.push(row.id);
+          }
+
+          const batchedCommand = 'DATA UPDATE USERINFO ' + lines.join('\n');
+
+          zkLog('info', 'USERINFO_BATCH', {
+            sn,
+            batchSize: batchIds.length,
+            primaryId: first.id,
+          });
+
+          return { id: first.id, command: batchedCommand, batchIds };
+        }
+      } catch (err) {
+        zkLog('warn', 'BATCH_FETCH_FAILED', { sn, error: String(err) });
+        // Fall through to single-command delivery
+      }
+    }
+
+    return { id: first.id, command: first.command };
   } catch (err) {
     zkLog('error', 'COMMAND_FETCH_FAILED', { sn, error: String(err) });
     return null;
   }
 }
 
-/** Mark a command as sent after delivery. */
-async function markCommandSent(commandId: number): Promise<void> {
+/** Mark command(s) as sent after delivery. Handles both single and batch. */
+async function markCommandSent(commandId: number, batchIds?: number[]): Promise<void> {
   try {
-    await query(
-      `UPDATE zk_device_commands
-       SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = retry_count + 1,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [commandId],
-    );
+    if (batchIds && batchIds.length > 1) {
+      // Batch: mark ALL commands as sent in one UPDATE
+      const placeholders = batchIds.map(() => '?').join(',');
+      await query(
+        `UPDATE zk_device_commands
+         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = retry_count + 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id IN (${placeholders})`,
+        batchIds,
+      );
+      zkLog('info', 'BATCH_MARKED_SENT', { primaryId: commandId, count: batchIds.length });
+    } else {
+      await query(
+        `UPDATE zk_device_commands
+         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = retry_count + 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [commandId],
+      );
+    }
   } catch (err) {
     zkLog('error', 'COMMAND_MARK_SENT_FAILED', { commandId, error: String(err) });
   }
@@ -857,12 +929,17 @@ export async function GET(req: NextRequest) {
       zkLog('info', 'COMMAND_DELIVERED', {
         sn,
         commandId: pending.id,
-        command: pending.command.substring(0, 100),
+        command: pending.command.substring(0, 200),
+        batchSize: pending.batchIds?.length || 1,
       });
-      await markCommandSent(pending.id);
+      await markCommandSent(pending.id, pending.batchIds);
       // Log outgoing command to system_logs
       await logSystemEvent(sn, 'COMMAND_SENT', 'OUTGOING',
-        JSON.stringify({ commandId: pending.id, command: pending.command }), ip, ua);
+        JSON.stringify({
+          commandId: pending.id,
+          command: pending.command.substring(0, 200),
+          batchSize: pending.batchIds?.length || 1,
+        }), ip, ua);
       return textResponse(`C:${pending.id}:${pending.command}`);
     }
 
@@ -977,6 +1054,7 @@ export async function POST(req: NextRequest) {
 
         if (cmdId) {
           if (returnCode === 0) {
+            // Mark the primary command as acknowledged
             await query(
               `UPDATE zk_device_commands
                SET status = 'acknowledged', ack_at = CURRENT_TIMESTAMP,
@@ -984,9 +1062,24 @@ export async function POST(req: NextRequest) {
                WHERE id = ? AND status = 'sent'`,
               [cmdId],
             );
+
+            // BATCH ACK: If this was a batched USERINFO delivery,
+            // all individual commands were marked 'sent' together.
+            // Mark ALL sent USERINFO commands for this device as acknowledged.
+            const batchAck = await query(
+              `UPDATE zk_device_commands
+               SET status = 'acknowledged', ack_at = CURRENT_TIMESTAMP,
+                   error_message = NULL, updated_at = CURRENT_TIMESTAMP
+               WHERE device_sn = ? AND status = 'sent'
+                 AND command LIKE 'DATA UPDATE USERINFO PIN=%'`,
+              [sn],
+            );
+            const batchCount = (batchAck as any)?.affectedRows || 0;
+
             zkLog('info', 'COMMAND_ACK', {
               sn, commandId: cmdId, returnCode, newStatus: 'acknowledged',
               cmd: params.get('CMD') || '',
+              batchAcknowledged: batchCount,
             });
           } else {
             // Non-zero return code — check whether to retry or permanently fail.
@@ -1004,6 +1097,7 @@ export async function POST(req: NextRequest) {
             if (retryCount < maxRetries) {
               // Still have retries left — reset to pending so the device
               // gets another chance on its next heartbeat.
+              // Also reset any batched USERINFO commands back to pending.
               await query(
                 `UPDATE zk_device_commands
                  SET status = 'pending', error_message = ?,
@@ -1011,18 +1105,36 @@ export async function POST(req: NextRequest) {
                  WHERE id = ? AND status = 'sent'`,
                 [`Retrying (code ${returnCode}, attempt ${retryCount}/${maxRetries})`, cmdId],
               );
+              // Reset batched USERINFO commands too
+              await query(
+                `UPDATE zk_device_commands
+                 SET status = 'pending', error_message = ?,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE device_sn = ? AND status = 'sent'
+                   AND command LIKE 'DATA UPDATE USERINFO PIN=%'`,
+                [`Batch retry (code ${returnCode})`, sn],
+              );
               zkLog('info', 'COMMAND_RETRY', {
                 sn, commandId: cmdId, returnCode,
                 retryCount, maxRetries, cmd: params.get('CMD') || '',
               });
             } else {
               // Max retries exhausted — permanently failed.
+              // Also fail any batched USERINFO commands.
               await query(
                 `UPDATE zk_device_commands
                  SET status = 'failed', ack_at = CURRENT_TIMESTAMP,
                      error_message = ?, updated_at = CURRENT_TIMESTAMP
                  WHERE id = ? AND status = 'sent'`,
                 [`Device returned code ${returnCode}`, cmdId],
+              );
+              await query(
+                `UPDATE zk_device_commands
+                 SET status = 'failed', ack_at = CURRENT_TIMESTAMP,
+                     error_message = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE device_sn = ? AND status = 'sent'
+                   AND command LIKE 'DATA UPDATE USERINFO PIN=%'`,
+                [`Batch failed (code ${returnCode})`, sn],
               );
               zkLog('info', 'COMMAND_FAILED', {
                 sn, commandId: cmdId, returnCode,
