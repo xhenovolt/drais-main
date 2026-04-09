@@ -235,6 +235,8 @@ export default function UnifiedAttendancePage() {
   const [search, setSearch] = useState('');
   const [assignTarget, setAssignTarget] = useState<string | null>(null);
   const [liveFeedOpen, setLiveFeedOpen] = useState(true);
+  const [classId, setClassId] = useState('');
+  const [gender, setGender] = useState('');
   const { events: liveEvents, connected: sseConnected } = useLiveFeed();
 
   // Build query params
@@ -247,8 +249,10 @@ export default function UnifiedAttendancePage() {
     if (dateTo) p.set('date_to', dateTo);
     if (deviceSn) p.set('device_sn', deviceSn);
     if (search) p.set('search', search);
+    if (classId) p.set('class_id', classId);
+    if (gender) p.set('gender', gender);
     return p.toString();
-  }, [tab, page, dateFrom, dateTo, deviceSn, search]);
+  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender]);
 
   const { data, isLoading, mutate } = useSWR<any>(
     `/api/attendance/unified?${params}`,
@@ -258,6 +262,10 @@ export default function UnifiedAttendancePage() {
   // Devices for filter
   const { data: devicesData } = useSWR<any>('/api/devices/list');
   const devices = devicesData?.data || [];
+
+  // Classes for filter
+  const { data: classesData } = useSWR<any>('/api/classes');
+  const classes = classesData?.data || classesData?.classes || [];
 
   const logs = data?.data || [];
   const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
@@ -395,7 +403,7 @@ export default function UnifiedAttendancePage() {
 
         {/* ── Filters ────────────────────────────────────────────────── */}
         <div className="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700
-          rounded-xl p-4 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          rounded-xl p-4 mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
             <input
@@ -428,6 +436,33 @@ export default function UnifiedAttendancePage() {
               {devices.map((d: any) => (
                 <option key={d.sn || d.id} value={d.sn}>{d.device_name || d.sn}</option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Class</label>
+            <select
+              value={classId}
+              onChange={(e) => { setClassId(e.target.value); setPage(1); }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                bg-white dark:bg-slate-900 text-sm"
+            >
+              <option value="">All Classes</option>
+              {classes.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Gender</label>
+            <select
+              value={gender}
+              onChange={(e) => { setGender(e.target.value); setPage(1); }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                bg-white dark:bg-slate-900 text-sm"
+            >
+              <option value="">All</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
             </select>
           </div>
           <div>

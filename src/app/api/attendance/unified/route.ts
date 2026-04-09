@@ -19,6 +19,8 @@ export const runtime = 'nodejs';
  *   date_to   = YYYY-MM-DD
  *   device_sn = serial number
  *   search    = name or device_user_id substring
+ *   class_id  = filter by class
+ *   gender    = M | F
  */
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -35,11 +37,13 @@ export async function GET(req: NextRequest) {
   const dateTo = url.searchParams.get('date_to');
   const deviceSn = url.searchParams.get('device_sn');
   const search = url.searchParams.get('search');
+  const classId = url.searchParams.get('class_id');
+  const gender = url.searchParams.get('gender');
 
   try {
     // ── Dynamic WHERE ──────────────────────────────────────────────────
-    const conditions: string[] = ['1=1'];
-    const params: any[] = [];
+    const conditions: string[] = ['al.school_id = ?'];
+    const params: any[] = [session.schoolId];
 
     // Tab-based filtering
     if (tab === 'learners') {
@@ -70,6 +74,14 @@ export async function GET(req: NextRequest) {
       const s = `%${search}%`;
       params.push(s, s, s, s, s);
     }
+    if (classId) {
+      conditions.push('st.class_id = ?');
+      params.push(Number(classId));
+    }
+    if (gender) {
+      conditions.push('sp.gender = ?');
+      params.push(gender);
+    }
 
     const where = conditions.join(' AND ');
 
@@ -87,8 +99,8 @@ export async function GET(req: NextRequest) {
 
     // ── Tab counts (for badges) ────────────────────────────────────────
     // Use lightweight sub-selects with same date/device/search filter
-    const baseFilterConditions: string[] = ['1=1'];
-    const baseFilterParams: any[] = [];
+    const baseFilterConditions: string[] = ['al.school_id = ?'];
+    const baseFilterParams: any[] = [session.schoolId];
     if (dateFrom) { baseFilterConditions.push('al.check_time >= ?'); baseFilterParams.push(`${dateFrom} 00:00:00`); }
     if (dateTo) { baseFilterConditions.push('al.check_time <= ?'); baseFilterParams.push(`${dateTo} 23:59:59`); }
     if (deviceSn) { baseFilterConditions.push('al.device_sn = ?'); baseFilterParams.push(deviceSn); }
