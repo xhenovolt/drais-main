@@ -393,7 +393,11 @@ async function updateDeviceSyncState(sn: string, schoolId: number): Promise<void
   }
 }
 
-/** Register device or update heartbeat on first/every GET. Single source: `devices` table. */
+/**
+ * Register device or update heartbeat on first/every GET.
+ * SELF-HEALING: If a device was soft-deleted, auto-recover it on next heartbeat.
+ * Also logs every heartbeat to device_heartbeats for forensics.
+ */
 async function upsertDevice(
   sn: string,
   ip: string,
@@ -401,16 +405,21 @@ async function upsertDevice(
   pushVer: string | null,
 ): Promise<void> {
   try {
-    // Preserve existing school_id if device already registered; otherwise use
-    // the school_id set during manual registration. Never hardcode to 1.
+    // Log heartbeat for forensics / debugging (fire-and-forget)
+    query(
+      `INSERT INTO device_heartbeats (sn, ip, push_version, options, created_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [sn, ip, pushVer, options],
+    ).catch(() => {});
+
+    // Check if device exists (including soft-deleted)
     const existing = await query(
-      'SELECT school_id FROM devices WHERE sn = ? LIMIT 1',
+      'SELECT school_id, deleted_at FROM devices WHERE sn = ? LIMIT 1',
       [sn],
     );
-    const schoolId = existing?.[0]?.school_id ?? null;
 
-    if (schoolId) {
-      // Device already exists — just update heartbeat fields, keep school_id
+    if (existing?.length > 0) {
+      // Device exists — update heartbeat, auto-recover if soft-deleted
       await query(
         `UPDATE devices SET
            ip_address = ?,
@@ -419,12 +428,18 @@ async function upsertDevice(
            last_seen = NOW(),
            is_online = TRUE,
            status = 'active',
+           deleted_at = NULL,
            updated_at = CURRENT_TIMESTAMP
          WHERE sn = ?`,
         [ip, options, pushVer, sn],
       );
+
+      // Log auto-recovery if device was soft-deleted
+      if (existing[0].deleted_at) {
+        zkLog('info', 'DEVICE_AUTO_RECOVERED', { sn, ip, previouslyDeletedAt: existing[0].deleted_at });
+      }
     } else {
-      // Brand new device — insert without school_id (will be set during registration)
+      // Brand new device — insert (school_id defaults to 1, set during registration)
       await query(
         `INSERT INTO devices (sn, ip_address, options, push_version, last_seen, is_online, status)
          VALUES (?, ?, ?, ?, NOW(), TRUE, 'active')
@@ -435,9 +450,11 @@ async function upsertDevice(
            last_seen = NOW(),
            is_online = TRUE,
            status = 'active',
+           deleted_at = NULL,
            updated_at = CURRENT_TIMESTAMP`,
         [sn, ip, options, pushVer],
       );
+      zkLog('info', 'DEVICE_AUTO_REGISTERED', { sn, ip });
     }
   } catch (err) {
     zkLog('error', 'DEVICE_UPSERT_FAILED', { sn, error: String(err) });

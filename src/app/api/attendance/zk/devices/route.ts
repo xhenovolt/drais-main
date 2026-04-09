@@ -38,12 +38,33 @@ export async function GET(req: NextRequest) {
          ss.last_sync_at
        FROM devices d
        LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
-       WHERE d.school_id = ?
+       WHERE d.school_id = ? AND d.deleted_at IS NULL
        ORDER BY d.last_seen DESC`,
       [session.schoolId],
     );
 
-    return NextResponse.json({ success: true, data: devices });
+    // Fallback: if no registered devices, discover from recent ADMS traffic
+    let discovered: any[] = [];
+    if (devices.length === 0) {
+      discovered = await query(
+        `SELECT
+           device_sn AS serial_number,
+           MAX(check_time) AS last_heartbeat,
+           COUNT(*) AS today_punches,
+           'discovered' AS status,
+           CASE
+             WHEN MAX(check_time) > DATE_SUB(NOW(), INTERVAL 2 MINUTE) THEN 'online'
+             ELSE 'offline'
+           END AS connection_status
+         FROM zk_attendance_logs
+         WHERE school_id = ? AND check_time > DATE_SUB(NOW(), INTERVAL 7 DAY)
+         GROUP BY device_sn
+         ORDER BY last_heartbeat DESC`,
+        [session.schoolId],
+      );
+    }
+
+    return NextResponse.json({ success: true, data: devices, discovered });
   } catch (err) {
     console.error('[ZK Devices GET] Error:', err);
     return NextResponse.json({ error: 'Failed to load devices' }, { status: 500 });
@@ -131,7 +152,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
-    await query('DELETE FROM devices WHERE id = ? AND school_id = ?', [id, session.schoolId]);
+    await query(
+      `UPDATE devices SET deleted_at = NOW(), status = 'inactive', is_online = FALSE WHERE id = ? AND school_id = ?`,
+      [id, session.schoolId],
+    );
 
     await logAudit({
       schoolId: session.schoolId,
@@ -139,11 +163,11 @@ export async function DELETE(req: NextRequest) {
       action: AuditAction.DELETED_STAFF, // closest available
       entityType: 'device',
       entityId: Number(id),
-      details: { serial_number: existing[0].sn },
+      details: { serial_number: existing[0].sn, soft_delete: true },
       ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
     });
 
-    return NextResponse.json({ success: true, message: 'Device removed' });
+    return NextResponse.json({ success: true, message: 'Device removed (will auto-recover on next heartbeat)' });
   } catch (err) {
     console.error('[ZK Devices DELETE] Error:', err);
     return NextResponse.json({ error: 'Failed to delete device' }, { status: 500 });

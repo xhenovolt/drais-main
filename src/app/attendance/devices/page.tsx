@@ -59,6 +59,7 @@ export default function DevicesPage() {
   });
 
   const devices = data?.data || [];
+  const discovered = data?.discovered || [];
   const online = devices.filter((d: any) => d.connection_status === 'online').length;
   const offline = devices.length - online;
   const outOfSync = devices.filter((d: any) => d.sync_status === 'out_of_sync').length;
@@ -182,12 +183,55 @@ export default function DevicesPage() {
             <p className="text-red-600 mt-3 font-medium">Failed to load devices</p>
           </div>
         ) : devices.length === 0 ? (
-          <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-300">
-            <Server className="w-12 h-12 text-gray-300 mx-auto" />
-            <p className="text-gray-600 mt-3 font-medium">No devices registered</p>
-            <p className="text-gray-400 text-sm mt-1">
-              Devices auto-register on first heartbeat. Point your ZKTeco device at this server.
-            </p>
+          <div className="space-y-6">
+            <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-blue-300 dark:border-blue-700">
+              <div className="relative inline-block mb-4">
+                <Activity className="w-12 h-12 text-blue-400 mx-auto animate-pulse" />
+              </div>
+              <p className="text-gray-700 dark:text-gray-200 font-medium text-lg">Listening for devices...</p>
+              <p className="text-gray-400 text-sm mt-1 max-w-md mx-auto">
+                Connect a biometric device to this server. Devices auto-register on first heartbeat and auto-recover if deleted.
+              </p>
+            </div>
+
+            {/* Show discovered devices from attendance logs */}
+            {discovered.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-500" />
+                  Recently active devices (from attendance logs)
+                </h3>
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-slate-700">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Device SN</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Last Seen</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Punches (7d)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {discovered.map((d: any) => (
+                        <tr key={d.serial_number}>
+                          <td className="px-4 py-3 font-mono text-xs">{d.serial_number}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              d.connection_status === 'online' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${d.connection_status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                              {d.connection_status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500">{d.last_heartbeat ? new Date(d.last_heartbeat).toLocaleString() : '—'}</td>
+                          <td className="px-4 py-3 text-xs font-medium">{d.today_punches}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
