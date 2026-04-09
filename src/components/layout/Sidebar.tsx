@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
@@ -36,17 +36,29 @@ export const Sidebar = () => {
   // Determine which groups should start expanded (ones that contain the current path)
   const defaultExpanded = useMemo(() => {
     const expanded = new Set<string>();
+    // Restore from localStorage
+    try {
+      const stored = localStorage.getItem('drais-sidebar-expanded');
+      if (stored) {
+        const parsed = JSON.parse(stored) as string[];
+        parsed.forEach(k => expanded.add(k));
+      }
+    } catch {}
+    // Always expand groups containing the active route
     for (const item of navigationItems) {
       if (item.children?.some(c => c.href && (pathname === c.href || pathname.startsWith(c.href + '/')))) {
         expanded.add(item.key);
       }
     }
-    // Always expand Staff & Roles and Academics by default
-    expanded.add('staff-roles');
     return expanded;
   }, [navigationItems, pathname]);
 
   const [expanded, setExpanded] = useState<Set<string>>(defaultExpanded);
+
+  // Sync expanded state to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('drais-sidebar-expanded', JSON.stringify(Array.from(expanded))); } catch {}
+  }, [expanded]);
 
   const toggle = (key: string) => {
     setExpanded(prev => {
