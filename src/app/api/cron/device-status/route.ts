@@ -28,11 +28,53 @@ export async function GET(req: NextRequest) {
       [],
     );
 
-    const affected = (result as any)?.affectedRows ?? 0;
+    const devicesAffected = (result as any)?.affectedRows ?? 0;
+
+    // Expire stale commands: sent > 30 seconds ago with no ack → fail them
+    const cmdResult = await query(
+      `UPDATE zk_device_commands
+       SET status = 'failed',
+           error_message = 'Timeout: no device acknowledgment within 30 seconds',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'sent'
+         AND sent_at < DATE_SUB(NOW(), INTERVAL 30 SECOND)
+         AND (retry_count >= max_retries OR max_retries = 0)`,
+      [],
+    );
+    const cmdsTimedOut = (cmdResult as any)?.affectedRows ?? 0;
+
+    // Reset sent commands that still have retries left → back to pending
+    const retryResult = await query(
+      `UPDATE zk_device_commands
+       SET status = 'pending',
+           error_message = CONCAT('Auto-retry: timed out after 30s (attempt ', retry_count, '/', max_retries, ')'),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'sent'
+         AND sent_at < DATE_SUB(NOW(), INTERVAL 30 SECOND)
+         AND retry_count < max_retries`,
+      [],
+    );
+    const cmdsRetried = (retryResult as any)?.affectedRows ?? 0;
+
+    // Expire commands past their expires_at
+    const expireResult = await query(
+      `UPDATE zk_device_commands
+       SET status = 'expired',
+           error_message = 'Command expired',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE status IN ('pending', 'sent')
+         AND expires_at IS NOT NULL
+         AND expires_at < NOW()`,
+      [],
+    );
+    const cmdsExpired = (expireResult as any)?.affectedRows ?? 0;
 
     return NextResponse.json({
       success: true,
-      marked_offline: affected,
+      devices_marked_offline: devicesAffected,
+      commands_timed_out: cmdsTimedOut,
+      commands_retried: cmdsRetried,
+      commands_expired: cmdsExpired,
       checked_at: new Date().toISOString(),
     });
   } catch (err) {

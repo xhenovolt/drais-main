@@ -5,6 +5,73 @@ import { getSessionSchoolId } from '@/lib/auth';
 export const runtime = 'nodejs';
 
 /**
+ * GET /api/students/enroll-fingerprint?command_id=123
+ * Check enrollment command status + whether fingerprint template was received.
+ */
+export async function GET(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  const commandId = new URL(req.url).searchParams.get('command_id');
+  if (!commandId) {
+    return NextResponse.json({ error: 'command_id required' }, { status: 400 });
+  }
+
+  try {
+    const rows = await query(
+      `SELECT c.id, c.device_sn, c.command, c.status, c.error_message,
+              c.sent_at, c.ack_at, c.retry_count, c.max_retries, c.created_at
+       FROM zk_device_commands c
+       WHERE c.id = ? AND c.school_id = ?
+       LIMIT 1`,
+      [commandId, session.schoolId],
+    );
+
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ error: 'Command not found' }, { status: 404 });
+    }
+
+    const cmd = rows[0];
+
+    // Extract PIN from command to check for fingerprint capture
+    const pinMatch = cmd.command?.match(/PIN=(\d+)/);
+    let fingerprint_captured = false;
+    if (pinMatch) {
+      const pin = pinMatch[1];
+      // Check if zk-handler captured a fingerprint template for this PIN
+      const fpRows = await query(
+        `SELECT id FROM student_fingerprints sf
+         JOIN zk_user_mapping m ON m.student_id = sf.student_id
+         WHERE m.device_user_id = ? AND m.device_sn = ?
+         LIMIT 1`,
+        [pin, cmd.device_sn],
+      );
+      fingerprint_captured = fpRows?.length > 0;
+    }
+
+    return NextResponse.json({
+      success: true,
+      command: {
+        id: cmd.id,
+        status: cmd.status,
+        error_message: cmd.error_message,
+        sent_at: cmd.sent_at,
+        ack_at: cmd.ack_at,
+        retry_count: cmd.retry_count,
+        max_retries: cmd.max_retries,
+        created_at: cmd.created_at,
+      },
+      fingerprint_captured,
+    });
+  } catch (err: any) {
+    console.error('[enroll-fingerprint GET] Error:', err);
+    return NextResponse.json({ error: 'Failed to check status' }, { status: 500 });
+  }
+}
+
+/**
  * Name sanitizer for ZKTeco hardware (same as sync-identities).
  * - Max 24 characters, ASCII only, no tab/newline
  */
