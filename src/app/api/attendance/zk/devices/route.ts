@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const devices = await query(
       `SELECT
          d.id, d.sn AS serial_number, d.device_name, d.model_name AS model, d.firmware_version,
-         d.location, d.ip_address, d.status, d.push_version,
+         d.location, d.ip_address, d.status, d.push_version, d.school_id,
          d.last_seen AS last_heartbeat, d.last_activity, d.created_at AS registered_at,
          CASE
            WHEN d.last_seen > DATE_SUB(NOW(), INTERVAL 2 MINUTE) THEN 'online'
@@ -38,12 +38,13 @@ export async function GET(req: NextRequest) {
          ss.last_sync_at
        FROM devices d
        LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
-       WHERE d.school_id = ? AND d.deleted_at IS NULL
+       WHERE d.deleted_at IS NULL
+         AND (d.school_id = ? OR d.school_id IS NULL)
        ORDER BY d.last_seen DESC`,
       [session.schoolId],
     );
 
-    // Fallback: if no registered devices, discover from recent ADMS traffic
+    // Fallback: if no registered devices, discover from recent ADMS traffic (any school)
     let discovered: any[] = [];
     if (devices.length === 0) {
       discovered = await query(
@@ -57,14 +58,22 @@ export async function GET(req: NextRequest) {
              ELSE 'offline'
            END AS connection_status
          FROM zk_attendance_logs
-         WHERE school_id = ? AND check_time > DATE_SUB(NOW(), INTERVAL 7 DAY)
+         WHERE check_time > DATE_SUB(NOW(), INTERVAL 7 DAY)
          GROUP BY device_sn
          ORDER BY last_heartbeat DESC`,
-        [session.schoolId],
+        [],
       );
     }
 
-    return NextResponse.json({ success: true, data: devices, discovered });
+    // Debug: last heartbeat info
+    const lastHeartbeat = await query(
+      `SELECT sn, ip, push_version, created_at
+       FROM device_heartbeats
+       ORDER BY created_at DESC LIMIT 5`,
+      [],
+    );
+
+    return NextResponse.json({ success: true, data: devices, discovered, debug: { lastHeartbeats: lastHeartbeat } });
   } catch (err) {
     console.error('[ZK Devices GET] Error:', err);
     return NextResponse.json({ error: 'Failed to load devices' }, { status: 500 });

@@ -60,6 +60,7 @@ export default function DevicesPage() {
 
   const devices = data?.data || [];
   const discovered = data?.discovered || [];
+  const debugHeartbeats = data?.debug?.lastHeartbeats || [];
   const online = devices.filter((d: any) => d.connection_status === 'online').length;
   const offline = devices.length - online;
   const outOfSync = devices.filter((d: any) => d.sync_status === 'out_of_sync').length;
@@ -240,6 +241,47 @@ export default function DevicesPage() {
             ))}
           </div>
         )}
+
+        {/* Debug Panel — Last Heartbeats */}
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700
+          rounded-xl p-4">
+          <h3 className="text-xs font-bold text-yellow-800 dark:text-yellow-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            Debug: Last Heartbeats Received
+          </h3>
+          {debugHeartbeats.length === 0 ? (
+            <p className="text-xs text-yellow-700 dark:text-yellow-400">No heartbeats recorded yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {debugHeartbeats.map((hb: any, i: number) => (
+                <div key={i} className="bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-yellow-200
+                  dark:border-yellow-800 text-xs font-mono space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">SN:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{hb.sn}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">IP:</span>
+                    <span className="text-gray-700 dark:text-gray-300">{hb.ip}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Time:</span>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {hb.created_at ? new Date(hb.created_at).toLocaleString() : '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Push:</span>
+                    <span className="text-gray-700 dark:text-gray-300">{hb.push_version || '—'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-yellow-600 dark:text-yellow-500 mt-2">
+            Total devices in DB: {devices.length} | Discovered from logs: {discovered.length}
+          </p>
+        </div>
       </div>
     </div>
   );

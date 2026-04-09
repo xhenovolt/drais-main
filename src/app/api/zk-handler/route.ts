@@ -403,6 +403,7 @@ async function upsertDevice(
   ip: string,
   options: string | null,
   pushVer: string | null,
+  schoolId: number,
 ): Promise<void> {
   try {
     // Log heartbeat for forensics / debugging (fire-and-forget)
@@ -412,50 +413,24 @@ async function upsertDevice(
       [sn, ip, pushVer, options],
     ).catch(() => {});
 
-    // Check if device exists (including soft-deleted)
-    const existing = await query(
-      'SELECT school_id, deleted_at FROM devices WHERE sn = ? LIMIT 1',
-      [sn],
+    // Single atomic upsert — handles insert, update, AND resurrection
+    await query(
+      `INSERT INTO devices (sn, ip_address, options, push_version, last_seen, is_online, status, school_id)
+       VALUES (?, ?, ?, ?, NOW(), TRUE, 'active', ?)
+       ON DUPLICATE KEY UPDATE
+         ip_address = VALUES(ip_address),
+         options = COALESCE(VALUES(options), options),
+         push_version = COALESCE(VALUES(push_version), push_version),
+         last_seen = NOW(),
+         is_online = TRUE,
+         status = 'active',
+         deleted_at = NULL,
+         school_id = COALESCE(school_id, VALUES(school_id)),
+         updated_at = CURRENT_TIMESTAMP`,
+      [sn, ip, options, pushVer, schoolId],
     );
 
-    if (existing?.length > 0) {
-      // Device exists — update heartbeat, auto-recover if soft-deleted
-      await query(
-        `UPDATE devices SET
-           ip_address = ?,
-           options = COALESCE(?, options),
-           push_version = COALESCE(?, push_version),
-           last_seen = NOW(),
-           is_online = TRUE,
-           status = 'active',
-           deleted_at = NULL,
-           updated_at = CURRENT_TIMESTAMP
-         WHERE sn = ?`,
-        [ip, options, pushVer, sn],
-      );
-
-      // Log auto-recovery if device was soft-deleted
-      if (existing[0].deleted_at) {
-        zkLog('info', 'DEVICE_AUTO_RECOVERED', { sn, ip, previouslyDeletedAt: existing[0].deleted_at });
-      }
-    } else {
-      // Brand new device — insert (school_id defaults to 1, set during registration)
-      await query(
-        `INSERT INTO devices (sn, ip_address, options, push_version, last_seen, is_online, status)
-         VALUES (?, ?, ?, ?, NOW(), TRUE, 'active')
-         ON DUPLICATE KEY UPDATE
-           ip_address = VALUES(ip_address),
-           options = COALESCE(VALUES(options), options),
-           push_version = COALESCE(VALUES(push_version), push_version),
-           last_seen = NOW(),
-           is_online = TRUE,
-           status = 'active',
-           deleted_at = NULL,
-           updated_at = CURRENT_TIMESTAMP`,
-        [sn, ip, options, pushVer],
-      );
-      zkLog('info', 'DEVICE_AUTO_REGISTERED', { sn, ip });
-    }
+    zkLog('info', 'DEVICE_UPSERT', { sn, ip, schoolId });
   } catch (err) {
     zkLog('error', 'DEVICE_UPSERT_FAILED', { sn, error: String(err) });
   }
@@ -861,7 +836,7 @@ export async function GET(req: NextRequest) {
 
     // Fire-and-forget: log raw traffic + upsert device + system log + observability + sync state
     const rawLogPromise = saveRawLog(sn, 'GET', qs, null, null, ip, ua, null, '/iclock/cdata', schoolId).catch(() => {});
-    const upsertPromise = upsertDevice(sn, ip, options, pushVer);
+    const upsertPromise = upsertDevice(sn, ip, options, pushVer, schoolId);
     const sysLogPromise = logSystemEvent(sn, 'HEARTBEAT', 'INCOMING', qs, ip, ua);
     const heartbeatLogPromise = logDeviceEvent({
       deviceSn:   sn,

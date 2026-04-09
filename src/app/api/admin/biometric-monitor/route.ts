@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
          (SELECT COUNT(*) FROM zk_attendance_logs al
           WHERE al.device_sn = d.sn AND al.check_time > DATE_SUB(NOW(), INTERVAL 1 HOUR)) AS punches_1h
        FROM devices d
-       WHERE d.school_id = ? AND d.deleted_at IS NULL
+       WHERE d.deleted_at IS NULL
+         AND (d.school_id = ? OR d.school_id IS NULL)
        ORDER BY d.last_seen DESC`,
       [session.schoolId],
     );
@@ -66,10 +67,9 @@ export async function GET(req: NextRequest) {
     const heartbeats = await query(
       `SELECT sn, ip, push_version, created_at
        FROM device_heartbeats
-       WHERE sn IN (SELECT sn FROM devices WHERE school_id = ? AND deleted_at IS NULL)
        ORDER BY created_at DESC
        LIMIT 20`,
-      [session.schoolId],
+      [],
     );
 
     // 4. Command queue summary
