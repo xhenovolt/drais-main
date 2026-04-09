@@ -15,8 +15,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
+  const schoolId = session.schoolId;
+
   try {
-    // 1. All devices with live status
+    // 1. All devices with live status + per-school hidden flag
     const devices = await query(
       `SELECT
          d.id, d.sn, d.device_name, d.ip_address, d.last_seen, d.status,
@@ -27,11 +29,13 @@ export async function GET(req: NextRequest) {
          END AS live_status,
          TIMESTAMPDIFF(SECOND, d.last_seen, NOW()) AS seconds_ago,
          (SELECT COUNT(*) FROM zk_attendance_logs al
-          WHERE al.device_sn = d.sn AND al.check_time > DATE_SUB(NOW(), INTERVAL 1 HOUR)) AS punches_1h
+          WHERE al.device_sn = d.sn AND al.check_time > DATE_SUB(NOW(), INTERVAL 1 HOUR)) AS punches_1h,
+         CASE WHEN h.id IS NOT NULL THEN 1 ELSE 0 END AS is_hidden
        FROM devices d
+       LEFT JOIN device_school_hidden h ON h.device_id = d.id AND h.school_id = ?
        WHERE d.deleted_at IS NULL
        ORDER BY d.last_seen DESC`,
-      [],
+      [schoolId],
     );
 
     // 2. Last 50 attendance events (real-time feed)

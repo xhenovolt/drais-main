@@ -8,7 +8,7 @@ import {
   Terminal, Zap, Server, MapPin, Hash, Settings,
   Trash2, Users, UserPlus, Send, RotateCcw, ShieldAlert,
   Database, Power, Timer, Info, Download, Edit2, X, Save,
-  RefreshCw,
+  RefreshCw, Eye, EyeOff,
 } from 'lucide-react';
 import { fetcher } from '@/utils/fetcher';
 import { showToast, confirmAction } from '@/lib/toast';
@@ -110,7 +110,7 @@ function ActionIcon({
 }
 
 /* --- Device Management Card --- */
-function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void }) {
+function DeviceCard({ device, onMutate, showHidden }: { device: any; onMutate: () => void; showHidden?: boolean }) {
   const isOnline = device.live_status === 'online';
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -128,8 +128,10 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   } | null>(null);
   const [idPolling, setIdPolling] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [hiding, setHiding] = useState(false);
 
   const sn = device.sn;
+  const isHidden = Boolean(device.is_hidden);
 
   const runDeviceAction = useCallback(async (action: string, label: string, confirmMsg?: string) => {
     if (!isOnline) { showToast('error', 'Device is offline — cannot send commands'); return; }
@@ -300,6 +302,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
       isOutOfSync ? 'border-red-700 bg-red-950/20 shadow-red-900/20 shadow-md'
         : isOnline ? 'border-green-800 bg-slate-900/80 shadow-sm'
         : 'border-slate-700 bg-slate-900/50'
+    } ${isHidden ? 'opacity-50' : ''
     }`}>
       <div className={`h-1 ${isOutOfSync ? 'bg-gradient-to-r from-red-500 to-orange-500' : isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
 
@@ -426,6 +429,26 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 loading={actionLoading === 'reset'} disabled={!isOnline} onClick={handleResetAndSync} />
               <ActionIcon icon={<Edit2 className="w-4 h-4" />} label="Edit" color="gray"
                 onClick={() => setEditing(true)} />
+              <ActionIcon icon={isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                label={isHidden ? 'Unhide Device' : 'Hide Device'} color={isHidden ? 'green' : 'gray'}
+                loading={hiding} onClick={async () => {
+                  setHiding(true);
+                  try {
+                    if (isHidden) {
+                      await apiFetch(`/api/admin/biometric-monitor/hide?device_id=${device.id}`, {
+                        method: 'DELETE', successMessage: 'Device unhidden',
+                      });
+                    } else {
+                      await apiFetch('/api/admin/biometric-monitor/hide', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ device_id: device.id }),
+                        successMessage: 'Device hidden from this school',
+                      });
+                    }
+                    onMutate();
+                  } catch {} finally { setHiding(false); }
+                }} />
               <ActionIcon icon={<Trash2 className="w-4 h-4" />} label="Remove Device" color="red"
                 loading={deleting} onClick={handleDelete} />
             </div>
@@ -439,11 +462,15 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 /* === MAIN PAGE === */
 
 export default function BiometricMonitorPage() {
+  const [showHidden, setShowHidden] = useState(false);
+
   const { data, isLoading, error, mutate } = useSWR<MonitorData>('/api/admin/biometric-monitor', fetcher, {
     refreshInterval: 5000,
   });
 
-  const devices = data?.devices || [];
+  const allDevices = data?.devices || [];
+  const hiddenCount = allDevices.filter((d: any) => d.is_hidden).length;
+  const devices = showHidden ? allDevices : allDevices.filter((d: any) => !d.is_hidden);
   const logs = data?.recent_logs || [];
   const heartbeats = data?.heartbeats || [];
   const commandStats = data?.command_stats || [];
@@ -474,11 +501,24 @@ export default function BiometricMonitorPage() {
               </p>
             </div>
           </div>
-          <button onClick={() => mutate()}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-sm text-slate-300">
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            {hiddenCount > 0 && (
+              <button onClick={() => setShowHidden(!showHidden)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                  showHidden
+                    ? 'border-yellow-700 bg-yellow-950/30 text-yellow-400'
+                    : 'border-slate-700 hover:bg-slate-800 text-slate-400'
+                }`}>
+                {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                {showHidden ? `Showing ${hiddenCount} hidden` : `${hiddenCount} hidden`}
+              </button>
+            )}
+            <button onClick={() => mutate()}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-sm text-slate-300">
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Top Stats */}
@@ -510,7 +550,7 @@ export default function BiometricMonitorPage() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
               {devices.map((d: any) => (
-                <DeviceCard key={d.id} device={d} onMutate={() => mutate()} />
+                <DeviceCard key={d.id} device={d} onMutate={() => mutate()} showHidden={showHidden} />
               ))}
             </div>
           )}
