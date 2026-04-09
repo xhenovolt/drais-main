@@ -19,7 +19,14 @@ export default function SetupChecklist() {
   const { checklistItems, markChecklistItem, onboardingComplete } = useOnboarding();
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem('drais-setup-dismissed') === '1'; } catch { return false; }
+  });
+
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem('drais-setup-dismissed', '1'); } catch {}
+  };
 
   // Auto-check via API data
   const { data: studentsData } = useSWR('/api/students/full?limit=1', fetcher, { revalidateOnFocus: false });
@@ -82,7 +89,7 @@ export default function SetupChecklist() {
           </button>
           {onboardingComplete && (
             <button
-              onClick={() => setDismissed(true)}
+              onClick={dismiss}
               className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <X className="w-4 h-4" />
