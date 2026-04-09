@@ -131,6 +131,8 @@ export default function StudentsListPage() {
   const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
+  const [showBulkEnrollModal, setShowBulkEnrollModal] = useState(false);
+  const [isBulkEnrolling, setIsBulkEnrolling] = useState(false);
 
   // Sync from Device
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -1602,6 +1604,14 @@ export default function StudentsListPage() {
                 Move class
               </button>
               <button
+                onClick={() => setShowBulkEnrollModal(true)}
+                disabled={isBulkEnrolling}
+                className="flex items-center gap-1.5 h-7 px-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
+              >
+                {isBulkEnrolling ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <GraduationCap className="w-3.5 h-3.5" />}
+                Enroll
+              </button>
+              <button
                 onClick={() => setShowPhotoUploadModal(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-semibold transition-colors"
               >
@@ -1627,6 +1637,41 @@ export default function StudentsListPage() {
           onSubmit={handleReassignClass}
           isLoading={isReassigning}
           selectedStudentCount={selectedIds.size}
+        />
+      )}
+
+      {/* BULK ENROLL MODAL */}
+      {showBulkEnrollModal && (
+        <BulkEnrollModal
+          open={showBulkEnrollModal}
+          onClose={() => setShowBulkEnrollModal(false)}
+          selectedCount={selectedIds.size}
+          classes={classes}
+          streams={streams}
+          isLoading={isBulkEnrolling}
+          onSubmit={async (classId, streamId) => {
+            setIsBulkEnrolling(true);
+            try {
+              const res = await apiFetch('/api/students/bulk/enroll', {
+                method: 'POST',
+                body: JSON.stringify({
+                  student_ids: Array.from(selectedIds),
+                  class_id: classId || undefined,
+                  stream_id: streamId || undefined,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || 'Bulk enrollment failed');
+              showToast('success', `Enrolled ${data.enrolled} student${data.enrolled !== 1 ? 's' : ''} in ${data.term}${data.failed ? ` (${data.failed} failed)` : ''}`);
+              setShowBulkEnrollModal(false);
+              setSelectedIds(new Set());
+              fetchStudents();
+            } catch (err: any) {
+              showToast('error', err.message || 'Bulk enrollment failed');
+            } finally {
+              setIsBulkEnrolling(false);
+            }
+          }}
         />
       )}
 
@@ -1983,3 +2028,84 @@ function EnrollmentModal({
   );
 }
 
+/* ── Bulk Enroll Modal ─────────────────────────────────────────────────── */
+
+function BulkEnrollModal({
+  open, onClose, selectedCount, classes, streams, isLoading, onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  selectedCount: number;
+  classes: SelectOption[];
+  streams: SelectOption[];
+  isLoading: boolean;
+  onSubmit: (classId: number | null, streamId: number | null) => void;
+}) {
+  const [classId, setClassId] = useState<number | null>(null);
+  const [streamId, setStreamId] = useState<number | null>(null);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-blue-500" />
+            Enroll {selectedCount} Student{selectedCount !== 1 ? 's' : ''}
+          </h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <X className="w-4 h-4 text-slate-400" />
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Enroll selected students into the current active term. Optionally assign them to the same class.
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Class (optional)</label>
+            <select
+              value={classId ?? ''}
+              onChange={e => setClassId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
+            >
+              <option value="">Keep current class</option>
+              {classes.map(c => <option key={c.id} value={c.id}>{c.name || c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Stream (optional)</label>
+            <select
+              value={streamId ?? ''}
+              onChange={e => setStreamId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
+            >
+              <option value="">Keep current stream</option>
+              {streams.map(s => <option key={s.id} value={s.id}>{s.name || s.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end pt-2">
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSubmit(classId, streamId)}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors"
+          >
+            {isLoading ? <Loader className="w-4 h-4 animate-spin" /> : <GraduationCap className="w-4 h-4" />}
+            Enroll {selectedCount}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
