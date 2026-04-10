@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { parseTemplateRow, DEFAULT_TEMPLATE_JSON, MODERN_CLEAN_TEMPLATE_JSON } from '@/lib/reportTemplates';
+import { parseTemplateRow, DEFAULT_TEMPLATE_JSON, MODERN_CLEAN_TEMPLATE_JSON, NORTHGATE_TEMPLATE_JSON } from '@/lib/reportTemplates';
 
 // ============================================================================
 // GET /api/report-templates  — list all templates available to this school
@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       templates: [
         { id: 1, name: 'Default Template', description: 'Classic DRAIS report card.', layout_json: DEFAULT_TEMPLATE_JSON, is_default: true, school_id: null },
         { id: 2, name: 'Modern Clean Template', description: 'Contemporary teal-green design.', layout_json: MODERN_CLEAN_TEMPLATE_JSON, is_default: false, school_id: null },
+        { id: 3, name: 'Northgate School Template', description: 'Traditional Northgate style — blue banner, maroon values, grey ribbons.', layout_json: NORTHGATE_TEMPLATE_JSON, is_default: false, school_id: null },
       ],
     });
   }

@@ -414,6 +414,125 @@ export const MODERN_CLEAN_TEMPLATE_JSON: ReportLayoutJSON = {
   },
 };
 
+export const NORTHGATE_TEMPLATE_JSON: ReportLayoutJSON = {
+  page: {
+    background: '#ffffff',
+    boxShadow: '0 0 10px rgba(0,0,0,0.5)',
+    padding: '40px',
+    borderRadius: 0,
+    maxWidth: 800,
+    margin: '0 auto 40px',
+    fontSize: 14,
+    fontFamily: 'Arial, sans-serif',
+  },
+  header: {
+    layout: 'three-column',
+    paddingBottom: 10,
+    opacity: 1,
+    borderBottom: 'none',
+  },
+  banner: {
+    backgroundColor: '#0000FF',
+    color: '#ffffff',
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: 'bold',
+    padding: '5px',
+    marginTop: 10,
+    marginBottom: 15,
+    borderRadius: 0,
+    letterSpacing: '0',
+    textTransform: 'uppercase',
+  },
+  ribbon: {
+    background: '#D9D9D9',
+    color: '#000000',
+    fontWeight: 'bold',
+    fontSize: 14,
+    padding: '5px 10px',
+    marginSidesPercent: '0',
+    borderRadius: 0,
+    textAlign: 'center',
+    boxShadow: 'none',
+  },
+  studentInfoBox: {
+    border: '1px solid #000000',
+    borderRadius: 0,
+    padding: '10px 12px',
+    background: '#f0f0f0',
+    boxShadow: 'none',
+    margin: '0 0 20px 0',
+  },
+  studentInfoContainer: {
+    flexDirection: 'row',
+    borderBottom: '1px dotted #000000',
+    fontSize: 14,
+  },
+  studentValue: {
+    color: '#800000',
+    fontStyle: 'normal',
+    fontWeight: 'bold',
+  },
+  table: {
+    fontSize: 13,
+    borderCollapse: 'collapse',
+    th: {
+      background: '#ffffff',
+      border: '1px solid #000000',
+      padding: 5,
+      textAlign: 'left',
+      color: '#000000',
+    },
+    td: {
+      border: '1px solid #000000',
+      padding: 5,
+      textAlign: 'left',
+      color: '#000000',
+    },
+  },
+  assessmentBox: {
+    border: '1px solid #000000',
+    borderRadius: 0,
+    padding: '5px 10px',
+  },
+  comments: {
+    borderTop: 'none',
+    paddingTop: 0,
+    marginTop: 30,
+    ribbon: {
+      background: '#D9D9D9',
+      color: '#000000',
+      borderRadius: '0',
+      padding: '5px 10px',
+    },
+    text: {
+      color: '#0000FF',
+      fontStyle: 'italic',
+      borderBottom: '1px dotted #000000',
+    },
+  },
+  gradeTable: {
+    th: {
+      background: '#ffffff',
+      border: '1px solid #000000',
+      textAlign: 'center',
+      padding: 5,
+    },
+    td: {
+      border: '1px solid #000000',
+      textAlign: 'center',
+      padding: 5,
+    },
+  },
+  pageBorder: {
+    enabled: false,
+    color: '#002060',
+    width: 2,
+    radius: 0,
+    style: 'solid',
+  },
+};
+
 /** Converts a raw DB row to a typed ReportTemplate */
 /** Deep-merge layout_json with DEFAULT_TEMPLATE_JSON so missing keys get defaults */
 function mergeLayout(partial: Record<string, any>): ReportLayoutJSON {

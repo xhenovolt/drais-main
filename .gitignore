@@ -55,3 +55,4 @@ workers/dist/DRAIS-Relay-Windows.zip
 
 # Ignore relay installers
 /BACKUP/RELAY-INSTALLERS/*
+*.zip
