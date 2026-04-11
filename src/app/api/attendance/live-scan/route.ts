@@ -76,15 +76,58 @@ export async function GET(req: NextRequest) {
               let personType = 'unmatched';
               let learner: LearnerDeepInfo | null = null;
               let staff: { first_name: string; last_name: string } | null = null;
+              let studentId = r.student_id;
+              let staffId = r.staff_id;
+              let matched = Boolean(r.matched);
 
-              if (r.student_id) {
+              // ── Live re-resolve: if the log is unmatched, try mapping tables ──
+              if (!studentId && !staffId) {
+                try {
+                  const mapping = await query(
+                    `SELECT user_type, student_id, staff_id FROM zk_user_mapping
+                     WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
+                     LIMIT 1`,
+                    [r.device_user_id, r.device_sn],
+                  );
+                  if (mapping && (mapping as any[]).length > 0) {
+                    studentId = (mapping as any[])[0].student_id;
+                    staffId = (mapping as any[])[0].staff_id;
+                  }
+                } catch { /* non-critical */ }
+
+                // Fallback: device_user_mappings
+                if (!studentId && !staffId) {
+                  try {
+                    const dum = await query(
+                      `SELECT student_id, staff_id FROM device_user_mappings
+                       WHERE device_user_id = ? AND device_sn = ? LIMIT 1`,
+                      [r.device_user_id, r.device_sn],
+                    );
+                    if (dum && (dum as any[]).length > 0) {
+                      studentId = (dum as any[])[0].student_id;
+                      staffId = (dum as any[])[0].staff_id;
+                    }
+                  } catch { /* non-critical */ }
+                }
+
+                // If we found a match, update the log for future reads
+                if (studentId || staffId) {
+                  matched = true;
+                  query(
+                    `UPDATE zk_attendance_logs SET student_id = ?, staff_id = ?, matched = 1 WHERE id = ?`,
+                    [studentId || null, staffId || null, r.id],
+                  ).catch(() => {});
+                }
+              }
+
+              if (studentId) {
                 personType = 'student';
                 try {
-                  learner = await getLearnerDeepInfo(r.student_id);
+                  learner = await getLearnerDeepInfo(studentId);
                 } catch (err) {
                   console.error('[LiveScan] Deep info fetch failed:', err);
                 }
-              } else if (r.staff_id) {
+              } else if (staffId) {
                 personType = 'staff';
                 if (r.staff_first_name || r.staff_last_name) {
                   staff = {
@@ -100,7 +143,7 @@ export async function GET(req: NextRequest) {
                 check_time: r.check_time,
                 verify_type: r.verify_type,
                 io_mode: r.io_mode,
-                matched: Boolean(r.matched),
+                matched,
                 person_type: personType,
                 device_name: r.device_name,
                 learner,

@@ -600,7 +600,27 @@ async function resolveUser(
     zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: String(err) });
   }
 
-  // 3. No match found
+  // 3. Check device_user_mappings table (ADMS device-level mapping)
+  try {
+    const dum = await query(
+      `SELECT dum.student_id, dum.staff_id
+       FROM device_user_mappings dum
+       WHERE dum.device_user_id = ? AND dum.device_sn = ?
+       LIMIT 1`,
+      [deviceUserId, deviceSn],
+    );
+    if (dum && dum.length > 0) {
+      return {
+        studentId: dum[0].student_id ?? null,
+        staffId: dum[0].staff_id ?? null,
+        matched: true,
+      };
+    }
+  } catch (err) {
+    zkLog('warn', 'DEVICE_USER_MAPPINGS_QUERY_FAILED', { deviceUserId, error: String(err) });
+  }
+
+  // 4. No match found
   return { studentId: null, staffId: null, matched: false };
 }
 
@@ -742,35 +762,56 @@ async function processUserInfo(
       const firstName = nameParts[0] || name;
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-      // Create person record
-      const personResult: any = await query(
-        `INSERT INTO people (school_id, first_name, last_name, created_at)
-         VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+      // ── Try to match existing student by name before creating new records ──
+      let studentId: number | null = null;
+      let personId: number | null = null;
+
+      const existingStudent = await query(
+        `SELECT s.id AS student_id, s.person_id
+         FROM students s
+         JOIN people p ON s.person_id = p.id
+         WHERE s.school_id = ?
+           AND LOWER(TRIM(p.first_name)) = LOWER(?)
+           AND LOWER(TRIM(p.last_name)) = LOWER(?)
+           AND s.status = 'active'
+         LIMIT 1`,
         [schoolId, firstName, lastName],
       );
-      const personId = personResult?.insertId;
 
-      if (!personId) {
-        skipped++;
-        zkLog('warn', 'USERINFO_PERSON_CREATE_FAILED', { userId, name });
-        continue;
+      if (existingStudent && existingStudent.length > 0) {
+        studentId = existingStudent[0].student_id;
+        personId = existingStudent[0].person_id;
+        zkLog('info', 'USERINFO_NAME_MATCHED', { userId, name, studentId, personId });
+      } else {
+        // No name match — create new person + student records
+        const personResult: any = await query(
+          `INSERT INTO people (school_id, first_name, last_name, created_at)
+           VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+          [schoolId, firstName, lastName],
+        );
+        personId = personResult?.insertId;
+
+        if (!personId) {
+          skipped++;
+          zkLog('warn', 'USERINFO_PERSON_CREATE_FAILED', { userId, name });
+          continue;
+        }
+
+        const studentResult: any = await query(
+          `INSERT INTO students (school_id, person_id, status, admission_date, created_at)
+           VALUES (?, ?, 'active', CURDATE(), CURRENT_TIMESTAMP)`,
+          [schoolId, personId],
+        );
+        studentId = studentResult?.insertId;
+
+        if (!studentId) {
+          skipped++;
+          zkLog('warn', 'USERINFO_STUDENT_CREATE_FAILED', { userId, name, personId });
+          continue;
+        }
       }
 
-      // Create student record
-      const studentResult: any = await query(
-        `INSERT INTO students (school_id, person_id, status, admission_date, created_at)
-         VALUES (?, ?, 'active', CURDATE(), CURRENT_TIMESTAMP)`,
-        [schoolId, personId],
-      );
-      const studentId = studentResult?.insertId;
-
-      if (!studentId) {
-        skipped++;
-        zkLog('warn', 'USERINFO_STUDENT_CREATE_FAILED', { userId, name, personId });
-        continue;
-      }
-
-      // Upsert into zk_user_mapping with the new student_id
+      // Upsert into zk_user_mapping with the matched/new student_id
       await query(
         `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, student_id, device_sn, card_number)
          VALUES (?, ?, 'student', ?, ?, ?)
@@ -783,7 +824,7 @@ async function processUserInfo(
 
       created++;
       learnersCreated++;
-      zkLog('info', 'USERINFO_LEARNER_CREATED', { userId, name, studentId, personId, schoolId });
+      zkLog('info', 'USERINFO_LEARNER_LINKED', { userId, name, studentId, personId, schoolId });
     } catch (err) {
       skipped++;
       zkLog('warn', 'USERINFO_UPSERT_SKIP', { userId, error: String(err) });
@@ -801,6 +842,31 @@ async function processUserInfo(
   } catch { /* non-critical */ }
 
   zkLog('info', 'USERINFO_PROCESSED', { deviceSn, created, skipped, learnersCreated, total: records.length });
+
+  // ── Backfill: retroactively match any unmatched attendance logs ──
+  if (created > 0) {
+    try {
+      const backfillResult: any = await query(
+        `UPDATE zk_attendance_logs al
+         JOIN zk_user_mapping m
+           ON m.device_user_id = al.device_user_id
+          AND (m.device_sn = al.device_sn OR m.device_sn IS NULL)
+         SET al.student_id = m.student_id,
+             al.staff_id  = m.staff_id,
+             al.matched    = 1
+         WHERE al.device_sn = ?
+           AND al.matched = 0
+           AND m.student_id IS NOT NULL`,
+        [deviceSn],
+      );
+      const backfilled = backfillResult?.affectedRows || 0;
+      if (backfilled > 0) {
+        zkLog('info', 'ATTENDANCE_BACKFILL', { deviceSn, backfilled });
+      }
+    } catch (err) {
+      zkLog('warn', 'ATTENDANCE_BACKFILL_FAILED', { deviceSn, error: String(err) });
+    }
+  }
 }
 
 /**

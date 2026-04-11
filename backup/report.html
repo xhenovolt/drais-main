@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Northgate School Report Template</title>
+    <style>
+        :root {
+            --header-blue: #002060;
+            --table-header-blue: #0000FF;
+            --light-grey: #D9D9D9;
+            --border-color: #000;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            background-color: #525659;
+        }
+
+        .report-container {
+            width: 800px;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        /* Header Section */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .school-info h1 {
+            color: var(--header-blue);
+            font-size: 32px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .school-info p {
+            margin: 2px 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .school-info .motto {
+            font-style: italic;
+            font-weight: normal;
+            border-bottom: 2px solid #000;
+            display: inline-block;
+            width: 100%;
+        }
+
+        /* Banner */
+        .banner {
+            background-color: var(--table-header-blue);
+            color: white;
+            text-align: center;
+            padding: 5px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        /* Student Details Section */
+        .student-details {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .barcode-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .photo-box {
+            width: 110px;
+            height: 120px;
+            border: 1px solid #000;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+
+        .details-grid {
+            flex-grow: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-row-gap: 15px;
+            font-size: 14px;
+        }
+
+        .detail-item span {
+            display: block;
+            border-bottom: 1px dotted #000;
+            color: #800000; /* Dark red for values */
+            font-weight: bold;
+            padding-top: 5px;
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 5px;
+            text-align: left;
+        }
+
+        .table-title {
+            background-color: var(--light-grey);
+            text-align: center;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .table-title::after {
+            content: "";
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid var(--light-grey);
+        }
+
+        .center-text { text-align: center; }
+        .blue-text { color: #0000FF; }
+        .red-text { color: #FF0000; font-weight: bold; }
+
+        /* Comments Section */
+        .comments-section {
+            margin-top: 30px;
+            font-size: 13px;
+        }
+
+        .comment-row {
+            display: flex;
+            margin-bottom: 15px;
+        }
+
+        .comment-label {
+            background-color: var(--light-grey);
+            padding: 5px;
+            width: 150px;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .comment-label::after {
+            content: "";
+            position: absolute;
+            right: -10px;
+            top: 25%;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-left: 10px solid var(--light-grey);
+        }
+
+        .comment-value {
+            flex-grow: 1;
+            border-bottom: 1px dotted #000;
+            margin-left: 20px;
+            font-style: italic;
+            color: #0000FF;
+        }
+
+        /* Grading Scale Table */
+        .grading-scale th { background-color: white; font-weight: normal; }
+    </style>
+</head>
+<body>
+
+<div class="report-container">
+    <div class="header">
+        <div class="school-info">
+            <h1>NORTHGATE SCHOOL</h1>
+            <p>P.O.Box 47 IGANGA, Tel: 0706416264,</p>
+            <p>Bulubandi Central B</p>
+            <p class="motto">IMPACT THROUGH EDUCATION</p>
+        </div>
+        
+        <svg width="80" height="100" viewBox="0 0 100 120">
+            <path d="M10,20 Q50,0 90,20 L90,80 Q50,110 10,80 Z" fill="#660033" stroke="#FFD700" stroke-width="2"/>
+            <text x="50" y="55" font-family="Arial" font-size="10" fill="white" text-anchor="middle">NorthGate</text>
+            <text x="50" y="68" font-family="Arial" font-size="10" fill="white" text-anchor="middle">School</text>
+            <circle cx="50" cy="85" r="10" fill="#FFD700" opacity="0.5"/>
+        </svg>
+    </div>
+
+    <div class="banner">MID TERM ONE REPORT</div>
+
+    <div class="student-details">
+        <div class="barcode-container">
+            <svg width="40" height="120">
+                <rect width="40" height="120" fill="white"/>
+                <g transform="rotate(-90 20 60)">
+                    <rect x="0" y="5" width="2" height="30" fill="black"/>
+                    <rect x="4" y="5" width="1" height="30" fill="black"/>
+                    <rect x="7" y="5" width="3" height="30" fill="black"/>
+                    <rect x="12" y="5" width="1" height="30" fill="black"/>
+                    <rect x="15" y="5" width="2" height="30" fill="black"/>
+                    <text x="-40" y="45" font-family="monospace" font-size="10" transform="rotate(90 -40 45)">0018000034</text>
+                </g>
+            </svg>
+        </div>
+        <div class="photo-box">
+            <div style="text-align:center; padding-top:40px; color:#ccc;">PHOTO</div>
+        </div>
+        <div class="details-grid">
+            <div class="detail-item">Name: <span>KWAGALA JEMIMAH</span></div>
+            <div class="detail-item">Sex: <span>F</span></div>
+            <div class="detail-item">Class: <span>P.1</span></div>
+            <div class="detail-item">Student No: <span>0018000034</span></div>
+            <div class="detail-item" style="grid-column: span 2;">Term: <span>TermI-2023</span></div>
+        </div>
+    </div>
+
+    <div class="table-title" style="margin-bottom: 15px;">Principal Subjects Comprising the General Assessment</div>
+    <table>
+        <thead>
+            <tr>
+                <th>SUBJECT</th>
+                <th class="center-text">EOT</th>
+                <th class="center-text">TOTAL</th>
+                <th class="red-text center-text">GRADE</th>
+                <th>COMMENT</th>
+                <th class="center-text">INITIALS</th>
+            </tr>
+            <tr style="background-color: #f9f9f9;">
+                <td style="text-align:right">Marks contribute:</td>
+                <td class="center-text">100</td>
+                <td class="center-text">100</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Mathematics</td>
+                <td class="center-text">82</td>
+                <td class="center-text">82</td>
+                <td class="center-text blue-text">D2</td>
+                <td class="blue-text">Promising results. Keep it up.</td>
+                <td class="center-text blue-text">BJM</td>
+            </tr>
+            <tr>
+                <td>English</td>
+                <td class="center-text">90</td>
+                <td class="center-text">90</td>
+                <td class="center-text blue-text">D1</td>
+                <td class="blue-text">I believe you can do more than this.</td>
+                <td class="center-text blue-text">AC</td>
+            </tr>
+            <tr>
+                <td>RE</td>
+                <td class="center-text">94</td>
+                <td class="center-text">94</td>
+                <td class="center-text blue-text">D1</td>
+                <td class="blue-text">Thank you, but keep it up.</td>
+                <td class="center-text blue-text">AT</td>
+            </tr>
+            <tr>
+                <td>Literacy-1</td>
+                <td class="center-text">98</td>
+                <td class="center-text">98</td>
+                <td class="center-text blue-text">D1</td>
+                <td class="blue-text">I believe you can do more than this.</td>
+                <td class="center-text blue-text">NH</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr style="font-weight: bold;">
+                <td colspan="2">TOTAL MARKS:</td>
+                <td class="center-text">364</td>
+                <td colspan="2" style="text-align:right">AVERAGE MARKS:</td>
+                <td class="center-text">91</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="table-title" style="margin-bottom: 15px; margin-top: 30px;">Other subjects (Not part of Assessment)</div>
+    <table>
+        <thead>
+            <tr style="background-color: #f9f9f9;">
+                <td width="30%" style="text-align:right">Marks contribute:</td>
+                <td width="10%" class="center-text">100</td>
+                <td width="10%"></td>
+                <td width="10%"></td>
+                <td width="30%"></td>
+                <td width="10%"></td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Reading</td>
+                <td class="center-text">-</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>Literacy-2</td>
+                <td class="center-text">84</td>
+                <td class="center-text">84</td>
+                <td class="center-text blue-text">D2</td>
+                <td class="blue-text">Please don't feel so comfortable.</td>
+                <td class="center-text blue-text">NH</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th colspan="2" class="center-text">Position</th>
+                <th colspan="2" class="center-text">General Assessment</th>
+            </tr>
+            <tr class="center-text">
+                <td>Class</td>
+                <td>Stream</td>
+                <td>Aggregates</td>
+                <td>Division</td>
+            </tr>
+        </thead>
+        <tbody class="center-text red-text">
+            <tr>
+                <td>4 / 36</td>
+                <td>4 / 36</td>
+                <td>5</td>
+                <td style="font-size: 18px;">I</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="comments-section">
+        <div class="comment-row">
+            <div class="comment-label">Class teacher comment</div>
+            <div class="comment-value">Excellent work, keep it up</div>
+        </div>
+        <div class="comment-row">
+            <div class="comment-label">DOS Comment</div>
+            <div class="comment-value">Thank you for this effort, keep it up.</div>
+        </div>
+        <div class="comment-row">
+            <div class="comment-label">Headteacher comment</div>
+            <div class="comment-value">Promising scores, keep it up.</div>
+        </div>
+    </div>
+
+    <p style="margin-top: 20px;">22-May-2023<br>Next Term Begins</p>
+
+    <table class="grading-scale" style="width: 100%; margin-top: 10px;">
+        <tr class="center-text">
+            <th>GRADE</th>
+            <td>D1</td>
+            <td>D2</td>
+            <td>C3</td>
+            <td>C4</td>
+            <td>C5</td>
+            <td>C6</td>
+            <td>P7</td>
+            <td>P8</td>
+            <td>F9</td>
+        </tr>
+        <tr class="center-text">
+            <th>SCORE RANGE</th>
+            <td>90-100</td>
+            <td>80-89</td>
+            <td>70-79</td>
+            <td>60-69</td>
+            <td>55-59</td>
+            <td>50-54</td>
+            <td>45-49</td>
+            <td>40-44</td>
+            <td>0-39</td>
+        </tr>
+    </table>
+</div>
+
+</body>
+</html>

@@ -224,6 +224,7 @@ export function getNavigationItems(
         { key: 'att-device-ctrl',    label: 'Device Control',    icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/device-control', roles: ['admin', 'super_admin'] },
         { key: 'att-remote',         label: 'Remote Features',   icon: <Activity className="w-4 h-4" />,    href: '/attendance/remote-features', roles: ['admin', 'super_admin'] },
         { key: 'att-monitor',        label: 'Live Monitor',      icon: <Radio className="w-4 h-4" />,       href: '/admin/biometric-monitor', roles: ['admin', 'super_admin'] },
+        { key: 'att-settings',       label: 'Settings',          icon: <Settings className="w-4 h-4" />,    href: '/attendance/settings', roles: ['admin', 'super_admin'] },
       ],
     },
 
