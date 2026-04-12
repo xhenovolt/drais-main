@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
           s.status,
           s.created_at,
           s.admission_date,
-          c.name AS class_name,
-          e.class_id,
+          ANY_VALUE(c.name) AS class_name,
+          ANY_VALUE(e.class_id) AS class_id,
           (SELECT COUNT(*) FROM enrollments en WHERE en.student_id = s.id) AS enrollment_count,
           (SELECT COUNT(*) FROM student_attendance sa WHERE sa.student_id = s.id) AS attendance_count,
           (SELECT COUNT(*) FROM results r WHERE r.student_id = s.id) AS results_count
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
           AND s.deleted_at IS NULL
           AND LOWER(TRIM(p.first_name)) = ?
           AND LOWER(TRIM(p.last_name)) = ?
-        GROUP BY s.id
+        GROUP BY s.id, p.first_name, p.last_name, s.admission_no, s.status, s.created_at, s.admission_date
         ORDER BY s.created_at ASC
       `, [schoolId, grp.fn, grp.ln]);
 
@@ -154,8 +154,8 @@ export async function GET(req: NextRequest) {
           s.status,
           s.created_at,
           s.admission_date,
-          c.name AS class_name,
-          e.class_id,
+          ANY_VALUE(c.name) AS class_name,
+          ANY_VALUE(e.class_id) AS class_id,
           (SELECT COUNT(*) FROM enrollments en WHERE en.student_id = s.id) AS enrollment_count,
           (SELECT COUNT(*) FROM student_attendance sa WHERE sa.student_id = s.id) AS attendance_count,
           (SELECT COUNT(*) FROM results r WHERE r.student_id = s.id) AS results_count
@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
         WHERE s.school_id = ?
           AND s.deleted_at IS NULL
           AND s.admission_no = ?
-        GROUP BY s.id
+        GROUP BY s.id, p.first_name, p.last_name, s.admission_no, s.status, s.created_at, s.admission_date
         ORDER BY s.created_at ASC
       `, [schoolId, dup.admission_no]);
 
