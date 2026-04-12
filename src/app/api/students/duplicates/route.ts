@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
       GROUP BY LOWER(TRIM(p.first_name)), LOWER(TRIM(p.last_name))
       HAVING COUNT(*) > 1
       ORDER BY COUNT(*) DESC
-      LIMIT ?
-    `, [schoolId, limit]);
+      LIMIT ${Number(limit)}
+    `, [schoolId]);
 
     // Step 2: For each duplicate group, fetch full details with relationship counts
     const groups: any[] = [];
@@ -134,8 +134,8 @@ export async function GET(req: NextRequest) {
       WHERE s.school_id = ? AND s.deleted_at IS NULL AND s.admission_no IS NOT NULL AND s.admission_no != ''
       GROUP BY s.admission_no
       HAVING COUNT(*) > 1
-      LIMIT ?
-    `, [schoolId, limit]);
+      LIMIT ${Number(limit)}
+    `, [schoolId]);
 
     for (const dup of admissionDups) {
       // Check if this group already captured by name match
