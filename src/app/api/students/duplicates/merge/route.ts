@@ -1,46 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { validateMerge } from '@/lib/duplicate-detection';
+import { withTenantTransaction } from '@/lib/dbTenant';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
  * POST /api/students/duplicates/merge
- * 
- * Merges two duplicate student records into one.
- * The primary student is kept, secondary is soft-deleted.
- * 
- * Request:
+ *
+ * Safely merges duplicate student records.
+ * Supports single merge and bulk merge.
+ *
+ * Single merge:
  * {
- *   "primary_student_id": 1,
- *   "secondary_student_id": 2,
- *   "strategy": "keep_primary" | "keep_most_recent" | "keep_both_results"
+ *   "primary_id": 1,
+ *   "secondary_ids": [2, 3]
  * }
- * 
- * Strategy explanations:
- * - keep_primary: Keep all data from primary student
- * - keep_most_recent: Use newer enrollment/data
- * - keep_both_results: Merge exam results from both students
- * 
- * Security:
- * - Requires authentication
- * - Both students must belong to same school
- * - Creates audit trail of merge
- * - Validates for data conflicts before merge
- * 
- * Response:
+ *
+ * Bulk merge (auto-select primary = oldest with most data):
  * {
- *   "success": true,
- *   "merged": true,
- *   "primary_student_id": 1,
- *   "secondary_student_id": 2,
- *   "actions": [
- *     "Updated enrollments",
- *     "Updated results (10 records)",
- *     "Updated attendance (45 records)",
- *     "Soft deleted secondary student (ID: 2)",
- *     "Created audit log"
+ *   "groups": [
+ *     { "primary_id": 1, "secondary_ids": [2, 3] },
+ *     { "primary_id": 5, "secondary_ids": [6] }
  *   ]
  * }
+ *
+ * Merge strategy:
+ * 1. Transfer all enrollments, attendance, results, fees, contacts to primary
+ * 2. Skip transfers that would create duplicates (same class+year enrollment)
+ * 3. Soft-delete secondary records with merge reference
+ * 4. Create audit trail
  */
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -48,133 +35,193 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const conn = await getConnection();
+  const schoolId = session.schoolId;
+
+  let body: any;
   try {
-    const schoolId = session.schoolId;
-    const { primary_student_id, secondary_student_id, strategy = 'keep_primary' } = await req.json();
-
-    if (!primary_student_id || !secondary_student_id) {
-      return NextResponse.json(
-        { error: 'Missing primary_student_id or secondary_student_id' },
-        { status: 400 }
-      );
-    }
-
-    if (primary_student_id === secondary_student_id) {
-      return NextResponse.json(
-        { error: 'Cannot merge student with itself' },
-        { status: 400 }
-      );
-    }
-
-    // Fetch both students
-    const [primaryData]: any = await conn.execute(`
-      SELECT s.id, s.person_id, s.status, s.admission_date, 
-             (SELECT COUNT(*) FROM results WHERE student_id = s.id) as result_count,
-             (SELECT COUNT(*) FROM enrollments WHERE student_id = s.id) as enrollment_count,
-             (SELECT COUNT(*) FROM student_attendance WHERE student_id = s.id) as attendance_count
-      FROM students s
-      WHERE s.id = ? AND s.school_id = ?
-    `, [primary_student_id, schoolId]);
-
-    const [secondaryData]: any = await conn.execute(`
-      SELECT s.id, s.person_id, s.status, s.admission_date,
-             (SELECT COUNT(*) FROM results WHERE student_id = s.id) as result_count,
-             (SELECT COUNT(*) FROM enrollments WHERE student_id = s.id) as enrollment_count,
-             (SELECT COUNT(*) FROM student_attendance WHERE student_id = s.id) as attendance_count
-      FROM students s
-      WHERE s.id = ? AND s.school_id = ?
-    `, [secondary_student_id, schoolId]);
-
-    if (!primaryData.length || !secondaryData.length) {
-      return NextResponse.json(
-        { error: 'One or both students not found' },
-        { status: 404 }
-      );
-    }
-
-    const primary = primaryData[0];
-    const secondary = secondaryData[0];
-
-    // Validate merge safety
-    const validation = validateMerge(primary, secondary);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { 
-          error: 'Merge validation failed',
-          conflicts: validation.conflicts
-        },
-        { status: 400 }
-      );
-    }
-
-    const actions: string[] = [];
-
-    // Strategy 1: Keep primary (default)
-    if (strategy === 'keep_primary') {
-      // Update all enrollments to primary student
-      const [enrollRes]: any = await conn.execute(
-        `UPDATE enrollments SET student_id = ? 
-         WHERE student_id = ? AND school_id = ?`,
-        [primary_student_id, secondary_student_id, schoolId]
-      );
-      if (enrollRes.affectedRows > 0) {
-        actions.push(`Updated ${enrollRes.affectedRows} enrollments`);
-      }
-
-      // Update all results to primary student
-      const [resultRes]: any = await conn.execute(
-        `UPDATE results SET student_id = ? 
-         WHERE student_id = ? AND school_id = ?`,
-        [primary_student_id, secondary_student_id, schoolId]
-      );
-      if (resultRes.affectedRows > 0) {
-        actions.push(`Updated ${resultRes.affectedRows} exam results`);
-      }
-
-      // Update attendance to primary student
-      const [attRes]: any = await conn.execute(
-        `UPDATE student_attendance SET student_id = ? 
-         WHERE student_id = ? AND school_id = ?`,
-        [primary_student_id, secondary_student_id, schoolId]
-      );
-      if (attRes.affectedRows > 0) {
-        actions.push(`Updated ${attRes.affectedRows} attendance records`);
-      }
-    }
-
-    // Soft delete secondary student
-    await conn.execute(
-      `UPDATE students SET deleted_at = NOW() WHERE id = ? AND school_id = ?`,
-      [secondary_student_id, schoolId]
-    );
-    actions.push(`Soft deleted secondary student (ID: ${secondary_student_id})`);
-
-    // Create audit log
-    await conn.execute(`
-      INSERT INTO student_merge_audit (school_id, primary_student_id, secondary_student_id, strategy, merged_at)
-      VALUES (?, ?, ?, ?, NOW())
-    `, [schoolId, primary_student_id, secondary_student_id, strategy]).catch(() => {
-      // Ignore if audit table doesn't exist
-    });
-
-    actions.push('Created audit log');
-
-    return NextResponse.json({
-      success: true,
-      merged: true,
-      primary_student_id,
-      secondary_student_id,
-      strategy,
-      actions
-    });
-  } catch (error) {
-    console.error('Merge error:', error);
-    return NextResponse.json(
-      { error: 'Failed to merge students' },
-      { status: 500 }
-    );
-  } finally {
-    await conn.end();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
+
+  // Normalize input: support both single and bulk merge
+  let mergeGroups: Array<{ primary_id: number; secondary_ids: number[] }> = [];
+
+  if (body.groups && Array.isArray(body.groups)) {
+    mergeGroups = body.groups;
+  } else if (body.primary_id && body.secondary_ids) {
+    mergeGroups = [{ primary_id: body.primary_id, secondary_ids: body.secondary_ids }];
+  } else if (body.primary_id && body.secondary_id) {
+    // Legacy single-merge format
+    mergeGroups = [{ primary_id: body.primary_id, secondary_ids: [body.secondary_id] }];
+  } else if (body.primary_student_id && body.secondary_student_id) {
+    // Legacy format from old API
+    mergeGroups = [{ primary_id: body.primary_student_id, secondary_ids: [body.secondary_student_id] }];
+  } else {
+    return NextResponse.json({ error: 'Missing primary_id and secondary_ids' }, { status: 400 });
+  }
+
+  // Validate
+  for (const g of mergeGroups) {
+    if (!g.primary_id || !Array.isArray(g.secondary_ids) || g.secondary_ids.length === 0) {
+      return NextResponse.json({ error: 'Each group must have primary_id and non-empty secondary_ids' }, { status: 400 });
+    }
+    if (g.secondary_ids.includes(g.primary_id)) {
+      return NextResponse.json({ error: 'Cannot merge student with itself' }, { status: 400 });
+    }
+  }
+
+  const results: any[] = [];
+  let totalMerged = 0;
+  let totalFailed = 0;
+
+  for (const group of mergeGroups) {
+    try {
+      const mergeResult = await withTenantTransaction(schoolId, async ({ exec, query: tq }) => {
+        const actions: string[] = [];
+
+        // Verify primary belongs to this school
+        const primaryRows = await tq(
+          'SELECT s.id, s.person_id, s.status FROM students s WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL',
+          [group.primary_id, schoolId]
+        );
+        if (primaryRows.length === 0) {
+          throw new Error(`Primary student #${group.primary_id} not found`);
+        }
+
+        for (const secondaryId of group.secondary_ids) {
+          // Verify secondary belongs to this school
+          const secondaryRows = await tq(
+            'SELECT s.id, s.person_id, s.status FROM students s WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL',
+            [secondaryId, schoolId]
+          );
+          if (secondaryRows.length === 0) {
+            actions.push(`Skipped #${secondaryId} — not found or already deleted`);
+            continue;
+          }
+
+          // Transfer enrollments (skip if same class+year already exists on primary)
+          const existingEnrollments = await tq(
+            'SELECT class_id, academic_year_id FROM enrollments WHERE student_id = ? AND school_id = ?',
+            [group.primary_id, schoolId]
+          );
+          const existingKeys = new Set(existingEnrollments.map((e: any) => `${e.class_id}-${e.academic_year_id}`));
+
+          const secondaryEnrollments = await tq(
+            'SELECT id, class_id, academic_year_id FROM enrollments WHERE student_id = ? AND school_id = ?',
+            [secondaryId, schoolId]
+          );
+
+          let enrollTransferred = 0;
+          for (const enrollment of secondaryEnrollments) {
+            const key = `${enrollment.class_id}-${enrollment.academic_year_id}`;
+            if (existingKeys.has(key)) {
+              // Duplicate enrollment — soft-close it
+              await exec(
+                "UPDATE enrollments SET status = 'closed', end_reason = 'merged_duplicate' WHERE id = ? AND school_id = ?",
+                [enrollment.id, schoolId]
+              );
+            } else {
+              await exec(
+                'UPDATE enrollments SET student_id = ? WHERE id = ? AND school_id = ?',
+                [group.primary_id, enrollment.id, schoolId]
+              );
+              enrollTransferred++;
+            }
+          }
+          if (enrollTransferred > 0) actions.push(`Transferred ${enrollTransferred} enrollments from #${secondaryId}`);
+
+          // Transfer attendance records
+          const attRes = await exec(
+            'UPDATE student_attendance SET student_id = ? WHERE student_id = ? AND school_id = ?',
+            [group.primary_id, secondaryId, schoolId]
+          );
+          if (attRes.affectedRows > 0) actions.push(`Transferred ${attRes.affectedRows} attendance records from #${secondaryId}`);
+
+          // Transfer ZK attendance logs (if table exists)
+          try {
+            const zkRes = await exec(
+              'UPDATE zk_attendance_logs SET student_id = ? WHERE student_id = ? AND school_id = ?',
+              [group.primary_id, secondaryId, schoolId]
+            );
+            if (zkRes.affectedRows > 0) actions.push(`Transferred ${zkRes.affectedRows} ZK attendance logs from #${secondaryId}`);
+          } catch { /* table may not exist */ }
+
+          // Transfer exam results
+          const resRes = await exec(
+            'UPDATE results SET student_id = ? WHERE student_id = ? AND school_id = ?',
+            [group.primary_id, secondaryId, schoolId]
+          );
+          if (resRes.affectedRows > 0) actions.push(`Transferred ${resRes.affectedRows} results from #${secondaryId}`);
+
+          // Transfer fee records
+          try {
+            const feeRes = await exec(
+              'UPDATE learner_fees SET student_id = ? WHERE student_id = ? AND school_id = ?',
+              [group.primary_id, secondaryId, schoolId]
+            );
+            if (feeRes.affectedRows > 0) actions.push(`Transferred ${feeRes.affectedRows} fee records from #${secondaryId}`);
+          } catch { /* table may not exist */ }
+
+          // Transfer contacts
+          try {
+            const contRes = await exec(
+              'UPDATE student_contacts SET student_id = ? WHERE student_id = ? AND student_id != ?',
+              [group.primary_id, secondaryId, group.primary_id]
+            );
+            if (contRes.affectedRows > 0) actions.push(`Transferred ${contRes.affectedRows} contacts from #${secondaryId}`);
+          } catch { /* table may not exist */ }
+
+          // Transfer promotions
+          try {
+            const promoRes = await exec(
+              'UPDATE promotions SET student_id = ? WHERE student_id = ? AND school_id = ?',
+              [group.primary_id, secondaryId, schoolId]
+            );
+            if (promoRes.affectedRows > 0) actions.push(`Transferred ${promoRes.affectedRows} promotions from #${secondaryId}`);
+          } catch { /* table may not exist */ }
+
+          // Soft-delete the secondary student with merge note
+          await exec(
+            "UPDATE students SET deleted_at = NOW(), notes = CONCAT(COALESCE(notes, ''), '\n[MERGED INTO #', ?, ' on ', NOW(), ']') WHERE id = ? AND school_id = ?",
+            [String(group.primary_id), secondaryId, schoolId]
+          );
+          actions.push(`Soft-deleted duplicate #${secondaryId}`);
+          totalMerged++;
+        }
+
+        return { primary_id: group.primary_id, actions };
+      });
+
+      results.push({ ...mergeResult, success: true });
+
+      // Audit (non-blocking)
+      logAudit({
+        schoolId,
+        userId: session.userId,
+        action: AuditAction.MERGED_STUDENTS,
+        entityType: 'student',
+        entityId: group.primary_id,
+        details: { secondary_ids: group.secondary_ids, actions: mergeResult.actions },
+        ip: req.headers.get('x-forwarded-for') || null,
+        userAgent: req.headers.get('user-agent') || null,
+      }).catch(() => { /* non-critical */ });
+
+    } catch (err: any) {
+      totalFailed++;
+      results.push({
+        primary_id: group.primary_id,
+        success: false,
+        error: err.message,
+      });
+    }
+  }
+
+  return NextResponse.json({
+    success: totalFailed === 0,
+    message: `Merged ${totalMerged} duplicate(s)${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`,
+    total_merged: totalMerged,
+    total_failed: totalFailed,
+    results,
+  });
 }

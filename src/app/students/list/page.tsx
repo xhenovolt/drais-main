@@ -1648,26 +1648,34 @@ export default function StudentsListPage() {
           selectedCount={selectedIds.size}
           classes={classes}
           streams={streams}
+          programs={programs}
+          studyModes={studyModes}
+          academicYears={academicYears}
+          terms={terms}
           isLoading={isBulkEnrolling}
-          onSubmit={async (classId, streamId) => {
+          onSubmit={async (formData) => {
             setIsBulkEnrolling(true);
             try {
-              const res = await apiFetch('/api/students/bulk/enroll', {
+              const data = await apiFetch('/api/students/bulk/enroll', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   student_ids: Array.from(selectedIds),
-                  class_id: classId || undefined,
-                  stream_id: streamId || undefined,
+                  class_id: formData.classId || undefined,
+                  stream_id: formData.streamId || undefined,
+                  academic_year_id: formData.academicYearId || undefined,
+                  term_id: formData.termId || undefined,
+                  study_mode_id: formData.studyModeId || undefined,
+                  program_ids: formData.programIds?.length ? formData.programIds : undefined,
                 }),
+                successMessage: `Bulk enrollment complete`,
               });
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error || 'Bulk enrollment failed');
-              showToast('success', `Enrolled ${data.enrolled} student${data.enrolled !== 1 ? 's' : ''} in ${data.term}${data.failed ? ` (${data.failed} failed)` : ''}`);
+              showToast('success', data.message || `Enrolled ${data.enrolled} students`);
               setShowBulkEnrollModal(false);
               setSelectedIds(new Set());
               fetchStudents();
             } catch (err: any) {
-              showToast('error', err.message || 'Bulk enrollment failed');
+              // Error toast handled by apiFetch
             } finally {
               setIsBulkEnrolling(false);
             }
@@ -2031,24 +2039,36 @@ function EnrollmentModal({
 /* ── Bulk Enroll Modal ─────────────────────────────────────────────────── */
 
 function BulkEnrollModal({
-  open, onClose, selectedCount, classes, streams, isLoading, onSubmit,
+  open, onClose, selectedCount, classes, streams, programs, studyModes, academicYears, terms, isLoading, onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
   selectedCount: number;
   classes: SelectOption[];
   streams: SelectOption[];
+  programs: SelectOption[];
+  studyModes: SelectOption[];
+  academicYears: SelectOption[];
+  terms: SelectOption[];
   isLoading: boolean;
-  onSubmit: (classId: number | null, streamId: number | null) => void;
+  onSubmit: (data: { classId: number | null; streamId: number | null; academicYearId: number | null; termId: number | null; studyModeId: number | null; programIds: number[] }) => void;
 }) {
   const [classId, setClassId] = useState<number | null>(null);
   const [streamId, setStreamId] = useState<number | null>(null);
+  const [academicYearId, setAcademicYearId] = useState<number | null>(null);
+  const [termId, setTermId] = useState<number | null>(null);
+  const [studyModeId, setStudyModeId] = useState<number | null>(null);
+  const [selectedProgramIds, setSelectedProgramIds] = useState<number[]>([]);
+
+  const toggleProgram = (id: number) => {
+    setSelectedProgramIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-5" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-blue-500" />
@@ -2060,32 +2080,107 @@ function BulkEnrollModal({
         </div>
 
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Enroll selected students into the current active term. Optionally assign them to the same class.
+          Enroll selected students. Fields left empty will use each student&apos;s current values.
         </p>
 
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Class (optional)</label>
-            <select
-              value={classId ?? ''}
-              onChange={e => setClassId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
-            >
-              <option value="">Keep current class</option>
-              {classes.map(c => <option key={c.id} value={c.id}>{c.name || c.label}</option>)}
-            </select>
+        <div className="space-y-4">
+          {/* Row 1: Class + Stream */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Class (optional)</label>
+              <select
+                value={classId ?? ''}
+                onChange={e => setClassId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
+              >
+                <option value="">Keep current class</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Stream (optional)</label>
+              <select
+                value={streamId ?? ''}
+                onChange={e => setStreamId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
+              >
+                <option value="">Keep current stream</option>
+                {streams.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Stream (optional)</label>
-            <select
-              value={streamId ?? ''}
-              onChange={e => setStreamId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
-            >
-              <option value="">Keep current stream</option>
-              {streams.map(s => <option key={s.id} value={s.id}>{s.name || s.label}</option>)}
-            </select>
+
+          {/* Row 2: Academic Year + Term */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Academic Year (optional)</label>
+              <select
+                value={academicYearId ?? ''}
+                onChange={e => setAcademicYearId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
+              >
+                <option value="">Use active year</option>
+                {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Term (optional)</label>
+              <select
+                value={termId ?? ''}
+                onChange={e => setTermId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
+              >
+                <option value="">Use active term</option>
+                {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
           </div>
+
+          {/* Row 3: Study Mode */}
+          {studyModes.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Study Mode (optional)</label>
+              <div className="flex flex-wrap gap-2">
+                {studyModes.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setStudyModeId(studyModeId === m.id ? null : m.id)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                      studyModeId === m.id
+                        ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:border-indigo-300'
+                    }`}
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Row 4: Programs */}
+          {programs.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Programs (optional)</label>
+              <div className="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto">
+                {programs.map(p => (
+                  <label key={p.id} className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all text-sm ${
+                    selectedProgramIds.includes(p.id)
+                      ? 'bg-indigo-100 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-600'
+                      : 'border border-slate-200 dark:border-slate-600 hover:border-indigo-300'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedProgramIds.includes(p.id)}
+                      onChange={() => toggleProgram(p.id)}
+                      className="w-3.5 h-3.5 rounded text-indigo-600"
+                    />
+                    <span className="text-slate-700 dark:text-slate-300">{p.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 justify-end pt-2">
@@ -2097,7 +2192,7 @@ function BulkEnrollModal({
             Cancel
           </button>
           <button
-            onClick={() => onSubmit(classId, streamId)}
+            onClick={() => onSubmit({ classId, streamId, academicYearId, termId, studyModeId, programIds: selectedProgramIds })}
             disabled={isLoading}
             className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors"
           >

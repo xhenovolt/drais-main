@@ -1,24 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { getCurrentTerm } from '@/lib/terms';
+import { logAudit, AuditAction } from '@/lib/audit';
+import { enrollStudentsBulk } from '@/services/enrollmentService';
 
 /**
  * POST /api/students/bulk/enroll
- * 
- * Bulk enroll multiple students into the current term.
- * 
+ *
+ * Bulk enroll multiple students.
+ * Delegates to enrollmentService for consistent behavior.
+ *
  * Request:
  * {
  *   "student_ids": [1, 2, 3],
- *   "class_id": 5 (optional - if provided, enroll all to same class),
- *   "stream_id": 10 (optional)
+ *   "class_id": 5 (optional),
+ *   "stream_id": 10 (optional),
+ *   "academic_year_id": number (optional — defaults to active),
+ *   "term_id": number (optional — defaults to active),
+ *   "study_mode_id": number (optional),
+ *   "curriculum_id": number (optional),
+ *   "program_id": number (optional),
+ *   "program_ids": number[] (optional),
+ *   "enrollment_type": string (optional)
  * }
- * 
- * Security:
- * - Requires authentication
- * - All students must belong to the school
- * - Uses current term by default
  */
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -26,91 +29,79 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const conn = await getConnection();
+  const schoolId = session.schoolId;
+
+  let body: any;
   try {
-    const schoolId = session.schoolId;
-    const { student_ids, class_id, stream_id } = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-    if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid student_ids' },
-        { status: 400 }
-      );
-    }
+  const {
+    student_ids,
+    class_id,
+    stream_id,
+    academic_year_id,
+    term_id,
+    study_mode_id,
+    curriculum_id,
+    program_id,
+    program_ids,
+    enrollment_type,
+  } = body;
 
-    // Get current term
-    const currentTerm = await getCurrentTerm(schoolId);
-    if (!currentTerm) {
-      return NextResponse.json(
-        { error: 'No active term configured' },
-        { status: 404 }
-      );
-    }
+  if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
+    return NextResponse.json({ error: 'Invalid student_ids' }, { status: 400 });
+  }
 
-    // Verify all students belong to school
-    const [verification]: any = await conn.execute(
-      `SELECT COUNT(*) as cnt FROM students WHERE school_id = ? AND id IN (${student_ids.map(() => '?').join(',')})`,
-      [schoolId, ...student_ids]
-    );
+  try {
+    const result = await enrollStudentsBulk(schoolId, {
+      studentIds: student_ids,
+      classId: class_id || null,
+      streamId: stream_id || null,
+      academicYearId: academic_year_id || null,
+      termId: term_id || null,
+      studyModeId: study_mode_id || null,
+      curriculumId: curriculum_id || null,
+      programId: program_id || null,
+      programIds: program_ids,
+      enrollmentType: enrollment_type || 'continuing',
+    });
 
-    if (verification[0].cnt !== student_ids.length) {
-      return NextResponse.json(
-        { error: 'Some students do not belong to your school' },
-        { status: 403 }
-      );
-    }
-
-    // For each student, get their current class and enroll them in current term
-    let enrolled = 0;
-    let failed = 0;
-
-    for (const studentId of student_ids) {
-      try {
-        // Get student's current class
-        const [studentData]: any = await conn.execute(
-          `SELECT e.class_id, e.stream_id FROM enrollments e 
-           WHERE e.student_id = ? AND e.school_id = ? AND e.status = 'active'
-           ORDER BY e.academic_year_id DESC LIMIT 1`,
-          [studentId, schoolId]
-        );
-
-        const enrollClassId = class_id || (studentData[0]?.class_id);
-        const enrollStreamId = stream_id || (studentData[0]?.stream_id);
-
-        if (!enrollClassId) {
-          failed++;
-          continue;
-        }
-
-        // Create enrollment
-        await conn.execute(
-          `INSERT INTO enrollments 
-           (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status, enrollment_date)
-           VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
-          [schoolId, studentId, enrollClassId, enrollStreamId, currentTerm.academic_year_id, currentTerm.id]
-        );
-
-        enrolled++;
-      } catch (error) {
-        failed++;
-      }
-    }
+    // Audit (non-blocking)
+    logAudit({
+      schoolId,
+      userId: session.userId,
+      action: AuditAction.ENROLLED_STUDENT,
+      entityType: 'enrollment',
+      entityId: 0,
+      details: {
+        bulk: true,
+        count: student_ids.length,
+        enrolled: result.enrolled,
+        updated: result.updated,
+        skipped: result.skipped,
+        failed: result.failed,
+      },
+      ip: req.headers.get('x-forwarded-for') || null,
+      userAgent: req.headers.get('user-agent') || null,
+    }).catch(() => { /* non-critical */ });
 
     return NextResponse.json({
-      success: true,
-      message: `Enrolled ${enrolled} students in ${currentTerm.name}`,
-      enrolled,
-      failed,
-      academic_year: currentTerm.academic_year_name,
-      term: currentTerm.name
+      success: result.success,
+      message: result.message,
+      enrolled: result.enrolled,
+      updated: result.updated,
+      skipped: result.skipped,
+      failed: result.failed,
+      errors: result.errors,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Bulk enroll error:', error);
     return NextResponse.json(
-      { error: 'Failed to process bulk enroll' },
+      { error: error.message || 'Failed to process bulk enroll' },
       { status: 500 }
     );
-  } finally {
-    await conn.end();
   }
 }

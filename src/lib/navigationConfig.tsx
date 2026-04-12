@@ -74,6 +74,7 @@ import {
   FileSearch,
   ArrowUpDown,
   Radio,
+  AlertTriangle,
 } from 'lucide-react';
 
 // Alias so callers don't have to worry about icon substitution
@@ -159,6 +160,7 @@ export function getNavigationItems(
         { key: 'students-requirements', label: t('nav.students.requirements', 'Requirements'),  icon: <CheckSquare className="w-4 h-4" />, href: '/students/requirements' },
         { key: 'students-contacts',     label: t('nav.students.contacts', 'Contacts'),          icon: <Phone className="w-4 h-4" />,       href: '/students/contacts' },
         { key: 'students-documents',    label: t('nav.students.documents', 'Documents'),        icon: <FileText className="w-4 h-4" />,    href: '/students/documents' },
+        { key: 'students-duplicates',   label: t('nav.students.duplicates', 'Duplicates'),      icon: <AlertTriangle className="w-4 h-4" />, href: '/students/duplicates' },
         { key: 'students-history',      label: t('nav.students.history', 'History'),            icon: <Archive className="w-4 h-4" />,     href: '/students/history' },
       ],
     },

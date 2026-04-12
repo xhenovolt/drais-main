@@ -92,22 +92,19 @@ const DuplicatesManager: React.FC<DuplicatesManagerProps> = ({
 
     setIsMerging(true);
     try {
-      // Merge all secondary into primary
-      for (const secondaryId of secondaryIds) {
-        const response = await fetch('/api/students/merge-duplicates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            primary_id: primaryId,
-            secondary_id: secondaryId,
-            school_id: schoolId
-          })
-        });
+      // Merge all secondary into primary via unified merge endpoint
+      const response = await fetch('/api/students/duplicates/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          primary_id: primaryId,
+          secondary_ids: secondaryIds,
+        })
+      });
 
-        const result = await response.json();
-        if (!result.success) {
-          throw new Error(result.error || 'Merge failed');
-        }
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Merge failed');
       }
 
       toast.success(`✓ Merged ${secondaryIds.length} record(s) successfully`);
