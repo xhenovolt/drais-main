@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
          JOIN  people p    ON p.id = s.person_id
          LEFT JOIN enrollments   e  ON e.student_id = s.id AND e.school_id = s.school_id AND e.status='active'
          LEFT JOIN classes       c  ON c.id = e.class_id AND c.school_id = s.school_id
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id
                                         AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 5 DAY)
          WHERE s.school_id = ? AND s.status = 'active'
          GROUP BY s.id, p.first_name, p.last_name, c.name, p.phone
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
          FROM classes c
          JOIN enrollments e ON e.class_id  = c.id AND e.school_id = c.school_id AND e.status = 'active'
          JOIN students    s ON s.id = e.student_id AND s.status   = 'active'
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE() AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE()
          WHERE c.school_id = ?
          GROUP BY c.id, c.name
          HAVING total >= 5 AND (present / total) < 0.60
@@ -104,8 +104,9 @@ export async function GET(req: NextRequest) {
            COUNT(*)                                                              AS late_total,
            COUNT(*) * 100.0 / NULLIF(
              (SELECT COUNT(*) FROM students WHERE school_id = ? AND status='active'),0) AS late_pct
-         FROM student_attendance
-         WHERE school_id = ? AND date = CURDATE() AND status = 'late'`,
+         FROM student_attendance sa
+         INNER JOIN students ss ON ss.id = sa.student_id AND ss.school_id = ?
+         WHERE sa.date = CURDATE() AND sa.status = 'late'`,
         [schoolId, schoolId],
       ),
 
@@ -116,8 +117,8 @@ export async function GET(req: NextRequest) {
            SUM(sfi.balance)           AS total_outstanding,
            SUM(CASE WHEN sfi.balance > 0 THEN sfi.balance ELSE 0 END) AS overdue_balance
          FROM student_fee_items sfi
-         JOIN students s ON s.id = sfi.student_id AND s.school_id = sfi.school_id
-         WHERE sfi.school_id = ? AND s.status = 'active' AND sfi.balance > 0`,
+         JOIN students s ON s.id = sfi.student_id AND s.school_id = ? AND s.status = 'active'
+         WHERE sfi.balance > 0`,
         [schoolId],
       ),
 
@@ -135,9 +136,9 @@ export async function GET(req: NextRequest) {
          JOIN  people p   ON p.id = s.person_id
          LEFT JOIN enrollments  e   ON e.student_id = s.id AND e.school_id = s.school_id AND e.status='active'
          LEFT JOIN classes      c   ON c.id = e.class_id AND c.school_id = s.school_id
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id
                                           AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
-         LEFT JOIN student_fee_items sfi ON sfi.student_id = s.id AND sfi.school_id = s.school_id AND sfi.balance > 0
+         LEFT JOIN student_fee_items sfi ON sfi.student_id = s.id AND sfi.balance > 0
          WHERE s.school_id = ? AND s.status = 'active'
          GROUP BY s.id, p.first_name, p.last_name, c.name
          HAVING fee_balance > 0 AND total_14d > 0 AND (present_14d / total_14d) < 0.50
@@ -149,25 +150,29 @@ export async function GET(req: NextRequest) {
       // ── CASE 6+7: Classes with high failure rate this term ───────────────
       conn.execute(
         `SELECT
-           c.id                                                          AS class_id,
-           c.name                                                        AS class_name,
-           cr.average_marks,
-           cr.failed_students,
-           cr.total_students,
-           ROUND(cr.failed_students * 100.0 / NULLIF(cr.total_students,0),1) AS failure_rate
+           c.id                                                            AS class_id,
+           c.name                                                          AS class_name,
+           ROUND(AVG(cr.score),1)                                         AS average_marks,
+           COUNT(CASE WHEN cr.score < 50 THEN 1 END)                      AS failed_students,
+           COUNT(DISTINCT cr.student_id)                                  AS total_students,
+           ROUND(COUNT(CASE WHEN cr.score < 50 THEN 1 END) * 100.0
+                 / NULLIF(COUNT(DISTINCT cr.student_id),0),1)             AS failure_rate
          FROM class_results cr
-         JOIN classes c ON c.id = cr.class_id AND c.school_id = cr.school_id
-         JOIN terms   t ON t.id = cr.term_id  AND t.school_id = cr.school_id AND t.status = 'active'
-         WHERE cr.school_id = ? AND cr.total_students > 0
-         AND (cr.failed_students * 1.0 / cr.total_students) > 0.30
+         JOIN students s ON s.id = cr.student_id AND s.school_id = ?
+         JOIN classes  c ON c.id = cr.class_id   AND c.school_id = ?
+         JOIN terms    t ON t.id = cr.term_id    AND t.school_id = ? AND t.status = 'active'
+         WHERE cr.score IS NOT NULL
+         GROUP BY c.id, c.name
+         HAVING total_students > 0
+           AND (failed_students * 1.0 / total_students) > 0.30
          ORDER BY failure_rate DESC
          LIMIT 10`,
-        [schoolId],
+        [schoolId, schoolId, schoolId],
       ),
 
       // ── CASE 8: Offline devices ───────────────────────────────────────────
       conn.execute(
-        `SELECT id, name, serial_number, last_seen, location
+        `SELECT id, device_name AS name, sn AS serial_number, last_seen, location
          FROM devices
          WHERE school_id = ? AND deleted_at IS NULL AND status = 'active'
            AND (last_seen IS NULL OR last_seen <= DATE_SUB(NOW(), INTERVAL 5 MINUTE))

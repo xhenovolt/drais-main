@@ -69,7 +69,8 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT CASE WHEN sa.status = 'absent'  THEN sa.student_id END)    AS absent,
            COUNT(DISTINCT CASE WHEN sa.status = 'late'    THEN sa.student_id END)    AS late
          FROM student_attendance sa
-         WHERE sa.school_id = ? AND sa.date = CURDATE()`,
+         INNER JOIN students ss ON ss.id = sa.student_id AND ss.school_id = ?
+         WHERE sa.date = CURDATE()`,
         [schoolId, schoolId],
       ),
 
@@ -80,7 +81,8 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT CASE WHEN sa.status IN ('present','late') THEN sa.student_id END) AS present,
            COUNT(DISTINCT CASE WHEN sa.status = 'absent'            THEN sa.student_id END) AS absent
          FROM student_attendance sa
-         WHERE sa.school_id = ? AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+         INNER JOIN students ss ON ss.id = sa.student_id AND ss.school_id = ?
+         WHERE sa.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
          GROUP BY sa.date
          ORDER BY sa.date ASC`,
         [schoolId],
@@ -93,7 +95,8 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT CASE WHEN sa.status IN ('present','late') THEN sa.student_id END) AS present,
            COUNT(DISTINCT CASE WHEN sa.status = 'absent'            THEN sa.student_id END) AS absent
          FROM student_attendance sa
-         WHERE sa.school_id = ? AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         INNER JOIN students ss ON ss.id = sa.student_id AND ss.school_id = ?
+         WHERE sa.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
          GROUP BY sa.date
          ORDER BY sa.date ASC`,
         [schoolId],
@@ -130,7 +133,7 @@ export async function GET(req: NextRequest) {
          JOIN  people      p  ON p.id = s.person_id
          LEFT JOIN enrollments  e  ON e.student_id = s.id AND e.school_id = s.school_id AND e.status = 'active'
          LEFT JOIN classes      c  ON c.id = e.class_id AND c.school_id = s.school_id
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id
          WHERE s.school_id = ? AND s.status = 'active'
          GROUP BY s.id, p.first_name, p.last_name, c.name, p.gender
          HAVING risk_score > 0
@@ -150,7 +153,7 @@ export async function GET(req: NextRequest) {
          FROM classes c
          JOIN enrollments e ON e.class_id = c.id AND e.school_id = c.school_id AND e.status = 'active'
          JOIN students    s ON s.id = e.student_id AND s.status = 'active'
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE() AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE()
          WHERE c.school_id = ?
          GROUP BY c.id, c.name
          ORDER BY c.name ASC
@@ -166,7 +169,7 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT CASE WHEN sa.status IN ('present','late') AND sa.date = CURDATE() THEN sa.student_id END) AS present_today
          FROM students s
          JOIN people p ON p.id = s.person_id
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE() AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE()
          WHERE s.school_id = ? AND s.status = 'active'
          GROUP BY p.gender`,
         [schoolId],
@@ -187,7 +190,8 @@ export async function GET(req: NextRequest) {
       connection.execute(
         `SELECT COUNT(DISTINCT CASE WHEN sa.status IN ('present','late') THEN sa.student_id END) AS present
          FROM student_attendance sa
-         WHERE sa.school_id = ? AND sa.date = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`,
+         INNER JOIN students ss ON ss.id = sa.student_id AND ss.school_id = ?
+         WHERE sa.date = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`,
         [schoolId],
       ),
     ]);

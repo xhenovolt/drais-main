@@ -30,40 +30,40 @@ export async function GET(req: NextRequest) {
       chronicAbsent,
     ] = await Promise.all([
 
-      // ── Top 5 performing students (by avg report card marks) ─────────────
+      // ── Top 5 performing students (by avg score in class_results) ─────────────
       conn.execute(
         `SELECT
            CONCAT(p.first_name,' ',p.last_name) AS name,
            COALESCE(c.name,'Unknown')            AS class_name,
-           ROUND(AVG(rc.average_marks),1)        AS avg_score,
-           rc.grade
-         FROM report_cards rc
-         JOIN students s   ON s.id   = rc.student_id  AND s.school_id  = rc.school_id
-         JOIN people   p   ON p.id   = s.person_id
-         JOIN classes  c   ON c.id   = rc.class_id    AND c.school_id  = rc.school_id
-         WHERE rc.school_id = ?
-         GROUP BY rc.student_id, p.first_name, p.last_name, c.name, rc.grade
+           ROUND(AVG(cr.score),1)               AS avg_score,
+           MAX(cr.grade)                        AS grade
+         FROM class_results cr
+         JOIN students s ON s.id = cr.student_id AND s.school_id = ?
+         JOIN people   p ON p.id = s.person_id
+         LEFT JOIN classes c ON c.id = cr.class_id AND c.school_id = ?
+         WHERE cr.score IS NOT NULL
+         GROUP BY cr.student_id, p.first_name, p.last_name, c.name
          ORDER BY avg_score DESC
          LIMIT 5`,
-        [schoolId],
+        [schoolId, schoolId],
       ),
 
-      // ── Bottom 5 performing students ─────────────────────────────────────
+      // ── Bottom 5 performing students ────────────────────────────────────
       conn.execute(
         `SELECT
            CONCAT(p.first_name,' ',p.last_name) AS name,
            COALESCE(c.name,'Unknown')            AS class_name,
-           ROUND(AVG(rc.average_marks),1)        AS avg_score,
-           rc.grade
-         FROM report_cards rc
-         JOIN students s   ON s.id   = rc.student_id  AND s.school_id  = rc.school_id
-         JOIN people   p   ON p.id   = s.person_id
-         JOIN classes  c   ON c.id   = rc.class_id    AND c.school_id  = rc.school_id
-         WHERE rc.school_id = ? AND rc.average_marks > 0
-         GROUP BY rc.student_id, p.first_name, p.last_name, c.name, rc.grade
+           ROUND(AVG(cr.score),1)               AS avg_score,
+           MAX(cr.grade)                        AS grade
+         FROM class_results cr
+         JOIN students s ON s.id = cr.student_id AND s.school_id = ?
+         JOIN people   p ON p.id = s.person_id
+         LEFT JOIN classes c ON c.id = cr.class_id AND c.school_id = ?
+         WHERE cr.score IS NOT NULL AND cr.score > 0
+         GROUP BY cr.student_id, p.first_name, p.last_name, c.name
          ORDER BY avg_score ASC
          LIMIT 5`,
-        [schoolId],
+        [schoolId, schoolId],
       ),
 
       // ── Most consistent attendees (30d) ───────────────────────────────────
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
          JOIN people p      ON p.id = s.person_id
          JOIN enrollments e ON e.student_id = s.id AND e.school_id = s.school_id AND e.status='active'
          JOIN classes     c ON c.id = e.class_id  AND c.school_id  = s.school_id
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id
                                           AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
          WHERE s.school_id = ? AND s.status = 'active'
          GROUP BY s.id, p.first_name, p.last_name, c.name
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
          JOIN people p      ON p.id = s.person_id
          JOIN enrollments e ON e.student_id = s.id AND e.school_id = s.school_id AND e.status='active'
          JOIN classes     c ON c.id = e.class_id  AND c.school_id  = s.school_id
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id
                                           AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
          WHERE s.school_id = ? AND s.status = 'active'
          GROUP BY s.id, p.first_name, p.last_name, c.name
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
          FROM classes c
          JOIN enrollments e ON e.class_id  = c.id AND e.school_id = c.school_id AND e.status='active'
          JOIN students    s ON s.id = e.student_id AND s.status = 'active'
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE() AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE()
          WHERE c.school_id = ?
          GROUP BY c.id, c.name
          HAVING total >= 5
@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
          FROM classes c
          JOIN enrollments e ON e.class_id  = c.id AND e.school_id = c.school_id AND e.status='active'
          JOIN students    s ON s.id = e.student_id AND s.status = 'active'
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE() AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE()
          WHERE c.school_id = ?
          GROUP BY c.id, c.name
          HAVING total >= 5
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
                  / NULLIF(COUNT(DISTINCT s.id),0) * 100, 1) AS rate
          FROM students s
          JOIN people p ON p.id = s.person_id
-         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE() AND sa.school_id = s.school_id
+         LEFT JOIN student_attendance sa ON sa.student_id = s.id AND sa.date = CURDATE()
          WHERE s.school_id = ? AND s.status='active'
          GROUP BY p.gender`,
         [schoolId],
@@ -176,7 +176,7 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT CASE WHEN sfi.balance > 0                         THEN s.id END)   AS in_arrears,
            COALESCE(SUM(CASE WHEN sfi.balance > 0 THEN sfi.balance ELSE 0 END),0)            AS total_outstanding
          FROM students s
-         LEFT JOIN student_fee_items sfi ON sfi.student_id = s.id AND sfi.school_id = s.school_id AND sfi.balance > 0
+         LEFT JOIN student_fee_items sfi ON sfi.student_id = s.id AND sfi.balance > 0
          WHERE s.school_id = ? AND s.status = 'active'`,
         [schoolId],
       ),
@@ -188,18 +188,20 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT CASE WHEN sa.status IN ('present','late') THEN sa.student_id END) AS present,
            COUNT(DISTINCT CASE WHEN sa.status = 'absent'            THEN sa.student_id END) AS absent
          FROM student_attendance sa
-         WHERE sa.school_id = ? AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 10 DAY)
+         INNER JOIN students ss ON ss.id = sa.student_id AND ss.school_id = ?
+         WHERE sa.date >= DATE_SUB(CURDATE(), INTERVAL 10 DAY)
          GROUP BY sa.date
          ORDER BY sa.date ASC`,
         [schoolId],
       ),
 
-      // ── Avg academic score ────────────────────────────────────────────────
+      // ── Avg academic score (from class_results) ─────────────────────────────
       conn.execute(
-        `SELECT ROUND(AVG(rc.average_marks),1) AS avg_score,
-                COUNT(DISTINCT rc.student_id)   AS students_with_results
-         FROM report_cards rc
-         WHERE rc.school_id = ?`,
+        `SELECT ROUND(AVG(cr.score),1)           AS avg_score,
+                COUNT(DISTINCT cr.student_id)    AS students_with_results
+         FROM class_results cr
+         JOIN students s ON s.id = cr.student_id AND s.school_id = ?
+         WHERE cr.score IS NOT NULL`,
         [schoolId],
       ),
 
@@ -210,7 +212,8 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT CASE WHEN sa.status IN ('present','late') THEN sa.student_id END) AS present,
            COUNT(DISTINCT sa.student_id) AS total_marked
          FROM student_attendance sa
-         WHERE sa.school_id = ? AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+         INNER JOIN students ss ON ss.id = sa.student_id AND ss.school_id = ?
+         WHERE sa.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
          GROUP BY sa.date
          ORDER BY sa.date ASC`,
         [schoolId],
@@ -230,7 +233,7 @@ export async function GET(req: NextRequest) {
          JOIN people p      ON p.id = s.person_id
          JOIN enrollments e ON e.student_id = s.id AND e.school_id = s.school_id AND e.status='active'
          JOIN classes     c ON c.id = e.class_id  AND c.school_id  = s.school_id
-         JOIN student_attendance sa ON sa.student_id = s.id AND sa.school_id = s.school_id
+         JOIN student_attendance sa ON sa.student_id = s.id
                                     AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
          WHERE s.school_id = ? AND s.status='active'
          GROUP BY s.id, p.first_name, p.last_name, c.name
