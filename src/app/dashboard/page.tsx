@@ -33,11 +33,12 @@ import AdmissionsAnalytics from '@/components/dashboard/AdmissionsAnalytics';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import SetupChecklist from '@/components/onboarding/SetupChecklist';
 import QuickActions from '@/components/onboarding/QuickActions';
+import CommandCenter from '@/components/dashboard/CommandCenter';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DashboardPage: React.FC = () => {
-  const [mode, setMode] = useState<'simple' | 'advanced' | 'analytics'>('simple');
+  const [mode, setMode] = useState<'command' | 'simple' | 'advanced' | 'analytics'>('command');
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? null;
   const [dateRange, setDateRange] = useState({
@@ -124,6 +125,16 @@ const DashboardPage: React.FC = () => {
               {/* Mode Toggle */}
               <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1 overflow-x-auto max-w-full">
                 <button
+                  onClick={() => setMode('command')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    mode === 'command'
+                      ? 'bg-white dark:bg-slate-800 shadow-sm text-red-600'
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Command Center
+                </button>
+                <button
                   onClick={() => setMode('simple')}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
                     mode === 'simple' 
@@ -131,7 +142,7 @@ const DashboardPage: React.FC = () => {
                       : 'text-gray-600 dark:text-gray-400'
                   }`}
                 >
-                  Simple
+                  Overview
                 </button>
                 <button
                   onClick={() => setMode('advanced')}
@@ -193,7 +204,7 @@ const DashboardPage: React.FC = () => {
 
       {/* Dashboard Content */}
       <div className="container mx-auto px-4 py-8">
-        {/* Quick Actions — visible only in simple mode */}
+        {/* Quick Actions — visible only in overview mode */}
         {mode === 'simple' && (
           <div className="mb-8 space-y-6">
             <QuickActions />
@@ -201,7 +212,17 @@ const DashboardPage: React.FC = () => {
           </div>
         )}
         <AnimatePresence mode="wait">
-          {mode === 'simple' ? (
+          {mode === 'command' ? (
+            <motion.div
+              key="command"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CommandCenter schoolId={schoolId} />
+            </motion.div>
+          ) : mode === 'simple' ? (
             <motion.div
               key="simple"
               initial={{ opacity: 0, y: 20 }}

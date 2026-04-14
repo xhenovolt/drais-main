@@ -16,6 +16,7 @@ import {
   BookOpen,
   Calendar,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
@@ -60,6 +61,7 @@ export default function DuplicatesPage() {
   const [selectedPrimary, setSelectedPrimary] = useState<Map<number, number>>(new Map()); // groupId -> primaryStudentId
   const [merging, setMerging] = useState<Set<number>>(new Set()); // group_ids being merged
   const [bulkMerging, setBulkMerging] = useState(false);
+  const [purging, setPurging] = useState(false);
 
   const fetchDuplicates = useCallback(async () => {
     setLoading(true);
@@ -196,6 +198,78 @@ export default function DuplicatesPage() {
     }
   };
 
+  // ── Purge all (result-aware hard-delete + merge) ──────────────────
+  const purgeAll = async () => {
+    if (!data || data.groups.length === 0) return;
+    setPurging(true);
+
+    try {
+      // Dry-run first to show breakdown
+      const preview = await apiFetch<any>('/api/students/duplicates/purge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dry_run: true }),
+        silent: true,
+      });
+
+      if (preview.ghosts_to_delete === 0 && preview.data_records_to_merge === 0) {
+        await Swal.fire({
+          title: 'Nothing to Purge',
+          text: 'All duplicate groups have already been cleaned up.',
+          icon: 'info',
+        });
+        return;
+      }
+
+      const result = await Swal.fire({
+        title: 'Purge Duplicate Ghosts',
+        html: `
+          <div class="text-left space-y-3">
+            <p>${preview.groups_found} duplicate group(s) found.</p>
+            <div class="flex gap-4 mt-2">
+              <div class="flex-1 p-3 bg-red-50 rounded-lg border border-red-200">
+                <p class="text-2xl font-bold text-red-700">${preview.ghosts_to_delete}</p>
+                <p class="text-sm text-red-600 font-medium">Ghost records</p>
+                <p class="text-xs text-red-500 mt-1">Zero data — will be <strong>permanently deleted</strong></p>
+              </div>
+              <div class="flex-1 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <p class="text-2xl font-bold text-amber-700">${preview.data_records_to_merge}</p>
+                <p class="text-sm text-amber-600 font-medium">Data records</p>
+                <p class="text-xs text-amber-500 mt-1">Have data — will be <strong>merged</strong> into primary</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">Ghost deletions are irreversible. Merges can be traced via audit log.</p>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Purge Now',
+        cancelButtonText: 'Cancel',
+      });
+
+      if (!result.isConfirmed) return;
+
+      const res = await apiFetch<any>('/api/students/duplicates/purge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dry_run: false }),
+        successMessage: `Purged: ${preview.ghosts_to_delete} deleted, ${preview.data_records_to_merge} merged`,
+      });
+
+      if (res.failed > 0) {
+        showToast('warning', `${res.deleted} deleted, ${res.merged} merged, ${res.failed} failed`);
+      }
+
+      fetchDuplicates();
+    } catch {
+      // handled by apiFetch
+    } finally {
+      setPurging(false);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────
   const confidenceColor = (c: string) => {
     switch (c) {
@@ -234,7 +308,7 @@ export default function DuplicatesPage() {
 
         {/* Action Bar */}
         {data && data.groups.length > 0 && (
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-3 flex-wrap">
             <button
               onClick={fetchDuplicates}
               disabled={loading}
@@ -245,11 +319,20 @@ export default function DuplicatesPage() {
             </button>
             <button
               onClick={mergeAll}
-              disabled={bulkMerging || loading}
+              disabled={bulkMerging || loading || purging}
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-orange-600 text-white hover:from-red-500 hover:to-orange-500 transition-all disabled:opacity-50"
             >
               {bulkMerging ? <Loader className="w-4 h-4 animate-spin" /> : <Merge className="w-4 h-4" />}
               Merge All ({data.total_duplicates - data.total_groups} duplicates)
+            </button>
+            <button
+              onClick={purgeAll}
+              disabled={purging || bulkMerging || loading}
+              title="Hard-delete zero-data ghosts, merge data-bearing secondaries"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-rose-700 to-red-700 text-white hover:from-rose-600 hover:to-red-600 transition-all disabled:opacity-50"
+            >
+              {purging ? <Loader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Purge Ghosts
             </button>
           </div>
         )}

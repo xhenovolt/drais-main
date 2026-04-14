@@ -1112,7 +1112,7 @@ export default function StudentsListPage() {
 
           {/* ── Last Enrolled Confirmation ──────────────────────────────── */}
           {lastEnrolled && (
-            <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium max-w-[220px] truncate">
+            <div className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium max-w-[220px] truncate">
               <Check className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />
               <span className="truncate" title={`${lastEnrolled.name}${lastEnrolled.uid ? ` · UID ${lastEnrolled.uid}` : ''} · ${lastEnrolled.device} · ${lastEnrolled.ts.toLocaleTimeString()}`}>
                 {lastEnrolled.name}
@@ -1130,7 +1130,7 @@ export default function StudentsListPage() {
             <button
               onClick={() => setShowModeSettings(v => !v)}
               title={captureMode === 'local' ? `Local Direct — ${localDeviceIp}` : captureMode === 'relay' ? `Relay Bridge — ${relayDeviceSn || 'no device'}` : 'Cloud ADMS Mode'}
-              className={`flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
+              className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
                 captureMode === 'local'
                   ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
                   : captureMode === 'relay'
@@ -1241,7 +1241,7 @@ export default function StudentsListPage() {
           </div>
 
           <Link href="/students/promote" title="Promote students"
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 transition-colors">
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 transition-colors">
             <Zap className="w-4 h-4" />
           </Link>
 
@@ -1251,7 +1251,7 @@ export default function StudentsListPage() {
               onClick={handleToggleFees}
               disabled={feesLoading}
               title={showFees ? 'Hide fee balances' : 'Show fee balances'}
-              className={`flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
+              className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
                 showFees
                   ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                   : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -1264,17 +1264,17 @@ export default function StudentsListPage() {
           )}
 
           <button title="Bulk Import" onClick={() => setShowImportModal(true)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors">
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors">
             <Upload className="w-3.5 h-3.5" />
           </button>
 
           <button title="Sync from Device — pull users &amp; fingerprints from ZKTeco K40" onClick={() => setShowSyncModal(true)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
             <Wifi className="w-3.5 h-3.5" />
           </button>
 
           <button title="Remove ALL learners from this school — destructive" onClick={handleDeleteAllLearners}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
 

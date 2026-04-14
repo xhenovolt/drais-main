@@ -511,8 +511,88 @@ export default function UnifiedAttendancePage() {
           </div>
         </div>
 
-        {/* ── Table ──────────────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700
+        {/* ── Mobile card list (xs only, < sm) ───────────────────────── */}
+        <div className="sm:hidden space-y-2 mb-4">
+          {isLoading && logs.length === 0 && (
+            <div className="text-center py-8 text-gray-400">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+              Loading...
+            </div>
+          )}
+          {!isLoading && logs.length === 0 && (
+            <div className="text-center py-8 text-gray-400 text-sm">No records found.</div>
+          )}
+          {logs.map((log: any) => (
+            <div key={log.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {log.photo_url ? (
+                    <img src={log.photo_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                      log.person_name
+                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600'
+                        : 'bg-amber-100 dark:bg-amber-900/50 text-amber-600'
+                    }`}>
+                      {log.person_name ? log.person_name.charAt(0) : '?'}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    {log.person_name ? (
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{log.person_name}</p>
+                    ) : (
+                      <p className="text-xs font-mono text-amber-600 dark:text-amber-400">UID: {log.device_user_id}</p>
+                    )}
+                    {log.class_name && (
+                      <p className="text-xs text-gray-400 truncate">{log.class_name}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                    {log.check_time ? new Date(log.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    log.io_mode === 0
+                      ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                  }`}>{ioLabel(log.io_mode)}</span>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                  log.person_type === 'student'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                    : log.person_type === 'staff'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
+                }`}>
+                  {log.person_type === 'student' ? 'Learner' : log.person_type === 'staff' ? 'Staff' : 'Unmatched'}
+                </span>
+                {log.matched ? (
+                  <span className="flex items-center gap-0.5 text-green-600 text-[10px] font-medium">
+                    <UserCheck className="w-3 h-3" /> Matched
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium">
+                    <AlertTriangle className="w-3 h-3" /> Unmatched
+                  </span>
+                )}
+                {tab === 'unmatched' && (
+                  <button
+                    onClick={() => setAssignTarget(log.device_user_id)}
+                    className="ml-auto flex items-center gap-1 px-2.5 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <UserPlus className="w-3 h-3" /> Assign
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Table (sm+) ────────────────────────────────────────────── */}
+        <div className="hidden sm:block bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700
           rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -521,9 +601,9 @@ export default function UnifiedAttendancePage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Time</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Person</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Class</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Device UID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Verify</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Class</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Device UID</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Verify</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">IO</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
                   {tab === 'unmatched' && (
@@ -596,13 +676,13 @@ export default function UnifiedAttendancePage() {
                             : 'Unmatched'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
                       {log.class_name || '—'}
                     </td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-500">
+                    <td className="px-4 py-3 text-sm font-mono text-gray-500 hidden lg:table-cell">
                       {log.device_user_id}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hidden lg:table-cell">
                       {verifyLabel(log.verify_type)}
                     </td>
                     <td className="px-4 py-3 text-sm">
