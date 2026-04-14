@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { fetcher } from '@/utils/fetcher';
 import RecommendationEngine from '@/components/dashboard/RecommendationEngine';
+import NarrativeSummary from '@/components/dashboard/NarrativeSummary';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -620,6 +621,19 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ schoolId }) => {
 
       {/* ── SECTION 2: ALERTS ────────────────────── */}
       {intel.alerts.length > 0 && <AlertBanner alerts={intel.alerts} />}
+
+      {/* ── SECTION 2B: ATTENDANCE NARRATIVE ─────── */}
+      <NarrativeSummary
+        totalStudents={intel.today.total_students}
+        present={intel.today.present}
+        absent={intel.today.absent}
+        late={intel.today.late}
+        rate={intel.today.rate}
+        yesterdayPresent={intel.today.yesterday_present}
+        changePct={intel.today.change_pct}
+        hasRecords={intel.today.present > 0 || intel.today.absent > 0}
+        weeklyTrend={intel.weekly_trend}
+      />
 
       {/* ── SECTION 3: SUMMARY CARDS ─────────────── */}
       <SummaryCards today={intel.today} />

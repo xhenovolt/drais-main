@@ -34,6 +34,7 @@ import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import SetupChecklist from '@/components/onboarding/SetupChecklist';
 import QuickActions from '@/components/onboarding/QuickActions';
 import CommandCenter from '@/components/dashboard/CommandCenter';
+import SchoolHealthDashboard from '@/components/dashboard/SchoolHealthDashboard';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -152,7 +153,7 @@ const DashboardPage: React.FC = () => {
                       : 'text-gray-600 dark:text-gray-400'
                   }`}
                 >
-                  Advanced
+                  School Health
                 </button>
                 <button
                   onClick={() => setMode('analytics')}
@@ -163,7 +164,7 @@ const DashboardPage: React.FC = () => {
                   }`}
                 >
                   <Brain className="w-4 h-4 inline mr-1" />
-                  AI Analytics
+                  Predictive
                 </button>
               </div>
               {/* Quick Actions */}
@@ -267,27 +268,17 @@ const DashboardPage: React.FC = () => {
                 <AIInsightCard data={overview?.aiInsight} />
               </div>
             </motion.div>
-          ) : mode === 'advanced' ? (
+          ) : mode === 'advanced' || mode === 'analytics' ? (
             <motion.div
-              key="advanced"
+              key="health"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <AdvancedDashboard schoolId={schoolId} dateRange={dateRange} />
+              <SchoolHealthDashboard schoolId={schoolId} />
             </motion.div>
-          ) : (
-            <motion.div
-              key="analytics"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <PredictiveAnalyticsDashboard schoolId={schoolId} scope="school" />
-            </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
       </div>
     </div>
