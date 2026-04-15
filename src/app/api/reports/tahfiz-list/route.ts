@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  let connection;
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const connection = await getConnection();
+    connection = await getConnection();
     
     const [students] = await connection.execute(
       `SELECT 
@@ -39,8 +40,6 @@ export async function GET(request: NextRequest) {
       [schoolId]
     );
 
-    await connection.end();
-
     return NextResponse.json({ success: true, students });
   } catch (error) {
     console.error('Tahfiz list fetch error:', error);
@@ -48,5 +47,7 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch tahfiz students' },
       { status: 500 }
     );
+  } finally {
+    if (connection) await connection.end();
   }
 }

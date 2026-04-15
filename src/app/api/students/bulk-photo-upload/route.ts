@@ -41,11 +41,16 @@ export async function POST(req: NextRequest) {
 
     connection = await getConnection();
 
-    // Verify every person exists
+    // Verify every person exists AND belongs to this school
     const placeholders = personIdList.map(() => '?').join(',');
-    const [existing]: any = await connection.execute(`SELECT id FROM people WHERE id IN (${placeholders})`, personIdList);
+    const [existing]: any = await connection.execute(
+      `SELECT p.id FROM people p
+       JOIN students s ON s.person_id = p.id AND s.school_id = ? AND s.deleted_at IS NULL
+       WHERE p.id IN (${placeholders})`,
+      [session.schoolId, ...personIdList],
+    );
     if (existing.length !== personIdList.length) {
-      return NextResponse.json({ success: false, error: 'One or more person IDs not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'One or more person IDs not found or do not belong to your school' }, { status: 404 });
     }
 
     await connection.beginTransaction();
@@ -63,8 +68,11 @@ export async function POST(req: NextRequest) {
         const result = await uploadStudentPhoto(buffer, photo.size, 'drais/students', `person_${personId}`);
 
         await connection.execute(
-          'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ?',
-          [result.secure_url, personId],
+          `UPDATE people SET photo_url = ?, updated_at = NOW()
+           WHERE id = ? AND EXISTS (
+             SELECT 1 FROM students s WHERE s.person_id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+           )`,
+          [result.secure_url, personId, personId, session.schoolId],
         );
 
         await logAudit(connection, {

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const { schoolId } = session;
+
   const { searchParams } = new URL(req.url);
   const classId = searchParams.get('class_id');
   const subjectId = searchParams.get('subject_id');
@@ -15,8 +20,8 @@ export async function GET(req: NextRequest) {
   const connection = await getConnection();
 
   try {
-    let where = 'WHERE 1=1';
-    const params: any[] = [];
+    let where = 'WHERE s.school_id = ?';
+    const params: any[] = [schoolId];
 
     if (classId) {
       where += ' AND cr.class_id = ?';
@@ -114,6 +119,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const { schoolId } = session;
+
   const body = await req.json();
   const { class_id, subject_id, result_type_id, term_id, entries } = body;
 
@@ -128,11 +137,22 @@ export async function POST(req: NextRequest) {
   const connection = await getConnection();
 
   try {
+    // Collect all student_ids and verify they belong to this school in one query
+    const studentIds = entries.map((e: any) => e.student_id).filter(Boolean);
+    const placeholders = studentIds.map(() => '?').join(',');
+    const [validRows]: any = studentIds.length
+      ? await connection.execute(
+          `SELECT id FROM students WHERE id IN (${placeholders}) AND school_id = ? AND deleted_at IS NULL`,
+          [...studentIds, schoolId],
+        )
+      : [[]];
+    const validSet = new Set(validRows.map((r: any) => r.id));
+
     let success = 0;
 
     for (const entry of entries) {
       const { student_id, score, grade, remarks } = entry;
-      if (!student_id) continue;
+      if (!student_id || !validSet.has(student_id)) continue;
 
       await connection.execute(
         `INSERT INTO class_results (class_id, subject_id, result_type_id, term_id, student_id, score, grade, remarks)
