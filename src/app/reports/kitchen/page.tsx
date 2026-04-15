@@ -66,6 +66,197 @@ const SAMPLE_SCHOOL = {
 };
 
 // ============================================================================
+// RptTemplatePreview — pixel-accurate mini preview of the rpt.html layout
+// Has its own SVG ribbons, table layout, blue banner, arrow comment labels.
+// This is what the Northgate Classic (rpt.html clone) looks like.
+// accentColor drives the banner background colour.
+// ============================================================================
+function RptTemplatePreview({ accentColor = '#0000FF' }: { accentColor?: string }) {
+  const td = { border: '1px solid #333', padding: 4 } as const;
+  const remarksData = [
+    ['Class teacher comment:', 'Excellent work, keep it up'],
+    ['DOS Comment:', 'Thank you for this effort, keep it up.'],
+    ['Headteacher comment:', 'Promising scores keep up.'],
+  ] as const;
+
+  return (
+    <div style={{ width: 800, border: '1px solid #ccc', padding: 10, fontFamily: 'Arial, sans-serif', fontSize: 12, color: '#333', background: 'white' }}>
+      {/* Header */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 5 }}>
+        <tbody>
+          <tr>
+            <td width="80%">
+              <h1 style={{ fontSize: 24, color: '#000080', fontWeight: 'bold', margin: 0 }}>NORTHGATE SCHOOL</h1>
+              <p style={{ fontSize: 13, fontWeight: 'bold', fontStyle: 'italic', margin: '2px 0' }}>P.O.Box 47 IGANGA, Tel: 0706416264, Bulubandi Central B</p>
+              <p style={{ fontStyle: 'italic', fontWeight: 'bold', fontSize: 12, margin: 0 }}>IMPACT THROUGH EDUCATION</p>
+            </td>
+            <td width="20%" align="right">
+              <div style={{ width: 80, height: 80, background: '#d9e4f5', border: '1px solid #aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#666' }}>LOGO</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Blue banner — accent driven */}
+      <div style={{ background: accentColor, color: 'white', textAlign: 'center', padding: 5, fontWeight: 'bold', letterSpacing: 2, margin: '5px 0' }}>
+        MID TERM ONE REPORT
+      </div>
+
+      {/* Student info */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px dashed #999', marginBottom: 10 }}>
+        <tbody>
+          <tr>
+            <td width={45} align="center" style={{ borderRight: '1px dashed #999', padding: '4px 2px' }}>
+              <div style={{ height: 90, width: 32, background: '#eee', margin: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#999', writingMode: 'vertical-rl' }}>BARCODE</div>
+            </td>
+            <td width={110} align="center">
+              <div style={{ width: 90, height: 100, border: '1px solid #000', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#aaa' }}>PHOTO</div>
+            </td>
+            <td>
+              <table width="100%" cellPadding={5}><tbody>
+                <tr>
+                  <td><span style={{ color: '#555', fontSize: 11 }}>Name:</span><br /><span style={{ color: '#B22222', fontWeight: 'bold', fontSize: 14, textTransform: 'uppercase' }}>KWAGALA JEMIMAH</span></td>
+                  <td><span style={{ color: '#555', fontSize: 11 }}>Sex:</span><br /><span style={{ color: '#B22222', fontWeight: 'bold', fontSize: 14 }}>F</span></td>
+                  <td><span style={{ color: '#555', fontSize: 11 }}>Class:</span><br /><span style={{ color: '#B22222', fontWeight: 'bold', fontSize: 14 }}>P.1</span></td>
+                  <td><span style={{ color: '#555', fontSize: 11 }}>Stream:</span><br /><span style={{ color: '#B22222', fontWeight: 'bold', fontSize: 14 }}>A</span></td>
+                </tr>
+                <tr>
+                  <td><span style={{ color: '#555', fontSize: 11 }}>Student No.</span><br /><span style={{ color: '#B22222', fontWeight: 'bold', fontSize: 12 }}>0018000034</span></td>
+                  <td colSpan={3}><span style={{ color: '#555', fontSize: 11 }}>Term:</span><br /><span style={{ color: '#B22222', fontWeight: 'bold', fontSize: 12 }}>TermI-2023</span></td>
+                </tr>
+              </tbody></table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Principal Subjects ribbon — exact SVG from rpt.html */}
+      <div style={{ textAlign: 'center', margin: '10px 0' }}>
+        <svg width="600" height="50" viewBox="0 0 600 50">
+          <polygon points="0,5 600,5 600,30 315,30 300,45 285,30 0,30" fill="#999" />
+          <text x="300" y="22" fontFamily="Arial" fontSize="12" fill="black" textAnchor="middle" fontWeight="bold">
+            Principal Subjects Comprising the General Assessment
+          </text>
+        </svg>
+      </div>
+
+      {/* Results table */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: -1 }}>
+        <thead>
+          <tr>
+            {['Subject', 'EOT', 'Total', 'Grade', 'Comment', 'Initials'].map(h => (
+              <th key={h} style={{ border: '1px solid #333', padding: 4, background: '#f2f2f2', textAlign: 'center', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            ['Mathematics', 82, 82, 'D2', 'Promising results. Keep it up.', 'BJM'],
+            ['English', 90, 90, 'D1', 'I believe you can do more.', 'AC'],
+            ['RE', 94, 94, 'D1', 'Thank you, but keep it up.', 'AT'],
+            ['Literacy-1', 98, 98, 'D1', 'Keep it up.', 'NH'],
+          ].map(([subj, eot, tot, gr, com, init]) => (
+            <tr key={String(subj)}>
+              <td style={td}>{subj}</td>
+              <td style={td}>{eot}</td>
+              <td style={td}>{tot}</td>
+              <td style={{ ...td, color: 'red' }}>{gr}</td>
+              <td style={{ ...td, textAlign: 'left', fontStyle: 'italic', color: '#0000FF', fontSize: 11, width: '40%' }}>{com}</td>
+              <td style={{ ...td, color: '#0000FF', fontWeight: 'bold' }}>{init}</td>
+            </tr>
+          ))}
+          <tr style={{ fontWeight: 'bold', background: '#f9f9f9' }}>
+            <td style={td} align="left">TOTAL MARKS:</td>
+            <td colSpan={2} style={td}>364</td>
+            <td colSpan={2} style={{ ...td, textAlign: 'right' }}>AVERAGE MARKS:</td>
+            <td style={td}>91</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Other subjects ribbon */}
+      <div style={{ textAlign: 'center', margin: '10px 0' }}>
+        <svg width="600" height="50" viewBox="0 0 600 50">
+          <polygon points="0,5 600,5 600,30 315,30 300,45 285,30 0,30" fill="#999" />
+          <text x="300" y="22" fontFamily="Arial" fontSize="12" fill="black" textAnchor="middle" fontWeight="bold">
+            Other subjects (Not part of Assessment)
+          </text>
+        </svg>
+      </div>
+
+      {/* Other subjects */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: -1 }}>
+        <tbody>
+          {[['Reading', '-', '', '', '', ''], ['Literacy-2', 84, 84, 'D2', "Please don't feel comfortable.", 'NH']].map(([s, e, t, g, c, i], idx) => (
+            <tr key={idx}>
+              <td style={td} width="25%">{s}</td>
+              <td style={td} width="10%">{e}</td>
+              <td style={td}>{t}</td>
+              <td style={{ ...td, color: 'red' }}>{g}</td>
+              <td style={{ ...td, textAlign: 'left', fontStyle: 'italic', color: '#0000FF', fontSize: 11 }}>{c}</td>
+              <td style={{ ...td, color: '#0000FF' }}>{i}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Position/Assessment */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
+        <tbody>
+          <tr style={{ background: '#f2f2f2', fontWeight: 'bold' }}>
+            <td colSpan={2} style={td}>Position</td>
+            <td colSpan={4} style={td}>General Assessment</td>
+          </tr>
+          <tr>
+            <td width="16%" style={td}>Class</td><td width="16%" style={td}>Stream</td>
+            <td width="33%" colSpan={2} style={td}>Aggregates</td>
+            <td width="33%" colSpan={2} style={td}>Division</td>
+          </tr>
+          <tr style={{ color: 'red', fontWeight: 'bold' }}>
+            <td style={td}>4/36</td><td style={td}>4/36</td>
+            <td colSpan={2} style={td}>5</td>
+            <td colSpan={2} style={td}>1</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Remarks — exact right-arrow SVGs from rpt.html */}
+      <div style={{ marginTop: 20 }}>
+        {remarksData.map(([label, text]) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', marginBottom: 8, borderBottom: '1px dashed #ccc', paddingBottom: 4 }}>
+            <svg width="150" height="25">
+              <polygon points="0,0 130,0 150,12.5 130,25 0,25" fill="#ddd" />
+              <text x="10" y="17" fontSize="11" fontWeight="bold">{label}</text>
+            </svg>
+            <span style={{ marginLeft: 10, fontStyle: 'italic', color: '#0000FF', fontSize: 13 }}>{text}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Next term */}
+      <p style={{ margin: '10px 0' }}>...... 22-May-2023 ......</p>
+      <p style={{ fontSize: 11, margin: 0 }}>Next Term Begins</p>
+
+      {/* Grade scale */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 15 }}>
+        <tbody>
+          <tr>
+            {['GRADE', 'D1', 'D2', 'C3', 'C4', 'C5', 'C6', 'P7', 'P8', 'F9'].map(g => (
+              <td key={g} style={{ border: '1px solid #000', textAlign: 'center', padding: 3, fontSize: 10, background: '#f2f2f2', fontWeight: 'bold' }}>{g}</td>
+            ))}
+          </tr>
+          <tr>
+            {['RANGE', '90-100', '80-89', '70-79', '60-69', '55-59', '50-54', '45-49', '40-44', '0-39'].map(g => (
+              <td key={g} style={{ border: '1px solid #000', textAlign: 'center', padding: 3, fontSize: 10 }}>{g}</td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ============================================================================
 // Mini report preview — rendered inline from a template JSON
 // ============================================================================
 function TemplatePreview({ layout, school }: { layout: ReportLayoutJSON; school: typeof SAMPLE_SCHOOL }) {
@@ -306,6 +497,9 @@ export default function ReportsKitchen() {
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
+  // Accent color: keyed by template id — used for live preview + saved on change
+  const [accentColors, setAccentColors] = useState<Record<number, string>>({});
+  const accentSaveTimers = React.useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -421,6 +615,40 @@ export default function ReportsKitchen() {
     }
   };
 
+  // ── Accent color: live-update preview + debounce-save to DB ─────────────
+  const handleAccentColorChange = (template: ReportTemplate, color: string) => {
+    // Update local state instantly for live preview
+    setAccentColors(prev => ({ ...prev, [template.id]: color }));
+
+    // Also propagate into templates array so TemplatePreview re-renders
+    setTemplates(prev => prev.map(t => {
+      if (t.id !== template.id) return t;
+      return {
+        ...t,
+        layout_json: {
+          ...t.layout_json,
+          banner: { ...t.layout_json.banner, backgroundColor: color },
+        },
+      };
+    }));
+
+    // Debounce save: cancel previous timer, save after 600ms of inactivity
+    clearTimeout(accentSaveTimers.current[template.id]);
+    accentSaveTimers.current[template.id] = setTimeout(async () => {
+      try {
+        const updated = {
+          ...template.layout_json,
+          banner: { ...template.layout_json.banner, backgroundColor: color },
+        };
+        await fetch(`/api/report-templates/${template.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: template.name, description: template.description, layout_json: updated }),
+        });
+      } catch { /* silent — next save will retry */ }
+    }, 600);
+  };
+
   const previewTemplate = templates.find(t => t.id === previewId);
 
   return (
@@ -533,11 +761,14 @@ export default function ReportsKitchen() {
                   {/* Mini preview */}
                   <div
                     className="relative overflow-hidden cursor-pointer"
-                    style={{ height: 240, background: template.layout_json.page.background || '#fff' }}
+                    style={{ height: 240, background: (template as any).template_key ? '#fff' : (template.layout_json.page.background || '#fff') }}
                     onClick={() => setPreviewId(prev => prev === template.id ? null : template.id)}
                   >
                     <div style={{ transform: 'scale(0.42)', transformOrigin: 'top left', width: '238%', pointerEvents: 'none' }}>
-                      <TemplatePreview layout={template.layout_json} school={SAMPLE_SCHOOL} />
+                      {(template as any).template_key
+                        ? <RptTemplatePreview accentColor={accentColors[template.id] ?? template.layout_json.banner.backgroundColor} />
+                        : <TemplatePreview layout={template.layout_json} school={SAMPLE_SCHOOL} />
+                      }
                     </div>
                     <div className="absolute inset-0 bg-transparent hover:bg-black/5 transition-colors flex items-end p-2">
                       <span className="text-xs bg-black/60 text-white px-2 py-0.5 rounded opacity-0 group-hover:opacity-100">
@@ -571,11 +802,33 @@ export default function ReportsKitchen() {
                       </div>
                     </div>
 
-                    {/* Color swatches */}
-                    <div className="flex gap-1.5 my-2">
+                    {/* Accent color picker + palette swatches */}
+                    <div className="flex items-center gap-2 my-2">
+                      {/* Live accent color picker — changes banner colour instantly */}
+                      <label
+                        title="Change accent colour"
+                        className="relative flex items-center gap-1 cursor-pointer group"
+                      >
+                        <div
+                          style={{
+                            width: 22, height: 22, borderRadius: 4,
+                            background: accentColors[template.id] ?? template.layout_json.banner.backgroundColor,
+                            border: '2px solid rgba(0,0,0,0.15)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                          }}
+                        />
+                        <Paintbrush size={11} className="text-gray-400 group-hover:text-gray-700" />
+                        <input
+                          type="color"
+                          value={accentColors[template.id] ?? template.layout_json.banner.backgroundColor}
+                          onChange={e => handleAccentColorChange(template, e.target.value)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          title="Accent colour"
+                        />
+                      </label>
+                      <span className="text-xs text-gray-400 mr-1">Accent</span>
+                      {/* Remaining palette chips (read-only) */}
                       {[
-                        template.layout_json.banner.backgroundColor,
-                        template.layout_json.studentInfoBox.border.split(' ').pop() || '#ccc',
                         template.layout_json.studentValue.color,
                         template.layout_json.table.th.background,
                         template.layout_json.comments.ribbon.background,
@@ -583,10 +836,10 @@ export default function ReportsKitchen() {
                         <div
                           key={i}
                           title={color}
-                          style={{ width: 16, height: 16, borderRadius: 3, background: color, border: '1px solid rgba(0,0,0,0.1)' }}
+                          style={{ width: 14, height: 14, borderRadius: 3, background: color, border: '1px solid rgba(0,0,0,0.1)' }}
                         />
                       ))}
-                      <span className="text-xs text-gray-400 ml-1 self-center">Color palette</span>
+                      <span className="text-xs text-gray-300 self-center">palette</span>
                     </div>
 
                     {/* Actions */}
@@ -686,7 +939,10 @@ export default function ReportsKitchen() {
             </div>
             <div className="p-4 overflow-x-auto">
               <div style={{ minWidth: 600, maxWidth: 900, margin: '0 auto' }}>
-                <TemplatePreview layout={previewTemplate.layout_json} school={SAMPLE_SCHOOL} />
+                {(previewTemplate as any).template_key
+                  ? <RptTemplatePreview accentColor={accentColors[previewTemplate.id] ?? previewTemplate.layout_json.banner.backgroundColor} />
+                  : <TemplatePreview layout={previewTemplate.layout_json} school={SAMPLE_SCHOOL} />
+                }
               </div>
             </div>
           </div>
@@ -710,7 +966,10 @@ export default function ReportsKitchen() {
                   </div>
                   <div className="p-3 overflow-x-auto">
                     <div style={{ transform: 'scale(0.75)', transformOrigin: 'top left', width: '133%' }}>
-                      <TemplatePreview layout={t.layout_json} school={SAMPLE_SCHOOL} />
+                      {(t as any).template_key
+                        ? <RptTemplatePreview accentColor={accentColors[t.id] ?? t.layout_json.banner.backgroundColor} />
+                        : <TemplatePreview layout={t.layout_json} school={SAMPLE_SCHOOL} />
+                      }
                     </div>
                   </div>
                 </div>
