@@ -141,7 +141,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     pathname === '/unauthorized' ||              // Unauthorized page
     pathname === '/forbidden' ||                 // Forbidden page
     pathname === '/server-error' ||              // Error pages
-    pathname === '/academics/reports';           // Report printing layout
+    pathname === '/academics/reports' ||          // Report printing layout
+    pathname.startsWith('/rpt');                 // Standalone rpt.html clone
 
   return (
     <div className="min-h-screen">
