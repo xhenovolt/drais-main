@@ -170,6 +170,8 @@ export interface ReportTemplate {
   layout_json: ReportLayoutJSON;
   is_default: boolean;
   school_id: number | null;
+  /** Identifies custom-component templates (e.g. 'northgate_official' → NorthgateReport.tsx) */
+  template_key: string | null;
 }
 
 // ============================================================================
@@ -578,5 +580,6 @@ export function parseTemplateRow(row: any): ReportTemplate {
     layout_json: mergeLayout(raw ?? {}),
     is_default: Boolean(row.is_default),
     school_id: row.school_id ?? null,
+    template_key: row.template_key ?? null,
   };
 }

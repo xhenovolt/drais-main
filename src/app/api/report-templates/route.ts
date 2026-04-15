@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     try {
       // Get global templates (school_id IS NULL) + school-specific templates
       const [rows] = await conn.execute(
-        `SELECT id, name, description, layout_json, is_default, school_id, created_at, updated_at
+        `SELECT id, name, description, layout_json, is_default, school_id, template_key, created_at, updated_at
          FROM report_templates
          WHERE school_id IS NULL OR school_id = ?
          ORDER BY is_default DESC, id ASC`,

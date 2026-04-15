@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   ChefHat, Eye, Check, Copy, Plus, Trash2, Paintbrush,
-  LayoutTemplate, Sparkles, ArrowLeft, RefreshCw, Save,
+  LayoutTemplate, Sparkles, ArrowLeft, RefreshCw, Save, FileText,
 } from 'lucide-react';
 import type { ReportTemplate, ReportLayoutJSON } from '@/lib/reportTemplates';
 
@@ -562,6 +562,12 @@ export default function ReportsKitchen() {
                         {isGlobal && (
                           <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">Built-in</span>
                         )}
+                        {!isGlobal && (template as any).template_key && (
+                          <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">Official</span>
+                        )}
+                        {!isGlobal && !(template as any).template_key && (
+                          <span className="text-xs bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded">Custom</span>
+                        )}
                       </div>
                     </div>
 
@@ -619,6 +625,15 @@ export default function ReportsKitchen() {
                           className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded px-2 py-1 hover:bg-red-50 ml-auto"
                         >
                           <Trash2 size={12} />
+                        </button>
+                      )}
+                      {(template as any).template_key === 'northgate_official' && (
+                        <button
+                          onClick={() => router.push('/reports/northgate')}
+                          className="flex items-center gap-1 text-xs bg-amber-600 text-white rounded px-2 py-1 hover:bg-amber-700 ml-auto"
+                          title="Open Northgate report card generator"
+                        >
+                          <FileText size={12} /> Generate Reports
                         </button>
                       )}
                     </div>
