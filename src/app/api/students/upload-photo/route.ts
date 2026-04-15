@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
     let targetPersonId = personId;
 
     if (!targetPersonId && studentId) {
-      const [rows]: any = await connection.execute('SELECT person_id FROM students WHERE id = ?', [studentId]);
+      const [rows]: any = await connection.execute(
+        'SELECT person_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+        [studentId, session.schoolId]
+      );
       if (!rows.length) return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
       targetPersonId = rows[0].person_id;
     }

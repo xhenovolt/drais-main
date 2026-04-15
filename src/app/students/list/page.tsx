@@ -648,14 +648,16 @@ export default function StudentsListPage() {
     if (edit.first_name === original.first_name && edit.last_name === original.last_name) return;
     setSavingIds(prev => new Set(prev).add(studentId));
     try {
-      await apiFetch('/api/students/edit', {
+      const saved = await apiFetch('/api/students/edit', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: studentId, ...edit }),
         silent: true,
       });
-      setEnrolledStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...edit } : s));
-      setAdmittedStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...edit } : s));
+      // Use server-confirmed values, not local edit-map
+      const confirmed = saved?.data ?? edit;
+      setEnrolledStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...confirmed } : s));
+      setAdmittedStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...confirmed } : s));
       setInlineEdits(prev => { const m = new Map(prev); m.delete(studentId); return m; });
     } catch {
       setInlineEdits(prev => { const m = new Map(prev); m.delete(studentId); return m; });

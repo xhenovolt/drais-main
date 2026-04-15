@@ -107,6 +107,17 @@ export async function PUT(req: NextRequest) {
 
       await connection.commit();
 
+      // Fetch updated row for response
+      const [updatedRows] = await connection.execute(
+        `SELECT p.first_name, p.last_name, p.other_name, p.gender,
+                p.date_of_birth, p.phone, p.email, p.address, p.photo_url,
+                s.status
+         FROM students s JOIN people p ON s.person_id = p.id
+         WHERE s.id = ? AND s.school_id = ?`,
+        [id, schoolId]
+      ) as any[];
+      const updatedStudent = updatedRows[0] ?? null;
+
       // Post-commit audit (fire-and-forget)
       const changedKeys = Object.keys(changedFields);
       if (changedKeys.length > 0) {
@@ -126,7 +137,7 @@ export async function PUT(req: NextRequest) {
         }).catch(e => console.error('[edit] audit error:', e));
       }
 
-      return NextResponse.json({ success: true, message: 'Student updated successfully' });
+      return NextResponse.json({ success: true, message: 'Student updated successfully', data: updatedStudent });
     } catch (error) {
       await connection.rollback();
       throw error;
