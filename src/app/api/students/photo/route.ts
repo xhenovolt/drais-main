@@ -100,11 +100,13 @@ export async function DELETE(req: NextRequest) {
       await deleteCloudinaryPhoto(publicId).catch(() => {});
     }
 
-    await logAudit(connection, {
-      user_id: userId,
-      action: 'PHOTO_DELETE',
-      target_id: Number(personId),
-      details: { old_photo_url: currentPhotoUrl, student_id: studentId },
+    await logAudit({
+      schoolId:   schoolId,
+      userId:     userId,
+      action:     'PHOTO_DELETE',
+      entityType: 'student_photo',
+      entityId:   Number(personId),
+      details:    { old_photo_url: currentPhotoUrl, student_id: studentId },
     });
 
     return NextResponse.json({ success: true });

@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
     // Get students (NO PAGINATION - return all matching records)
     let selectQuery = `SELECT DISTINCT
         s.id,
+        s.person_id,
         s.admission_no,
         s.status,
         s.admission_date,

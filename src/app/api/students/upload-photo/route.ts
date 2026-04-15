@@ -54,11 +54,13 @@ export async function POST(req: NextRequest) {
       [result.secure_url, targetPersonId],
     );
 
-    await logAudit(connection, {
-      user_id:   session.userId,
-      action:    'PHOTO_UPLOAD',
-      target_id: Number(targetPersonId),
-      details:   { old_photo_url: oldPhotoUrl, new_photo_url: result.secure_url, file_name: photo.name, file_size: photo.size, student_id: studentId },
+    await logAudit({
+      schoolId:   session.schoolId,
+      userId:     session.userId,
+      action:     'PHOTO_UPLOAD',
+      entityType: 'student_photo',
+      entityId:   Number(targetPersonId),
+      details:    { old_photo_url: oldPhotoUrl, new_photo_url: result.secure_url, file_name: photo.name, file_size: photo.size, student_id: studentId },
     });
 
     return NextResponse.json({ success: true, message: 'Photo uploaded successfully', photo_url: result.secure_url });

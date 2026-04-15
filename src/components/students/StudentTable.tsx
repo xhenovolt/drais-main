@@ -32,6 +32,7 @@ const API_BASE = '/api';
 
 interface Student {
   id: number;
+  person_id?: number;
   admission_no?: string;
   first_name: string;
   last_name: string;

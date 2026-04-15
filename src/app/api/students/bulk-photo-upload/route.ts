@@ -13,13 +13,18 @@ export async function POST(req: NextRequest) {
   let connection;
   try {
     const formData = await req.formData();
-    const photos    = formData.getAll('photos')     as File[];
-    const personIds = formData.getAll('person_ids') as string[];
+    const photos      = formData.getAll('photos')      as File[];
+    const personIds   = formData.getAll('person_ids')  as string[];
+    const studentIds  = formData.getAll('student_ids') as string[];
 
-    if (!photos.length || !personIds.length || photos.length !== personIds.length) {
+    // Accept either person_ids (people.id) or student_ids (students.id)
+    const rawIds = personIds.length ? personIds : studentIds;
+    const idMode = personIds.length ? 'person' : 'student';
+
+    if (!photos.length || !rawIds.length || photos.length !== rawIds.length) {
       return NextResponse.json({
         success: false,
-        error:   'Photos and person_ids must be provided and match in count',
+        error:   'Photos and ids (person_ids or student_ids) must be provided and match in count',
       }, { status: 400 });
     }
 
@@ -34,23 +39,44 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const personIdList = personIds.map(Number).filter(n => !isNaN(n));
-    if (personIdList.length !== personIds.length) {
-      return NextResponse.json({ success: false, error: 'Invalid person IDs' }, { status: 400 });
+    const rawIdList = rawIds.map(Number).filter(n => !isNaN(n));
+    if (rawIdList.length !== rawIds.length) {
+      return NextResponse.json({ success: false, error: 'Invalid IDs' }, { status: 400 });
     }
 
     connection = await getConnection();
 
-    // Verify every person exists AND belongs to this school
-    const placeholders = personIdList.map(() => '?').join(',');
-    const [existing]: any = await connection.execute(
-      `SELECT p.id FROM people p
-       JOIN students s ON s.person_id = p.id AND s.school_id = ? AND s.deleted_at IS NULL
-       WHERE p.id IN (${placeholders})`,
-      [session.schoolId, ...personIdList],
-    );
-    if (existing.length !== personIdList.length) {
-      return NextResponse.json({ success: false, error: 'One or more person IDs not found or do not belong to your school' }, { status: 404 });
+    // Resolve person IDs and verify school ownership
+    let resolvedPersonIds: number[];
+
+    if (idMode === 'student') {
+      // Resolve student IDs → person IDs in one query
+      const placeholders = rawIdList.map(() => '?').join(',');
+      const [rows]: any = await connection.execute(
+        `SELECT s.id as student_id, s.person_id
+         FROM students s
+         WHERE s.id IN (${placeholders}) AND s.school_id = ? AND s.deleted_at IS NULL`,
+        [...rawIdList, session.schoolId]
+      );
+      if (rows.length !== rawIdList.length) {
+        return NextResponse.json({ success: false, error: 'One or more student IDs not found or do not belong to your school' }, { status: 404 });
+      }
+      // Preserve input order
+      const studentToPersonMap = new Map<number, number>(rows.map((r: any) => [r.student_id, r.person_id]));
+      resolvedPersonIds = rawIdList.map(sid => studentToPersonMap.get(sid)!);
+    } else {
+      // person_ids mode — verify via people JOIN students
+      const placeholders = rawIdList.map(() => '?').join(',');
+      const [existing]: any = await connection.execute(
+        `SELECT p.id FROM people p
+         JOIN students s ON s.person_id = p.id AND s.school_id = ? AND s.deleted_at IS NULL
+         WHERE p.id IN (${placeholders})`,
+        [session.schoolId, ...rawIdList],
+      );
+      if (existing.length !== rawIdList.length) {
+        return NextResponse.json({ success: false, error: 'One or more person IDs not found or do not belong to your school' }, { status: 404 });
+      }
+      resolvedPersonIds = rawIdList;
     }
 
     await connection.beginTransaction();
@@ -59,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     for (let i = 0; i < photos.length; i++) {
       const photo    = photos[i];
-      const personId = personIdList[i];
+      const personId = resolvedPersonIds[i];
       try {
         const [oldRows]: any = await connection.execute('SELECT photo_url FROM people WHERE id = ?', [personId]);
         const oldPhotoUrl    = oldRows[0]?.photo_url ?? null;
@@ -75,11 +101,12 @@ export async function POST(req: NextRequest) {
           [result.secure_url, personId, personId, session.schoolId],
         );
 
-        await logAudit(connection, {
-          user_id:    session.userId,
+        await logAudit({
+          schoolId:   session.schoolId,
+          userId:     session.userId,
           action:     'BULK_PHOTO_UPLOAD',
-          entity_type:'student_photo',
-          target_id:  personId,
+          entityType: 'student_photo',
+          entityId:   personId,
           details:    { old_photo_url: oldPhotoUrl, new_photo_url: result.secure_url, file_name: photo.name, bytes_in: photo.size, bytes_out: result.bytes },
         });
 

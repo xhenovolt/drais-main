@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
     const [rows] = await conn.execute<any[]>(
       `SELECT
          s.id,
+         s.person_id,
          s.admission_no,
          s.status,
          s.admission_date,

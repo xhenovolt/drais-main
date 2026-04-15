@@ -61,11 +61,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       [result.secure_url, personId]
     );
 
-    await logAudit(connection, {
-      user_id: userId,
-      action: 'PHOTO_UPLOAD',
-      target_id: Number(personId),
-      details: { old_photo_url: oldPhotoUrl, new_photo_url: result.secure_url, student_id: studentId },
+    await logAudit({
+      schoolId:   schoolId,
+      userId:     userId,
+      action:     'PHOTO_UPLOAD',
+      entityType: 'student_photo',
+      entityId:   Number(personId),
+      details:    { old_photo_url: oldPhotoUrl, new_photo_url: result.secure_url, student_id: studentId },
     });
 
     return NextResponse.json({ success: true, photo_url: result.secure_url });
@@ -106,11 +108,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       await deleteCloudinaryPhoto(`drais/students/person_${personId}`).catch(() => {});
     }
 
-    await logAudit(connection, {
-      user_id: userId,
-      action: 'PHOTO_DELETE',
-      target_id: Number(personId),
-      details: { old_photo_url: currentPhotoUrl, student_id: studentId },
+    await logAudit({
+      schoolId:   schoolId,
+      userId:     userId,
+      action:     'PHOTO_DELETE',
+      entityType: 'student_photo',
+      entityId:   Number(personId),
+      details:    { old_photo_url: currentPhotoUrl, student_id: studentId },
     });
 
     return NextResponse.json({ success: true });

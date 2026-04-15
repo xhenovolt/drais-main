@@ -473,7 +473,7 @@ export default function StudentsPage({ enrolledData: initialEnrolled = [], admit
         onClose={() => setShowPhotoUploadModal(false)}
         students={filteredStudents.map(s => ({
           id: s.id,
-          person_id: s.person_id ?? s.id,
+          person_id: s.person_id,
           first_name: s.first_name,
           last_name: s.last_name,
           admission_no: s.admission_no,

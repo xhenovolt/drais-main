@@ -58,6 +58,7 @@ const logger = scopedLogger('StudentsList');
 // Interfaces
 interface Student {
   id: number;
+  person_id: number;
   admission_no: string;
   first_name: string;
   last_name: string;
@@ -1693,7 +1694,7 @@ export default function StudentsListPage() {
           .filter(s => selectedIds.has(s.id))
           .map(s => ({
             id: s.id,
-            person_id: (s as any).person_id ?? s.id,
+            person_id: s.person_id,
             first_name: s.first_name,
             last_name: s.last_name,
             admission_no: s.admission_no,
