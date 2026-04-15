@@ -636,6 +636,15 @@ export default function ReportsKitchen() {
                           <FileText size={12} /> Generate Reports
                         </button>
                       )}
+                      {(template as any).template_key === 'northgate_rpt_clone' && (
+                        <button
+                          onClick={() => router.push('/reports/northgate?template=classic')}
+                          className="flex items-center gap-1 text-xs bg-blue-700 text-white rounded px-2 py-1 hover:bg-blue-800 ml-auto"
+                          title="Open Northgate Classic report card generator"
+                        >
+                          <FileText size={12} /> Generate Classic
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

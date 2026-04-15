@@ -3,6 +3,7 @@ export interface StudentDetails {
   sex: 'M' | 'F';
   studentNo: string;
   class: string;
+  stream?: string | null;
   term: string;
   photoUrl?: string | null;
 }

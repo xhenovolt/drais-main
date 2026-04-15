@@ -146,3 +146,24 @@ VALUES (
     }
   }'
 );
+
+-- 3. Seed: Northgate Classic (rpt.html clone) — template_key = 'northgate_rpt_clone'
+--    A SECOND, distinct Northgate template.
+--    This is a pixel-accurate JSX clone of backup/rpt.html:
+--      • table-based layout (not flex/grid)
+--      • bwip-js API <img> barcode (not SVG bars)
+--      • concave-down arrow SVG ribbons (exact polygon from source HTML)
+--      • right-arrow SVG comment labels
+--      • separate heading colour scheme (#000080 school name, #0000FF banner)
+--    Rendered by: src/components/reports/NorthgateClassicTemplate.tsx
+INSERT IGNORE INTO report_templates
+  (id, name, description, is_default, school_id, template_key, layout_json)
+VALUES (
+  101,
+  'Northgate Classic (rpt.html)',
+  'Pixel-accurate clone of the original rpt.html file. Table-based layout, bwip-js API barcode image, concave-arrow SVG section ribbons, right-arrow comment labels. A second distinct layout option exclusive to Northgate School.',
+  0,
+  6,
+  'northgate_rpt_clone',
+  '{"source":"rpt.html","note":"Rendered by NorthgateClassicTemplate.tsx — no JSON theming applied"}'
+);

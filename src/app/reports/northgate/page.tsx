@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, Printer, Search, RefreshCw, Users, X, ChevronDown,
   FileText, AlertCircle,
 } from 'lucide-react';
 import NorthgateReport from '@/components/reports/NorthgateReport';
+import NorthgateClassicTemplate from '@/components/reports/NorthgateClassicTemplate';
 import type { NorthgateReportData } from '@/components/reports/types';
 
 // ============================================================================
@@ -28,7 +29,9 @@ interface ClassOption { id: number; name: string; }
 interface TermOption  { id: number; name: string; academic_year: string; }
 
 export default function NorthgateReportPage() {
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const isClassic    = searchParams.get('template') === 'classic';
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [classes,  setClasses]  = useState<ClassOption[]>([]);
@@ -131,7 +134,12 @@ export default function NorthgateReportPage() {
               <div className="h-4 w-px bg-gray-300" />
               <FileText size={20} className="text-blue-700" />
               <div>
-                <h1 className="text-base font-bold text-gray-800 leading-tight">Northgate Report Cards</h1>
+                <h1 className="text-base font-bold text-gray-800 leading-tight">
+                  Northgate Report Cards
+                  {isClassic && (
+                    <span className="ml-2 text-xs font-normal bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Classic (rpt.html)</span>
+                  )}
+                </h1>
                 <p className="text-xs text-gray-500">Select a student → click Generate → Print</p>
               </div>
             </div>
@@ -344,6 +352,8 @@ export default function NorthgateReportPage() {
                     <p className="text-sm mt-1">{reportError}</p>
                   </div>
                 </div>
+              ) : isClassic ? (
+                <NorthgateClassicTemplate data={reportData ?? undefined} />
               ) : (
                 <NorthgateReport data={reportData ?? undefined} />
               )}
