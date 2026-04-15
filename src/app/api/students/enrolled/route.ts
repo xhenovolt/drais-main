@@ -113,6 +113,7 @@ export async function GET(req: NextRequest) {
          IFNULL(e.joined_at,       e.created_at) AS joined_at,
          IFNULL(e.enrollment_date, s.admission_date) AS enrollment_date,
          s.id                                   AS id,
+         s.person_id,
          s.admission_no,
          s.status                               AS student_status,
          s.admission_date,

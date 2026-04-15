@@ -299,8 +299,8 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
   };
 
   const uploadPhotos = async () => {
-    // upload only photos assigned to a person and that are not error
-    const photosToUpload = photos.filter(p => p.personId && p.status !== 'error');
+    // upload only photos assigned to a student (personId preferred, studentId as fallback)
+    const photosToUpload = photos.filter(p => (p.personId || p.studentId) && p.status !== 'error');
 
     if (photosToUpload.length === 0) {
       Swal.fire({
@@ -338,7 +338,12 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
           // generate a small thumbnail fallback synchronously (rare)
           // Not blocking: server can accept missing thumbnail
         }
-        formData.append('person_ids', photo.personId!.toString());
+        // prefer person_id (people.id); fall back to student_id which the backend resolves internally
+        if (photo.personId) {
+          formData.append('person_ids', photo.personId.toString());
+        } else if (photo.studentId) {
+          formData.append('student_ids', photo.studentId.toString());
+        }
 
         // progress simulation
         const progressInterval = setInterval(() => {
@@ -713,7 +718,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                           {assignedPhoto ? (
                             <div className="flex items-center gap-2">
                               <img
-                                src={assignedPhoto.preview}
+                                src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
                                 alt="Assigned"
                                 className="w-10 h-10 rounded-lg object-cover shadow-md"
                               />
