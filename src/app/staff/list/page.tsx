@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2, Wifi, Fingerprint } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiClient';
 import Link from 'next/link';
 import { showToast, confirmAction } from '@/lib/toast';
@@ -11,11 +12,11 @@ import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 import StaffBiometricModal from '@/components/staff/StaffBiometricModal';
 
 const StaffListPage: React.FC = () => {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
-  const [showModal, setShowModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showBiometricModal, setShowBiometricModal] = useState(false);
@@ -52,8 +53,7 @@ const StaffListPage: React.FC = () => {
   });
 
   const handleViewDetails = (staffMember: any) => {
-    setSelectedStaff(staffMember);
-    setShowModal(true);
+    router.push(`/staff/${staffMember.id}`);
   };
 
   const handleStatusChange = async (staffId: number, newStatus: string) => {
@@ -489,87 +489,6 @@ const StaffListPage: React.FC = () => {
         open={showSyncModal}
         onClose={() => setShowSyncModal(false)}
       />
-
-      {/* Staff Details Modal */}
-      {showModal && selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-2xl shadow-2xl"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Staff Details
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
-                  {selectedStaff.first_name?.charAt(0)}{selectedStaff.last_name?.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {selectedStaff.first_name} {selectedStaff.last_name}
-                  </h4>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {selectedStaff.position} • {selectedStaff.staff_no}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Email
-                  </label>
-                  <p className="text-gray-900 dark:text-white">
-                    {selectedStaff.email || 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Phone
-                  </label>
-                  <p className="text-gray-900 dark:text-white">
-                    {selectedStaff.phone || 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Hire Date
-                  </label>
-                  <p className="text-gray-900 dark:text-white">
-                    {selectedStaff.hire_date || 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={selectedStaff.status}
-                    onChange={(e) => handleStatusChange(selectedStaff.id, e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="suspended">Suspended</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {/* Staff Biometric Modal */}
       {selectedStaffForBiometric && (
