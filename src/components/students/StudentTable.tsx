@@ -3,13 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import useSWR from 'swr';
 import useSWRImmutable from 'swr/immutable';
-import { Plus, Search, Loader2, Printer, FileDown, FileUp, Edit, Trash, Eye, MoreVertical, Filter, Users, UserCheck, UserX, UserMinus, Clock, CheckSquare, Square, Camera, Upload, Home, Thermometer, Fingerprint, ChevronRight, X, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Loader2, Printer, FileDown, FileUp, Edit, Trash, Eye, MoreVertical, Filter, Users, UserCheck, UserX, UserMinus, Clock, CheckSquare, Square, Camera, Upload, Home, Thermometer, Fingerprint, ChevronRight, X, AlertTriangle, FolderOpen } from 'lucide-react';
 import clsx from 'clsx';
 import { StudentWizard } from './StudentWizard';
 import { EditStudentWizard } from './EditStudentWizard';
 import { LearnerDetailsModal } from './LearnerDetailsModal';
 import { ImportModal } from './ImportModal';
 import { BulkPhotoUploadModal } from './BulkPhotoUploadModal';
+import { FolderPhotoUploadModal } from './FolderPhotoUploadModal';
 import { StatusActionModal } from './StatusActionModal';
 import { FingerprintModal } from './FingerprintModal';
 import DuplicatesManager from './DuplicatesManager';
@@ -110,6 +111,7 @@ export const StudentTable: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAlphabetFilter, setShowAlphabetFilter] = useState(false);
   const [showBulkPhotoUpload, setShowBulkPhotoUpload] = useState(false);
+  const [showFolderPhotoUpload, setShowFolderPhotoUpload] = useState(false);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [statusAction, setStatusAction] = useState<'suspend' | 'expel' | null>(null);
   const [statusTargetStudent, setStatusTargetStudent] = useState<Student | null>(null);
@@ -1402,6 +1404,15 @@ export const StudentTable: React.FC = () => {
                   Bulk Photo Upload
                 </button>
 
+                {/* Folder Photo Upload */}
+                <button
+                  onClick={() => setShowFolderPhotoUpload(true)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors duration-150"
+                >
+                  <FolderOpen className="w-4 h-4 text-violet-500 dark:text-violet-400" />
+                  Folder Photo Upload
+                </button>
+
                 {/* Manage Duplicates */}
                 <button
                   onClick={() => setShowDuplicatesManager(true)}
@@ -2240,6 +2251,25 @@ export const StudentTable: React.FC = () => {
         students={rows || []} // Ensure we pass an array
         onUploadComplete={() => {
           setShowBulkPhotoUpload(false);
+          mutate();
+        }}
+      />
+
+      {/* Folder Photo Upload Modal */}
+      <FolderPhotoUploadModal
+        open={showFolderPhotoUpload}
+        onClose={() => setShowFolderPhotoUpload(false)}
+        students={(rows || []).map(s => ({
+          id: s.id,
+          person_id: (s as { person_id?: number }).person_id,
+          first_name: s.first_name,
+          last_name: s.last_name,
+          admission_no: s.admission_no,
+          photo_url: s.photo_url,
+          class_name: (s as { class_name?: string }).class_name,
+        }))}
+        onUploadComplete={() => {
+          setShowFolderPhotoUpload(false);
           mutate();
         }}
       />

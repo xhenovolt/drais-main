@@ -162,6 +162,7 @@ export function getNavigationItems(
         { key: 'students-documents',    label: t('nav.students.documents', 'Documents'),        icon: <FileText className="w-4 h-4" />,    href: '/students/documents' },
         { key: 'students-duplicates',   label: t('nav.students.duplicates', 'Duplicates'),      icon: <AlertTriangle className="w-4 h-4" />, href: '/students/duplicates' },
         { key: 'students-history',      label: t('nav.students.history', 'History'),            icon: <Archive className="w-4 h-4" />,     href: '/students/history' },
+        { key: 'students-id-cards',     label: 'ID Cards',                                      icon: <CreditCard className="w-4 h-4" />,  href: '/students/id-cards' },
       ],
     },
 

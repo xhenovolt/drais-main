@@ -32,10 +32,12 @@ import {
   Globe,
   Radio,
   DollarSign,
+  FolderOpen,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
+import { FolderPhotoUploadModal } from '@/components/students/FolderPhotoUploadModal';
 import { ImportModal } from '@/components/students/ImportModal';
 import { LiveIdentityPopup } from '@/components/students/LiveIdentityPopup';
 import { useExport } from '@/hooks/useExport';
@@ -130,6 +132,7 @@ export default function StudentsListPage() {
   // Bulk Action State
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
+  const [showFolderUploadModal, setShowFolderUploadModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
   const [showBulkEnrollModal, setShowBulkEnrollModal] = useState(false);
@@ -1271,6 +1274,14 @@ export default function StudentsListPage() {
             <Upload className="w-3.5 h-3.5" />
           </button>
 
+          <button
+            title="Folder Photo Upload — auto-match photos by filename"
+            onClick={() => setShowFolderUploadModal(true)}
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 text-violet-500 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 transition-colors"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+          </button>
+
           <button title="Sync from Device — pull users &amp; fingerprints from ZKTeco K40" onClick={() => setShowSyncModal(true)}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
             <Wifi className="w-3.5 h-3.5" />
@@ -1703,6 +1714,32 @@ export default function StudentsListPage() {
         onUploadComplete={() => {
           setShowPhotoUploadModal(false);
           showToast('success', 'Photos uploaded successfully');
+          fetchStudents();
+        }}
+      />
+
+      {/* FOLDER PHOTO UPLOAD MODAL */}
+      <FolderPhotoUploadModal
+        open={showFolderUploadModal}
+        onClose={() => setShowFolderUploadModal(false)}
+        students={(activeTab === 'enrolled' ? enrolledStudents : admittedStudents).map(s => ({
+          id: s.id,
+          person_id: s.person_id,
+          first_name: s.first_name,
+          last_name: s.last_name,
+          admission_no: s.admission_no,
+          photo_url: s.photo_url,
+          class_name: (s as { class_name?: string }).class_name,
+        }))}
+        onUploadComplete={(updated) => {
+          setEnrolledStudents(prev =>
+            prev.map(s => updated[s.id] ? { ...s, photo_url: updated[s.id] } : s)
+          );
+          setAdmittedStudents(prev =>
+            prev.map(s => updated[s.id] ? { ...s, photo_url: updated[s.id] } : s)
+          );
+          setShowFolderUploadModal(false);
+          showToast('success', `Photos uploaded for ${Object.keys(updated).length} learner${Object.keys(updated).length !== 1 ? 's' : ''}`);
           fetchStudents();
         }}
       />
