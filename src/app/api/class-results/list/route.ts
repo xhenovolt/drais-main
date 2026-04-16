@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
     const subjectId    = sp.get('subject_id');
     const resultTypeId = sp.get('result_type_id');
     const termId       = sp.get('term_id');
+    const academicType = sp.get('academic_type');
     const search       = sp.get('search')?.trim();
     const sortBy       = sp.get('sort_by') || 'name';
     const sortOrder    = sp.get('sort_order')?.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
@@ -52,6 +53,10 @@ export async function GET(req: NextRequest) {
       if (subjectId)    { conditions.push('cr.subject_id = ?');     params.push(subjectId); }
       if (resultTypeId) { conditions.push('cr.result_type_id = ?'); params.push(resultTypeId); }
       if (termId)       { conditions.push('cr.term_id = ?');        params.push(termId); }
+      if (academicType && ['secular', 'theology'].includes(academicType)) {
+        conditions.push('cr.academic_type = ?');
+        params.push(academicType);
+      }
 
       if (search) {
         conditions.push(

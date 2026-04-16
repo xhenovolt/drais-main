@@ -18,6 +18,7 @@ interface Subject {
   name: string;
   code?: string;
   subject_type?: string;
+  academic_type?: string;
 }
 
 export const SubjectsManager: React.FC = () => {
@@ -34,7 +35,8 @@ export const SubjectsManager: React.FC = () => {
   const [formData, setFormData] = useState({ 
     name: '', 
     code: '', 
-    subject_type: 'core' 
+    subject_type: 'core',
+    academic_type: 'secular'
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
@@ -284,7 +286,7 @@ export const SubjectsManager: React.FC = () => {
 
   // Reset form and close modal
   const resetForm = () => {
-    setFormData({ name: '', code: '', subject_type: 'core' });
+    setFormData({ name: '', code: '', subject_type: 'core', academic_type: 'secular' });
     setEditingId(null);
     setIsModalOpen(false);
     setFormErrors({});
@@ -306,7 +308,8 @@ export const SubjectsManager: React.FC = () => {
     setFormData({
       name: subject.name || '',
       code: subject.code || '',
-      subject_type: subject.subject_type || 'core'
+      subject_type: subject.subject_type || 'core',
+      academic_type: subject.academic_type || 'secular'
     });
     setEditingId(subject.id);
     setFormErrors({});
@@ -421,6 +424,14 @@ export const SubjectsManager: React.FC = () => {
                         : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                     }`}>
                       {item.subject_type ? item.subject_type.charAt(0).toUpperCase() + item.subject_type.slice(1) : 'Core'}
+                    </span>
+                    {' '}
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      item.academic_type === 'theology'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                    }`}>
+                      {item.academic_type === 'theology' ? 'Theology' : 'Secular'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -610,6 +621,23 @@ export const SubjectsManager: React.FC = () => {
                       {formErrors.subject_type && (
                         <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.subject_type}</p>
                       )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="academic_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Academic Stream
+                      </label>
+                      <select
+                        id="academic_type"
+                        name="academic_type"
+                        value={formData.academic_type}
+                        onChange={handleInputChange}
+                        disabled={submitting}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50"
+                      >
+                        <option value="secular">Secular</option>
+                        <option value="theology">Theology</option>
+                      </select>
                     </div>
 
                     <div className="flex justify-end gap-4 pt-6">

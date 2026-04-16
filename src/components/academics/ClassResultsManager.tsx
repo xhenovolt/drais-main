@@ -54,7 +54,7 @@ const SelectBox:React.FC<{label:string; value:any; onChange:(v:any)=>void; items
   </Listbox>
 );
 
-export default function ClassResultsManager() {
+export default function ClassResultsManager({ academicType = 'secular' }: { academicType?: 'secular' | 'theology' }) {
   const { t } = useTranslation('common');
   const [isPending, startTransition] = useTransition();
   
@@ -117,7 +117,7 @@ export default function ClassResultsManager() {
           if (!r.ok) throw new Error(`Failed to fetch classes: ${r.status}`);
           return r.json();
         }),
-        fetch(`${API_BASE}/subjects`).then(r => {
+        fetch(`${API_BASE}/subjects?academic_type=${academicType}`).then(r => {
           if (!r.ok) throw new Error(`Failed to fetch subjects: ${r.status}`);
           return r.json();
         }),
@@ -136,7 +136,7 @@ export default function ClassResultsManager() {
     }
   };
 
-  useEffect(() => { loadMeta(); }, []);
+  useEffect(() => { loadMeta(); }, [academicType]);
 
   // Reset page to 1 whenever filters/sort/limit change
   useEffect(() => { setListPage(1); }, [filters.class_id, filters.subject_id, filters.result_type_id, filters.term_id, filters.search, listSortBy, listSortOrder, listLimit]);
@@ -153,6 +153,7 @@ export default function ClassResultsManager() {
       sort_order: listSortOrder,
       page: String(listPage),
       limit: String(listLimit),
+      academic_type: academicType,
     });
     setListLoading(true);
     fetch(`${API_BASE}/class-results/list?${qs.toString()}`)
@@ -306,6 +307,7 @@ export default function ClassResultsManager() {
       subject_id: subject.id,
       result_type_id: rtype.id,
       term_id: term?.id,
+      academic_type: academicType,
       include_missing: includeMissing,
       entries: rows.filter(r => r.score !== null || (r.grade && r.grade !== '') || (r.remarks && r.remarks !== '')).map(r => ({ student_id: r.student_id, score: r.score, grade: r.grade, remarks: r.remarks }))
     };

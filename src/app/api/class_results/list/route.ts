@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const resultTypeId = searchParams.get('result_type_id');
     const termId = searchParams.get('term_id');
     const subjectType = searchParams.get('subject_type');
+    const academicType = searchParams.get('academic_type');
     const query = searchParams.get('query') || '';
 
     connection = await getConnection();
@@ -44,6 +45,10 @@ export async function GET(req: NextRequest) {
     if (subjectType) {
       where += ' AND sub.subject_type = ?';
       params.push(subjectType);
+    }
+    if (academicType && ['secular', 'theology'].includes(academicType)) {
+      where += ' AND cr.academic_type = ?';
+      params.push(academicType);
     }
     if (query && query.trim() !== '' && query.toLowerCase() !== 'all') {
       where += ` AND (

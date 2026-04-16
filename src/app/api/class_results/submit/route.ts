@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { class_id, subject_id, result_type_id, term_id, entries } = body;
+    const academic_type: string = ['secular', 'theology'].includes(body.academic_type)
+      ? body.academic_type
+      : 'secular';
 
     if (!class_id || !subject_id || !result_type_id || !entries || !Array.isArray(entries)) {
       return NextResponse.json({
@@ -68,10 +71,10 @@ export async function POST(req: NextRequest) {
       }
 
       await connection.execute(
-        `INSERT INTO class_results (class_id, subject_id, result_type_id, term_id, student_id, score, grade, remarks)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO class_results (class_id, subject_id, result_type_id, term_id, student_id, score, grade, remarks, academic_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE score=VALUES(score), grade=VALUES(grade), remarks=VALUES(remarks)`,
-        [class_id, subject_id, result_type_id, term_id ?? null, student_id, score, grade, remarks]
+        [class_id, subject_id, result_type_id, term_id ?? null, student_id, score, grade, remarks, academic_type]
       );
       success++;
     }
