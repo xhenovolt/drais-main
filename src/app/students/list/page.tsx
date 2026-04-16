@@ -124,10 +124,10 @@ export default function StudentsListPage() {
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
 
-  // Inline editing (optimistic UI)
-  const [inlineEdits, setInlineEdits] = useState<Map<number, { first_name: string; last_name: string }>>(new Map());
-  const [savingIds, setSavingIds] = useState<Set<number>>(new Set());
-  const debounceTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  // Inline editing — per-field state (matches EditableScoreCell pattern)
+  const [editingField, setEditingField] = useState<{ studentId: number; field: 'first_name' | 'last_name' } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+  const [savingId, setSavingId] = useState<number | null>(null);
 
   // Bulk Action State
   const [showReassignModal, setShowReassignModal] = useState(false);
@@ -624,51 +624,51 @@ export default function StudentsListPage() {
     setShowFees(v => !v);
   };
 
-  // ── Inline name editing (optimistic UI) ──────────────────────────────────
-  const getDisplayName = (student: Student) => {
-    const edit = inlineEdits.get(student.id);
-    return {
-      first_name: edit?.first_name ?? student.first_name,
-      last_name:  edit?.last_name  ?? student.last_name,
-    };
+  // ── Per-field inline name editing (matches EditableScoreCell pattern) ──
+  const handleNameFieldChange = (value: string) => {
+    setEditValue(value);
   };
 
-  const handleNameChange = (studentId: number, field: 'first_name' | 'last_name', value: string, original: Student) => {
-    setInlineEdits(prev => {
-      const next = new Map(prev);
-      const cur = next.get(studentId) ?? { first_name: original.first_name, last_name: original.last_name };
-      next.set(studentId, { ...cur, [field]: value });
-      return next;
-    });
-    const existing = debounceTimers.current.get(studentId);
-    if (existing) clearTimeout(existing);
-    const timer = setTimeout(() => saveInlineName(studentId, original), 800);
-    debounceTimers.current.set(studentId, timer);
-  };
+  const handleNameFieldBlur = async (student: Student, field: 'first_name' | 'last_name') => {
+    const original = field === 'first_name' ? student.first_name : student.last_name;
+    if (editValue === original) {
+      setEditingField(null);
+      setEditValue('');
+      return;
+    }
 
-  const saveInlineName = async (studentId: number, original: Student) => {
-    const edit = inlineEdits.get(studentId);
-    if (!edit) return;
-    if (edit.first_name === original.first_name && edit.last_name === original.last_name) return;
-    setSavingIds(prev => new Set(prev).add(studentId));
+    setSavingId(student.id);
     try {
-      const saved = await apiFetch('/api/students/edit', {
+      const payload = { id: student.id, [field]: editValue };
+      const result = await apiFetch('/api/students/edit', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: studentId, ...edit }),
-        silent: true,
+        body: JSON.stringify(payload),
+        silent: false,
       });
-      // Use server-confirmed values, not local edit-map
-      const confirmed = saved?.data ?? edit;
-      setEnrolledStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...confirmed } : s));
-      setAdmittedStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...confirmed } : s));
-      setInlineEdits(prev => { const m = new Map(prev); m.delete(studentId); return m; });
-    } catch {
-      setInlineEdits(prev => { const m = new Map(prev); m.delete(studentId); return m; });
-      showToast('error', 'Failed to save — changes reverted');
+
+      if (result?.success) {
+        const updated = result.data || payload;
+        setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...updated } : s));
+        setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...updated } : s));
+        showToast('success', `${field.replace('_', ' ')} updated`);
+      } else {
+        showToast('error', `Failed to update ${field.replace('_', ' ')}`);
+        setEditValue(original);
+      }
+    } catch (err) {
+      showToast('error', 'Failed to save');
+      setEditValue(original);
     } finally {
-      setSavingIds(prev => { const s = new Set(prev); s.delete(studentId); return s; });
+      setEditingField(null);
+      setEditValue('');
+      setSavingId(null);
     }
+  };
+
+  const handleNameFieldFocus = (student: Student, field: 'first_name' | 'last_name') => {
+    setEditingField({ studentId: student.id, field });
+    setEditValue(field === 'first_name' ? student.first_name : student.last_name);
   };
 
   // Enrollment Modal Handlers
@@ -964,9 +964,12 @@ export default function StudentsListPage() {
 
   // ── Inline editable name cell ────────────────────────────────────────────
   const NameCell = ({ student }: { student: Student }) => {
-    const { first_name, last_name } = getDisplayName(student);
-    const isSaving = savingIds.has(student.id);
-    const isDirty  = inlineEdits.has(student.id);
+    const isSaving = savingId === student.id;
+    const isEditingFirst = editingField?.studentId === student.id && editingField.field === 'first_name';
+    const isEditingLast = editingField?.studentId === student.id && editingField.field === 'last_name';
+
+    const displayFirstName = isEditingFirst ? editValue : student.first_name;
+    const displayLastName = isEditingLast ? editValue : student.last_name;
 
     return (
       <div className="flex items-center gap-2 min-w-0">
@@ -974,23 +977,44 @@ export default function StudentsListPage() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
             <input
-              value={first_name}
-              onChange={e => handleNameChange(student.id, 'first_name', e.target.value, student)}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className={`bg-transparent border-0 border-b text-sm font-semibold text-slate-800 dark:text-white w-[90px] focus:outline-none focus:border-indigo-500 focus:ring-0 transition-colors truncate px-0 py-0.5 ${isDirty ? 'border-indigo-400' : 'border-transparent hover:border-slate-300'}`}
+              value={displayFirstName}
+              onChange={e => handleNameFieldChange(e.target.value)}
+              onFocus={() => handleNameFieldFocus(student, 'first_name')}
+              onBlur={() => handleNameFieldBlur(student, 'first_name')}
+              onKeyDown={e => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                if (e.key === 'Escape') {
+                  setEditingField(null);
+                  setEditValue('');
+                }
+              }}
+              className={`bg-transparent border-0 border-b text-sm font-semibold text-slate-800 dark:text-white w-[90px] focus:outline-none focus:border-indigo-500 focus:ring-0 transition-colors truncate px-0 py-0.5 ${
+                isEditingFirst ? 'border-indigo-500' : 'border-transparent hover:border-slate-300'
+              }`}
               title="Click to edit first name"
               spellCheck={false}
+              disabled={isSaving}
             />
             <input
-              value={last_name}
-              onChange={e => handleNameChange(student.id, 'last_name', e.target.value, student)}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className={`bg-transparent border-0 border-b text-sm font-semibold text-slate-800 dark:text-white flex-1 min-w-0 focus:outline-none focus:border-indigo-500 focus:ring-0 transition-colors truncate px-0 py-0.5 ${isDirty ? 'border-indigo-400' : 'border-transparent hover:border-slate-300'}`}
+              value={displayLastName}
+              onChange={e => handleNameFieldChange(e.target.value)}
+              onFocus={() => handleNameFieldFocus(student, 'last_name')}
+              onBlur={() => handleNameFieldBlur(student, 'last_name')}
+              onKeyDown={e => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                if (e.key === 'Escape') {
+                  setEditingField(null);
+                  setEditValue('');
+                }
+              }}
+              className={`bg-transparent border-0 border-b text-sm font-semibold text-slate-800 dark:text-white flex-1 min-w-0 focus:outline-none focus:border-indigo-500 focus:ring-0 transition-colors truncate px-0 py-0.5 ${
+                isEditingLast ? 'border-indigo-500' : 'border-transparent hover:border-slate-300'
+              }`}
               title="Click to edit last name"
               spellCheck={false}
+              disabled={isSaving}
             />
             {isSaving && <Loader className="w-3 h-3 text-indigo-400 animate-spin flex-shrink-0" />}
-            {!isSaving && isDirty && <Check className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
           </div>
           {(student as EnrolledStudent).class_name && (
             <p className="text-[11px] text-slate-400 truncate">{(student as EnrolledStudent).class_name}</p>
