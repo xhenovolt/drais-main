@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getConnection, getActiveDatabase } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 
 /**
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
 
     const academicType = searchParams.get('academic_type');
 
-    let sql = 'SELECT id, name, code, subject_type, academic_type FROM subjects WHERE school_id = ?';
+    let sql = 'SELECT id, name, code, subject_type, academic_type FROM subjects WHERE school_id = ? AND deleted_at IS NULL';
     const params: any[] = [schoolId];
 
     if (type) {
@@ -210,7 +211,13 @@ export async function DELETE(req: NextRequest) {
     const schoolId = session.schoolId;
 
     connection = await getConnection();
-    await connection.execute('DELETE FROM subjects WHERE id=? AND school_id=?', [id, schoolId]);
+    
+    // Soft delete: mark as deleted instead of removing
+    await connection.execute('UPDATE subjects SET deleted_at = CURRENT_TIMESTAMP WHERE id=? AND school_id=?', [id, schoolId]);
+    
+    // Log audit trail
+    await logAudit(session.userId, 'SUBJECT_DELETED', { subjectId: id, schoolId });
+    
     return NextResponse.json({ success: true });
   } catch (e: any) {
     console.error('Subjects DELETE error:', e);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       LEFT JOIN tahfiz_group_members gm ON s.id = gm.student_id
       LEFT JOIN tahfiz_groups g ON gm.group_id = g.id
       LEFT JOIN tahfiz_records r ON s.id = r.student_id
-      WHERE s.id = ?
+      WHERE s.id = ? AND s.deleted_at IS NULL
       GROUP BY s.id, s.person_id, s.admission_no, p.first_name, p.last_name, p.phone, p.email, p.photo_url, gm.group_id, g.name, s.status, s.admission_date, s.notes
       `,
       [studentId]
@@ -191,44 +192,25 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await connection.beginTransaction();
 
     try {
-      // Check if student has records
-      const [records] = await connection.execute(
-        'SELECT COUNT(*) as count FROM tahfiz_records WHERE student_id = ?',
+      // Always use soft delete - mark student and enrollments as deleted
+      await connection.execute(
+        'UPDATE students SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?',
         [studentId]
       );
 
-      const recordsArray = records as any[];
-      const hasRecords = recordsArray[0]?.count > 0;
+      await connection.execute(
+        'UPDATE enrollments SET deleted_at = CURRENT_TIMESTAMP WHERE student_id = ?',
+        [studentId]
+      );
 
-      if (hasRecords) {
-        // Soft delete - just update status
-        await connection.execute(
-          'UPDATE students SET status = ?, deleted_at = NOW() WHERE id = ?',
-          ['deleted', studentId]
-        );
-      } else {
-        // Hard delete - remove all references
-        await connection.execute(
-          'DELETE FROM tahfiz_group_members WHERE student_id = ?',
-          [studentId]
-        );
-
-        await connection.execute(
-          'DELETE FROM enrollments WHERE student_id = ?',
-          [studentId]
-        );
-
-        await connection.execute(
-          'DELETE FROM students WHERE id = ?',
-          [studentId]
-        );
-      }
+      // Log audit trail
+      await logAudit(session.userId, 'STUDENT_DELETED', { studentId, schoolId });
 
       await connection.commit();
 
       return NextResponse.json({ 
         success: true, 
-        message: hasRecords ? 'Student archived successfully' : 'Student deleted successfully'
+        message: 'Student deleted successfully'
       });
     } catch (error) {
       await connection.rollback();

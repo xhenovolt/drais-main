@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
-
+import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   let connection;
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
         class_level,
         head_teacher_id
       FROM classes 
-      WHERE school_id = ?
+      WHERE school_id = ? AND deleted_at IS NULL
     `;
     const params: any[] = [schoolId];
 
@@ -112,7 +112,13 @@ export async function DELETE(req: NextRequest) {
     const body = await req.json();
     if (!body.id) return NextResponse.json({ success: false, message: 'Class ID is required' }, { status: 400 });
     connection = await getConnection();
-    await connection.execute('DELETE FROM classes WHERE id=? AND school_id=?', [body.id, schoolId]);
+    
+    // Soft delete: mark as deleted instead of removing
+    await connection.execute('UPDATE classes SET deleted_at = CURRENT_TIMESTAMP WHERE id=? AND school_id=?', [body.id, schoolId]);
+    
+    // Log audit trail
+    await logAudit(session.userId, 'CLASS_DELETED', { classId: body.id, schoolId });
+    
     return NextResponse.json({ success: true, message: 'Class deleted' });
   } catch (error: any) {
     console.error('Classes DELETE error:', error);
