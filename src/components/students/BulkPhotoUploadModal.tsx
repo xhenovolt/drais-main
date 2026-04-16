@@ -685,13 +685,19 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            {/* Student Avatar */}
+                            {/* Student Avatar — current photo always shown */}
                             {student.photo_url ? (
-                              <img
-                                src={student.photo_url}
-                                alt={`${student.first_name} ${student.last_name}`}
-                                className="w-12 h-12 rounded-xl object-cover shadow-md"
-                              />
+                              <div className="relative">
+                                <img
+                                  src={student.photo_url}
+                                  alt={`${student.first_name} ${student.last_name}`}
+                                  className="w-12 h-12 rounded-xl object-cover shadow-md"
+                                />
+                                {/* Camera overlay indicating photo is replaceable */}
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow" title="Click 'Select photo' to replace">
+                                  <Camera className="w-3 h-3 text-white" />
+                                </div>
+                              </div>
                             ) : (
                               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
                                 <span className="text-sm font-semibold text-white">
@@ -705,10 +711,16 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                               </p>
                               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                 <span>ID: {student.id}</span>
-                                {hasPhoto && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
+                                {hasPhoto && !assignedPhoto && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">
                                     <Camera className="w-3 h-3" />
-                                    Has photo
+                                    Replace photo
+                                  </span>
+                                )}
+                                {hasPhoto && assignedPhoto && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                                    <Camera className="w-3 h-3" />
+                                    Will replace
                                   </span>
                                 )}
                               </div>
@@ -717,10 +729,23 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                           
                           {assignedPhoto ? (
                             <div className="flex items-center gap-2">
+                              {/* old → new arrow when replacing */}
+                              {hasPhoto && (
+                                <div className="flex items-center gap-1">
+                                  <img
+                                    src={student.photo_url!}
+                                    alt="Current"
+                                    className="w-8 h-8 rounded-lg object-cover opacity-50 ring-1 ring-gray-300"
+                                    title="Current photo"
+                                  />
+                                  <span className="text-gray-400 text-xs">→</span>
+                                </div>
+                              )}
                               <img
                                 src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
-                                alt="Assigned"
-                                className="w-10 h-10 rounded-lg object-cover shadow-md"
+                                alt="New photo"
+                                className="w-10 h-10 rounded-lg object-cover shadow-md ring-2 ring-blue-500"
+                                title="New photo to upload"
                               />
                               <button
                                 onClick={() => unassignPhoto(assignedPhoto.id)}
@@ -743,7 +768,9 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                               disabled={!photos.some(p => !p.studentId)}
                             >
                               <option value="">
-                                {photos.some(p => !p.studentId) ? 'Select photo...' : 'No photos available'}
+                                {photos.some(p => !p.studentId)
+                                  ? (hasPhoto ? 'Select replacement photo...' : 'Select photo...')
+                                  : 'No photos available'}
                               </option>
                               {photos
                                 .filter(p => !p.studentId)
