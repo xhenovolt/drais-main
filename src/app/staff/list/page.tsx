@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2, Wifi } from 'lucide-react';
+import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2, Wifi, Fingerprint } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { apiFetch } from '@/lib/apiClient';
@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { showToast, confirmAction } from '@/lib/toast';
 import AddStaffModal from '@/components/staff/AddStaffModal';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
+import StaffBiometricModal from '@/components/staff/StaffBiometricModal';
 
 const StaffListPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,6 +18,8 @@ const StaffListPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
+  const [selectedStaffForBiometric, setSelectedStaffForBiometric] = useState<any>(null);
 
   // Device ID editing state
   const [deviceIdEditingCell, setDeviceIdEditingCell] = useState<{staffId: number} | null>(null);
@@ -424,6 +427,17 @@ const StaffListPage: React.FC = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSelectedStaffForBiometric(member);
+                                setShowBiometricModal(true);
+                              }}
+                              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
+                              title="Enroll Biometric"
+                            >
+                              <Fingerprint className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 handleViewDetails(member);
                               }}
                               className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
@@ -555,6 +569,22 @@ const StaffListPage: React.FC = () => {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Staff Biometric Modal */}
+      {selectedStaffForBiometric && (
+        <StaffBiometricModal
+          isOpen={showBiometricModal}
+          onClose={() => {
+            setShowBiometricModal(false);
+            setSelectedStaffForBiometric(null);
+          }}
+          staffId={selectedStaffForBiometric.id}
+          staffName={`${selectedStaffForBiometric.first_name} ${selectedStaffForBiometric.last_name}`}
+          onSuccess={() => {
+            mutate();
+          }}
+        />
       )}
     </div>
   );
