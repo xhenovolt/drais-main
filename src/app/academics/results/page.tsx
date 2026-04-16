@@ -45,8 +45,8 @@ export default function ResultsPage() {
       {/* ── CONTENT (fills remaining space) ─────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 0 && <div className="p-4"><ResultTypesManager /></div>}
-        {activeTab === 1 && <ClassResultsManager />}
-        {activeTab === 2 && <div className="p-4"><TheologyResultsManager /></div>}
+        {activeTab === 1 && <ClassResultsManager academicType="secular" />}
+        {activeTab === 2 && <TheologyResultsManager />}
       </div>
     </div>
   );
