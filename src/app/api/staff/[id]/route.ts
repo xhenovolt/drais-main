@@ -5,9 +5,76 @@ import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
  * Staff member API for individual operations
+ * GET - Fetch staff member details
  * PATCH - Update staff member
  * DELETE - Delete staff member (soft delete)
  */
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  let connection;
+
+  try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+    const schoolId = session.schoolId;
+
+    const { id } = await params;
+    const staffId = parseInt(id, 10);
+
+    if (isNaN(staffId)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid staff ID'
+      }, { status: 400 });
+    }
+
+    connection = await getConnection();
+
+    // Fetch staff member with department info
+    const [staffRows]: any = await connection.execute(
+      `SELECT 
+        s.id, s.school_id, s.person_id, s.staff_no, s.position, s.hire_date, s.status,
+        s.department_id, s.role_id, s.employment_type, s.qualification, s.experience_years,
+        s.salary, s.bank_name, s.bank_account_no, s.nssf_no, s.tin_no, s.performance_rating,
+        p.first_name, p.last_name, p.other_name, p.gender, p.date_of_birth,
+        p.email, p.phone, p.address, p.city,
+        d.name as department_name
+       FROM staff s
+       LEFT JOIN people p ON s.person_id = p.id
+       LEFT JOIN departments d ON s.department_id = d.id
+       WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+       LIMIT 1`,
+      [staffId, schoolId]
+    );
+
+    if (!staffRows || staffRows.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Staff member not found'
+      }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: staffRows[0]
+    });
+
+  } catch (error: any) {
+    console.error('Staff fetch error:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch staff member',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  } finally {
+    if (connection) await connection.end();
+  }
+}
 
 export async function PATCH(
   req: NextRequest,
