@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo, useOptimistic, useTransition } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -42,6 +42,7 @@ import { ImportModal } from '@/components/students/ImportModal';
 import { LiveIdentityPopup } from '@/components/students/LiveIdentityPopup';
 import { useExport } from '@/hooks/useExport';
 import { showToast, confirmAction } from '@/lib/toast';
+import { toast } from 'react-hot-toast';
 import { apiFetch } from '@/lib/apiClient';
 import DeviceSelector, { getPreferredDevice } from '@/components/modals/DeviceSelector';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
@@ -124,10 +125,10 @@ export default function StudentsListPage() {
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
 
-  // Inline editing — per-field state (matches EditableScoreCell pattern)
-  const [editingField, setEditingField] = useState<{ studentId: number; field: 'first_name' | 'last_name' } | null>(null);
+  // Inline editing — per-field state (matches ClassResultsManager pattern)
+  const [editingCell, setEditingCell] = useState<{ studentId: number; field: 'first_name' | 'last_name' } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
-  const [savingId, setSavingId] = useState<number | null>(null);
+  const [isPendingName, startNameTransition] = useTransition();
 
   // Bulk Action State
   const [showReassignModal, setShowReassignModal] = useState(false);
@@ -624,51 +625,43 @@ export default function StudentsListPage() {
     setShowFees(v => !v);
   };
 
-  // ── Per-field inline name editing (matches EditableScoreCell pattern) ──
-  const handleNameFieldChange = (value: string) => {
-    setEditValue(value);
-  };
-
-  const handleNameFieldBlur = async (student: Student, field: 'first_name' | 'last_name') => {
+  // ── Per-field inline name editing (ClassResultsManager pattern) ──
+  const updateName = (student: Student, field: 'first_name' | 'last_name', value: string) => {
     const original = field === 'first_name' ? student.first_name : student.last_name;
-    if (editValue === original) {
-      setEditingField(null);
-      setEditValue('');
-      return;
-    }
+    if (value === original) return;
 
-    setSavingId(student.id);
-    try {
-      const payload = { id: student.id, [field]: editValue };
-      const result = await apiFetch('/api/students/edit', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        silent: false,
-      });
+    const savingToast = toast.loading('Saving…', { duration: Infinity });
+    // Optimistic update
+    setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: value } : s));
+    setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: value } : s));
 
-      if (result?.success) {
-        const updated = result.data || payload;
-        setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...updated } : s));
-        setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...updated } : s));
-        showToast('success', `${field.replace('_', ' ')} updated`);
-      } else {
-        showToast('error', `Failed to update ${field.replace('_', ' ')}`);
-        setEditValue(original);
+    startNameTransition(async () => {
+      try {
+        const result = await apiFetch('/api/students/edit', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: student.id, [field]: value }),
+          silent: true,
+        });
+        toast.dismiss(savingToast);
+        if (result?.success) {
+          const updated = result.data ?? { [field]: value };
+          setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...updated } : s));
+          setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...updated } : s));
+          toast.success(`${field.replace('_', ' ')} updated`);
+        } else {
+          // Revert
+          setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
+          setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
+          toast.error(result?.message || `Failed to update ${field.replace('_', ' ')}`);
+        }
+      } catch (err) {
+        toast.dismiss(savingToast);
+        setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
+        setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
+        toast.error('Failed to save name');
       }
-    } catch (err) {
-      showToast('error', 'Failed to save');
-      setEditValue(original);
-    } finally {
-      setEditingField(null);
-      setEditValue('');
-      setSavingId(null);
-    }
-  };
-
-  const handleNameFieldFocus = (student: Student, field: 'first_name' | 'last_name') => {
-    setEditingField({ studentId: student.id, field });
-    setEditValue(field === 'first_name' ? student.first_name : student.last_name);
+    });
   };
 
   // Enrollment Modal Handlers
@@ -962,59 +955,68 @@ export default function StudentsListPage() {
     return <div className={`w-7 h-7 rounded-full ${color} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>{initials || '?'}</div>;
   };
 
-  // ── Inline editable name cell ────────────────────────────────────────────
+  // ── Inline editable name cell (ClassResultsManager pattern) ────────────
   const NameCell = ({ student }: { student: Student }) => {
-    const isSaving = savingId === student.id;
-    const isEditingFirst = editingField?.studentId === student.id && editingField.field === 'first_name';
-    const isEditingLast = editingField?.studentId === student.id && editingField.field === 'last_name';
+    const isEditingFirst = editingCell?.studentId === student.id && editingCell.field === 'first_name';
+    const isEditingLast  = editingCell?.studentId === student.id && editingCell.field === 'last_name';
+    const isUpdating = isPendingName && (isEditingFirst || isEditingLast);
 
-    const displayFirstName = isEditingFirst ? editValue : student.first_name;
-    const displayLastName = isEditingLast ? editValue : student.last_name;
+    const saveCell = (field: 'first_name' | 'last_name') => {
+      if (editingCell?.studentId === student.id && editingCell.field === field) {
+        updateName(student, field, editValue);
+        setEditingCell(null);
+        setEditValue('');
+      }
+    };
+
+    const openCell = (field: 'first_name' | 'last_name') => {
+      if (isUpdating) return;
+      setEditingCell({ studentId: student.id, field });
+      setEditValue(field === 'first_name' ? student.first_name : student.last_name);
+    };
+
+    const cancelCell = () => {
+      setEditingCell(null);
+      setEditValue('');
+    };
+
+    const renderField = (field: 'first_name' | 'last_name', isEditing: boolean, widthClass: string) => {
+      if (isEditing) {
+        return (
+          <input
+            autoFocus
+            value={editValue}
+            onChange={e => setEditValue(e.target.value)}
+            onBlur={() => saveCell(field)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') saveCell(field);
+              if (e.key === 'Escape') cancelCell();
+            }}
+            className={`bg-transparent border-0 border-b border-indigo-500 text-sm font-semibold text-slate-800 dark:text-white ${widthClass} focus:outline-none focus:ring-0 truncate px-0 py-0.5`}
+            spellCheck={false}
+            disabled={isUpdating}
+          />
+        );
+      }
+      return (
+        <span
+          className={`text-sm font-semibold text-slate-800 dark:text-white ${widthClass} truncate border-b border-transparent hover:border-slate-300 cursor-text py-0.5 transition-colors`}
+          onClick={() => openCell(field)}
+          title={`Click to edit ${field.replace('_', ' ')}`}
+        >
+          {student[field]}
+        </span>
+      );
+    };
 
     return (
       <div className="flex items-center gap-2 min-w-0">
         <AvatarCell student={student} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <input
-              value={displayFirstName}
-              onChange={e => handleNameFieldChange(e.target.value)}
-              onFocus={() => handleNameFieldFocus(student, 'first_name')}
-              onBlur={() => handleNameFieldBlur(student, 'first_name')}
-              onKeyDown={e => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                if (e.key === 'Escape') {
-                  setEditingField(null);
-                  setEditValue('');
-                }
-              }}
-              className={`bg-transparent border-0 border-b text-sm font-semibold text-slate-800 dark:text-white w-[90px] focus:outline-none focus:border-indigo-500 focus:ring-0 transition-colors truncate px-0 py-0.5 ${
-                isEditingFirst ? 'border-indigo-500' : 'border-transparent hover:border-slate-300'
-              }`}
-              title="Click to edit first name"
-              spellCheck={false}
-              disabled={isSaving}
-            />
-            <input
-              value={displayLastName}
-              onChange={e => handleNameFieldChange(e.target.value)}
-              onFocus={() => handleNameFieldFocus(student, 'last_name')}
-              onBlur={() => handleNameFieldBlur(student, 'last_name')}
-              onKeyDown={e => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                if (e.key === 'Escape') {
-                  setEditingField(null);
-                  setEditValue('');
-                }
-              }}
-              className={`bg-transparent border-0 border-b text-sm font-semibold text-slate-800 dark:text-white flex-1 min-w-0 focus:outline-none focus:border-indigo-500 focus:ring-0 transition-colors truncate px-0 py-0.5 ${
-                isEditingLast ? 'border-indigo-500' : 'border-transparent hover:border-slate-300'
-              }`}
-              title="Click to edit last name"
-              spellCheck={false}
-              disabled={isSaving}
-            />
-            {isSaving && <Loader className="w-3 h-3 text-indigo-400 animate-spin flex-shrink-0" />}
+            {renderField('first_name', isEditingFirst, 'w-[90px]')}
+            {renderField('last_name', isEditingLast, 'flex-1 min-w-0')}
+            {isUpdating && <Loader className="w-3 h-3 text-indigo-400 animate-spin flex-shrink-0" />}
           </div>
           {(student as EnrolledStudent).class_name && (
             <p className="text-[11px] text-slate-400 truncate">{(student as EnrolledStudent).class_name}</p>

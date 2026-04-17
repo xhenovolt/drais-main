@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const [nameMatches]: any = await conn.execute(`
       SELECT   p.first_name, p.last_name, GROUP_CONCAT(s.id ORDER BY s.id ASC) AS ids
       FROM     students s
-      JOIN     persons p ON p.id = s.person_id
+      JOIN     people p ON p.id = s.person_id
       WHERE    s.school_id = ? AND s.deleted_at IS NULL
       GROUP BY p.first_name, p.last_name
       HAVING   COUNT(*) > 1
