@@ -35,11 +35,12 @@ import SetupChecklist from '@/components/onboarding/SetupChecklist';
 import QuickActions from '@/components/onboarding/QuickActions';
 import CommandCenter from '@/components/dashboard/CommandCenter';
 import SchoolHealthDashboard from '@/components/dashboard/SchoolHealthDashboard';
+import DuplicateDetection from '@/components/dashboard/DuplicateDetection';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DashboardPage: React.FC = () => {
-  const [mode, setMode] = useState<'command' | 'simple' | 'advanced' | 'analytics'>('command');
+  const [mode, setMode] = useState<'command' | 'simple' | 'advanced' | 'analytics' | 'duplicates'>('command');
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? null;
   const [dateRange, setDateRange] = useState({
@@ -166,6 +167,17 @@ const DashboardPage: React.FC = () => {
                   <Brain className="w-4 h-4 inline mr-1" />
                   Predictive
                 </button>
+                <button
+                  onClick={() => setMode('duplicates')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    mode === 'duplicates' 
+                      ? 'bg-white dark:bg-slate-800 shadow-sm text-orange-600' 
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4 inline mr-1" />
+                  Duplicates
+                </button>
               </div>
               {/* Quick Actions */}
               <div className="flex gap-1 flex-shrink-0">
@@ -277,6 +289,16 @@ const DashboardPage: React.FC = () => {
               transition={{ duration: 0.3 }}
             >
               <SchoolHealthDashboard schoolId={schoolId} />
+            </motion.div>
+          ) : mode === 'duplicates' ? (
+            <motion.div
+              key="duplicates"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <DuplicateDetection schoolId={schoolId} />
             </motion.div>
           ) : null}
         </AnimatePresence>
