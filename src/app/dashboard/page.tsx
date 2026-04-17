@@ -177,20 +177,21 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Quick nav links */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {[
             { href: '/intelligence?tab=risk', icon: <AlertTriangle className="w-4 h-4" />, label: 'At-Risk Students', color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
             { href: '/intelligence?tab=classes', icon: <GraduationCap className="w-4 h-4" />, label: 'Class Insights', color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
             { href: '/intelligence?tab=patterns', icon: <UserCheck className="w-4 h-4" />, label: 'Student Patterns', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
             { href: '/intelligence?tab=subjects', icon: <BookOpen className="w-4 h-4" />, label: 'Subject Analysis', color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
+            { href: '/intelligence?tab=trends', icon: <TrendingUp className="w-4 h-4" />, label: 'Term Trends', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' },
           ].map(({ href, icon, label, color }) => (
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:shadow-md transition-shadow`}
+              className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:shadow-md active:scale-[0.98] transition-all"
             >
               <div className={`p-2.5 rounded-xl ${color}`}>{icon}</div>
-              <span className="text-xs font-medium text-slate-700 dark:text-slate-300 text-center">{label}</span>
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300 text-center leading-tight">{label}</span>
             </Link>
           ))}
         </div>

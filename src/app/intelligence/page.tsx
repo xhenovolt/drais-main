@@ -31,12 +31,15 @@ import {
   PolarGrid,
   PolarAngleAxis,
   Radar,
+  LineChart,
+  Line,
+  Legend,
 } from 'recharts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'risk' | 'patterns' | 'classes' | 'subjects';
+type Tab = 'overview' | 'risk' | 'patterns' | 'classes' | 'subjects' | 'trends';
 
 interface Signal { type: string; icon: string; label: string; detail: string; value: number; action: string }
 interface OverviewData { signals: Signal[]; meta: { currentTerm: { id: number; name: string } | null; previousTerm: { id: number; name: string } | null; totalStudents: number; currentTermAvg: number; previousTermAvg: number | null } }
@@ -47,6 +50,12 @@ interface ClassInsight { class_id: number; class_name: string; current_avg: numb
 interface ClassData { classes: ClassInsight[]; school_subjects: { subject_id: number; subject_name: string; avg_score: number; student_count: number }[]; meta: { currentTerm: { id: number; name: string } | null; previousTerm: { id: number; name: string } | null; total_classes: number; declining_classes: number; improving_classes: number } }
 interface RiskStudent { student_id: number; name: string; class_name: string | null; admission_no: string | null; risk_level: string; risk_reasons: string[]; current_avg: number; previous_avg: number | null; delta: number | null; weak_subjects: { subject_name: string; avg_score: number }[] }
 interface RiskData { students: RiskStudent[]; total: number; summary: { critical: number; high: number; medium: number; total: number }; meta: { currentTerm: { id: number; name: string } | null } }
+
+interface TermPoint { term_id: number; term_name: string; avg_score: number | null; student_count?: number; at_risk_count?: number; pass_rate?: number | null }
+interface ClassTrend { class_id: number; class_name: string; delta: number | null; trend: TermPoint[] }
+interface SubjectTrend { subject_id: number; subject_name: string; variance: number; latest_avg: number | null; trend: TermPoint[] }
+interface ClassificationPoint { term_id: number; term_name: string; at_risk: number; struggling: number; stable: number; performing: number; high: number }
+interface TermComparisonData { terms: { id: number; name: string }[]; school_trend: TermPoint[]; class_trends: ClassTrend[]; subject_trends: SubjectTrend[]; classification_trend: ClassificationPoint[] }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small helpers
@@ -633,6 +642,208 @@ function SubjectsTab({ schoolId }: { schoolId: number | null }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tab: Term Comparison (multi-term trend engine)
+// ─────────────────────────────────────────────────────────────────────────────
+const CLASS_COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#14b8a6'];
+
+function TermComparisonTab({ schoolId }: { schoolId: number | null }) {
+  const { data, isLoading } = useSWR<{ ok: boolean } & TermComparisonData>(
+    schoolId ? '/api/intelligence/term-comparison?limit_terms=6' : null,
+    fetcher,
+    { refreshInterval: 300_000 }
+  );
+
+  if (isLoading) return <LoadingGrid />;
+
+  const schoolTrend = data?.school_trend ?? [];
+  const classTrends = (data?.class_trends ?? []).slice(0, 8);
+  const subjectTrends = (data?.subject_trends ?? []).slice(0, 10);
+  const classificationTrend = data?.classification_trend ?? [];
+
+  // Build multi-line class chart data: [{term_name, ClassName1: 72, ClassName2: 65, ...}]
+  const classChartData = (data?.terms ?? []).map((t) => {
+    const point: Record<string, string | number> = { term_name: t.name };
+    classTrends.forEach(c => {
+      const tp = c.trend.find(p => p.term_id === t.id);
+      if (tp?.avg_score !== null && tp?.avg_score !== undefined) {
+        point[c.class_name] = tp.avg_score;
+      }
+    });
+    return point;
+  });
+
+  return (
+    <div className="space-y-6">
+
+      {/* ── School-wide trend line ────────────────────────────────────────── */}
+      {schoolTrend.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">School-Wide Average — Term by Term</h3>
+          <p className="text-xs text-slate-400 mb-4">Overall average score across all assessed students per term</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={schoolTrend} margin={{ top: 4, right: 16, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="term_name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
+              <Tooltip
+                formatter={(v: number, name: string) => [`${v}%`, name]}
+                labelFormatter={(l) => `Term: ${l}`}
+              />
+              <Line
+                type="monotone"
+                dataKey="avg_score"
+                name="School Avg"
+                stroke="#6366f1"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: '#6366f1' }}
+                activeDot={{ r: 6 }}
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="pass_rate"
+                name="Pass Rate %"
+                stroke="#10b981"
+                strokeWidth={1.5}
+                strokeDasharray="5 3"
+                dot={false}
+                connectNulls
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          {/* Summary row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+            {schoolTrend.slice(-1).map(latest => [
+              { label: 'Latest Avg', value: `${latest.avg_score ?? '–'}%`, color: 'text-indigo-600 dark:text-indigo-400' },
+              { label: 'Pass Rate', value: latest.pass_rate ? `${latest.pass_rate}%` : '–', color: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'At Risk', value: latest.at_risk_count ?? '–', color: 'text-red-600 dark:text-red-400' },
+              { label: 'Students', value: latest.student_count ?? '–', color: 'text-slate-700 dark:text-slate-300' },
+            ]).flat().map(stat => (
+              <div key={stat.label} className="text-center px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800">
+                <p className={`text-base font-bold ${stat.color}`}>{String(stat.value)}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Per-class trend lines ─────────────────────────────────────────── */}
+      {classChartData.length > 0 && classTrends.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Class Performance Trends</h3>
+          <p className="text-xs text-slate-400 mb-4">Average score per class across terms</p>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={classChartData} margin={{ top: 4, right: 16, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="term_name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
+              <Tooltip formatter={(v: number, name: string) => [`${v}%`, name]} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {classTrends.map((c, idx) => (
+                <Line
+                  key={c.class_id}
+                  type="monotone"
+                  dataKey={c.class_name}
+                  stroke={CLASS_COLORS[idx % CLASS_COLORS.length]}
+                  strokeWidth={1.5}
+                  dot={{ r: 3 }}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+          {/* Class delta table */}
+          <div className="mt-4 space-y-1">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">First → Last term change</p>
+            {classTrends.filter(c => c.delta !== null).map((c, idx) => (
+              <div key={c.class_id} className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: CLASS_COLORS[idx % CLASS_COLORS.length] }} />
+                <span className="text-xs text-slate-600 dark:text-slate-400 flex-1 truncate">{c.class_name}</span>
+                <span className={`text-xs font-mono font-semibold ${(c.delta ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                  {(c.delta ?? 0) > 0 ? '+' : ''}{c.delta}pts
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Subject trend table ────────────────────────────────────────────── */}
+      {subjectTrends.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Subject Averages — All Terms</p>
+            <p className="text-xs text-slate-400 mt-0.5">Sorted by current average (weakest first)</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-50 dark:border-slate-800">
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-slate-400 uppercase">Subject</th>
+                  {(data?.terms ?? []).map(t => (
+                    <th key={t.id} className="text-right px-3 py-2 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{t.name}</th>
+                  ))}
+                  <th className="text-right px-4 py-2 text-xs font-semibold text-slate-400 uppercase">Swing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subjectTrends.map(s => (
+                  <tr key={s.subject_id} className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 font-medium max-w-[120px] truncate">{s.subject_name}</td>
+                    {(data?.terms ?? []).map(t => {
+                      const tp = s.trend.find(p => p.term_id === t.id);
+                      const score = tp?.avg_score;
+                      const scoreColor = score === null || score === undefined ? 'text-slate-300' : score < 40 ? 'text-red-500' : score < 55 ? 'text-amber-500' : 'text-emerald-600';
+                      return (
+                        <td key={t.id} className={`text-right px-3 py-2 text-xs font-mono ${scoreColor}`}>
+                          {score !== null && score !== undefined ? `${score}%` : '–'}
+                        </td>
+                      );
+                    })}
+                    <td className="text-right px-4 py-2 text-xs font-mono font-semibold text-slate-500">
+                      {s.variance > 0 ? `±${s.variance}` : '–'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Classification distribution per term ─────────────────────────── */}
+      {classificationTrend.length > 1 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Student Classification — Term by Term</h3>
+          <p className="text-xs text-slate-400 mb-4">How the student population distribution shifts across terms</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={classificationTrend} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="term_name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Bar dataKey="at_risk" name="At Risk" stackId="a" fill="#ef4444" />
+              <Bar dataKey="struggling" name="Struggling" stackId="a" fill="#f97316" />
+              <Bar dataKey="stable" name="Stable" stackId="a" fill="#94a3b8" />
+              <Bar dataKey="performing" name="Performing" stackId="a" fill="#6366f1" />
+              <Bar dataKey="high" name="High" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {(!schoolTrend.length && !isLoading) && (
+        <div className="text-center py-12 text-slate-400 text-sm">
+          No multi-term data yet. Needs at least one completed term with results.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Loading placeholder
 // ─────────────────────────────────────────────────────────────────────────────
 function LoadingGrid() {
@@ -656,7 +867,7 @@ export default function IntelligencePage() {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'overview';
     const p = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-    return (['overview', 'risk', 'patterns', 'classes', 'subjects'].includes(p ?? '')) ? p! : 'overview';
+    return (['overview', 'risk', 'patterns', 'classes', 'subjects', 'trends'].includes(p ?? '')) ? p! : 'overview';
   });
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -665,6 +876,7 @@ export default function IntelligencePage() {
     { id: 'patterns',  label: 'Patterns',         icon: <Users className="w-4 h-4" /> },
     { id: 'classes',   label: 'Classes',          icon: <GraduationCap className="w-4 h-4" /> },
     { id: 'subjects',  label: 'Subjects',         icon: <BookOpen className="w-4 h-4" /> },
+    { id: 'trends',    label: 'Trends',           icon: <BarChart3 className="w-4 h-4" /> },
   ];
 
   return (
@@ -701,11 +913,12 @@ export default function IntelligencePage() {
 
       {/* Content */}
       <div className="max-w-5xl mx-auto px-4 py-5">
-        {activeTab === 'overview'  && <OverviewTab  schoolId={schoolId} />}
-        {activeTab === 'risk'      && <RiskTab      schoolId={schoolId} />}
-        {activeTab === 'patterns'  && <PatternsTab  schoolId={schoolId} />}
-        {activeTab === 'classes'   && <ClassesTab   schoolId={schoolId} />}
-        {activeTab === 'subjects'  && <SubjectsTab  schoolId={schoolId} />}
+        {activeTab === 'overview'  && <OverviewTab         schoolId={schoolId} />}
+        {activeTab === 'risk'      && <RiskTab             schoolId={schoolId} />}
+        {activeTab === 'patterns'  && <PatternsTab         schoolId={schoolId} />}
+        {activeTab === 'classes'   && <ClassesTab          schoolId={schoolId} />}
+        {activeTab === 'subjects'  && <SubjectsTab         schoolId={schoolId} />}
+        {activeTab === 'trends'    && <TermComparisonTab   schoolId={schoolId} />}
       </div>
     </div>
   );

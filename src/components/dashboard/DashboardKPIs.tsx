@@ -1,7 +1,6 @@
 "use client";
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Users, UserCheck, UserX, TrendingUp, DollarSign, AlertTriangle } from 'lucide-react';
+import { Users, UserCheck, UserX, TrendingUp, AlertTriangle } from 'lucide-react';
 
 interface KPIData {
   totalStudents: number;
@@ -17,120 +16,103 @@ interface DashboardKPIsProps {
   data?: KPIData;
 }
 
+// Compact skeleton for loading state
+function KPISkeleton() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+      ))}
+    </div>
+  );
+}
+
 const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
-  const kpis = [
+  if (!data) return <KPISkeleton />;
+
+  const attendancePct = data.attendancePercentage || 0;
+  const attendanceColor =
+    attendancePct >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+    attendancePct >= 60 ? 'text-amber-600 dark:text-amber-400' :
+    'text-red-600 dark:text-red-400';
+
+  const cards = [
     {
-      title: 'Total Students',
-      value: data?.totalStudents || 0,
-      icon: Users,
-      color: 'bg-blue-500',
-      gradient: 'from-blue-500 to-blue-600',
-      change: '+5% this month'
+      label: 'Total Students',
+      value: (data.totalStudents || 0).toLocaleString(),
+      sub: `${data.enrollmentGrowth || 0} enrolled this month`,
+      icon: <Users className="w-4 h-4" />,
+      iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
     },
     {
-      title: 'Present Today',
-      value: data?.presentToday || 0,
-      percentage: data?.attendancePercentage || 0,
-      icon: UserCheck,
-      color: 'bg-green-500',
-      gradient: 'from-green-500 to-green-600',
-      change: '+2% vs yesterday'
+      label: 'Present Today',
+      value: (data.presentToday || 0).toLocaleString(),
+      sub: `${attendancePct}% attendance rate`,
+      subColor: attendanceColor,
+      icon: <UserCheck className="w-4 h-4" />,
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+      bar: attendancePct,
+      barColor: attendancePct >= 80 ? 'bg-emerald-500' : attendancePct >= 60 ? 'bg-amber-500' : 'bg-red-500',
     },
     {
-      title: 'Absent Today',
-      value: data?.absentToday || 0,
-      icon: UserX,
-      color: 'bg-red-500',
-      gradient: 'from-red-500 to-red-600',
-      change: '-1% vs yesterday'
+      label: 'Absent Today',
+      value: (data.absentToday || 0).toLocaleString(),
+      sub: data.absentToday > 0 ? 'needs follow-up' : 'all present',
+      icon: <UserX className="w-4 h-4" />,
+      iconBg: data.absentToday > 0
+        ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+        : 'bg-slate-100 dark:bg-slate-700 text-slate-500',
     },
     {
-      title: 'Enrollment Growth',
-      value: data?.enrollmentGrowth || 0,
-      icon: TrendingUp,
-      color: 'bg-purple-500',
-      gradient: 'from-purple-500 to-purple-600',
-      change: 'Last 30 days'
+      label: 'Fee Defaulters',
+      value: (data.defaultersCount || 0).toLocaleString(),
+      sub: data.defaultersCount > 10 ? '⚠️ action required' : 'unpaid / partial',
+      icon: <AlertTriangle className="w-4 h-4" />,
+      iconBg: data.defaultersCount > 10
+        ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+        : 'bg-slate-100 dark:bg-slate-700 text-slate-500',
+      alert: data.defaultersCount > 10,
     },
-    {
-      title: 'Fees Today',
-      value: `UGX ${(data?.feesCollectedToday || 0).toLocaleString()}`,
-      icon: DollarSign,
-      color: 'bg-yellow-500',
-      gradient: 'from-yellow-500 to-yellow-600',
-      change: '+15% vs avg'
-    },
-    {
-      title: 'Fee Defaulters',
-      value: data?.defaultersCount || 0,
-      icon: AlertTriangle,
-      color: 'bg-orange-500',
-      gradient: 'from-orange-500 to-orange-600',
-      change: '>30 days overdue',
-      alert: (data?.defaultersCount || 0) > 10
-    }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-      {kpis.map((kpi, index) => (
-        <motion.div
-          key={kpi.title}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          className={`relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group ${
-            kpi.alert ? 'ring-2 ring-orange-500' : ''
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          className={`relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 ${
+            card.alert ? 'ring-1 ring-orange-400 dark:ring-orange-500' : ''
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className={`p-3 rounded-full bg-gradient-to-br ${kpi.gradient} group-hover:scale-110 transition-transform duration-300`}>
-              <kpi.icon className="w-6 h-6 text-white" />
-            </div>
-            {kpi.alert && (
-              <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
-            )}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-tight">{card.label}</p>
+            <div className={`p-1.5 rounded-lg flex-shrink-0 ${card.iconBg}`}>{card.icon}</div>
           </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {kpi.title}
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {kpi.value}
-              </p>
-              {kpi.percentage !== undefined && (
-                <span className="text-sm text-green-600 font-medium">
-                  ({kpi.percentage}%)
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {kpi.change}
-            </p>
-          </div>
-
-          {/* Progress bar for attendance */}
-          {kpi.percentage !== undefined && (
-            <div className="mt-3">
-              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${kpi.percentage}%` }}
-                  transition={{ delay: 0.5, duration: 0.8 }}
-                  className={`h-2 rounded-full bg-gradient-to-r ${kpi.gradient}`}
-                />
-              </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mb-0.5">{card.value}</p>
+          {card.bar !== undefined && (
+            <div className="w-full h-1 bg-slate-100 dark:bg-slate-700 rounded-full mb-1 overflow-hidden">
+              <div className={`h-full rounded-full ${card.barColor}`} style={{ width: `${Math.min(100, card.bar)}%` }} />
             </div>
           )}
-
-          {/* Hover gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-        </motion.div>
+          <p className={`text-xs ${card.subColor ?? 'text-slate-400 dark:text-slate-500'} truncate`}>{card.sub}</p>
+        </div>
       ))}
     </div>
   );
 };
 
 export default DashboardKPIs;
+
+// ── Removed: ──────────────────────────────────────────────────────────────────
+// ❌ Fake change strings ("+5% this month", "+2% vs yesterday") 
+// ❌ 6-column xl grid that breaks on medium screens
+// ❌ framer-motion animations on every card load
+// ❌ xl:grid-cols-6 (too wide)
+// ✅ Real data only: actual attendance %, real counts
+// ✅ 4 focused KPIs (students / attendance / absent / defaulters)
+// ✅ Compact 2-col mobile, 4-col desktop
+// ✅ Attendance bar uses real percentage
+// ✅ Alert ring only when genuinely needed (defaulters > 10)
+//
+// Note: 'Fees Today' removed — field was always 0 (no real-time payment data yet)
+// Note: 'Enrollment Growth' merged into Total Students subtitle
