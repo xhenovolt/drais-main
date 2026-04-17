@@ -17,6 +17,9 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
+  Activity,
+  Fingerprint,
+  Calendar,
 } from 'lucide-react';
 import {
   BarChart,
@@ -34,12 +37,17 @@ import {
   LineChart,
   Line,
   Legend,
+  AreaChart,
+  Area,
+  ScatterChart,
+  Scatter,
+  ZAxis,
 } from 'recharts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'risk' | 'patterns' | 'classes' | 'subjects' | 'trends';
+type Tab = 'overview' | 'risk' | 'patterns' | 'classes' | 'subjects' | 'trends' | 'attendance';
 
 interface Signal { type: string; icon: string; label: string; detail: string; value: number; action: string }
 interface OverviewData { signals: Signal[]; meta: { currentTerm: { id: number; name: string } | null; previousTerm: { id: number; name: string } | null; totalStudents: number; currentTermAvg: number; previousTermAvg: number | null } }
@@ -56,6 +64,41 @@ interface ClassTrend { class_id: number; class_name: string; delta: number | nul
 interface SubjectTrend { subject_id: number; subject_name: string; variance: number; latest_avg: number | null; trend: TermPoint[] }
 interface ClassificationPoint { term_id: number; term_name: string; at_risk: number; struggling: number; stable: number; performing: number; high: number }
 interface TermComparisonData { terms: { id: number; name: string }[]; school_trend: TermPoint[]; class_trends: ClassTrend[]; subject_trends: SubjectTrend[]; classification_trend: ClassificationPoint[] }
+
+// Attendance intelligence types
+interface AttendanceOverview {
+  tracked_days: number; total_enrolled: number; total_scanned_students: number;
+  never_scanned: number; avg_daily_attendance: number; scan_rate_pct: number;
+  today_scans: number; week_avg: number; prev_week_avg: number;
+  week_trend: string; week_delta_pct: number | null;
+  first_day: string | null; last_day: string | null;
+  data_source: string; data_note: string;
+}
+interface AttendanceDailyPoint {
+  date: string; day: string; distinct_students: number; total_scans: number; attendance_pct: number;
+}
+interface AttendanceTrendsData {
+  daily: AttendanceDailyPoint[];
+  weekly: { week_start: string; label: string; school_days: number; avg_daily_students: number; attendance_pct: number }[];
+  trend: string; trend_confidence: number; total_enrolled: number;
+}
+interface AttendanceRiskStudent {
+  student_id: number; name: string; admission_no: string | null; class_name: string | null;
+  risk: string; reasons: string[]; days_present: number; tracked_days: number;
+  attendance_pct: number; last_seen: string | null; first_seen: string | null;
+}
+interface AttendanceRiskData {
+  summary: { recently_absent: number; sparse: number; total_at_risk: number };
+  students: AttendanceRiskStudent[];
+  tracked_days: number; cutoff_date: string | null;
+}
+interface AttendanceCorrelationData {
+  data_available: boolean; data_note?: string;
+  student_count?: number; tracked_days?: number;
+  quartiles?: { tier: string; label: string; count: number; avg_score: number | null }[];
+  scatter?: { student_id: number; name: string; class_name: string | null; attendance_pct: number; avg_score: number }[];
+  correlation?: string; pearson_r?: number; insight?: string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small helpers
@@ -844,6 +887,290 @@ function TermComparisonTab({ schoolId }: { schoolId: number | null }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tab: Attendance Intelligence (Phase 5+6)
+// ─────────────────────────────────────────────────────────────────────────────
+function AttendanceTab({ schoolId }: { schoolId: number | null }) {
+  const [expandedRisk, setExpandedRisk] = useState<number | null>(null);
+
+  const { data: overviewData, isLoading: ovLoading } = useSWR(
+    schoolId ? '/api/intelligence/attendance-overview' : null, fetcher
+  );
+  const { data: trendsData,   isLoading: trLoading } = useSWR(
+    schoolId ? '/api/intelligence/attendance-trends?days=21' : null, fetcher
+  );
+  const { data: riskData,     isLoading: rkLoading } = useSWR(
+    schoolId ? '/api/intelligence/attendance-risk?limit=50' : null, fetcher
+  );
+  const { data: corrData,     isLoading: coLoading } = useSWR(
+    schoolId ? '/api/intelligence/attendance-performance-correlation' : null, fetcher
+  );
+
+  const ov:   AttendanceOverview     | null = overviewData?.data ?? null;
+  const tr:   AttendanceTrendsData   | null = trendsData?.data   ?? null;
+  const rk:   AttendanceRiskData     | null = riskData?.data     ?? null;
+  const corr: AttendanceCorrelationData | null = corrData?.data  ?? null;
+
+  const isLoading = ovLoading || trLoading;
+
+  const TREND_ICON: Record<string, React.ReactNode> = {
+    improving: <TrendingUp  className="w-4 h-4 text-emerald-500" />,
+    declining:  <TrendingDown className="w-4 h-4 text-red-500" />,
+    stable:     <Activity    className="w-4 h-4 text-slate-400" />,
+    no_data:    <Activity    className="w-4 h-4 text-slate-300" />,
+  };
+
+  const trend = ov?.week_trend ?? 'no_data';
+  const trendColor =
+    trend === 'improving' ? 'text-emerald-600 dark:text-emerald-400'
+    : trend === 'declining' ? 'text-red-600 dark:text-red-400'
+    : 'text-slate-500 dark:text-slate-400';
+
+  // No-data state (school has no ZK device data)
+  if (!isLoading && ov && ov.tracked_days === 0) {
+    return (
+      <div className="px-4 py-8 text-center space-y-3">
+        <Fingerprint className="w-10 h-10 text-slate-300 mx-auto" />
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">No biometric attendance data yet</p>
+        <p className="text-xs text-slate-400 max-w-xs mx-auto">{ov.data_note}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-5 space-y-5">
+
+      {/* ── Overview cards ──────────────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />)}
+        </div>
+      ) : ov && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Tracked Days',    value: ov.tracked_days,           sub: `${ov.first_day ?? '–'} → ${ov.last_day ?? '–'}`, color: 'text-indigo-600' },
+            { label: 'Today Scanned',   value: ov.today_scans,            sub: `of ${ov.total_enrolled} enrolled`,                color: 'text-slate-800 dark:text-slate-100' },
+            { label: 'Biometric Cover', value: `${ov.scan_rate_pct}%`,    sub: `${ov.total_scanned_students} students scanned`,  color: ov.scan_rate_pct < 50 ? 'text-amber-600' : 'text-emerald-600' },
+            { label: 'Avg Daily',       value: ov.avg_daily_attendance,   sub: `students per school day`,                        color: 'text-slate-800 dark:text-slate-100' },
+          ].map(c => (
+            <div key={c.label} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col gap-1">
+              <span className="text-xs text-slate-500 dark:text-slate-400">{c.label}</span>
+              <span className={`text-2xl font-bold ${c.color}`}>{c.value}</span>
+              <span className="text-xs text-slate-400 truncate">{c.sub}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Week trend summary ──────────────────────────────────────────── */}
+      {ov && ov.tracked_days > 0 && (
+        <div className={`rounded-2xl border p-4 flex items-center gap-3 ${
+          trend === 'improving' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700'
+          : trend === 'declining' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+          : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+        }`}>
+          <div className="flex-shrink-0">{TREND_ICON[trend]}</div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold ${trendColor}`}>
+              Attendance is {trend === 'no_data' ? 'not enough data yet' : trend}
+              {ov.week_delta_pct !== null && ` (${ov.week_delta_pct > 0 ? '+' : ''}${ov.week_delta_pct}% vs last week)`}
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              This week avg: {ov.week_avg} students/day &nbsp;·&nbsp; Prev week avg: {ov.prev_week_avg} students/day
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Daily trend chart ───────────────────────────────────────────── */}
+      {trLoading ? (
+        <div className="h-52 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+      ) : tr && tr.daily.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Daily Attendance (Last {tr.days_analysed} Days)</h3>
+          <p className="text-xs text-slate-400 mb-4">Distinct students scanned per school day</p>
+          {/* Mobile: horizontal scroll wrapper */}
+          <div className="overflow-x-auto -mx-1 px-1">
+            <div style={{ minWidth: Math.max(320, tr.daily.length * 36) }}>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={tr.daily} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload as AttendanceDailyPoint;
+                      return (
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-xs shadow-lg">
+                          <p className="font-semibold text-slate-700 dark:text-slate-200">{d.date}</p>
+                          <p className="text-slate-500">{d.distinct_students} students · {d.total_scans} scans</p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="distinct_students" name="Students" radius={[3, 3, 0, 0]}>
+                    {tr.daily.map((entry, i) => (
+                      <Cell key={i} fill={entry.distinct_students < (tr.total_enrolled * 0.4) ? '#f87171' : entry.distinct_students < (tr.total_enrolled * 0.7) ? '#fbbf24' : '#34d399'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          {tr.trend !== 'no_data' && (
+            <p className="text-xs text-center text-slate-400 mt-2">
+              Trend: <span className={`font-medium ${tr.trend === 'improving' ? 'text-emerald-600' : tr.trend === 'declining' ? 'text-red-500' : 'text-slate-500'}`}>{tr.trend}</span>
+              {' '}&nbsp;·&nbsp; Confidence: {Math.round(tr.trend_confidence * 100)}%
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── At-Risk Students list ───────────────────────────────────────── */}
+      {rkLoading ? (
+        <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+      ) : rk && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">At-Risk Students</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Students with irregular or absent attendance patterns</p>
+            </div>
+            {rk.summary.total_at_risk > 0 && (
+              <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0">
+                {rk.summary.total_at_risk} flagged
+              </span>
+            )}
+          </div>
+
+          {rk.summary.total_at_risk === 0 ? (
+            <div className="py-6 text-center text-slate-400 text-sm">
+              No at-risk students detected based on current data.
+            </div>
+          ) : (
+            <>
+              {/* Summary pills */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {rk.summary.recently_absent > 0 && (
+                  <span className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-xs px-2.5 py-1 rounded-full">
+                    <AlertTriangle className="w-3 h-3" />
+                    {rk.summary.recently_absent} recently absent
+                  </span>
+                )}
+                {rk.summary.sparse > 0 && (
+                  <span className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs px-2.5 py-1 rounded-full">
+                    <Calendar className="w-3 h-3" />
+                    {rk.summary.sparse} sparse attendance
+                  </span>
+                )}
+              </div>
+
+              {/* Student list — tap to expand on mobile */}
+              <div className="space-y-2">
+                {rk.students.map((s) => (
+                  <div
+                    key={s.student_id}
+                    className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden"
+                  >
+                    <button
+                      onClick={() => setExpandedRisk(expandedRisk === s.student_id ? null : s.student_id)}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
+                    >
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.risk === 'high' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{s.name}</p>
+                        <p className="text-xs text-slate-500 truncate">{s.class_name ?? 'No class'} · {s.admission_no ?? '–'}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-right">
+                          <p className={`text-sm font-bold ${s.attendance_pct < 50 ? 'text-red-600' : 'text-amber-600'}`}>{s.attendance_pct}%</p>
+                          <p className="text-xs text-slate-400">{s.days_present}/{s.tracked_days} days</p>
+                        </div>
+                        {expandedRisk === s.student_id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                      </div>
+                    </button>
+                    {expandedRisk === s.student_id && (
+                      <div className="px-4 pb-3 pt-1 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-700/50">
+                        <div className="space-y-1">
+                          {s.reasons.map((r, i) => (
+                            <p key={i} className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                              <span className="w-1 h-1 rounded-full bg-slate-400 flex-shrink-0" />
+                              {r}
+                            </p>
+                          ))}
+                        </div>
+                        {s.last_seen && (
+                          <p className="text-xs text-slate-400 mt-2">Last seen: {s.last_seen}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Performance Correlation ─────────────────────────────────────── */}
+      {coLoading ? (
+        <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+      ) : corr && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Attendance ↔ Performance Correlation</h3>
+          <p className="text-xs text-slate-400 mb-4">Does attendance predict academic scores?</p>
+
+          {!corr.data_available ? (
+            <div className="py-4 space-y-2">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm font-medium">Correlation data not available yet</span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{corr.data_note}</p>
+            </div>
+          ) : (
+            <>
+              {/* Insight banner */}
+              <div className={`rounded-xl p-3 mb-4 text-sm ${
+                corr.correlation === 'positive' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300'
+                : corr.correlation === 'negative' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300'
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+              }`}>
+                {corr.insight}
+              </div>
+
+              {/* Quartile bars — mobile scrollable */}
+              {corr.quartiles && corr.quartiles.length > 0 && (
+                <div className="overflow-x-auto -mx-1 px-1">
+                  <div style={{ minWidth: 280 }}>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={corr.quartiles} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="tier" tick={{ fontSize: 10 }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(v: any) => [`${v}%`, 'Avg Score']} />
+                        <Bar dataKey="avg_score" name="Avg Score" radius={[4, 4, 0, 0]}>
+                          {(corr.quartiles ?? []).map((q, i) => (
+                            <Cell key={i} fill={['#f87171', '#fbbf24', '#60a5fa', '#34d399'][i] ?? '#94a3b8'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-center text-slate-400 mt-1">
+                {corr.student_count} students · Pearson r = {corr.pearson_r}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Loading placeholder
 // ─────────────────────────────────────────────────────────────────────────────
 function LoadingGrid() {
@@ -867,7 +1194,7 @@ export default function IntelligencePage() {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'overview';
     const p = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-    return (['overview', 'risk', 'patterns', 'classes', 'subjects', 'trends'].includes(p ?? '')) ? p! : 'overview';
+    return (['overview', 'risk', 'patterns', 'classes', 'subjects', 'trends', 'attendance'].includes(p ?? '')) ? p! : 'overview';
   });
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -876,7 +1203,8 @@ export default function IntelligencePage() {
     { id: 'patterns',  label: 'Patterns',         icon: <Users className="w-4 h-4" /> },
     { id: 'classes',   label: 'Classes',          icon: <GraduationCap className="w-4 h-4" /> },
     { id: 'subjects',  label: 'Subjects',         icon: <BookOpen className="w-4 h-4" /> },
-    { id: 'trends',    label: 'Trends',           icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'trends',     label: 'Trends',      icon: <BarChart3   className="w-4 h-4" /> },
+    { id: 'attendance', label: 'Attendance',  icon: <Activity    className="w-4 h-4" /> },
   ];
 
   return (
@@ -917,8 +1245,9 @@ export default function IntelligencePage() {
         {activeTab === 'risk'      && <RiskTab             schoolId={schoolId} />}
         {activeTab === 'patterns'  && <PatternsTab         schoolId={schoolId} />}
         {activeTab === 'classes'   && <ClassesTab          schoolId={schoolId} />}
-        {activeTab === 'subjects'  && <SubjectsTab         schoolId={schoolId} />}
-        {activeTab === 'trends'    && <TermComparisonTab   schoolId={schoolId} />}
+        {activeTab === 'subjects'    && <SubjectsTab          schoolId={schoolId} />}
+        {activeTab === 'trends'      && <TermComparisonTab    schoolId={schoolId} />}
+        {activeTab === 'attendance'  && <AttendanceTab        schoolId={schoolId} />}
       </div>
     </div>
   );

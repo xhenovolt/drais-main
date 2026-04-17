@@ -12,6 +12,8 @@ import {
   Brain,
   BookOpen,
   Wifi,
+  Activity,
+  Fingerprint,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
@@ -116,6 +118,93 @@ function IntelligenceSummary({ schoolId }: { schoolId: number | null }) {
   );
 }
 
+// ─── Attendance Intelligence insight card (Phase 4) ─────────────────────────
+function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
+  const { data, isLoading } = useSWR(
+    schoolId ? '/api/intelligence/attendance-overview' : null,
+    fetcher,
+    { refreshInterval: 120_000 }
+  );
+  const d = data?.data;
+
+  // Don't render when no biometric data exists for this school
+  if (!isLoading && (!d || d.tracked_days === 0)) return null;
+
+  const TREND_ICON = {
+    improving: <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />,
+    declining:  <TrendingDown className="w-3.5 h-3.5 text-red-500" />,
+    stable:     <Activity className="w-3.5 h-3.5 text-slate-400" />,
+    no_data:    <Activity className="w-3.5 h-3.5 text-slate-400" />,
+  };
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 animate-pulse">
+        <div className="h-4 w-48 bg-slate-100 dark:bg-slate-800 rounded mb-3" />
+        <div className="flex gap-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-12 flex-1 bg-slate-100 dark:bg-slate-800 rounded-xl" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const trend = d?.week_trend ?? 'no_data';
+  const weekDelta = d?.week_delta_pct;
+  const deltaLabel = weekDelta === null ? '' : weekDelta > 0 ? `+${weekDelta}%` : `${weekDelta}%`;
+  const trendColor = trend === 'improving' ? 'text-emerald-600' : trend === 'declining' ? 'text-red-600' : 'text-slate-500';
+
+  return (
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Fingerprint className="w-4 h-4 text-violet-500" />
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Attendance Intelligence</span>
+          <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">
+            {d?.tracked_days ?? 0} days tracked
+          </span>
+        </div>
+        <Link href="/intelligence?tab=attendance" className="text-xs text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 flex-shrink-0">
+          Full report <ArrowRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5">
+        {/* Metric 1: Today's scans */}
+        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
+          <span className="text-xs text-slate-500 dark:text-slate-400">Today Scanned</span>
+          <span className="text-xl font-bold text-slate-900 dark:text-white">{d?.today_scans ?? 0}</span>
+          <span className="text-xs text-slate-400">of {d?.total_enrolled ?? '–'} enrolled</span>
+        </div>
+
+        {/* Metric 2: Week trend */}
+        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
+          <span className="text-xs text-slate-500 dark:text-slate-400">Week Trend</span>
+          <div className="flex items-center gap-1">
+            {TREND_ICON[trend as keyof typeof TREND_ICON] ?? TREND_ICON.no_data}
+            <span className={`text-sm font-bold capitalize ${trendColor}`}>{trend === 'no_data' ? '–' : trend}</span>
+          </div>
+          {deltaLabel && <span className={`text-xs font-medium ${trendColor}`}>{deltaLabel} vs prev week</span>}
+        </div>
+
+        {/* Metric 3: Coverage */}
+        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
+          <span className="text-xs text-slate-500 dark:text-slate-400">Biometric Coverage</span>
+          <span className="text-xl font-bold text-slate-900 dark:text-white">{d?.scan_rate_pct ?? 0}%</span>
+          <span className="text-xs text-slate-400">{d?.total_scanned_students ?? 0} students scanned</span>
+        </div>
+      </div>
+
+      <Link
+        href="/intelligence?tab=attendance"
+        className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-sm font-medium hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+      >
+        <Activity className="w-3.5 h-3.5" />
+        View Attendance Intelligence
+      </Link>
+    </div>
+  );
+}
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? null;
@@ -165,8 +254,9 @@ const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
           {/* Intelligence signals — spans 1 col on md, 2 on lg */}
-          <div className="md:col-span-1 lg:col-span-2">
+          <div className="md:col-span-1 lg:col-span-2 space-y-4">
             <IntelligenceSummary schoolId={schoolId} />
+            <AttendanceInsightCard schoolId={schoolId} />
           </div>
 
           {/* Right column: attendance + device */}
@@ -177,13 +267,14 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Quick nav links */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {[
             { href: '/intelligence?tab=risk', icon: <AlertTriangle className="w-4 h-4" />, label: 'At-Risk Students', color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
             { href: '/intelligence?tab=classes', icon: <GraduationCap className="w-4 h-4" />, label: 'Class Insights', color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
             { href: '/intelligence?tab=patterns', icon: <UserCheck className="w-4 h-4" />, label: 'Student Patterns', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
             { href: '/intelligence?tab=subjects', icon: <BookOpen className="w-4 h-4" />, label: 'Subject Analysis', color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
             { href: '/intelligence?tab=trends', icon: <TrendingUp className="w-4 h-4" />, label: 'Term Trends', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' },
+            { href: '/intelligence?tab=attendance', icon: <Activity className="w-4 h-4" />, label: 'Attendance Risk', color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
           ].map(({ href, icon, label, color }) => (
             <Link
               key={href}
