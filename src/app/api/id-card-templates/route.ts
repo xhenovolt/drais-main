@@ -1,41 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { DEFAULT_ID_CARD_CONFIG, IDCardConfig } from '@/lib/idCardConfig';
 
-// ============================================================================
-// Default ID card config — Uganda-style, credit-card landscape
-// ============================================================================
-export const DEFAULT_ID_CARD_CONFIG = {
-  // Colors
-  bgColor:         '#1a3a6b',   // deep blue — government feel
-  accentColor:     '#d4a017',   // gold accent
-  textColor:       '#ffffff',
-  labelColor:      '#c8d8f0',
-  footerBgColor:   '#0e2447',
-  footerTextColor: '#ffffff',
-  // Typography
-  fontSize:        11,          // base font size px
-  fontWeight:      '500',
-  fontFamily:      'Inter, sans-serif',
-  // Fields
-  showDob:         true,
-  showGender:      true,
-  showClass:       true,
-  showAdmissionNo: true,
-  showSignatureLine: true,
-  showFooter:      true,
-  footerText:      'Property of {schoolName}',
-  // Images
-  schoolLogoUrl:   '',          // override — falls back to school config logo
-  // Style
-  borderRadius:    10,
-  borderWidth:     0,
-  borderColor:     '#000000',
-  showWatermark:   false,
-  watermarkText:   '',
-};
-
-export type IDCardConfig = typeof DEFAULT_ID_CARD_CONFIG;
+export { DEFAULT_ID_CARD_CONFIG, IDCardConfig };
 
 // ============================================================================
 // GET /api/id-card-templates  — returns active template for this school

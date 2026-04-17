@@ -17,7 +17,7 @@ import {
   Eye, ArrowLeft,
 } from 'lucide-react';
 import { IDCardPreview, IDCardStudent, IDCardMeta } from '@/components/students/IDCardPreview';
-import { IDCardConfig, DEFAULT_ID_CARD_CONFIG } from '@/app/api/id-card-templates/route';
+import { IDCardConfig, DEFAULT_ID_CARD_CONFIG } from '@/lib/idCardConfig';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { showToast } from '@/lib/toast';
 

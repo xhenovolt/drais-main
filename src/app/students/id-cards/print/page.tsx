@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import { Printer, Loader2, ArrowLeft, X } from 'lucide-react';
 import { IDCardPreview, IDCardStudent, IDCardMeta } from '@/components/students/IDCardPreview';
-import { IDCardConfig, DEFAULT_ID_CARD_CONFIG } from '@/app/api/id-card-templates/route';
+import { IDCardConfig, DEFAULT_ID_CARD_CONFIG } from '@/lib/idCardConfig';
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const result: T[][] = [];

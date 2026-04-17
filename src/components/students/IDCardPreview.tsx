@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import type { IDCardConfig } from '@/app/api/id-card-templates/route';
+import type { IDCardConfig } from '@/lib/idCardConfig';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
