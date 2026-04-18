@@ -11,6 +11,7 @@ import {
   MoreVertical, Eye, Pencil, Trash2, UserPlus,
 } from 'lucide-react';
 
+import Link from 'next/link';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 
@@ -140,10 +141,10 @@ export default function AdminStaffPage() {
             className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          <a href="/staff/add"
+          <Link href="/staff/add"
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
             <Plus className="w-4 h-4" /> Add Staff
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -255,12 +256,12 @@ export default function AdminStaffPage() {
                     </button>
                     {actionMenu === s.id && (
                       <div className="absolute right-0 top-8 z-20 w-48 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1">
-                        <a href={`/staff/${s.id}`} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
+                        <Link href={`/staff/${s.id}`} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
                           <Eye className="w-4 h-4" /> View Profile
-                        </a>
-                        <a href={`/staff/${s.id}/edit`} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
+                        </Link>
+                        <Link href={`/staff/${s.id}/edit`} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
                           <Pencil className="w-4 h-4" /> Edit
-                        </a>
+                        </Link>
                         {s.user_id && (
                           <>
                             <button onClick={() => { setActionMenu(null); accountAction(s, s.account_active ? 'disable' : 'enable'); }}

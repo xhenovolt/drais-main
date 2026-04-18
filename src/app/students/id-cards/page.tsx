@@ -183,7 +183,7 @@ export default function IDCardsPage() {
   );
 
   const toggleSelect = (id: number) =>
-    setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setSelectedIds(prev => { const s = new Set(prev); if (s.has(id)) { s.delete(id); } else { s.add(id); } return s; });
 
   const selectAll   = () => setSelectedIds(new Set(filteredLearners.map(l => l.id)));
   const deselectAll = () => setSelectedIds(new Set());
