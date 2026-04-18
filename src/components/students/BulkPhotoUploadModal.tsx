@@ -648,113 +648,117 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                   <Users className="w-5 h-5" />
                   Assign to Students
                 </h3>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {filteredStudents.length} students
-                </span>
+                <div className="flex items-center gap-2">
+                  {photos.filter(p => p.studentId && students.find(s => s.id === p.studentId)?.photo_url).length > 0 && (
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                      <Camera className="w-3 h-3" />
+                      {photos.filter(p => p.studentId && students.find(s => s.id === p.studentId)?.photo_url).length} replacing
+                    </span>
+                  )}
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {filteredStudents.length} students
+                  </span>
+                </divpan className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                      <Camera className="w-3 h-3" />
+                      {photos.filter(p => p.studentId && students.find(s => s.id === p.studentId)?.photo_url).length} replacing
+                    </span>
+                  )}
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {filteredStudents.length} students
+                  </span>
+                </div>
               </div>
 
               {/* Enhanced Search */}
               <div className="relative mb-4 flex-shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  type="text"
-                  placeholder="Search students by name, ID, or admission number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                />
-              </div>
-
-              {/* Enhanced Student List - Now properly scrollable */}
+                  Student List */}
               <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="space-y-2 pr-2">
-                  {filteredStudents.map((student) => {
+                {(() => {
+                  const withPhoto    = filteredStudents.filter(s => Boolean(s.photo_url));
+                  const withoutPhoto = filteredStudents.filter(s => !s.photo_url);
+                  const unassignedPhotos = photos.filter(p => !p.studentId);
+
+                  const renderStudent = (student: Student) => {
                     const assignedPhoto = photos.find(p => p.studentId === student.id);
                     const hasPhoto = Boolean(student.photo_url);
-                    
+
                     return (
                       <motion.div
                         key={student.id}
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
-                          assignedPhoto
+                        className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
+                          assignedPhoto && hasPhoto
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-md'
+                            : assignedPhoto
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-slate-700'
+                            : hasPhoto
+                            ? 'border-amber-300 dark:border-amber-600 bg-amber-50/50 dark:bg-amber-900/10 hover:border-amber-400'
+                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-slate-700 hover:border-gray-300'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {/* Student Avatar — current photo always shown */}
-                            {student.photo_url ? (
-                              <div className="relative">
+                        {/* Top row: student info + action */}
+                        <div className="flex items-center justify-between p-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Avatar */}
+                            {hasPhoto ? (
+                              <div className="relative flex-shrink-0">
                                 <img
-                                  src={student.photo_url}
+                                  src={student.photo_url!}
                                   alt={`${student.first_name} ${student.last_name}`}
-                                  className="w-12 h-12 rounded-xl object-cover shadow-md"
+                                  className={`w-11 h-11 rounded-xl object-cover shadow-md ${
+                                    assignedPhoto ? 'opacity-50 ring-2 ring-red-300' : ''
+                                  }`}
                                 />
-                                {/* Camera overlay indicating photo is replaceable */}
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow" title="Click 'Select photo' to replace">
-                                  <Camera className="w-3 h-3 text-white" />
-                                </div>
+                                {!assignedPhoto && (
+                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-md" title="Has existing photo">
+                                    <Camera className="w-3 h-3 text-white" />
+                                  </div>
+                                )}
+                                {assignedPhoto && (
+                                  <div className="absolute inset-0 rounded-xl flex items-center justify-center bg-black/20">
+                                    <span className="text-white text-xs font-bold">OLD</span>
+                                  </div>
+                                )}
                               </div>
                             ) : (
-                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
                                 <span className="text-sm font-semibold text-white">
                                   {student.first_name?.charAt(0)}{student.last_name?.charAt(0)}
                                 </span>
                               </div>
                             )}
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">
                                 {student.first_name} {student.last_name}
                               </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                <span>ID: {student.id}</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs text-gray-400">{student.admission_no ?? `ID ${student.id}`}</span>
                                 {hasPhoto && !assignedPhoto && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">
-                                    <Camera className="w-3 h-3" />
-                                    Replace photo
+                                  <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                                    ⚠ Has photo
                                   </span>
                                 )}
                                 {hasPhoto && assignedPhoto && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
-                                    <Camera className="w-3 h-3" />
-                                    Will replace
+                                  <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200">
+                                    ✓ Will replace
                                   </span>
                                 )}
                               </div>
                             </div>
                           </div>
-                          
+
+                          {/* Action */}
                           {assignedPhoto ? (
-                            <div className="flex items-center gap-2">
-                              {/* old → new arrow when replacing */}
-                              {hasPhoto && (
-                                <div className="flex items-center gap-1">
-                                  <img
-                                    src={student.photo_url!}
-                                    alt="Current"
-                                    className="w-8 h-8 rounded-lg object-cover opacity-50 ring-1 ring-gray-300"
-                                    title="Current photo"
-                                  />
-                                  <span className="text-gray-400 text-xs">→</span>
-                                </div>
-                              )}
-                              <img
-                                src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
-                                alt="New photo"
-                                className="w-10 h-10 rounded-lg object-cover shadow-md ring-2 ring-blue-500"
-                                title="New photo to upload"
-                              />
-                              <button
-                                onClick={() => unassignPhoto(assignedPhoto.id)}
-                                className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
-                                title="Unassign photo"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => unassignPhoto(assignedPhoto.id)}
+                              className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                              title="Remove assignment"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           ) : (
                             <select
                               onChange={(e) => {
@@ -764,31 +768,197 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                                   e.target.value = '';
                                 }
                               }}
-                              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                              disabled={!photos.some(p => !p.studentId)}
+                              className={`text-xs border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 transition-all flex-shrink-0 ${
+                                hasPhoto
+                                  ? 'border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100'
+                                  : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-600 text-gray-900 dark:text-white'
+                              }`}
+                              disabled={unassignedPhotos.length === 0}
                             >
                               <option value="">
-                                {photos.some(p => !p.studentId)
-                                  ? (hasPhoto ? 'Select replacement photo...' : 'Select photo...')
-                                  : 'No photos available'}
+                                {unassignedPhotos.length === 0
+                                  ? 'No photos uploaded'
+                                  : hasPhoto ? '↺ Choose replacement...' : '+ Assign photo...'}
                               </option>
-                              {photos
-                                .filter(p => !p.studentId)
-                                .map(photo => (
-                                  <option key={photo.id} value={photo.id}>
-                                    {photo.file.name.length > 20 
-                                      ? `${photo.file.name.substring(0, 20)}...` 
-                                      : photo.file.name
-                                    }
-                                  </option>
-                                ))}
+                              {unassignedPhotos.map(photo => (
+                                <option key={photo.id} value={photo.id}>
+                                  {photo.file.name.length > 22
+                                    ? `${photo.file.name.substring(0, 22)}…`
+                                    : photo.file.name}
+                                </option>
+                              ))}
                             </select>
                           )}
                         </div>
+
+                        {/* Replacement preview — shown only when replacing an existing photo */}
+                        {assignedPhoto && hasPhoto && (
+                          <div className="px-3 pb-3 flex items-center gap-2">
+                            <div className="flex-1 flex flex-col items-center gap-1">
+                              <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">Current</span>
+                              <img
+                                src={student.photo_url!}
+                                alt="Current photo"
+                                className="w-16 h-16 rounded-xl object-cover ring-2 ring-red-300 opacity-70"
+                              />
+                            </div>
+                            <div className="flex flex-col items-center gap-1 px-1">
+                              <span className="text-lg text-gray-400">→</span>
+                              <span className="text-xs text-gray-400">replaced by</span>
+                            </div>
+                            <div className="flex-1 flex flex-col items-center gap-1">
+                              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">New</span>
+                              <img
+                                src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
+                                alt="New photo"
+                                className="w-16 h-16 rounded-xl object-cover ring-2 ring-emerald-400 shadow-md"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Assignment preview — new photo (no existing) */}
+                        {assignedPhoto && !hasPhoto && (
+                          <div className="px-3 pb-3 flex items-center gap-2">
+                            <img
+                              src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
+                              alt="New photo"
+                              className="w-14 h-14 rounded-xl object-cover ring-2 ring-blue-400 shadow-md"
+                            />
+                            <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
+                              {assignedPhoto.file.name}
+                            </p>
+                          </div>
+                        )}
                       </motion.div>
                     );
-                  })}
-                </div>
+                  };
+
+                  return (
+                    <div className="space-y-1 pr-2">
+                      {/* Students WITH existing photos — flagged for replacement */}
+                      {withPhoto.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 pt-1 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
+                            <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
+                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                              <Camera className="w-3 h-3" /> {withPhoto.length} with existing photo
+                            </span>
+                            <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
+                          </div>
+                          <div className="space-y-2">
+                            {withPhoto.map(renderStudent)}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Students WITHOUT photos */}
+                      {withoutPhoto.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 pt-3 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
+                            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <User className="w-3 h-3" /> {withoutPhoto.length} no photo yet
+                            </span>
+                            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                          </div>
+                          <div className="space-y-2">
+                            {withoutPhoto.map(renderStudent)}
+                          </div>
+                        </>
+                      )}
+
+                      {filteredStudents.length === 0 && (
+                        <div className="py-10 text-center text-sm text-gray-400">No students match your search</div>
+                      )}
+                    </div>
+                  );
+                })()}    )}
+                        </div>
+
+                        {/* Replacement preview — shown only when replacing an existing photo */}
+                        {assignedPhoto && hasPhoto && (
+                          <div className="px-3 pb-3 flex items-center gap-2">
+                            <div className="flex-1 flex flex-col items-center gap-1">
+                              <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">Current</span>
+                              <img
+                                src={student.photo_url!}
+                                alt="Current photo"
+                                className="w-16 h-16 rounded-xl object-cover ring-2 ring-red-300 opacity-70"
+                              />
+                            </div>
+                            <div className="flex flex-col items-center gap-1 px-1">
+                              <span className="text-lg text-gray-400">→</span>
+                              <span className="text-xs text-gray-400">replaced by</span>
+                            </div>
+                            <div className="flex-1 flex flex-col items-center gap-1">
+                              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">New</span>
+                              <img
+                                src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
+                                alt="New photo"
+                                className="w-16 h-16 rounded-xl object-cover ring-2 ring-emerald-400 shadow-md"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Assignment preview — new photo (no existing) */}
+                        {assignedPhoto && !hasPhoto && (
+                          <div className="px-3 pb-3 flex items-center gap-2">
+                            <img
+                              src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
+                              alt="New photo"
+                              className="w-14 h-14 rounded-xl object-cover ring-2 ring-blue-400 shadow-md"
+                            />
+                            <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
+                              {assignedPhoto.file.name}
+                            </p>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  };
+
+                  return (
+                    <div className="space-y-1 pr-2">
+                      {/* Students WITH existing photos — flagged for replacement */}
+                      {withPhoto.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 pt-1 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
+                            <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
+                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                              <Camera className="w-3 h-3" /> {withPhoto.length} with existing photo
+                            </span>
+                            <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
+                          </div>
+                          <div className="space-y-2">
+                            {withPhoto.map(renderStudent)}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Students WITHOUT photos */}
+                      {withoutPhoto.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 pt-3 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
+                            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <User className="w-3 h-3" /> {withoutPhoto.length} no photo yet
+                            </span>
+                            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                          </div>
+                          <div className="space-y-2">
+                            {withoutPhoto.map(renderStudent)}
+                          </div>
+                        </>
+                      )}
+
+                      {filteredStudents.length === 0 && (
+                        <div className="py-10 text-center text-sm text-gray-400">No students match your search</div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

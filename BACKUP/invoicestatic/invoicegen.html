@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Xhenvolt Invoice</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #0f3c2e;
+      --secondary: #e6f2ee;
+      --text-dark: #222;
+      --border: #dcdcdc;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+
+    /* TOOLBAR */
+    .toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--primary);
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .toolbar button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .toolbar .btn-primary {
+      background: #fff;
+      color: var(--primary);
+    }
+
+    .toolbar .btn-primary:hover {
+      background: var(--secondary);
+    }
+
+    .toolbar .btn-secondary {
+      background: transparent;
+      color: white;
+      border: 1px solid white;
+    }
+
+    .toolbar .btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .toolbar .status-indicator {
+      margin-left: auto;
+      font-size: 12px;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+
+    body {
+      padding-top: 60px;
+    }
+
+    .invoice-wrapper {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 40px;
+      border: 1px solid var(--border);
+    }
+
+    /* EDITABLE ELEMENTS */
+    [contenteditable="true"] {
+      cursor: text;
+      position: relative;
+    }
+
+    [contenteditable="true"]:hover {
+      background: rgba(15, 60, 46, 0.05);
+      border-radius: 3px;
+    }
+
+    [contenteditable="true"]:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      background: rgba(15, 60, 46, 0.08);
+      border-radius: 3px;
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+      gap: 20px;
+    }
+
+    .logo {
+      flex-shrink: 0;
+    }
+
+    .logo img {
+      max-height: 80px;
+      max-width: 120px;
+      object-fit: contain;
+    }
+
+    .company-info {
+      flex: 1;
+    }
+
+    .company-info h1 {
+      margin: 0;
+      font-size: 28px;
+      color: var(--primary);
+    }
+
+    .company-info p {
+      margin: 4px 0;
+      font-size: 14px;
+      color: #444;
+    }
+
+    .invoice-meta {
+      text-align: right;
+    }
+
+    .invoice-meta h2 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 26px;
+    }
+
+    .invoice-meta p {
+      margin: 4px 0;
+      font-size: 14px;
+    }
+
+    /* BILLING */
+    .billing {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+    }
+
+    .billing div {
+      width: 48%;
+    }
+
+    .billing h3 {
+      margin-bottom: 8px;
+      color: var(--primary);
+      font-size: 16px;
+    }
+
+    .billing p {
+      margin: 3px 0;
+      font-size: 14px;
+    }
+
+    /* TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+
+    table thead {
+      background: var(--secondary);
+    }
+
+    table th, table td {
+      padding: 12px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    table th {
+      text-align: left;
+      color: var(--primary);
+    }
+
+    table td.amount {
+      text-align: right;
+    }
+
+    /* TOTALS */
+    .totals {
+      width: 100%;
+      max-width: 400px;
+      margin-left: auto;
+    }
+
+    .totals table {
+      border: none;
+    }
+
+    .totals td {
+      border: none;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+
+    .totals .label {
+      text-align: left;
+    }
+
+    .totals .value {
+      text-align: right;
+    }
+
+    .totals .balance {
+      font-weight: bold;
+      font-size: 16px;
+      color: var(--primary);
+    }
+
+    /* NOTES */
+    .notes {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #444;
+    }
+
+    /* SIGNATURE */
+    .signature {
+      margin-top: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .signature .sign-box {
+      width: 300px;
+    }
+
+    .signature .line {
+      border-top: 1px solid #000;
+      margin-bottom: 6px;
+    }
+
+    .signature p {
+      margin: 2px 0;
+      font-size: 14px;
+    }
+
+    /* STATUS */
+    .status {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #b8860b;
+      text-transform: uppercase;
+    }
+
+    /* FOOTER SECTION - QR CODE & PAYMENT INFO */
+    .invoice-footer {
+      margin-top: 50px;
+      padding-top: 30px;
+      border-top: 2px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: flex-start;
+    }
+
+    .qr-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .qr-section h4 {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #qrCode {
+      border: 2px solid var(--primary);
+      padding: 8px;
+      background: #fff;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .qr-section p {
+      margin: 8px 0 0 0;
+      font-size: 12px;
+      color: #666;
+      max-width: 180px;
+    }
+
+    .payment-section {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .payment-section h4 {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .payment-methods {
+      background: var(--secondary);
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+
+    .payment-methods h5 {
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .payment-methods ul {
+      margin: 0;
+      padding-left: 20px;
+      list-style: none;
+    }
+
+    .payment-methods li {
+      margin: 6px 0;
+      font-size: 13px;
+      color: var(--text-dark);
+      position: relative;
+      padding-left: 16px;
+    }
+
+    .payment-methods li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .payment-method-used {
+      background: #fafafa;
+      padding: 12px;
+      border-left: 3px solid var(--primary);
+      border-radius: 2px;
+    }
+
+    .payment-method-used p {
+      margin: 0;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .payment-method-used .method-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+      margin: 4px 0 0 0;
+    }
+
+    /* PRINT SETTINGS */
+    @media print {
+      body {
+        background: #fff;
+        padding-top: 0;
+      }
+      .toolbar {
+        display: none !important;
+      }
+      .invoice-wrapper {
+        margin: 0;
+        border: none;
+      }
+      .invoice-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+      }
+    }
+
+    /* A4 PAGE OPTIMIZATION */
+    @page {
+      size: A4;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="btn-primary" onclick="saveInvoice()">💾 Save</button>
+    <button class="btn-secondary" onclick="printInvoice()">🖨️ Print</button>
+    <button class="btn-secondary" onclick="resetInvoice()">🔄 Reset</button>
+    <span class="status-indicator" id="saveStatus">Ready</span>
+  </div>
+
+  <div class="invoice-wrapper">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo">
+        <img src="logo-xhe.png" alt="Xhenvolt Uganda SMC Limited Logo">
+      </div>
+
+      <div class="company-info">
+        <h1 contenteditable="true" data-field="companyName">Xhenvolt Uganda SMC Limited</h1>
+        <p contenteditable="true" data-field="companyAddress1">Bulubandi, Iganga, Uganda</p>
+        <p contenteditable="true" data-field="companyAddress2">Software Development & Digital Solutions</p>
+      </div>
+
+      <div class="invoice-meta">
+        <h2>INVOICE</h2>
+        <p><strong>Invoice No:</strong> <span contenteditable="true" data-field="invoiceNumber">XH/INV/001</span></p>
+        <p><strong>Date:</strong> <span contenteditable="true" data-field="invoiceDate">24th December, 2025</span></p>
+      </div>
+    </div>
+
+    <!-- BILLING -->
+    <div class="billing">
+      <div>
+        <h3>Billed To</h3>
+        <p><strong contenteditable="true" data-field="billToName">Excel Islamic Nursery and Primary School</strong></p>
+        <p contenteditable="true" data-field="billToAddress">Busembatia, Namutumba District</p>
+      </div>
+
+      <div>
+        <h3>Issued By</h3>
+        <p><strong contenteditable="true" data-field="issuedByName">Xhenvolt Uganda SMC Limited</strong></p>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="amount">Amount (UGX)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td contenteditable="true" data-field="item1Description">DRAIS School Management System – Gold Plan (Setup & Configuration)</td>
+          <td class="amount" contenteditable="true" data-field="item1Amount">2,500,000</td>
+        </tr>
+        <tr>
+          <td contenteditable="true" data-field="item2Description">Excel School Online Presence (Website & Digital Setup)</td>
+          <td class="amount" contenteditable="true" data-field="item2Amount">450,000</td>
+        </tr>
+        <tr>
+          <th>Total Amount</th>
+          <th class="amount" contenteditable="true" data-field="totalAmount">2,950,000</th>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- TOTALS -->
+    <div class="totals">
+      <table>
+        <tr>
+          <td class="label">Amount Paid</td>
+          <td class="value" contenteditable="true" data-field="amountPaid">500,000</td>
+        </tr>
+        <tr>
+          <td class="label balance">Balance Due</td>
+          <td class="value balance" contenteditable="true" data-field="balanceDue">2,450,000</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- NOTES -->
+    <div class="notes" contenteditable="true" data-field="notes">
+      <p>
+        This invoice covers the implementation of the <strong>DRAIS School Management System</strong>
+        and development of <strong>Excel School Online Presence</strong>, including digital platform
+        integrations. Balance payable as per agreed milestones.
+      </p>
+    </div>
+
+    <!-- SIGNATURE -->
+    <div class="signature">
+      <div class="sign-box">
+        <div class="line"></div>
+        <p><strong contenteditable="true" data-field="signatureName">HAMUZA IBRAHIM</strong></p>
+        <p contenteditable="true" data-field="signatureTitle">Chief Executive Officer (CEO)</p>
+        <p contenteditable="true" data-field="signatureCompany">Xhenvolt Uganda SMC Limited</p>
+      </div>
+
+      <div class="status" contenteditable="true" data-field="status">
+        PARTIALLY PAID
+      </div>
+    </div>
+
+    <!-- INVOICE FOOTER: QR CODE & PAYMENT INFORMATION -->
+    <div class="invoice-footer">
+      <!-- QR CODE SECTION -->
+      <div class="qr-section">
+        <h4>Invoice Authenticity Verification</h4>
+        <div id="qrCode"></div>
+        <p>Scan to verify invoice authenticity</p>
+      </div>
+
+      <!-- PAYMENT INFORMATION SECTION -->
+      <div class="payment-section">
+        <h4>Payment Information</h4>
+        
+        <div class="payment-methods">
+          <h5>Accepted Payment Methods</h5>
+          <ul>
+            <li>Bank Transfer</li>
+            <li>Mobile Money (MTN, Airtel)</li>
+            <li>Cash</li>
+          </ul>
+        </div>
+
+        <div class="payment-method-used">
+          <p>Payment Method Used</p>
+          <div class="method-name" contenteditable="true" data-field="paymentMethod">Mobile Money</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- QR CODE GENERATION SCRIPT -->
+  <script>
+    // ========== INVOICE EDITOR FUNCTIONALITY ==========
+    
+    let hasUnsavedChanges = false;
+    const STORAGE_KEY = 'invoice_data';
+
+    // Initialize invoice on page load
+    window.addEventListener('load', function() {
+      // Load saved data
+      loadInvoice();
+
+      // Generate QR code
+      generateQRCode();
+
+      // Add event listeners for all editable fields
+      document.querySelectorAll('[contenteditable="true"]').forEach(element => {
+        element.addEventListener('input', function() {
+          hasUnsavedChanges = true;
+          updateSaveStatus('Unsaved changes');
+        });
+
+        element.addEventListener('blur', function() {
+          // Automatically save on blur
+          saveInvoice();
+        });
+      });
+
+      // Warn before leaving if unsaved
+      window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+    });
+
+    // Generate QR Code
+    function generateQRCode() {
+      const invoiceNumber = document.querySelector('[data-field="invoiceNumber"]')?.textContent || 'XHV-INV-2025-0001';
+      const verificationUrl = 'https://xhenvolt.com/verify?invoice=' + encodeURIComponent(invoiceNumber);
+      const qrContainer = document.getElementById('qrCode');
+      
+      if (qrContainer) {
+        qrContainer.innerHTML = ''; // Clear previous QR
+        try {
+          new QRCode(qrContainer, {
+            text: verificationUrl,
+            width: 120,
+            height: 120,
+            colorDark: '#0f3c2e',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        } catch(e) {
+          console.error('QR Code generation error:', e);
+          qrContainer.innerHTML = '<p style="color: red; font-size: 12px;">QR Code failed to generate</p>';
+        }
+      }
+    }
+
+    // Save invoice data to localStorage
+    function saveInvoice() {
+      const invoiceData = {};
+      
+      document.querySelectorAll('[contenteditable="true"]').forEach(element => {
+        const field = element.getAttribute('data-field');
+        if (field) {
+          invoiceData[field] = element.innerHTML;
+        }
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(invoiceData));
+        hasUnsavedChanges = false;
+        updateSaveStatus('✓ Saved successfully');
+        
+        // Reset status after 3 seconds
+        setTimeout(() => {
+          if (!hasUnsavedChanges) {
+            updateSaveStatus('Ready');
+          }
+        }, 3000);
+      } catch (e) {
+        console.error('Error saving invoice:', e);
+        updateSaveStatus('Error saving');
+      }
+    }
+
+    // Load invoice data from localStorage
+    function loadInvoice() {
+      try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+          const invoiceData = JSON.parse(savedData);
+          Object.keys(invoiceData).forEach(field => {
+            const element = document.querySelector(`[data-field="${field}"]`);
+            if (element) {
+              element.innerHTML = invoiceData[field];
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error loading invoice:', e);
+      }
+    }
+
+    // Update save status indicator
+    function updateSaveStatus(message) {
+      const statusEl = document.getElementById('saveStatus');
+      if (statusEl) {
+        statusEl.textContent = message;
+      }
+    }
+
+    // Print invoice
+    function printInvoice() {
+      window.print();
+    }
+
+    // Reset invoice to initial state
+    function resetInvoice() {
+      if (confirm('Are you sure you want to reset all changes? This cannot be undone.')) {
+        localStorage.removeItem(STORAGE_KEY);
+        hasUnsavedChanges = false;
+        location.reload();
+      }
+    }
+  </script>
+
+</body>
+</html>
