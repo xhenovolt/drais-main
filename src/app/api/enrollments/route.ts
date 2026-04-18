@@ -243,11 +243,21 @@ export async function POST(req: NextRequest) {
       const prevEnrollment = prevRows.length > 0 ? prevRows[0] : null;
 
       // 2. Close previous active enrollments
-      if (close_previous || prevEnrollment) {
+      // close_previous=true  → close ALL active enrollments (promotion / year-change)
+      // close_previous=false → close only the previous enrollment for THIS program,
+      //                        leaving other-program enrollments intact (multi-program mode)
+      if (close_previous) {
         await conn.execute(
           `UPDATE enrollments SET status = 'completed', end_date = CURDATE(), end_reason = 'promoted', updated_at = NOW()
            WHERE student_id = ? AND school_id = ? AND status = 'active'`,
           [student_id, schoolId]
+        );
+      } else {
+        // Only close the previous enrollment for this specific program
+        await conn.execute(
+          `UPDATE enrollments SET status = 'completed', end_date = CURDATE(), end_reason = 'reassigned', updated_at = NOW()
+           WHERE student_id = ? AND school_id = ? AND program_id = ? AND status = 'active'`,
+          [student_id, schoolId, program_id]
         );
       }
 

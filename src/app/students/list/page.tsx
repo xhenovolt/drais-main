@@ -83,6 +83,10 @@ interface EnrolledStudent extends Student {
   study_mode_id?: number;
   study_mode_name?: string;
   programs?: Array<{ id: number; name: string }>;
+  program_id?: number;
+  program_name?: string;
+  // All active enrollments for this student (multi-program)
+  allEnrollments?: EnrolledStudent[];
   enrollment_status: string;
   enrollment_date: string;
   enrollment_type?: string;
@@ -170,7 +174,10 @@ export default function StudentsListPage() {
   const enrollInFlight = useRef<Set<number>>(new Set());
   // Last Enrolled confirmation panel
   const [lastEnrolled, setLastEnrolled] = useState<{ name: string; studentId: number; uid?: number; device: string; ts: Date } | null>(null);
-  
+  // Bulk Assign Program Modal (enrolled students only)
+  const [showAssignProgramModal, setShowAssignProgramModal] = useState(false);
+  const [isAssigningProgram, setIsAssigningProgram] = useState(false);
+
   // Enrollment Modal State
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollingStudent, setEnrollingStudent] = useState<Student | null>(null);
@@ -569,11 +576,22 @@ export default function StudentsListPage() {
       ]);
 
       const normalizedEnrolled = standardizeResponse<EnrolledStudent>(enrolledData);
-      const safeEnrolled = assertArray(normalizedEnrolled.data, 'Enrolled students', logger)
+      const rawEnrolled = assertArray(normalizedEnrolled.data, 'Enrolled students', logger)
         ? normalizedEnrolled.data
         : [];
+      // Group multiple enrollment rows (one per program) into one record per student
+      const studentMap = new Map<number, EnrolledStudent>();
+      for (const row of rawEnrolled) {
+        const existing = studentMap.get(row.id);
+        if (existing) {
+          existing.allEnrollments = [...(existing.allEnrollments ?? [existing]), row];
+        } else {
+          studentMap.set(row.id, { ...row, allEnrollments: [row] });
+        }
+      }
+      const safeEnrolled = Array.from(studentMap.values());
       setEnrolledStudents(safeEnrolled);
-      logger.debug('[Enrolled Students]', safeEnrolled.length, 'records');
+      logger.debug('[Enrolled Students]', safeEnrolled.length, 'students,', rawEnrolled.length, 'enrollment rows');
 
       const normalizedAdmitted = standardizeResponse<Student>(admittedData);
       const safeAdmitted = assertArray(normalizedAdmitted.data, 'Admitted students', logger)
@@ -699,11 +717,16 @@ export default function StudentsListPage() {
     return Object.values(validation).every(v => v);
   };
 
-  // Check if student is already enrolled in the same academic year
-  const checkDuplicateEnrollment = (studentId: number, academicYearId: number): boolean => {
-    return enrolledStudents.some(
-      s => s.id === studentId && s.academic_year_id === academicYearId
-    );
+  // Check if student is already enrolled in the same program+academic year
+  const checkDuplicateEnrollment = (studentId: number, academicYearId: number, programId?: number): boolean => {
+    const student = enrolledStudents.find(s => s.id === studentId);
+    if (!student) return false;
+    const allE = student.allEnrollments ?? [student];
+    if (programId) {
+      return allE.some(e => e.academic_year_id === academicYearId && e.program_id === programId);
+    }
+    // No program specified — let DB constraint handle true duplicates
+    return false;
   };
 
   const handleEnroll = async () => {
@@ -713,9 +736,9 @@ export default function StudentsListPage() {
       return;
     }
 
-    if (checkDuplicateEnrollment(enrollForm.student_id, enrollForm.academic_year_id)) {
-      setEnrollError('Student is already enrolled in this academic year');
-      showToast('error', 'Student is already enrolled in this academic year');
+    if (checkDuplicateEnrollment(enrollForm.student_id, enrollForm.academic_year_id, enrollForm.program_ids[0])) {
+      setEnrollError('Student is already enrolled in this program for this academic year');
+      showToast('error', 'Student is already enrolled in this program for this academic year');
       return;
     }
 
@@ -1458,11 +1481,27 @@ export default function StudentsListPage() {
                         {safeString(student.admission_no) || <span className="text-slate-400">—</span>}
                       </td>
 
-                      {/* Class · Stream · Type (enrolled) */}
+                      {/* Class · Program tags · Stream · Type (enrolled) */}
                       {activeTab === 'enrolled' && (
                         <>
-                          <td className="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap hidden sm:table-cell">
-                            {enrolled.class_name || <span className="text-slate-400">—</span>}
+                          <td className="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-300 hidden sm:table-cell">
+                            <div className="flex flex-wrap gap-1">
+                              {(enrolled.allEnrollments ?? [enrolled]).map(e => (
+                                <span
+                                  key={e.enrollment_id}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 whitespace-nowrap"
+                                  title={e.program_name ? `Program: ${e.program_name}` : undefined}
+                                >
+                                  {e.program_name && (
+                                    <span className="text-indigo-400 dark:text-indigo-500 mr-0.5">{e.program_name}:</span>
+                                  )}
+                                  {e.class_name || '—'}
+                                </span>
+                              ))}
+                              {!enrolled.allEnrollments && !enrolled.class_name && (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap hidden md:table-cell">
                             {enrolled.stream_name || <span className="text-slate-400">—</span>}
@@ -1651,6 +1690,16 @@ export default function StudentsListPage() {
                 {isBulkEnrolling ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <GraduationCap className="w-3.5 h-3.5" />}
                 Enroll
               </button>
+              {activeTab === 'enrolled' && (
+                <button
+                  onClick={() => setShowAssignProgramModal(true)}
+                  disabled={isAssigningProgram}
+                  className="flex items-center gap-1.5 h-7 px-3 bg-violet-600 hover:bg-violet-500 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
+                >
+                  {isAssigningProgram ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <GraduationCap className="w-3.5 h-3.5" />}
+                  Assign Program
+                </button>
+              )}
               <button
                 onClick={() => setShowPhotoUploadModal(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-semibold transition-colors"
@@ -1677,6 +1726,49 @@ export default function StudentsListPage() {
           onSubmit={handleReassignClass}
           isLoading={isReassigning}
           selectedStudentCount={selectedIds.size}
+        />
+      )}
+
+      {/* ASSIGN PROGRAM MODAL */}
+      {showAssignProgramModal && (
+        <BulkAssignProgramModal
+          open={showAssignProgramModal}
+          onClose={() => setShowAssignProgramModal(false)}
+          selectedCount={selectedIds.size}
+          programs={programs}
+          classes={classes}
+          streams={streams}
+          academicYears={academicYears}
+          terms={terms}
+          studyModes={studyModes}
+          isLoading={isAssigningProgram}
+          onSubmit={async (formData) => {
+            setIsAssigningProgram(true);
+            try {
+              const data = await apiFetch('/api/enrollments/bulk-assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  student_ids: Array.from(selectedIds),
+                  program_id: formData.programId,
+                  class_id: formData.classId,
+                  term_id: formData.termId,
+                  academic_year_id: formData.academicYearId,
+                  study_mode_id: formData.studyModeId || undefined,
+                  stream_id: formData.streamId || undefined,
+                }),
+                successMessage: 'Program assigned successfully',
+              });
+              showToast('success', data?.message || `Assigned program to ${selectedIds.size} students`);
+              setShowAssignProgramModal(false);
+              setSelectedIds(new Set());
+              fetchStudents();
+            } catch {
+              // Error toast handled by apiFetch
+            } finally {
+              setIsAssigningProgram(false);
+            }
+          }}
         />
       )}
 
@@ -2264,6 +2356,196 @@ function BulkEnrollModal({
           >
             {isLoading ? <Loader className="w-4 h-4 animate-spin" /> : <GraduationCap className="w-4 h-4" />}
             Enroll {selectedCount}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BULK ASSIGN PROGRAM MODAL ──────────────────────────────────────────────
+// Assigns a NEW program enrollment to already-enrolled students without
+// touching their existing enrollments (multi-program stacking).
+
+function BulkAssignProgramModal({
+  open, onClose, selectedCount, programs, classes, streams, studyModes, academicYears, terms, isLoading, onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  selectedCount: number;
+  programs: SelectOption[];
+  classes: SelectOption[];
+  streams: SelectOption[];
+  studyModes: SelectOption[];
+  academicYears: SelectOption[];
+  terms: SelectOption[];
+  isLoading: boolean;
+  onSubmit: (data: {
+    programId: number;
+    classId: number;
+    termId: number;
+    academicYearId: number;
+    studyModeId: number | null;
+    streamId: number | null;
+  }) => void;
+}) {
+  const [programId, setProgramId] = useState<number>(0);
+  const [classId, setClassId] = useState<number>(0);
+  const [streamId, setStreamId] = useState<number | null>(null);
+  const [academicYearId, setAcademicYearId] = useState<number>(0);
+  const [termId, setTermId] = useState<number>(0);
+  const [studyModeId, setStudyModeId] = useState<number | null>(null);
+
+  const canSubmit = programId > 0 && classId > 0 && termId > 0 && academicYearId > 0;
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-violet-500" />
+              Assign Program — {selectedCount} Student{selectedCount !== 1 ? 's' : ''}
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Adds a second program enrollment. Existing enrollments are preserved.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+            <X className="w-4 h-4 text-slate-400" />
+          </button>
+        </div>
+
+        {/* Info banner */}
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Each student will show multiple program tags (e.g. <strong>Secular: P5</strong> and <strong>Theology: P3</strong>) in the student list.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {/* Program */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+              Program <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={programId}
+              onChange={e => setProgramId(Number(e.target.value))}
+              className={`w-full px-3 py-2 text-sm rounded-lg border ${programId ? 'border-violet-400 ring-1 ring-violet-300' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none`}
+            >
+              <option value={0}>Select program…</option>
+              {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
+          {/* Class */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+              Class <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={classId}
+              onChange={e => setClassId(Number(e.target.value))}
+              className={`w-full px-3 py-2 text-sm rounded-lg border ${classId ? 'border-violet-400 ring-1 ring-violet-300' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none`}
+            >
+              <option value={0}>Select class…</option>
+              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          {/* Academic Year + Term */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+                Academic Year <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={academicYearId}
+                onChange={e => setAcademicYearId(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
+              >
+                <option value={0}>Select year…</option>
+                {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+                Term <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={termId}
+                onChange={e => setTermId(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
+              >
+                <option value={0}>Select term…</option>
+                {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Stream + Study Mode (optional) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Stream (optional)</label>
+              <select
+                value={streamId ?? ''}
+                onChange={e => setStreamId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
+              >
+                <option value="">No stream</option>
+                {streams.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            {studyModes.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Study Mode (optional)</label>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {studyModes.map(m => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setStudyModeId(studyModeId === m.id ? null : m.id)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                        studyModeId === m.id
+                          ? 'bg-violet-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onSubmit({ programId, classId, termId, academicYearId, studyModeId, streamId })}
+            disabled={isLoading || !canSubmit}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isLoading ? <Loader className="w-4 h-4 animate-spin" /> : <GraduationCap className="w-4 h-4" />}
+            Assign to {selectedCount}
           </button>
         </div>
       </div>

@@ -108,6 +108,7 @@ export async function GET(req: NextRequest) {
          e.academic_year_id,
          e.term_id,
          e.study_mode_id,
+         e.program_id,
          e.status                               AS enrollment_status,
          IFNULL(e.enrollment_type, 'new')       AS enrollment_type,
          IFNULL(e.joined_at,       e.created_at) AS joined_at,
@@ -130,7 +131,8 @@ export async function GET(req: NextRequest) {
          st.name           AS stream_name,
          ay.name           AS academic_year_name,
          t.name            AS term_name,
-         sm.name           AS study_mode_name
+         sm.name           AS study_mode_name,
+         pr.name           AS program_name
        FROM enrollments e
        JOIN students s      ON e.student_id   = s.id
        LEFT JOIN people p   ON s.person_id    = p.id
@@ -139,6 +141,7 @@ export async function GET(req: NextRequest) {
        LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
        LEFT JOIN terms t           ON e.term_id          = t.id
        LEFT JOIN study_modes sm    ON e.study_mode_id    = sm.id
+       LEFT JOIN programs pr       ON e.program_id       = pr.id
        ${where}
        ORDER BY p.first_name ASC, p.last_name ASC`,
       [...params]
