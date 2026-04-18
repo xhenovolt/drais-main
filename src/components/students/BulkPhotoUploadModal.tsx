@@ -658,14 +658,6 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     {filteredStudents.length} students
                   </span>
-                </divpan className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                      <Camera className="w-3 h-3" />
-                      {photos.filter(p => p.studentId && students.find(s => s.id === p.studentId)?.photo_url).length} replacing
-                    </span>
-                  )}
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {filteredStudents.length} students
-                  </span>
                 </div>
               </div>
 
@@ -673,7 +665,15 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
               <div className="relative mb-4 flex-shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  Student List */}
+                  type="text"
+                  placeholder="Search students by name, ID, or admission number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                />
+              </div>
+
+              {/* Student List */}
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {(() => {
                   const withPhoto    = filteredStudents.filter(s => Boolean(s.photo_url));
@@ -789,91 +789,6 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                               ))}
                             </select>
                           )}
-                        </div>
-
-                        {/* Replacement preview — shown only when replacing an existing photo */}
-                        {assignedPhoto && hasPhoto && (
-                          <div className="px-3 pb-3 flex items-center gap-2">
-                            <div className="flex-1 flex flex-col items-center gap-1">
-                              <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">Current</span>
-                              <img
-                                src={student.photo_url!}
-                                alt="Current photo"
-                                className="w-16 h-16 rounded-xl object-cover ring-2 ring-red-300 opacity-70"
-                              />
-                            </div>
-                            <div className="flex flex-col items-center gap-1 px-1">
-                              <span className="text-lg text-gray-400">→</span>
-                              <span className="text-xs text-gray-400">replaced by</span>
-                            </div>
-                            <div className="flex-1 flex flex-col items-center gap-1">
-                              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">New</span>
-                              <img
-                                src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
-                                alt="New photo"
-                                className="w-16 h-16 rounded-xl object-cover ring-2 ring-emerald-400 shadow-md"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Assignment preview — new photo (no existing) */}
-                        {assignedPhoto && !hasPhoto && (
-                          <div className="px-3 pb-3 flex items-center gap-2">
-                            <img
-                              src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
-                              alt="New photo"
-                              className="w-14 h-14 rounded-xl object-cover ring-2 ring-blue-400 shadow-md"
-                            />
-                            <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
-                              {assignedPhoto.file.name}
-                            </p>
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  };
-
-                  return (
-                    <div className="space-y-1 pr-2">
-                      {/* Students WITH existing photos — flagged for replacement */}
-                      {withPhoto.length > 0 && (
-                        <>
-                          <div className="flex items-center gap-2 pt-1 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
-                            <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
-                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                              <Camera className="w-3 h-3" /> {withPhoto.length} with existing photo
-                            </span>
-                            <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
-                          </div>
-                          <div className="space-y-2">
-                            {withPhoto.map(renderStudent)}
-                          </div>
-                        </>
-                      )}
-
-                      {/* Students WITHOUT photos */}
-                      {withoutPhoto.length > 0 && (
-                        <>
-                          <div className="flex items-center gap-2 pt-3 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
-                            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                              <User className="w-3 h-3" /> {withoutPhoto.length} no photo yet
-                            </span>
-                            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-                          </div>
-                          <div className="space-y-2">
-                            {withoutPhoto.map(renderStudent)}
-                          </div>
-                        </>
-                      )}
-
-                      {filteredStudents.length === 0 && (
-                        <div className="py-10 text-center text-sm text-gray-400">No students match your search</div>
-                      )}
-                    </div>
-                  );
-                })()}    )}
                         </div>
 
                         {/* Replacement preview — shown only when replacing an existing photo */}
