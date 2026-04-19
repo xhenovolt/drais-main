@@ -179,6 +179,7 @@ export default function StudentsListPage() {
   // Bulk Assign Program Modal (enrolled students only)
   const [showAssignProgramModal, setShowAssignProgramModal] = useState(false);
   const [isAssigningProgram, setIsAssigningProgram] = useState(false);
+  const [suggestedProgramId, setSuggestedProgramId] = useState<number>(0);
 
   // Enrollment Modal State
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -1707,7 +1708,28 @@ export default function StudentsListPage() {
               </button>
               {activeTab === 'enrolled' && (
                 <button
-                  onClick={() => setShowAssignProgramModal(true)}
+                  onClick={() => {
+                    // Detect which program the selected students are missing
+                    const selectedEnrolled = filteredData.filter(s => selectedIds.has(s.id)) as any[];
+                    const programNames = new Set<string>();
+                    selectedEnrolled.forEach(s => {
+                      const enrollments = s.allEnrollments ?? [s];
+                      enrollments.forEach((e: any) => {
+                        if (e.program_name) programNames.add(e.program_name.toLowerCase());
+                      });
+                    });
+                    // If everyone only has theology → suggest secular; only secular → suggest theology
+                    const hasTheology = programNames.has('theology');
+                    const hasSecular  = programNames.has('secular');
+                    let guessedId = 0;
+                    if (hasTheology && !hasSecular) {
+                      guessedId = programs.find(p => p.name.toLowerCase() === 'secular')?.id ?? 0;
+                    } else if (hasSecular && !hasTheology) {
+                      guessedId = programs.find(p => p.name.toLowerCase() === 'theology')?.id ?? 0;
+                    }
+                    setSuggestedProgramId(guessedId);
+                    setShowAssignProgramModal(true);
+                  }}
                   disabled={isAssigningProgram}
                   className="flex items-center gap-1.5 h-7 px-3 bg-violet-600 hover:bg-violet-500 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
                 >
@@ -1756,6 +1778,7 @@ export default function StudentsListPage() {
           academicYears={academicYears}
           terms={terms}
           studyModes={studyModes}
+          defaultProgramId={suggestedProgramId}
           isLoading={isAssigningProgram}
           onSubmit={async (formData) => {
             setIsAssigningProgram(true);
@@ -2409,7 +2432,7 @@ function BulkEnrollModal({
 // touching their existing enrollments (multi-program stacking).
 
 function BulkAssignProgramModal({
-  open, onClose, selectedCount, programs, classes, streams, studyModes, academicYears, terms, isLoading, onSubmit,
+  open, onClose, selectedCount, programs, classes, streams, studyModes, academicYears, terms, defaultProgramId, isLoading, onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
@@ -2420,6 +2443,7 @@ function BulkAssignProgramModal({
   studyModes: SelectOption[];
   academicYears: SelectOption[];
   terms: SelectOption[];
+  defaultProgramId?: number;
   isLoading: boolean;
   onSubmit: (data: {
     programId: number;
@@ -2430,12 +2454,15 @@ function BulkAssignProgramModal({
     streamId: number | null;
   }) => void;
 }) {
-  const [programId, setProgramId] = useState<number>(0);
+  const [programId, setProgramId] = useState<number>(defaultProgramId ?? 0);
   const [classId, setClassId] = useState<number>(0);
   const [streamId, setStreamId] = useState<number | null>(null);
   const [academicYearId, setAcademicYearId] = useState<number>(0);
   const [termId, setTermId] = useState<number>(0);
   const [studyModeId, setStudyModeId] = useState<number | null>(null);
+
+  // Auto-select the suggested program when modal opens
+  useEffect(() => { if (defaultProgramId) setProgramId(defaultProgramId); }, [defaultProgramId]);
 
   const canSubmit = programId > 0 && classId > 0 && termId > 0 && academicYearId > 0;
 
