@@ -127,7 +127,13 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         })
       ]);
       setTerms(te.data || []);
-      setClasses(cl.data || []);
+      // Filter classes to only those belonging to the current academicType program.
+      // Falls back to all classes if no classes have program tags yet.
+      const allClasses: any[] = cl.data || [];
+      const programClasses = allClasses.filter(
+        (c: any) => c.program_name?.toLowerCase() === academicType.toLowerCase()
+      );
+      setClasses(programClasses.length > 0 ? programClasses : allClasses);
       setSubjects(su.data || []);
       setTypes(rt.data || []);
     } catch (error) {
