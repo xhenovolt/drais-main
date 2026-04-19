@@ -188,6 +188,77 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
       };
     }
 
+    case 'SET_FIELD_PROP': {
+      return {
+        ...doc,
+        sections: doc.sections.map(s => {
+          if (s.id !== mutation.sectionId) return s;
+          if (!('fields' in s)) return s;
+          const withFields = s as typeof s & { fields: Array<{ id: string }> };
+          return {
+            ...withFields,
+            fields: withFields.fields.map(f =>
+              f.id !== mutation.fieldId ? f : setByPath(f, mutation.path, mutation.value),
+            ),
+          };
+        }),
+      };
+    }
+
+    case 'ADD_COMMENT_ITEM': {
+      return {
+        ...doc,
+        sections: doc.sections.map(s => {
+          if (s.id !== mutation.sectionId || s.type !== 'comments') return s;
+          const cs = s as typeof s & { items: typeof mutation.item[] };
+          return { ...cs, items: [...cs.items, { ...mutation.item, order: cs.items.length }] };
+        }),
+      };
+    }
+
+    case 'DELETE_COMMENT_ITEM': {
+      return {
+        ...doc,
+        sections: doc.sections.map(s => {
+          if (s.id !== mutation.sectionId || s.type !== 'comments') return s;
+          const cs = s as typeof s & { items: Array<{ id: string; order: number }> };
+          const filtered = cs.items.filter(it => it.id !== mutation.itemId);
+          return { ...cs, items: filtered.map((it, i) => ({ ...it, order: i })) };
+        }),
+      };
+    }
+
+    case 'REORDER_COMMENT_ITEMS': {
+      return {
+        ...doc,
+        sections: doc.sections.map(s => {
+          if (s.id !== mutation.sectionId || s.type !== 'comments') return s;
+          const cs = s as typeof s & { items: Array<{ id: string; order: number }> };
+          const idxMap = new Map(mutation.ids.map((id, i) => [id, i]));
+          const sorted = [...cs.items]
+            .sort((a, b) => (idxMap.get(a.id) ?? a.order) - (idxMap.get(b.id) ?? b.order))
+            .map((it, i) => ({ ...it, order: i }));
+          return { ...cs, items: sorted };
+        }),
+      };
+    }
+
+    case 'SET_COMMENT_ITEM_PROP': {
+      return {
+        ...doc,
+        sections: doc.sections.map(s => {
+          if (s.id !== mutation.sectionId || s.type !== 'comments') return s;
+          const cs = s as typeof s & { items: Array<{ id: string }> };
+          return {
+            ...cs,
+            items: cs.items.map(it =>
+              it.id !== mutation.itemId ? it : setByPath(it, mutation.path, mutation.value),
+            ),
+          };
+        }),
+      };
+    }
+
     case 'SET_WATERMARK': {
       return {
         ...doc,

@@ -129,6 +129,8 @@ export function DRCEDocumentRenderer({
                   outlineOffset: 2,
                   borderRadius: 2,
                   transition: 'outline 0.1s',
+                  marginTop: ((section as { style?: { spacingTop?: number } }).style?.spacingTop ?? 0) || undefined,
+                  marginBottom: ((section as { style?: { spacingBottom?: number } }).style?.spacingBottom ?? 0) || undefined,
                 }}
               >
                 {rendered}

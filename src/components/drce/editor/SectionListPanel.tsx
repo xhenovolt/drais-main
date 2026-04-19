@@ -1,7 +1,7 @@
 // src/components/drce/editor/SectionListPanel.tsx
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -16,7 +16,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Eye, EyeOff } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { DRCESection, DRCEMutation } from '@/lib/drce/schema';
 
 interface Props {
@@ -108,10 +108,75 @@ function SortableItem({
 
 export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: Props) {
   const sorted = [...sections].sort((a, b) => a.order - b.order);
+  const [showPicker, setShowPicker] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
+
+  const ADDABLE_SECTIONS: { type: string; label: string; icon: string }[] = [
+    { type: 'banner',        label: 'Banner',        icon: '🎗️' },
+    { type: 'ribbon',        label: 'Ribbon',        icon: '📌' },
+    { type: 'student_info',  label: 'Student Info',  icon: '👤' },
+    { type: 'results_table', label: 'Results Table', icon: '📊' },
+    { type: 'assessment',    label: 'Assessment',    icon: '📈' },
+    { type: 'comments',      label: 'Comments',      icon: '💬' },
+    { type: 'grade_table',   label: 'Grade Table',   icon: '🔢' },
+    { type: 'spacer',        label: 'Spacer',        icon: '↕️' },
+    { type: 'divider',       label: 'Divider',       icon: '➖' },
+    { type: 'header',        label: 'Header',        icon: '🏫' },
+  ];
+
+  function buildNewSection(type: string): DRCESection {
+    const id = `${type}-${Date.now()}`;
+    const base = { id, visible: true, order: sections.length };
+    switch (type) {
+      case 'banner':
+        return { ...base, type: 'banner', content: { text: 'New Banner' },
+          style: { backgroundColor: '#3b82f6', color: '#fff', fontSize: 14, fontWeight: 'bold',
+            textAlign: 'center', padding: '8px', letterSpacing: '0.05em',
+            textTransform: 'uppercase', borderRadius: 0 } } as DRCESection;
+      case 'ribbon':
+        return { ...base, type: 'ribbon', content: { text: 'New Ribbon', shape: 'flat' },
+          style: { background: '#e5e7eb', color: '#111', fontWeight: 'bold',
+            fontSize: 13, padding: '4px 0', textAlign: 'center' } } as DRCESection;
+      case 'student_info':
+        return { ...base, type: 'student_info',
+          fields: [{ id: `f-${Date.now()}`, label: 'Name', binding: 'student.fullName', visible: true, order: 0 }],
+          style: { border: '1px solid #ccc', borderRadius: 4, padding: '12px 14px',
+            background: '#f9f9f9', labelColor: '#555', valueColor: '#000',
+            valueFontWeight: 'bold', valueFontSize: 13 } } as DRCESection;
+      case 'results_table':
+        return { ...base, type: 'results_table',
+          columns: [
+            { id: `col-${Date.now()}-1`, header: 'Subject', binding: 'result.subjectName', width: '30%', visible: true, order: 0, align: 'left' },
+            { id: `col-${Date.now()}-2`, header: 'Grade',   binding: 'result.grade',       width: '15%', visible: true, order: 1, align: 'center' },
+          ],
+          style: { headerBackground: '#e5e7eb', headerBorder: '1px solid #ccc',
+            rowBorder: '1px solid #ddd', headerFontSize: 11, rowFontSize: 11,
+            headerTextTransform: 'uppercase', padding: 4 } } as DRCESection;
+      case 'assessment':
+        return { ...base, type: 'assessment',
+          fields: [{ id: `af-${Date.now()}`, label: 'Class Position', binding: 'assessment.classPosition', visible: true, order: 0 }],
+          style: {} } as DRCESection;
+      case 'comments':
+        return { ...base, type: 'comments',
+          items: [{ id: `ci-${Date.now()}`, label: 'Teacher Comment', binding: 'comments.classTeacher', visible: true, order: 0 }],
+          style: { ribbonBackground: '#6b7280', ribbonColor: '#fff', textColor: '#333', textFontStyle: 'italic' } } as DRCESection;
+      case 'grade_table':
+        return { ...base, type: 'grade_table',
+          style: { headerBackground: '#e5e7eb', border: '1px solid #ccc' } } as DRCESection;
+      case 'spacer':
+        return { ...base, type: 'spacer', style: { height: 20 } } as DRCESection;
+      case 'divider':
+        return { ...base, type: 'divider', style: { color: '#cccccc', thickness: 1, margin: '8px 0' } } as DRCESection;
+      case 'header':
+        return { ...base, type: 'header',
+          style: { layout: 'three-column', paddingBottom: 10, borderBottom: '1px solid #eee', opacity: 1 } } as DRCESection;
+      default:
+        return { ...base, type: 'spacer', style: { height: 16 } } as DRCESection;
+    }
+  }
 
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
@@ -128,11 +193,43 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-2 border-b border-gray-100 dark:border-slate-700">
+      <div className="px-3 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
           Sections
         </span>
+        <button
+          type="button"
+          title="Add section"
+          onClick={() => setShowPicker(v => !v)}
+          className="w-6 h-6 flex items-center justify-center rounded-md bg-indigo-50 dark:bg-indigo-900/40 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-800/60"
+        >
+          {showPicker ? <X size={13} /> : <Plus size={13} />}
+        </button>
       </div>
+
+      {/* Section picker */}
+      {showPicker && (
+        <div className="p-2 border-b border-gray-100 dark:border-slate-700 bg-indigo-50/50 dark:bg-indigo-900/10">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 font-medium px-1">Add section:</p>
+          <div className="grid grid-cols-2 gap-1">
+            {ADDABLE_SECTIONS.map(s => (
+              <button
+                key={s.type}
+                type="button"
+                className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left"
+                onClick={() => {
+                  onMutate({ type: 'ADD_SECTION', section: buildNewSection(s.type), afterId: null });
+                  setShowPicker(false);
+                }}
+              >
+                <span>{s.icon}</span>
+                <span className="truncate">{s.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sorted.map(s => s.id)} strategy={verticalListSortingStrategy}>

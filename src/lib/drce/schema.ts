@@ -343,6 +343,11 @@ export type DRCEMutation =
   | { type: 'ADD_FIELD';           sectionId: string; field: DRCEField }
   | { type: 'DELETE_FIELD';        sectionId: string; fieldId: string }
   | { type: 'REORDER_FIELDS';      sectionId: string; ids: string[] }
+  | { type: 'SET_FIELD_PROP';      sectionId: string; fieldId: string; path: string; value: unknown }
+  | { type: 'ADD_COMMENT_ITEM';      sectionId: string; item: DRCECommentItem }
+  | { type: 'DELETE_COMMENT_ITEM';   sectionId: string; itemId: string }
+  | { type: 'REORDER_COMMENT_ITEMS'; sectionId: string; ids: string[] }
+  | { type: 'SET_COMMENT_ITEM_PROP'; sectionId: string; itemId: string; path: string; value: unknown }
   | { type: 'SET_WATERMARK';       path: string; value: unknown }
   | { type: 'ADD_SHAPE';           shape: DRCEShape }
   | { type: 'UPDATE_SHAPE';        id: string; updates: Partial<DRCEShape> }
