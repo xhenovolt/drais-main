@@ -92,7 +92,7 @@ SET @col_exists = (
 );
 SET @sql = IF(
   @col_exists = 0,
-  'ALTER TABLE class_results ADD COLUMN program_id BIGINT NULL COMMENT ''Program this result belongs to'' AFTER school_id',
+  'ALTER TABLE class_results ADD COLUMN program_id BIGINT NULL COMMENT \'\'Program this result belongs to\'\'',
   'SELECT 1 -- class_results.program_id already exists'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
