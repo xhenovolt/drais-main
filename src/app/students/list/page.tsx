@@ -109,6 +109,8 @@ interface EnrollmentFormData {
 interface SelectOption {
   id: number;
   name: string;
+  program_id?: number | null;
+  program_name?: string | null;
 }
 
 export default function StudentsListPage() {
@@ -1099,7 +1101,20 @@ export default function StudentsListPage() {
                 className="h-8 pl-2.5 pr-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
               >
                 <option value={0}>All classes</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {(() => {
+                  const grouped = (Array.isArray(classes) ? classes : []).reduce((acc: Record<string, SelectOption[]>, c) => {
+                    const key = c.program_name || 'General';
+                    (acc[key] = acc[key] || []).push(c);
+                    return acc;
+                  }, {});
+                  const entries = Object.entries(grouped);
+                  if (entries.length <= 1 && entries[0]?.[0] === 'General') {
+                    return (Array.isArray(classes) ? classes : []).map(c => <option key={c.id} value={c.id}>{c.name}</option>);
+                  }
+                  return entries.map(([prog, list]) => (
+                    <optgroup key={prog} label={prog}>{list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
+                  ));
+                })()}
               </select>
               <ChevronDown className="absolute right-1.5 w-3 h-3 text-slate-400 pointer-events-none" />
             </div>
@@ -2023,9 +2038,22 @@ function EnrollmentModal({
                   <option value={0}>
                     {safeClasses.length === 0 ? '⚠️ No classes' : 'Select class'}
                   </option>
-                  {safeClasses.map(c => (
-                    <option key={c.id} value={c.id}>{safeString(c.name)}</option>
-                  ))}
+                  {(() => {
+                    const grouped = safeClasses.reduce((acc: Record<string, SelectOption[]>, c) => {
+                      const key = c.program_name || 'General';
+                      (acc[key] = acc[key] || []).push(c);
+                      return acc;
+                    }, {});
+                    const entries = Object.entries(grouped);
+                    if (entries.length <= 1 && entries[0]?.[0] === 'General') {
+                      return safeClasses.map(c => <option key={c.id} value={c.id}>{safeString(c.name)}</option>);
+                    }
+                    return entries.map(([prog, list]) => (
+                      <optgroup key={prog} label={prog}>
+                        {list.map(c => <option key={c.id} value={c.id}>{safeString(c.name)}</option>)}
+                      </optgroup>
+                    ));
+                  })()}
                 </select>
                 {safeClasses.length === 0 && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">Contact administrator to add classes.</p>
@@ -2252,7 +2280,20 @@ function BulkEnrollModal({
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
               >
                 <option value="">Keep current class</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {(() => {
+                  const grouped = (Array.isArray(classes) ? classes : []).reduce((acc: Record<string, SelectOption[]>, c) => {
+                    const key = c.program_name || 'General';
+                    (acc[key] = acc[key] || []).push(c);
+                    return acc;
+                  }, {});
+                  const entries = Object.entries(grouped);
+                  if (entries.length <= 1 && entries[0]?.[0] === 'General') {
+                    return (Array.isArray(classes) ? classes : []).map(c => <option key={c.id} value={c.id}>{c.name}</option>);
+                  }
+                  return entries.map(([prog, list]) => (
+                    <optgroup key={prog} label={prog}>{list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
+                  ));
+                })()}
               </select>
             </div>
             <div>
@@ -2457,7 +2498,15 @@ function BulkAssignProgramModal({
               className={`w-full px-3 py-2 text-sm rounded-lg border ${classId ? 'border-violet-400 ring-1 ring-violet-300' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none`}
             >
               <option value={0}>Select class…</option>
-              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {(() => {
+                const programClasses = programId
+                  ? (Array.isArray(classes) ? classes : []).filter(c => c.program_id === programId)
+                  : (Array.isArray(classes) ? classes : []);
+                if (programId && programClasses.length === 0) {
+                  return <option disabled value={-1}>⚠ No classes assigned to this program yet</option>;
+                }
+                return programClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>);
+              })()}
             </select>
           </div>
 
