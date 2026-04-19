@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   ChefHat, Eye, Check, Copy, Plus, Trash2, Paintbrush,
-  LayoutTemplate, Sparkles, ArrowLeft, RefreshCw, Save, FileText,
+  LayoutTemplate, Sparkles, ArrowLeft, RefreshCw, Save, FileText, Pencil,
 } from 'lucide-react';
 import type { ReportTemplate, ReportLayoutJSON } from '@/lib/reportTemplates';
 
@@ -497,6 +497,7 @@ export default function ReportsKitchen() {
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
+  const [linkingId, setLinkingId] = useState<number | null>(null);
   // Accent color: keyed by template id — used for live preview + saved on change
   const [accentColors, setAccentColors] = useState<Record<number, string>>({});
   const accentSaveTimers = React.useRef<Record<number, ReturnType<typeof setTimeout>>>({});
@@ -504,6 +505,24 @@ export default function ReportsKitchen() {
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3500);
+  };
+
+  const handleEditInDRCE = async (templateId: number) => {
+    setLinkingId(templateId);
+    try {
+      const res = await fetch(`/api/dvcf/link-template/${templateId}`);
+      const data = await res.json();
+      if (data.id) {
+        router.push(`/reports/kitchen/drce/${data.id}`);
+      } else {
+        showMsg('error', data.error || 'Could not open editor');
+      }
+    } catch {
+      // Fallback: open a new blank DRCE document
+      router.push('/reports/kitchen/drce/new');
+    } finally {
+      setLinkingId(null);
+    }
   };
 
   const fetchData = useCallback(async () => {
@@ -676,8 +695,8 @@ export default function ReportsKitchen() {
               <RefreshCw size={14} /> Refresh
             </button>
             <button
-              onClick={() => setShowNewForm(true)}
-              className="flex items-center gap-1.5 bg-blue-600 text-white text-sm px-3 py-1.5 rounded hover:bg-blue-700"
+              onClick={() => router.push('/reports/kitchen/drce/new')}
+              className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3 py-1.5 rounded hover:bg-indigo-700"
             >
               <Plus size={14} /> New Template
             </button>
@@ -844,6 +863,14 @@ export default function ReportsKitchen() {
 
                     {/* Actions */}
                     <div className="flex gap-1.5 mt-2">
+                      <button
+                        onClick={() => handleEditInDRCE(template.id)}
+                        disabled={linkingId === template.id}
+                        className="flex items-center gap-1 text-xs bg-indigo-600 text-white rounded px-2 py-1 hover:bg-indigo-700 disabled:opacity-60"
+                        title="Open in DRCE visual editor"
+                      >
+                        <Pencil size={12} /> {linkingId === template.id ? '...' : 'Edit'}
+                      </button>
                       <button
                         onClick={() => setPreviewId(prev => prev === template.id ? null : template.id)}
                         className="flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-gray-50"
