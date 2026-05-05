@@ -1,19 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, GraduationCap, BookOpen } from 'lucide-react';
+import { FileText, GraduationCap, BookOpen, Settings2 } from 'lucide-react';
 import { SnapshotListTable } from '@/components/reports/SnapshotListTable';
 
 export default function ReportCardsLandingPage() {
   return (
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
-      <header>
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <FileText className="w-6 h-6" /> Report Cards
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Snapshot-driven report cards. Generate once per term — preview and print without re-running heavy queries.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <FileText className="w-6 h-6" /> Report Cards
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Snapshot-driven report cards. Generate once per term — preview and print without re-running heavy queries.
+          </p>
+        </div>
+        <Link
+          href="/academics/report-cards/manage"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+        >
+          <Settings2 className="w-4 h-4" /> Manage Snapshots
+        </Link>
       </header>
 
       <div className="grid sm:grid-cols-2 gap-4">
