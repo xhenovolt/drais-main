@@ -83,6 +83,11 @@ export const KNOWN_ROUTES = new Set<string>([
   '/academics/streams',
   '/academics/timetable',
   '/academics/reports',
+  '/academics/report-cards',
+  '/academics/report-cards/secular',
+  '/academics/report-cards/theology',
+  '/academics/report-cards/[type]/[snapshotId]',
+  '/academics/report-cards/[type]/[snapshotId]/print',
   '/academics/exams',
   '/academics/subjects',
   
