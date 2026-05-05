@@ -28,9 +28,9 @@ export async function DELETE(
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
-  if (!session.isSuperAdmin) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  // Authorization is school-scoped: deleteSnapshot enforces school_id match,
+  // so a user can only ever remove their own school's snapshot rows. Source
+  // marks/results are untouched.
   const { id } = await ctx.params;
   const ok = await deleteSnapshot(id, session.schoolId);
   if (!ok) return NextResponse.json({ error: 'Not found' }, { status: 404 });

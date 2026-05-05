@@ -251,7 +251,7 @@ export default function SnapshotManagementPage() {
                         onClick={() => deleteRow(r.snapshotId)}
                         disabled={busyId === r.snapshotId}
                         className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                        title="Permanently delete this snapshot (super-admin only)"
+                        title="Permanently delete this snapshot"
                       >
                         <Trash2 className="w-3 h-3" /> Delete
                       </button>
@@ -384,7 +384,7 @@ function FlushModal(props: {
         <div className="p-4 space-y-3 text-sm">
           <div className="rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>This permanently deletes snapshot rows. Super-admin only. Source marks/results are not affected.</span>
+            <span>This permanently deletes snapshot rows from your school. Source marks/results are not affected.</span>
           </div>
 
           <FormRow label="Type">

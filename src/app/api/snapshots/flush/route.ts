@@ -12,8 +12,10 @@ const VALID_TERMINAL_STATUSES = ['ready', 'failed', 'cancelled', 'stale'] as con
 type TerminalStatus = typeof VALID_TERMINAL_STATUSES[number];
 
 /**
- * Hard-delete snapshot rows matching the supplied criteria. Reserved for
- * super-admin (matches the existing DELETE /api/snapshots/[id] policy).
+ * Hard-delete snapshot rows matching the supplied criteria. School-scoped:
+ * `flushSnapshots` always filters by the caller's schoolId, so a user can
+ * only ever remove their own school's snapshot history. Source marks/results
+ * are untouched.
  *
  * Body:
  *   {
@@ -32,9 +34,6 @@ export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-  if (!session.isSuperAdmin) {
-    return NextResponse.json({ error: 'Forbidden — super-admin only' }, { status: 403 });
   }
 
   let body: any;
