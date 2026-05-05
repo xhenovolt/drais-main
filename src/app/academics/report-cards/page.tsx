@@ -1,9 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import { FileText, GraduationCap, BookOpen } from 'lucide-react';
+import { SnapshotListTable } from '@/components/reports/SnapshotListTable';
 
 export default function ReportCardsLandingPage() {
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-6 space-y-8 max-w-6xl mx-auto">
       <header>
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <FileText className="w-6 h-6" /> Report Cards
@@ -32,16 +35,20 @@ export default function ReportCardsLandingPage() {
           <BookOpen className="w-7 h-7 text-emerald-600 mb-2" />
           <div className="font-semibold text-lg">Theology Report Cards</div>
           <div className="text-sm text-slate-500 mt-1">
-            Theology curriculum reports with Arabic numerals and RTL layout.
+            Theology curriculum reports with Arabic numerals (٠–٩) and RTL layout.
           </div>
         </Link>
       </div>
 
-      <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-6 text-sm text-slate-500">
-        Coming soon: recent snapshot list and quick filters. Generate snapshots from the
-        <Link href="/academics/results" className="text-blue-600 underline mx-1">Results page</Link>
-        toolbar.
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Recent Secular Snapshots</h2>
+        <SnapshotListTable type="secular" />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Recent Theology Snapshots</h2>
+        <SnapshotListTable type="theology" />
+      </section>
     </div>
   );
 }
