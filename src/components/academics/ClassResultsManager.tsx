@@ -26,12 +26,14 @@ const successAnimationStyle = `
 `;
 
 // Bulk Entry Grid Component
-const BulkEntryGrid: React.FC<{
+interface BulkEntryGridProps {
   bulkData: any;
   setBulkData: (data: any) => void;
   subjects: Option[];
   classId?: number;
-}> = React.memo(({ bulkData, setBulkData, subjects, classId }) => {
+}
+
+const BulkEntryGrid: React.FC<BulkEntryGridProps> = React.memo(function BulkEntryGrid({ bulkData, setBulkData, subjects, classId }) {
   const [focusedCell, setFocusedCell] = useState<{ studentId: number; subjectId: number } | null>(null);
 
   // Filter subjects to only those allocated to the class

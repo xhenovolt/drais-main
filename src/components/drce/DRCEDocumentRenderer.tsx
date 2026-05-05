@@ -178,7 +178,6 @@ export function DRCEDocumentRenderer({
               />
             </div>
           ) : watermark.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={watermark.imageUrl}
               alt={watermark.content}

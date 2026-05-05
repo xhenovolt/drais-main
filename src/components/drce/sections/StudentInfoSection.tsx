@@ -164,7 +164,6 @@ export function StudentInfoSection({ section, ctx }: Props) {
             {/* ── Photo column ──────────────────────────────────── */}
              {showPhoto && (
                <td style={{ width: 94, textAlign: 'center', verticalAlign: 'middle', padding: '0 2px 0 0' }}>
-                 {/* eslint-disable-next-line @next/next/no-img-element */}
                  <img
                    src={student.photoUrl || '/default-avatar.png'}
                    alt={student.fullName || 'Student'}

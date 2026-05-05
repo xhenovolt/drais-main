@@ -142,7 +142,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo, selectedShapeId, mutate]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [undo, redo, selectedShapeId, mutate]);
 
   const handleMutate = useCallback((m: DRCEMutation) => {
     mutate(m);
