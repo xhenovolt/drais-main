@@ -23,6 +23,11 @@ import {
   SnapshotInFlightError,
 } from './storage';
 import {
+  cancelInflightForKey,
+  findReadyForKey,
+} from './lifecycle';
+import type { SnapshotRow } from './types';
+import {
   fetchSchool,
   fetchTerm,
   fetchResultType,
@@ -60,6 +65,13 @@ export interface GenerateInput {
   yearId:       number;
   resultTypeId: number | null;
   classIds?:    number[];
+  /**
+   * When true, cancel any in-flight generation for the same key and proceed
+   * even if `ready` snapshots already exist. The default (false) raises
+   * `SnapshotInFlightError` or `ExistingReadySnapshotsError` so the UI can
+   * present an informed choice.
+   */
+  force?:       boolean;
 }
 
 export interface GenerateContext {
@@ -74,6 +86,20 @@ export interface GenerateResult {
   counts:      ReportSnapshot['meta']['sourceCounts'];
 }
 
+/**
+ * Raised when ready snapshots already exist for the same (school, term, year,
+ * type, resultTypeId) and the caller did not pass `force=true`. Carries the
+ * existing rows so the UI can offer "View Existing / Regenerate / Flush".
+ */
+export class ExistingReadySnapshotsError extends Error {
+  readonly existing: SnapshotRow[];
+  constructor(existing: SnapshotRow[]) {
+    super(`Ready snapshots already exist for this term/type. Pass force=true to regenerate.`);
+    this.name = 'ExistingReadySnapshotsError';
+    this.existing = existing;
+  }
+}
+
 export { SnapshotInFlightError };
 
 /**
@@ -86,6 +112,32 @@ export async function generateSnapshot(
 ): Promise<GenerateResult> {
   const snapshotId = randomUUID();
   const startedAtMs = performance.now();
+
+  // Pre-flight: warn the caller if ready snapshots already exist for this key,
+  // unless they opted into force-regeneration.
+  if (!input.force) {
+    const existing = await findReadyForKey({
+      schoolId:     ctx.schoolId,
+      type:         input.type,
+      termId:       input.termId,
+      yearId:       input.yearId,
+      resultTypeId: input.resultTypeId,
+    });
+    if (existing.length > 0) {
+      throw new ExistingReadySnapshotsError(existing);
+    }
+  } else {
+    // Force path: clear any in-flight row for this key so the slot is free.
+    // Stale-sweep also runs inside acquireGenerationSlot, but that only catches
+    // timed-out rows; force explicitly cancels active ones.
+    await cancelInflightForKey({
+      schoolId:    ctx.schoolId,
+      type:        input.type,
+      termId:      input.termId,
+      yearId:      input.yearId,
+      cancelledBy: ctx.generatedBy,
+    });
+  }
 
   await acquireGenerationSlot({
     snapshotId,

@@ -11,7 +11,12 @@
  */
 
 export type SnapshotType   = 'theology' | 'secular' | 'mixed';
-export type SnapshotStatus = 'generating' | 'ready' | 'failed';
+export type SnapshotStatus =
+  | 'generating'
+  | 'ready'
+  | 'failed'
+  | 'cancelled'
+  | 'stale';
 export type SnapshotNumerals = 'arabic' | 'western';
 export type SnapshotLanguage = 'en' | 'ar';
 

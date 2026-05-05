@@ -6,6 +6,7 @@
  */
 import { query } from '@/lib/db';
 import type { ReportSnapshot, SnapshotRow, SnapshotStatus, SnapshotType } from './types';
+import { findInflight, sweepStale, type InflightInfo } from './lifecycle';
 
 interface RawSnapshotRow {
   id: number;
@@ -72,6 +73,14 @@ export async function acquireGenerationSlot(args: {
   resultTypeId: number | null;
   generatedBy:  number;
 }): Promise<void> {
+  // Reap any abandoned in-flight row first. Cheap and self-healing.
+  await sweepStale({
+    schoolId: args.schoolId,
+    type:     args.type,
+    termId:   args.termId,
+    yearId:   args.yearId,
+  });
+
   try {
     await query(
       `INSERT INTO report_snapshots
@@ -90,8 +99,15 @@ export async function acquireGenerationSlot(args: {
     );
   } catch (e: any) {
     if (e?.code === 'ER_DUP_ENTRY') {
+      const inflight = await findInflight({
+        schoolId: args.schoolId,
+        type:     args.type,
+        termId:   args.termId,
+        yearId:   args.yearId,
+      });
       throw new SnapshotInFlightError(
         `A snapshot generation is already in progress for this term/type.`,
+        inflight,
       );
     }
     throw e;
@@ -99,9 +115,11 @@ export async function acquireGenerationSlot(args: {
 }
 
 export class SnapshotInFlightError extends Error {
-  constructor(msg: string) {
+  readonly inflight: InflightInfo | null;
+  constructor(msg: string, inflight: InflightInfo | null = null) {
     super(msg);
     this.name = 'SnapshotInFlightError';
+    this.inflight = inflight;
   }
 }
 

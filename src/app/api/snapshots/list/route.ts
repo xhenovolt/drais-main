@@ -4,7 +4,7 @@ import { listSnapshots } from '@/lib/snapshots/storage';
 import type { SnapshotStatus, SnapshotType } from '@/lib/snapshots/types';
 
 const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
-const VALID_STATUSES: SnapshotStatus[] = ['generating', 'ready', 'failed'];
+const VALID_STATUSES: SnapshotStatus[] = ['generating', 'ready', 'failed', 'cancelled', 'stale'];
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);

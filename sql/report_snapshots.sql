@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
   term_id              INT          NOT NULL,
   year_id              INT          NOT NULL,
   result_type_id       INT          NULL,
-  status               ENUM('generating','ready','failed') NOT NULL DEFAULT 'generating',
+  status               ENUM('generating','ready','failed','cancelled','stale') NOT NULL DEFAULT 'generating',
   snapshot_json        LONGTEXT     NULL,
   data_hash            CHAR(64)     NULL,
   class_count          INT          NOT NULL DEFAULT 0,
