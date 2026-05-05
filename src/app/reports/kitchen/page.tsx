@@ -9,6 +9,7 @@ import {
 import type { DRCEDocument, DRCEDataContext } from '@/lib/drce/schema';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
 import type { DRCERenderContext } from '@/components/drce/types';
+import { GenerateSnapshotButton } from '@/components/reports/GenerateSnapshotButton';
 
 // ============================================================================
 // Sample data used for card mini-previews
@@ -232,6 +233,11 @@ export default function ReportsKitchen() {
             >
               <RefreshCw size={14} /> Refresh
             </button>
+            <GenerateSnapshotButton
+              defaultType="secular"
+              label="Generate Snapshot"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+            />
             <button
               onClick={() => router.push('/reports/kitchen/drce/new')}
               className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3 py-1.5 rounded hover:bg-indigo-700"

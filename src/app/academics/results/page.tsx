@@ -7,6 +7,7 @@ import ClassResultsManager from '@/components/academics/ClassResultsManager';
 import TheologyResultsManager from '@/components/academics/TheologyResultsManager';
 import { MarksMigrationWizard } from '@/components/academics/MarksMigrationWizard';
 import ResultsImportSystem from '@/components/academics/ResultsImportSystem';
+import { GenerateSnapshotButton } from '@/components/reports/GenerateSnapshotButton';
 
 const tabs = [
   { id: 'result-types',      label: 'Result Types',      icon: Settings2 },
@@ -115,17 +116,33 @@ export default function ResultsPage() {
 
         {/* Right-side actions */}
         {activeTab === 1 && (
-          <Button 
-            onClick={() => {
-              console.log('[Migration] Button clicked, setting migrationOpen to true');
-              setMigrationOpen(true);
-            }}
-            disabled={loadingWizardData || wizardData.academicYears.length === 0}
-            className="text-xs bg-blue-600 dark:bg-blue-950 text-purple-950 dark:text-purple-50 pointer"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
-            Migrate Results
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-gray-500">
+              Wizard data: {wizardData.academicYears.length} years loaded
+              {loadingWizardData && ' (loading...)'}
+            </div>
+            <Button
+              onClick={() => {
+                console.log('[Migration] Button clicked, setting migrationOpen to true');
+                console.log('[Migration] Current state:', { migrationOpen, loadingWizardData, wizardDataLength: wizardData.academicYears.length });
+                setMigrationOpen(true);
+              }}
+              disabled={loadingWizardData || wizardData.academicYears.length === 0}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                loadingWizardData || wizardData.academicYears.length === 0
+                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
+              Migrate Results
+            </Button>
+            <GenerateSnapshotButton
+              defaultType="secular"
+              label="Generate Report Snapshot"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+            />
+          </div>
         )}
       </div>
 
