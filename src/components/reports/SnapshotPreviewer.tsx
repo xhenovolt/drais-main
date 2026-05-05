@@ -174,7 +174,17 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
                   schoolName: snapshot.meta.schoolName,
                 })}
                 renderCtx={{
-                  school: { name: snapshot.meta.schoolName },
+                  school: snapshot.meta.branding
+                    ? {
+                        name:            snapshot.meta.branding.schoolName,
+                        arabic_name:     snapshot.meta.branding.arabicName,
+                        address:         snapshot.meta.branding.address,
+                        contact:         snapshot.meta.branding.phone || snapshot.meta.branding.email,
+                        center_no:       snapshot.meta.branding.centerNo,
+                        registration_no: snapshot.meta.branding.registrationNumber,
+                        logo_url:        snapshot.meta.branding.logoUrl,
+                      }
+                    : { name: snapshot.meta.schoolName },
                   isPrint: false,
                   language: snapshot.meta.language,
                   isRTL:    snapshot.meta.numerals === 'arabic',

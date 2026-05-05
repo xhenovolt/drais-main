@@ -76,9 +76,18 @@ const nextConfig = {
             key: 'X-DNS-Prefetch-Control',
             value: 'on'
           },
+          // SAMEORIGIN (not DENY) so the report-card preview iframe in
+          // SnapshotPreviewer and DRCE side panels can embed pages from
+          // the same deployment. Cross-origin embedding is still blocked.
           {
             key: 'X-Frame-Options',
-            value: 'DENY'
+            value: 'SAMEORIGIN'
+          },
+          // Modern browsers honour CSP frame-ancestors over X-Frame-Options.
+          // 'self' matches SAMEORIGIN; tighten or relax centrally here.
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors 'self'"
           }
         ],
       },

@@ -64,13 +64,67 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
     : Math.round(stu.total).toString();
   const division   = isArabic ? toArabicNumerals('1') : '1';
 
+  // Pull tenant branding from the frozen snapshot meta, with safe fallbacks
+  // for v1 snapshots that predate the `branding` block.
+  const b = snapshot.meta.branding;
+  const brand = {
+    schoolName:           b?.schoolName           ?? snapshot.meta.schoolName ?? '',
+    legalName:            b?.legalName            ?? '',
+    motto:                b?.motto                ?? '',
+    address:              b?.address              ?? '',
+    poBox:                b?.poBox                ?? '',
+    district:             b?.district             ?? '',
+    region:               b?.region               ?? '',
+    country:              b?.country              ?? '',
+    phone:                b?.phone                ?? '',
+    email:                b?.email                ?? '',
+    website:              b?.website              ?? '',
+    principalName:        b?.principalName        ?? '',
+    principalPhone:       b?.principalPhone       ?? '',
+    registrationNumber:   b?.registrationNumber   ?? '',
+    centerNo:             b?.centerNo             ?? '',
+    logoUrl:              b?.logoUrl              ?? '',
+    arabicName:           b?.arabicName           ?? '',
+    arabicAddress:        b?.arabicAddress        ?? '',
+    arabicMotto:          b?.arabicMotto          ?? '',
+    arabicPhone:          b?.arabicPhone          ?? '',
+    arabicCenterNo:       b?.arabicCenterNo       ?? '',
+    arabicRegistrationNo: b?.arabicRegistrationNo ?? '',
+    arabicPoBox:          b?.arabicPoBox          ?? '',
+  };
+
   const placeholders: Record<string, string> = {
     student_no:               escapeHtml(stu.id || ''),
     student_name:             escapeHtml(stu.name || ''),
     gender:                   escapeHtml(stu.gender || 'N/A'),
     class_name:               escapeHtml(cls.className || ''),
     stream_name:              escapeHtml(cls.stream || ''),
-    school_name:              escapeHtml(snapshot.meta.schoolName || ''),
+    school_name:              escapeHtml(brand.schoolName),
+    school_legal_name:        escapeHtml(brand.legalName || brand.schoolName),
+    school_motto:             escapeHtml(brand.motto),
+    school_address:           escapeHtml(brand.address),
+    school_po_box:            escapeHtml(brand.poBox),
+    school_district:          escapeHtml(brand.district),
+    school_region:            escapeHtml(brand.region),
+    school_country:           escapeHtml(brand.country),
+    school_phone:             escapeHtml(brand.phone),
+    school_email:             escapeHtml(brand.email),
+    school_website:           escapeHtml(brand.website),
+    school_principal:         escapeHtml(brand.principalName),
+    school_principal_phone:   escapeHtml(brand.principalPhone),
+    school_registration_no:   escapeHtml(brand.registrationNumber),
+    school_center_no:         escapeHtml(brand.centerNo),
+    school_logo_url:          escapeHtml(brand.logoUrl || '/placeholder-logo.png'),
+    // Arabic mirrors fall back to the primary fields when unset so theology
+    // reports still render at schools that have not filled in Arabic
+    // metadata yet.
+    school_name_ar:           escapeHtml(brand.arabicName    || brand.schoolName),
+    school_address_ar:        escapeHtml(brand.arabicAddress || brand.address),
+    school_motto_ar:          escapeHtml(brand.arabicMotto   || brand.motto),
+    school_phone_ar:          escapeHtml(brand.arabicPhone   || brand.phone),
+    school_center_no_ar:      escapeHtml(brand.arabicCenterNo|| brand.centerNo),
+    school_registration_no_ar:escapeHtml(brand.arabicRegistrationNo || brand.registrationNumber),
+    school_po_box_ar:         escapeHtml(brand.arabicPoBox   || brand.poBox),
     term_name:                escapeHtml(snapshot.meta.termName || ''),
     year_name:                escapeHtml(snapshot.meta.yearName || ''),
     result_type:              escapeHtml(snapshot.meta.resultTypeName || ''),

@@ -17,8 +17,32 @@ export interface ClassRow {
 }
 
 export interface SchoolRow {
-  schoolId:   number;
-  schoolName: string;
+  schoolId:             number;
+  schoolName:           string;
+  legalName:            string;
+  shortCode:            string;
+  motto:                string;
+  address:              string;
+  poBox:                string;
+  district:             string;
+  region:               string;
+  country:              string;
+  phone:                string;
+  email:                string;
+  website:              string;
+  principalName:        string;
+  principalPhone:       string;
+  registrationNumber:   string;
+  centerNo:             string;
+  logoUrl:              string;
+  schoolType:           string;
+  arabicName:           string;
+  arabicAddress:        string;
+  arabicMotto:          string;
+  arabicPhone:          string;
+  arabicCenterNo:       string;
+  arabicRegistrationNo: string;
+  arabicPoBox:          string;
 }
 
 export interface TermRow {
@@ -57,14 +81,55 @@ export interface RawResultRow {
   stream_name:      string | null;
 }
 
-/** Fetch the school header info needed for snapshot meta. */
+/**
+ * Fetch the full school branding row. The snapshot generator freezes every
+ * field into `meta.branding`, so once a snapshot exists nothing in the
+ * `schools` table can leak into its rendered output.
+ */
 export async function fetchSchool(schoolId: number): Promise<SchoolRow | null> {
   const rows = (await query(
-    `SELECT id AS school_id, name AS school_name FROM schools WHERE id = ? LIMIT 1`,
+    `SELECT id, name, legal_name, short_code, motto, address, po_box,
+            district, region, country, phone, email, website,
+            principal_name, principal_phone, registration_number,
+            center_no, logo_url, school_type,
+            arabic_name, arabic_address, arabic_motto, arabic_phone,
+            arabic_center_no, arabic_registration_no, arabic_po_box
+       FROM schools
+      WHERE id = ?
+      LIMIT 1`,
     [schoolId],
-  )) as Array<{ school_id: number; school_name: string }>;
+  )) as Array<Record<string, string | number | null>>;
   if (!rows.length) return null;
-  return { schoolId: rows[0].school_id, schoolName: rows[0].school_name };
+  const r = rows[0];
+  const s = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+  return {
+    schoolId:             Number(r.id),
+    schoolName:           s(r.name),
+    legalName:            s(r.legal_name),
+    shortCode:            s(r.short_code),
+    motto:                s(r.motto),
+    address:              s(r.address),
+    poBox:                s(r.po_box),
+    district:             s(r.district),
+    region:               s(r.region),
+    country:              s(r.country),
+    phone:                s(r.phone),
+    email:                s(r.email),
+    website:              s(r.website),
+    principalName:        s(r.principal_name),
+    principalPhone:       s(r.principal_phone),
+    registrationNumber:   s(r.registration_number),
+    centerNo:             s(r.center_no),
+    logoUrl:              s(r.logo_url),
+    schoolType:           s(r.school_type),
+    arabicName:           s(r.arabic_name),
+    arabicAddress:        s(r.arabic_address),
+    arabicMotto:          s(r.arabic_motto),
+    arabicPhone:          s(r.arabic_phone),
+    arabicCenterNo:       s(r.arabic_center_no),
+    arabicRegistrationNo: s(r.arabic_registration_no),
+    arabicPoBox:          s(r.arabic_po_box),
+  };
 }
 
 /** Fetch term + year metadata. */

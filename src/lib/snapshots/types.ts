@@ -20,13 +20,57 @@ export type SnapshotStatus =
 export type SnapshotNumerals = 'arabic' | 'western';
 export type SnapshotLanguage = 'en' | 'ar';
 
+/**
+ * Frozen tenant branding captured at snapshot generation time.
+ *
+ * All report templates (emergency HTML + DRCE) read from this block — never
+ * from constants and never from the live `schools` row at render time. That
+ * guarantees a snapshot reproduces exactly the same way regardless of which
+ * school is logged in when it is previewed, and prevents tenant leakage
+ * across schools sharing a deployment.
+ */
+export interface SnapshotBranding {
+  schoolName:          string;
+  legalName:           string;
+  shortCode:           string;
+  motto:               string;
+  address:             string;
+  poBox:               string;
+  district:            string;
+  region:              string;
+  country:             string;
+  phone:               string;
+  email:               string;
+  website:             string;
+  principalName:       string;
+  principalPhone:      string;
+  registrationNumber:  string;
+  centerNo:            string;
+  logoUrl:             string;
+  schoolType:          string;
+  // Arabic mirrors. Empty string when unset; templates can fall back to the
+  // primary fields. Used by theology / RTL reports.
+  arabicName:          string;
+  arabicAddress:       string;
+  arabicMotto:         string;
+  arabicPhone:         string;
+  arabicCenterNo:      string;
+  arabicRegistrationNo:string;
+  arabicPoBox:         string;
+}
+
 export interface SnapshotMeta {
   snapshotId:           string;          // uuid v4
-  schemaVersion:        1;
+  schemaVersion:        2;
   type:                 SnapshotType;
   schoolId:             number;
   schoolSlug:           string;          // slugify(schools.name)
   schoolName:           string;
+  /**
+   * Full tenant branding. Added in schemaVersion 2. v1 snapshots load with
+   * this field absent; rendering code must fall back to `schoolName` only.
+   */
+  branding?:            SnapshotBranding;
   termId:               number;
   termName:             string;
   yearId:               number;

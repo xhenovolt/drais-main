@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { getSessionSchoolId } from '@/lib/auth';
+import { fetchSchool } from '@/lib/snapshots/queries';
+
+const escapeHtml = (s: string): string =>
+  String(s ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[ch] as string);
 
 /**
  * Convert Arabic numerals to Western numerals for parsing/calculations
@@ -58,6 +65,14 @@ function toArabicNumerals(value: number | string | null | undefined): string {
  */
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const school = await fetchSchool(session.schoolId);
+    const brandNameAr = school?.arabicName || school?.schoolName || 'المدرسة';
+    const brandLogo   = school?.logoUrl    || '/placeholder-logo.png';
+
     const classId = req.nextUrl.searchParams.get('class_id');
     const format = req.nextUrl.searchParams.get('format') || 'html';
 
@@ -252,8 +267,8 @@ export async function GET(req: NextRequest) {
         
         <!-- School Logo Header -->
         <div class="no-print" style="text-align: center; margin-bottom: 20px; padding-top: 80px;">
-          <img src="/albayan-Photoroom1.png" alt="School Logo" style="height: 80px; object-fit: contain; margin-bottom: 10px;">
-          <h1 style="margin: 10px 0; color: #09a12a; font-size: 24px;">مدرسة البيان الإسلامية</h1>
+          <img src="${escapeHtml(brandLogo)}" alt="${escapeHtml(brandNameAr)}" style="height: 80px; object-fit: contain; margin-bottom: 10px;">
+          <h1 style="margin: 10px 0; color: #09a12a; font-size: 24px;">${escapeHtml(brandNameAr)}</h1>
           <p style="margin: 5px 0; color: #666;">تقارير الطوارئ - مادة اللاهوت</p>
         </div>
         
