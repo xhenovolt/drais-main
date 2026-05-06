@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { parseDRCERow, type DVCFDocumentRow } from '@/lib/drce/schema';
 import { BUILT_IN_DOCUMENTS } from '@/lib/drce/defaults';
+import { isTemplateCategory, type TemplateCategory } from '@/lib/drce/registry';
 
 // ============================================================================
 // GET  /api/dvcf/documents  — list all DVCF documents available to this school
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
                 schema_json, schema_version, is_default, template_key,
-                created_at, updated_at
+                template_category, created_at, updated_at
          FROM dvcf_documents
          WHERE (school_id IS NULL OR school_id = ?)
          ORDER BY is_default DESC, id ASC`,
@@ -46,10 +47,28 @@ export async function POST(request: NextRequest) {
     const { schoolId } = session;
 
     const body = await request.json();
-    const { name, description, schema_json, document_type = 'report_card' } = body;
+    const {
+      name, description, schema_json,
+      document_type = 'report_card',
+      template_category: rawCategory,
+    } = body;
 
     if (!name || !schema_json) {
       return NextResponse.json({ error: 'name and schema_json are required' }, { status: 400 });
+    }
+
+    // Phase 2 — every new row carries an explicit category. Default to
+    // 'custom' for school-authored documents (the school owns it) and
+    // reject anything that doesn't pass the type guard.
+    let templateCategory: TemplateCategory = 'custom';
+    if (rawCategory !== undefined) {
+      if (!isTemplateCategory(rawCategory)) {
+        return NextResponse.json(
+          { error: `Invalid template_category. Expected one of standard|emergency|legacy_rpt|drce|arabic|custom` },
+          { status: 400 },
+        );
+      }
+      templateCategory = rawCategory;
     }
 
     const schemaStr = typeof schema_json === 'string'
@@ -60,9 +79,10 @@ export async function POST(request: NextRequest) {
     try {
       const [result] = await conn.execute(
         `INSERT INTO dvcf_documents
-           (school_id, document_type, name, description, schema_json, schema_version, is_default)
-         VALUES (?, ?, ?, ?, ?, 1, 0)`,
-        [schoolId, document_type, name, description ?? '', schemaStr],
+           (school_id, document_type, name, description, schema_json,
+            schema_version, is_default, template_category)
+         VALUES (?, ?, ?, ?, ?, 1, 0, ?)`,
+        [schoolId, document_type, name, description ?? '', schemaStr, templateCategory],
       );
 
       return NextResponse.json({

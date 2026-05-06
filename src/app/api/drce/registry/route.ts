@@ -2,19 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import {
-  BUILT_IN_EMERGENCY_TEMPLATES,
+  BUILT_IN_TEMPLATES,
+  isTemplateCategory,
   type RegistryEntry,
+  type TemplateCategory,
 } from '@/lib/drce/registry';
 
 /**
- * GET /api/drce/registry — unified list of every report-card template
- * available to the calling school. Merges database-backed DRCE documents
- * with built-in emergency templates so selection UIs only need one fetch.
+ * GET /api/drce/registry — unified, category-driven list of every
+ * report-card template available to the calling school.
+ *
+ * Phase 2 contract:
+ *   * Every entry carries an explicit `category` (the canonical taxonomy)
+ *     and `renderer` (the engine that turns it into bytes).
+ *   * The category for `dvcf_documents` rows comes from the DB column —
+ *     no name-based detection.
+ *   * Built-in templates declare their own category in code.
  *
  * Query params:
  *   document_type   default 'report_card'
- *   category        filter to one of standard|emergency|compact|detailed
+ *   category        filter to one of the valid TemplateCategory values
  *   renderer        filter to drce|emergency_html
+ *   include_counts  '1' to also return per-category counts
  */
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -24,43 +33,67 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const documentType = sp.get('document_type') ?? 'report_card';
-  const category     = sp.get('category');
-  const renderer     = sp.get('renderer');
+  const categoryRaw  = sp.get('category');
+  const rendererRaw  = sp.get('renderer');
+  const includeCounts = sp.get('include_counts') === '1';
+
+  if (categoryRaw !== null && !isTemplateCategory(categoryRaw)) {
+    return NextResponse.json(
+      { error: `Invalid category. Expected one of standard|emergency|legacy_rpt|drce|arabic|custom` },
+      { status: 400 },
+    );
+  }
+  if (rendererRaw !== null && rendererRaw !== 'drce' && rendererRaw !== 'emergency_html') {
+    return NextResponse.json(
+      { error: `Invalid renderer. Expected drce|emergency_html` },
+      { status: 400 },
+    );
+  }
 
   const entries: RegistryEntry[] = [];
 
-  // Database-backed DRCE documents (custom + shared defaults). Failure here
-  // must not hide built-in templates — fall through with an empty list.
+  // DB-backed DRCE documents. Failure here must not hide built-ins —
+  // fall through with a logged warning.
   try {
     const conn = await getConnection();
     try {
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
-                is_default, template_key, updated_at
+                is_default, template_key, template_category, updated_at
            FROM dvcf_documents
           WHERE document_type = ?
             AND (school_id IS NULL OR school_id = ?)
           ORDER BY is_default DESC, name ASC`,
         [documentType, session.schoolId],
       );
+
       for (const r of rows as Array<{
         id: number; school_id: number | null; document_type: string;
         name: string; description: string; is_default: number;
-        template_key: string | null; updated_at: string | Date;
+        template_key: string | null; template_category: TemplateCategory;
+        updated_at: string | Date;
       }>) {
+        // Defensive: if the column came back as something outside the
+        // ENUM (impossible under MySQL semantics, but guards against a
+        // schema mismatch in pre-migration environments), fall back to
+        // 'drce' since this is the dvcf_documents table.
+        const category: TemplateCategory = isTemplateCategory(r.template_category)
+          ? r.template_category
+          : 'drce';
+
         entries.push({
           id:               String(r.id),
           name:             r.name,
           description:      r.description ?? '',
-          category:         'standard',
+          category,
           renderer:         'drce',
           documentType:     r.document_type as RegistryEntry['documentType'],
           supportedTypes:   ['secular', 'theology', 'mixed'],
-          supportsArabic:   false,
+          // Arabic support is implied by category — explicit, not inferred from name.
+          supportsArabic:   category === 'arabic',
           supportsTheology: true,
           isCustom:         r.school_id === session.schoolId,
           isDefault:        r.is_default === 1,
-          isEmergency:      false,
           updatedAt:        r.updated_at
             ? (typeof r.updated_at === 'string'
                 ? r.updated_at
@@ -75,15 +108,26 @@ export async function GET(req: NextRequest) {
     console.error('[drce/registry] dvcf_documents lookup failed', e);
   }
 
-  // Built-in emergency templates. Filtered by document_type so the registry
-  // call for id_card or transcript does not show report-card emergencies.
-  for (const t of BUILT_IN_EMERGENCY_TEMPLATES) {
+  // Built-in templates. Filtered by document_type so the registry
+  // call for id_card or transcript does not surface report-card built-ins.
+  for (const t of BUILT_IN_TEMPLATES) {
     if (t.documentType === documentType) entries.push(t);
   }
 
-  let filtered = entries;
-  if (category) filtered = filtered.filter(e => e.category === category);
-  if (renderer) filtered = filtered.filter(e => e.renderer === renderer);
+  // Per-category counts BEFORE filtering, so the dashboard can render the
+  // full taxonomy with zeroes where a category is empty.
+  const counts: Record<TemplateCategory, number> = {
+    standard: 0, emergency: 0, legacy_rpt: 0, drce: 0, arabic: 0, custom: 0,
+  };
+  for (const e of entries) counts[e.category]++;
 
-  return NextResponse.json({ success: true, templates: filtered });
+  let filtered = entries;
+  if (categoryRaw) filtered = filtered.filter(e => e.category === categoryRaw);
+  if (rendererRaw) filtered = filtered.filter(e => e.renderer === rendererRaw);
+
+  return NextResponse.json({
+    success:    true,
+    templates:  filtered,
+    ...(includeCounts ? { counts } : {}),
+  });
 }

@@ -56,6 +56,8 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     return () => { cancelled = true; };
   }, []);
 
+  // emergency_html renderer covers Phase 2 categories: emergency, arabic,
+  // legacy_rpt. Filter to those compatible with this snapshot's curriculum.
   const emergencyOptions = useMemo(
     () => registry.filter(t =>
       t.renderer === 'emergency_html' &&
@@ -67,6 +69,11 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   const drceOptions = useMemo(
     () => registry.filter(t => t.renderer === 'drce'),
     [registry],
+  );
+
+  const selectedEmergency = useMemo(
+    () => emergencyOptions.find(t => t.id === emergencyTemplateId) ?? null,
+    [emergencyOptions, emergencyTemplateId],
   );
 
   const printBase = `/academics/report-cards/${snapshot.meta.type}/${snapshot.meta.snapshotId}/print`;
@@ -170,12 +177,30 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               value={emergencyTemplateId}
               onChange={e => setEmergencyTemplateId(e.target.value)}
               className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs"
-              title="Pick an emergency template"
+              title="Pick a template"
             >
-              {emergencyOptions.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
+              {(['emergency','arabic','legacy_rpt'] as const).map(cat => {
+                const opts = emergencyOptions.filter(t => t.category === cat);
+                if (opts.length === 0) return null;
+                return (
+                  <optgroup
+                    key={cat}
+                    label={
+                      cat === 'emergency'  ? 'Emergency' :
+                      cat === 'arabic'     ? 'Arabic / RTL' :
+                                             'Legacy rpt.html'
+                    }
+                  >
+                    {opts.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
+          )}
+          {mode === 'emergency' && selectedEmergency && (
+            <CategoryBadge category={selectedEmergency.category} />
           )}
           {mode === 'drce' && drceOptions.length > 0 && (
             <select
@@ -270,5 +295,22 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function CategoryBadge({ category }: { category: RegistryEntry['category'] }) {
+  const map: Record<RegistryEntry['category'], { label: string; cls: string }> = {
+    standard:   { label: 'Standard',   cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
+    emergency:  { label: 'Emergency',  cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' },
+    legacy_rpt: { label: 'Legacy rpt', cls: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200' },
+    drce:       { label: 'DRCE',       cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' },
+    arabic:     { label: 'Arabic',     cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' },
+    custom:     { label: 'Custom',     cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200' },
+  };
+  const v = map[category];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${v.cls}`}>
+      {v.label}
+    </span>
   );
 }

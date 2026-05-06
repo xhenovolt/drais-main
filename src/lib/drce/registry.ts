@@ -1,32 +1,67 @@
 /**
- * DRCE template registry — single source of truth for every report-card
- * template available to a school.
+ * DRCE template registry — Phase 2 (category-driven).
  *
- * The registry merges two sources:
+ * The registry merges two sources into a single, deterministic catalog:
  *
- *   1. Database-backed DRCE documents (`dvcf_documents`) authored in the
- *      DRCE editor. These render via DRCEDocumentRenderer.
- *   2. Built-in *emergency* templates shipped as static HTML in `backup/`.
- *      These render via the deterministic `/print` route which substitutes
- *      `{{school_*}}` placeholders from the snapshot meta — no tenant
- *      leakage and no live DB access at render time.
+ *   1. Database-backed DRCE documents (`dvcf_documents`). Each row carries
+ *      an explicit `template_category` ENUM column that the registry route
+ *      surfaces verbatim — no name-based detection at runtime.
+ *   2. Built-in templates shipped as static HTML in `backup/`. Each entry
+ *      below declares its category explicitly.
  *
- * Both kinds of template appear in the same template-selection UIs and are
- * compatible with the snapshot pipeline (regenerate, flush, force, etc.).
+ * Two orthogonal axes:
+ *
+ *   category  — taxonomy the user understands
+ *               (standard / emergency / legacy_rpt / drce / arabic / custom)
+ *   renderer  — engine that turns bytes into a report
+ *               (drce  → DRCEDocumentRenderer / dvcf_documents.schema_json)
+ *               (emergency_html → static-HTML placeholder substitution via
+ *                                 the `/print` route's renderer)
+ *
+ * Adding a template means writing one entry below (for built-ins) or
+ * inserting a row into `dvcf_documents` with the right `template_category`.
  */
 import type { SnapshotType } from '@/lib/snapshots/types';
 
-export type TemplateCategory = 'standard' | 'emergency' | 'compact' | 'detailed';
+/**
+ * Phase 2 canonical category set. Mirrors the dvcf_documents.template_category
+ * MySQL ENUM exactly. Adding a category requires migrating the ENUM and
+ * updating this union together.
+ */
+export type TemplateCategory =
+  | 'standard'
+  | 'emergency'
+  | 'legacy_rpt'
+  | 'drce'
+  | 'arabic'
+  | 'custom';
+
+export const TEMPLATE_CATEGORIES: readonly TemplateCategory[] = [
+  'standard', 'emergency', 'legacy_rpt', 'drce', 'arabic', 'custom',
+] as const;
+
+/**
+ * Type guard. Use this at every API boundary that accepts a category from
+ * untrusted input. Pairs with the matching MySQL ENUM constraint so an
+ * invalid value can never reach the database.
+ */
+export function isTemplateCategory(v: unknown): v is TemplateCategory {
+  return typeof v === 'string'
+    && (TEMPLATE_CATEGORIES as readonly string[]).includes(v);
+}
+
 export type TemplateRenderer = 'drce' | 'emergency_html';
 
 export interface RegistryEntry {
-  /** Stable id. Numeric for DRCE documents, string for built-in emergency. */
+  /** Stable id. Numeric string for DRCE documents, kebab-case for built-ins. */
   id:               string;
   /** Display name for selection UIs. */
   name:             string;
   /** Short description shown next to the name. */
   description:      string;
+  /** Phase 2 category — single source of truth. */
   category:         TemplateCategory;
+  /** Rendering engine. Independent of category. */
   renderer:         TemplateRenderer;
   /**
    * For renderer='emergency_html', the static template file shipped under
@@ -44,21 +79,17 @@ export interface RegistryEntry {
   isCustom:         boolean;
   /** Marks the entry as the school's default for its document_type. */
   isDefault:        boolean;
-  /** True for renderer='emergency_html' entries — convenience flag. */
-  isEmergency:      boolean;
   /** ISO timestamp of last update; null for built-ins. */
   updatedAt:        string | null;
 }
 
 /**
- * Built-in emergency templates. These ship with the codebase and are
- * available to every school. They are not stored in `dvcf_documents`.
+ * Built-in templates. These ship with the codebase and are available to
+ * every school. They are not stored in `dvcf_documents`.
  *
- * Adding a new emergency template is a one-line edit here plus a static
- * HTML file in `backup/` using the `{{school_*}}` placeholder set produced
- * by `snapshotToTemplateMap`.
+ * Each entry declares its category EXPLICITLY. No inference, no fallback.
  */
-export const BUILT_IN_EMERGENCY_TEMPLATES: RegistryEntry[] = [
+export const BUILT_IN_TEMPLATES: readonly RegistryEntry[] = [
   {
     id:               'emergency-secular',
     name:             'Secular — Emergency',
@@ -72,14 +103,13 @@ export const BUILT_IN_EMERGENCY_TEMPLATES: RegistryEntry[] = [
     supportsTheology: false,
     isCustom:         false,
     isDefault:        false,
-    isEmergency:      true,
     updatedAt:        null,
   },
   {
     id:               'emergency-theology',
     name:             'Theology — Emergency (Arabic)',
     description:      'RTL Arabic-numeral theology report card for fast bulk printing.',
-    category:         'emergency',
+    category:         'arabic',
     renderer:         'emergency_html',
     engineRef:        'theology-emergency-template.html',
     documentType:     'report_card',
@@ -88,15 +118,41 @@ export const BUILT_IN_EMERGENCY_TEMPLATES: RegistryEntry[] = [
     supportsTheology: true,
     isCustom:         false,
     isDefault:        false,
-    isEmergency:      true,
     updatedAt:        null,
   },
-];
+  {
+    id:               'legacy-rpt',
+    name:             'Legacy rpt.html',
+    description:      'Pre-DRCE single-page report layout. Preserved for schools migrating off legacy print stacks.',
+    category:         'legacy_rpt',
+    renderer:         'emergency_html',
+    engineRef:        'legacy-rpt-template.html',
+    documentType:     'report_card',
+    supportedTypes:   ['secular', 'mixed'],
+    supportsArabic:   false,
+    supportsTheology: false,
+    isCustom:         false,
+    isDefault:        false,
+    updatedAt:        null,
+  },
+] as const;
 
 /**
- * Resolve a registry id to its built-in entry (emergency templates only).
- * Database-backed entries are looked up directly via dvcf_documents.id.
+ * Backwards-compat alias for code that imported the previous narrower name.
+ * The two arrays now hold the same shape (Phase 2 unified registry); we
+ * keep both exports so external callers continue to work.
  */
-export function getBuiltInEmergencyTemplate(id: string): RegistryEntry | null {
-  return BUILT_IN_EMERGENCY_TEMPLATES.find(t => t.id === id) ?? null;
+export const BUILT_IN_EMERGENCY_TEMPLATES: readonly RegistryEntry[] =
+  BUILT_IN_TEMPLATES;
+
+/**
+ * Resolve a registry id to its built-in entry. Returns null when the id
+ * belongs to a `dvcf_documents` row (numeric id) — those are looked up via
+ * the registry route directly.
+ */
+export function getBuiltInTemplate(id: string): RegistryEntry | null {
+  return BUILT_IN_TEMPLATES.find(t => t.id === id) ?? null;
 }
+
+/** Backwards-compat alias. */
+export const getBuiltInEmergencyTemplate = getBuiltInTemplate;

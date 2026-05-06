@@ -499,6 +499,12 @@ export interface DRCEMeta {
   report_type: DRCEReportType;
   is_default: boolean;
   template_key: string | null;  // 'northgate_official', 'drais_default', etc.
+  /**
+   * Phase 2 — explicit category from dvcf_documents.template_category.
+   * Optional in code only because pre-Phase-2 schema_json blobs predate it;
+   * every row written through current APIs carries a value.
+   */
+  template_category?: import('./registry').TemplateCategory;
 }
 
 // ─── Root Document ────────────────────────────────────────────────────────────
@@ -644,6 +650,11 @@ export interface DVCFDocumentRow {
   schema_version: number;
   is_default: number;    // tinyint
   template_key: string | null;
+  /**
+   * Phase 2. Mirrors the dvcf_documents.template_category ENUM exactly.
+   * Always present on rows fetched after the migration ran.
+   */
+  template_category: import('./registry').TemplateCategory;
   created_at: string;
   updated_at: string;
 }
@@ -654,7 +665,9 @@ export function parseDRCERow(row: DVCFDocumentRow): DRCEDocument {
     ? JSON.parse(row.schema_json) as DRCEDocument
     : row.schema_json as unknown as DRCEDocument;
 
-  // Ensure meta fields from the DB row override what's in the JSON
+  // Ensure meta fields from the DB row override what's in the JSON. The
+  // template_category column is the single source of truth — never trust
+  // schema_json's stored value.
   doc.meta = {
     ...doc.meta,
     id: String(row.id),
@@ -662,6 +675,7 @@ export function parseDRCERow(row: DVCFDocumentRow): DRCEDocument {
     school_id: row.school_id,
     is_default: Boolean(row.is_default),
     template_key: row.template_key,
+    template_category: row.template_category,
   };
 
   // Defensive defaults — guard against malformed / legacy schema_json

@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { parseDRCERow, type DVCFDocumentRow } from '@/lib/drce/schema';
 import { getBuiltInDocument } from '@/lib/drce/defaults';
+import { isTemplateCategory } from '@/lib/drce/registry';
 
 // ============================================================================
 // GET    /api/dvcf/documents/[id]  — get a single DVCF document
@@ -28,7 +29,7 @@ export async function GET(
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
                 schema_json, schema_version, is_default, template_key,
-                created_at, updated_at
+                template_category, created_at, updated_at
          FROM dvcf_documents
          WHERE id = ? AND (school_id IS NULL OR school_id = ?)
          LIMIT 1`,
@@ -68,10 +69,16 @@ export async function PUT(
     if (isNaN(docId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
     const body = await request.json();
-    const { name, description, schema_json } = body;
+    const { name, description, schema_json, template_category: rawCategory } = body;
 
-    if (!name && !schema_json) {
+    if (!name && !schema_json && rawCategory === undefined) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+    }
+    if (rawCategory !== undefined && !isTemplateCategory(rawCategory)) {
+      return NextResponse.json(
+        { error: 'Invalid template_category' },
+        { status: 400 },
+      );
     }
 
     const conn = await getConnection();
@@ -96,6 +103,10 @@ export async function PUT(
       if (schema_json !== undefined) {
         setClauses.push('schema_json = ?, schema_version = schema_version + 1');
         values.push(typeof schema_json === 'string' ? schema_json : JSON.stringify(schema_json));
+      }
+      if (rawCategory !== undefined) {
+        setClauses.push('template_category = ?');
+        values.push(rawCategory);
       }
 
       values.push(docId, schoolId);

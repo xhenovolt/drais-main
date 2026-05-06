@@ -20,7 +20,7 @@ import { loadSnapshot } from '@/lib/snapshots/storage';
 import { snapshotToTemplateMap } from '@/lib/snapshots/adapter/toTemplateMap';
 import { renderEmergencyTemplate } from '@/lib/snapshots/adapter/renderEmergencyTemplate';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
-import { BUILT_IN_EMERGENCY_TEMPLATES } from '@/lib/drce/registry';
+import { BUILT_IN_TEMPLATES } from '@/lib/drce/registry';
 
 const DEFAULT_TEMPLATE_BY_TYPE: Record<SnapshotType, string> = {
   secular:  'emergency-secular',
@@ -32,11 +32,15 @@ const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
 
 /**
  * Resolve a template registry id to its static HTML file under `backup/`.
- * Returns null when the id is unknown or the registry entry is not an
- * emergency-html template.
+ * Works for any built-in entry whose renderer is `emergency_html`, which
+ * covers Phase 2 categories: emergency, arabic, legacy_rpt.
+ *
+ * Returns null when the id is unknown or the registry entry is not a
+ * static-HTML template (e.g. a `dvcf_documents` row, which renders via
+ * DRCEDocumentRenderer instead).
  */
 function resolveEmergencyTemplateFile(templateId: string): string | null {
-  const entry = BUILT_IN_EMERGENCY_TEMPLATES.find(t => t.id === templateId);
+  const entry = BUILT_IN_TEMPLATES.find(t => t.id === templateId);
   if (!entry || entry.renderer !== 'emergency_html' || !entry.engineRef) return null;
   return entry.engineRef;
 }
