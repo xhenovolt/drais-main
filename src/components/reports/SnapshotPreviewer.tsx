@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Printer, ChevronLeft, ChevronRight, Layers, Loader2 } from 'lucide-react';
-import type { ReportSnapshot } from '@/lib/snapshots/types';
+import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 import type { DRCEDocument } from '@/lib/drce/schema';
+import type { RegistryEntry } from '@/lib/drce/registry';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
 import { snapshotToDRCEDataContext } from '@/lib/snapshots/adapter/toDRCEDataContext';
 
@@ -13,6 +14,12 @@ export interface SnapshotPreviewerProps {
 }
 
 type Mode = 'emergency' | 'drce';
+
+const DEFAULT_EMERGENCY_BY_TYPE: Record<SnapshotType, string> = {
+  secular:  'emergency-secular',
+  theology: 'emergency-theology',
+  mixed:    'emergency-secular',
+};
 
 /**
  * Class-paginated snapshot preview with two render modes:
@@ -29,6 +36,39 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   const [drceError, setDrceError]   = useState<string | null>(null);
   const [drceLoading, setDrceLoading] = useState<boolean>(false);
 
+  // Registry-driven template selection. Loaded once; the dropdown is filtered
+  // to entries compatible with the snapshot's curriculum type.
+  const [registry, setRegistry]     = useState<RegistryEntry[]>([]);
+  const [emergencyTemplateId, setEmergencyTemplateId] = useState<string>(
+    DEFAULT_EMERGENCY_BY_TYPE[snapshot.meta.type],
+  );
+  const [drceTemplateId, setDrceTemplateId] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/drce/registry?document_type=report_card')
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        if (Array.isArray(json?.templates)) setRegistry(json.templates as RegistryEntry[]);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  const emergencyOptions = useMemo(
+    () => registry.filter(t =>
+      t.renderer === 'emergency_html' &&
+      t.supportedTypes.includes(snapshot.meta.type),
+    ),
+    [registry, snapshot.meta.type],
+  );
+
+  const drceOptions = useMemo(
+    () => registry.filter(t => t.renderer === 'drce'),
+    [registry],
+  );
+
   const printBase = `/academics/report-cards/${snapshot.meta.type}/${snapshot.meta.snapshotId}/print`;
   const classes = snapshot.classes;
   const cls     = classes[classIdx];
@@ -36,18 +76,24 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
 
   const previewSrc = useMemo(() => {
     if (!cls) return printBase;
-    return `${printBase}?class_id=${classIdx}`;
-  }, [printBase, classIdx, cls]);
+    return `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(emergencyTemplateId)}`;
+  }, [printBase, classIdx, cls, emergencyTemplateId]);
 
   useEffect(() => {
     setStudentIdx(0);
   }, [classIdx]);
 
   useEffect(() => {
-    if (mode !== 'drce' || drceDoc) return;
+    if (mode !== 'drce') return;
     let cancelled = false;
     setDrceLoading(true);
-    fetch('/api/dvcf/active?type=report_card')
+    setDrceError(null);
+
+    const url = drceTemplateId
+      ? `/api/dvcf/documents/${encodeURIComponent(drceTemplateId)}`
+      : '/api/dvcf/active?type=report_card';
+
+    fetch(url)
       .then(r => r.json())
       .then(json => {
         if (cancelled) return;
@@ -61,7 +107,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
         setDrceLoading(false);
       });
     return () => { cancelled = true; };
-  }, [mode, drceDoc]);
+  }, [mode, drceTemplateId]);
 
   if (classes.length === 0) {
     return (
@@ -118,7 +164,34 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {mode === 'emergency' && emergencyOptions.length > 1 && (
+            <select
+              value={emergencyTemplateId}
+              onChange={e => setEmergencyTemplateId(e.target.value)}
+              className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs"
+              title="Pick an emergency template"
+            >
+              {emergencyOptions.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          )}
+          {mode === 'drce' && drceOptions.length > 0 && (
+            <select
+              value={drceTemplateId}
+              onChange={e => setDrceTemplateId(e.target.value)}
+              className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs"
+              title="Pick a DRCE template"
+            >
+              <option value="">— school default —</option>
+              {drceOptions.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name}{t.isDefault ? ' (default)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="inline-flex rounded-md border border-slate-300 dark:border-slate-700 overflow-hidden text-xs">
             <button
               onClick={() => setMode('emergency')}
@@ -128,13 +201,15 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
             </button>
             <button
               onClick={() => setMode('drce')}
-              className={`px-2.5 py-1 inline-flex items-center gap-1 ${mode === 'drce' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              disabled={drceOptions.length === 0}
+              className={`px-2.5 py-1 inline-flex items-center gap-1 ${mode === 'drce' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700'} disabled:opacity-40 disabled:cursor-not-allowed`}
+              title={drceOptions.length === 0 ? 'No DRCE template configured' : 'DRCE renderer'}
             >
               <Layers className="w-3.5 h-3.5" /> DRCE
             </button>
           </div>
           <Link
-            href={`${printBase}?class_id=${classIdx}`}
+            href={`${printBase}?class_id=${classIdx}&template=${encodeURIComponent(emergencyTemplateId)}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-blue-600 text-white hover:bg-blue-700"

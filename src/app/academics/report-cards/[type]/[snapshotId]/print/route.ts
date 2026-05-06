@@ -20,14 +20,26 @@ import { loadSnapshot } from '@/lib/snapshots/storage';
 import { snapshotToTemplateMap } from '@/lib/snapshots/adapter/toTemplateMap';
 import { renderEmergencyTemplate } from '@/lib/snapshots/adapter/renderEmergencyTemplate';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
+import { BUILT_IN_EMERGENCY_TEMPLATES } from '@/lib/drce/registry';
 
-const TEMPLATE_FILES: Record<SnapshotType, string> = {
-  secular:  'secular-emergency-template.html',
-  theology: 'theology-emergency-template.html',
-  mixed:    'secular-emergency-template.html',
+const DEFAULT_TEMPLATE_BY_TYPE: Record<SnapshotType, string> = {
+  secular:  'emergency-secular',
+  theology: 'emergency-theology',
+  mixed:    'emergency-secular',
 };
 
 const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
+
+/**
+ * Resolve a template registry id to its static HTML file under `backup/`.
+ * Returns null when the id is unknown or the registry entry is not an
+ * emergency-html template.
+ */
+function resolveEmergencyTemplateFile(templateId: string): string | null {
+  const entry = BUILT_IN_EMERGENCY_TEMPLATES.find(t => t.id === templateId);
+  if (!entry || entry.renderer !== 'emergency_html' || !entry.engineRef) return null;
+  return entry.engineRef;
+}
 
 export async function GET(
   req: NextRequest,
@@ -51,19 +63,32 @@ export async function GET(
     return NextResponse.json({ error: 'Snapshot type mismatch' }, { status: 400 });
   }
 
-  const templatePath = path.join(process.cwd(), 'backup', TEMPLATE_FILES[type as SnapshotType]);
+  const sp = req.nextUrl.searchParams;
+  const templateIdRaw = sp.get('template');
+  const templateId = templateIdRaw && templateIdRaw.trim() !== ''
+    ? templateIdRaw.trim()
+    : DEFAULT_TEMPLATE_BY_TYPE[type as SnapshotType];
+
+  const templateFile = resolveEmergencyTemplateFile(templateId);
+  if (!templateFile) {
+    return NextResponse.json(
+      { error: 'TEMPLATE_NOT_FOUND', message: `Unknown emergency template id: ${templateId}` },
+      { status: 400 },
+    );
+  }
+
+  const templatePath = path.join(process.cwd(), 'backup', templateFile);
   let template: string;
   try {
     template = await fs.readFile(templatePath, 'utf8');
   } catch (e: any) {
     console.error('[snapshots/print] Missing template:', templatePath, e?.message);
     return NextResponse.json(
-      { error: 'TEMPLATE_MISSING', message: `Template file not found: ${TEMPLATE_FILES[type as SnapshotType]}` },
+      { error: 'TEMPLATE_MISSING', message: `Template file not found: ${templateFile}` },
       { status: 500 },
     );
   }
 
-  const sp = req.nextUrl.searchParams;
   const classIdRaw  = sp.get('class_id');
   const studentIdRaw = sp.get('student_id');
   const filterClassIdx = classIdRaw !== null ? parseInt(classIdRaw, 10) : null;
