@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx next *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npx tsc *)",
+      "Bash(grep -rn \"sessions\\\\s*$\\\\|FROM sessions\\\\|INSERT INTO sessions\" src/lib src/app/api)"
+    ]
+  }
+}
