@@ -14,6 +14,7 @@ import {
   selectOverridesForStudent,
   type PersistedOverride,
 } from '@/lib/drce/overrides';
+import { OverridesPanel } from './OverridesPanel';
 
 export interface SnapshotPreviewerProps {
   snapshot: ReportSnapshot;
@@ -65,20 +66,22 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     return () => { cancelled = true; };
   }, []);
 
-  // Load the snapshot's override set once on mount + whenever the
-  // snapshot id changes. The DRCE render branch is the only consumer
-  // today; emergency_html templates ignore overrides until Phase 3.3.
+  // Load the snapshot's override set on mount + whenever the snapshot id
+  // changes. Reused after each write via reloadOverrides() below so the
+  // panel always reflects canonical server state.
+  const reloadOverrides = useMemo(() => {
+    return async () => {
+      const r = await fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`);
+      const json = await r.json().catch(() => ({}));
+      if (Array.isArray(json?.overrides)) setOverrides(json.overrides as PersistedOverride[]);
+    };
+  }, [snapshot.meta.snapshotId]);
+
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`)
-      .then(r => r.json())
-      .then(json => {
-        if (cancelled) return;
-        if (Array.isArray(json?.overrides)) setOverrides(json.overrides as PersistedOverride[]);
-      })
-      .catch(() => undefined);
+    reloadOverrides().catch(() => undefined).then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
-  }, [snapshot.meta.snapshotId]);
+  }, [reloadOverrides]);
 
   // emergency_html renderer covers Phase 2 categories: emergency, arabic,
   // legacy_rpt. Filter to those compatible with this snapshot's curriculum.
@@ -279,14 +282,14 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
       )}
 
       {mode === 'drce' && (
-        <div className="p-4 bg-slate-100 dark:bg-slate-900 overflow-auto" style={{ minHeight: 600 }}>
+        <div className="bg-slate-100 dark:bg-slate-900 overflow-auto" style={{ minHeight: 600 }}>
           {drceLoading && (
             <div className="flex items-center gap-2 text-sm text-slate-500 py-12 justify-center">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading DRCE template…
             </div>
           )}
           {drceError && !drceLoading && (
-            <div className="rounded border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm text-rose-700 dark:text-rose-300">
+            <div className="m-4 rounded border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm text-rose-700 dark:text-rose-300">
               {drceError}. The Emergency view above is always available.
             </div>
           )}
@@ -305,28 +308,49 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               { schoolName: snapshot.meta.schoolName },
               hiddenSubjectIds,
             );
+            // Phase 3.2 — Surface the override CRUD next to the live
+            // preview. Sections come from the BASE document so a
+            // hidden section can still be toggled back; subjects come
+            // from the data context AFTER hiding so the panel reflects
+            // what the renderer actually sees.
+            const subjectOptions = cls.subjects.map(s => ({
+              id:   s.id,
+              name: s.displayName || s.name,
+            }));
             return (
-              <div className="flex justify-center">
-                <DRCEDocumentRenderer
-                  document={overriddenDoc}
-                  dataCtx={dataCtx}
-                  renderCtx={{
-                    school: snapshot.meta.branding
-                      ? {
-                          name:            snapshot.meta.branding.schoolName,
-                          arabic_name:     snapshot.meta.branding.arabicName,
-                          address:         snapshot.meta.branding.address,
-                          contact:         snapshot.meta.branding.phone || snapshot.meta.branding.email,
-                          center_no:       snapshot.meta.branding.centerNo,
-                          registration_no: snapshot.meta.branding.registrationNumber,
-                          logo_url:        snapshot.meta.branding.logoUrl,
-                        }
-                      : { name: snapshot.meta.schoolName },
-                    isPrint: false,
-                    language: snapshot.meta.language,
-                    isRTL:    snapshot.meta.numerals === 'arabic',
-                  }}
-                />
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 p-4">
+                <div className="flex justify-center">
+                  <DRCEDocumentRenderer
+                    document={overriddenDoc}
+                    dataCtx={dataCtx}
+                    renderCtx={{
+                      school: snapshot.meta.branding
+                        ? {
+                            name:            snapshot.meta.branding.schoolName,
+                            arabic_name:     snapshot.meta.branding.arabicName,
+                            address:         snapshot.meta.branding.address,
+                            contact:         snapshot.meta.branding.phone || snapshot.meta.branding.email,
+                            center_no:       snapshot.meta.branding.centerNo,
+                            registration_no: snapshot.meta.branding.registrationNumber,
+                            logo_url:        snapshot.meta.branding.logoUrl,
+                          }
+                        : { name: snapshot.meta.schoolName },
+                      isPrint: false,
+                      language: snapshot.meta.language,
+                      isRTL:    snapshot.meta.numerals === 'arabic',
+                    }}
+                  />
+                </div>
+                <div className="lg:sticky lg:top-4 self-start">
+                  <OverridesPanel
+                    snapshotId={snapshot.meta.snapshotId}
+                    document={drceDoc}
+                    overrides={overrides}
+                    studentDbId={stu.studentDbId}
+                    subjects={subjectOptions}
+                    onChanged={() => { reloadOverrides().catch(() => undefined); }}
+                  />
+                </div>
               </div>
             );
           })()}

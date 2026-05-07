@@ -73,13 +73,20 @@ breaks deterministic output and cross-tenant safety guarantees.
 - API surface: `GET/POST/DELETE /api/snapshots/[id]/overrides` and
   `DELETE /api/snapshots/[id]/overrides/[overrideId]`.
 
-## Phase 3.2 (planned)
+## Phase 3.2 (shipped)
 
-- Inline editing UI in `SnapshotPreviewer` and the print page: click a
-  section/row → context menu → POST an override → re-fetch and re-render.
-- Engine implementations for `text_replace` and `spacing_patch` that are
-  already reserved in the MySQL ENUM and the TypeScript discriminated
-  union.
+- `OverridesPanel` mounted next to the DRCE preview in
+  `SnapshotPreviewer`. Three groups: document sections (snapshot-wide
+  hide), per-student subjects (hide on the current learner only), and
+  active-overrides list with per-row remove plus a "reset student"
+  bulk action.
+- All writes go through the Phase 3.1 CRUD API. No optimistic update —
+  every mutation refetches via `reloadOverrides()` so the panel always
+  reflects canonical server state and reconciles concurrent edits from
+  other tabs.
+- Engine implementations for `text_replace` and `spacing_patch` remain
+  reserved in the ENUM and discriminated union; UI surface lands when
+  needed.
 
 ## Phase 3.3 (planned)
 
