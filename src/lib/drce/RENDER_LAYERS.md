@@ -88,15 +88,27 @@ breaks deterministic output and cross-tenant safety guarantees.
   reserved in the ENUM and discriminated union; UI surface lands when
   needed.
 
-## Phase 3.3 (planned)
+## Phase 3.3 (shipped)
 
-- Author DRCEDocument JSON for `emergency-secular`, `emergency-theology`,
-  `legacy-rpt` so they render through the same five-layer pipeline.
-- Print route consults the registry; DRCE-native templates skip the
-  emergency_html branch entirely.
+- Three new built-in registry entries with `renderer: 'drce'`:
+  `drce-emergency-secular`, `drce-emergency-theology`, `drce-legacy-rpt`.
+  Each maps to an authored `DRCEDocument` constant in
+  `src/lib/drce/builtin-resolver.ts` (`EMERGENCY_SECULAR_DOCUMENT` is new;
+  `ARABIC_CLONE_DOCUMENT` and `DRAIS_DEFAULT_DOCUMENT` reused from
+  `defaults.ts`).
+- `/api/dvcf/documents/[id]` consults the resolver before falling back to
+  the numeric DB lookup, so SnapshotPreviewer can fetch built-in
+  templates with the same code path it uses for school-authored ones.
+- The override layer now applies to the emergency variants when rendered
+  in DRCE mode. The static-HTML `emergency_html` entries remain alongside
+  for the existing print path; the two coexist during the transition.
 
 ## Phase 3.4 (planned)
 
+- Print route renders DRCE-native entries through `renderToStaticMarkup`
+  on the server so DRCE entries flow through `/print` and honour
+  overrides for printing as well as preview.
 - Section-type registry replaces the `switch (section.type)` in
   `DRCEDocumentRenderer`.
-- Sunset `emergency_html` renderer once 3.3 reaches parity.
+- Sunset `emergency_html` renderer + delete static HTML files once 3.3
+  reaches parity across all schools.

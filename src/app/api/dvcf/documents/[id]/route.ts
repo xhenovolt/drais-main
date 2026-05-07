@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { parseDRCERow, type DVCFDocumentRow } from '@/lib/drce/schema';
 import { getBuiltInDocument } from '@/lib/drce/defaults';
 import { isTemplateCategory } from '@/lib/drce/registry';
+import { resolveBuiltInDocument } from '@/lib/drce/builtin-resolver';
 
 // ============================================================================
 // GET    /api/dvcf/documents/[id]  — get a single DVCF document
@@ -21,6 +22,15 @@ export async function GET(
     const { schoolId } = session;
 
     const { id } = await params;
+
+    // Phase 3.3 — resolve string-id built-ins (e.g. 'drce-emergency-secular')
+    // before attempting the numeric DB lookup. Built-ins are ambient and
+    // available to every school, so no school_id filter applies.
+    const builtIn = resolveBuiltInDocument(id);
+    if (builtIn) {
+      return NextResponse.json({ success: true, document: builtIn });
+    }
+
     const docId = parseInt(id, 10);
     if (isNaN(docId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 

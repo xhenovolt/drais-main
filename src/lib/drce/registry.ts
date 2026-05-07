@@ -135,6 +135,55 @@ export const BUILT_IN_TEMPLATES: readonly RegistryEntry[] = [
     isDefault:        false,
     updatedAt:        null,
   },
+
+  // ── Phase 3.3 — DRCE-native counterparts ─────────────────────────────────
+  // These entries render through DRCEDocumentRenderer and therefore honour
+  // the per-report override layer. Their visual style mirrors the
+  // emergency_html templates above. The two paths coexist during the
+  // transition; emergency_html is sunset in Phase 3.4 once parity is
+  // verified across all schools.
+  {
+    id:               'drce-emergency-secular',
+    name:             'Secular Emergency (DRCE)',
+    description:      'Override-aware DRCE counterpart of the secular emergency template.',
+    category:         'emergency',
+    renderer:         'drce',
+    documentType:     'report_card',
+    supportedTypes:   ['secular', 'mixed'],
+    supportsArabic:   false,
+    supportsTheology: false,
+    isCustom:         false,
+    isDefault:        false,
+    updatedAt:        null,
+  },
+  {
+    id:               'drce-emergency-theology',
+    name:             'Theology Emergency (DRCE)',
+    description:      'Override-aware DRCE counterpart of the RTL Arabic theology emergency template.',
+    category:         'arabic',
+    renderer:         'drce',
+    documentType:     'report_card',
+    supportedTypes:   ['theology'],
+    supportsArabic:   true,
+    supportsTheology: true,
+    isCustom:         false,
+    isDefault:        false,
+    updatedAt:        null,
+  },
+  {
+    id:               'drce-legacy-rpt',
+    name:             'Legacy rpt.html (DRCE)',
+    description:      'Override-aware DRCE counterpart of the legacy rpt.html layout.',
+    category:         'legacy_rpt',
+    renderer:         'drce',
+    documentType:     'report_card',
+    supportedTypes:   ['secular', 'mixed'],
+    supportsArabic:   false,
+    supportsTheology: false,
+    isCustom:         false,
+    isDefault:        false,
+    updatedAt:        null,
+  },
 ] as const;
 
 /**
