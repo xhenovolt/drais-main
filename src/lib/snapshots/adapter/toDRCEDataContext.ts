@@ -41,20 +41,33 @@ export function snapshotToDRCEDataContext(
   classIdx: number,
   studentIdx: number,
   schoolMeta: SchoolMetaForRender,
+  /**
+   * Phase 3.1 — subject ids to drop from the student's `results` array.
+   * Sourced from override layer (`hide_subject` overrides) via the
+   * `__hiddenSubjectIds` hint left on the DRCEDocument by `applyOverrides`.
+   * Snapshot data itself is NEVER mutated.
+   */
+  hiddenSubjectIds: readonly string[] = [],
 ): DRCEDataContext {
   const cls = snapshot.classes[classIdx];
   if (!cls) throw new Error(`Class index ${classIdx} out of range`);
   const stu = cls.students[studentIdx];
   if (!stu) throw new Error(`Student index ${studentIdx} out of range`);
 
-  const subjects: DRCESubject[] = cls.subjects.map(s => ({
-    id:          s.id,
-    name:        s.displayName || s.name,
-    totalMarks:  s.totalMarks,
-    subjectType: s.subjectType,
-  }));
+  const hidden = new Set(hiddenSubjectIds.map(String));
 
-  const results: DRCEResultRow[] = stu.results.map(r => {
+  const subjects: DRCESubject[] = cls.subjects
+    .filter(s => !hidden.has(String(s.id)))
+    .map(s => ({
+      id:          s.id,
+      name:        s.displayName || s.name,
+      totalMarks:  s.totalMarks,
+      subjectType: s.subjectType,
+    }));
+
+  const results: DRCEResultRow[] = stu.results
+    .filter(r => !hidden.has(String(r.subjectId)))
+    .map(r => {
     const subj = cls.subjects.find(s => s.id === r.subjectId);
     return {
       subjectName:  r.displaySubject || r.subjectName,

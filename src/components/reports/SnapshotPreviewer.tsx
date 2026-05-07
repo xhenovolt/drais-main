@@ -8,6 +8,12 @@ import type { DRCEDocument } from '@/lib/drce/schema';
 import type { RegistryEntry } from '@/lib/drce/registry';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
 import { snapshotToDRCEDataContext } from '@/lib/snapshots/adapter/toDRCEDataContext';
+import {
+  applyOverrides,
+  readHiddenSubjectIds,
+  selectOverridesForStudent,
+  type PersistedOverride,
+} from '@/lib/drce/overrides';
 
 export interface SnapshotPreviewerProps {
   snapshot: ReportSnapshot;
@@ -43,6 +49,9 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     DEFAULT_EMERGENCY_BY_TYPE[snapshot.meta.type],
   );
   const [drceTemplateId, setDrceTemplateId] = useState<string>('');
+  // Phase 3.1 — per-snapshot override set. Snapshot-bound; cascades when
+  // the snapshot is flushed. Refetched whenever a write happens.
+  const [overrides, setOverrides]   = useState<PersistedOverride[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +64,21 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
+
+  // Load the snapshot's override set once on mount + whenever the
+  // snapshot id changes. The DRCE render branch is the only consumer
+  // today; emergency_html templates ignore overrides until Phase 3.3.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`)
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        if (Array.isArray(json?.overrides)) setOverrides(json.overrides as PersistedOverride[]);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [snapshot.meta.snapshotId]);
 
   // emergency_html renderer covers Phase 2 categories: emergency, arabic,
   // legacy_rpt. Filter to those compatible with this snapshot's curriculum.
@@ -266,32 +290,46 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               {drceError}. The Emergency view above is always available.
             </div>
           )}
-          {drceDoc && cls && stu && (
-            <div className="flex justify-center">
-              <DRCEDocumentRenderer
-                document={drceDoc}
-                dataCtx={snapshotToDRCEDataContext(snapshot, classIdx, studentIdx, {
-                  schoolName: snapshot.meta.schoolName,
-                })}
-                renderCtx={{
-                  school: snapshot.meta.branding
-                    ? {
-                        name:            snapshot.meta.branding.schoolName,
-                        arabic_name:     snapshot.meta.branding.arabicName,
-                        address:         snapshot.meta.branding.address,
-                        contact:         snapshot.meta.branding.phone || snapshot.meta.branding.email,
-                        center_no:       snapshot.meta.branding.centerNo,
-                        registration_no: snapshot.meta.branding.registrationNumber,
-                        logo_url:        snapshot.meta.branding.logoUrl,
-                      }
-                    : { name: snapshot.meta.schoolName },
-                  isPrint: false,
-                  language: snapshot.meta.language,
-                  isRTL:    snapshot.meta.numerals === 'arabic',
-                }}
-              />
-            </div>
-          )}
+          {drceDoc && cls && stu && (() => {
+            // Phase 3.1 — render-layer composition.
+            //   1. base DRCEDocument loaded from the registry/dvcf
+            //   2. snapshot branding bound via renderCtx.school (frozen)
+            //   3. per-student data via snapshotToDRCEDataContext
+            //   4. override layer applied last over (1) and propagated
+            //      into (3) via __hiddenSubjectIds.
+            const studentOverrides = selectOverridesForStudent(overrides, stu.studentDbId);
+            const overriddenDoc    = applyOverrides(drceDoc, studentOverrides);
+            const hiddenSubjectIds = readHiddenSubjectIds(overriddenDoc);
+            const dataCtx = snapshotToDRCEDataContext(
+              snapshot, classIdx, studentIdx,
+              { schoolName: snapshot.meta.schoolName },
+              hiddenSubjectIds,
+            );
+            return (
+              <div className="flex justify-center">
+                <DRCEDocumentRenderer
+                  document={overriddenDoc}
+                  dataCtx={dataCtx}
+                  renderCtx={{
+                    school: snapshot.meta.branding
+                      ? {
+                          name:            snapshot.meta.branding.schoolName,
+                          arabic_name:     snapshot.meta.branding.arabicName,
+                          address:         snapshot.meta.branding.address,
+                          contact:         snapshot.meta.branding.phone || snapshot.meta.branding.email,
+                          center_no:       snapshot.meta.branding.centerNo,
+                          registration_no: snapshot.meta.branding.registrationNumber,
+                          logo_url:        snapshot.meta.branding.logoUrl,
+                        }
+                      : { name: snapshot.meta.schoolName },
+                    isPrint: false,
+                    language: snapshot.meta.language,
+                    isRTL:    snapshot.meta.numerals === 'arabic',
+                  }}
+                />
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
