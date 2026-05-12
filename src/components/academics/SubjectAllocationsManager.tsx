@@ -220,7 +220,7 @@ export const SubjectAllocationsManager: React.FC = () => {
                 {subjects.map(sub => {
                   const cell = matrix.get(cls.id)?.get(sub.id);
                   return (
-                <td className="border p-1 align-top bg-white dark:bg-slate-900">
+                      <td key={`${cls.id}-${sub.id}`} className="border p-1 align-top bg-white dark:bg-slate-900">
                       {saving ? (
                         <div className="flex items-center justify-center h-12">
                           <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
