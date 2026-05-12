@@ -5,7 +5,10 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(npx tsc *)",
-      "Bash(grep -rn \"sessions\\\\s*$\\\\|FROM sessions\\\\|INSERT INTO sessions\" src/lib src/app/api)"
+      "Bash(grep -rn \"sessions\\\\s*$\\\\|FROM sessions\\\\|INSERT INTO sessions\" src/lib src/app/api)",
+      "Bash(grep -E \"\\\\.\\(sql|ts|md\\)$\")",
+      "Bash(xargs cat)",
+      "Bash(mysql -u root -proot -h 127.0.0.1 school_erp -e \"DESCRIBE class_subjects;\")"
     ]
   }
 }

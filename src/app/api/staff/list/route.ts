@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     const connection = await getConnection();
     const [results] = await connection.execute(
-      `SELECT s.id, s.staff_no, p.first_name, p.last_name, s.position, s.status
+      `SELECT s.id, s.staff_no, p.phone, p.first_name, p.last_name, s.position, s.status
        FROM staff s
        JOIN people p ON s.person_id = p.id
        WHERE s.school_id = ?`,

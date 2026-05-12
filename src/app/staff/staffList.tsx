@@ -30,6 +30,7 @@ const StaffList = () => {
             <th className="border border-gray-300 px-4 py-2">Name</th>
             <th className="border border-gray-300 px-4 py-2">Staff No</th>
             <th className="border border-gray-300 px-4 py-2">Position</th>
+            <th className="border border-gray-300 px-4 py-2">Contact</th>
             <th className="border border-gray-300 px-4 py-2">Hire Date</th>
             <th className="border border-gray-300 px-4 py-2">Status</th>
           </tr>
@@ -41,6 +42,7 @@ const StaffList = () => {
               <td className="border border-gray-300 px-4 py-2">{member.first_name} {member.last_name}</td>
               <td className="border border-gray-300 px-4 py-2">{member.staff_no}</td>
               <td className="border border-gray-300 px-4 py-2">{member.position}</td>
+              <td className="border border-gray-300 px-4 py-2">{member.phone}</td>
               <td className="border border-gray-300 px-4 py-2">{member.hire_date}</td>
               <td className="border border-gray-300 px-4 py-2">{member.status}</td>
             </tr>
