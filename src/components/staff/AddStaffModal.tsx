@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Upload, User, Briefcase, Building, CreditCard, 
@@ -32,6 +32,9 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
     // Professional Info
     staff_no: '',
     position: '',
+    /** Phase B — FK into positions table. Source of truth; `position` text
+        kept until Phase I drops it. */
+    position_id: '',
     employment_type: 'permanent',
     qualification: '',
     experience_years: 0,
@@ -57,6 +60,27 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
   });
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  // Phase B — positions catalog for the dropdown. Loaded on mount; cached
+  // for the lifetime of the modal.
+  const [positions, setPositions] = useState<Array<{
+    id: number;
+    name: string;
+    code: string;
+    category: string;
+    isTeaching: boolean;
+  }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/admin/positions')
+      .then(r => r.json())
+      .then(json => {
+        if (!cancelled && Array.isArray(json?.positions)) {
+          setPositions(json.positions);
+        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [documents, setDocuments] = useState<{ [key: string]: File }>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -189,7 +213,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
     setCurrentStep(0);
     setFormData({
       first_name: '', last_name: '', other_name: '', gender: '', date_of_birth: '',
-      phone: '', email: '', address: '', staff_no: '', position: '',
+      phone: '', email: '', address: '', staff_no: '', position: '', position_id: '',
       employment_type: 'permanent', qualification: '', experience_years: 0,
       hire_date: '', salary: '', department_id: '', branch_id: '', role_id: '',
       bank_name: '', bank_account_no: '', nssf_no: '', tin_no: '',
@@ -373,15 +397,38 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Position *
           </label>
-          <input
-            type="text"
-            value={formData.position}
-            onChange={(e) => handleInputChange('position', e.target.value)}
+          <select
+            value={formData.position_id}
+            onChange={(e) => {
+              const id = e.target.value;
+              const match = positions.find(p => String(p.id) === id);
+              // Dual-write: keep the text column populated for backward-compat
+              // consumers until Phase I retires it.
+              handleInputChange('position_id', id);
+              handleInputChange('position', match?.name ?? '');
+            }}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
               errors.position ? 'border-red-500' : 'border-gray-300'
             }`}
-            placeholder="Enter job position"
-          />
+          >
+            <option value="">Select a position…</option>
+            {(['academic', 'spiritual', 'admin', 'finance', 'support'] as const).map(cat => {
+              const inCat = positions.filter(p => p.category === cat);
+              if (inCat.length === 0) return null;
+              return (
+                <optgroup
+                  key={cat}
+                  label={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                >
+                  {inCat.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.isTeaching ? ' · teaching' : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
           {errors.position && <p className="text-red-500 text-xs mt-1">{errors.position}</p>}
         </div>
 

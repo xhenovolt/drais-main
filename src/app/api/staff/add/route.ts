@@ -42,6 +42,10 @@ export async function POST(req: NextRequest) {
       // Professional Info (staff table)
       staff_no: (formData.get('staff_no') as string)?.trim() || null,
       position: (formData.get('position') as string)?.trim() || null,
+      // Phase B — position_id is the authoritative FK; the text column above
+      // stays dual-written for backward compatibility with read-only consumers
+      // until Phase I removes it.
+      position_id: formData.get('position_id') ? parseInt(formData.get('position_id') as string, 10) : null,
       employment_type: (formData.get('employment_type') as string)?.trim() || 'permanent',
       qualification: (formData.get('qualification') as string)?.trim() || null,
       experience_years: parseInt(formData.get('experience_years', 10) as string) || 0,
@@ -123,15 +127,28 @@ export async function POST(req: NextRequest) {
       // Generate staff number if not provided
       const finalStaffNo = staffData.staff_no || `STAFF${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
-      // 2. Insert into staff table
+      // 2. Insert into staff table. Phase B: position_id is dual-written.
+      //    If the form did not include a position_id (older clients), we
+      //    fall back to the 'other_staff' catalog entry so the NOT-NULL
+      //    invariant established by the backfill keeps holding.
+      let resolvedPositionId = staffData.position_id;
+      if (!resolvedPositionId) {
+        const otherStaff = await exec(
+          `SELECT id FROM positions
+            WHERE code = 'other_staff' AND school_id IS NULL
+            LIMIT 1`,
+          [],
+        );
+        resolvedPositionId = (otherStaff as Array<{ id: number }>)[0]?.id ?? null;
+      }
       const staffResult = await exec(
         `INSERT INTO staff (
-          school_id, person_id, staff_no, position, status,
+          school_id, person_id, staff_no, position, position_id, status,
           department_id, employment_type, qualification, experience_years,
           hire_date, salary, bank_name, bank_account_no, nssf_no, tin_no
-        ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          staffData.schoolId, personId, finalStaffNo, staffData.position,
+          staffData.schoolId, personId, finalStaffNo, staffData.position, resolvedPositionId,
           staffData.department_id, staffData.employment_type, staffData.qualification,
           staffData.experience_years, staffData.hire_date, staffData.salary,
           staffData.bank_name, staffData.bank_account_no, staffData.nssf_no, staffData.tin_no

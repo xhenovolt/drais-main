@@ -19,21 +19,30 @@ export async function GET(req: NextRequest) {
     connection = await getConnection();
 
     // Fetch staff members who are teachers from the school
-    // Query staff table directly since person table doesn't exist
+    // Phase B — teacher classification is now driven by the positions
+    // catalog (positions.is_teaching), not by substring matching on the
+    // free-text position column. Deterministic, misspelling-proof, and
+    // honours custom positions a school adds to its own catalog.
     const sql = `
-      SELECT 
-        id,
-        staff_no,
-        CONCAT('Staff ', id) as first_name,
-        position as last_name,
-        null as email,
-        position,
-        department_id
-      FROM staff
-      WHERE school_id = ? 
-        AND status = 'active'
-        AND (LOWER(position) LIKE '%teacher%' OR LOWER(position) LIKE '%instructor%')
-      ORDER BY position, id
+      SELECT
+        s.id,
+        s.staff_no,
+        CONCAT('Staff ', s.id) AS first_name,
+        s.position             AS last_name,
+        NULL                   AS email,
+        s.position,
+        s.department_id,
+        p.id                   AS position_id,
+        p.name                 AS position_name,
+        p.code                 AS position_code
+      FROM staff s
+      JOIN positions p ON p.id = s.position_id
+      WHERE s.school_id   = ?
+        AND s.status      = 'active'
+        AND s.deleted_at IS NULL
+        AND p.is_teaching = 1
+        AND p.is_active   = 1
+      ORDER BY p.display_order, s.id
     `;
 
     const [teachers] = await connection.execute(sql, [schoolId]);
