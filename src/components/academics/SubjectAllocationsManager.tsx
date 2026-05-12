@@ -196,16 +196,16 @@ export const SubjectAllocationsManager: React.FC = () => {
     }
 
     return (
-      <div className="overflow-x-auto border rounded-lg">
+      <div className="overflow-x-auto border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-slate-100 dark:bg-slate-800">
-              <th className="border p-2 sticky left-0 bg-slate-100 dark:bg-slate-800 z-10 min-w-32">Class \\ Subject</th>
+            <tr className="bg-slate-100 dark:bg-slate-800 border-b border-gray-300 dark:border-slate-600">
+              <th className="border p-2 sticky left-0 bg-slate-100 dark:bg-slate-800 z-10 min-w-32 border-r border-gray-300 dark:border-slate-600">Class \\ Subject</th>
               {subjects.map(sub => (
-                <th key={sub.id} className="border p-2 min-w-32 bg-slate-100 dark:bg-slate-800">
+                <th key={sub.id} className="border p-2 min-w-32 bg-slate-100 dark:bg-slate-800 border-r border-gray-300 dark:border-slate-600">
                   <div className="flex flex-col">
                     <span className="font-semibold truncate">{sub.name}</span>
-                    {sub.code && <span className="text-xs text-gray-500">{sub.code}</span>}
+                    {sub.code && <span className="text-xs text-gray-500 dark:text-gray-400">{sub.code}</span>}
                   </div>
                 </th>
               ))}
@@ -213,14 +213,14 @@ export const SubjectAllocationsManager: React.FC = () => {
           </thead>
           <tbody>
             {classes.map(cls => (
-              <tr key={cls.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <td className="border p-2 font-medium sticky left-0 bg-white dark:bg-slate-900 z-10">
+              <tr key={cls.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
+                <td className="border p-2 font-medium sticky left-0 bg-white dark:bg-slate-900 z-10 border-r border-gray-300 dark:border-slate-600">
                   {cls.name}
                 </td>
                 {subjects.map(sub => {
                   const cell = matrix.get(cls.id)?.get(sub.id);
                   return (
-                    <td key={sub.id} className="border p-1 align-top">
+                <td className="border p-1 align-top bg-white dark:bg-slate-900">
                       {saving ? (
                         <div className="flex items-center justify-center h-12">
                           <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
@@ -236,7 +236,7 @@ export const SubjectAllocationsManager: React.FC = () => {
                             );
                           }}
                         >
-                          <SelectTrigger className="h-8 text-xs">
+                          <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
                             <SelectValue placeholder="Unassigned">
                               {cell ? (
                                 <div className="flex items-center gap-1">
@@ -250,13 +250,19 @@ export const SubjectAllocationsManager: React.FC = () => {
                               )}
                             </SelectValue>
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                          <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
+                            <SelectItem value="unassigned" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
+                              Unassigned
+                            </SelectItem>
                             {teachers.map(t => (
-                              <SelectItem key={t.id} value={t.id.toString()}>
+                              <SelectItem
+                                key={t.id}
+                                value={t.id.toString()}
+                                className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
+                              >
                                 <div className="flex items-center gap-2">
                                   <span>{t.first_name} {t.last_name}</span>
-                                  {t.staff_no && <span className="text-xs text-gray-500">({t.staff_no})</span>}
+                                  {t.staff_no && <span className="text-xs text-gray-500 dark:text-gray-400">({t.staff_no})</span>}
                                 </div>
                               </SelectItem>
                             ))}
@@ -285,40 +291,48 @@ export const SubjectAllocationsManager: React.FC = () => {
 
   const renderListView = () => {
     return (
-      <div className="rounded-md border">
+      <div className="rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-slate-100 dark:bg-slate-800">
+          <thead className="bg-slate-100 dark:bg-slate-800 border-b border-gray-300 dark:border-slate-600">
             <tr>
-              <th className="p-3 text-left text-sm font-medium">Class</th>
-              <th className="p-3 text-left text-sm font-medium">Subject</th>
-              <th className="p-3 text-left text-sm font-medium">Teacher</th>
-              <th className="p-3 text-left text-sm font-medium">Initials</th>
+              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Class</th>
+              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Subject</th>
+              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Teacher</th>
+              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Initials</th>
               <th className="p-3 text-left text-sm font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
             {filteredAllocations.map(a => (
-              <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <td className="p-3 text-sm">{a.class_name}</td>
-                <td className="p-3 text-sm">{a.subject_name}</td>
+              <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 bg-white dark:bg-slate-900">
+                <td className="p-3 text-sm border-r border-gray-200 dark:border-slate-700">{a.class_name}</td>
+                <td className="p-3 text-sm border-r border-gray-200 dark:border-slate-700">{a.subject_name}</td>
                 <td className="p-3 text-sm">
                   <Select
                     value={a.teacher_id?.toString() || 'unassigned'}
                     onValueChange={val => handleTeacherChange(a.class_id, a.subject_id, val === 'unassigned' ? null : Number(val))}
                     disabled={saving}
                   >
-                    <SelectTrigger className="h-8 text-xs w-48">
+                    <SelectTrigger className="h-8 text-xs w-48 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
                       <SelectValue>{a.teacher_name}</SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                    <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
+                      <SelectItem value="unassigned" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
+                        Unassigned
+                      </SelectItem>
                       {teachers.map(t => (
-                        <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>
+                        <SelectItem
+                          key={t.id}
+                          value={t.id.toString()}
+                          className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
+                        >
+                          {t.first_name} {t.last_name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </td>
-                <td className="p-3 text-sm">
+                <td className="p-3 text-sm border-r border-gray-200 dark:border-slate-700">
                   <Badge variant="outline" className="font-mono">
                     {a.display_initials || '—'}
                   </Badge>
@@ -400,13 +414,21 @@ export const SubjectAllocationsManager: React.FC = () => {
             <div className="flex-1 min-w-48">
               <Label>Filter by Class</Label>
               <Select value={filterClass} onValueChange={setFilterClass}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
                   <SelectValue placeholder="All Classes" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
+                <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
+                  <SelectItem value="all" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
+                    All Classes
+                  </SelectItem>
                   {classes.map(c => (
-                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                    <SelectItem
+                      key={c.id}
+                      value={c.id.toString()}
+                      className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
+                    >
+                      {c.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -415,13 +437,21 @@ export const SubjectAllocationsManager: React.FC = () => {
             <div className="flex-1 min-w-48">
               <Label>Filter by Subject</Label>
               <Select value={filterSubject} onValueChange={setFilterSubject}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
                   <SelectValue placeholder="All Subjects" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Subjects</SelectItem>
+                <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
+                  <SelectItem value="all" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
+                    All Subjects
+                  </SelectItem>
                   {subjects.map(s => (
-                    <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
+                    <SelectItem
+                      key={s.id}
+                      value={s.id.toString()}
+                      className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
+                    >
+                      {s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -465,12 +495,18 @@ export const SubjectAllocationsManager: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                   <Select value={selectedTeacher.toString()} onValueChange={val => setSelectedTeacher(Number(val))}>
-                    <SelectTrigger className="w-48 h-8">
+                    <SelectTrigger className="w-48 h-8 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
                       <SelectValue placeholder="Choose teacher" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
                       {teachers.map(t => (
-                        <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>
+                        <SelectItem
+                          key={t.id}
+                          value={t.id.toString()}
+                          className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
+                        >
+                          {t.first_name} {t.last_name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
