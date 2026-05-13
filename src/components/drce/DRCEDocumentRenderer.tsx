@@ -31,6 +31,10 @@ interface Props {
   onSectionClick?: (sectionId: string) => void;
   /** ID of the currently selected section (highlights it) */
   selectedSectionId?: string | null;
+  /** Called when a cell content is changed */
+  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string) => Promise<void>;
+  /** Called when a column should be hidden */
+  onColumnHide?: (sectionId: string, columnId: string) => Promise<void>;
 }
 
 function renderSection(
@@ -38,6 +42,8 @@ function renderSection(
   doc: DRCEDocument,
   dataCtx: DRCEDataContext,
   renderCtx: DRCERenderContext,
+  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string) => Promise<void>,
+  onColumnHide?: (sectionId: string, columnId: string) => Promise<void>,
 ) {
   if (!section || !doc || !dataCtx || !renderCtx) {
     console.warn('[renderSection] Missing required context:', { section: !!section, doc: !!doc, dataCtx: !!dataCtx, renderCtx: !!renderCtx });
@@ -53,7 +59,7 @@ function renderSection(
     case 'banner':       return <BannerSection      key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
     case 'student_info': return <StudentInfoSection key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
     case 'ribbon':       return <RibbonSection      key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
-    case 'results_table':return <ResultsTableSection key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
+    case 'results_table':return <ResultsTableSection key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} onCellChange={onCellChange ? (columnId, rowIndex, newValue) => onCellChange(section.id, columnId, rowIndex, newValue) : undefined} onColumnHide={onColumnHide ? (columnId) => onColumnHide(section.id, columnId) : undefined} />;
     case 'assessment':   return <AssessmentSection  key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
     case 'comments':     return <CommentsSection    key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
     case 'grade_table':  return <GradeTableSection  key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
@@ -120,6 +126,8 @@ export function DRCEDocumentRenderer({
   className,
   onSectionClick,
   selectedSectionId,
+  onCellChange,
+  onColumnHide,
 }: Props) {
   // Defensive guards against undefined contexts
   if (!document) {
@@ -195,7 +203,7 @@ export function DRCEDocumentRenderer({
       {/* Sections */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         {sorted.map(section => {
-          const rendered = renderSection(section, document, dataCtx, renderCtx);
+          const rendered = renderSection(section, document, dataCtx, renderCtx, onCellChange, onColumnHide);
           if (!rendered) return null;
 
           const isSelected = selectedSectionId === section.id;

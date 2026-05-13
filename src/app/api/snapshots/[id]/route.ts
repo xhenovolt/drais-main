@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
-import { loadSnapshot, deleteSnapshot, getSnapshotRow } from '@/lib/snapshots/storage';
+import { loadSnapshot, deleteSnapshot, getSnapshotRow, saveSnapshot } from '@/lib/snapshots/storage';
+import { hashCanonical } from '@/lib/snapshots/normalizers';
 
 export async function GET(
   req: NextRequest,
@@ -18,6 +19,79 @@ export async function GET(
   }
   const row = await getSnapshotRow(id, session.schoolId);
   return NextResponse.json({ success: true, snapshot, row });
+}
+
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const session = await getSessionSchoolId(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+  const snapshot = await loadSnapshot(id, session.schoolId);
+  if (!snapshot) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  if (!body || !Array.isArray(body.actions)) {
+    return NextResponse.json({ error: 'Missing actions array' }, { status: 400 });
+  }
+
+  for (const action of body.actions) {
+    const classIdx = action?.classIdx;
+    const studentDbId = action?.studentDbId;
+    const field = action?.field;
+    const value = action?.value;
+    const rowIndex = action?.rowIndex;
+
+    if (typeof classIdx !== 'number' || typeof studentDbId !== 'number' || typeof field !== 'string' || typeof value !== 'string') {
+      return NextResponse.json({ error: 'Invalid action payload' }, { status: 400 });
+    }
+
+    const cls = snapshot.classes[classIdx];
+    if (!cls) {
+      return NextResponse.json({ error: 'Class index out of range' }, { status: 400 });
+    }
+
+    const student = cls.students.find(s => s.studentDbId === studentDbId);
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 400 });
+    }
+
+    if (field === 'classTeacher' || field === 'dos' || field === 'headTeacher') {
+      student.comments = {
+        classTeacher: student.comments?.classTeacher ?? '',
+        dos:          student.comments?.dos ?? '',
+        headTeacher:  student.comments?.headTeacher ?? '',
+        [field]:      value,
+      };
+    } else if (field === 'remarks' || field === 'initials') {
+      if (typeof rowIndex !== 'number' || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= student.results.length) {
+        return NextResponse.json({ error: 'Invalid row index' }, { status: 400 });
+      }
+      student.results[rowIndex] = {
+        ...student.results[rowIndex],
+        [field]: value,
+      };
+    } else {
+      return NextResponse.json({ error: 'Unsupported field' }, { status: 400 });
+    }
+  }
+
+  snapshot.meta.dataHash = hashCanonical(snapshot.classes);
+  await saveSnapshot({ snapshotId: id, snapshot });
+
+  return NextResponse.json({ success: true });
 }
 
 export async function DELETE(

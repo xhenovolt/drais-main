@@ -27,7 +27,9 @@ export type OverrideKind =
   | 'hide_subject'
   | 'style_patch'
   | 'text_replace'
-  | 'spacing_patch';
+  | 'spacing_patch'
+  | 'cell_content_edit'
+  | 'hide_column';
 
 export const OVERRIDE_KINDS: readonly OverrideKind[] = [
   'hide_section', 'hide_row', 'hide_subject',
@@ -80,6 +82,24 @@ export type RenderOverride =
       /** Section id whose padding/margin is patched. */
       targetId:   string;
       payload:    { padding?: string; margin?: string };
+    }
+  | {
+      kind:       'cell_content_edit';
+      /** Section id containing the table. */
+      targetId:   string;
+      /** Column id being edited. */
+      columnId:   string;
+      /** Row index (0-based) in the results array. */
+      rowIndex:   number;
+      /** New content for the cell. */
+      payload:    { content: string };
+    }
+  | {
+      kind:       'hide_column';
+      /** Section id containing the table. */
+      targetId:   string;
+      /** Column id to hide. */
+      columnId:   string;
     };
 
 /**
@@ -139,9 +159,11 @@ export function applyOverrides(
   // Pass 1 — structural removals.
   const hiddenSectionIds = new Set<string>();
   const hiddenSubjectIds = new Set<string>();
+  const hiddenColumnIds = new Set<string>();
   for (const o of overrides) {
     if (o.kind === 'hide_section')      hiddenSectionIds.add(o.targetId);
     else if (o.kind === 'hide_subject') hiddenSubjectIds.add(o.targetId);
+    else if (o.kind === 'hide_column')  hiddenColumnIds.add(`${o.targetId}:${o.columnId}`);
   }
 
   let next: DRCEDocument = doc;
@@ -150,6 +172,29 @@ export function applyOverrides(
     next = {
       ...next,
       sections: next.sections.filter(s => !hiddenSectionIds.has(s.id)),
+    };
+  }
+
+  // Apply column hiding to results table sections
+  if (hiddenColumnIds.size > 0) {
+    next = {
+      ...next,
+      sections: next.sections.map(s => {
+        if (s.type === 'results_table') {
+          const tableSection = s as DRCESection & { columns?: Array<{ id: string; visible?: boolean }> };
+          if (tableSection.columns) {
+            const updatedColumns = tableSection.columns.map(col => {
+              const columnKey = `${s.id}:${col.id}`;
+              if (hiddenColumnIds.has(columnKey)) {
+                return { ...col, visible: false };
+              }
+              return col;
+            });
+            return { ...s, columns: updatedColumns };
+          }
+        }
+        return s;
+      }),
     };
   }
 
@@ -173,6 +218,15 @@ export function applyOverrides(
   if (hiddenSubjectIds.size > 0) {
     (next as DRCEDocument & { __hiddenSubjectIds?: string[] }).__hiddenSubjectIds =
       Array.from(hiddenSubjectIds);
+  }
+
+  // Pass 4 — cell content edits. Store them in the document for the renderer to apply.
+  const cellContentEdits = overrides.filter(
+    (o): o is Extract<RenderOverride, { kind: 'cell_content_edit' }> => o.kind === 'cell_content_edit',
+  );
+  if (cellContentEdits.length > 0) {
+    (next as DRCEDocument & { __cellContentEdits?: Array<Extract<RenderOverride, { kind: 'cell_content_edit' }>> }).__cellContentEdits =
+      cellContentEdits;
   }
 
   return next;

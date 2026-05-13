@@ -5,6 +5,7 @@ import { t } from '@/lib/i18n';
 import { Search, ChevronLeft, ChevronRight, RefreshCw, Loader2, Plus, Edit2, Trash2, Settings } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Swal from 'sweetalert2';
@@ -737,23 +738,25 @@ export const SubjectsManager: React.FC = () => {
                       <label htmlFor="subject_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                         Subject Type
                       </label>
-                      <select
-                        id="subject_type"
-                        name="subject_type"
+                      <Select
                         value={formData.subject_type}
-                        onChange={handleInputChange}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, subject_type: value }))}
                         disabled={submitting}
-                        className={`w-full px-4 py-3 rounded-xl border ${
-                          formErrors.subject_type 
-                            ? 'border-red-500/60 focus:ring-red-500/60 focus:border-red-500/60' 
-                            : 'border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60'
-                        } bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50`}
                       >
-                        <option value="core">Core</option>
-                        <option value="elective">Elective</option>
-                        <option value="tahfiz">Tahfiz</option>
-                        <option value="extra">Extra-curricular</option>
-                      </select>
+                        <SelectTrigger className={`w-full px-4 py-3 rounded-xl border ${
+                          formErrors.subject_type
+                            ? 'border-red-500/60 focus:ring-red-500/60 focus:border-red-500/60'
+                            : 'border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60'
+                        } bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50`}>
+                          <SelectValue placeholder="Select subject type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
+                          <SelectItem value="core" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Core</SelectItem>
+                          <SelectItem value="elective" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Elective</SelectItem>
+                          <SelectItem value="tahfiz" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Tahfiz</SelectItem>
+                          <SelectItem value="extra" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Extra-curricular</SelectItem>
+                        </SelectContent>
+                      </Select>
                       {formErrors.subject_type && (
                         <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.subject_type}</p>
                       )}
@@ -763,17 +766,19 @@ export const SubjectsManager: React.FC = () => {
                       <label htmlFor="academic_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                         Academic Stream
                       </label>
-                      <select
-                        id="academic_type"
-                        name="academic_type"
+                      <Select
                         value={formData.academic_type}
-                        onChange={handleInputChange}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, academic_type: value }))}
                         disabled={submitting}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50"
                       >
-                        <option value="secular">Secular</option>
-                        <option value="theology">Theology</option>
-                      </select>
+                        <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50">
+                          <SelectValue placeholder="Select academic stream" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
+                          <SelectItem value="secular" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Secular</SelectItem>
+                          <SelectItem value="theology" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Theology</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="flex justify-end gap-4 pt-6">

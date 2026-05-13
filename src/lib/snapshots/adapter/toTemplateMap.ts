@@ -15,6 +15,7 @@ export interface TemplateRenderInput {
   snapshot:   ReportSnapshot;
   classIdx:   number;
   studentIdx: number;
+  editMode?:  boolean;
 }
 
 export interface TemplateRenderOutput {
@@ -44,18 +45,26 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
 
   // Subjects table rows
   let subjectsHtml = '';
-  for (const r of stu.results) {
+  for (const rowIndex = 0; rowIndex < stu.results.length; rowIndex += 1) {
+    const r = stu.results[rowIndex];
     const score = r.displayScore || '—';
     const grade = r.grade || '';
     const initials = r.initials || (isArabic ? 'ب.ج.م' : 'BJM');
+    const editableComments = input.editMode === true;
+    const remarksCell = editableComments
+      ? `<td class="comment-cell" data-editable-field="remarks" data-row-index="${rowIndex}" contenteditable="true">${escapeHtml(r.remarks || '')}</td>`
+      : `<td class="comment-cell">${escapeHtml(r.remarks || '')}</td>`;
+    const initialsCell = editableComments
+      ? `<td class="initials" data-editable-field="initials" data-row-index="${rowIndex}" contenteditable="true">${escapeHtml(initials)}</td>`
+      : `<td class="initials">${escapeHtml(initials)}</td>`;
     subjectsHtml +=
-      `<tr>` +
+      `<tr data-row-index="${rowIndex}">` +
       `<td>${escapeHtml(r.displaySubject)}</td>` +
       `<td>${escapeHtml(score)}</td>` +
       `<td>${escapeHtml(score)}</td>` +
       `<td style="color:blue">${escapeHtml(grade)}</td>` +
-      `<td class="comment-cell">${escapeHtml(r.remarks || '')}</td>` +
-      `<td class="initials">${escapeHtml(initials)}</td>` +
+      remarksCell +
+      initialsCell +
       `</tr>`;
   }
 
@@ -92,6 +101,11 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
     arabicRegistrationNo: b?.arabicRegistrationNo ?? '',
     arabicPoBox:          b?.arabicPoBox          ?? '',
   };
+
+  const commentEditable = input.editMode === true;
+  const classTeacherComment = escapeHtml(stu.comments?.classTeacher || '');
+  const dosComment = escapeHtml(stu.comments?.dos || '');
+  const headTeacherComment = escapeHtml(stu.comments?.headTeacher || '');
 
   const placeholders: Record<string, string> = {
     student_no:               escapeHtml(stu.id || ''),
@@ -144,9 +158,15 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
       : String(stu.totalInClass || '')),
     aggregates,
     division,
-    class_teacher_comment:    escapeHtml(stu.comments?.classTeacher || ''),
-    dos_comment:              escapeHtml(stu.comments?.dos || ''),
-    headteacher_comment:      escapeHtml(stu.comments?.headTeacher || ''),
+    class_teacher_comment:     commentEditable
+      ? `<span class="editable-comment" data-editable-field="classTeacher" contenteditable="true">${classTeacherComment}</span>`
+      : classTeacherComment,
+    dos_comment:              commentEditable
+      ? `<span class="editable-comment" data-editable-field="dos" contenteditable="true">${dosComment}</span>`
+      : dosComment,
+    headteacher_comment:      commentEditable
+      ? `<span class="editable-comment" data-editable-field="headTeacher" contenteditable="true">${headTeacherComment}</span>`
+      : headTeacherComment,
     next_term_date:           escapeHtml(snapshot.config.nextTermBegins || ''),
     photo_url:                escapeHtml(stu.photoUrl || '/placeholder-student.png'),
     admission_number:         escapeHtml(stu.admissionNumber || ''),

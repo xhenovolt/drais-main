@@ -95,8 +95,10 @@ export async function GET(
 
   const classIdRaw  = sp.get('class_id');
   const studentIdRaw = sp.get('student_id');
+  const editModeRaw = sp.get('edit');
   const filterClassIdx = classIdRaw !== null ? parseInt(classIdRaw, 10) : null;
   const filterStudentDbId = studentIdRaw !== null ? parseInt(studentIdRaw, 10) : null;
+  const editMode = editModeRaw === '1' || editModeRaw === 'true';
 
   const isArabic = snapshot.meta.numerals === 'arabic';
   const direction = isArabic ? 'rtl' : 'ltr';
@@ -108,8 +110,11 @@ export async function GET(
     if (filterClassIdx !== null && !Number.isNaN(filterClassIdx) && classIdx !== filterClassIdx) return;
     cls.students.forEach((stu, studentIdx) => {
       if (filterStudentDbId !== null && !Number.isNaN(filterStudentDbId) && stu.studentDbId !== filterStudentDbId) return;
-      const out = snapshotToTemplateMap({ snapshot, classIdx, studentIdx });
-      studentBlocks.push(renderEmergencyTemplate(template, out));
+      const out = snapshotToTemplateMap({ snapshot, classIdx, studentIdx, editMode });
+      const rendered = renderEmergencyTemplate(template, out);
+      studentBlocks.push(
+        `<div class="student-block" data-class-index="${classIdx}" data-student-db-id="${stu.studentDbId}">${rendered}</div>`
+      );
     });
   });
 
@@ -119,12 +124,12 @@ export async function GET(
     });
   }
 
-  const printControls = buildPrintControls(snapshot, isArabic);
+  const printControls = buildPrintControls(snapshot, isArabic, editMode);
   const fullHtml = wrapDocument(
     snapshot,
     lang,
     direction,
-    printControls + '\n' + studentBlocks.join('\n'),
+    printControls + '\n' + studentBlocks.join('\n') + (editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : ''),
   );
 
   return new NextResponse(fullHtml, {
@@ -132,7 +137,7 @@ export async function GET(
   });
 }
 
-function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean): string {
+function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean, editMode = false): string {
   const classOptions = snapshot.classes.map((c, i) => {
     const label = isArabic ? `📚 ${c.className}` : `📚 ${c.className}`;
     return `<option value="${i}">${escape(label)}</option>`;
@@ -142,6 +147,7 @@ function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean): string
   const printClsLabel  = isArabic ? '🖨️ طباعة الفصل'  : '🖨️ Print Selected Class';
   const selectLabel    = isArabic ? 'اختر الفصل:'      : 'Select class:';
 
+  const editQuery = editMode ? '&edit=1' : '';
   return `
     <div class="no-print" style="position: fixed; top: 10px; ${isArabic ? 'left' : 'right'}: 10px; background: #fff; border: 1px solid #ccc; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 6px; z-index: 9999; min-width: 240px;">
       <div style="font-size: 12px; color: #555; margin-bottom: 6px;">${selectLabel}</div>
@@ -155,13 +161,13 @@ function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean): string
     <script>
       function snapshotFilterByClass() {
         var v = document.getElementById('snapshotClassSelect').value;
-        if (v) window.location.href = '?class_id=' + v;
-        else   window.location.href = window.location.pathname;
+        if (v) window.location.href = '?class_id=' + v + '${editQuery}';
+        else   window.location.href = window.location.pathname + '${editQuery}';
       }
       function snapshotPrintSelectedClass() {
         var v = document.getElementById('snapshotClassSelect').value;
         if (v) {
-          var w = window.open('?class_id=' + v, '_blank');
+          var w = window.open('?class_id=' + v + '${editQuery}', '_blank');
           if (w) w.addEventListener('load', function () { try { w.print(); } catch (e) {} });
         } else {
           window.print();
@@ -206,6 +212,67 @@ function wrapDocument(snapshot: ReportSnapshot, lang: string, direction: 'ltr' |
 ${body}
 </body>
 </html>`;
+}
+
+function buildEmergencyEditScript(snapshotId: string): string {
+  return `
+    <script>
+      (function() {
+        const endpoint = '/api/snapshots/${snapshotId}';
+        const showStatus = (el, success) => {
+          const prev = el.style.outline;
+          el.style.outline = success ? '2px solid #16a34a' : '2px solid #dc2626';
+          window.setTimeout(() => { el.style.outline = prev; }, 600);
+        };
+
+        async function saveEditable(el) {
+          const field = el.dataset.editableField;
+          const block = el.closest('.student-block');
+          const studentDbId = block?.dataset.studentDbId;
+          const classIdx = block?.dataset.classIndex;
+          const rowIndex = el.dataset.rowIndex;
+          if (!field || !studentDbId || !classIdx) return;
+
+          const action = {
+            classIdx: Number(classIdx),
+            studentDbId: Number(studentDbId),
+            field: field,
+            value: el.textContent.trim(),
+          };
+          if (rowIndex !== undefined && rowIndex !== '') {
+            action.rowIndex = Number(rowIndex);
+          }
+
+          try {
+            const res = await fetch(endpoint, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ actions: [action] }),
+              credentials: 'same-origin',
+            });
+            if (!res.ok) throw new Error('Save failed');
+            showStatus(el, true);
+          } catch (err) {
+            console.error(err);
+            showStatus(el, false);
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+          document.querySelectorAll('[data-editable-field]').forEach(function(el) {
+            el.setAttribute('contenteditable', 'true');
+            el.addEventListener('blur', function() { saveEditable(el); });
+            el.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                el.blur();
+              }
+            });
+          });
+        });
+      })();
+    </script>
+  `;
 }
 
 function emptyDocument(snapshot: ReportSnapshot, lang: string, direction: 'ltr' | 'rtl'): string {

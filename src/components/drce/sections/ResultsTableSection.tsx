@@ -16,6 +16,8 @@ interface Props {
   ctx: DRCEDataContext;
   /** Optional callback when an editable cell is changed */
   onCellChange?: (columnId: string, rowIndex: number, newValue: string) => Promise<void>;
+  /** Optional callback when a column should be hidden */
+  onColumnHide?: (columnId: string) => Promise<void>;
 }
 
 /**
@@ -69,7 +71,7 @@ function calculateAverages(
   return averages;
 }
 
-export function ResultsTableSection({ section, ctx, onCellChange }: Props) {
+export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }: Props) {
   const [editingCell, setEditingCell] = useState<{ col: string; row: number } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -94,13 +96,27 @@ export function ResultsTableSection({ section, ctx, onCellChange }: Props) {
 
   const allResults = ctx.results ?? [];
   const subjectFilter = section.subjectFilter ?? 'all';
-  const results = subjectFilter === 'all'
+  let results = subjectFilter === 'all'
     ? allResults
     : allResults.filter(r =>
         subjectFilter === 'primary'
           ? (r.subjectType ?? 'primary') === 'primary'
           : (r.subjectType ?? 'primary') === 'secondary',
       );
+
+  // Apply cell content edits from overrides
+  const cellContentEdits = (section as any).__cellContentEdits || [];
+  if (cellContentEdits.length > 0) {
+    results = results.map((row, rowIndex) => {
+      const editedRow = { ...row };
+      cellContentEdits.forEach((edit: any) => {
+        if (edit.rowIndex === rowIndex) {
+          editedRow[edit.columnId] = edit.payload.content;
+        }
+      });
+      return editedRow;
+    });
+  }
 
   const totalsConfig = section.totalsConfig;
   const totalsEnabled = totalsConfig?.enabled ?? true;  // Default to TRUE - always show totals
@@ -165,7 +181,29 @@ export function ResultsTableSection({ section, ctx, onCellChange }: Props) {
               key={col.id}
               style={resolveTableHeaderCellStyle(style, col.align, col.style)}
             >
-              {col.header}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'flex-start', gap: '4px' }}>
+                <span>{col.header}</span>
+                {onColumnHide && (
+                  <button
+                    onClick={() => onColumnHide(col.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '2px 4px',
+                      borderRadius: '2px',
+                      opacity: 0.7,
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = '0.7'}
+                    title={`Hide ${col.header} column`}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </th>
           ))}
         </tr>
@@ -174,7 +212,21 @@ export function ResultsTableSection({ section, ctx, onCellChange }: Props) {
         {results.map((row, i) => (
           <tr key={i}>
             {visibleCols.map(col => {
-              const cellValue = resolveBinding(col.binding, ctx, row as unknown as Record<string, unknown>);
+              let cellValue = resolveBinding(col.binding, ctx, row as unknown as Record<string, unknown>);
+              
+              // Apply cell content edits from overrides
+              const cellContentEdits = (section as any).__cellContentEdits;
+              if (cellContentEdits) {
+                const edit = cellContentEdits.find((e: any) => 
+                  e.targetId === section.id && 
+                  e.columnId === col.id && 
+                  e.rowIndex === i
+                );
+                if (edit) {
+                  cellValue = edit.payload.content;
+                }
+              }
+              
               const isEditable = col.contentEditable === true;
               
               return (

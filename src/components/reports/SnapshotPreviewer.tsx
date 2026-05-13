@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 import { Printer, ChevronLeft, ChevronRight, Layers, Loader2 } from 'lucide-react';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 import type { DRCEDocument } from '@/lib/drce/schema';
@@ -42,6 +43,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   const [drceDoc, setDrceDoc]       = useState<DRCEDocument | null>(null);
   const [drceError, setDrceError]   = useState<string | null>(null);
   const [drceLoading, setDrceLoading] = useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   // Registry-driven template selection. Loaded once; the dropdown is filtered
   // to entries compatible with the snapshot's curriculum type.
@@ -83,6 +85,101 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     return () => { cancelled = true; };
   }, [reloadOverrides]);
 
+  // Handle cell content changes with syncing for initials
+  const handleCellChange = async (sectionId: string, columnId: string, rowIndex: number, newValue: string) => {
+    if (!cls) return;
+
+    try {
+      // Check if this is an initials column that should sync across all students
+      const isInitialsColumn = columnId.toLowerCase().includes('initial') || columnId.toLowerCase().includes('teacher');
+
+      if (isInitialsColumn) {
+        // Sync initials across all students in this class
+        const syncPromises = cls.students.map(async (student) => {
+          const override = {
+            kind: 'cell_content_edit' as const,
+            targetId: sectionId,
+            columnId,
+            rowIndex,
+            payload: { content: newValue },
+          };
+
+          return fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              studentDbId: student.studentDbId,
+              override,
+            }),
+          });
+        });
+
+        await Promise.all(syncPromises);
+        toast.success(`Initials updated for all ${cls.students.length} students in this class`);
+      } else {
+        // Regular cell edit for current student only
+        const override = {
+          kind: 'cell_content_edit' as const,
+          targetId: sectionId,
+          columnId,
+          rowIndex,
+          payload: { content: newValue },
+        };
+
+        const response = await fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentDbId: stu?.studentDbId,
+            override,
+          }),
+        });
+
+        if (response.ok) {
+          toast.success('Cell updated successfully');
+        } else {
+          toast.error('Failed to update cell');
+        }
+      }
+
+      // Reload overrides to reflect changes
+      await reloadOverrides();
+    } catch (error) {
+      console.error('Error updating cell:', error);
+      toast.error('Failed to update cell');
+    }
+  };
+
+  // Handle column hiding
+  const handleColumnHide = async (sectionId: string, columnId: string) => {
+    try {
+      const override = {
+        kind: 'hide_column' as const,
+        targetId: sectionId,
+        columnId,
+      };
+
+      const response = await fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentDbId: null, // Apply to all students in the snapshot
+          override,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`Column "${columnId}" hidden successfully`);
+        await reloadOverrides();
+      } else {
+        toast.error('Failed to hide column');
+      }
+    } catch (error) {
+      console.error('Error hiding column:', error);
+      toast.error('Failed to hide column');
+    }
+  };
+
   // emergency_html renderer covers Phase 2 categories: emergency, arabic,
   // legacy_rpt. Filter to those compatible with this snapshot's curriculum.
   const emergencyOptions = useMemo(
@@ -110,8 +207,12 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
 
   const previewSrc = useMemo(() => {
     if (!cls) return printBase;
-    return `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(emergencyTemplateId)}`;
-  }, [printBase, classIdx, cls, emergencyTemplateId]);
+    let url = `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(emergencyTemplateId)}`;
+    if (mode === 'emergency' && isEditMode) {
+      url += '&edit=1';
+    }
+    return url;
+  }, [printBase, classIdx, cls, emergencyTemplateId, mode, isEditMode]);
 
   useEffect(() => {
     setStudentIdx(0);
@@ -268,8 +369,31 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
           >
             <Printer className="w-4 h-4" /> Print this class
           </Link>
+          {(mode === 'drce' || mode === 'emergency') && (
+            <button
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm ${
+                isEditMode
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-gray-600 text-white hover:bg-gray-700'
+              }`}
+              title={isEditMode ? 'Exit edit mode' : 'Enter edit mode to modify report content'}
+            >
+              {isEditMode ? '✏️ Editing' : '✏️ Edit'}
+            </button>
+          )}
         </div>
       </div>
+
+      {(mode === 'drce' || mode === 'emergency') && (
+        <div className="px-4 pb-4 text-xs text-slate-600 dark:text-slate-400">
+          {isEditMode ? (
+            'Editable fields are active in this preview. In emergency mode, comments and initials can be changed in-place and saved back to the snapshot.'
+          ) : (
+            'Inline editing is available in both DRCE and emergency preview modes. Use the Edit button to activate it, and mark DRCE columns with contentEditable: true if you want additional fields editable in DRCE.'
+          )}
+        </div>
+      )}
 
       {mode === 'emergency' && (
         <iframe
@@ -339,6 +463,8 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
                       language: snapshot.meta.language,
                       isRTL:    snapshot.meta.numerals === 'arabic',
                     }}
+                    onCellChange={isEditMode ? handleCellChange : undefined}
+                    onColumnHide={isEditMode ? handleColumnHide : undefined}
                   />
                 </div>
                 <div className="lg:sticky lg:top-4 self-start">
