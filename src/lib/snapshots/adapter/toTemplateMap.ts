@@ -45,7 +45,7 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
 
   // Subjects table rows
   let subjectsHtml = '';
-  for (const rowIndex = 0; rowIndex < stu.results.length; rowIndex += 1) {
+  for (let rowIndex = 0; rowIndex < stu.results.length; rowIndex += 1) {
     const r = stu.results[rowIndex];
     const score = r.displayScore || '—';
     const grade = r.grade || '';
