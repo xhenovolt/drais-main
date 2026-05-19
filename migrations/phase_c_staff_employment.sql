@@ -22,8 +22,8 @@
 
 CREATE TABLE IF NOT EXISTS staff_employment (
   id                BIGINT       NOT NULL AUTO_INCREMENT,
-  staff_id          INT          NOT NULL,
-  school_id         INT          NOT NULL,
+  staff_id          BIGINT       NOT NULL,
+  school_id         BIGINT       NOT NULL,
   /** The kind of event that produced this row. */
   event_type        ENUM(
                       'hired',
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS staff_employment (
       so the history survives later position changes. */
   position_id       BIGINT       NULL,
   /** Department at the time of this event. */
-  department_id     INT          NULL,
+  department_id     BIGINT       NULL,
   reason            VARCHAR(500) NULL,
   notes             TEXT         NULL,
   recorded_by       INT          NOT NULL,
@@ -90,12 +90,12 @@ SELECT
     WHEN s.employment_type IN ('permanent','contract','volunteer') THEN s.employment_type
     ELSE NULL
   END AS contract_type,
-  COALESCE(s.hire_date, DATE(s.created_at)) AS effective_date,
+  COALESCE(s.hire_date, DATE(s.updated_at), CURDATE()) AS effective_date,
   s.position_id,
   s.department_id,
   'Backfilled from staff.status during Phase C migration' AS reason,
   0 AS recorded_by,
-  COALESCE(s.created_at, NOW()) AS event_date
+  COALESCE(s.updated_at, NOW()) AS event_date
 FROM staff s
 WHERE NOT EXISTS (
   SELECT 1 FROM staff_employment e WHERE e.staff_id = s.id
