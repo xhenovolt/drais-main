@@ -171,6 +171,27 @@ export async function generateSnapshot(
     const numerals = input.type === 'theology' ? 'arabic' : 'western';
 
     const classes = buildClasses(rows, numerals, language);
+
+    // Phase E — enrich each class with its class teacher (if assigned).
+    // The lookup uses the snapshot's termId + each classId; failures
+    // silently leave `classTeacher` undefined so old snapshots and
+    // schools that have not assigned class teachers yet keep working.
+    try {
+      const { getClassTeacherForSnapshot } = await import('@/lib/services/class-teachers');
+      await Promise.all(classes.map(async (c) => {
+        const assignment = await getClassTeacherForSnapshot({
+          classId:  c.classId,
+          termId:   input.termId,
+          schoolId: ctx.schoolId,
+        });
+        if (assignment) {
+          c.classTeacher = { staffId: assignment.staffId, name: assignment.staffName };
+        }
+      }));
+    } catch (e) {
+      console.warn('[snapshots/generator] class teacher lookup failed:', e);
+    }
+
     const sourceCounts = {
       classes:  classes.length,
       students: classes.reduce((n, c) => n + c.students.length, 0),

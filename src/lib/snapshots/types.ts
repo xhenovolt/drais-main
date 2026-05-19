@@ -148,6 +148,16 @@ export interface SnapshotClass {
   stream:    string;
   subjects:  SnapshotSubject[];
   students:  SnapshotStudent[];
+  /**
+   * Phase E — class teacher resolved from `class_teachers` at snapshot
+   * generation time. Optional for backwards compatibility with snapshots
+   * generated before this column existed; per-student
+   * `comments.classTeacher` remains the legacy fallback.
+   */
+  classTeacher?: {
+    staffId:   number | null;
+    name:      string;
+  };
 }
 
 export interface SnapshotConfig {
