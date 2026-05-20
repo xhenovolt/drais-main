@@ -35,18 +35,25 @@ export async function GET(
 
     connection = await getConnection();
 
-    // Fetch staff member with department info
+    // Fetch staff member with department + position info.
+    // Phase B adds the position_id FK; the join brings back the catalogued
+    // position name + category + is_teaching so the edit form can render
+    // the dropdown with the correct selected value.
     const [staffRows]: any = await connection.execute(
-      `SELECT 
+      `SELECT
         s.id, s.school_id, s.person_id, s.staff_no, s.position, s.hire_date, s.status,
         s.department_id, s.role_id, s.employment_type, s.qualification, s.experience_years,
-        s.salary, s.bank_name, s.bank_account_no, s.nssf_no, s.tin_no, s.performance_rating,
+        s.salary, s.bank_name, s.bank_account_no, s.nssf_no, s.tin_no,
+        s.position_id, s.manager_id,
         p.first_name, p.last_name, p.other_name, p.gender, p.date_of_birth,
-        p.email, p.phone, p.address, p.city,
-        d.name as department_name
+        p.email, p.phone, p.address, p.photo_url, p.nationality, p.national_id,
+        d.name AS department_name,
+        pos.code AS position_code, pos.name AS position_name,
+        pos.category AS position_category, pos.is_teaching AS position_is_teaching
        FROM staff s
-       LEFT JOIN people p ON s.person_id = p.id
+       LEFT JOIN people p      ON s.person_id   = p.id
        LEFT JOIN departments d ON s.department_id = d.id
+       LEFT JOIN positions pos ON s.position_id = pos.id
        WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
        LIMIT 1`,
       [staffId, schoolId]
@@ -177,6 +184,24 @@ export async function PATCH(
       if (body.position !== undefined) {
         staffUpdatedFields.push('position = ?');
         staffUpdateValues.push(body.position);
+      }
+      // Phase B — accept position_id from the dropdown. If position_id is
+      // supplied without an accompanying position text, copy the catalog
+      // entry's display name into the legacy text column so reads that
+      // still rely on it (lists, exports) keep working until Phase I.
+      if (body.position_id !== undefined) {
+        staffUpdatedFields.push('position_id = ?');
+        staffUpdateValues.push(body.position_id);
+        if (body.position === undefined && body.position_id !== null) {
+          const [posRows]: any = await connection.execute(
+            `SELECT name FROM positions WHERE id = ? LIMIT 1`,
+            [body.position_id],
+          );
+          if (posRows.length > 0) {
+            staffUpdatedFields.push('position = ?');
+            staffUpdateValues.push(posRows[0].name);
+          }
+        }
       }
       if (body.hire_date !== undefined) {
         staffUpdatedFields.push('hire_date = ?');
