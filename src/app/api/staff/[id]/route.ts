@@ -49,11 +49,16 @@ export async function GET(
         p.email, p.phone, p.address, p.photo_url, p.nationality, p.national_id,
         d.name AS department_name,
         pos.code AS position_code, pos.name AS position_name,
-        pos.category AS position_category, pos.is_teaching AS position_is_teaching
+        pos.category AS position_category, pos.is_teaching AS position_is_teaching,
+        CONCAT_WS(' ', mp.first_name, mp.last_name) AS manager_name,
+        mpos.name AS manager_position_name
        FROM staff s
        LEFT JOIN people p      ON s.person_id   = p.id
        LEFT JOIN departments d ON s.department_id = d.id
        LEFT JOIN positions pos ON s.position_id = pos.id
+       LEFT JOIN staff m       ON s.manager_id  = m.id AND m.deleted_at IS NULL
+       LEFT JOIN people mp     ON m.person_id   = mp.id
+       LEFT JOIN positions mpos ON m.position_id = mpos.id
        WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
        LIMIT 1`,
       [staffId, schoolId]
@@ -214,6 +219,19 @@ export async function PATCH(
       if (body.department_id !== undefined) {
         staffUpdatedFields.push('department_id = ?');
         staffUpdateValues.push(body.department_id);
+      }
+      // Reports-to relationship. Guard against self-reference so a person
+      // cannot manage themselves (would break hierarchy traversal).
+      if (body.manager_id !== undefined) {
+        if (body.manager_id !== null && Number(body.manager_id) === staffId) {
+          await connection.rollback();
+          return NextResponse.json({
+            success: false,
+            error: 'A staff member cannot report to themselves',
+          }, { status: 400 });
+        }
+        staffUpdatedFields.push('manager_id = ?');
+        staffUpdateValues.push(body.manager_id);
       }
       if (body.role_id !== undefined) {
         staffUpdatedFields.push('role_id = ?');

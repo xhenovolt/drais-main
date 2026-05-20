@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
       department_id: formData.get('department_id') ? parseInt(formData.get('department_id', 10) as string) : null,
       branch_id: formData.get('branch_id') ? parseInt(formData.get('branch_id', 10) as string) : 1,
       role_id: formData.get('role_id') ? parseInt(formData.get('role_id', 10) as string) : null,
+      // Reports-to relationship — staff.manager_id self-FK.
+      manager_id: formData.get('manager_id') ? parseInt(formData.get('manager_id') as string, 10) : null,
       
       // Bank Info
       bank_name: (formData.get('bank_name') as string)?.trim() || null,
@@ -144,12 +146,13 @@ export async function POST(req: NextRequest) {
       const staffResult = await exec(
         `INSERT INTO staff (
           school_id, person_id, staff_no, position, position_id, status,
-          department_id, employment_type, qualification, experience_years,
+          department_id, manager_id, employment_type, qualification, experience_years,
           hire_date, salary, bank_name, bank_account_no, nssf_no, tin_no
-        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           staffData.schoolId, personId, finalStaffNo, staffData.position, resolvedPositionId,
-          staffData.department_id, staffData.employment_type, staffData.qualification,
+          staffData.department_id, staffData.manager_id,
+          staffData.employment_type, staffData.qualification,
           staffData.experience_years, staffData.hire_date, staffData.salary,
           staffData.bank_name, staffData.bank_account_no, staffData.nssf_no, staffData.tin_no
         ]

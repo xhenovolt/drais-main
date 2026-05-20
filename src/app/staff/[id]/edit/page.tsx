@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -7,6 +7,23 @@ import { AlertCircle, Loader, ArrowLeft, Save, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
+
+interface PositionOption {
+  id: number;
+  name: string;
+  code: string;
+  category: 'academic' | 'admin' | 'finance' | 'support' | 'spiritual';
+  isTeaching: boolean;
+}
+interface DepartmentOption { id: number; name: string }
+interface ManagerOption {
+  id: number;
+  first_name: string;
+  last_name: string;
+  position: string | null;
+  position_name: string | null;
+  department_name: string | null;
+}
 
 export default function StaffEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +35,39 @@ export default function StaffEditPage() {
     fetcher,
     { revalidateOnFocus: false }
   );
+
+  // Phase B/C support — pull the positions catalog, departments, and the
+  // pool of other staff (for the manager dropdown). The current staff
+  // record is excluded so a person cannot select themselves as their
+  // own manager.
+  const { data: positionsResp } = useSWR<{ positions: PositionOption[] }>(
+    '/api/admin/positions',
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  const { data: departmentsResp } = useSWR<{ data?: DepartmentOption[]; rows?: DepartmentOption[] }>(
+    '/api/departments/list',
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  const { data: managersResp } = useSWR<{ data: ManagerOption[] }>(
+    id ? `/api/staff/list?active=1&exclude_id=${id}` : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const positions   = positionsResp?.positions ?? [];
+  const departments = departmentsResp?.data ?? departmentsResp?.rows ?? [];
+  const managers    = managersResp?.data ?? [];
+
+  // Group positions by category for the optgrouped dropdown.
+  const positionsByCategory = useMemo(() => {
+    const groups: Record<string, PositionOption[]> = {};
+    for (const p of positions) {
+      (groups[p.category] ??= []).push(p);
+    }
+    return groups;
+  }, [positions]);
 
   const [formData, setFormData] = useState<any>({});
 
@@ -53,19 +103,22 @@ export default function StaffEditPage() {
           email: formData.email,
           phone: formData.phone,
           address: formData.address,
-          city: formData.city,
-          position: formData.position,
+          // Phase B/C — write the FKs. The legacy `position` text column is
+          // dual-written by the API based on position_id so legacy reads
+          // keep working until Phase I.
+          position_id:   formData.position_id   || null,
+          department_id: formData.department_id || null,
+          manager_id:    formData.manager_id    || null,
           employment_type: formData.employment_type,
-          hire_date: formData.hire_date,
-          status: formData.status,
-          department_id: formData.department_id,
+          hire_date:    formData.hire_date,
+          status:       formData.status,
           qualification: formData.qualification,
           experience_years: formData.experience_years,
-          salary: formData.salary,
-          bank_name: formData.bank_name,
+          salary:       formData.salary,
+          bank_name:    formData.bank_name,
           bank_account_no: formData.bank_account_no,
-          nssf_no: formData.nssf_no,
-          tin_no: formData.tin_no,
+          nssf_no:      formData.nssf_no,
+          tin_no:       formData.tin_no,
         })
       });
 
@@ -254,18 +307,6 @@ export default function StaffEditPage() {
                 placeholder="Address"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                City
-              </label>
-              <input
-                type="text"
-                value={formData.city || ''}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="City"
-              />
-            </div>
           </div>
         </div>
 
@@ -277,15 +318,73 @@ export default function StaffEditPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Position
+                Position *
               </label>
-              <input
-                type="text"
-                value={formData.position || ''}
-                onChange={(e) => handleInputChange('position', e.target.value)}
+              <select
+                value={formData.position_id || ''}
+                onChange={(e) => handleInputChange('position_id', e.target.value ? Number(e.target.value) : '')}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Position"
-              />
+              >
+                <option value="">Select a position…</option>
+                {(['academic', 'spiritual', 'admin', 'finance', 'support'] as const).map(cat => {
+                  const opts = positionsByCategory[cat] ?? [];
+                  if (opts.length === 0) return null;
+                  return (
+                    <optgroup
+                      key={cat}
+                      label={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    >
+                      {opts.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.isTeaching ? ' · teaching' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Sourced from the school positions catalog. Add new positions via Admin → Positions.
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Department
+              </label>
+              <select
+                value={formData.department_id || ''}
+                onChange={(e) => handleInputChange('department_id', e.target.value ? Number(e.target.value) : '')}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">— No department —</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Reports To (Manager)
+              </label>
+              <select
+                value={formData.manager_id || ''}
+                onChange={(e) => handleInputChange('manager_id', e.target.value ? Number(e.target.value) : '')}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">— No manager (top of hierarchy) —</option>
+                {managers.map(m => {
+                  const title = m.position_name || m.position || '';
+                  const dept  = m.department_name ? ` · ${m.department_name}` : '';
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {m.first_name} {m.last_name}{title ? ` — ${title}` : ''}{dept}
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">
+                The person this staff member reports to. Builds the org hierarchy.
+              </p>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">

@@ -170,12 +170,34 @@ export default function StaffDetailPage() {
         {/* Professional Info */}
         <Section title="Professional Information" icon={Briefcase}>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Position" value={staff.position} />
+            <Field
+              label="Position"
+              value={staff.position_name || staff.position}
+            />
+            {staff.position_category && (
+              <Field
+                label="Position category"
+                value={
+                  String(staff.position_category).charAt(0).toUpperCase() +
+                  String(staff.position_category).slice(1) +
+                  (staff.position_is_teaching ? ' · teaching' : '')
+                }
+              />
+            )}
             {staff.department_name && <Field label="Department" value={staff.department_name} />}
+            {staff.manager_id && staff.manager_name && (
+              <Field
+                label="Reports To"
+                value={
+                  staff.manager_position_name
+                    ? `${staff.manager_name} (${staff.manager_position_name})`
+                    : staff.manager_name
+                }
+              />
+            )}
             {staff.employment_type && <Field label="Employment Type" value={staff.employment_type} />}
             {staff.hire_date && <Field label="Hire Date" value={new Date(staff.hire_date).toLocaleDateString()} />}
             {staff.grade && <Field label="Grade" value={staff.grade} />}
-            {staff.performance_rating && <Field label="Performance Rating" value={`${staff.performance_rating}/5`} />}
           </div>
         </Section>
 

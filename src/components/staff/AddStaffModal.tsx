@@ -45,6 +45,8 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
     department_id: '',
     branch_id: '',
     role_id: '',
+    /** Phase B/C — reports-to relationship. Self-FK on staff.manager_id. */
+    manager_id: '',
     
     // Bank Info
     bank_name: '',
@@ -92,9 +94,13 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
   // Fetch dropdown data
   const { data: departmentsData } = useSWR('/api/departments/list');
   const { data: rolesData } = useSWR('/api/roles/list');
+  // Reports-to picker — active staff only, excluding the row currently being
+  // created (this is the Add modal so there's nothing to exclude).
+  const { data: managersData } = useSWR('/api/staff/list?active=1');
 
   const departments = departmentsData?.data || [];
   const roles = rolesData?.data || [];
+  const managers = managersData?.data || [];
 
   const steps = [
     { title: 'Personal Info', icon: User },
@@ -215,7 +221,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
       first_name: '', last_name: '', other_name: '', gender: '', date_of_birth: '',
       phone: '', email: '', address: '', staff_no: '', position: '', position_id: '',
       employment_type: 'permanent', qualification: '', experience_years: 0,
-      hire_date: '', salary: '', department_id: '', branch_id: '', role_id: '',
+      hire_date: '', salary: '', department_id: '', branch_id: '', role_id: '', manager_id: '',
       bank_name: '', bank_account_no: '', nssf_no: '', tin_no: '',
       create_account: false, username: '', password: '', confirm_password: ''
     });
@@ -537,6 +543,31 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
               <option key={role.id} value={role.id}>{role.name}</option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Reports To (Manager)
+          </label>
+          <select
+            value={formData.manager_id}
+            onChange={(e) => handleInputChange('manager_id', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">— No manager (top of hierarchy) —</option>
+            {managers.map((m: { id: number; first_name: string; last_name: string; position: string | null; position_name?: string | null; department_name?: string | null }) => {
+              const title = m.position_name || m.position || '';
+              const dept  = m.department_name ? ` · ${m.department_name}` : '';
+              return (
+                <option key={m.id} value={m.id}>
+                  {m.first_name} {m.last_name}{title ? ` — ${title}` : ''}{dept}
+                </option>
+              );
+            })}
+          </select>
+          <p className="text-[10px] text-slate-400 mt-1">
+            The person this staff member reports to.
+          </p>
         </div>
       </div>
     </div>
