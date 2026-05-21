@@ -336,72 +336,77 @@ export async function PATCH(
   }
 }
 
+/**
+ * Phase 1 — Staff DELETE delegates to the universal trash service.
+ *
+ * The service writes audit logs, captures the deleting user + reason, and
+ * keeps the soft-delete semantics consistent with every other entity.
+ * The original hand-rolled `UPDATE staff SET deleted_at = NOW()` had no
+ * `deleted_by` capture, no `delete_reason`, and shipped an audit entry
+ * with no before/after snapshot — all addressed by the central service.
+ */
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let connection;
-
   try {
     const session = await getSessionSchoolId(req);
     if (!session) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
-    const schoolId = session.schoolId;
 
     const { id } = await params;
     const staffId = parseInt(id, 10);
-
     if (isNaN(staffId)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid staff ID'
-      }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Invalid staff ID' },
+        { status: 400 },
+      );
     }
 
-    connection = await getConnection();
-
-    // Check if staff exists AND belongs to this school
-    const [existingStaff]: any = await connection.execute(
-      'SELECT id FROM staff WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
-      [staffId, schoolId]
-    );
-
-    if (existingStaff.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Staff member not found'
-      }, { status: 404 });
+    // Optional `reason` body field; archive accepts JSON OR an empty body
+    // (existing callers use empty DELETE; new flows can pass a reason).
+    let reason: string | null = null;
+    try {
+      const body = await req.json();
+      if (typeof body?.reason === 'string') reason = body.reason;
+    } catch {
+      /* empty body is fine */
     }
 
-    // Soft delete by setting deleted_at — scoped by school_id
-    await connection.execute(
-      'UPDATE staff SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND school_id = ?',
-      [staffId, schoolId]
-    );
+    const { archiveEntity, TrashError } = await import('@/lib/trash/service');
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null;
+    const userAgent = req.headers.get('user-agent') ?? null;
 
-    // Audit log (non-blocking)
-    logAudit({
-      schoolId,
-      userId: session.userId,
-      action: AuditAction.DELETED_STAFF,
-      entityType: 'staff',
-      entityId: staffId,
-    }).catch(() => {});
-
-    return NextResponse.json({
-      success: true,
-      message: 'Staff member deleted successfully'
-    });
-
+    try {
+      await archiveEntity({
+        entity:   'staff',
+        id:       staffId,
+        reason,
+        schoolId: session.schoolId,
+        userId:   session.userId,
+        ip,
+        userAgent,
+      });
+      return NextResponse.json({
+        success: true,
+        message: 'Staff member archived successfully',
+      });
+    } catch (e: unknown) {
+      if (e instanceof TrashError) {
+        return NextResponse.json(
+          { success: false, error: e.message, code: e.code },
+          { status: e.statusCode },
+        );
+      }
+      throw e;
+    }
   } catch (error: any) {
     console.error('Staff delete error:', error);
     return NextResponse.json({
       success: false,
       error: 'Failed to delete staff member',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     }, { status: 500 });
-  } finally {
-    if (connection) await connection.end();
   }
 }

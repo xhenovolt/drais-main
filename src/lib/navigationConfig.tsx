@@ -75,6 +75,7 @@ import {
   ArrowUpDown,
   Radio,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 
 // Alias so callers don't have to worry about icon substitution
@@ -182,6 +183,7 @@ export function getNavigationItems(
         { key: 'admin-roles',       label: 'Roles & Permissions',icon: <Shield className="w-4 h-4" />,     href: '/admin/roles',         roles: ['admin', 'super_admin'] },
         { key: 'admin-sessions',    label: 'User Monitoring',    icon: <Activity className="w-4 h-4" />,   href: '/admin/user-sessions', roles: ['admin', 'super_admin'] },
         { key: 'admin-audit-logs',  label: 'Audit Trail',        icon: <FileSearch className="w-4 h-4" />, href: '/admin/audit-logs',    roles: ['admin', 'super_admin'] },
+        { key: 'admin-trash',       label: 'Trash',              icon: <Trash2 className="w-4 h-4" />,     href: '/admin/trash',         roles: ['admin', 'super_admin'] },
       ],
     },
 
