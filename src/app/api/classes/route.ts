@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 export async function GET(req: NextRequest) {
   let connection;
@@ -145,22 +146,28 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  let connection;
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
-    const schoolId = session.schoolId;
 
     const body = await req.json();
     if (!body.id) return NextResponse.json({ success: false, message: 'Class ID is required' }, { status: 400 });
-    connection = await getConnection();
-    await connection.execute('UPDATE classes SET deleted_at = CURRENT_TIMESTAMP WHERE id=? AND school_id=?', [body.id, schoolId]);
-    await logAudit(session.userId, 'CLASS_DELETED', { classId: body.id, schoolId });
-    return NextResponse.json({ success: true, message: 'Class deleted' });
-  } catch (error: any) {
+
+    await archiveEntity({
+      code:     'class',
+      id:       Number(body.id),
+      schoolId: session.schoolId,
+      userId:   session.userId,
+      reason:   body.reason ?? null,
+      ip:       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
+
+    return NextResponse.json({ success: true, message: 'Class archived' });
+  } catch (error: unknown) {
+    if (error instanceof TrashError) {
+      return NextResponse.json({ success: false, message: error.message, code: error.code }, { status: error.statusCode });
+    }
     console.error('Classes DELETE error:', error);
-    return NextResponse.json({ success: false, message: 'Failed to delete class' }, { status: 500 });
-  } finally {
-    if (connection) await connection.end();
+    return NextResponse.json({ success: false, message: 'Failed to archive class' }, { status: 500 });
   }
 }

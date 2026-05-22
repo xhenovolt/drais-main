@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
-
 import { getSessionSchoolId } from '@/lib/auth';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -99,46 +99,34 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  let connection;
-  
   try {
-    // Enforce multi-tenant isolation
     const session = await getSessionSchoolId(req);
     if (!session) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
-    const schoolId = session.schoolId;
 
     const body = await req.json();
-    const { id } = body;
+    const { id, reason } = body;
 
     if (!id) {
-      return NextResponse.json({
-        success: false,
-        error: 'Department ID is required'
-      }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Department ID is required' }, { status: 400 });
     }
 
-    connection = await getConnection();
-
-    await connection.execute(`
-      UPDATE departments 
-      SET deleted_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND school_id = ?
-    `, [id, schoolId]);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Department deleted successfully'
+    await archiveEntity({
+      code:     'department',
+      id:       Number(id),
+      schoolId: session.schoolId,
+      userId:   session.userId,
+      reason:   reason ?? null,
+      ip:       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
     });
 
-  } catch (error: any) {
-    console.error('Department deletion error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to delete department'
-    }, { status: 500 });
-  } finally {
-    if (connection) await connection.end();
+    return NextResponse.json({ success: true, message: 'Department archived successfully' });
+  } catch (error: unknown) {
+    if (error instanceof TrashError) {
+      return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: error.statusCode });
+    }
+    console.error('Department archive error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to archive department' }, { status: 500 });
   }
 }

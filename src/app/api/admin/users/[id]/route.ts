@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -109,12 +110,24 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const target = await getTargetUser(targetId, session.schoolId);
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-  await query(
-    'UPDATE users SET deleted_at = NOW(), is_active = FALSE WHERE id = ? AND school_id = ?',
-    [targetId, session.schoolId]
-  );
-  await query('UPDATE sessions SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE', [targetId]);
-  await logAudit({ schoolId: session.schoolId, userId: session.userId, action: AuditAction.DELETED_STAFF, entityType: 'user', entityId: targetId });
+  try {
+    await archiveEntity({
+      code:    'user',
+      id:      targetId,
+      schoolId: session.schoolId,
+      userId:  session.userId,
+      reason:  null,
+      ip:      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
+  } catch (e: unknown) {
+    if (e instanceof TrashError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: e.statusCode });
+    }
+    throw e;
+  }
 
-  return NextResponse.json({ success: true, message: 'User removed' });
+  // Terminate all active sessions so the archived user is immediately logged out.
+  await query('UPDATE sessions SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE', [targetId]);
+
+  return NextResponse.json({ success: true, message: 'User archived' });
 }

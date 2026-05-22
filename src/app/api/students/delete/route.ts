@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -8,33 +8,29 @@ export async function DELETE(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    const schoolId = session.schoolId;
 
-    const { id } = await req.json();
+    const body = await req.json();
+    const { id, reason } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, message: 'Student ID is required.' }, { status: 400 });
     }
 
-    const connection = await getConnection();
+    await archiveEntity({
+      code:      'student',
+      id:        Number(id),
+      schoolId:  session.schoolId,
+      userId:    session.userId,
+      reason:    reason ?? null,
+      ip:        req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
 
-    // Verify student belongs to this school
-    const [check] = await connection.execute('SELECT id FROM students WHERE id = ? AND school_id = ?', [id, schoolId]);
-    if (!Array.isArray(check) || check.length === 0) {
-      return NextResponse.json({ success: false, message: 'Student not found.' }, { status: 404 });
+    return NextResponse.json({ success: true, message: 'Student archived successfully.' });
+  } catch (error: unknown) {
+    if (error instanceof TrashError) {
+      return NextResponse.json({ success: false, message: error.message, code: error.code }, { status: error.statusCode });
     }
-
-    // Soft delete the student by setting `deleted_at`
-    await connection.execute(
-      `UPDATE students SET deleted_at = NOW() WHERE id = ? AND school_id = ?`,
-      [id, schoolId]
-    );
-
-    await connection.end();
-
-    return NextResponse.json({ success: true, message: 'Student deleted successfully.' });
-  } catch (error: any) {
-    console.error('Error deleting student:', error);
-    return NextResponse.json({ success: false, message: 'Failed to delete student.', error: error.message }, { status: 500 });
+    console.error('Error archiving student:', error);
+    return NextResponse.json({ success: false, message: 'Failed to archive student.' }, { status: 500 });
   }
 }

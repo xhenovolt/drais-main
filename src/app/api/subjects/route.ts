@@ -248,32 +248,35 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  let connection;
   try {
+    const session = await getSessionSchoolId(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
-    const session = await getSessionSchoolId(req);
-    if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-    const schoolId = session.schoolId;
 
-    connection = await getConnection();
-    
-    // Soft delete: mark as deleted instead of removing
-    await connection.execute('UPDATE subjects SET deleted_at = CURRENT_TIMESTAMP WHERE id=? AND school_id=?', [id, schoolId]);
-    
-    // Log audit trail
-    await logAudit(session.userId, 'SUBJECT_DELETED', { subjectId: id, schoolId });
-    
+    const { archiveEntity, TrashError } = await import('@/lib/trash/service');
+    await archiveEntity({
+      code:     'subject',
+      id:       Number(id),
+      schoolId: session.schoolId,
+      userId:   session.userId,
+      reason:   req.headers.get('x-delete-reason') ?? null,
+      ip:       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
+
     return NextResponse.json({ success: true });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const { TrashError } = await import('@/lib/trash/service');
+    if (e instanceof TrashError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: e.statusCode });
+    }
     console.error('Subjects DELETE error:', e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  } finally {
-    if (connection) await connection.end();
+    return NextResponse.json({ error: 'Failed to archive subject' }, { status: 500 });
   }
 }
