@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getConnection, getActiveDatabase } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 /**
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
@@ -199,12 +200,19 @@ export async function DELETE(req: NextRequest) {
     }
     const schoolId = session.schoolId;
 
-    connection = await getConnection();
-    await connection.execute('DELETE FROM streams WHERE id=? AND school_id=?', [id, schoolId]);
+    await archiveEntity({
+      code:     'stream',
+      id:       Number(id),
+      schoolId: session.schoolId,
+      userId:   session.userId,
+      reason:   null,
+      ip:       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
     return NextResponse.json({ success: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  } finally {
-    if (connection) await connection.end();
+  } catch (e: unknown) {
+    if (e instanceof TrashError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: e.statusCode });
+    }
+    return NextResponse.json({ error: 'Failed to archive stream' }, { status: 500 });
   }
 }

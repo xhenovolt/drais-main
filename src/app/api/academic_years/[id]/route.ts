@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 export async function PATCH(
   request: NextRequest,
@@ -76,20 +77,21 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
 
-    const [result]: any = await conn.execute(
-      `UPDATE academic_years SET deleted_at = NOW()
-       WHERE school_id = ? AND id = ? AND deleted_at IS NULL`,
-      [schoolId, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
-
+    await archiveEntity({
+      code:     'academic_year',
+      id:       Number(id),
+      schoolId,
+      userId:   session.userId,
+      reason:   null,
+      ip:       request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof TrashError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.statusCode });
+    }
     console.error('academic_years DELETE error:', error);
-    return NextResponse.json({ error: 'Failed to delete academic year' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to archive academic year' }, { status: 500 });
   } finally {
     await conn.end();
   }

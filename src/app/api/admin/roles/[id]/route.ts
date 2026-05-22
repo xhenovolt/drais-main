@@ -12,6 +12,7 @@ import { query, withTransaction } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission, withErrorHandling } from '@/lib/rbac';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 function getIp(r: NextRequest) {
   return r.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null;
@@ -106,19 +107,29 @@ export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, 
   const roleId = Number(id);
   const role   = await fetchRole(roleId, session.schoolId);
   if (!role) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
-  if (role.is_system_role) return NextResponse.json({ error: 'System roles cannot be deleted' }, { status: 403 });
+  if (role.is_system_role) return NextResponse.json({ error: 'System roles cannot be archived' }, { status: 403 });
 
-  await withTransaction(async (conn) => {
-    await conn.execute(`DELETE FROM role_permissions WHERE role_id = ?`, [roleId]);
-    await conn.execute(`UPDATE user_roles SET is_active = FALSE WHERE role_id = ?`, [roleId]);
-    await conn.execute(`DELETE FROM roles WHERE id = ? AND school_id = ?`, [roleId, session.schoolId]);
-  });
+  try {
+    // Deactivate all user_role assignments first so active sessions lose
+    // this role immediately; archiveEntity then soft-deletes the role row.
+    await withTransaction(async (conn) => {
+      await conn.execute(`UPDATE user_roles SET is_active = FALSE WHERE role_id = ?`, [roleId]);
+    });
 
-  await logAudit({
-    schoolId: session.schoolId, userId: session.userId,
-    action: AuditAction.DELETED_ROLE, entityType: 'role', entityId: roleId,
-    details: { name: role.name }, ip: getIp(req),
-  });
+    await archiveEntity({
+      code:     'role',
+      id:       roleId,
+      schoolId: session.schoolId,
+      userId:   session.userId,
+      reason:   null,
+      ip:       getIp(req),
+    });
+  } catch (e: unknown) {
+    if (e instanceof TrashError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: e.statusCode });
+    }
+    throw e;
+  }
 
   return NextResponse.json({ success: true });
 });

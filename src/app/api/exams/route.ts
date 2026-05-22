@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -64,13 +65,20 @@ export async function DELETE(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: 'id required.' }, { status: 400 });
   }
-  const connection = await getConnection();
   try {
-    await connection.execute('DELETE FROM exams WHERE id=? AND school_id=?', [id, schoolId]);
-    await connection.end();
+    await archiveEntity({
+      code:     'exam',
+      id:       Number(id),
+      schoolId,
+      userId:   session.userId,
+      reason:   null,
+      ip:       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
     return NextResponse.json({ success: true });
-  } catch (e: any) {
-    await connection.end();
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    if (e instanceof TrashError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: e.statusCode });
+    }
+    return NextResponse.json({ error: 'Failed to archive exam' }, { status: 500 });
   }
 }

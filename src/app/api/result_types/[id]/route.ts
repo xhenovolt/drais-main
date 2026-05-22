@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let connection;
@@ -52,18 +53,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     const resolvedParams = await params;
     const id = resolvedParams.id;
-    connection = await getConnection();
-    
-    await connection.execute('DELETE FROM result_types WHERE id = ? AND school_id = ?', [id, schoolId]);
-
-    return NextResponse.json({ success: true, message: 'Result type deleted' });
-  } catch (error: any) {
-    console.error('Error deleting result type:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to delete result type' 
-    }, { status: 500 });
-  } finally {
-    if (connection) await connection.end();
+    await archiveEntity({
+      code:     'result_type',
+      id:       Number(id),
+      schoolId,
+      userId:   session.userId,
+      reason:   null,
+      ip:       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    });
+    return NextResponse.json({ success: true, message: 'Result type archived' });
+  } catch (error: unknown) {
+    if (error instanceof TrashError) {
+      return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: error.statusCode });
+    }
+    console.error('Error archiving result type:', error);
+    return NextResponse.json({ success: false, error: 'Failed to archive result type' }, { status: 500 });
   }
 }
