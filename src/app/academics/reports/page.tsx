@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, createContext, useContext, useRef } from 'react';
+import { toast } from 'react-hot-toast';
 import Image from 'next/image'; // kept for possible legacy use
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -105,7 +106,7 @@ interface Term {
 
 interface TeacherInitialsContextType {
   teacherInitials: Record<string, string>;
-  handleInitialsChange: (classId: string, subjectId: string, newInitials: string) => void;
+  handleInitialsChange: (initialsKey: string, classId?: string | number, subjectId?: string | number, newInitials?: string) => void;
 }
 
 interface CustomizationRef {
@@ -158,6 +159,7 @@ const ReportsPage = () => {
   const [teacherInitials, setTeacherInitials] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [nextTermBegins, setNextTermBegins] = useState('');
+  const TEACHER_INITIALS_STORAGE_KEY = 'drais_teacher_initials';
   const [enableMarkConversion, setEnableMarkConversion] = useState(false);
   const defaultLogoInputRef = useRef<HTMLInputElement>(null);
   const reportExportRef = useRef<HTMLDivElement>(null);
@@ -335,11 +337,20 @@ const ReportsPage = () => {
       })
       .catch(() => {});
 
+    const localInitials = localStorage.getItem(TEACHER_INITIALS_STORAGE_KEY);
+    if (localInitials) {
+      try {
+        setTeacherInitials(JSON.parse(localInitials));
+      } catch (_) {
+        localStorage.removeItem(TEACHER_INITIALS_STORAGE_KEY);
+      }
+    }
+
     fetch('/api/teacher-initials')
       .then(r => r.json())
       .then(data => {
         if (data?.success && data.data && typeof data.data === 'object') {
-          setTeacherInitials(data.data);
+          setTeacherInitials((prev) => ({ ...prev, ...data.data }));
         }
       })
       .catch(() => {});
@@ -961,16 +972,35 @@ const ReportsPage = () => {
   }
 
   // Save initials to backend
+  const persistTeacherInitials = (values: Record<string, string>) => {
+    try {
+      localStorage.setItem(TEACHER_INITIALS_STORAGE_KEY, JSON.stringify(values));
+    } catch (error) {
+      console.warn('Unable to persist initials in localStorage', error);
+    }
+  };
+
   const saveInitialsToBackend = async (classId: string, subjectId: string, newInitials: string): Promise<void> => {
     setSaving(true);
     try {
-      await fetch('/api/teacher-initials', {
+      const response = await fetch('/api/teacher-initials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classId, subjectId, initials: newInitials }),
       });
-    } catch (error) {
+      const result = await response.json();
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Failed to save initials');
+      }
+      toast.success('Initials saved successfully');
+      setTeacherInitials((prev) => {
+        const next = { ...prev, [`${classId}-${subjectId}`]: newInitials };
+        persistTeacherInitials(next);
+        return next;
+      });
+    } catch (error: any) {
       console.error('Failed to save initials:', error);
+      toast.error(error?.message || 'Failed to save initials');
     } finally {
       setSaving(false);
     }
@@ -1039,10 +1069,14 @@ const ReportsPage = () => {
 
   // Handle inline editing of teacher initials
   const handleInitialsChange = (initialsKey: string, classId?: number, subjectId?: number, newInitials?: string): void => {
-    setTeacherInitials((prev) => ({
-      ...prev,
-      [initialsKey]: newInitials || '',
-    }));
+    setTeacherInitials((prev) => {
+      const next = {
+        ...prev,
+        [initialsKey]: newInitials || '',
+      };
+      persistTeacherInitials(next);
+      return next;
+    });
   };
 
   // Sync "Next Term Begins" field across all reports

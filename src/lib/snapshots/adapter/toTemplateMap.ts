@@ -55,8 +55,8 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
       ? `<td class="comment-cell" data-editable-field="remarks" data-row-index="${rowIndex}" contenteditable="true">${escapeHtml(r.remarks || '')}</td>`
       : `<td class="comment-cell">${escapeHtml(r.remarks || '')}</td>`;
     const initialsCell = editableComments
-      ? `<td class="initials" data-editable-field="initials" data-row-index="${rowIndex}" contenteditable="true">${escapeHtml(initials)}</td>`
-      : `<td class="initials">${escapeHtml(initials)}</td>`;
+      ? `<td class="initials initials-subject-${r.subjectId}" data-editable-field="initials" data-row-index="${rowIndex}" data-subject-id="${r.subjectId}" contenteditable="true">${escapeHtml(initials)}</td>`
+      : `<td class="initials initials-subject-${r.subjectId}" data-subject-id="${r.subjectId}">${escapeHtml(initials)}</td>`;
     subjectsHtml +=
       `<tr data-row-index="${rowIndex}">` +
       `<td>${escapeHtml(r.displaySubject)}</td>` +

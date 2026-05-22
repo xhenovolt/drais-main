@@ -7,6 +7,7 @@
  */
 
 export interface AllocationInput {
+  id?: number | string | null;
   class_id: number | string;
   subject_id: number | string;
   teacher_id: number | string | null | undefined;
@@ -14,6 +15,7 @@ export interface AllocationInput {
 }
 
 export interface ValidatedAllocation {
+  id: number | null;
   class_id: number;
   subject_id: number;
   teacher_id: number | null;
@@ -27,6 +29,9 @@ export interface ValidatedAllocation {
 export function validateAllocationInput(data: AllocationInput): ValidatedAllocation {
   const errors: string[] = [];
 
+  const id = data.id !== undefined && data.id !== null && data.id !== ''
+    ? Number(data.id)
+    : null;
   const class_id = Number(data.class_id);
   const subject_id = Number(data.subject_id);
   const teacher_id = data.teacher_id !== undefined && data.teacher_id !== null && data.teacher_id !== ''
@@ -34,6 +39,9 @@ export function validateAllocationInput(data: AllocationInput): ValidatedAllocat
     : null;
   const custom_initials = data.custom_initials !== undefined ? String(data.custom_initials).trim() || null : null;
 
+  if (id !== null && (isNaN(id) || id <= 0)) {
+    errors.push('Valid allocation ID is required when updating.');
+  }
   if (!class_id || isNaN(class_id) || class_id <= 0) {
     errors.push('Valid class ID is required.');
   }
@@ -48,7 +56,7 @@ export function validateAllocationInput(data: AllocationInput): ValidatedAllocat
     throw new Error(errors.join(' '));
   }
 
-  return { class_id, subject_id, teacher_id, custom_initials };
+  return { id, class_id, subject_id, teacher_id, custom_initials };
 }
 
 /**

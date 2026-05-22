@@ -19,6 +19,8 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { loadSnapshot } from '@/lib/snapshots/storage';
 import { snapshotToTemplateMap } from '@/lib/snapshots/adapter/toTemplateMap';
 import { renderEmergencyTemplate } from '@/lib/snapshots/adapter/renderEmergencyTemplate';
+import { applyOverrides } from '@/lib/drce/overrides';
+import { listOverrides } from '@/lib/snapshots/overrides';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 import { BUILT_IN_TEMPLATES } from '@/lib/drce/registry';
 
@@ -67,6 +69,10 @@ export async function GET(
     return NextResponse.json({ error: 'Snapshot type mismatch' }, { status: 400 });
   }
 
+  // Load and apply overrides to the snapshot
+  const overrides = await listOverrides(snapshotId, session.schoolId);
+  const snapshotWithOverrides = applyOverrides(snapshot, overrides);
+
   const sp = req.nextUrl.searchParams;
   const templateIdRaw = sp.get('template');
   const templateId = templateIdRaw && templateIdRaw.trim() !== ''
@@ -106,11 +112,11 @@ export async function GET(
 
   // Render every student into one big HTML body (matching emergency routes).
   const studentBlocks: string[] = [];
-  snapshot.classes.forEach((cls, classIdx) => {
+  snapshotWithOverrides.classes.forEach((cls, classIdx) => {
     if (filterClassIdx !== null && !Number.isNaN(filterClassIdx) && classIdx !== filterClassIdx) return;
     cls.students.forEach((stu, studentIdx) => {
       if (filterStudentDbId !== null && !Number.isNaN(filterStudentDbId) && stu.studentDbId !== filterStudentDbId) return;
-      const out = snapshotToTemplateMap({ snapshot, classIdx, studentIdx, editMode });
+      const out = snapshotToTemplateMap({ snapshot: snapshotWithOverrides, classIdx, studentIdx, editMode });
       const rendered = renderEmergencyTemplate(template, out);
       studentBlocks.push(
         `<div class="student-block" data-class-index="${classIdx}" data-student-db-id="${stu.studentDbId}">${rendered}</div>`
@@ -124,12 +130,12 @@ export async function GET(
     });
   }
 
-  const printControls = buildPrintControls(snapshot, isArabic, editMode);
+  const printControls = buildPrintControls(snapshotWithOverrides, isArabic, editMode);
   const fullHtml = wrapDocument(
-    snapshot,
+    snapshotWithOverrides,
     lang,
     direction,
-    printControls + '\n' + studentBlocks.join('\n') + (editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : ''),
+    printControls + '\n' + studentBlocks.join('\n') + (editMode ? buildEmergencyEditScript(snapshotWithOverrides.meta.snapshotId) : ''),
   );
 
   return new NextResponse(fullHtml, {
@@ -233,12 +239,20 @@ function buildEmergencyEditScript(snapshotId: string): string {
           const rowIndex = el.dataset.rowIndex;
           if (!field || !studentDbId || !classIdx) return;
 
-          const action = {
+          const subjectId = el.dataset.subjectId;
+          const action: any = {
             classIdx: Number(classIdx),
-            studentDbId: Number(studentDbId),
             field: field,
             value: el.textContent.trim(),
           };
+
+          if (field === 'initials') {
+            action.studentDbId = null;
+            action.subjectId = subjectId ? Number(subjectId) : undefined;
+          } else {
+            action.studentDbId = Number(studentDbId);
+          }
+
           if (rowIndex !== undefined && rowIndex !== '') {
             action.rowIndex = Number(rowIndex);
           }
@@ -251,6 +265,13 @@ function buildEmergencyEditScript(snapshotId: string): string {
               credentials: 'same-origin',
             });
             if (!res.ok) throw new Error('Save failed');
+
+            if (field === 'initials' && subjectId) {
+              // Sync is now handled in real-time, just save the value
+              // document.querySelectorAll('.student-block[data-class-index="' + classIdx + '"] .initials-subject-' + subjectId).forEach(function(cell) {
+              //   cell.textContent = el.textContent.trim();
+              // });
+            }
             showStatus(el, true);
           } catch (err) {
             console.error(err);
@@ -268,8 +289,29 @@ function buildEmergencyEditScript(snapshotId: string): string {
                 el.blur();
               }
             });
+            // Add real-time sync for initials
+            if (el.dataset.editableField === 'initials') {
+              el.addEventListener('input', function() {
+                syncInitialsRealtime(el);
+              });
+            }
           });
         });
+
+        function syncInitialsRealtime(el) {
+          const block = el.closest('.student-block');
+          const classIdx = block?.dataset.classIndex;
+          const subjectId = el.dataset.subjectId;
+          if (!classIdx || !subjectId) return;
+
+          const value = el.textContent.trim();
+          // Sync all initials cells for this subject within the same class
+          document.querySelectorAll('.student-block[data-class-index="' + classIdx + '"] .initials-subject-' + subjectId).forEach(function(cell) {
+            if (cell !== el) { // Don't update the cell being edited
+              cell.textContent = value;
+            }
+          });
+        }
       })();
     </script>
   `;

@@ -22,6 +22,7 @@ interface Subject {
   academic_type?: string;
   allocated_classes?: string | null;
   allocation_count?: number;
+  allocated_teachers?: string | null;
 }
 
 interface ClassOption {
@@ -509,6 +510,7 @@ export const SubjectsManager: React.FC = () => {
                 <th className="text-left px-6 py-4 font-semibold">Code</th>
                 <th className="text-left px-6 py-4 font-semibold">Type</th>
                 <th className="text-left px-6 py-4 font-semibold">Scope (Classes)</th>
+                <th className="text-left px-6 py-4 font-semibold">Teachers</th>
                 <th className="text-center px-6 py-4 font-semibold">Actions</th>
               </tr>
             </thead>
@@ -561,6 +563,19 @@ export const SubjectsManager: React.FC = () => {
                     ) : (
                       <span className="text-orange-600 dark:text-orange-400 text-sm font-semibold">
                         ⚠️ No classes assigned
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                    {item.allocated_teachers && item.allocated_teachers.length > 0 ? (
+                      item.allocated_teachers.split(', ').map((teacher, idx) => (
+                        <div key={idx} className="inline-block bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 px-2 py-1 rounded mr-2 mb-1 text-xs font-semibold">
+                          {teacher}
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-orange-600 dark:text-orange-400 text-sm font-semibold">
+                        ⚠️ No teacher assigned
                       </span>
                     )}
                   </td>

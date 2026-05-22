@@ -54,7 +54,7 @@ export async function PATCH(
     const value = action?.value;
     const rowIndex = action?.rowIndex;
 
-    if (typeof classIdx !== 'number' || typeof studentDbId !== 'number' || typeof field !== 'string' || typeof value !== 'string') {
+    if (typeof classIdx !== 'number' || typeof field !== 'string' || typeof value !== 'string') {
       return NextResponse.json({ error: 'Invalid action payload' }, { status: 400 });
     }
 
@@ -63,26 +63,54 @@ export async function PATCH(
       return NextResponse.json({ error: 'Class index out of range' }, { status: 400 });
     }
 
-    const student = cls.students.find(s => s.studentDbId === studentDbId);
-    if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 400 });
-    }
-
     if (field === 'classTeacher' || field === 'dos' || field === 'headTeacher') {
+      if (typeof studentDbId !== 'number') {
+        return NextResponse.json({ error: 'Student ID required for comment edits' }, { status: 400 });
+      }
+      const student = cls.students.find(s => s.studentDbId === studentDbId);
+      if (!student) {
+        return NextResponse.json({ error: 'Student not found' }, { status: 400 });
+      }
+
       student.comments = {
         classTeacher: student.comments?.classTeacher ?? '',
         dos:          student.comments?.dos ?? '',
         headTeacher:  student.comments?.headTeacher ?? '',
         [field]:      value,
       };
-    } else if (field === 'remarks' || field === 'initials') {
+    } else if (field === 'remarks') {
+      if (typeof studentDbId !== 'number') {
+        return NextResponse.json({ error: 'Student ID required for remark edits' }, { status: 400 });
+      }
+      const student = cls.students.find(s => s.studentDbId === studentDbId);
+      if (!student) {
+        return NextResponse.json({ error: 'Student not found' }, { status: 400 });
+      }
       if (typeof rowIndex !== 'number' || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= student.results.length) {
         return NextResponse.json({ error: 'Invalid row index' }, { status: 400 });
       }
       student.results[rowIndex] = {
         ...student.results[rowIndex],
-        [field]: value,
+        remarks: value,
       };
+    } else if (field === 'initials') {
+      const subjectId = action?.subjectId;
+      if (typeof subjectId !== 'number') {
+        return NextResponse.json({ error: 'Subject ID required for initials edits' }, { status: 400 });
+      }
+
+      let updatedCount = 0;
+      cls.students.forEach((student) => {
+        const result = student.results.find(r => r.subjectId === subjectId);
+        if (result) {
+          result.initials = value;
+          updatedCount += 1;
+        }
+      });
+
+      if (updatedCount === 0) {
+        return NextResponse.json({ error: 'No matching result rows found for initials sync' }, { status: 400 });
+      }
     } else {
       return NextResponse.json({ error: 'Unsupported field' }, { status: 400 });
     }

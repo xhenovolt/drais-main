@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getConnection, getActiveDatabase } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getAllocationsBySubject } from '@/lib/academic-allocation';
 
 /**
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
@@ -79,9 +80,9 @@ export async function GET(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get('type');
-    const academicType = searchParams.get('academic_type');
-    const search = searchParams.get('search') || '';
+    const typeFilter = searchParams.get('type');
+    const academicTypeFilter = searchParams.get('academic_type');
+    const searchFilter = searchParams.get('search') || '';
     const pageParam = searchParams.get('page');
     const limitParam = searchParams.get('limit');
     const rawPage = pageParam ? Number.parseInt(pageParam, 10) : NaN;
@@ -92,54 +93,58 @@ export async function GET(req: NextRequest) {
     const offset = usePagination && limit ? (page - 1) * limit : 0;
 
     connection = await getConnection();
+    const [subjectRows]: any = await connection.execute(
+      `SELECT id, name, code, subject_type, academic_type
+       FROM subjects
+       WHERE school_id = ? AND deleted_at IS NULL
+       ORDER BY name ASC`,
+      [schoolId]
+    );
 
-    // Build base SQL - now including allocation info
-    let sql = `SELECT 
-      s.id, 
-      s.name, 
-      s.code, 
-      s.subject_type, 
-      s.academic_type,
-      GROUP_CONCAT(c.name SEPARATOR ', ') as allocated_classes,
-      COUNT(cs.id) as allocation_count
-    FROM subjects s
-    LEFT JOIN class_subjects cs ON s.id = cs.subject_id
-    LEFT JOIN classes c ON cs.class_id = c.id
-    WHERE s.school_id = ? AND s.deleted_at IS NULL`;
-    const params: any[] = [schoolId];
+    const allocationSummaries = await getAllocationsBySubject(schoolId);
+    const allocationsBySubjectId = new Map(
+      allocationSummaries.map(summary => [summary.subjectId, summary])
+    );
 
-    if (type) {
-      sql += ' AND subject_type = ?';
-      params.push(type);
-    }
+    let filtered = (subjectRows as any[]).filter(subject => {
+      if (typeFilter && subject.subject_type !== typeFilter) {
+        return false;
+      }
 
-    if (academicType && ['secular', 'theology'].includes(academicType)) {
-      sql += ' AND academic_type = ?';
-      params.push(academicType);
-    }
+      if (academicTypeFilter && ['secular', 'theology'].includes(academicTypeFilter) && subject.academic_type !== academicTypeFilter) {
+        return false;
+      }
 
-    if (search.trim()) {
-      sql += ' AND name LIKE ?';
-      params.push(`%${search}%`);
-    }
+      if (searchFilter.trim() && !subject.name.toLowerCase().includes(searchFilter.toLowerCase())) {
+        return false;
+      }
 
-    // Get total count
-    const countSql = sql.replace('SELECT \n      s.id, \n      s.name, \n      s.code, \n      s.subject_type, \n      s.academic_type,\n      GROUP_CONCAT(c.name SEPARATOR \', \') as allocated_classes,\n      COUNT(cs.id) as allocation_count\n    FROM', 'SELECT COUNT(DISTINCT s.id) as total FROM');
-    const [countResult]: any = await connection.execute(countSql, params);
-    const total = countResult[0]?.total || 0;
+      return true;
+    });
 
-    sql += ' GROUP BY s.id, s.name, s.code, s.subject_type, s.academic_type';
-
-    sql += ' ORDER BY name ASC';
+    // Apply pagination
+    const total = filtered.length;
     if (usePagination && limit) {
-      // TiDB can reject prepared placeholders in LIMIT/OFFSET, so keep
-      // filters parameterized and inline the already-sanitized pagination values.
-      sql += ` LIMIT ${limit} OFFSET ${offset}`;
+      filtered = filtered.slice(offset, offset + limit);
     }
 
-    const [rows] = await connection.execute(sql, params);
+    // Transform to response format (matching original API contract)
+    const data = filtered.map(subject => {
+      const summary = allocationsBySubjectId.get(subject.id);
+      return {
+        id: subject.id,
+        name: subject.name,
+        code: subject.code,
+        subject_type: subject.subject_type,
+        academic_type: subject.academic_type,
+        allocated_classes: summary && summary.allocatedClasses.length > 0 ? summary.allocatedClasses.join(', ') : null,
+        allocation_count: summary?.allocationCount || 0,
+        allocated_teachers: summary && summary.allocatedTeachers.length > 0 ? summary.allocatedTeachers.join(', ') : null
+      };
+    });
+
     return NextResponse.json({
-      data: rows,
+      data,
       total,
       page,
       limit,
