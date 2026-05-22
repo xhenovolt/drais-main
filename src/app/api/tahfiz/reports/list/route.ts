@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * GET /api/tahfiz/reports/list
@@ -11,6 +12,7 @@ export async function GET() {
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     connection = await getConnection();

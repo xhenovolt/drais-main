@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,7 @@ interface ClassInsight {
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'intelligence'); if (moduleGuard) return moduleGuard;
   const { schoolId } = session;
 
   let connection;

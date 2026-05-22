@@ -8,6 +8,7 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 import { getNavigationItems, MenuItem, filterMenuByRole } from '@/lib/navigationConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
+import { useEnabledModules } from '@/hooks/useEnabledModules';
 
 /**
  * Enterprise Sidebar — Desktop only (hidden on mobile).
@@ -19,19 +20,21 @@ export const Sidebar = () => {
   const { t }    = useI18n();
   const { user } = useAuth() || {};
   const { school } = useSchoolConfig();
+  const { enabled: enabledModules } = useEnabledModules();
 
   const navigationItems = useMemo(() => {
     const tWrapper = (key: string, fallback?: string) => t(key) || fallback || key;
     const items    = getNavigationItems(tWrapper);
     if (!user) return items;
-    const hasRole      = (slug: string) => {
+    const hasRole = (slug: string) => {
       if (!user.roles) return false;
       return typeof user.roles[0] === 'string'
         ? (user.roles as string[]).some(r => r.toLowerCase() === slug.toLowerCase())
         : (user.roles as any[]).some((r: any) => (r.slug || r.name || '').toLowerCase() === slug.toLowerCase());
     };
-    return filterMenuByRole(items, hasRole, !!user.isSuperAdmin);
-  }, [t, user]);
+    // Pass enabled modules — super-admin sees everything regardless.
+    return filterMenuByRole(items, hasRole, !!user.isSuperAdmin, enabledModules);
+  }, [t, user, enabledModules]);
 
   // Determine which groups should start expanded (ones that contain the current path)
   const defaultExpanded = useMemo(() => {

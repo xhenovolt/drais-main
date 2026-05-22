@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import mysql from 'mysql2/promise';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // Add query function for POST/PATCH operations
 async function query(sql: string, params: any[] = []) {
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);    // schoolId now from session auth (above)
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     const body = await req.json();
@@ -89,6 +92,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     const body = await req.json();
@@ -111,6 +115,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);

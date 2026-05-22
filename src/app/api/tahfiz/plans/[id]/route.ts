@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../../../lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 function extractIdFromPath(pathname: string) {
   // pathname example: /api/tahfiz/plans/123
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     const url = new URL(req.url);
@@ -34,6 +36,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     const url = new URL(req.url);
@@ -61,6 +64,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
     const url = new URL(req.url);

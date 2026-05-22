@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import fs from 'fs/promises';
 import path from 'path';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 /**
  * GET /api/tahfiz/reports/comprehensive
  * Fetch comprehensive Tahfiz reports using REAL class_results data

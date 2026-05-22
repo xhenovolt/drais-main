@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../../lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
   const url = new URL(req.url);
@@ -20,6 +22,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
   const body = await req.json();
@@ -32,6 +35,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
   const body = await req.json();
@@ -46,6 +50,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const moduleGuard = await checkModule(session.schoolId, 'tahfiz'); if (moduleGuard) return moduleGuard;
     const schoolId = session.schoolId;
 
   const url = new URL(req.url);

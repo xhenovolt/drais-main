@@ -97,28 +97,42 @@ export interface MenuItem {
    * Role slugs required to see this item.
    * - `undefined` / empty → visible to everyone
    * - `['admin']`         → only users with "admin" role (or isSuperAdmin)
-   * - `['admin', 'staff_admin']` → either of those roles
    */
   roles?: string[];
+  /**
+   * Module codes (from school_modules) required to see this item.
+   * ALL listed codes must be enabled for the school.
+   * Super-admin sees everything regardless.
+   */
+  requiredModules?: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Filter helper — call from sidebar to strip items the user cannot see
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Filter menu items by role AND enabled school modules.
+ * Super-admin bypasses both filters — they can see everything.
+ */
 export function filterMenuByRole(
   items: MenuItem[],
   hasRole: (slug: string) => boolean,
   isSuperAdmin: boolean,
+  enabledModules?: Set<string>,
 ): MenuItem[] {
   return items.reduce<MenuItem[]>((acc, item) => {
-    // Check top-level visibility
+    // Role gate — super-admin bypasses
     if (item.roles && item.roles.length > 0 && !isSuperAdmin) {
       if (!item.roles.some(role => hasRole(role))) return acc;
     }
+    // Module gate — super-admin bypasses; only applies when module list is loaded
+    if (item.requiredModules && item.requiredModules.length > 0 && !isSuperAdmin && enabledModules) {
+      if (!item.requiredModules.every(m => enabledModules.has(m))) return acc;
+    }
     // Recursively filter children
     if (item.children) {
-      const filteredChildren = filterMenuByRole(item.children, hasRole, isSuperAdmin);
+      const filteredChildren = filterMenuByRole(item.children, hasRole, isSuperAdmin, enabledModules);
       acc.push({ ...item, children: filteredChildren });
     } else {
       acc.push(item);
@@ -178,7 +192,7 @@ export function getNavigationItems(
         { key: 'admin-users',       label: 'User Management',    icon: <UserCog className="w-4 h-4" />,    href: '/admin/users',         roles: ['admin', 'super_admin'] },
         { key: 'staff-view',        label: 'View Staff',         icon: <Briefcase className="w-4 h-4" />,  href: '/staff' },
         { key: 'staff-add',         label: 'Add Staff',          icon: <UserPlus className="w-4 h-4" />,   href: '/staff/add' },
-        { key: 'workplans',         label: 'Workplans',          icon: <Clipboard className="w-4 h-4" />,  href: '/work-plans' },
+        { key: 'workplans', label: 'Workplans', icon: <Clipboard className="w-4 h-4" />, href: '/work-plans', requiredModules: ['work_plans'] },
         { key: 'admin-departments', label: 'Departments',        icon: <Building className="w-4 h-4" />,   href: '/admin/departments',   roles: ['admin', 'super_admin'] },
         { key: 'admin-roles',       label: 'Roles & Permissions',icon: <Shield className="w-4 h-4" />,     href: '/admin/roles',         roles: ['admin', 'super_admin'] },
         { key: 'admin-sessions',    label: 'User Monitoring',    icon: <Activity className="w-4 h-4" />,   href: '/admin/user-sessions', roles: ['admin', 'super_admin'] },
@@ -194,7 +208,7 @@ export function getNavigationItems(
       label: t('nav.academics._', 'Academics'),
       icon:  <GraduationCap className="w-5 h-5" />,
       children: [
-        { key: 'workplans-ac',    label: 'Workplans',       icon: <Clipboard className="w-4 h-4" />,    href: '/work-plans' },
+        { key: 'workplans-ac', label: 'Workplans', icon: <Clipboard className="w-4 h-4" />, href: '/work-plans', requiredModules: ['work_plans'] },
         { key: 'classes',         label: 'Classes',          icon: <School className="w-4 h-4" />,       href: '/academics/classes' },
         { key: 'streams',         label: 'Streams',          icon: <Target className="w-4 h-4" />,       href: '/academics/streams' },
         { key: 'subjects',        label: 'Subjects',         icon: <BookOpen className="w-4 h-4" />,     href: '/academics/subjects' },
@@ -204,7 +218,7 @@ export function getNavigationItems(
         { key: 'terms',           label: 'Terms',            icon: <Clock className="w-4 h-4" />,        href: '/terms/list' },
         { key: 'curriculums',     label: 'Curriculums',      icon: <BookMarked className="w-4 h-4" />,   href: '/academics/curriculums' },
         { key: 'promotions',      label: 'Promotions',       icon: <TrendingUp className="w-4 h-4" />,   href: '/promotions' },
-        { key: 'exams',           label: 'Examinations',     icon: <ClipboardList className="w-4 h-4" />,href: '/academics/exams' },
+        { key: 'exams', label: 'Examinations', icon: <ClipboardList className="w-4 h-4" />, href: '/academics/exams', requiredModules: ['examinations'] },
         { key: 'results',         label: 'Results',          icon: <Award className="w-4 h-4" />,        href: '/academics/results' },
         { key: 'report-cards',           label: 'Report Cards',           icon: <FileText className="w-4 h-4" />,     href: '/academics/report-cards' },
         { key: 'report-cards-secular',   label: 'Secular Report Cards',   icon: <FileText className="w-4 h-4" />,     href: '/academics/report-cards/secular' },
@@ -251,16 +265,17 @@ export function getNavigationItems(
         { key: 'ledger',             label: 'Ledger',            icon: <FileText className="w-4 h-4" />,     href: '/finance/ledger-v2' },
         { key: 'waivers',            label: 'Waivers',           icon: <Percent className="w-4 h-4" />,      href: '/finance/waivers' },
         { key: 'expenditures',       label: 'Expenditures',      icon: <TrendingDown className="w-4 h-4" />, href: '/finance/expenditures' },
-        { key: 'payroll-salaries',   label: 'Payroll',           icon: <Coins className="w-4 h-4" />,        href: '/payroll/salaries' },
-        { key: 'payroll-payments',   label: 'Pay Runs',          icon: <BadgeDollarSign className="w-4 h-4" />, href: '/payroll/payments' },
+        { key: 'payroll-salaries', label: 'Payroll',  icon: <Coins className="w-4 h-4" />,          href: '/payroll/salaries',  requiredModules: ['payroll'] },
+        { key: 'payroll-payments', label: 'Pay Runs', icon: <BadgeDollarSign className="w-4 h-4" />, href: '/payroll/payments', requiredModules: ['payroll'] },
       ],
     },
 
     // ══ 7. TAHFIZ ═════════════════════════════════════════════════════════════
     {
-      key:   'tahfiz',
-      label: t('nav.tahfiz._', 'Tahfiz'),
-      icon:  <BookOpen className="w-5 h-5 text-amber-600" />,
+      key:             'tahfiz',
+      label:           t('nav.tahfiz._', 'Tahfiz'),
+      icon:            <BookOpen className="w-5 h-5 text-amber-600" />,
+      requiredModules: ['tahfiz'],
       children: [
         { key: 'tahfiz-overview',   label: 'Overview',    icon: <BarChart3 className="w-4 h-4" />,   href: '/tahfiz' },
         { key: 'tahfiz-learners',   label: 'Learners',    icon: <Users className="w-4 h-4" />,       href: '/tahfiz/students' },
@@ -281,9 +296,9 @@ export function getNavigationItems(
       label: t('nav.reports._', 'Reports'),
       icon:  <ChartBar className="w-5 h-5" />,
       children: [
-        { key: 'analytics-students', label: 'Students',         icon: <Users className="w-4 h-4" />,        href: '/analytics/students' },
-        { key: 'analytics-staff',    label: 'Staff',            icon: <Briefcase className="w-4 h-4" />,    href: '/analytics/staff' },
-        { key: 'analytics-finance',  label: 'Finance',          icon: <Scale className="w-4 h-4" />,        href: '/analytics/finance' },
+        { key: 'analytics-students', label: 'Students',         icon: <Users className="w-4 h-4" />,        href: '/analytics/students',                requiredModules: ['analytics'] },
+        { key: 'analytics-staff',    label: 'Staff',            icon: <Briefcase className="w-4 h-4" />,    href: '/analytics/staff',                   requiredModules: ['analytics'] },
+        { key: 'analytics-finance',  label: 'Finance',          icon: <Scale className="w-4 h-4" />,        href: '/analytics/finance',                 requiredModules: ['analytics'] },
         { key: 'income-statement',   label: 'Income Statement', icon: <FileBarChart className="w-4 h-4" />, href: '/finance/reports/income-statement' },
         { key: 'balance-sheet',      label: 'Balance Sheet',    icon: <Scale className="w-4 h-4" />,        href: '/finance/reports/balance-sheet' },
         { key: 'custom-reports',     label: 'Custom Reports',   icon: <PieChart className="w-4 h-4" />,     href: '/reports/custom' },
@@ -302,7 +317,7 @@ export function getNavigationItems(
         { key: 'templates',       label: 'Templates',      icon: <FileCog className="w-4 h-4" />,  href: '/settings/templates' },
         { key: 'system-status',   label: 'System Status',  icon: <Activity className="w-4 h-4" />, href: '/settings/system' },
         { key: 'relay-setup',     label: 'Relay Setup',    icon: <Radio className="w-4 h-4" />,    href: '/settings/relay' },
-        { key: 'inventory',       label: 'Inventory',      icon: <Package className="w-4 h-4" />,  href: '/inventory/stores' },
+        { key: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, href: '/inventory/stores', requiredModules: ['inventory'] },
         { key: 'help',            label: 'Help & Support', icon: <HelpCircle className="w-4 h-4" />, href: '/help' },
       ],
     },
