@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, withErrorHandling } from '@/lib/rbac';
 import {
   purgeEntity,
   getPermissionForAction,
@@ -16,7 +16,7 @@ import { isEntityCode } from '@/lib/trash/registry';
  * purge permission. Blocking dependencies must be cleared first;
  * the service rejects with 409 DEPENDENCIES_PRESENT otherwise.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -65,4 +65,4 @@ export async function POST(req: NextRequest) {
     }
     throw e;
   }
-}
+});

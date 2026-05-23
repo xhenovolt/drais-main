@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, withErrorHandling } from '@/lib/rbac';
 import { getDependencies, TrashError } from '@/lib/trash/service';
 import { isEntityCode } from '@/lib/trash/registry';
 
@@ -11,7 +11,7 @@ import { isEntityCode } from '@/lib/trash/registry';
  * Preview which other tables reference this entity. Drives the purge
  * confirmation modal so admins see the blast radius before they delete.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -49,4 +49,4 @@ export async function POST(req: NextRequest) {
     }
     throw e;
   }
-}
+});

@@ -27,6 +27,29 @@ export async function userCan(
   schoolId: number,
   code:     string,
 ): Promise<boolean> {
+  // Defense in depth — if the user holds ANY role that is recognised as
+  // super-admin (flag OR slug OR canonical name), they pass every
+  // permission check without a permissions join. Mirrors the session
+  // query in src/lib/auth.ts so callers cannot accidentally lock out
+  // a super-admin by forgetting to pass isSuperAdmin=true.
+  const superRows = await query(
+    `SELECT 1
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id   = ?
+        AND (ur.school_id = ? OR ur.school_id IS NULL)
+        AND ur.is_active  = TRUE
+        AND r.is_active   = TRUE
+        AND (
+              r.is_super_admin = TRUE
+           OR LOWER(r.slug) = 'super_admin'
+           OR LOWER(TRIM(r.name)) IN ('super admin', 'superadmin')
+        )
+      LIMIT 1`,
+    [userId, schoolId],
+  );
+  if (superRows.length > 0) return true;
+
   const rows = await query(
     `SELECT 1
      FROM user_roles ur

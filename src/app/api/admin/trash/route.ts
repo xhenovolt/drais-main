@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, withErrorHandling } from '@/lib/rbac';
 import { listTrash, TrashError } from '@/lib/trash/service';
 import { listEntityDescriptors } from '@/lib/trash/registry';
 
@@ -17,7 +17,7 @@ import { listEntityDescriptors } from '@/lib/trash/registry';
  * Also returns the entity catalog so the UI can build its tab strip
  * without an additional fetch.
  */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -53,4 +53,4 @@ export async function GET(req: NextRequest) {
     }
     throw e;
   }
-}
+});

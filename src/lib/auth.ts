@@ -47,13 +47,22 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
         u.must_change_password,
         sc.status         AS school_status,
         EXISTS(
+          /* Defense in depth: a user is super-admin if ANY role they hold
+             has is_super_admin=TRUE, slug='super_admin', or name matches
+             'super admin' (case-insensitive, trimmed). Slug is the canonical
+             stable contract — production roles have historically been created
+             with the flag forgotten (e.g. ALBAYAN role 180011). */
           SELECT 1 FROM user_roles ur
           JOIN roles r ON ur.role_id = r.id
           WHERE ur.user_id = s.user_id
             AND (ur.school_id = s.school_id OR ur.school_id IS NULL)
             AND ur.is_active = TRUE
-            AND r.is_super_admin = TRUE
-            AND r.is_active = TRUE
+            AND r.is_active  = TRUE
+            AND (
+                  r.is_super_admin = TRUE
+               OR LOWER(r.slug) = 'super_admin'
+               OR LOWER(TRIM(r.name)) IN ('super admin', 'superadmin')
+            )
         ) AS is_super_admin
       FROM sessions s
       JOIN  users u  ON u.id             = s.user_id
