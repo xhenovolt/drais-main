@@ -103,12 +103,28 @@ breaks deterministic output and cross-tenant safety guarantees.
   in DRCE mode. The static-HTML `emergency_html` entries remain alongside
   for the existing print path; the two coexist during the transition.
 
-## Phase 3.4 (planned)
+## Phase 3.4 (shipped)
 
-- Print route renders DRCE-native entries through `renderToStaticMarkup`
-  on the server so DRCE entries flow through `/print` and honour
-  overrides for printing as well as preview.
+- `src/lib/drce/print-renderer.ts` — `renderStudentToDRCEHtml` uses
+  `react-dom/server`'s `renderToStaticMarkup` to render each student's
+  card from a DRCEDocument. Per-student overrides applied inside the
+  helper; branding sourced from `snapshot.meta.branding`. `wrapDRCEPrintDocument`
+  produces the full HTML shell.
+- `/print` route now attempts DRCE resolution before falling back to
+  `emergency_html`:
+    1. `resolveBuiltInDocument(templateId)` — built-in DRCE templates
+       (`drce-emergency-secular`, `drce-emergency-theology`, `drce-legacy-rpt`)
+    2. Numeric id → `dvcf_documents` DB lookup (school-authored DRCE)
+    3. `resolveEmergencyTemplateFile(templateId)` — static HTML fallback
+  If none match, returns 400 with a clear message.
+- Overrides are fully applied to DRCE prints (per-student, snapshot-wide).
+  Emergency_html prints remain override-agnostic — their string-substitution
+  engine cannot honour DRCE override semantics.
+
+## Phase 3.5 (planned — after schools verify DRCE print parity)
+
 - Section-type registry replaces the `switch (section.type)` in
-  `DRCEDocumentRenderer`.
-- Sunset `emergency_html` renderer + delete static HTML files once 3.3
-  reaches parity across all schools.
+  `DRCEDocumentRenderer` for extensibility without code changes.
+- Sunset `emergency_html` renderer: delete static HTML files under `backup/`,
+  remove `resolveEmergencyTemplateFile`, drop `engineRef` from built-in
+  registry entries.

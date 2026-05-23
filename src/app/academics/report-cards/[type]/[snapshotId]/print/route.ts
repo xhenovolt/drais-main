@@ -19,10 +19,12 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { loadSnapshot } from '@/lib/snapshots/storage';
 import { snapshotToTemplateMap } from '@/lib/snapshots/adapter/toTemplateMap';
 import { renderEmergencyTemplate } from '@/lib/snapshots/adapter/renderEmergencyTemplate';
-import { applyOverrides } from '@/lib/drce/overrides';
 import { listOverrides } from '@/lib/snapshots/overrides';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 import { BUILT_IN_TEMPLATES } from '@/lib/drce/registry';
+import { resolveBuiltInDocument } from '@/lib/drce/builtin-resolver';
+import { renderStudentToDRCEHtml, wrapDRCEPrintDocument } from '@/lib/drce/print-renderer';
+import type { DRCEDocument } from '@/lib/drce/schema';
 
 const DEFAULT_TEMPLATE_BY_TYPE: Record<SnapshotType, string> = {
   secular:  'emergency-secular',
@@ -69,20 +71,106 @@ export async function GET(
     return NextResponse.json({ error: 'Snapshot type mismatch' }, { status: 400 });
   }
 
-  // Load and apply overrides to the snapshot
-  const overrides = await listOverrides(snapshotId, session.schoolId);
-  const snapshotWithOverrides = applyOverrides(snapshot, overrides);
-
   const sp = req.nextUrl.searchParams;
   const templateIdRaw = sp.get('template');
   const templateId = templateIdRaw && templateIdRaw.trim() !== ''
     ? templateIdRaw.trim()
     : DEFAULT_TEMPLATE_BY_TYPE[type as SnapshotType];
 
+  const classIdRaw     = sp.get('class_id');
+  const studentIdRaw   = sp.get('student_id');
+  const editModeRaw    = sp.get('edit');
+  const filterClassIdx     = classIdRaw    !== null ? parseInt(classIdRaw,    10) : null;
+  const filterStudentDbId  = studentIdRaw  !== null ? parseInt(studentIdRaw,  10) : null;
+  const editMode           = editModeRaw === '1' || editModeRaw === 'true';
+
+  const isArabic  = snapshot.meta.numerals === 'arabic';
+  const direction = isArabic ? 'rtl' : 'ltr';
+  const lang      = isArabic ? 'ar' : 'en';
+
+  // ── DRCE rendering path ────────────────────────────────────────────────────
+  // When the template id resolves to a DRCE-native document (built-in or DB),
+  // render each student via renderToStaticMarkup. Overrides are applied per-
+  // student inside renderStudentToDRCEHtml. Emergency_html path below handles
+  // everything else.
+  let drceDoc: DRCEDocument | null = resolveBuiltInDocument(templateId);
+  if (!drceDoc) {
+    // Try numeric DB id (school-authored DRCE template)
+    const numericId = Number(templateId);
+    if (Number.isFinite(numericId) && numericId > 0) {
+      try {
+        const { query } = await import('@/lib/db');
+        const rows = (await query(
+          `SELECT schema_json FROM dvcf_documents
+            WHERE id = ? AND (school_id IS NULL OR school_id = ?)
+            LIMIT 1`,
+          [numericId, session.schoolId],
+        )) as Array<{ schema_json: string }>;
+        if (rows.length) drceDoc = JSON.parse(rows[0].schema_json) as DRCEDocument;
+      } catch {
+        // Fall through to emergency_html
+      }
+    }
+  }
+
+  if (drceDoc) {
+    const allOverrides = await listOverrides({ snapshotId, schoolId: session.schoolId });
+    const renderCtx = {
+      school: snapshot.meta.branding
+        ? {
+            name:            snapshot.meta.branding.schoolName,
+            arabic_name:     snapshot.meta.branding.arabicName,
+            address:         snapshot.meta.branding.address,
+            contact:         snapshot.meta.branding.phone || snapshot.meta.branding.email,
+            center_no:       snapshot.meta.branding.centerNo,
+            registration_no: snapshot.meta.branding.registrationNumber,
+            logo_url:        snapshot.meta.branding.logoUrl,
+          }
+        : { name: snapshot.meta.schoolName },
+      isPrint:  true,
+      language: snapshot.meta.language,
+      isRTL:    isArabic,
+    };
+
+    const studentBlocks: string[] = [];
+    for (const [classIdx, cls] of snapshot.classes.entries()) {
+      if (filterClassIdx !== null && !Number.isNaN(filterClassIdx) && classIdx !== filterClassIdx) continue;
+      for (const [studentIdx, stu] of cls.students.entries()) {
+        if (filterStudentDbId !== null && !Number.isNaN(filterStudentDbId) && stu.studentDbId !== filterStudentDbId) continue;
+        const html = await renderStudentToDRCEHtml({
+          document:   drceDoc,
+          snapshot,
+          classIdx,
+          studentIdx,
+          overrides:  allOverrides,
+          renderCtx,
+        });
+        studentBlocks.push(
+          `<div class="student-block" data-class-index="${classIdx}" data-student-db-id="${stu.studentDbId}">${html}</div>`,
+        );
+      }
+    }
+
+    if (studentBlocks.length === 0) {
+      return new NextResponse(
+        `<!DOCTYPE html><html><body style="text-align:center;padding:60px;color:#666;">${isArabic ? 'لا توجد نتائج' : 'No results to display'}</body></html>`,
+        { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+      );
+    }
+
+    const controls  = buildPrintControls(snapshot, isArabic, editMode);
+    const fullHtml  = wrapDRCEPrintDocument({ snapshot, body: studentBlocks.join('\n'), controls });
+    return new NextResponse(fullHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  }
+
+  // ── Emergency HTML rendering path ──────────────────────────────────────────
+  // Overrides are NOT applied to emergency_html templates — they use string
+  // substitution and cannot honour DRCE override semantics. Schools wanting
+  // per-student overrides should use the DRCE-native equivalents above.
   const templateFile = resolveEmergencyTemplateFile(templateId);
   if (!templateFile) {
     return NextResponse.json(
-      { error: 'TEMPLATE_NOT_FOUND', message: `Unknown emergency template id: ${templateId}` },
+      { error: 'TEMPLATE_NOT_FOUND', message: `Unknown template id: ${templateId}. Use a DRCE template id or an emergency_html template id.` },
       { status: 400 },
     );
   }
@@ -99,24 +187,13 @@ export async function GET(
     );
   }
 
-  const classIdRaw  = sp.get('class_id');
-  const studentIdRaw = sp.get('student_id');
-  const editModeRaw = sp.get('edit');
-  const filterClassIdx = classIdRaw !== null ? parseInt(classIdRaw, 10) : null;
-  const filterStudentDbId = studentIdRaw !== null ? parseInt(studentIdRaw, 10) : null;
-  const editMode = editModeRaw === '1' || editModeRaw === 'true';
-
-  const isArabic = snapshot.meta.numerals === 'arabic';
-  const direction = isArabic ? 'rtl' : 'ltr';
-  const lang = isArabic ? 'ar' : 'en';
-
   // Render every student into one big HTML body (matching emergency routes).
   const studentBlocks: string[] = [];
-  snapshotWithOverrides.classes.forEach((cls, classIdx) => {
+  snapshot.classes.forEach((cls, classIdx) => {
     if (filterClassIdx !== null && !Number.isNaN(filterClassIdx) && classIdx !== filterClassIdx) return;
     cls.students.forEach((stu, studentIdx) => {
       if (filterStudentDbId !== null && !Number.isNaN(filterStudentDbId) && stu.studentDbId !== filterStudentDbId) return;
-      const out = snapshotToTemplateMap({ snapshot: snapshotWithOverrides, classIdx, studentIdx, editMode });
+      const out = snapshotToTemplateMap({ snapshot, classIdx, studentIdx, editMode });
       const rendered = renderEmergencyTemplate(template, out);
       studentBlocks.push(
         `<div class="student-block" data-class-index="${classIdx}" data-student-db-id="${stu.studentDbId}">${rendered}</div>`
@@ -130,12 +207,12 @@ export async function GET(
     });
   }
 
-  const printControls = buildPrintControls(snapshotWithOverrides, isArabic, editMode);
+  const printControls = buildPrintControls(snapshot, isArabic, editMode);
   const fullHtml = wrapDocument(
-    snapshotWithOverrides,
+    snapshot,
     lang,
     direction,
-    printControls + '\n' + studentBlocks.join('\n') + (editMode ? buildEmergencyEditScript(snapshotWithOverrides.meta.snapshotId) : ''),
+    printControls + '\n' + studentBlocks.join('\n') + (editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : ''),
   );
 
   return new NextResponse(fullHtml, {
