@@ -50,18 +50,26 @@ export async function userCan(
   );
   if (superRows.length > 0) return true;
 
+  // Wildcard-aware check. The user passes if they hold ANY of:
+  //   - the exact requested code, OR
+  //   - any prefix wildcard (e.g. academics.theology.* grants academics.theology.view), OR
+  //   - the universal '*' grant.
+  // Implemented via expandPermissionChain from the RBAC catalog so the
+  // semantics stay in lock-step with the new authorize() helper.
+  const { expandPermissionChain } = await import('./rbac/catalog');
+  const chain = expandPermissionChain(code);
   const rows = await query(
     `SELECT 1
      FROM user_roles ur
      JOIN role_permissions rp ON ur.role_id = rp.role_id
      JOIN permissions p       ON rp.permission_id = p.id
      WHERE ur.user_id   = ?
-       AND ur.school_id = ?
+       AND (ur.school_id = ? OR ur.school_id IS NULL)
        AND ur.is_active = TRUE
-       AND p.code       = ?
        AND p.is_active  = TRUE
+       AND p.code IN (${chain.map(() => '?').join(',')})
      LIMIT 1`,
-    [userId, schoolId, code],
+    [userId, schoolId, ...chain],
   );
   return rows.length > 0;
 }
