@@ -218,13 +218,18 @@ export async function fetchResultsForGeneration(args: {
         p.gender           AS gender,
         p.photo_url        AS photo_url,
         st.name            AS stream_name,
+        -- Phase D: time-filter allocation by term start_date so past
+        -- snapshots pick the teacher who was allocated at that time.
         (
           SELECT CONCAT_WS(' ', tp.first_name, tp.last_name)
             FROM class_subjects cs2
             LEFT JOIN staff ts ON ts.id = cs2.teacher_id
             LEFT JOIN people tp ON tp.id = ts.person_id
-           WHERE cs2.class_id = cr.class_id AND cs2.subject_id = cr.subject_id
-           ORDER BY cs2.id DESC LIMIT 1
+           WHERE cs2.class_id  = cr.class_id
+             AND cs2.subject_id = cr.subject_id
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
+           ORDER BY cs2.valid_from DESC, cs2.id DESC LIMIT 1
         )                  AS teacher_name,
         (
           SELECT COALESCE(
@@ -237,8 +242,11 @@ export async function fetchResultsForGeneration(args: {
             FROM class_subjects cs2
             LEFT JOIN staff ts ON ts.id = cs2.teacher_id
             LEFT JOIN people tp ON tp.id = ts.person_id
-           WHERE cs2.class_id = cr.class_id AND cs2.subject_id = cr.subject_id
-           ORDER BY cs2.id DESC LIMIT 1
+           WHERE cs2.class_id  = cr.class_id
+             AND cs2.subject_id = cr.subject_id
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
+           ORDER BY cs2.valid_from DESC, cs2.id DESC LIMIT 1
         )                  AS teacher_initials
        FROM class_results cr
        JOIN students s ON s.id = cr.student_id

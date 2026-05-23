@@ -27,8 +27,15 @@ export async function GET(req: Request) {
 
     connection = await getConnection();
 
+    const showHistory = searchParams.get('history') === '1';
+
     const whereClauses: string[] = ['c.school_id = ?'];
     const params: any[] = [session.schoolId];
+
+    // Phase D: default to active allocations only; ?history=1 returns all
+    if (!showHistory) {
+      whereClauses.push('cs.valid_to IS NULL');
+    }
 
     if (classId) {
       whereClauses.push('cs.class_id = ?');
@@ -52,7 +59,10 @@ export async function GET(req: Request) {
         cs.subject_id,
         cs.teacher_id,
         cs.custom_initials,
-        c.name AS class_name,
+        cs.valid_from,
+        cs.valid_to,
+        cs.term_id,
+        c.name  AS class_name,
         sub.name AS subject_name,
         sub.code AS subject_code,
         CONCAT(UPPER(LEFT(p.first_name, 1)), UPPER(LEFT(p.last_name, 1))) AS auto_generated_initials,
@@ -63,7 +73,7 @@ export async function GET(req: Request) {
       LEFT JOIN staff s ON cs.teacher_id = s.id
       LEFT JOIN people p ON s.person_id = p.id
       WHERE ${whereClause}
-      ORDER BY c.name ASC, sub.name ASC
+      ORDER BY c.name ASC, sub.name ASC, cs.valid_from DESC
     `;
 
     const [rows] = await connection.execute(query, params);
@@ -109,20 +119,21 @@ export async function POST(req: Request) {
     connection = await getConnection();
     await validateOwnership(connection, session.schoolId, { class_id, subject_id, teacher_id });
 
-    // Unique constraint check
-    const isDuplicate = await checkDuplicateAssignment(connection, session.schoolId, class_id, subject_id);
-    if (isDuplicate) {
-      await connection.end();
-      return NextResponse.json(
-        { success: false, message: 'This subject is already assigned to the selected class.' },
-        { status: 409 }
-      );
-    }
+    // Phase D: supersede the current active allocation (if any) and create a
+    // new time-bounded row. The unique constraint was dropped; history is
+    // preserved by setting valid_to on the old row.
+    await connection.execute(
+      `UPDATE class_subjects
+          SET valid_to = CURDATE()
+        WHERE class_id   = ?
+          AND subject_id = ?
+          AND valid_to   IS NULL`,
+      [class_id, subject_id]
+    );
 
-    // Insert new allocation (no school_id column — enforced via class → classes join)
     const [result] = await connection.execute(
-      `INSERT INTO class_subjects (class_id, subject_id, teacher_id, custom_initials)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO class_subjects (class_id, subject_id, teacher_id, custom_initials, valid_from, valid_to)
+       VALUES (?, ?, ?, ?, CURDATE(), NULL)`,
       [class_id, subject_id, teacher_id, custom_initials]
     );
 
@@ -195,22 +206,19 @@ export async function PUT(req: Request) {
     await ensureAllocationBelongsToSchool(connection, session.schoolId, id);
     await validateOwnership(connection, session.schoolId, { class_id, subject_id, teacher_id });
 
-    // Unique constraint check (exclude self)
-    const isDuplicate = await checkDuplicateAssignment(connection, session.schoolId, class_id, subject_id, id);
-    if (isDuplicate) {
-      await connection.end();
-      return NextResponse.json(
-        { success: false, message: 'This subject is already assigned to the selected class.' },
-        { status: 409 }
-      );
-    }
-
+    // Phase D: updating = supersede the targeted row + open a fresh one.
+    // This preserves history rather than overwriting.
     await connection.execute(
-      `UPDATE class_subjects
-       SET class_id = ?, subject_id = ?, teacher_id = ?, custom_initials = ?
-       WHERE id = ?`,
-      [class_id, subject_id, teacher_id, custom_initials, id]
+      `UPDATE class_subjects SET valid_to = CURDATE() WHERE id = ?`,
+      [id]
     );
+
+    const [result2] = await connection.execute(
+      `INSERT INTO class_subjects (class_id, subject_id, teacher_id, custom_initials, valid_from, valid_to)
+       VALUES (?, ?, ?, ?, CURDATE(), NULL)`,
+      [class_id, subject_id, teacher_id, custom_initials]
+    );
+    const newId2 = (result2 as any).insertId;
 
     // Fetch updated record
     const [rows] = await connection.execute(
@@ -225,7 +233,7 @@ export async function PUT(req: Request) {
        LEFT JOIN staff s ON cs.teacher_id = s.id
        LEFT JOIN people p ON s.person_id = p.id
        WHERE cs.id = ?`,
-      [id]
+      [newId2]
     );
 
     await connection.end();
