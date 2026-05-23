@@ -13,25 +13,40 @@ export const GET = withErrorHandling(async function GET(req: NextRequest) {
   await requirePermission(session.userId, session.schoolId, 'roles.read', session.isSuperAdmin);
 
   const rows: any[] = await query(
-    `SELECT id, code, name, category
+    `SELECT id, code, name, category, module, resource, action, description, is_active
      FROM permissions
      WHERE is_active = TRUE
-     ORDER BY category, code`,
+     ORDER BY module, resource, action, code`,
     [],
   );
 
-  // Group by category, derive module/action from code
-  const grouped: Record<string, any[]> = {};
+  // Three views in the same response:
+  //   `data`    — legacy shape (module → Permission[]) for backward compat
+  //   `grouped` — module → resource → Permission[] for the tree UI
+  //   `flat`    — full flat list with description, for search-driven UI
+  const data:    Record<string, any[]>                 = {};
+  const grouped: Record<string, Record<string, any[]>> = {};
+  const flat: any[] = [];
   for (const row of rows) {
-    const mod    = row.category || 'general';
-    const parts  = String(row.code).split('.');
-    const action = parts.length > 1 ? parts[parts.length - 1] : row.code;
+    const parts    = String(row.code).split('.');
+    const moduleId = row.module   || parts[0] || 'general';
+    const resource = row.resource || parts[1] || '';
+    const action   = row.action   || (parts.length > 2 ? parts.slice(2).join('.') : parts[1] ?? row.code);
 
-    if (!grouped[mod]) grouped[mod] = [];
-    grouped[mod].push({ id: row.id, code: row.code, name: row.name || row.code, module: mod, action });
+    const item = {
+      id:          row.id,
+      code:        row.code,
+      name:        row.name || row.code,
+      description: row.description || '',
+      module: moduleId, resource, action,
+    };
+
+    (data[moduleId] ??= []).push(item);
+    ((grouped[moduleId] ??= {})[resource] ??= []).push(item);
+    flat.push(item);
   }
 
-  return NextResponse.json({ success: true, data: grouped });
+  return NextResponse.json({ success: true, data, grouped, flat });
 });
 
 export const POST = withErrorHandling(async function POST(req: NextRequest) {

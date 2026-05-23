@@ -26,7 +26,9 @@ interface Permission {
   id: number;
   code: string;
   name: string;
+  description?: string;
   module: string;
+  resource: string;
   action: string;
 }
 
@@ -49,6 +51,8 @@ const MODULE_COLORS: Record<string, string> = {
 export default function AdminRolesPage() {
   const [roles,    setRoles]    = useState<Role[]>([]);
   const [allPerms, setAllPerms] = useState<Record<string, Permission[]>>({});
+  /** Module → Resource → Permission[] grouping from the new catalog API. */
+  const [groupedPerms, setGroupedPerms] = useState<Record<string, Record<string, Permission[]>>>({});
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const [selected, setSelected] = useState<RoleDetail | null>(null);
@@ -57,6 +61,11 @@ export default function AdminRolesPage() {
   const [savingPerms, setSavingPerms] = useState(false);
   const [pendingPerms, setPendingPerms] = useState<Set<number>>(new Set());
   const [permsDirty, setPermsDirty] = useState(false);
+  /** Free-text filter applied to permission code / name / description. */
+  const [permFilter, setPermFilter] = useState('');
+  /** Collapsed module ids so admins can focus on one area. */
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
 
   const loadRoles = useCallback(async () => {
     setLoading(true);
@@ -64,13 +73,34 @@ export default function AdminRolesPage() {
     try {
       const [rData, pData] = await Promise.all([
         apiFetch<{ data: Role[] }>('/api/admin/roles', { silent: true }),
-        apiFetch<{ data: Record<string, Permission[]> }>('/api/admin/permissions', { silent: true }),
+        apiFetch<{ data: Record<string, Permission[]>; grouped: Record<string, Record<string, Permission[]>> }>(
+          '/api/admin/permissions',
+          { silent: true },
+        ),
       ]);
       setRoles(rData.data ?? []);
       setAllPerms(pData.data ?? {});
+      setGroupedPerms(pData.grouped ?? {});
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
+
+  /** Trigger the RBAC catalog sync engine (super-admin or roles.permission.sync). */
+  const runSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const r = await apiFetch<{ summary: { inserted: number; updated: number; orphaned: number; activated: number } }>(
+        '/api/admin/permissions/sync',
+        { method: 'POST', silent: true },
+      );
+      showToast('success', `Sync done. +${r.summary.inserted} new · ${r.summary.updated} updated · ${r.summary.orphaned} orphaned.`);
+      await loadRoles();
+    } catch (e: any) {
+      showToast('error', e?.message || 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  }, [loadRoles]);
 
   useEffect(() => { loadRoles(); }, [loadRoles]);
 
@@ -219,59 +249,141 @@ export default function AdminRolesPage() {
 
             {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 text-sm">{error}</div>}
 
-            {/* Permission grid by module */}
+            {/* Permission toolbar — search + sync (admin/super-admin only) */}
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={permFilter}
+                onChange={e => setPermFilter(e.target.value)}
+                placeholder="Search permissions (code, name, description)…"
+                className="flex-1 min-w-[16rem] px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                onClick={runSync}
+                disabled={syncing}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border border-indigo-300 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 disabled:opacity-50"
+                title="Reconcile the permissions table with the code catalog"
+              >
+                {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                Sync catalog
+              </button>
+              <span className="text-xs text-slate-400">
+                {pendingPerms.size} granted · {Object.values(allPerms).reduce((n, arr) => n + arr.length, 0)} total
+              </span>
+            </div>
+
+            {/* Permission tree: module → resource → action grid */}
             {modules.length === 0 ? (
               <p className="text-slate-400">No permissions defined.</p>
             ) : modules.map(mod => {
-              const perms = allPerms[mod] ?? [];
-              const allChecked = perms.every(p => pendingPerms.has(p.id));
-              const someChecked = perms.some(p => pendingPerms.has(p.id));
+              const resources = groupedPerms[mod] ?? {};
+              const allModPerms = allPerms[mod] ?? [];
+              const filterLower = permFilter.trim().toLowerCase();
+              const matches = (p: Permission) => !filterLower ||
+                p.code.includes(filterLower) ||
+                (p.name?.toLowerCase().includes(filterLower)) ||
+                (p.description?.toLowerCase().includes(filterLower));
+              const filteredModPerms = allModPerms.filter(matches);
+              if (filterLower && filteredModPerms.length === 0) return null;
+
+              const allChecked = allModPerms.every(p => pendingPerms.has(p.id));
+              const isCollapsed = collapsed.has(mod);
+
               return (
                 <div key={mod} className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                   <div className={`px-4 py-3 flex items-center justify-between ${MODULE_COLORS[mod] ?? 'bg-slate-50 dark:bg-slate-800'}`}>
-                    <span className="font-medium text-sm capitalize">{mod}</span>
+                    <button
+                      onClick={() => setCollapsed(prev => {
+                        const next = new Set(prev);
+                        if (next.has(mod)) next.delete(mod); else next.add(mod);
+                        return next;
+                      })}
+                      className="flex items-center gap-2"
+                    >
+                      <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+                      <span className="font-medium text-sm capitalize">{mod}</span>
+                      <span className="text-xs opacity-60">
+                        ({allModPerms.filter(p => pendingPerms.has(p.id)).length}/{allModPerms.length})
+                      </span>
+                    </button>
                     {!selected.is_system_role && (
                       <button
                         onClick={() => {
                           setPendingPerms(prev => {
                             const next = new Set(prev);
-                            if (allChecked) perms.forEach(p => next.delete(p.id));
-                            else perms.forEach(p => next.add(p.id));
+                            if (allChecked) allModPerms.forEach(p => next.delete(p.id));
+                            else allModPerms.forEach(p => next.add(p.id));
                             return next;
                           });
                           setPermsDirty(true);
                         }}
                         className="text-xs underline-offset-1 hover:underline opacity-70"
                       >
-                        {allChecked ? 'Deselect all' : 'Select all'}
+                        {allChecked ? 'Revoke all' : 'Grant all'}
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px bg-slate-100 dark:bg-slate-700/30">
-                    {perms.map(p => {
-                      const checked = pendingPerms.has(p.id);
-                      return (
-                        <button
-                          key={p.id}
-                          onClick={() => togglePerm(p.id)}
-                          disabled={!!selected.is_system_role}
-                          className={`flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-slate-800 text-left transition-colors
-                            ${checked ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}
-                            ${!selected.is_system_role ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer' : 'cursor-default'}
-                          `}
-                        >
-                          {checked
-                            ? <CheckSquare className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-                            : <Square className="w-4 h-4 flex-shrink-0" />
-                          }
-                          <div>
-                            <div className="text-xs font-medium">{p.action}</div>
-                            <div className="text-xs opacity-60 truncate max-w-[12rem]">{p.name}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+
+                  {!isCollapsed && Object.entries(resources).map(([resource, perms]) => {
+                    const visiblePerms = perms.filter(matches);
+                    if (filterLower && visiblePerms.length === 0) return null;
+                    const resAllChecked = perms.every(p => pendingPerms.has(p.id));
+                    return (
+                      <div key={resource} className="border-t border-slate-100 dark:border-slate-700/40">
+                        <div className="px-4 py-1.5 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300 capitalize">
+                            {resource || mod}
+                          </span>
+                          {!selected.is_system_role && perms.length > 1 && (
+                            <button
+                              onClick={() => {
+                                setPendingPerms(prev => {
+                                  const next = new Set(prev);
+                                  if (resAllChecked) perms.forEach(p => next.delete(p.id));
+                                  else perms.forEach(p => next.add(p.id));
+                                  return next;
+                                });
+                                setPermsDirty(true);
+                              }}
+                              className="text-[10px] underline-offset-1 hover:underline opacity-60"
+                            >
+                              {resAllChecked ? 'clear' : 'grant all'}
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-slate-100 dark:bg-slate-700/30">
+                          {visiblePerms.map(p => {
+                            const checked = pendingPerms.has(p.id);
+                            return (
+                              <button
+                                key={p.id}
+                                onClick={() => togglePerm(p.id)}
+                                disabled={!!selected.is_system_role}
+                                title={`${p.code}\n${p.description || ''}`}
+                                className={`flex items-start gap-2 px-3 py-2 bg-white dark:bg-slate-800 text-left transition-colors
+                                  ${checked ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}
+                                  ${!selected.is_system_role ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer' : 'cursor-default'}
+                                `}
+                              >
+                                {checked
+                                  ? <CheckSquare className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                                  : <Square className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                }
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-xs font-mono font-medium truncate">{p.action}</div>
+                                  {p.description && (
+                                    <div className="text-[10px] opacity-60 truncate" title={p.description}>
+                                      {p.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
