@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     // USERS SEARCH
     const [userResults] = await (conn.execute as any)(
       `
-        SELECT u.id, u.email, p.first_name, p.last_name, u.role
+        SELECT u.id, u.email, p.first_name, p.last_name
         FROM users u
         LEFT JOIN people p ON u.person_id = p.id
         WHERE u.school_id = ? AND (
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
       results.push({
         type: 'user',
         label: u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email,
-        subtitle: u.role || 'User',
+        subtitle: 'User',
         id: u.id,
       });
     });

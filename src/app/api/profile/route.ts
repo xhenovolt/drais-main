@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     connection = await getConnection();
     const [rows]: any = await connection.execute(
-      `SELECT u.id, u.username, u.email, u.phone, u.role, u.profile_photo, u.preferences,
+      `SELECT u.id, u.username, u.email, u.phone, u.profile_photo, u.preferences,
               p.first_name, p.last_name
        FROM users u
        LEFT JOIN people p ON p.id = u.person_id
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
         username: user.username,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        role: null, /* deprecated users.role column removed */
         profilePhoto: user.profile_photo,
         firstName: user.first_name || '',
         lastName: user.last_name || '',

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   User, Phone, Mail, Calendar, MapPin, Briefcase,
   AlertCircle, Loader, ArrowLeft, CheckCircle2, Edit, Trash2,
-  BookOpen, School, Star,
+  BookOpen, School, Star, Award, Plus, X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -240,6 +240,10 @@ export default function StaffDetailPage() {
 
         {/* Phase G — Teaching workload */}
         <WorkloadPanel staffId={id!} />
+
+        {/* Phase H — Qualifications + specialisations */}
+        <QualificationsPanel staffId={id!} />
+        <SpecializationsPanel staffId={id!} />
       </div>
     </div>
   );
@@ -320,6 +324,154 @@ function WorkloadPanel({ staffId }: { staffId: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Phase H ─────────────────────────────────────────────────────────────────
+
+function QualificationsPanel({ staffId }: { staffId: string }) {
+  const fetcher = (url: string) => fetch(url).then(r => r.json());
+  const { data, isLoading, mutate } = useSWR(
+    `/api/admin/staff/${staffId}/qualifications`,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ degree_type: '', institution: '', field_of_study: '', year_obtained: '', notes: '' });
+
+  async function add() {
+    const res = await fetch(`/api/admin/staff/${staffId}/qualifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, year_obtained: form.year_obtained ? Number(form.year_obtained) : null }),
+    });
+    if (res.ok) { setAdding(false); setForm({ degree_type: '', institution: '', field_of_study: '', year_obtained: '', notes: '' }); mutate(); }
+  }
+
+  async function remove(qualId: number) {
+    await fetch(`/api/admin/staff/${staffId}/qualifications?qual_id=${qualId}`, { method: 'DELETE' });
+    mutate();
+  }
+
+  const quals: Array<{ id: number; degree_type: string; institution: string; field_of_study: string | null; year_obtained: number | null; notes: string | null }> = data?.qualifications ?? [];
+
+  return (
+    <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+      <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <Award className="w-4 h-4 text-indigo-500" />
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Qualifications</h2>
+        </div>
+        <button onClick={() => setAdding(v => !v)} className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+          <Plus className="w-3 h-3" /> Add
+        </button>
+      </div>
+
+      {adding && (
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2 text-xs">
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder="Degree / Certificate *" value={form.degree_type} onChange={e => setForm(f => ({ ...f, degree_type: e.target.value }))}
+              className="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800" />
+            <input placeholder="Institution *" value={form.institution} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))}
+              className="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800" />
+            <input placeholder="Field of study" value={form.field_of_study} onChange={e => setForm(f => ({ ...f, field_of_study: e.target.value }))}
+              className="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800" />
+            <input placeholder="Year obtained" type="number" value={form.year_obtained} onChange={e => setForm(f => ({ ...f, year_obtained: e.target.value }))}
+              className="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800" />
+          </div>
+          <textarea placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+            className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800" />
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setAdding(false)} className="px-2 py-1 rounded border text-xs">Cancel</button>
+            <button onClick={add} disabled={!form.degree_type.trim() || !form.institution.trim()} className="px-2 py-1 rounded bg-indigo-600 text-white text-xs disabled:opacity-50">Save</button>
+          </div>
+        </div>
+      )}
+
+      {isLoading && <p className="text-xs text-slate-500">Loading…</p>}
+      {!isLoading && quals.length === 0 && !adding && <p className="text-xs text-slate-400">No qualifications recorded.</p>}
+      {quals.map(q => (
+        <div key={q.id} className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">{q.degree_type}</div>
+            <div className="text-xs text-slate-500">{q.institution}{q.field_of_study ? ` · ${q.field_of_study}` : ''}{q.year_obtained ? ` (${q.year_obtained})` : ''}</div>
+            {q.notes && <div className="text-[11px] text-slate-400 mt-0.5">{q.notes}</div>}
+          </div>
+          <button onClick={() => remove(q.id)} className="text-rose-500 hover:text-rose-700 shrink-0"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SpecializationsPanel({ staffId }: { staffId: string }) {
+  const fetcher = (url: string) => fetch(url).then(r => r.json());
+  const { data: specData, isLoading: specLoading, mutate: specMutate } = useSWR(
+    `/api/admin/staff/${staffId}/specializations`, fetcher, { revalidateOnFocus: false },
+  );
+  const { data: subjectsData } = useSWR('/api/subjects', fetcher, { revalidateOnFocus: false });
+  const [adding, setAdding] = useState(false);
+  const [subjectId, setSubjectId] = useState('');
+  const [certified, setCertified] = useState(false);
+
+  const specs: Array<{ id: number; subject_id: number; subject_name: string; certified: number }> = specData?.specializations ?? [];
+  const allSubjects: Array<{ id: number; name: string }> = subjectsData?.data ?? [];
+  const existingIds = new Set(specs.map(s => s.subject_id));
+  const availableSubjects = allSubjects.filter(s => !existingIds.has(s.id));
+
+  async function add() {
+    await fetch(`/api/admin/staff/${staffId}/specializations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject_id: Number(subjectId), certified }),
+    });
+    setAdding(false); setSubjectId(''); setCertified(false); specMutate();
+  }
+
+  async function remove(sid: number) {
+    await fetch(`/api/admin/staff/${staffId}/specializations?subject_id=${sid}`, { method: 'DELETE' });
+    specMutate();
+  }
+
+  return (
+    <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+      <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-emerald-500" />
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Subject Specialisations</h2>
+        </div>
+        <button onClick={() => setAdding(v => !v)} className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline">
+          <Plus className="w-3 h-3" /> Add
+        </button>
+      </div>
+
+      {adding && (
+        <div className="flex items-center gap-2 text-xs">
+          <select value={subjectId} onChange={e => setSubjectId(e.target.value)}
+            className="flex-1 px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800">
+            <option value="">Select subject…</option>
+            {availableSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" checked={certified} onChange={e => setCertified(e.target.checked)} />
+            Certified
+          </label>
+          <button onClick={() => setAdding(false)} className="px-2 py-1 rounded border">Cancel</button>
+          <button onClick={add} disabled={!subjectId} className="px-2 py-1 rounded bg-emerald-600 text-white disabled:opacity-50">Save</button>
+        </div>
+      )}
+
+      {specLoading && <p className="text-xs text-slate-500">Loading…</p>}
+      {!specLoading && specs.length === 0 && !adding && <p className="text-xs text-slate-400">No specialisations recorded.</p>}
+      <div className="flex flex-wrap gap-2">
+        {specs.map(s => (
+          <span key={s.id} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${s.certified ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700'}`}>
+            {s.subject_name}{s.certified ? ' ✓' : ''}
+            <button onClick={() => remove(s.subject_id)} className="ml-1 opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

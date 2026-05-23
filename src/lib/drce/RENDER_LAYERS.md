@@ -121,10 +121,25 @@ breaks deterministic output and cross-tenant safety guarantees.
   Emergency_html prints remain override-agnostic — their string-substitution
   engine cannot honour DRCE override semantics.
 
-## Phase 3.5 (planned — after schools verify DRCE print parity)
+## Renderer strategy (permanent, not transitional)
 
-- Section-type registry replaces the `switch (section.type)` in
-  `DRCEDocumentRenderer` for extensibility without code changes.
-- Sunset `emergency_html` renderer: delete static HTML files under `backup/`,
-  remove `resolveEmergencyTemplateFile`, drop `engineRef` from built-in
-  registry entries.
+Both renderers are first-class production options with different tradeoffs:
+
+| Renderer | Category | Tradeoff |
+|---|---|---|
+| `emergency_html` | emergency / arabic / legacy_rpt | Lightweight, fast, no per-report override support |
+| `drce` | drce / standard / custom | Full override system, school branding, visual editor |
+
+Schools choose per-snapshot which renderer to use via the `?template=` param
+or the SnapshotPreviewer dropdown. The static HTML files under `backup/` are
+retained — they serve both the SnapshotPreviewer emergency-mode iframe and
+the legacy `/academics/secular-emergency-reports` routes. Deleting them would
+break both.
+
+## Future work (optional)
+
+- Section-type registry to replace the `switch (section.type)` in
+  `DRCEDocumentRenderer` — pure refactor, no user-visible change.
+- Qualifications + subject specializations on staff profiles (Phase H).
+- Allocation normalization UI (term picker, history view) — database is
+  Phase-D-ready; UI surface ships in follow-up.
