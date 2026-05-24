@@ -1,14 +1,15 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import useSWR from 'swr';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   User, Phone, Mail, Calendar, MapPin, BookOpen,
   GraduationCap, FileText, Users, AlertCircle, Loader,
-  ArrowLeft, CheckCircle2,
+  ArrowLeft, CheckCircle2, Camera,
 } from 'lucide-react';
 import EnrollmentTimeline from '@/components/students/EnrollmentTimeline';
+import PhotoEditorModal from '@/components/students/PhotoEditorModal';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -38,11 +39,12 @@ export default function StudentDetailPage() {
 
   console.log('[StudentProfile] Fetching student:', id);
 
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     id && /^\d+$/.test(id) ? `/api/students/${id}/profile` : null,
     fetcher,
     { revalidateOnFocus: false }
   );
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
 
   if (!id || !/^\d+$/.test(id)) {
     return (
@@ -86,9 +88,21 @@ export default function StudentDetailPage() {
     <div className="py-6 px-4 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow">
-          {s.first_name?.[0]?.toUpperCase() ?? '?'}
-        </div>
+        {/* Photo / avatar — clicking opens the editor (upload + remove). */}
+        <button
+          onClick={() => setPhotoModalOpen(true)}
+          title={s.photo_url ? 'Change or remove photo' : 'Add photo'}
+          className="relative group w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow overflow-hidden hover:ring-2 hover:ring-indigo-400 transition"
+        >
+          {s.photo_url ? (
+            <img src={s.photo_url} alt={fullName} className="w-full h-full object-cover" />
+          ) : (
+            <span>{s.first_name?.[0]?.toUpperCase() ?? '?'}</span>
+          )}
+          <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+            <Camera className="w-5 h-5 text-white" />
+          </span>
+        </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-slate-800 dark:text-white truncate">{fullName}</h1>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
@@ -206,6 +220,19 @@ export default function StudentDetailPage() {
 
       {/* Enrollment History Timeline */}
       <EnrollmentTimeline studentId={id} />
+
+      {/* Photo editor modal — upload, replace, or remove the learner's photo */}
+      <PhotoEditorModal
+        open={photoModalOpen}
+        onClose={() => setPhotoModalOpen(false)}
+        learner={{
+          id:         Number(s.id),
+          first_name: s.first_name,
+          last_name:  s.last_name,
+          photo_url:  s.photo_url,
+        }}
+        onUpdated={() => { mutate(); }}
+      />
     </div>
   );
 }

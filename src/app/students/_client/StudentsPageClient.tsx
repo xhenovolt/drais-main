@@ -93,6 +93,34 @@ export default function StudentsPage({ enrolledData: initialEnrolled = [], admit
     });
   }, [currentData, searchTerm, filters]);
 
+  // Remove a learner's photo via DELETE /api/students/photo.
+  // Optimistic — reverts the row on failure. Mirrors the pattern from
+  // src/app/students/list/page.tsx so behaviour is identical across
+  // both list surfaces.
+  const handleRemovePhoto = useCallback(async (studentId: number) => {
+    const student = enrolledData.find(s => s.id === studentId);
+    if (!student?.photo_url) return;
+    if (!confirm(`Remove the photo for ${student.first_name} ${student.last_name}?`)) return;
+
+    const previousUrl = student.photo_url;
+    setEnrolledData(prev => prev.map(s => s.id === studentId ? { ...s, photo_url: undefined } : s));
+
+    try {
+      const res = await fetch('/api/students/photo', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId }),
+        credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error(await res.text().catch(() => 'Remove failed'));
+      toast.success('Photo removed');
+    } catch (err) {
+      // Revert optimistic update
+      setEnrolledData(prev => prev.map(s => s.id === studentId ? { ...s, photo_url: previousUrl } : s));
+      toast.error(err instanceof Error ? err.message : 'Failed to remove photo');
+    }
+  }, [enrolledData]);
+
   // Handlers
   const handleSelectAll = useCallback(() => {
     if (selectedStudents.size === filteredStudents.length) {
@@ -350,17 +378,29 @@ export default function StudentsPage({ enrolledData: initialEnrolled = [], admit
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex items-center gap-3">
-                        {student.photo_url ? (
-                          <img
-                            src={student.photo_url}
-                            alt={`${student.first_name} ${student.last_name}`}
-                            className="w-8 h-8 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-semibold text-blue-700 dark:text-blue-200">
-                            {student.first_name?.[0]}{student.last_name?.[0]}
-                          </div>
-                        )}
+                        <div className="relative group flex-shrink-0">
+                          {student.photo_url ? (
+                            <img
+                              src={student.photo_url}
+                              alt={`${student.first_name} ${student.last_name}`}
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-semibold text-blue-700 dark:text-blue-200">
+                              {student.first_name?.[0]}{student.last_name?.[0]}
+                            </div>
+                          )}
+                          {student.photo_url && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRemovePhoto(student.id); }}
+                              title="Remove photo"
+                              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                              aria-label="Remove photo"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                         <div className="font-medium text-gray-900 dark:text-white">
                           {student.first_name} {student.last_name}
                         </div>
