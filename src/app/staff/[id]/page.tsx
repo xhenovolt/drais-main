@@ -1,13 +1,14 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   User, Phone, Mail, Calendar, MapPin, Briefcase,
   AlertCircle, Loader, ArrowLeft, CheckCircle2, Edit, Trash2,
-  BookOpen, School, Star, Award, Plus, X,
+  BookOpen, School, Star, Award, Plus, X, Camera,
 } from 'lucide-react';
+import StaffPhotoModal from '@/components/staff/StaffPhotoModal';
 import { toast } from 'react-hot-toast';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -44,6 +45,7 @@ export default function StaffDetailPage() {
     fetcher,
     { revalidateOnFocus: false }
   );
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
 
   if (!id || !/^\d+$/.test(id)) {
     return (
@@ -110,9 +112,21 @@ export default function StaffDetailPage() {
       {/* Header */}
       <div className="flex items-start gap-4 justify-between">
         <div className="flex items-start gap-4 flex-1 min-w-0">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow">
-            {staff.first_name?.[0]?.toUpperCase() ?? '?'}
-          </div>
+          {/* Photo / avatar — clicking opens the photo editor (upload + remove). */}
+          <button
+            onClick={() => setPhotoModalOpen(true)}
+            title={staff.photo_url ? 'Change or remove photo' : 'Add photo'}
+            className="relative group w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow overflow-hidden hover:ring-2 hover:ring-indigo-400 transition"
+          >
+            {staff.photo_url ? (
+              <img src={staff.photo_url} alt={fullName} className="w-full h-full object-cover" />
+            ) : (
+              <span>{staff.first_name?.[0]?.toUpperCase() ?? '?'}</span>
+            )}
+            <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+              <Camera className="w-5 h-5 text-white" />
+            </span>
+          </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-slate-800 dark:text-white truncate">{fullName}</h1>
             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
@@ -245,6 +259,19 @@ export default function StaffDetailPage() {
         <QualificationsPanel staffId={id!} />
         <SpecializationsPanel staffId={id!} />
       </div>
+
+      {/* Staff photo editor — upload, replace, or remove */}
+      <StaffPhotoModal
+        open={photoModalOpen}
+        onClose={() => setPhotoModalOpen(false)}
+        staff={{
+          id:         Number(staff.id),
+          first_name: staff.first_name,
+          last_name:  staff.last_name,
+          photo_url:  staff.photo_url,
+        }}
+        onUpdated={() => { mutate(); }}
+      />
     </div>
   );
 }
