@@ -857,6 +857,39 @@ export default function StudentsListPage() {
     }
   };
 
+  // Remove photo from student
+  const handleRemovePhoto = async (studentId: number) => {
+    const student = [...enrolledStudents, ...admittedStudents].find(s => s.id === studentId);
+    if (!student || !student.photo_url) return;
+
+    const confirmed = await confirmAction(
+      'Remove Photo',
+      `Remove the photo for ${safeString(student.first_name)} ${safeString(student.last_name)}?`,
+      'Remove'
+    );
+    if (!confirmed) return;
+
+    try {
+      // Optimistic update
+      const updateStudentPhoto = (s: Student) => s.id === studentId ? { ...s, photo_url: undefined } : s;
+      setEnrolledStudents(prev => prev.map(updateStudentPhoto));
+      setAdmittedStudents(prev => prev.map(updateStudentPhoto));
+
+      await apiFetch('/api/students/photo', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId }),
+        successMessage: 'Photo removed successfully',
+      });
+    } catch (error: any) {
+      // Revert optimistic update on error
+      const revertPhoto = (s: Student) => s.id === studentId ? { ...s, photo_url: student.photo_url } : s;
+      setEnrolledStudents(prev => prev.map(revertPhoto));
+      setAdmittedStudents(prev => prev.map(revertPhoto));
+      logger.error('Remove photo error:', error);
+    }
+  };
+
   // Selection handlers
   const handleSelectAll = () => {
     const currentList = activeTab === 'enrolled' ? enrolledStudents : admittedStudents;
@@ -1661,6 +1694,11 @@ export default function StudentsListPage() {
                               <Link href={`/students/${student.id}/fees`} title="Fees ledger" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 transition-colors">
                                 <DollarSign className="w-3.5 h-3.5" />
                               </Link>
+                              {student.photo_url && (
+                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-violet-100 dark:hover:bg-violet-900/30 text-slate-400 hover:text-violet-600 transition-colors">
+                                  <Camera className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <button onClick={() => handleDeleteStudent(student.id)} title="Soft delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1670,6 +1708,11 @@ export default function StudentsListPage() {
                               <button onClick={() => openEnrollModal(student)} title="Enroll student" className="flex items-center justify-center w-6 h-6 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
                                 <UserPlus className="w-3.5 h-3.5" />
                               </button>
+                              {student.photo_url && (
+                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-violet-100 dark:hover:bg-violet-900/30 text-slate-400 hover:text-violet-600 transition-colors">
+                                  <Camera className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <button onClick={() => handleDeleteStudent(student.id)} title="Soft delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>

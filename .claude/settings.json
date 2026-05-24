@@ -8,7 +8,18 @@
       "Bash(grep -rn \"sessions\\\\s*$\\\\|FROM sessions\\\\|INSERT INTO sessions\" src/lib src/app/api)",
       "Bash(grep -E \"\\\\.\\(sql|ts|md\\)$\")",
       "Bash(xargs cat)",
-      "Bash(mysql -u root -proot -h 127.0.0.1 school_erp -e \"DESCRIBE class_subjects;\")"
+      "Bash(mysql -u root -proot -h 127.0.0.1 school_erp -e \"DESCRIBE class_subjects;\")",
+      "Bash(mkdir -p src/app/api/terms/\\\\[id\\\\])",
+      "Bash(sed -n '186,215p' src/app/api/streams/route.ts)",
+      "Bash(sed -n '66,100p' src/app/api/academic_years/\\\\[id\\\\]/route.ts)",
+      "Bash(sed -n '44,80p' src/app/api/result_types/\\\\[id\\\\]/route.ts)",
+      "Bash(sed -n '53,85p' src/app/api/exams/route.ts)",
+      "Bash(grep -v \"^\\\\.$\\\\|api$\\\\|fonts$\")",
+      "Bash(xargs -I{} basename {})",
+      "Bash(node -e ' *)"
+    ],
+    "additionalDirectories": [
+      "/home/xhenvolt/Systems/DraisLongTermVersion/src/app/api/terms"
     ]
   }
 }
