@@ -14,7 +14,6 @@
  * UI is emitted.
  */
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import type { DRCEDocument, DRCEDataContext } from './schema';
 import type { DRCERenderContext } from '@/components/drce/types';
 import type { ReportSnapshot } from '@/lib/snapshots/types';
@@ -71,6 +70,7 @@ export async function renderStudentToDRCEHtml(args: {
   // Dynamic import so Node.js loads the component only in the Route Handler
   // context, avoiding any static analysis issues with 'use client' boundaries.
   const { DRCEDocumentRenderer } = await import('@/components/drce/DRCEDocumentRenderer');
+  const { renderToStaticMarkup } = await import('react-dom/server');
 
   const element = React.createElement(DRCEDocumentRenderer, {
     document:  overriddenDoc,
