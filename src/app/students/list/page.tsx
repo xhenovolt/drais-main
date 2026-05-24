@@ -1695,8 +1695,8 @@ export default function StudentsListPage() {
                                 <DollarSign className="w-3.5 h-3.5" />
                               </Link>
                               {student.photo_url && (
-                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-violet-100 dark:hover:bg-violet-900/30 text-slate-400 hover:text-violet-600 transition-colors">
-                                  <Camera className="w-3.5 h-3.5" />
+                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md bg-red-50 dark:bg-red-900/20 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors font-semibold">
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               )}
                               <button onClick={() => handleDeleteStudent(student.id)} title="Soft delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
@@ -1709,8 +1709,8 @@ export default function StudentsListPage() {
                                 <UserPlus className="w-3.5 h-3.5" />
                               </button>
                               {student.photo_url && (
-                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-violet-100 dark:hover:bg-violet-900/30 text-slate-400 hover:text-violet-600 transition-colors">
-                                  <Camera className="w-3.5 h-3.5" />
+                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md bg-red-50 dark:bg-red-900/20 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors font-semibold">
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               )}
                               <button onClick={() => handleDeleteStudent(student.id)} title="Soft delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
