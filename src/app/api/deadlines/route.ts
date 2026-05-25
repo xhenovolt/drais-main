@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 
 export async function GET(req: NextRequest) {
   let connection;
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    await requirePermission(session.userId, session.schoolId, 'examinations.deadlines.view', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     connection = await getConnection();
@@ -28,6 +30,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    await requirePermission(session.userId, session.schoolId, 'examinations.deadlines.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const body = await req.json();
@@ -56,6 +59,7 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    await requirePermission(session.userId, session.schoolId, 'examinations.deadlines.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const body = await req.json();
@@ -83,6 +87,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    await requirePermission(session.userId, session.schoolId, 'examinations.deadlines.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const body = await req.json();
