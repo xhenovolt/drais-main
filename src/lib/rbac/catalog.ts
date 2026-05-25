@@ -223,6 +223,75 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   p('notifications', 'channels', 'manage',   'Configure SMS / email / push channels'),
 ];
 
+/**
+ * Legacy compatibility codes — short-form permissions that predate the
+ * granular `module.resource.action` schema introduced with the RBAC
+ * overhaul. They remain first-class catalog entries because:
+ *
+ *   1. Existing role_permissions rows reference them — 220+ active
+ *      assignments across 26 roles depend on these codes being active.
+ *   2. Many production route handlers still call
+ *      `requirePermission(.., 'staff.read', ..)` etc. Until those routes
+ *      migrate to the granular codes, the short form must work.
+ *   3. Short-form codes are valid permissions in their own right — they
+ *      represent a broader grant that effectively wildcards the
+ *      granular sub-permissions. A role with `staff.read` should be
+ *      able to read every staff record regardless of which granular
+ *      sub-resource (`staff.profile.view`, `staff.employment.view`) is
+ *      requested.
+ *
+ * Two-segment codes (`module.action`) live here. The `resource` field
+ * is set to the action so the tree UI still groups them visibly.
+ */
+const LEGACY_ENTRIES: Array<[string, PermissionDescriptor]> = [
+  // Staff
+  ['staff.read',           { module: 'staff', resource: '_legacy', action: 'read',   description: 'Legacy: view staff list and details' }],
+  ['staff.create',         { module: 'staff', resource: '_legacy', action: 'create', description: 'Legacy: add new staff members' }],
+  ['staff.update',         { module: 'staff', resource: '_legacy', action: 'update', description: 'Legacy: edit staff records' }],
+  ['staff.delete',         { module: 'staff', resource: '_legacy', action: 'delete', description: 'Legacy: archive staff records' }],
+  // Roles
+  ['roles.read',           { module: 'roles', resource: '_legacy', action: 'read',   description: 'Legacy: list roles' }],
+  ['roles.manage',         { module: 'roles', resource: '_legacy', action: 'manage', description: 'Legacy: create/update/delete roles' }],
+  ['role.read',            { module: 'roles', resource: '_legacy', action: 'role.read', description: 'Legacy: view role details' }],
+  ['permissions.manage',   { module: 'roles', resource: '_legacy', action: 'permissions.manage', description: 'Legacy: assign permissions to roles' }],
+  // Departments
+  ['departments.read',     { module: 'departments', resource: '_legacy', action: 'read',   description: 'Legacy: view departments' }],
+  ['departments.manage',   { module: 'departments', resource: '_legacy', action: 'manage', description: 'Legacy: create/update/delete departments' }],
+  // System
+  ['audit.read',           { module: 'system', resource: '_legacy', action: 'audit.read',         description: 'Legacy: view audit logs' }],
+  ['sessions.monitor',     { module: 'system', resource: '_legacy', action: 'sessions.monitor',   description: 'Legacy: view active sessions' }],
+  ['sessions.terminate',   { module: 'system', resource: '_legacy', action: 'sessions.terminate', description: 'Legacy: terminate sessions' }],
+  ['school.read',          { module: 'system', resource: '_legacy', action: 'school.read',        description: 'Legacy: view school config' }],
+  ['school.update',        { module: 'system', resource: '_legacy', action: 'school.update',      description: 'Legacy: update school config' }],
+  // Trash
+  ['trash.read',           { module: 'trash', resource: '_legacy', action: 'read',    description: 'Legacy: view trash' }],
+  ['trash.archive',        { module: 'trash', resource: '_legacy', action: 'archive', description: 'Legacy: archive an entity' }],
+  ['trash.restore',        { module: 'trash', resource: '_legacy', action: 'restore', description: 'Legacy: restore from trash' }],
+  ['trash.purge',          { module: 'trash', resource: '_legacy', action: 'purge',   description: 'Legacy: permanently delete' }],
+  // Users
+  ['user.read',            { module: 'system', resource: '_legacy', action: 'user.read',     description: 'Legacy: view user accounts' }],
+  ['user.create',          { module: 'system', resource: '_legacy', action: 'user.create',   description: 'Legacy: create user accounts' }],
+  ['user.update',          { module: 'system', resource: '_legacy', action: 'user.update',   description: 'Legacy: update user accounts' }],
+  ['user.activate',        { module: 'system', resource: '_legacy', action: 'user.activate', description: 'Legacy: activate/deactivate users' }],
+  // Academics / attendance / finance / analytics
+  ['academics.results.update',   { module: 'academics', resource: '_legacy', action: 'results.update',   description: 'Legacy: edit results' }],
+  ['academics.students.manage',  { module: 'academics', resource: '_legacy', action: 'students.manage',  description: 'Legacy: manage students' }],
+  ['academics.timetable.manage', { module: 'academics', resource: '_legacy', action: 'timetable.manage', description: 'Legacy: manage timetables' }],
+  ['attendance.view',            { module: 'attendance', resource: '_legacy', action: 'view',   description: 'Legacy: view attendance' }],
+  ['attendance.manage',          { module: 'attendance', resource: '_legacy', action: 'manage', description: 'Legacy: manage attendance' }],
+  ['finance.view',               { module: 'finance', resource: '_legacy', action: 'view',          description: 'Legacy: view finance dashboard' }],
+  ['finance.fees.manage',        { module: 'finance', resource: '_legacy', action: 'fees.manage',   description: 'Legacy: manage fee structures' }],
+  ['finance.payments.view',      { module: 'finance', resource: '_legacy', action: 'payments.view', description: 'Legacy: view payments' }],
+  ['finance.reports.view',       { module: 'finance', resource: '_legacy', action: 'reports.view',  description: 'Legacy: view financial reports' }],
+  ['analytics.view',             { module: 'analytics', resource: '_legacy', action: 'view',        description: 'Legacy: view analytics' }],
+];
+
+// Legacy codes merge into the canonical catalog with the same structure.
+// Sync engine treats them identically to granular entries.
+for (const [code, descriptor] of LEGACY_ENTRIES) {
+  ENTRIES.push([code, descriptor]);
+}
+
 /** Type-safe permission catalog. */
 export const PERMISSIONS: Readonly<Record<string, PermissionDescriptor>> =
   Object.freeze(Object.fromEntries(ENTRIES));

@@ -188,7 +188,7 @@ No FK changes. `role_permissions` is unchanged.
 | **R2** | Centralised `authorize()` + `requirePermission` shim + wildcard support | LOW | ✅ |
 | **R3** | Permission tree UI for `/admin/roles/[id]` | MEDIUM (UI work) | partial |
 | **R4** | Wire `requirePermission` into the ~80% of routes currently ungated. ~30 routes per follow-up commit. | HIGH (could lock out users; needs careful permission assignment per role) | Roadmap |
-| **R5** | Codebase scanning lint rule: any `requirePermission('foo.bar')` where `'foo.bar' ∉ catalog` fails CI | MEDIUM | Roadmap |
+| **R5** | Codebase scanning lint rule: any `requirePermission('foo.bar')` where `'foo.bar' ∉ catalog` fails CI | MEDIUM | ✅ Shipped — `npm run lint:permissions` |
 | **R6** | Department-scoped policies, ABAC, ownership-based access | HIGH (architectural) | Roadmap |
 
 ---
@@ -225,3 +225,64 @@ No FK changes. `role_permissions` is unchanged.
 5. **Cutover** — emergency_html and trash routes already use authorize patterns; new routes inherit the pattern.
 
 Rollback: revert the migration (drop 3 columns), revert code. Existing `role_permissions` assignments unchanged.
+
+---
+
+## 9. Post-rollout issues observed + fixes
+
+### Regression — orphaned legacy codes (caught + fixed)
+
+The first sync run renamed ~30 short-form codes (`staff.read`, `roles.read`,
+`trash.read`, `audit.read`, etc.) by orphaning them in favour of the new
+granular triplet form (`staff.profile.view`, `roles.role.view`, etc.). 220+
+existing `role_permissions` rows referenced those orphaned codes, so every
+non-super-admin role that depended on them was silently denied (super-admin
+bypass masked the impact during initial testing).
+
+Fix shipped in `src/lib/rbac/catalog.ts`: a `LEGACY_ENTRIES` block re-declares
+every short-form code as a first-class catalog entry under the `_legacy`
+resource bucket. Re-running sync reactivated all 29 affected rows in one
+pass. Granular codes remain primary; legacy codes remain valid for
+backwards compatibility.
+
+Going forward: routes that move to the granular catalog stay using granular
+codes; routes that still reference legacy codes continue to work. Migration
+is per-route, no big bang.
+
+### Standing R4 scope — what's still ungated
+
+Inventoried May 2026, after R5 lint went green:
+
+| Module                | Routes | Ungated (only session-checked) |
+|---|---|---|
+| `/api/finance/*`      |   32   |   **32**  (100%) |
+| `/api/students/*`     |   53   |   **52**  (98%) |
+| `/api/academics/*`    |    4   |   **4**   |
+| `/api/terms/*`        |    3   |   **3**   |
+| `/api/classes/*`      |    1   |   **1**   |
+| `/api/subjects/*`     |    1   |   **1**   |
+| `/api/admin/*`        |  many  |   **0**  ✅ |
+| `/api/tahfiz/*`       |   23   |   0  ✅ (module-gated in Phase F) |
+| `/api/intelligence/*` |    9   |   0  ✅ (module-gated in Phase F) |
+
+This is the true R4 backlog: ~93+ routes that need explicit permission
+gates. **Cannot be done in a single commit safely** — each module needs:
+
+1. Mapping each route to its appropriate granular permission code
+2. Verifying the per-school role grants. Schools where `teacher` already
+   has `finance.view` will continue working; schools where it doesn't
+   will lose access the moment the gate lands. Need an audit / migration
+   per gate.
+3. Staged rollout: gate WRITE routes first (POST/PUT/DELETE/PATCH) since
+   they carry the most damage potential, then READ routes.
+
+Recommended sequence:
+- Finance writes (~12 routes) → require `finance.fees.manage`, `finance.payments.record`, etc.
+- Students writes (~20 routes) → require `learners.profile.update`, `learners.profile.create`, etc.
+- Academics writes (~4 routes) → require `academics.results.enter`, `academics.classes.manage`, etc.
+- Then reads in the same modules
+- Finally, the trickle: every `/api/notifications`, `/api/biometric`, etc.
+
+Each commit gates one module's writes, one module's reads. Per-school role-grant
+fix script runs alongside. The lint (`npm run lint:permissions`) catches
+any typo introduced during the rewrite.
