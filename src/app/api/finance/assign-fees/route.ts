@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 import { assignFeesToStudent } from '@/lib/services/FinanceLedger';
 
 // POST /api/finance/assign-fees
@@ -12,6 +13,7 @@ import { assignFeesToStudent } from '@/lib/services/FinanceLedger';
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   const body = await req.json();
   const { student_id, class_id, term_id, program_ids } = body;

@@ -4,6 +4,7 @@ import { generateReceiptPDF, generateInvoicePDF } from '@/lib/receipts';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 // GET /api/finance/invoices?student_id=&term_id=
 // Generate invoice for a student
 export async function GET(req: NextRequest) {
@@ -188,6 +189,7 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const body = await req.json();

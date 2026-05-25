@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/finance/fee_structures?class_id=&term_id=
 // POST /api/finance/fee_structures { class_id, term_id, item, amount }
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest){
 export async function POST(req: NextRequest){
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
   const body = await req.json();
   const { class_id, term_id, item, amount } = body||{};
   if(!class_id||!term_id||!item||!amount) return NextResponse.json({ error:'Missing fields' },{ status:400 });

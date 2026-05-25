@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/finance/fee_payments?student_id=&term_id=&page=&per_page&id=
 //  - if id is provided return single receipt
@@ -75,6 +76,7 @@ export async function GET(req: NextRequest){
 export async function POST(req: NextRequest){
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
   
   const body = await req.json();
   const { student_id, term_id, wallet_id, amount, method, paid_by, payer_contact, reference, receipt_no, allocate=true } = body||{};

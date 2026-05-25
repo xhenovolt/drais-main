@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/finance/student_fee_items?student_id=&term_id=&class_id=&page=&per_page=&unbalanced=1
 // POST { student_id, term_id, item, amount, discount } -> create student fee item
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest){
 export async function POST(req: NextRequest){
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
   
   const body = await req.json();
   const schoolId = session.schoolId;
@@ -177,6 +179,7 @@ export async function POST(req: NextRequest){
 export async function PATCH(req: NextRequest){
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
   
   const body = await req.json();
   const { id, discount, paid } = body||{};

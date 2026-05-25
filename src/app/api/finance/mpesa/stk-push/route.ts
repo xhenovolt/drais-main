@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 // M-Pesa Configuration
 const MPESA_CONFIG = {
   consumerKey: process.env.MPESA_CONSUMER_KEY || '',
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const body = await req.json();

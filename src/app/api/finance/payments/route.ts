@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { updateFeeItemStatus, batchUpdateFeeItemStatuses } from '@/lib/services/FeeService';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -153,6 +154,7 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const body = await req.json();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/finance/ledger?wallet_id=&student_id=&page=&per_page=
 // POST /api/finance/ledger { wallet_id, category_id, tx_type, amount, reference, description, student_id, staff_id }
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest){
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     connection = await getConnection();

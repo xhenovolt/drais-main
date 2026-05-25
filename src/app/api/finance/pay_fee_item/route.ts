@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 
 // POST /api/finance/pay_fee_item { fee_item_id, wallet_id, amount, method, paid_by, receipt_no, reference, category_id }
 // Atomically pays a specific student_fee_item (no spreading across items)
@@ -12,6 +13,7 @@ export async function POST(req: NextRequest){
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     await conn.beginTransaction?.();
