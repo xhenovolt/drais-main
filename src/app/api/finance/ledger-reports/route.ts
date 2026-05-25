@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/finance/reports?type=debtors|summary|class-breakdown
 //
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+  await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
   const { searchParams } = new URL(req.url);
   const type    = searchParams.get('type') || 'debtors';
   const limit   = Math.min(parseInt(searchParams.get('limit') ?? '50', 10), 200);

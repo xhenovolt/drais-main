@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
 import { getStudentBalance } from '@/lib/services/FinanceLedger';
 
 // GET /api/finance/balance/[studentId]
@@ -12,6 +13,7 @@ export async function GET(
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+  await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
   const { studentId } = await params;
   const id = parseInt(studentId, 10);
   if (!id) return NextResponse.json({ error: 'Invalid student ID' }, { status: 400 });

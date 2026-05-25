@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+  await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
   const conn = await getConnection();
   try {
     const [rows] = await conn.execute(

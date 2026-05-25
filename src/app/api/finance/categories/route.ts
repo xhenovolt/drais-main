@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
