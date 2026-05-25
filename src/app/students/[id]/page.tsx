@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import EnrollmentTimeline from '@/components/students/EnrollmentTimeline';
 import PhotoEditorModal from '@/components/students/PhotoEditorModal';
+import ExtendedProfileModal from '@/components/students/ExtendedProfileModal';
+import { Pencil, Home, Globe, Heart } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -45,6 +47,7 @@ export default function StudentDetailPage() {
     { revalidateOnFocus: false }
   );
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [extModalOpen,   setExtModalOpen]   = useState(false);
 
   if (!id || !/^\d+$/.test(id)) {
     return (
@@ -130,15 +133,83 @@ export default function StudentDetailPage() {
         {/* Main column */}
         <div className="md:col-span-2 space-y-5">
           <Section title="Personal Info" icon={User}>
+            <div className="flex items-start justify-between -mt-2 mb-2">
+              <div />
+              <button
+                onClick={() => setExtModalOpen(true)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                <Pencil className="w-3 h-3" /> Edit Extended Profile
+              </button>
+            </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Gender" value={s.gender} />
               <Field label="Date of Birth" value={s.date_of_birth} />
               <Field label="Phone" value={s.phone} />
               <Field label="Email" value={s.email} />
+              <Field label="Place of Birth" value={s.extended?.place_of_birth} />
+              <Field label="Place of Residence" value={s.extended?.place_of_residence} />
+              <Field label="District" value={s.extended?.district_name} />
+              <Field label="Nationality" value={s.extended?.nationality_name} />
               {s.additional?.previous_school && <Field label="Previous School" value={s.additional.previous_school} />}
+              {s.additional?.orphan_status && <Field label="Orphan Status (text)" value={s.additional.orphan_status} />}
               {s.additional?.notes && <Field label="Notes" value={s.additional.notes} />}
             </div>
           </Section>
+
+          {(s.family_status?.orphan_status_label || s.family_status?.primary_guardian_name || s.family_status?.father_name) && (
+            <Section title="Family Status" icon={Heart}>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field label="Orphan Status" value={s.family_status?.orphan_status_label} />
+                <Field label="Primary Guardian" value={s.family_status?.primary_guardian_name} />
+                <Field label="Guardian Contact" value={s.family_status?.primary_guardian_contact} />
+                <Field label="Guardian Occupation" value={s.family_status?.primary_guardian_occupation} />
+                <Field label="Father Name" value={s.family_status?.father_name} />
+                <Field label="Father Living Status" value={s.family_status?.father_living_status_label} />
+                <Field label="Father Occupation" value={s.family_status?.father_occupation} />
+                <Field label="Father Contact" value={s.family_status?.father_contact} />
+              </div>
+            </Section>
+          )}
+
+          {s.next_of_kin?.length > 0 && (
+            <Section title="Next of Kin" icon={Users}>
+              <div className="space-y-3">
+                {s.next_of_kin.map((k: any) => (
+                  <div key={k.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 grid sm:grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{k.name}</p>
+                      <p className="text-xs text-slate-400">{k.occupation || '—'}</p>
+                    </div>
+                    <div className="text-xs text-slate-500 space-y-0.5">
+                      {k.contact && <div className="flex items-center gap-1"><Phone className="w-3 h-3" />{k.contact}</div>}
+                      {k.address && <div className="flex items-center gap-1"><Home className="w-3 h-3" />{k.address}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {s.education_levels?.length > 0 && (
+            <Section title="Education History" icon={BookOpen}>
+              <div className="space-y-2">
+                {s.education_levels.map((e: any) => (
+                  <div key={e.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{e.level_name}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {e.education_type}{e.institution ? ` · ${e.institution}` : ''}
+                      </p>
+                    </div>
+                    {e.year_completed && (
+                      <span className="text-[10px] text-slate-500 font-mono">{e.year_completed}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
 
           {s.parents?.length > 0 && (
             <Section title="Parents / Guardians" icon={Users}>
@@ -220,6 +291,15 @@ export default function StudentDetailPage() {
 
       {/* Enrollment History Timeline */}
       <EnrollmentTimeline studentId={id} />
+
+      {/* Extended profile editor — personal, family, next-of-kin, education tabs */}
+      <ExtendedProfileModal
+        open={extModalOpen}
+        onClose={() => setExtModalOpen(false)}
+        studentId={Number(s.student_id ?? s.id)}
+        initial={s}
+        onSaved={() => { mutate(); }}
+      />
 
       {/* Photo editor modal — upload, replace, or remove the learner's photo */}
       <PhotoEditorModal
