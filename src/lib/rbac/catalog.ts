@@ -103,6 +103,14 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   p('staff', 'qualifications',   'manage',   'Add / remove staff qualifications'),
   p('staff', 'specializations',  'manage',   'Manage subject specialisations'),
   p('staff', 'positions',        'manage',   'Create / edit position catalog'),
+
+  // Communication Event Engine (Batch B)
+  p('comm', 'settings',     'view',   'View communication settings'),
+  p('comm', 'settings',     'manage', 'Edit sender name, prefix, auto mode, quiet hours, providers'),
+  p('comm', 'templates',    'manage', 'Create / edit SMS / email templates'),
+  p('comm', 'rules',        'manage', 'Create / edit automation rules per event'),
+  p('comm', 'dispatch',     'view',   'View dispatch log (sent + queued messages)'),
+  p('comm', 'dispatch',     'send',   'Manually send queued messages or trigger broadcasts'),
   p('staff', 'positions',        'manage',   'Manage school positions catalog'),
   p('staff', 'workload',         'view',     'View teacher workload / assignments'),
   p('staff', 'hierarchy',        'manage',   'Manage reports-to relationships'),
