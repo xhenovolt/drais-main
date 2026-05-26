@@ -55,9 +55,13 @@ async function sendOne(sms: any, to: string, message: string) {
 }
 
 async function authorize(req: NextRequest): Promise<{ schoolId: number | null; userId: number | null } | NextResponse> {
-  const cronSecret = req.headers.get('x-cron-secret');
   const expected = process.env.CRON_SECRET;
-  if (expected && cronSecret === expected) {
+  // x-cron-secret: bespoke header form
+  const cronSecret = req.headers.get('x-cron-secret');
+  // Vercel cron form: Authorization: Bearer <CRON_SECRET>
+  const auth = req.headers.get('authorization');
+  const bearer = auth?.toLowerCase().startsWith('bearer ') ? auth.slice(7) : null;
+  if (expected && (cronSecret === expected || bearer === expected)) {
     return { schoolId: null, userId: null };
   }
   const session = await getSessionSchoolId(req);
