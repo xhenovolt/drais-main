@@ -21,9 +21,11 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const classId = searchParams.get('class_id');
+    const classId   = searchParams.get('class_id');
     const subjectId = searchParams.get('subject_id');
     const teacherId = searchParams.get('teacher_id');
+    const asOfTerm  = searchParams.get('as_of_term');
+    const asOfDate  = searchParams.get('as_of_date');
 
     connection = await getConnection();
 
@@ -32,8 +34,28 @@ export async function GET(req: Request) {
     const whereClauses: string[] = ['c.school_id = ?'];
     const params: any[] = [session.schoolId];
 
-    // Phase D: default to active allocations only; ?history=1 returns all
-    if (!showHistory) {
+    // Phase D filtering modes:
+    //   default     → current active rows (valid_to IS NULL)
+    //   ?history=1  → every row (full timeline)
+    //   ?as_of_term=<id> or ?as_of_date=YYYY-MM-DD → time-travel to that date
+    let resolvedAsOf: string | null = null;
+    if (asOfTerm) {
+      const [tRows]: any = await connection.execute(
+        `SELECT start_date FROM terms WHERE id = ? AND school_id = ?`,
+        [asOfTerm, session.schoolId]
+      );
+      if (tRows.length) resolvedAsOf = tRows[0].start_date;
+    } else if (asOfDate) {
+      resolvedAsOf = asOfDate;
+    }
+
+    if (resolvedAsOf) {
+      // Pick the row that was active on this date: started on or before it
+      // AND either still open or ended after it.
+      whereClauses.push('cs.valid_from <= ?');
+      whereClauses.push('(cs.valid_to IS NULL OR cs.valid_to > ?)');
+      params.push(resolvedAsOf, resolvedAsOf);
+    } else if (!showHistory) {
       whereClauses.push('cs.valid_to IS NULL');
     }
 

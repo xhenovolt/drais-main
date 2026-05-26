@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   User, Phone, Mail, Calendar, MapPin, Briefcase,
   AlertCircle, Loader, ArrowLeft, CheckCircle2, Edit, Trash2,
-  BookOpen, School, Star, Award, Plus, X, Camera,
+  BookOpen, School, Star, Award, Plus, X, Camera, Clock, History as HistoryIcon,
 } from 'lucide-react';
 import StaffPhotoModal from '@/components/staff/StaffPhotoModal';
 import { toast } from 'react-hot-toast';
@@ -255,6 +255,9 @@ export default function StaffDetailPage() {
         {/* Phase G — Teaching workload */}
         <WorkloadPanel staffId={id!} />
 
+        {/* Phase C — Employment lifecycle */}
+        <EmploymentHistoryPanel staffId={id!} />
+
         {/* Phase H — Qualifications + specialisations */}
         <QualificationsPanel staffId={id!} />
         <SpecializationsPanel staffId={id!} />
@@ -499,6 +502,202 @@ function SpecializationsPanel({ staffId }: { staffId: string }) {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase C — Employment history timeline + record-event form
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EVENT_TYPES = [
+  { value: 'hired',                label: 'Hired'                    },
+  { value: 'reactivated',          label: 'Reactivated'              },
+  { value: 'suspended',            label: 'Suspended'                },
+  { value: 'on_leave',             label: 'On Leave'                 },
+  { value: 'returned_from_leave',  label: 'Returned from Leave'      },
+  { value: 'transferred',          label: 'Transferred'              },
+  { value: 'promoted',             label: 'Promoted'                 },
+  { value: 'demoted',              label: 'Demoted'                  },
+  { value: 'terminated',           label: 'Terminated'               },
+];
+
+const CONTRACT_TYPES = [
+  { value: 'permanent',   label: 'Permanent'    },
+  { value: 'fixed_term',  label: 'Fixed Term'   },
+  { value: 'contract',    label: 'Contract'     },
+  { value: 'volunteer',   label: 'Volunteer'    },
+  { value: 'part_time',   label: 'Part Time'    },
+];
+
+function eventColor(type: string) {
+  switch (type) {
+    case 'hired':
+    case 'reactivated':
+    case 'returned_from_leave':
+    case 'promoted':
+      return 'emerald';
+    case 'suspended':
+    case 'demoted':
+      return 'amber';
+    case 'terminated':
+      return 'rose';
+    case 'on_leave':
+    case 'transferred':
+      return 'indigo';
+    default:
+      return 'slate';
+  }
+}
+
+function EmploymentHistoryPanel({ staffId }: { staffId: string }) {
+  const fetcher = (url: string) => fetch(url).then(r => r.json());
+  const { data, mutate, isLoading } = useSWR<{ events: any[] }>(
+    `/api/admin/staff/${staffId}/employment`,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [form, setForm] = useState({
+    event_type:      '',
+    effective_date:  '',
+    contract_type:   '',
+    salary_grade:    '',
+    reason:          '',
+    notes:           '',
+  });
+
+  const events = data?.events ?? [];
+
+  async function save() {
+    if (!form.event_type) {
+      toast.error('Event type required'); return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/staff/${staffId}/employment`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          event_type:     form.event_type,
+          effective_date: form.effective_date || undefined,
+          contract_type:  form.contract_type  || null,
+          salary_grade:   form.salary_grade   || null,
+          reason:         form.reason         || null,
+          notes:          form.notes          || null,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error(j.error || 'Failed');
+      toast.success('Event recorded');
+      setForm({ event_type: '', effective_date: '', contract_type: '', salary_grade: '', reason: '', notes: '' });
+      setFormOpen(false);
+      mutate();
+    } catch (e: any) { toast.error(e?.message || 'Failed'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+      <div className="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+        <HistoryIcon className="w-4 h-4 text-indigo-500" />
+        <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Employment History</h2>
+        <span className="ml-auto text-xs text-slate-400">{events.length} event{events.length === 1 ? '' : 's'}</span>
+        <button onClick={() => setFormOpen(o => !o)}
+          className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+          <Plus className="w-3 h-3" /> Record
+        </button>
+      </div>
+
+      {formOpen && (
+        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Event *</span>
+              <select value={form.event_type} onChange={e => setForm({ ...form, event_type: e.target.value })}
+                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800">
+                <option value="">— Select —</option>
+                {EVENT_TYPES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Effective Date</span>
+              <input type="date" value={form.effective_date} onChange={e => setForm({ ...form, effective_date: e.target.value })}
+                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+            </label>
+            <label className="block">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Contract Type</span>
+              <select value={form.contract_type} onChange={e => setForm({ ...form, contract_type: e.target.value })}
+                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800">
+                <option value="">—</option>
+                {CONTRACT_TYPES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Salary Grade</span>
+              <input value={form.salary_grade} onChange={e => setForm({ ...form, salary_grade: e.target.value })}
+                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Reason</span>
+              <input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
+                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Notes</span>
+              <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}
+                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+            </label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setFormOpen(false)} className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
+              Cancel
+            </button>
+            <button onClick={save} disabled={saving}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? <Loader className="w-3 h-3 animate-spin" /> : null} Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader className="w-4 h-4 animate-spin text-slate-400" /></div>
+      ) : events.length === 0 ? (
+        <p className="text-sm text-slate-400 text-center py-6">No employment events recorded.</p>
+      ) : (
+        <div className="relative pl-6 space-y-3 border-l-2 border-slate-200 dark:border-slate-700">
+          {events.map((e: any) => {
+            const c = eventColor(e.eventType ?? e.event_type);
+            const eventType = e.eventType ?? e.event_type;
+            const label = EVENT_TYPES.find(t => t.value === eventType)?.label ?? eventType;
+            return (
+              <div key={e.id} className="relative">
+                <span className={`absolute -left-[31px] top-2 w-4 h-4 rounded-full border-4 bg-${c}-500 border-${c}-100 dark:border-${c}-900`}
+                  style={{
+                    backgroundColor: c === 'emerald' ? '#10b981' : c === 'amber' ? '#f59e0b' : c === 'rose' ? '#f43f5e' : c === 'indigo' ? '#6366f1' : '#94a3b8',
+                  }} />
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                  <div className="flex items-start justify-between">
+                    <p className="text-sm font-semibold">{label}</p>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {e.effectiveDate ?? e.effective_date ?? (e.eventDate ?? e.event_date)?.slice(0, 10)}
+                    </span>
+                  </div>
+                  {e.reason && <p className="text-xs text-slate-500 mt-1">{e.reason}</p>}
+                  <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-slate-400">
+                    {(e.contractType ?? e.contract_type) && <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900">{(e.contractType ?? e.contract_type).replace('_', ' ')}</span>}
+                    {(e.salaryGrade ?? e.salary_grade) && <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900">grade: {e.salaryGrade ?? e.salary_grade}</span>}
+                    {(e.status) && <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900">status: {e.status}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

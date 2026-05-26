@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { History } from 'lucide-react';
 import { SubjectAllocationsManager } from '@/components/academics/SubjectAllocationsManager';
 
 export default function SubjectAllocationsPage() {
@@ -10,6 +12,12 @@ export default function SubjectAllocationsPage() {
             Assign teachers to subjects per class. This is the source of truth for report card initials.
           </p>
         </div>
+        <Link
+          href="/academics/allocations/history"
+          className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+        >
+          <History className="w-3.5 h-3.5" /> View History
+        </Link>
       </div>
       <SubjectAllocationsManager />
     </div>

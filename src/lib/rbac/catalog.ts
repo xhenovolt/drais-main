@@ -102,6 +102,7 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   p('staff', 'employment',       'manage',   'Record employment events (terminate, suspend, reactivate)'),
   p('staff', 'qualifications',   'manage',   'Add / remove staff qualifications'),
   p('staff', 'specializations',  'manage',   'Manage subject specialisations'),
+  p('staff', 'positions',        'manage',   'Create / edit position catalog'),
   p('staff', 'positions',        'manage',   'Manage school positions catalog'),
   p('staff', 'workload',         'view',     'View teacher workload / assignments'),
   p('staff', 'hierarchy',        'manage',   'Manage reports-to relationships'),

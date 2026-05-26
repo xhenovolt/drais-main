@@ -2,9 +2,10 @@
 import React, { Fragment, useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { Tab, Dialog, Transition } from '@headlessui/react';
-import { Plus, Pencil, Trash2, X, BookOpen, GraduationCap, Users, User } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, BookOpen, GraduationCap, Users, User, UserCog } from 'lucide-react';
 import { confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import ClassTeacherModal from '@/components/academics/ClassTeacherModal';
 
 const API_BASE = '/api';
 
@@ -193,7 +194,8 @@ export default function ClassesCurriculumsPage() {
 
   const [tabIndex, setTabIndex]   = useState(0);
   const [currModal,  setCurrModal]  = useState<{ open: boolean; edit?: Curriculum }>({ open: false });
-  const [classModal, setClassModal] = useState<{ open: boolean; edit?: ClassRec }>({ open: false });
+  const [classModal,        setClassModal]        = useState<{ open: boolean; edit?: ClassRec }>({ open: false });
+  const [teacherModal,      setTeacherModal]      = useState<{ open: boolean; cls?: ClassRec }>({ open: false });
   const [progModal,  setProgModal]  = useState<{ open: boolean; edit?: Program }>({ open: false });
   const [programFilter, setProgramFilter] = useState<number | 'all'>('' as any);
 
@@ -307,6 +309,7 @@ export default function ClassesCurriculumsPage() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-end gap-1.5">
+                            <button onClick={() => setTeacherModal({ open: true, cls: c })} className="p-1.5 rounded-md bg-indigo-500/15 text-indigo-600 hover:bg-indigo-500/25" title="Class teacher"><UserCog className="w-3.5 h-3.5" /></button>
                             <button onClick={() => setClassModal({ open: true, edit: c })} className="p-1.5 rounded-md bg-amber-500/15 text-amber-600 hover:bg-amber-500/25" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                             <button onClick={() => deleteClass(c.id)} className="p-1.5 rounded-md bg-red-500/15 text-red-600 hover:bg-red-500/25" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
@@ -417,6 +420,14 @@ export default function ClassesCurriculumsPage() {
       <CurriculumModal open={currModal.open} onClose={() => setCurrModal({ open: false })} onSave={saveCurriculum} edit={currModal.edit} />
       <ProgramModal    open={progModal.open} onClose={() => setProgModal({ open: false })} onSave={saveProgram}    edit={progModal.edit} />
       <ClassModal      open={classModal.open} onClose={() => setClassModal({ open: false })} onSave={saveClass} edit={classModal.edit} curriculums={curriculums} programs={programs} teachers={teachers} />
+      {teacherModal.cls && (
+        <ClassTeacherModal
+          open={teacherModal.open}
+          onClose={() => setTeacherModal({ open: false })}
+          classId={teacherModal.cls.id}
+          className={teacherModal.cls.name}
+        />
+      )}
     </div>
   );
 }
