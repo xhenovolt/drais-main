@@ -23,26 +23,34 @@ export async function GET(req: NextRequest) {
     // catalog (positions.is_teaching), not by substring matching on the
     // free-text position column. Deterministic, misspelling-proof, and
     // honours custom positions a school adds to its own catalog.
+    // Canonical teacher payload: real first/last name from people (with
+    // legacy denormalised-staff fallback), department + position labels.
+    // The previous query stuffed "Staff <id>" into first_name which
+    // leaked raw IDs into every staff picker in the app.
     const sql = `
       SELECT
         s.id,
         s.staff_no,
-        CONCAT('Staff ', s.id) AS first_name,
-        s.position             AS last_name,
-        NULL                   AS email,
-        s.position,
+        COALESCE(NULLIF(pe.first_name, ''), NULLIF(s.first_name, ''), '')      AS first_name,
+        COALESCE(NULLIF(pe.last_name,  ''), NULLIF(s.last_name,  ''), '')      AS last_name,
+        pe.email                                                                AS email,
+        pe.phone                                                                AS phone,
         s.department_id,
-        p.id                   AS position_id,
-        p.name                 AS position_name,
-        p.code                 AS position_code
+        d.name        AS department_name,
+        p.id          AS position_id,
+        p.name        AS position_name,
+        p.code        AS position_code,
+        pe.photo_url  AS photo_url
       FROM staff s
-      JOIN positions p ON p.id = s.position_id
-      WHERE s.school_id   = ?
-        AND s.status      = 'active'
-        AND s.deleted_at IS NULL
-        AND p.is_teaching = 1
-        AND p.is_active   = 1
-      ORDER BY p.display_order, s.id
+      LEFT JOIN positions   p  ON p.id = s.position_id
+      LEFT JOIN people      pe ON pe.id = s.person_id
+      LEFT JOIN departments d  ON d.id = s.department_id
+      WHERE s.school_id    = ?
+        AND s.status       = 'active'
+        AND s.deleted_at  IS NULL
+        AND p.is_teaching  = 1
+        AND p.is_active    = 1
+      ORDER BY p.display_order, last_name, first_name
     `;
 
     const [teachers] = await connection.execute(sql, [schoolId]);

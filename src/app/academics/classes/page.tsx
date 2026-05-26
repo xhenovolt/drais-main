@@ -11,7 +11,21 @@ const API_BASE = '/api';
 
 interface Curriculum { id: number; code: string; name: string; }
 interface Program { id: number; name: string; description?: string; }
-interface Teacher { id: number; first_name: string; last_name: string; position?: string | null; }
+interface Teacher {
+  id:               number;
+  first_name:       string;
+  last_name:        string;
+  position?:        string | null;
+  position_name?:   string | null;
+  department_name?: string | null;
+}
+
+function teacherDisplayLabel(t: Teacher): string {
+  const name = [t.first_name, t.last_name].map(s => (s ?? '').trim()).filter(Boolean).join(' ');
+  const safeName = name || `Staff #${t.id}`;
+  const subtitle = t.position_name || t.position || t.department_name;
+  return subtitle ? `${safeName} — ${subtitle}` : safeName;
+}
 
 interface ClassRec {
   id: number;
@@ -19,6 +33,7 @@ interface ClassRec {
   class_level: number | null;
   head_teacher_id: number | null;
   teacher_name: string | null;
+  teacher_department: string | null;
   curriculum_id: number | null;
   curriculum_name: string | null;
   curriculum_code: string | null;
@@ -150,7 +165,7 @@ function ClassModal({ open, onClose, onSave, edit, curriculums, programs, teache
             <label className="block text-xs font-semibold uppercase tracking-wide mb-1 text-slate-600 dark:text-slate-400">Class Teacher</label>
             <select value={head} onChange={e => setHead(e.target.value)} className={fieldBase}>
               <option value="">— None —</option>
-              {teachers.map(t => <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>)}
+              {teachers.map(t => <option key={t.id} value={t.id}>{teacherDisplayLabel(t)}</option>)}
             </select>
           </div>
         </div>
@@ -305,7 +320,19 @@ export default function ClassesCurriculumsPage() {
                           {c.curriculum_name ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300">{c.curriculum_code && <span className="opacity-70">{c.curriculum_code}·</span>}{c.curriculum_name}</span> : <span className="text-slate-400 text-xs">—</span>}
                         </td>
                         <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">
-                          {c.teacher_name ? <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-slate-400" />{c.teacher_name}</span> : <span className="text-slate-400 text-xs">—</span>}
+                          {c.teacher_name ? (
+                            <div className="flex items-start gap-1.5">
+                              <User className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                              <div className="leading-tight">
+                                <div className="font-medium">{c.teacher_name}</div>
+                                {c.teacher_department && (
+                                  <div className="text-[10px] text-slate-400">{c.teacher_department}</div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] italic text-slate-400">No class teacher assigned</span>
+                          )}
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-end gap-1.5">

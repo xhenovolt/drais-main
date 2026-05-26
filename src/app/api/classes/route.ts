@@ -31,16 +31,28 @@ export async function GET(req: NextRequest) {
       ? `LEFT JOIN programs pr ON c.program_id = pr.id AND pr.school_id = c.school_id`
       : '';
 
+    // Teacher name: prefer canonical people row; fall back to denormalised
+    // staff columns (legacy rows pre-sync). NULLIF/TRIM so a row with
+    // empty/NULL name components doesn't render as a lone space — the
+    // previous behaviour produced visually empty "teacher_name" entries.
     let sql = `
       SELECT
         c.id, c.name, c.class_level, c.head_teacher_id,
         c.curriculum_id,
         cu.name AS curriculum_name, cu.code AS curriculum_code,
-        CONCAT(s.first_name, ' ', s.last_name) AS teacher_name
+        NULLIF(TRIM(
+          CONCAT_WS(' ',
+            COALESCE(NULLIF(p.first_name, ''), NULLIF(s.first_name, '')),
+            COALESCE(NULLIF(p.last_name,  ''), NULLIF(s.last_name,  ''))
+          )
+        ), '') AS teacher_name,
+        d.name AS teacher_department
         ${programSelect}
       FROM classes c
       LEFT JOIN curriculums cu ON c.curriculum_id = cu.id
-      LEFT JOIN staff s ON c.head_teacher_id = s.id AND s.school_id = c.school_id
+      LEFT JOIN staff s        ON c.head_teacher_id = s.id AND s.school_id = c.school_id
+      LEFT JOIN people p       ON s.person_id = p.id
+      LEFT JOIN departments d  ON s.department_id = d.id
       ${programJoin}
       WHERE c.school_id = ? AND c.deleted_at IS NULL
     `;

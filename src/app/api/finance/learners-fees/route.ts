@@ -71,45 +71,71 @@ export async function GET(request: NextRequest) {
 
     const [students] = await connection.execute(studentsSql, studentsParams);
 
-    // Get fee items for the term
+    // Get per-student assigned fee items, with amount derived from the
+    // referenced fee_structures row (the canonical source).
+    //   student_fee_items   → assignment
+    //   fee_structures      → item definition + amount
+    //   fee_payments        → recorded payments (sum of amount per fee_item)
+    //   waivers_discounts   → approved waivers/discounts
+    //
+    // Historical note: an earlier MVP query referenced fs.total_amount and
+    // a fsi (fee_structure_items) table that never existed. We now
+    // compute expected from fs.amount and aggregate payments/waivers
+    // server-side per row.
     let feeItemsSql = `
-      SELECT 
-        fi.id as fee_item_id,
-        fi.student_id,
-        fi.term_id,
-        fi.item,
-        fi.amount,
-        fi.discount,
-        fi.waived,
-        fi.paid,
-        fi.balance,
-        fi.status as fee_status,
-        fi.due_date,
-        t.name as term_name
-      FROM student_fee_items fi
-      JOIN students s_inner ON fi.student_id = s_inner.id
-      LEFT JOIN terms t ON fi.term_id = t.id
+      SELECT
+        sfi.id                 AS fee_item_id,
+        sfi.student_id,
+        sfi.term_id,
+        sfi.fee_structure_id,
+        sfi.status             AS fee_status,
+        sfi.due_date,
+        fs.item                AS item,
+        fs.amount              AS amount,
+        COALESCE(p.paid, 0)    AS paid,
+        COALESCE(p.discount, 0) AS discount,
+        COALESCE(w.waived, 0)  AS waived,
+        t.name                 AS term_name
+      FROM student_fee_items sfi
+      JOIN students s_inner    ON sfi.student_id     = s_inner.id
+      LEFT JOIN fee_structures fs ON sfi.fee_structure_id = fs.id
+      LEFT JOIN terms t        ON sfi.term_id        = t.id
+      LEFT JOIN (
+        SELECT fee_item_id,
+               SUM(amount)            AS paid,
+               SUM(discount_applied)  AS discount
+          FROM fee_payments
+         WHERE payment_status = 'completed'
+         GROUP BY fee_item_id
+      ) p ON p.fee_item_id = sfi.id
+      LEFT JOIN (
+        SELECT fee_item_id, SUM(amount) AS waived
+          FROM waivers_discounts
+         WHERE status = 'approved'
+         GROUP BY fee_item_id
+      ) w ON w.fee_item_id = sfi.id
       WHERE s_inner.school_id = ?
     `;
 
     const feeItemsParams: any[] = [schoolId];
 
     if (termId) {
-      feeItemsSql += ' AND fi.term_id = ?';
+      feeItemsSql += ' AND sfi.term_id = ?';
       feeItemsParams.push(parseInt(termId, 10));
     }
 
     const [feeItems] = await connection.execute(feeItemsSql, feeItemsParams);
 
-    // Get fee structures for class-based fees
+    // Class-default structures (used when a student has no explicit
+    // assignments yet — surfaces "expected" so the UI doesn't show 0).
+    // Each row of fee_structures is one item; total = SUM(amount).
     let feeStructureSql = `
-      SELECT 
-        fs.id as fee_structure_id,
+      SELECT
+        fs.id          AS fee_structure_id,
         fs.class_id,
         fs.term_id,
-        fs.total_amount,
-        fsi.item_name,
-        fsi.amount as item_amount
+        fs.item        AS item_name,
+        fs.amount      AS item_amount
       FROM fee_structures fs
       WHERE fs.school_id = ?
     `;
@@ -156,16 +182,20 @@ export async function GET(request: NextRequest) {
       let totalWaived = 0;
       let totalDiscount = 0;
 
+      // DECIMAL columns come back as strings from mysql2; coerce to Number
+      // explicitly to avoid string-concat masquerading as addition.
+      const num = (v: any) => Number(v ?? 0) || 0;
       if (studentFeeItems.length > 0) {
-        totalExpected = studentFeeItems.reduce((sum, fi) => sum + fi.amount, 0);
-        totalPaid = studentFeeItems.reduce((sum, fi) => sum + fi.paid, 0);
-        totalWaived = studentFeeItems.reduce((sum, fi) => sum + fi.waived, 0);
-        totalDiscount = studentFeeItems.reduce((sum, fi) => sum + fi.discount, 0);
+        totalExpected = studentFeeItems.reduce((sum, fi) => sum + num(fi.amount),   0);
+        totalPaid     = studentFeeItems.reduce((sum, fi) => sum + num(fi.paid),     0);
+        totalWaived   = studentFeeItems.reduce((sum, fi) => sum + num(fi.waived),   0);
+        totalDiscount = studentFeeItems.reduce((sum, fi) => sum + num(fi.discount), 0);
       } else {
-        // Check if there's a fee structure for the student's class
+        // Fall back to the class-level default structure so the UI shows
+        // an "expected" total even before per-student assignment.
         const classFeeStructure = feeStructuresByClass[student.class_id] || [];
         if (classFeeStructure.length > 0) {
-          totalExpected = classFeeStructure.reduce((sum, fs) => sum + fs.item_amount, 0);
+          totalExpected = classFeeStructure.reduce((sum, fs) => sum + num(fs.item_amount), 0);
         }
       }
 

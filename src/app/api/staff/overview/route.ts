@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     }
     const schoolId = session.schoolId;
 
-    const [staffCounts, deptCount, attendanceAvg] = await Promise.all([
+    const [staffCounts, deptCount, attendanceAvg, recentStaff, byDept] = await Promise.all([
       query(
         `SELECT
            COUNT(*) AS total_staff,
@@ -40,13 +40,53 @@ export async function GET(req: NextRequest) {
            AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`,
         [schoolId],
       ),
+      // Recent staff (last 8 added), name from people with denorm fallback.
+      query(
+        `SELECT
+           s.id,
+           s.staff_no,
+           COALESCE(NULLIF(pe.first_name, ''), NULLIF(s.first_name, ''), '') AS first_name,
+           COALESCE(NULLIF(pe.last_name,  ''), NULLIF(s.last_name,  ''), '') AS last_name,
+           pe.photo_url,
+           s.status,
+           p.name AS position_name,
+           d.name AS department_name,
+           s.created_at
+         FROM staff s
+         LEFT JOIN people      pe ON pe.id = s.person_id
+         LEFT JOIN positions   p  ON p.id  = s.position_id
+         LEFT JOIN departments d  ON d.id  = s.department_id
+         WHERE s.school_id = ? AND s.deleted_at IS NULL
+         ORDER BY s.created_at DESC, s.id DESC
+         LIMIT 8`,
+        [schoolId],
+      ),
+      // Headcount by department, for the breakdown panel.
+      query(
+        `SELECT
+           d.id        AS department_id,
+           d.name      AS department_name,
+           COUNT(s.id) AS staff_count
+         FROM departments d
+         LEFT JOIN staff s
+           ON s.department_id = d.id
+          AND s.school_id     = d.school_id
+          AND s.deleted_at   IS NULL
+          AND s.status        = 'active'
+         WHERE d.school_id = ? AND d.deleted_at IS NULL
+         GROUP BY d.id, d.name
+         ORDER BY staff_count DESC, d.name`,
+        [schoolId],
+      ),
     ]);
 
     const stats = {
-      total_staff: Number(staffCounts[0]?.total_staff ?? 0),
-      active_staff: Number(staffCounts[0]?.active_staff ?? 0),
+      total_staff:       Number(staffCounts[0]?.total_staff ?? 0),
+      active_staff:      Number(staffCounts[0]?.active_staff ?? 0),
       total_departments: Number(deptCount[0]?.total_departments ?? 0),
-      avg_attendance: Number(attendanceAvg[0]?.avg_attendance ?? 0),
+      avg_attendance:    Number(attendanceAvg[0]?.avg_attendance ?? 0),
+      recent_staff:      recentStaff,
+      by_department:     byDept,
     };
 
     return ok('Staff overview loaded', stats);

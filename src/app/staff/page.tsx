@@ -133,16 +133,60 @@ const StaffOverviewPage: React.FC = () => {
             transition={{ delay: 0.4 }}
             className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg"
           >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Recent Staff Additions
-            </h3>
-            {/* Add recent staff content */}
-            <div className="space-y-3">
-              {/* Placeholder for recent staff list */}
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Recent staff members will appear here
-              </p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Recent Staff Additions
+              </h3>
+              <Link href="/staff/list" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                View all →
+              </Link>
             </div>
+            {isLoading ? (
+              <div className="space-y-2">
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} className="h-12 rounded-lg bg-slate-100 dark:bg-slate-700/40 animate-pulse" />
+                ))}
+              </div>
+            ) : !stats.recent_staff || stats.recent_staff.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Users className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">No staff added yet.</p>
+                <Link href="/staff/add" className="text-xs text-indigo-600 hover:underline">
+                  Add the first staff member →
+                </Link>
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                {stats.recent_staff.map((s: any) => {
+                  const fullName = [s.first_name, s.last_name].filter(Boolean).join(' ').trim() || `Staff #${s.id}`;
+                  const subtitle = [s.position_name, s.department_name].filter(Boolean).join(' · ');
+                  return (
+                    <li key={s.id} className="flex items-center gap-3 py-2.5">
+                      <Link href={`/staff/${s.id}`} className="flex items-center gap-3 flex-1 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg px-2 -mx-2 transition">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden">
+                          {s.photo_url ? (
+                            <img src={s.photo_url} alt={fullName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{(s.first_name?.[0] || '?').toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{fullName}</p>
+                          {subtitle && <p className="text-[11px] text-slate-400 truncate">{subtitle}</p>}
+                        </div>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          s.status === 'active'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                            : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                        }`}>
+                          {s.status}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </motion.div>
 
           {/* Department Overview */}
@@ -152,16 +196,51 @@ const StaffOverviewPage: React.FC = () => {
             transition={{ delay: 0.5 }}
             className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg"
           >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Department Distribution
-            </h3>
-            {/* Add department distribution content */}
-            <div className="space-y-3">
-              {/* Placeholder for department chart */}
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Department statistics will appear here
-              </p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Department Distribution
+              </h3>
+              <Link href="/admin/departments" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                Manage →
+              </Link>
             </div>
+            {isLoading ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="h-10 rounded-lg bg-slate-100 dark:bg-slate-700/40 animate-pulse" />
+                ))}
+              </div>
+            ) : !stats.by_department || stats.by_department.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Building className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">No departments defined yet.</p>
+                <Link href="/admin/departments" className="text-xs text-indigo-600 hover:underline">
+                  Create a department →
+                </Link>
+              </div>
+            ) : (() => {
+              const max = Math.max(...stats.by_department.map((d: any) => Number(d.staff_count) || 0), 1);
+              return (
+                <ul className="space-y-2.5">
+                  {stats.by_department.map((d: any) => {
+                    const count = Number(d.staff_count) || 0;
+                    const pct = Math.round((count / max) * 100);
+                    return (
+                      <li key={d.department_id} className="text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-slate-700 dark:text-slate-200 truncate">{d.department_name}</span>
+                          <span className="text-xs font-mono text-slate-500">{count}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                               style={{ width: `${pct}%` }} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()}
           </motion.div>
         </div>
       </div>
