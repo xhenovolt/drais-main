@@ -26,9 +26,11 @@ export async function sendSMS(
   shortCode?: string
 ): Promise<SMSResponse> {
   try {
-    // Get credentials from environment
-    const username = process.env.AFRICASTALKING_USERNAME;
-    const apiKey = process.env.AFRICASTALKING_API_KEY;
+    // Accept either env naming convention. Historically the codebase
+    // mixed AFRICASTALKING_* (most callers) and AT_* (legacy reminder
+    // route). Both work in production now.
+    const username = process.env.AFRICASTALKING_USERNAME || process.env.AT_USERNAME;
+    const apiKey   = process.env.AFRICASTALKING_API_KEY  || process.env.AT_API_KEY;
 
     if (!username || !apiKey) {
       console.warn('AFRICASTALKING credentials not configured. SMS sending disabled.');

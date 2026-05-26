@@ -78,7 +78,9 @@ export function getProvider(name: string, channel: CommChannel = 'sms'): CommPro
   // use the console provider so the dispatcher keeps producing audit
   // rows. This is the difference between "broken" and "degraded".
   if (channel === 'sms') {
-    if (!process.env.AFRICASTALKING_API_KEY || !process.env.AFRICASTALKING_USERNAME) {
+    const hasUser = !!(process.env.AFRICASTALKING_USERNAME || process.env.AT_USERNAME);
+    const hasKey  = !!(process.env.AFRICASTALKING_API_KEY  || process.env.AT_API_KEY);
+    if (!hasUser || !hasKey) {
       console.warn(
         `[comm] provider '${name}' unavailable (credentials missing) — falling back to console`,
       );
