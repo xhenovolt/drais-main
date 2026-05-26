@@ -44,16 +44,16 @@ async function ensureWildcardRows(): Promise<{ insertedCodes: string[] }> {
     )) as Array<{ id: number }>;
     if (existing) continue;
     const parts = code.split('.');
-    const module   = code === '*' ? '*' : (parts[0] ?? '*');
-    const resource = code === '*' ? '*' : (parts.length > 1 ? parts[1] : '*');
-    const action   = code === '*' ? '*' : (parts.length > 2 ? parts.slice(2).join('.') : '*');
+    const moduleName = code === '*' ? '*' : (parts[0] ?? '*');
+    const resource   = code === '*' ? '*' : (parts.length > 1 ? parts[1] : '*');
+    const action     = code === '*' ? '*' : (parts.length > 2 ? parts.slice(2).join('.') : '*');
     const description = code === '*'
       ? 'Universal wildcard — grants every permission. Super-admin slot.'
       : `Wildcard grant for ${parts.slice(0, -1).join('.')}. Covers every action within the group.`;
     await query(
       `INSERT INTO permissions (code, module, resource, action, description, is_active)
        VALUES (?, ?, ?, ?, ?, 1)`,
-      [code, module, resource, action, description],
+      [code, moduleName, resource, action, description],
     );
     insertedCodes.push(code);
   }
@@ -63,7 +63,6 @@ async function ensureWildcardRows(): Promise<{ insertedCodes: string[] }> {
 export async function seedRoleDefaults(): Promise<SeedReport> {
   const { insertedCodes } = await ensureWildcardRows();
   if (insertedCodes.length) {
-    // eslint-disable-next-line no-console
     console.log(`[rbac/seed-roles] Inserted wildcard permission rows: ${insertedCodes.join(', ')}`);
   }
 
