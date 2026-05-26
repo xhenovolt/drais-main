@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { emit } from '@/lib/comm';
 
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -82,6 +83,21 @@ export async function POST(req: NextRequest) {
     const studentName = Array.isArray(studentResult) && studentResult.length > 0
       ? `${studentResult[0].first_name} ${studentResult[0].last_name}`
       : 'Unknown Student';
+
+    // Notify via the communication engine. The engine consults the
+    // school's rules and decides whether to actually send (and to whom).
+    // We never await success/failure of comms — attendance recording
+    // succeeds regardless. The fire-and-forget pattern keeps the
+    // biometric endpoint snappy even if SMS provider is slow.
+    void emit(isLate ? 'learner.attendance.late' : 'learner.attendance.checkin', {
+      schoolId,
+      studentId,
+      studentName,
+      time:        timeIn,
+      ...(isLate ? { minutesLate: Math.max(0, (currentHour - 8) * 60 + currentMinute - 30) } : {}),
+      source:      'auto',
+      triggeredBy: session.userId,
+    } as any).catch(err => console.error('[attendance] comm emit failed:', err));
 
     return NextResponse.json({
       success: true,

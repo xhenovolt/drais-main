@@ -4,6 +4,7 @@ import { updateFeeItemStatus, batchUpdateFeeItemStatuses } from '@/lib/services/
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { emit } from '@/lib/comm';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -250,7 +251,7 @@ export async function POST(req: NextRequest) {
 
       await connection.execute(`
         INSERT INTO ledger (
-          schoolId, wallet_id, category_id, tx_type, amount, 
+          school_id, wallet_id, category_id, tx_type, amount,
           reference, description, student_id, created_by
         ) VALUES (?, ?, ?, 'credit', ?, ?, ?, ?, ?)
       `, [
@@ -293,7 +294,31 @@ export async function POST(req: NextRequest) {
       // Update fee item statuses after transaction commits
       await batchUpdateFeeItemStatuses(updatedFeeItemIds);
 
-      // TODO: Trigger PDF generation and notifications
+      // Notify via the communication engine — fire-and-forget so a slow
+      // SMS provider can never delay the payment response. The engine
+      // consults the school's rules (audience, auto vs manual, quiet
+      // hours) and writes its own audit row.
+      try {
+        const [studentRows]: any = await connection.execute(
+          `SELECT TRIM(CONCAT_WS(' ', pe.first_name, pe.last_name)) AS name
+             FROM students s
+             LEFT JOIN people pe ON pe.id = s.person_id
+            WHERE s.id = ? AND s.school_id = ?`,
+          [student_id, schoolId],
+        );
+        const studentName = studentRows?.[0]?.name || `Student #${student_id}`;
+        void emit('finance.payment.received', {
+          schoolId,
+          studentId:  Number(student_id),
+          studentName,
+          amount:     Number(amount),
+          receiptNo,
+          source:     'auto',
+          triggeredBy: session.userId,
+        }).catch(err => console.error('[payments] comm emit failed:', err));
+      } catch (err) {
+        console.error('[payments] comm emit setup failed:', err);
+      }
 
       return NextResponse.json({
         success: true,

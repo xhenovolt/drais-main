@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import AfricasTalking from 'africastalking';
+import { emit } from '@/lib/comm';
 
 /**
  * Result-deadline SMS reminder dispatcher.
@@ -144,44 +145,58 @@ async function dispatch(req: NextRequest) {
       }
 
       totalRecipients += recipients.length;
-      const deadlineWhen = new Date(d.deadline_date).toLocaleString();
-      const baseMsg = d.description
-        ? `Reminder: ${d.description}. Due ${deadlineWhen}.`
-        : `Reminder: Result submission due ${deadlineWhen}.`;
+      const deadlineLabel = d.description
+        ? d.description
+        : `Result submission (${new Date(d.deadline_date).toLocaleString()})`;
+      const daysLeft = Math.max(0, Math.ceil(
+        (new Date(d.deadline_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      ));
 
+      // Fire one engine event per recipient. The engine handles template
+      // resolution, provider dispatch, and audit logging in
+      // comm_dispatch_log. We keep deadline_reminder_log around purely
+      // for *per-deadline* idempotency: "have we reminded this number
+      // for this specific deadline today?" — orthogonal to the general
+      // dispatch audit.
       for (const r of recipients) {
-        // Idempotency: skip if we've already sent to this phone for this
-        // deadline today.
         const [existing] = await connection.execute(
           `SELECT id FROM deadline_reminder_log
            WHERE deadline_id = ? AND recipient_phone = ?
              AND DATE(sent_at) = CURDATE()`,
-          [d.id, r.phone]
+          [d.id, r.phone],
         ) as [{ id: number }[], any];
         if (existing.length > 0) {
           totalSkipped++;
           continue;
         }
 
-        try {
-          const result = await sendOne(sms, r.phone, baseMsg);
-          await connection.execute(
-            `INSERT INTO deadline_reminder_log
-               (school_id, deadline_id, recipient_phone, staff_id, status, message_id)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [d.school_id, d.id, r.phone, r.staff_id, result.status, result.messageId]
-          );
-          if (result.status === 'Success') totalSent++;
-          else errors.push(`${r.phone}: ${result.status}`);
-        } catch (e: any) {
-          await connection.execute(
-            `INSERT INTO deadline_reminder_log
-               (school_id, deadline_id, recipient_phone, staff_id, status, error)
-             VALUES (?, ?, ?, ?, 'Failed', ?)`,
-            [d.school_id, d.id, r.phone, r.staff_id, e?.message?.slice(0, 1000) ?? 'Unknown']
-          );
-          errors.push(`${r.phone}: ${e?.message ?? 'Unknown'}`);
-        }
+        const summary = await emit('result.deadline.reminder', {
+          schoolId:       d.school_id,
+          source:         auth.userId ? 'manual' : 'auto',
+          triggeredBy:    auth.userId,
+          teacherName:    r.name,
+          deadlineLabel,
+          daysLeft,
+        });
+
+        // The engine's recipient resolver targets audience codes (parents,
+        // staff, etc), not a one-off phone number. For this legacy
+        // dedicated route we pass the resolved staff list ourselves —
+        // so we additionally write a deadline_reminder_log row marking
+        // this (deadline, phone) pair as handled today. Status comes
+        // from whether the engine's dispatch summary saw any send.
+        const ok = summary.sent > 0;
+        await connection.execute(
+          `INSERT INTO deadline_reminder_log
+             (school_id, deadline_id, recipient_phone, staff_id, status, error)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            d.school_id, d.id, r.phone, r.staff_id,
+            ok ? 'Success' : (summary.failed > 0 ? 'Failed' : 'Queued'),
+            ok ? null : `engine: sent=${summary.sent} queued=${summary.queued} skipped=${summary.skipped} failed=${summary.failed}`,
+          ],
+        );
+        if (ok) totalSent++; else if (summary.failed > 0) errors.push(`${r.phone}: engine reported failed`);
       }
     }
 
