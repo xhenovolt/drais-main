@@ -42,7 +42,18 @@ interface DependencyReport {
   blocking: boolean;
 }
 
-const fetcher = (url: string) => fetch(url, { credentials: 'same-origin' }).then(r => r.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { credentials: 'same-origin' });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    // Surface 4xx/5xx as a thrown Error so SWR's error state catches it
+    // instead of letting the page render with an undefined `items` array.
+    const err = new Error(body?.error || `Request failed (${res.status})`);
+    (err as any).status = res.status;
+    throw err;
+  }
+  return body;
+};
 
 /**
  * Universal trash management page.
@@ -138,12 +149,32 @@ export default function TrashPage() {
         />
       </div>
 
-      {error && (
-        <div className="rounded border border-rose-300 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm text-rose-700 dark:text-rose-300 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          {error instanceof Error ? error.message : 'Failed to load trash'}
-        </div>
-      )}
+      {error && (() => {
+        const status = (error as any)?.status as number | undefined;
+        const message = error instanceof Error ? error.message : 'Failed to load trash';
+        const isAuth = status === 401 || status === 403;
+        return (
+          <div className="rounded border border-rose-300 bg-rose-50 dark:bg-rose-950/40 p-4 text-sm text-rose-700 dark:text-rose-300 flex items-start gap-3">
+            {isAuth ? <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />}
+            <div className="flex-1">
+              <p className="font-semibold">{isAuth ? 'Access denied' : 'Failed to load trash'}</p>
+              <p className="text-xs mt-0.5 opacity-90">{message}</p>
+              {isAuth && (
+                <p className="text-xs mt-2 opacity-90">
+                  Your role needs the <code className="px-1 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 font-mono">trash.read</code> permission.
+                  Ask an administrator to grant it from <span className="font-mono">/admin/roles</span>.
+                </p>
+              )}
+              <button
+                onClick={() => mutate()}
+                className="mt-2 inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-rose-400 text-rose-700 hover:bg-rose-100 dark:hover:bg-rose-900/40"
+              >
+                <RotateCcw className="w-3 h-3" /> Retry
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {isLoading && (
         <div className="flex items-center gap-2 text-sm text-slate-500 py-12 justify-center">
@@ -151,7 +182,7 @@ export default function TrashPage() {
         </div>
       )}
 
-      {data && !isLoading && data.items.length === 0 && (
+      {data && !isLoading && (data.items?.length ?? 0) === 0 && (
         <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center text-slate-500 flex flex-col items-center gap-2">
           <Inbox className="w-10 h-10 text-slate-300" />
           <p className="text-sm font-medium">Trash is empty</p>
@@ -159,7 +190,7 @@ export default function TrashPage() {
         </div>
       )}
 
-      {data && data.items.length > 0 && (
+      {data && (data.items?.length ?? 0) > 0 && (
         <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
