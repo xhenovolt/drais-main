@@ -18,8 +18,16 @@ interface Role {
   slug: string;
   description: string | null;
   is_system_role: boolean | number;
+  is_super_admin?: boolean | number;
   user_count: number;
   permission_count: number;
+}
+
+function isSuperAdminRole(r: { slug?: string; is_super_admin?: boolean | number } | null | undefined): boolean {
+  if (!r) return false;
+  if (r.is_super_admin === true || r.is_super_admin === 1) return true;
+  const slug = (r.slug ?? '').toLowerCase();
+  return slug === 'super_admin' || slug === 'superadmin';
 }
 
 interface Permission {
@@ -110,13 +118,31 @@ export default function AdminRolesPage() {
     try {
       const data = await apiFetch<{ data: RoleDetail }>(`/api/admin/roles/${role.id}`, { silent: true });
       setSelected(data.data);
-      setPendingPerms(new Set((data.data.permissions ?? []).map((p: Permission) => p.id)));
+      // For super-admin, surface every catalog permission as "granted"
+      // even when role_permissions is empty — the auth layer bypasses
+      // explicit grants, so the UI shows the effective state.
+      if (isSuperAdminRole(data.data)) {
+        const everyId = new Set<number>();
+        for (const list of Object.values(allPerms)) {
+          for (const p of list) everyId.add(p.id);
+        }
+        setPendingPerms(everyId);
+      } else {
+        setPendingPerms(new Set((data.data.permissions ?? []).map((p: Permission) => p.id)));
+      }
     } catch (e: any) { setError(e instanceof Error ? e.message : 'Error loading role'); }
     finally { setLoadingDetail(false); }
   }
 
+  // Editable means: not the super-admin role. Other system roles
+  // (admin, staff, etc.) are now editable — the previous blanket
+  // is_system_role lock made every checkbox a no-op.
+  function isReadOnly(role: typeof selected): boolean {
+    return isSuperAdminRole(role);
+  }
+
   function togglePerm(permId: number) {
-    if (selected?.is_system_role) return;
+    if (isReadOnly(selected)) return;
     setPendingPerms(prev => {
       const next = new Set(prev);
       if (next.has(permId)) { next.delete(permId); } else { next.add(permId); }
@@ -198,7 +224,10 @@ export default function AdminRolesPage() {
                 )}
               </div>
               <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
-                <span className="flex items-center gap-1"><Key className="w-3 h-3" />{role.permission_count}</span>
+                <span className="flex items-center gap-1" title="Permissions granted">
+                  <Key className="w-3 h-3" />
+                  {isSuperAdminRole(role) ? 'all' : role.permission_count}
+                </span>
                 <span className="flex items-center gap-1"><UsersIcon className="w-3 h-3" />{role.user_count}</span>
               </div>
             </button>
@@ -232,13 +261,15 @@ export default function AdminRolesPage() {
                     <ArrowLeft className="w-4 h-4" />
                   </button>
                   <h2 className="text-xl font-bold text-slate-800 dark:text-white">{selected.name}</h2>
-                  {selected.is_system_role && (
+                  {isSuperAdminRole(selected) ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Super Admin · Full Access</span>
+                  ) : selected.is_system_role ? (
                     <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">System Role</span>
-                  )}
+                  ) : null}
                 </div>
                 {selected.description && <p className="text-sm text-slate-500 mt-0.5">{selected.description}</p>}
               </div>
-              {!selected.is_system_role && permsDirty && (
+              {!isReadOnly(selected) && permsDirty && (
                 <button onClick={savePermissions} disabled={savingPerms}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50">
                   {savingPerms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
@@ -246,6 +277,18 @@ export default function AdminRolesPage() {
                 </button>
               )}
             </div>
+
+            {isSuperAdminRole(selected) && (
+              <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm">
+                <p className="font-semibold text-amber-700 dark:text-amber-300">Super Admin has implicit full access.</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  The auth layer recognises this role by its <code className="font-mono">is_super_admin</code> flag and
+                  bypasses every permission check. Explicit grants in role_permissions are not required (and not
+                  consulted at runtime). The checkboxes below are shown for orientation only — every permission
+                  is effectively granted, including any added in future updates.
+                </p>
+              </div>
+            )}
 
             {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 text-sm">{error}</div>}
 
@@ -306,7 +349,7 @@ export default function AdminRolesPage() {
                         ({allModPerms.filter(p => pendingPerms.has(p.id)).length}/{allModPerms.length})
                       </span>
                     </button>
-                    {!selected.is_system_role && (
+                    {!isReadOnly(selected) && (
                       <button
                         onClick={() => {
                           setPendingPerms(prev => {
@@ -334,7 +377,7 @@ export default function AdminRolesPage() {
                           <span className="text-xs font-medium text-slate-600 dark:text-slate-300 capitalize">
                             {resource || mod}
                           </span>
-                          {!selected.is_system_role && perms.length > 1 && (
+                          {!isReadOnly(selected) && perms.length > 1 && (
                             <button
                               onClick={() => {
                                 setPendingPerms(prev => {
@@ -358,11 +401,11 @@ export default function AdminRolesPage() {
                               <button
                                 key={p.id}
                                 onClick={() => togglePerm(p.id)}
-                                disabled={!!selected.is_system_role}
+                                disabled={isReadOnly(selected)}
                                 title={`${p.code}\n${p.description || ''}`}
                                 className={`flex items-start gap-2 px-3 py-2 bg-white dark:bg-slate-800 text-left transition-colors
                                   ${checked ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}
-                                  ${!selected.is_system_role ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer' : 'cursor-default'}
+                                  ${!isReadOnly(selected) ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer' : 'cursor-default'}
                                 `}
                               >
                                 {checked
