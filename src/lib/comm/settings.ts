@@ -7,7 +7,7 @@ import { query } from '@/lib/db';
 
 export interface CommSettings {
   schoolId:         number;
-  senderName:       string;
+  senderName:       string | null;
   prefix:           string | null;
   autoMode:         boolean;
   defaultProvider:  string;
@@ -19,7 +19,7 @@ export interface CommSettings {
 
 interface Raw {
   school_id:          number;
-  sender_name:        string;
+  sender_name:        string | null;
   prefix:             string | null;
   auto_mode:          number;
   default_provider:   string;

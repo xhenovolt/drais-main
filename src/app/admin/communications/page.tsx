@@ -286,7 +286,7 @@ function SettingsPanel() {
     if (data?.settings) {
       const s = data.settings;
       setForm({
-        senderName:      s.senderName ?? 'DRAIS',
+        senderName:      s.senderName ?? '',
         prefix:          s.prefix ?? '',
         autoMode:        !!s.autoMode,
         defaultProvider: s.defaultProvider ?? 'africas_talking',
@@ -325,10 +325,14 @@ function SettingsPanel() {
     <div className="grid md:grid-cols-2 gap-5">
       <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">School Identity</h2>
-        <F label="Sender Name (max 11 chars)">
+        <F label="Sender ID (max 11 chars — leave blank if not registered)">
           <input value={form.senderName} maxLength={11}
             onChange={e => setForm({ ...form, senderName: e.target.value })}
-            className={inputCls} placeholder="DRAIS" />
+            className={inputCls} placeholder="(blank uses provider default)" />
+          <p className="text-[10px] text-slate-400 mt-1">
+            Africa's Talking requires alphanumeric sender IDs to be pre-registered on your account.
+            Passing an unregistered ID causes silent rejection. Leave blank unless you've registered one.
+          </p>
         </F>
         <F label="Prefix (e.g. [ALBAYAN])">
           <input value={form.prefix}

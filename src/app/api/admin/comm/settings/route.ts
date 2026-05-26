@@ -26,9 +26,11 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
 
-  if (body.senderName !== undefined && String(body.senderName).length > 11) {
+  if (body.senderName !== undefined && body.senderName !== null && String(body.senderName).length > 11) {
     return NextResponse.json({ error: 'Sender name must be 11 chars or fewer (SMS limit)' }, { status: 400 });
   }
+  // Empty string → NULL (means "use provider default")
+  if (body.senderName === '') body.senderName = null;
   const settings = await updateCommSettings(session.schoolId, body);
   return NextResponse.json({ success: true, settings });
 }

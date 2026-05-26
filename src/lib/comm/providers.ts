@@ -31,7 +31,11 @@ export interface CommProvider {
   send(args: SendArgs): Promise<SendResult>;
 }
 
-/** Africa's Talking SMS — wraps the existing lib/africastalking helper. */
+/** Africa's Talking SMS — wraps the existing lib/africastalking helper.
+ *  Sender ID: only forwarded if the school has actually configured one.
+ *  Africa's Talking requires alphanumeric sender IDs to be pre-registered
+ *  on the account — passing an unregistered placeholder causes silent
+ *  rejection (empty Recipients array). */
 const africasTalkingSms: CommProvider = {
   name:    'africas_talking',
   channel: 'sms',
@@ -40,7 +44,8 @@ const africasTalkingSms: CommProvider = {
     if (!normalised) {
       return { success: false, providerMessageId: null, cost: null, error: 'Invalid phone number' };
     }
-    const r = await sendSMS(normalised, body, undefined, senderName);
+    const senderId = (senderName && senderName.trim()) || undefined;
+    const r = await sendSMS(normalised, body, undefined, senderId);
     return {
       success:           r.success,
       providerMessageId: r.messageId ?? null,

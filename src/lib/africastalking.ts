@@ -64,21 +64,35 @@ export async function sendSMS(
 
     const sms = AfricasTalkingInstance.SMS;
 
-    // Send SMS
-    const result = await sms.send({
-      to: [normalizedPhone],
-      message: message,
-      from: shortCode || 'DRAIS' // Default to DRAIS if no shortCode provided
-    });
+    // Sender ID handling — Africa's Talking REQUIRES alphanumeric
+    // sender IDs (e.g. "DRAIS", "ALBAYAN") to be pre-registered on
+    // the account. If we pass an unregistered one, AT returns an empty
+    // Recipients array with a sandbox-style error and the message is
+    // never delivered. Only include `from` when the caller explicitly
+    // configured a sender ID — let AT use its default otherwise.
+    const sendPayload: { to: string[]; message: string; from?: string } = {
+      to:      [normalizedPhone],
+      message,
+    };
+    if (shortCode && shortCode.trim()) {
+      sendPayload.from = shortCode.trim();
+    }
+
+    const result = await sms.send(sendPayload);
 
     // Parse response
     const recipients = result.SMSMessageData?.Recipients || [];
 
     if (recipients.length === 0) {
-      console.error('No recipients in AFRICASTALKING response');
+      // AT's SMSMessageData.Message carries the real error when the
+      // Recipients array is empty (commonly "InvalidSenderId" or
+      // "Your sandbox application can only send to safelisted numbers").
+      const atMessage = result.SMSMessageData?.Message || 'unknown';
+      console.error('No recipients in AFRICASTALKING response:', atMessage);
       return {
         success: false,
-        error: 'No recipients in response'
+        error: `Provider rejected message: ${atMessage}`,
+        details: { providerMessage: atMessage, sendPayload },
       };
     }
 
