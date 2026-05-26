@@ -215,7 +215,8 @@ export function getNavigationItems(
         { key: 'classes',         label: 'Classes',          icon: <School className="w-4 h-4" />,       href: '/academics/classes' },
         { key: 'streams',         label: 'Streams',          icon: <Target className="w-4 h-4" />,       href: '/academics/streams' },
         { key: 'subjects',        label: 'Subjects',         icon: <BookOpen className="w-4 h-4" />,     href: '/academics/subjects' },
-        { key: 'allocations',     label: 'Teacher Allocation', icon: <UserCheck className="w-4 h-4" />, href: '/academics/allocations' },
+        { key: 'allocations',         label: 'Teacher Allocation',     icon: <UserCheck className="w-4 h-4" />, href: '/academics/allocations' },
+        { key: 'allocations-history', label: 'Allocation History',     icon: <Clock className="w-4 h-4" />,     href: '/academics/allocations/history' },
         { key: 'timetable',       label: 'Timetable',        icon: <Calendar className="w-4 h-4" />,     href: '/academics/timetable' },
         { key: 'academic-years',  label: 'Academic Years',   icon: <Calendar className="w-4 h-4" />,     href: '/academics/years' },
         { key: 'terms',           label: 'Terms',            icon: <Clock className="w-4 h-4" />,        href: '/terms/list' },
@@ -273,7 +274,21 @@ export function getNavigationItems(
       ],
     },
 
-    // ══ 7. TAHFIZ ═════════════════════════════════════════════════════════════
+    // ══ 7. INVENTORY ══════════════════════════════════════════════════════════
+    {
+      key:             'inventory',
+      label:           'Inventory',
+      icon:            <Package className="w-5 h-5" />,
+      requiredModules: ['inventory'],
+      children: [
+        { key: 'inventory-overview',     label: 'Overview',      icon: <BarChart3 className="w-4 h-4" />,    href: '/inventory'              },
+        { key: 'inventory-stores',       label: 'Stores',        icon: <Building className="w-4 h-4" />,     href: '/inventory/stores'       },
+        { key: 'inventory-items',        label: 'Items',         icon: <Package className="w-4 h-4" />,      href: '/inventory/items'        },
+        { key: 'inventory-transactions', label: 'Movements',     icon: <Activity className="w-4 h-4" />,     href: '/inventory/transactions' },
+      ],
+    },
+
+    // ══ 8. TAHFIZ ═════════════════════════════════════════════════════════════
     {
       key:             'tahfiz',
       label:           t('nav.tahfiz._', 'Tahfiz'),
@@ -320,7 +335,6 @@ export function getNavigationItems(
         { key: 'templates',       label: 'Templates',      icon: <FileCog className="w-4 h-4" />,  href: '/settings/templates' },
         { key: 'system-status',   label: 'System Status',  icon: <Activity className="w-4 h-4" />, href: '/settings/system' },
         { key: 'relay-setup',     label: 'Relay Setup',    icon: <Radio className="w-4 h-4" />,    href: '/settings/relay' },
-        { key: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, href: '/inventory/stores', requiredModules: ['inventory'] },
         { key: 'help',            label: 'Help & Support', icon: <HelpCircle className="w-4 h-4" />, href: '/help' },
       ],
     },

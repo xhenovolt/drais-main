@@ -11,7 +11,7 @@ import {
 import EnrollmentTimeline from '@/components/students/EnrollmentTimeline';
 import PhotoEditorModal from '@/components/students/PhotoEditorModal';
 import ExtendedProfileModal from '@/components/students/ExtendedProfileModal';
-import { Pencil, Home, Heart, Plus, ExternalLink } from 'lucide-react';
+import { Pencil, Home, Heart, Plus, ExternalLink, Fingerprint } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -122,6 +122,12 @@ export default function StudentDetailPage() {
             }`}>
               {s.student_status ?? 'unknown'}
             </span>
+            {s.fingerprints?.active > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                title={`${s.fingerprints.active} active fingerprint${s.fingerprints.active === 1 ? '' : 's'} enrolled`}>
+                <Fingerprint className="w-3 h-3" /> {s.fingerprints.active}
+              </span>
+            )}
           </div>
         </div>
         <Link href="/students/list" className="flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0">
