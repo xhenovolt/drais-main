@@ -11,7 +11,7 @@ import {
 import EnrollmentTimeline from '@/components/students/EnrollmentTimeline';
 import PhotoEditorModal from '@/components/students/PhotoEditorModal';
 import ExtendedProfileModal from '@/components/students/ExtendedProfileModal';
-import { Pencil, Home, Globe, Heart } from 'lucide-react';
+import { Pencil, Home, Heart, Plus, ExternalLink } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -211,17 +211,17 @@ export default function StudentDetailPage() {
             </Section>
           )}
 
-          {s.parents?.length > 0 && (
-            <Section title="Parents / Guardians" icon={Users}>
+          {(s.parents?.length > 0 || s.contacts?.length > 0) && (
+            <Section title="Parents, Guardians & Contacts" icon={Users}>
               <div className="space-y-3">
-                {s.parents.map((p: any) => (
-                  <div key={p.parent_id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                {s.parents?.map((p: any) => (
+                  <div key={`p-${p.parent_id}`} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 flex-shrink-0">
                       <User className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{p.name}</p>
-                      <p className="text-xs text-slate-400">{p.relationship}</p>
+                      <p className="text-xs text-slate-400">Parent · {p.relationship}</p>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         {p.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{p.phone}</span>}
                         {p.email && <span className="text-xs text-slate-500 flex items-center gap-1"><Mail className="w-3 h-3" />{p.email}</span>}
@@ -229,12 +229,39 @@ export default function StudentDetailPage() {
                     </div>
                   </div>
                 ))}
+                {s.contacts?.map((c: any) => {
+                  const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || `Contact #${c.contact_id}`;
+                  return (
+                    <div key={`c-${c.contact_id}`} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 flex-shrink-0">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                          {name}
+                          {c.is_primary === 1 && (
+                            <span className="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">Primary</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-slate-400">{c.relationship ?? c.contact_type}{c.occupation ? ` · ${c.occupation}` : ''}</p>
+                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                          {c.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{c.phone}</span>}
+                          {c.email && <span className="text-xs text-slate-500 flex items-center gap-1"><Mail className="w-3 h-3" />{c.email}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+              <Link href="/students/contacts"
+                className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                <Plus className="w-3 h-3" /> Manage contacts <ExternalLink className="w-3 h-3" />
+              </Link>
             </Section>
           )}
 
-          {s.documents?.length > 0 && (
-            <Section title="Documents" icon={FileText}>
+          <Section title="Documents" icon={FileText}>
+            {s.documents?.length > 0 ? (
               <div className="space-y-2">
                 {s.documents.map((doc: any) => (
                   <div key={doc.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
@@ -248,8 +275,14 @@ export default function StudentDetailPage() {
                   </div>
                 ))}
               </div>
-            </Section>
-          )}
+            ) : (
+              <p className="text-xs text-slate-400">No documents uploaded.</p>
+            )}
+            <Link href="/students/documents"
+              className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+              <Plus className="w-3 h-3" /> Upload / manage documents <ExternalLink className="w-3 h-3" />
+            </Link>
+          </Section>
         </div>
 
         {/* Sidebar */}

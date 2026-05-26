@@ -124,6 +124,19 @@ export async function GET(
       [studentId, schoolId]
     );
 
+    // Contacts (separate from parents — non-parent caregivers, emergency contacts)
+    const [contactRows]: any = await conn.execute(
+      `SELECT sc.contact_id, sc.relationship, sc.is_primary,
+              c.contact_type, c.occupation,
+              p.first_name, p.last_name, p.phone, p.email
+       FROM student_contacts sc
+       JOIN contacts c ON sc.contact_id = c.id
+       LEFT JOIN people p ON c.person_id = p.id
+       WHERE sc.student_id = ? AND c.deleted_at IS NULL
+       ORDER BY sc.is_primary DESC, p.first_name`,
+      [studentId]
+    );
+
     // Fingerprint enrollment summary
     const [fpRows]: any = await conn.execute(
       `SELECT COUNT(*) AS total,
@@ -195,6 +208,7 @@ export async function GET(
         next_of_kin: nokRows,
         education_levels: eduRows,
         parents: parentRows,
+        contacts: contactRows,
         documents: docRows,
         fingerprints: fingerprintSummary,
         enrollments: enrollmentRows,

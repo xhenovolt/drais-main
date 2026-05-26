@@ -27,6 +27,7 @@ import {
   FileText,
   Settings,
   Building,
+  Boxes,
   UserPlus,
   Award,
   Clock,
@@ -198,6 +199,8 @@ export function getNavigationItems(
         { key: 'admin-sessions',    label: 'User Monitoring',    icon: <Activity className="w-4 h-4" />,   href: '/admin/user-sessions', roles: ['admin', 'super_admin'] },
         { key: 'admin-audit-logs',  label: 'Audit Trail',        icon: <FileSearch className="w-4 h-4" />, href: '/admin/audit-logs',    roles: ['admin', 'super_admin'] },
         { key: 'admin-trash',       label: 'Trash',              icon: <Trash2 className="w-4 h-4" />,     href: '/admin/trash',         roles: ['admin', 'super_admin'] },
+        { key: 'admin-positions',   label: 'Positions',          icon: <Briefcase className="w-4 h-4" />,  href: '/admin/positions',     roles: ['admin', 'super_admin'] },
+        { key: 'admin-modules',     label: 'School Modules',     icon: <Boxes className="w-4 h-4" />,      href: '/admin/modules',       roles: ['super_admin'] },
       ],
     },
 

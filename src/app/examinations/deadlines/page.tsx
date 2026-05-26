@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import useSWR from 'swr';
-import { AlarmClock, Plus, Edit, Trash, Loader2, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlarmClock, Plus, Edit, Trash, Loader2, X, AlertTriangle, CheckCircle2, Send } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
@@ -30,6 +30,7 @@ export default function ExaminationDeadlinesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving]       = useState(false);
   const [editing, setEditing]     = useState<Deadline | null>(null);
+  const [sending, setSending]     = useState(false);
   const [form, setForm] = useState({
     resultTypeId:  '',
     termId:        '',
@@ -81,6 +82,18 @@ export default function ExaminationDeadlinesPage() {
     finally { setSaving(false); }
   }
 
+  async function sendReminders() {
+    if (!confirm('Send SMS reminders to teachers for deadlines due in the next 1–2 days?')) return;
+    setSending(true);
+    try {
+      const res = await fetch('/api/result-deadlines', { method: 'POST' });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error(j.error || 'Send failed');
+      toast.success(`Sent ${j.sent} · skipped ${j.skipped_duplicates} duplicates`);
+    } catch (e: any) { toast.error(e?.message || 'Send failed'); }
+    finally { setSending(false); }
+  }
+
   async function remove(id: number) {
     if (!confirm('Delete this deadline?')) return;
     try {
@@ -109,12 +122,23 @@ export default function ExaminationDeadlinesPage() {
           <AlarmClock className="w-6 h-6 text-indigo-500" />
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">Examination Deadlines</h1>
         </div>
-        <button
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-        >
-          <Plus className="w-4 h-4" /> New Deadline
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={sendReminders}
+            disabled={sending || deadlines.length === 0}
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+            title="Send SMS reminders to teachers for deadlines due in the next 1-2 days"
+          >
+            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            Send Reminders
+          </button>
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            <Plus className="w-4 h-4" /> New Deadline
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
