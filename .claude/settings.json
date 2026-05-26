@@ -16,7 +16,16 @@
       "Bash(sed -n '53,85p' src/app/api/exams/route.ts)",
       "Bash(grep -v \"^\\\\.$\\\\|api$\\\\|fonts$\")",
       "Bash(xargs -I{} basename {})",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(chmod +x scripts/lint-permissions.mjs)",
+      "Bash(node scripts/lint-permissions.mjs)",
+      "Bash(sed -n '27,35p' src/app/api/finance/accounts/route.ts)",
+      "Bash(sed -n '147,158p' src/app/api/finance/payments/route.ts)",
+      "Bash(npm run *)",
+      "Bash(git reset *)",
+      "Bash(grep -n \"export \" src/lib/rbac/sync.ts | head; echo \"---\"; find scripts -name \"*.mjs\" -newer /tmp/zzz 2>/dev/null | head; ls scripts/ | grep -i sync)",
+      "Read(//tmp/**)",
+      "Bash(grep -nA 15 \"SELECT\" src/app/api/classes/route.ts)"
     ],
     "additionalDirectories": [
       "/home/xhenvolt/Systems/DraisLongTermVersion/src/app/api/terms"
