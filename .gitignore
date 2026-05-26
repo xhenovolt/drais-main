@@ -57,3 +57,7 @@ workers/dist/DRAIS-Relay-Windows.zip
 /BACKUP/RELAY-INSTALLERS/*
 *.zip
 exports/
+
+# Platform-API local artifacts
+.secrets/
+.dev.log
