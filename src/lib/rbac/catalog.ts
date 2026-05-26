@@ -104,6 +104,15 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   p('staff', 'specializations',  'manage',   'Manage subject specialisations'),
   p('staff', 'positions',        'manage',   'Create / edit position catalog'),
 
+  // Admissions (Batch E — dual-mode admission pipeline)
+  p('admissions', 'mode',        'manage', 'Switch admission mode (flexible vs structured)'),
+  p('admissions', 'applicant',   'view',   'View applicants and applications'),
+  p('admissions', 'applicant',   'create', 'Create / intake new applicants'),
+  p('admissions', 'applicant',   'update', 'Edit applicant details'),
+  p('admissions', 'applicant',   'review', 'Move applicant to/from review state'),
+  p('admissions', 'applicant',   'approve','Approve or reject applicants'),
+  p('admissions', 'applicant',   'convert','Convert approved applicants into enrolled students'),
+
   // Communication Event Engine (Batch B)
   p('comm', 'settings',     'view',   'View communication settings'),
   p('comm', 'settings',     'manage', 'Edit sender name, prefix, auto mode, quiet hours, providers'),

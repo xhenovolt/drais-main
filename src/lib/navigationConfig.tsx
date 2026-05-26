@@ -59,6 +59,7 @@ import {
   Clipboard,
   AlarmClock,
   MessageSquare,
+  Workflow,
   FolderTree,
   Coins,
   BadgeDollarSign,
@@ -172,6 +173,7 @@ export function getNavigationItems(
       children: [
         { key: 'students-list',         label: t('nav.students.list', 'Student List'),         icon: <Users className="w-4 h-4" />,       href: '/students/list' },
         { key: 'students-admit',        label: t('nav.students.admit', 'Admit Student'),        icon: <UserPlus className="w-4 h-4" />,    href: '/students/admit' },
+        { key: 'admissions',            label: 'Admissions Pipeline',                            icon: <Workflow className="w-4 h-4" />,    href: '/admissions' },
         { key: 'students-enroll',       label: t('nav.students.enroll', 'Enroll Student'),      icon: <GraduationCap className="w-4 h-4" />, href: '/students/enroll' },
         { key: 'students-requirements', label: t('nav.students.requirements', 'Requirements'),  icon: <CheckSquare className="w-4 h-4" />, href: '/students/requirements' },
         { key: 'students-contacts',     label: t('nav.students.contacts', 'Contacts'),          icon: <Phone className="w-4 h-4" />,       href: '/students/contacts' },
@@ -201,7 +203,8 @@ export function getNavigationItems(
         { key: 'admin-trash',       label: 'Trash',              icon: <Trash2 className="w-4 h-4" />,     href: '/admin/trash',         roles: ['admin', 'super_admin'] },
         { key: 'admin-positions',   label: 'Positions',          icon: <Briefcase className="w-4 h-4" />,  href: '/admin/positions',     roles: ['admin', 'super_admin'] },
         { key: 'admin-modules',     label: 'School Modules',     icon: <Boxes className="w-4 h-4" />,      href: '/admin/modules',         roles: ['super_admin'] },
-        { key: 'admin-comm',        label: 'Communications',     icon: <MessageSquare className="w-4 h-4" />, href: '/admin/communications', roles: ['admin', 'super_admin'] },
+        { key: 'admin-comm',           label: 'Communications',     icon: <MessageSquare className="w-4 h-4" />, href: '/admin/communications', roles: ['admin', 'super_admin'] },
+        { key: 'admin-admission-mode', label: 'Admission Mode',     icon: <Workflow className="w-4 h-4" />,      href: '/admin/admission-mode', roles: ['admin', 'super_admin'] },
       ],
     },
 
