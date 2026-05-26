@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import {
   MessageSquare, Settings as SettingsIcon, FileText, Workflow, Activity,
-  Loader2, Send, RotateCcw, AlertCircle, CheckCircle2, Clock, Ban, ShieldAlert,
+  Loader2, Send, RotateCcw, AlertCircle, CheckCircle2, Clock, Ban, ShieldAlert, Eye,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -18,10 +18,10 @@ const fetcher = async (u: string) => {
   return b;
 };
 
-type Tab = 'settings' | 'templates' | 'rules' | 'log';
+type Tab = 'settings' | 'templates' | 'rules' | 'log' | 'broadcast';
 
 export default function CommunicationsAdminPage() {
-  const [tab, setTab] = useState<Tab>('settings');
+  const [tab, setTab] = useState<Tab>('broadcast');
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
@@ -34,12 +34,14 @@ export default function CommunicationsAdminPage() {
       </div>
 
       <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+        <TabBtn active={tab==='broadcast'} onClick={() => setTab('broadcast')} icon={Send}>Send Broadcast</TabBtn>
         <TabBtn active={tab==='settings'}  onClick={() => setTab('settings')}  icon={SettingsIcon}>Settings</TabBtn>
         <TabBtn active={tab==='templates'} onClick={() => setTab('templates')} icon={FileText}>Templates</TabBtn>
         <TabBtn active={tab==='rules'}     onClick={() => setTab('rules')}     icon={Workflow}>Rules</TabBtn>
         <TabBtn active={tab==='log'}       onClick={() => setTab('log')}       icon={Activity}>Dispatch Log</TabBtn>
       </div>
 
+      {tab === 'broadcast' && <BroadcastPanel />}
       {tab === 'settings'  && <SettingsPanel />}
       {tab === 'templates' && <TemplatesPanel />}
       {tab === 'rules'     && <RulesPanel />}
@@ -57,6 +59,216 @@ function TabBtn({ active, onClick, icon: Icon, children }: { active: boolean; on
           : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
       }`}>
       <Icon className="w-4 h-4" /> {children}
+    </button>
+  );
+}
+
+// ─── Broadcast ────────────────────────────────────────────────────────────────
+function BroadcastPanel() {
+  const { data: classesRes } = useSWR<any>('/api/classes',          fetcher);
+  const { data: settingsRes } = useSWR<any>('/api/admin/comm/settings', fetcher);
+  const classes: any[] = (classesRes as any)?.data ?? classesRes ?? [];
+  const settings = settingsRes?.settings;
+
+  const [audienceType, setAudienceType] = useState<'paste'|'all_parents'|'class_parents'|'all_staff'|'all_teachers'|'class_teachers'>('paste');
+  const [classId,      setClassId]      = useState('');
+  const [paste,        setPaste]        = useState('');
+  const [message,      setMessage]      = useState('');
+  const [preview,      setPreview]      = useState<any | null>(null);
+  const [busy,         setBusy]         = useState<'preview' | 'send' | null>(null);
+
+  function parsePastedPhones(): { phone: string; name?: string }[] {
+    return paste
+      .split(/[\n,;]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => {
+        // accept "+256... Name" or "+256..." or "Name <+256...>"
+        const m = s.match(/^([^\s,]+)\s+(.+)$/) || s.match(/^(.+?)\s*<([^>]+)>$/);
+        if (!m) return { phone: s };
+        return s.includes('<')
+          ? { phone: (m[2] ?? '').trim(), name: (m[1] ?? '').trim() }
+          : { phone: (m[1] ?? '').trim(), name: (m[2] ?? '').trim() };
+      })
+      .filter(p => p.phone);
+  }
+
+  function buildAudience() {
+    switch (audienceType) {
+      case 'paste':          return { type: 'paste', phones: parsePastedPhones() };
+      case 'class_parents':  return { type: 'class_parents', classId: Number(classId) };
+      default:               return { type: audienceType };
+    }
+  }
+
+  async function doPreview() {
+    if (!message.trim())                                 { toast.error('Message required'); return; }
+    if (audienceType === 'paste'  && !paste.trim())       { toast.error('Paste at least one number'); return; }
+    if (audienceType === 'class_parents' && !classId)     { toast.error('Pick a class'); return; }
+    setBusy('preview');
+    try {
+      const r = await fetch('/api/admin/comm/broadcast', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, audience: buildAudience(), dryRun: true }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.success) throw new Error(j.error || 'Preview failed');
+      setPreview(j);
+    } catch (e: any) { toast.error(e?.message); }
+    finally { setBusy(null); }
+  }
+
+  async function doSend() {
+    if (!preview) { await doPreview(); return; }
+    if (preview.recipientCount === 0) { toast.error('No valid recipients'); return; }
+    if (!confirm(`Send to ${preview.recipientCount} recipient${preview.recipientCount === 1 ? '' : 's'}?`)) return;
+    setBusy('send');
+    try {
+      const r = await fetch('/api/admin/comm/broadcast', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, audience: buildAudience() }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.success) throw new Error(j.error || 'Send failed');
+      toast.success(`Sent ${j.sent} · failed ${j.failed}${j.queued ? ` · queued ${j.queued}` : ''}`);
+      setPreview(null);
+      setMessage('');
+      setPaste('');
+    } catch (e: any) { toast.error(e?.message); }
+    finally { setBusy(null); }
+  }
+
+  const previewBody = settings?.prefix && !message.startsWith(settings.prefix)
+    ? `${settings.prefix}\n${message}`
+    : message;
+  const charCount = previewBody.length;
+  const smsCount  = Math.max(1, Math.ceil(charCount / 160));
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-5">
+      {/* Compose */}
+      <div className="space-y-4">
+        <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">Audience</h2>
+          <div className="grid grid-cols-2 gap-2">
+            <AudienceBtn current={audienceType} value="paste"          onSelect={setAudienceType}>Paste numbers</AudienceBtn>
+            <AudienceBtn current={audienceType} value="all_parents"    onSelect={setAudienceType}>All parents</AudienceBtn>
+            <AudienceBtn current={audienceType} value="class_parents"  onSelect={setAudienceType}>Parents of class</AudienceBtn>
+            <AudienceBtn current={audienceType} value="all_staff"      onSelect={setAudienceType}>All staff</AudienceBtn>
+            <AudienceBtn current={audienceType} value="all_teachers"   onSelect={setAudienceType}>All teachers</AudienceBtn>
+            <AudienceBtn current={audienceType} value="class_teachers" onSelect={setAudienceType}>Class teachers</AudienceBtn>
+          </div>
+          {audienceType === 'class_parents' && (
+            <select value={classId} onChange={e => setClassId(e.target.value)}
+              className={inputCls}>
+              <option value="">— Select class —</option>
+              {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          {audienceType === 'paste' && (
+            <div>
+              <textarea value={paste} onChange={e => setPaste(e.target.value)} rows={6}
+                placeholder={"Paste one phone per line. Examples:\n+256712345678\n0712345678\n+256712345678 John Doe\nJane Smith <+256712345678>"}
+                className={inputCls + ' font-mono text-xs'} />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Accepts E.164 (+256…), local (0712…), or "+256… Name" format. Invalid numbers are dropped.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">Message</h2>
+          <textarea value={message} onChange={e => { setMessage(e.target.value); setPreview(null); }}
+            rows={5}
+            placeholder={"Write your message here. The school prefix is added automatically — don't repeat it."}
+            className={inputCls} />
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
+            <span>
+              {settings?.prefix
+                ? <>Prefix: <code className="font-mono text-indigo-600 dark:text-indigo-400">{settings.prefix}</code></>
+                : <span>No prefix configured</span>}
+            </span>
+            <span>{charCount} chars · {smsCount} SMS part{smsCount === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button onClick={doPreview} disabled={busy !== null}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg border border-indigo-300 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-50">
+            {busy === 'preview' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+            Preview Recipients
+          </button>
+          <button onClick={doSend} disabled={busy !== null || !preview || preview.recipientCount === 0}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+            {busy === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Send
+          </button>
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">Preview</h2>
+        {!preview ? (
+          <div className="text-center py-10 text-sm text-slate-400">
+            Click <b>Preview Recipients</b> to see who will receive this message.
+          </div>
+        ) : (
+          <>
+            <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Body</p>
+              <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-mono">{preview.previewBody}</p>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                {preview.recipientCount} recipient{preview.recipientCount === 1 ? '' : 's'}
+              </span>
+              {preview.recipientCount > preview.recipients.length && (
+                <span className="text-slate-400">(showing first {preview.recipients.length})</span>
+              )}
+            </div>
+            <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-100 dark:border-slate-800">
+              <table className="min-w-full text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0">
+                  <tr className="text-left text-[10px] uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-2">Phone</th>
+                    <th className="px-3 py-2">Name</th>
+                    <th className="px-3 py-2">Role</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {preview.recipients.map((r: any, i: number) => (
+                    <tr key={i} className="bg-white dark:bg-slate-900">
+                      <td className="px-3 py-1.5 font-mono">{r.phone}</td>
+                      <td className="px-3 py-1.5">{r.name}</td>
+                      <td className="px-3 py-1.5 text-slate-400">{r.meta ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AudienceBtn({
+  current, value, onSelect, children,
+}: {
+  current: string; value: string; onSelect: (v: any) => void; children: React.ReactNode;
+}) {
+  const active = current === value;
+  return (
+    <button onClick={() => onSelect(value)}
+      className={`px-3 py-2 text-xs font-semibold rounded-lg border transition ${
+        active
+          ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+          : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+      }`}>
+      {children}
     </button>
   );
 }
