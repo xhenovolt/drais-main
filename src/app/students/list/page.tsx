@@ -8,6 +8,7 @@ import {
   Download,
   Eye,
   Pencil,
+  CheckCircle2,
   Trash2,
   AlertCircle,
   CheckSquare,
@@ -138,6 +139,8 @@ export default function StudentsListPage() {
   const [editingCell, setEditingCell] = useState<{ studentId: number; field: 'first_name' | 'last_name' | 'gender' } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [quickEdit, setQuickEdit] = useState<QuickEditLearner | null>(null);
+  const [showBulkStatusMenu, setShowBulkStatusMenu] = useState(false);
+  const [bulkStatusBusy, setBulkStatusBusy] = useState(false);
   const [isPendingName, startNameTransition] = useTransition();
 
   // Bulk Action State
@@ -943,6 +946,36 @@ export default function StudentsListPage() {
     }));
     exportAsExcel(dataToExport, `students_${activeTab}`, [], 'Student List');
     setShowExportMenu(false);
+  };
+
+  // Bulk status change — uses the existing /api/students/bulk/status endpoint.
+  const handleBulkStatus = async (status: string) => {
+    if (selectedIds.size === 0) { showToast('error', 'Select learners first'); return; }
+    setShowBulkStatusMenu(false);
+    let reason: string | null = null;
+    if (status === 'left' || status === 'suspended') {
+      reason = window.prompt(`Reason for marking ${selectedIds.size} learner(s) as "${status}"?`) || null;
+      if (status === 'left' && !reason) { showToast('error', 'A reason is required to mark as left'); return; }
+    }
+    setBulkStatusBusy(true);
+    const ids = Array.from(selectedIds);
+    try {
+      const data = await apiFetch<any>('/api/students/bulk/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: ids, status, reason }),
+        successMessage: `${ids.length} learner(s) set to ${status}`,
+      });
+      if (data?.success !== false) {
+        setEnrolledStudents(prev => prev.map(s => selectedIds.has(s.id) ? { ...s, status } as typeof s : s));
+        setAdmittedStudents(prev => prev.map(s => selectedIds.has(s.id) ? { ...s, status } as typeof s : s));
+        setSelectedIds(new Set());
+      }
+    } catch {
+      showToast('error', 'Bulk status update failed');
+    } finally {
+      setBulkStatusBusy(false);
+    }
   };
 
   // Bulk class reassignment with optimistic UI update
@@ -1872,6 +1905,29 @@ export default function StudentsListPage() {
                   Assign Program
                 </button>
               )}
+              <div className="relative">
+                <button
+                  onClick={() => setShowBulkStatusMenu(v => !v)}
+                  disabled={bulkStatusBusy}
+                  className="flex items-center gap-1.5 h-7 px-3 bg-amber-600 hover:bg-amber-500 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
+                >
+                  {bulkStatusBusy ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  Status
+                </button>
+                {showBulkStatusMenu && (
+                  <div className="absolute bottom-full mb-2 left-0 w-36 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden py-1">
+                    {['active', 'suspended', 'graduated', 'left'].map(st => (
+                      <button
+                        key={st}
+                        onClick={() => handleBulkStatus(st)}
+                        className="w-full text-left px-3 py-1.5 text-xs capitalize text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setShowPhotoUploadModal(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-semibold transition-colors"
