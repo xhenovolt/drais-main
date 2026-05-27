@@ -7,6 +7,7 @@ import {
   Plus,
   Download,
   Eye,
+  Pencil,
   Trash2,
   AlertCircle,
   CheckSquare,
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
+import QuickEditDrawer, { type QuickEditLearner } from '@/components/students/QuickEditDrawer';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 import { FolderPhotoUploadModal } from '@/components/students/FolderPhotoUploadModal';
 import { ImportModal } from '@/components/students/ImportModal';
@@ -135,6 +137,7 @@ export default function StudentsListPage() {
   // Inline editing — per-field state (matches ClassResultsManager pattern)
   const [editingCell, setEditingCell] = useState<{ studentId: number; field: 'first_name' | 'last_name' | 'gender' } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const [quickEdit, setQuickEdit] = useState<QuickEditLearner | null>(null);
   const [isPendingName, startNameTransition] = useTransition();
 
   // Bulk Action State
@@ -1691,6 +1694,18 @@ export default function StudentsListPage() {
                               <Link href={`/students/${student.id}`} title="View profile" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-slate-400 hover:text-indigo-600 transition-colors">
                                 <Eye className="w-3.5 h-3.5" />
                               </Link>
+                              <button
+                                onClick={() => setQuickEdit({
+                                  id: student.id, first_name: student.first_name, last_name: student.last_name,
+                                  other_name: (student as any).other_name, gender: student.gender,
+                                  phone: (student as any).phone, email: (student as any).email,
+                                  status: (student as any).status, class_id: (student as any).class_id, class_name: (student as any).class_name,
+                                })}
+                                title="Quick edit"
+                                className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-violet-100 dark:hover:bg-violet-900/30 text-slate-400 hover:text-violet-600 transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
                               <Link href={`/students/${student.id}/fees`} title="Fees ledger" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 transition-colors">
                                 <DollarSign className="w-3.5 h-3.5" />
                               </Link>
@@ -2045,6 +2060,20 @@ export default function StudentsListPage() {
         onClose={() => setShowSyncModal(false)}
         defaultDeviceIp={localDeviceIp}
         defaultDeviceSn={relayDeviceSn}
+      />
+
+      {/* Quick-edit drawer — edit common fields without leaving the list */}
+      <QuickEditDrawer
+        learner={quickEdit}
+        classes={classes.map(c => ({ value: c.id, label: c.name }))}
+        open={!!quickEdit}
+        onClose={() => setQuickEdit(null)}
+        onSaved={(updated) => {
+          if (!quickEdit) return;
+          setEnrolledStudents(prev => prev.map(s => s.id === quickEdit.id ? { ...s, ...updated } as typeof s : s));
+          setAdmittedStudents(prev => prev.map(s => s.id === quickEdit.id ? { ...s, ...updated } as typeof s : s));
+          showToast('success', 'Learner updated');
+        }}
       />
     </div>
   );
