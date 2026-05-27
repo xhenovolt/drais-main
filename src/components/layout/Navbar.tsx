@@ -12,7 +12,8 @@ import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import useSWR from 'swr';
 import BellClient from '@/components/notifications/BellClient';
-import NavbarSearch from './NavbarSearch';
+import CommandPalette from '@/components/search/CommandPalette';
+import CommandSearchTrigger from '@/components/search/CommandSearchTrigger';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api';
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -181,10 +182,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
             </div>
           </div>
 
-          {/* Center Section - Search */}
+          {/* Center Section - Global Command Search (⌘K) */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
-            <NavbarSearch />
+            <CommandSearchTrigger />
           </div>
+          <CommandPalette />
 
           {/* Right Section */}
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
@@ -436,7 +438,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
               className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900"
             >
               <div className="p-4">
-                <NavbarSearch isMobile={true} />
+                <CommandSearchTrigger isMobile={true} />
               </div>
             </motion.div>
           )}
