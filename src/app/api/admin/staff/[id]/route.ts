@@ -8,6 +8,7 @@ import { query, withTransaction } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission, withErrorHandling } from '@/lib/rbac';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { reindexEntity } from '@/lib/search/indexer';
 
 function getIp(req: NextRequest) {
   return req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null;
@@ -142,6 +143,9 @@ export const PATCH = withErrorHandling(async function PATCH(req: NextRequest, { 
     details: { changed_fields: Object.keys(body), old_status: old.status, new_status: status ?? old.status },
     ip,
   });
+
+  // Refresh this staff member's search projection (fire-and-forget).
+  reindexEntity(session.schoolId, 'staff', staffId).catch(() => {});
 
   return NextResponse.json({ success: true });
 });

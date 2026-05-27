@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { logSystemError } from '@/lib/errorLogger';
+import { reindexEntity } from '@/lib/search/indexer';
 
 export async function PUT(req: NextRequest) {
   let connection;
@@ -117,6 +118,10 @@ export async function PUT(req: NextRequest) {
         [id, schoolId]
       ) as any[];
       const updatedStudent = updatedRows[0] ?? null;
+
+      // Keep the search index fresh (fire-and-forget) — name/status/phone/class
+      // are searchable fields, so refresh this learner's projection row.
+      reindexEntity(schoolId, 'student', Number(id)).catch(() => {});
 
       // Post-commit audit (fire-and-forget)
       const changedKeys = Object.keys(changedFields);

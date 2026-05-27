@@ -130,11 +130,75 @@ async function buildSubjects(schoolId: number): Promise<IndexRow[]> {
   }));
 }
 
+async function buildInvoices(schoolId: number): Promise<IndexRow[]> {
+  const rows = (await query(
+    `SELECT fi.id, fi.invoice_no, fi.total_amount, fi.balance_amount, fi.status,
+            TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS learner_name
+       FROM fee_invoices fi
+       LEFT JOIN students s ON s.id = fi.student_id
+       LEFT JOIN people p   ON p.id = s.person_id
+      WHERE fi.school_id = ?`,
+    [schoolId],
+  )) as any[];
+  return rows.map(r => ({
+    entity_type: 'invoice', entity_id: Number(r.id),
+    title: `Invoice ${r.invoice_no}`,
+    subtitle: [r.learner_name, r.status, `Bal ${Number(r.balance_amount ?? 0).toLocaleString()}`]
+      .filter(Boolean).join(' • ') || null,
+    search_text: norm(r.invoice_no, r.learner_name, r.status, 'invoice',
+      Number(r.balance_amount) > 0 ? 'unpaid balance owing' : 'paid cleared'),
+    url_path: `/finance/fees?invoice=${r.id}`,
+    metadata: { status: r.status, balance: Number(r.balance_amount ?? 0), student_name: r.learner_name },
+  }));
+}
+
+async function buildPayments(schoolId: number): Promise<IndexRow[]> {
+  const rows = (await query(
+    `SELECT fp.id, fp.amount, fp.receipt_no, fp.reference, fp.method, fp.created_at,
+            TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS learner_name
+       FROM fee_payments fp
+       LEFT JOIN students s ON s.id = fp.student_id
+       LEFT JOIN people p   ON p.id = s.person_id
+      WHERE fp.school_id = ?
+      ORDER BY fp.id DESC LIMIT 5000`,
+    [schoolId],
+  )) as any[];
+  return rows.map(r => ({
+    entity_type: 'payment', entity_id: Number(r.id),
+    title: `Receipt ${r.receipt_no || r.reference || r.id}`,
+    subtitle: [r.learner_name, `${Number(r.amount).toLocaleString()}`, r.method].filter(Boolean).join(' • ') || null,
+    search_text: norm(r.receipt_no, r.reference, r.learner_name, r.method, 'payment receipt'),
+    url_path: `/finance/payments?id=${r.id}`,
+    metadata: { amount: Number(r.amount), method: r.method, student_name: r.learner_name },
+  }));
+}
+
+async function buildSms(schoolId: number): Promise<IndexRow[]> {
+  const rows = (await query(
+    `SELECT id, recipient_phone, recipient_name, message_body, status, event_type, sent_at, created_at
+       FROM comm_dispatch_log
+      WHERE school_id = ?
+      ORDER BY id DESC LIMIT 5000`,
+    [schoolId],
+  )) as any[];
+  return rows.map(r => ({
+    entity_type: 'sms', entity_id: Number(r.id),
+    title: r.recipient_name || r.recipient_phone || `Message #${r.id}`,
+    subtitle: [r.status, r.event_type, (r.message_body || '').slice(0, 48)].filter(Boolean).join(' • ') || null,
+    search_text: norm(r.recipient_name, r.recipient_phone, r.message_body, r.status, r.event_type, 'sms message'),
+    url_path: `/admin/communications?log=${r.id}`,
+    metadata: { status: r.status, phone: r.recipient_phone },
+  }));
+}
+
 const BUILDERS: Partial<Record<SearchEntityType, (schoolId: number) => Promise<IndexRow[]>>> = {
   student: buildStudents,
   staff:   buildStaff,
   class:   buildClasses,
   subject: buildSubjects,
+  invoice: buildInvoices,
+  payment: buildPayments,
+  sms:     buildSms,
 };
 
 /** Rebuild the index for one school (optionally one entity type). Returns counts. */
