@@ -9,6 +9,7 @@ import {
   ArrowLeft, CheckCircle2, Camera,
 } from 'lucide-react';
 import EnrollmentTimeline from '@/components/students/EnrollmentTimeline';
+import LearnerOverview from '@/components/students/LearnerOverview';
 import PhotoEditorModal from '@/components/students/PhotoEditorModal';
 import ExtendedProfileModal from '@/components/students/ExtendedProfileModal';
 import { Pencil, Home, Heart, Plus, ExternalLink, Fingerprint } from 'lucide-react';
@@ -134,6 +135,9 @@ export default function StudentDetailPage() {
           <ArrowLeft className="w-3.5 h-3.5" /> List
         </Link>
       </div>
+
+      {/* Command Center snapshot — performance, attendance, fees, subjects, trend */}
+      <LearnerOverview studentId={id} />
 
       <div className="grid gap-5 md:grid-cols-3">
         {/* Main column */}
