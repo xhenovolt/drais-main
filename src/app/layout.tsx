@@ -142,6 +142,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     pathname === '/forbidden' ||                 // Forbidden page
     pathname === '/server-error' ||              // Error pages
     pathname === '/academics/reports' ||          // Report printing layout
+    pathname.startsWith('/portal') ||            // Parent portal — own shell, no staff nav
     pathname.startsWith('/rpt');                 // Standalone rpt.html clone
 
   return (
