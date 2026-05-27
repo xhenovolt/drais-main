@@ -41,6 +41,8 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
 import QuickEditDrawer, { type QuickEditLearner } from '@/components/students/QuickEditDrawer';
+import LearnerSnapshotModal from '@/components/students/LearnerSnapshotModal';
+import BulkSmsModal from '@/components/students/BulkSmsModal';
 import LearnerOverview from '@/components/students/LearnerOverview';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 import { FolderPhotoUploadModal } from '@/components/students/FolderPhotoUploadModal';
@@ -144,6 +146,8 @@ export default function StudentsListPage() {
   const [quickEdit, setQuickEdit] = useState<QuickEditLearner | null>(null);
   const [showBulkStatusMenu, setShowBulkStatusMenu] = useState(false);
   const [bulkStatusBusy, setBulkStatusBusy] = useState(false);
+  const [snapshot, setSnapshot] = useState<{ id: number; name: string } | null>(null);
+  const [showBulkSms, setShowBulkSms] = useState(false);
   const [snapshotStudent, setSnapshotStudent] = useState<{ id: number; name: string } | null>(null);
   const [showBulkMessage, setShowBulkMessage] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
@@ -1774,6 +1778,13 @@ export default function StudentsListPage() {
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
+                                onClick={() => setSnapshot({ id: student.id, name: `${student.first_name} ${student.last_name}` })}
+                                title="Quick snapshot"
+                                className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-sky-100 dark:hover:bg-sky-900/30 text-slate-400 hover:text-sky-600 transition-colors"
+                              >
+                                <Activity className="w-3.5 h-3.5" />
+                              </button>
+                              <button
                                 onClick={() => setSnapshotStudent({ id: student.id, name: `${student.first_name} ${student.last_name}` })}
                                 title="Quick snapshot"
                                 className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-sky-100 dark:hover:bg-sky-900/30 text-slate-400 hover:text-sky-600 transition-colors"
@@ -1972,6 +1983,12 @@ export default function StudentsListPage() {
               <button
                 onClick={() => setShowBulkMessage(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-teal-600 hover:bg-teal-500 rounded-lg text-xs font-semibold transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> Message
+              </button>
+              <button
+                onClick={() => setShowBulkSms(true)}
+                className="flex items-center gap-1.5 h-7 px-3 bg-sky-600 hover:bg-sky-500 rounded-lg text-xs font-semibold transition-colors"
               >
                 <MessageSquare className="w-3.5 h-3.5" /> Message
               </button>
@@ -2213,6 +2230,22 @@ export default function StudentsListPage() {
           </div>
         </div>
       )}
+
+      {/* Quick snapshot — academic/fee/attendance without leaving the list */}
+      <LearnerSnapshotModal
+        studentId={snapshot?.id ?? null}
+        name={snapshot?.name}
+        open={!!snapshot}
+        onClose={() => setSnapshot(null)}
+      />
+
+      {/* Bulk SMS to guardians of selected learners */}
+      <BulkSmsModal
+        studentIds={Array.from(selectedIds)}
+        open={showBulkSms}
+        onClose={() => setShowBulkSms(false)}
+        onSent={(count) => { showToast('success', `Message sent to ${count} recipient(s)`); setSelectedIds(new Set()); }}
+      />
 
       {/* Quick-edit drawer — edit common fields without leaving the list */}
       <QuickEditDrawer
