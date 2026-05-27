@@ -21,6 +21,7 @@ export type BroadcastAudience =
   | { type: 'paste';            phones: { phone: string; name?: string }[] }
   | { type: 'all_parents' }
   | { type: 'class_parents';    classId:  number; streamId?: number | null }
+  | { type: 'learner_parents';  studentIds: number[] }
   | { type: 'all_staff' }
   | { type: 'all_teachers' }
   | { type: 'class_teachers' };
@@ -100,6 +101,34 @@ export async function resolveBroadcastAudience(
         params,
       )) as Array<{ phone: string; name: string }>;
       raw = [...via1, ...via2].map(r => ({ phone: r.phone, name: r.name, meta: 'parent (class)' }));
+      break;
+    }
+
+    case 'learner_parents': {
+      // Guardians of an explicit set of learners (e.g. selected rows in the
+      // list). School-scoped, so foreign student_ids resolve to nothing.
+      const ids = (audience.studentIds ?? []).filter(n => Number.isFinite(n));
+      if (!ids.length) { raw = []; break; }
+      const ph = ids.map(() => '?').join(',');
+      const via1 = (await query(
+        `SELECT DISTINCT c.phone, c.full_name AS name
+           FROM student_contacts sc
+           JOIN contacts c ON c.id = sc.contact_id
+           JOIN students s ON s.id = sc.student_id
+          WHERE s.school_id = ? AND sc.student_id IN (${ph})
+            AND c.phone IS NOT NULL AND c.phone <> ''`,
+        [schoolId, ...ids],
+      )) as Array<{ phone: string; name: string }>;
+      const via2 = (await query(
+        `SELECT DISTINCT pa.phone, pa.name
+           FROM student_parents sp
+           JOIN parents pa ON pa.id = sp.parent_id
+           JOIN students s ON s.id  = sp.student_id
+          WHERE s.school_id = ? AND sp.student_id IN (${ph})
+            AND pa.phone IS NOT NULL AND pa.phone <> ''`,
+        [schoolId, ...ids],
+      )) as Array<{ phone: string; name: string }>;
+      raw = [...via1, ...via2].map(r => ({ phone: r.phone, name: r.name, meta: 'parent (selected)' }));
       break;
     }
 

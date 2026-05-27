@@ -9,6 +9,8 @@ import {
   Eye,
   Pencil,
   CheckCircle2,
+  Activity,
+  MessageSquare,
   Trash2,
   AlertCircle,
   CheckSquare,
@@ -39,6 +41,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
 import QuickEditDrawer, { type QuickEditLearner } from '@/components/students/QuickEditDrawer';
+import LearnerOverview from '@/components/students/LearnerOverview';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 import { FolderPhotoUploadModal } from '@/components/students/FolderPhotoUploadModal';
 import { ImportModal } from '@/components/students/ImportModal';
@@ -141,6 +144,10 @@ export default function StudentsListPage() {
   const [quickEdit, setQuickEdit] = useState<QuickEditLearner | null>(null);
   const [showBulkStatusMenu, setShowBulkStatusMenu] = useState(false);
   const [bulkStatusBusy, setBulkStatusBusy] = useState(false);
+  const [snapshotStudent, setSnapshotStudent] = useState<{ id: number; name: string } | null>(null);
+  const [showBulkMessage, setShowBulkMessage] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState('');
+  const [bulkMsgBusy, setBulkMsgBusy] = useState(false);
   const [isPendingName, startNameTransition] = useTransition();
 
   // Bulk Action State
@@ -978,6 +985,33 @@ export default function StudentsListPage() {
     }
   };
 
+  // Bulk SMS to the guardians of the selected learners.
+  const handleBulkMessage = async () => {
+    const msg = bulkMessage.trim();
+    if (!msg) { showToast('error', 'Type a message first'); return; }
+    if (selectedIds.size === 0) { showToast('error', 'Select learners first'); return; }
+    setBulkMsgBusy(true);
+    try {
+      const data = await apiFetch<any>('/api/admin/comm/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          audience: { type: 'learner_parents', studentIds: Array.from(selectedIds) },
+        }),
+      });
+      const sent = data?.sentCount ?? data?.recipientCount ?? 0;
+      showToast('success', `Message queued to ${sent} guardian(s)`);
+      setShowBulkMessage(false);
+      setBulkMessage('');
+      setSelectedIds(new Set());
+    } catch {
+      showToast('error', 'Failed to send messages');
+    } finally {
+      setBulkMsgBusy(false);
+    }
+  };
+
   // Bulk class reassignment with optimistic UI update
   const handleReassignClass = async (newClassId: number, reason: string) => {
     if (selectedIds.size === 0) {
@@ -1739,6 +1773,13 @@ export default function StudentsListPage() {
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
+                              <button
+                                onClick={() => setSnapshotStudent({ id: student.id, name: `${student.first_name} ${student.last_name}` })}
+                                title="Quick snapshot"
+                                className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-sky-100 dark:hover:bg-sky-900/30 text-slate-400 hover:text-sky-600 transition-colors"
+                              >
+                                <Activity className="w-3.5 h-3.5" />
+                              </button>
                               <Link href={`/students/${student.id}/fees`} title="Fees ledger" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 transition-colors">
                                 <DollarSign className="w-3.5 h-3.5" />
                               </Link>
@@ -1929,6 +1970,12 @@ export default function StudentsListPage() {
                 )}
               </div>
               <button
+                onClick={() => setShowBulkMessage(true)}
+                className="flex items-center gap-1.5 h-7 px-3 bg-teal-600 hover:bg-teal-500 rounded-lg text-xs font-semibold transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> Message
+              </button>
+              <button
                 onClick={() => setShowPhotoUploadModal(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-semibold transition-colors"
               >
@@ -2117,6 +2164,55 @@ export default function StudentsListPage() {
         defaultDeviceIp={localDeviceIp}
         defaultDeviceSn={relayDeviceSn}
       />
+
+      {/* Quick snapshot — read-only operational overview, reuses P2 endpoint */}
+      {snapshotStudent && (
+        <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 backdrop-blur-sm pt-[12vh] px-4" onMouseDown={() => setSnapshotStudent(null)}>
+          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5" onMouseDown={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-sky-500" />
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white">{snapshotStudent.name}</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href={`/students/${snapshotStudent.id}`} className="text-xs text-indigo-600 hover:underline">Full profile →</Link>
+                <button onClick={() => setSnapshotStudent(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <LearnerOverview studentId={snapshotStudent.id} />
+          </div>
+        </div>
+      )}
+
+      {/* Bulk message — SMS the guardians of selected learners */}
+      {showBulkMessage && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onMouseDown={() => !bulkMsgBusy && setShowBulkMessage(false)}>
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5" onMouseDown={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-1">
+              <MessageSquare className="w-4 h-4 text-teal-500" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Message guardians</h3>
+            </div>
+            <p className="text-xs text-slate-400 mb-3">Sends to the guardians of {selectedIds.size} selected learner(s). The school SMS prefix is added automatically.</p>
+            <textarea
+              value={bulkMessage}
+              onChange={e => setBulkMessage(e.target.value)}
+              rows={4}
+              maxLength={1600}
+              placeholder="Type your message…"
+              className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            />
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-[10px] text-slate-400">{bulkMessage.length}/1600</span>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setShowBulkMessage(false)} disabled={bulkMsgBusy} className="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">Cancel</button>
+              <button onClick={handleBulkMessage} disabled={bulkMsgBusy || !bulkMessage.trim()} className="flex-1 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
+                {bulkMsgBusy ? <Loader className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />} Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick-edit drawer — edit common fields without leaving the list */}
       <QuickEditDrawer
