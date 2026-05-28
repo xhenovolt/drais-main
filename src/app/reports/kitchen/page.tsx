@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ChefHat, Eye, Check, Copy, Plus, Trash2,
-  Sparkles, ArrowLeft, RefreshCw, Pencil, Loader2,
+  Sparkles, ArrowLeft, RefreshCw, Pencil, Loader2, Library,
 } from 'lucide-react';
 import type { DRCEDocument, DRCEDataContext } from '@/lib/drce/schema';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
@@ -27,6 +27,12 @@ const PREVIEW_DATA: DRCEDataContext = {
     photoUrl:    null,
     dateOfBirth: null,
   },
+  subjects: [
+    { id: 1, name: 'Mathematics',    totalMarks: 100, subjectType: 'primary' },
+    { id: 2, name: 'English',        totalMarks: 100, subjectType: 'primary' },
+    { id: 3, name: 'Science',        totalMarks: 100, subjectType: 'primary' },
+    { id: 4, name: 'Social Studies', totalMarks: 100, subjectType: 'primary' },
+  ],
   results: [
     { subjectName: 'Mathematics',    midTermScore: 72, endTermScore: 85, total: 157, grade: 'D1', comment: 'Excellent', initials: 'JO', teacherName: 'J. Okello' },
     { subjectName: 'English',        midTermScore: 65, endTermScore: 78, total: 143, grade: 'D2', comment: 'Very good', initials: 'AM', teacherName: 'A. Mutesi' },
@@ -43,6 +49,17 @@ const PREVIEW_DATA: DRCEDataContext = {
     term: 'Term 1', year: '2026', reportTitle: 'END OF TERM I REPORT CARD 2026',
     schoolName: '', schoolAddress: '', schoolContact: '', schoolEmail: '', centerNo: '', registrationNo: '',
     arabicName: null, arabicAddress: null, logoUrl: null,
+    // Phase B sample so card previews resolve {next_term_begins | date:"…"}
+    // etc. (real renders read these from snapshot.config.calendar populated
+    // at generation time).
+    nextTermBegins: '2026-05-15',
+    calendar: {
+      next_term_starts_at: '2026-05-15',
+      this_term_ends_at:   '2026-04-12',
+      next_term_name:      'Term 2',
+      prev_term_name:      null,
+      year_rollover:       false,
+    },
   },
 };
 
@@ -238,6 +255,13 @@ export default function ReportsKitchen() {
               label="Generate Snapshot"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
             />
+            <button
+              onClick={() => router.push('/admin/drce/blocks')}
+              title="Reusable section subtrees referenced by templates via block_ref"
+              className="flex items-center gap-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm px-3 py-1.5 rounded hover:bg-slate-50 dark:hover:bg-slate-600"
+            >
+              <Library size={14} /> Block Library
+            </button>
             <button
               onClick={() => router.push('/reports/kitchen/drce/new')}
               className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3 py-1.5 rounded hover:bg-indigo-700"
