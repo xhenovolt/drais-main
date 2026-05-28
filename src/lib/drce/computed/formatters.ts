@@ -75,6 +75,39 @@ const FORMATTERS: Record<string, Formatter> = {
     const max = parseInt(maxLen, 10) || 80;
     return s.length <= max ? s : s.slice(0, max - 1) + '…';
   },
+  /** 1 → "1st", 22 → "22nd", 113 → "113th". */
+  ordinal(value) {
+    const n = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(n)) return String(value ?? '');
+    const i = Math.trunc(Math.abs(n));
+    const tens = i % 100;
+    if (tens >= 11 && tens <= 13) return `${n}th`;
+    switch (i % 10) {
+      case 1: return `${n}st`;
+      case 2: return `${n}nd`;
+      case 3: return `${n}rd`;
+      default: return `${n}th`;
+    }
+  },
+  /** {fee_balance | currency:"UGX,#,##0"} → "UGX 12,500". Symbol before the pattern, separated by space. */
+  currency(value, spec = '"UGX,#,##0"') {
+    const cleaned = spec.replace(/^"|"$/g, '');
+    const comma = cleaned.indexOf(',');
+    const symbol = comma >= 0 ? cleaned.slice(0, comma) : 'UGX';
+    const pattern = comma >= 0 ? cleaned.slice(comma + 1) : '#,##0';
+    return `${symbol} ${fmtNumber(value, pattern)}`;
+  },
+  /** Alias for coalesce — more discoverable in the editor variable picker. */
+  default(value, fallback = '—') {
+    const s = value == null ? '' : String(value);
+    return s.trim() === '' ? fallback.replace(/^"|"$/g, '') : s;
+  },
+  /** Boolean rendering: {year_rollover | bool:"Next year","Same year"} */
+  bool(value, ifTrue = '"Yes"', ifFalse = '"No"') {
+    const truthy = value !== null && value !== undefined && value !== false
+      && value !== '' && value !== 0 && value !== '0';
+    return (truthy ? ifTrue : ifFalse).replace(/^"|"$/g, '');
+  },
   /** Treat the value as a Date and produce a relative humanised string. */
   relative_date(value) {
     const d = toDate(value);

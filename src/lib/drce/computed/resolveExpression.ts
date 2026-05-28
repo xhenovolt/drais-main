@@ -20,6 +20,7 @@ import type { DRCEDataContext } from '../schema';
 import { getByPath } from '../bindingResolver';
 import { getComputed, type ComputedValue } from './registry';
 import { applyFormatter } from './formatters';
+import { getAggregator, type AggregatorArg } from './aggregations';
 // Side-effect import: registers built-in computeds at module load.
 import './builtins';
 
@@ -37,6 +38,35 @@ function rootFor(ctx: DRCEDataContext, row?: Record<string, unknown>): RootScope
     ...(row ? { result: row } : {}),
   };
 }
+
+/** Parse one call argument: literal, boolean, number, or bare path. */
+function parseCallArg(raw: string): AggregatorArg {
+  const t = raw.trim();
+  if (!t) return null;
+  if ((t.startsWith('"') && t.endsWith('"'))
+   || (t.startsWith("'") && t.endsWith("'"))) return t.slice(1, -1);
+  if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+  if (t === 'true')  return true;
+  if (t === 'false') return false;
+  return t;  // bare path — aggregator resolves it
+}
+
+/** Split `a, "b, c", 50` honouring quoted strings. */
+function splitArgs(s: string): string[] {
+  const out: string[] = [];
+  let buf = '', inStr: '"' | "'" | null = null;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) { buf += ch; if (ch === inStr) inStr = null; continue; }
+    if (ch === '"' || ch === "'") { inStr = ch; buf += ch; continue; }
+    if (ch === ',') { out.push(buf); buf = ''; continue; }
+    buf += ch;
+  }
+  if (buf.trim()) out.push(buf);
+  return out;
+}
+
+const CALL_RE = /^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)\)\s*$/;
 
 /**
  * Resolve a single expression body (the text inside `{…}`) to a value.
@@ -56,6 +86,16 @@ function resolveSingleTerm(term: string, ctx: DRCEDataContext, row?: Record<stri
   // Boolean literal
   if (trimmed === 'true')  return true;
   if (trimmed === 'false') return false;
+
+  // Aggregator call: name(arg, arg, …). Closed grammar — only registered
+  // aggregator names are callable; arbitrary function calls are NOT allowed.
+  const callMatch = trimmed.match(CALL_RE);
+  if (callMatch) {
+    const fn = getAggregator(callMatch[1]);
+    if (!fn) return null;
+    const args = splitArgs(callMatch[2]).map(parseCallArg);
+    return fn(ctx, args);
+  }
 
   // Computed field — checked before paths so a school can shadow a deep path
   // with a stable computed name (we never overwrite the built-ins silently).
@@ -135,9 +175,13 @@ function resolveBody(body: string, ctx: DRCEDataContext, row?: Record<string, un
 export function resolveExpression(text: string, ctx: DRCEDataContext, row?: Record<string, unknown>): string {
   if (!text || text.indexOf('{') < 0) return text;
   return text.replace(/\{([^{}]+)\}/g, (match, body: string) => {
+    const trimmed = body.trim();
+    const isExpression = body.includes('|')
+                      || COND_RE.test(trimmed)
+                      || CALL_RE.test(trimmed);
     // Preserve legacy behavior for simple unknown paths: leave the brace
     // form intact so existing templates don't suddenly produce blank cells.
-    if (!body.includes('|') && !COND_RE.test(body)) {
+    if (!isExpression) {
       const v = resolveSingleTerm(body, ctx, row);
       if (v == null) return match;            // unknown → leave `{path}` as-is
       if (v instanceof Date) return v.toISOString();
