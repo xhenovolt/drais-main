@@ -3,7 +3,7 @@
 // Full coverage: every section type, field management, comment items, spacing.
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type {
   DRCEDocument, DRCESection, DRCEMutation,
   DRCEResultsTableSection, DRCEColumn,
@@ -104,7 +104,9 @@ function PanelSection({ title, children, defaultOpen = true }: {
 // ─── Shared: Spacing Section ──────────────────────────────────────────────────
 
 function SpacingSection({ section, onMutate }: { section: DRCESection; onMutate: (m: DRCEMutation) => void }) {
-  const style = section.style as Record<string, unknown>;
+  // DRCEBlockRefSection has no style; SpacingSection's number inputs simply
+  // show 0 in that case and writes to a style field the renderer ignores.
+  const style = ((section as { style?: Record<string, unknown> }).style ?? {}) as Record<string, unknown>;
   const set = (k: string, v: unknown) => onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path: k, value: v });
   return (
     <PanelSection title="Spacing" defaultOpen={false}>
@@ -1156,6 +1158,137 @@ function DividerPanel({ section, onMutate }: { section: DRCESection & { type: 'd
 // ─── Next Term Begins Panel ───────────────────────────────────────────────────
 
 // ───────────────────────────────────────────────────────────────────────────
+// Phase H — Inheritance (parent template) selector
+// ───────────────────────────────────────────────────────────────────────────
+interface DocOption { id: number; name: string }
+
+function InheritancePanel({ doc }: { doc: DRCEDocument }) {
+  const docId = Number(doc.meta.id);
+  const hasDbId = Number.isFinite(docId) && docId > 0;
+  const [options, setOptions] = useState<DocOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [parentId, setParentId] = useState<number | null>(doc.meta.parent_id ?? null);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState('');
+
+  useEffect(() => { setParentId(doc.meta.parent_id ?? null); }, [doc.meta.parent_id]);
+
+  useEffect(() => {
+    if (!hasDbId) return;
+    setLoading(true);
+    fetch('/api/dvcf/documents')
+      .then(r => r.json())
+      .then(data => {
+        const docs = Array.isArray(data?.documents) ? data.documents : (Array.isArray(data) ? data : []);
+        setOptions(docs
+          .filter((d: { id: number }) => Number(d.id) !== docId)
+          .map((d: { id: number; name: string }) => ({ id: Number(d.id), name: d.name })));
+      })
+      .finally(() => setLoading(false));
+  }, [docId, hasDbId]);
+
+  if (!hasDbId) return null;
+
+  async function save(nextParent: number | null) {
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`/api/dvcf/documents/${docId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_id: nextParent }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) { setError(data?.error ?? 'Failed to save parent'); return; }
+      setParentId(nextParent);
+    } catch { setError('Network error'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="p-3 border-t border-gray-100 dark:border-slate-700 space-y-2">
+      <div className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Inheritance (Phase H)</div>
+      <p className="text-[11px] text-gray-500">
+        Pick a parent template. Sections from the parent appear automatically;
+        sections you author here OVERRIDE matching parent sections by id and
+        new ids append. Theme + watermark fall through to the parent when
+        unset locally.
+      </p>
+      {error && <div className="text-[11px] text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded px-2 py-1">{error}</div>}
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Parent template</span>
+        <select
+          value={parentId ?? ''}
+          disabled={loading || saving}
+          onChange={e => save(e.target.value ? Number(e.target.value) : null)}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+        >
+          <option value="">— none (standalone) —</option>
+          {options.map(o => <option key={o.id} value={o.id}>{o.name} (#{o.id})</option>)}
+        </select>
+      </label>
+      {saving && <p className="text-[11px] text-gray-400">Saving…</p>}
+      {!saving && parentId && <p className="text-[11px] text-emerald-600">Linked to parent #{parentId}. Reload to see the merged tree in preview.</p>}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Phase H — Shared block reference panel
+// ───────────────────────────────────────────────────────────────────────────
+interface BlockOption { id: number; name: string; kind: string; description: string; school_id: number | null }
+
+function BlockRefPanel({ section, onMutate }: { section: DRCESection & { type: 'block_ref' }; onMutate: (m: DRCEMutation) => void }) {
+  const [blocks, setBlocks] = useState<BlockOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/drce/blocks').then(r => r.json()).then(data => {
+      if (cancelled) return;
+      if (data?.success) setBlocks(data.blocks ?? []);
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+  const setBlockId = (id: number) =>
+    onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'block_id', value: id });
+
+  return (
+    <div className="p-3 space-y-3 text-xs">
+      <div className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Shared block</div>
+      <p className="text-[11px] text-gray-500">
+        Pick a block from the library. Its contents are inlined at render time;
+        editing the block updates every document that references it.
+      </p>
+      {loading ? (
+        <p className="text-[11px] text-gray-400">Loading library…</p>
+      ) : blocks.length === 0 ? (
+        <p className="text-[11px] text-amber-600">No blocks yet. POST a section to /api/drce/blocks to seed the library.</p>
+      ) : (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">Block</span>
+          <select
+            value={section.block_id || ''}
+            onChange={e => setBlockId(Number(e.target.value))}
+            className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+          >
+            <option value="">— pick a block —</option>
+            {blocks.map(b => (
+              <option key={b.id} value={b.id}>
+                {b.name} {b.school_id === null ? '· global' : ''} ({b.kind})
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {section.block_id ? (
+        <p className="text-[11px] text-gray-500">
+          Currently linked: <code className="font-mono">#{section.block_id}</code>
+        </p>
+      ) : null}
+      <DeleteSectionBtn section={section} onMutate={onMutate} />
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // Phase E — Header block properties panel
 // ───────────────────────────────────────────────────────────────────────────
 function HeaderBlockPanel({ section, onMutate }: { section: DRCESection & { type: 'header_block' }; onMutate: (m: DRCEMutation) => void }) {
@@ -1751,6 +1884,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       case 'container':     return <ContainerPanel     section={selectedSection as DRCESection & { type: 'container' }}     onMutate={onMutate} />;
       case 'shape':         return <ShapePanel         section={selectedSection as DRCESection & { type: 'shape' }}         onMutate={onMutate} />;
       case 'header_block':  return <HeaderBlockPanel   section={selectedSection as DRCESection & { type: 'header_block' }}  onMutate={onMutate} />;
+      case 'block_ref':     return <BlockRefPanel      section={selectedSection as DRCESection & { type: 'block_ref' }}     onMutate={onMutate} />;
       default:              return (
         <div className="p-4 text-center text-xs text-gray-400">
           <p>No properties for</p>
@@ -1778,7 +1912,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'theme'     && <ThemePanel     doc={doc} onMutate={onMutate} />}
+        {activeTab === 'theme'     && <><ThemePanel     doc={doc} onMutate={onMutate} /><InheritancePanel doc={doc} /></>}
         {activeTab === 'watermark' && <WatermarkPanel doc={doc} onMutate={onMutate} />}
         {activeTab === 'rules'     && <RulesPanel     doc={doc} onMutate={onMutate} />}
         {activeTab === 'section'   && renderSectionPanel()}

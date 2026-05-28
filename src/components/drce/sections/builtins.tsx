@@ -33,6 +33,7 @@ import { NextTermBeginsSection } from './NextTermBeginsSection';
 import { ContainerSection, defaultContainer } from './ContainerSection';
 import { ShapeSection, defaultShapeSection } from './ShapeSection';
 import { HeaderBlockSection, defaultHeaderBlock } from './HeaderBlockSection';
+import { BlockRefSection, defaultBlockRef } from './BlockRefSection';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -200,6 +201,16 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <DividerSection section={p.section as any} />) as any,
+});
+
+registerSection({
+  type:  'block_ref',
+  label: 'Block (from library)',
+  icon:  '📚',
+  description: 'Reference a shared block from the library. Inlined at render time; editing the block updates every document that references it.',
+  defaultProps: defaultBlockRef,
+  Render: ((p: SectionRenderProps) =>
+    <BlockRefSection section={p.section as any} />) as any,
 });
 
 registerSection({

@@ -41,6 +41,7 @@ const SECTION_LABELS: Record<string, string> = {
   container:    'Container',
   shape:        'Shape',
   header_block: 'Header block',
+  block_ref:    'Shared block',
 };
 
 const SECTION_ICONS: Record<string, string> = {
@@ -58,6 +59,7 @@ const SECTION_ICONS: Record<string, string> = {
   container:    '🧱',
   shape:        '⬛',
   header_block: '🧩',
+  block_ref:    '📚',
 };
 
 function SortableItem({
@@ -137,6 +139,7 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     { type: 'header_block',  label: 'Header block',  icon: '🧩' },
     { type: 'container',     label: 'Container',     icon: '🧱' },
     { type: 'shape',         label: 'Shape',         icon: '⬛' },
+    { type: 'block_ref',     label: 'Shared block',  icon: '📚' },
   ];
 
   function buildNewSection(type: string): DRCESection {
@@ -220,6 +223,8 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
       case 'header_block':
         return { ...base, type: 'header_block', kind: 'school_name',
           style: { fontSize: 16, fontWeight: 'bold', align: 'center' } } as DRCESection;
+      case 'block_ref':
+        return { ...base, type: 'block_ref', block_id: 0 } as DRCESection;
       case 'shape':
         return { ...base, type: 'shape',
           shape: {

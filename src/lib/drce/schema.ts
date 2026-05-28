@@ -20,7 +20,8 @@ export type DRCESectionType =
   | 'next_term_begins'
   | 'container'    // Phase C — composition primitive holding child sections
   | 'shape'        // Phase C.2 — shape as section so it can live INSIDE a container
-  | 'header_block';// Phase E — one header element (logo, name, motto, QR …)
+  | 'header_block' // Phase E — one header element (logo, name, motto, QR …)
+  | 'block_ref';   // Phase H — reference to a shared block in drce_blocks
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -566,6 +567,19 @@ export interface DRCEHeaderBlockSection extends DRCESectionBase {
   style?:    DRCEHeaderBlockStyle;
 }
 
+/**
+ * Phase H — reference to a shared block in drce_blocks.
+ *
+ * Inlined at document load by the loader (resolveBlockRefs); the renderer
+ * never sees a block_ref. If the referenced block is missing (deleted,
+ * cross-school), the loader replaces the ref with a no-op spacer so the
+ * document still renders.
+ */
+export interface DRCEBlockRefSection extends DRCESectionBase {
+  type:     'block_ref';
+  block_id: number;
+}
+
 export type DRCESection =
   | DRCEHeaderSection
   | DRCEBannerSection
@@ -580,7 +594,8 @@ export type DRCESection =
   | DRCENextTermBeginsSection
   | DRCEContainerSection
   | DRCEShapeSection
-  | DRCEHeaderBlockSection;
+  | DRCEHeaderBlockSection
+  | DRCEBlockRefSection;
 
 // ─── Document Metadata ────────────────────────────────────────────────────────
 
@@ -602,6 +617,14 @@ export interface DRCEMeta {
    * every row written through current APIs carries a value.
    */
   template_category?: import('./registry').TemplateCategory;
+  /**
+   * Phase H — parent document id for template inheritance. When set, the
+   * loader merges the parent's full DRCEDocument with this child before
+   * render: child sections with the same id REPLACE parent sections; new
+   * child ids append. Parent theme/watermark/commentRules/teacherMappings
+   * provide the baseline that the child overrides field-by-field.
+   */
+  parent_id?: number | null;
 }
 
 // ─── Root Document ────────────────────────────────────────────────────────────
@@ -766,6 +789,8 @@ export interface DVCFDocumentRow {
    * Always present on rows fetched after the migration ran.
    */
   template_category: import('./registry').TemplateCategory;
+  /** Phase H — parent template id (NULL when this document inherits from nothing). */
+  parent_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -787,6 +812,7 @@ export function parseDRCERow(row: DVCFDocumentRow): DRCEDocument {
     is_default: Boolean(row.is_default),
     template_key: row.template_key,
     template_category: row.template_category,
+    parent_id: row.parent_id ?? null,
   };
 
   // Defensive defaults — guard against malformed / legacy schema_json

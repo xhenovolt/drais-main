@@ -62,9 +62,12 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
         ...doc,
         sections: doc.sections.map(s => {
           if (s.id !== mutation.sectionId) return s;
+          // BlockRef has no style field — coerce defensively so all section
+          // types share one mutation path.
+          const cur = (s as { style?: unknown }).style ?? {};
           return {
             ...s,
-            style: setByPath(s.style, mutation.path, mutation.value),
+            style: setByPath(cur, mutation.path, mutation.value),
           } as typeof s;
         }),
       };

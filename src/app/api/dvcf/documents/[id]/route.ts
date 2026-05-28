@@ -6,6 +6,8 @@ import { getBuiltInDocument } from '@/lib/drce/defaults';
 import { isTemplateCategory } from '@/lib/drce/registry';
 import { resolveBuiltInDocument } from '@/lib/drce/builtin-resolver';
 import { snapshotVersion } from '@/lib/drce/versions';
+import { resolveInheritance, resolveBlockRefs } from '@/lib/drce/inheritance';
+import { listBlocks } from '@/lib/drce/blocks';
 
 // ============================================================================
 // GET    /api/dvcf/documents/[id]  — get a single DVCF document
@@ -40,7 +42,7 @@ export async function GET(
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
                 schema_json, schema_version, is_default, template_key,
-                template_category, created_at, updated_at
+                template_category, parent_id, created_at, updated_at
          FROM dvcf_documents
          WHERE id = ? AND (school_id IS NULL OR school_id = ?)
          LIMIT 1`,
@@ -52,7 +54,21 @@ export async function GET(
         return NextResponse.json({ error: 'Document not found' }, { status: 404 });
       }
 
-      return NextResponse.json({ success: true, document: parseDRCERow(list[0]) });
+      let doc = parseDRCERow(list[0]);
+
+      // Phase H — opt-in resolution. ?resolved=1 returns the document with
+      // parent inheritance applied + block_refs inlined. The editor fetches
+      // the raw form (default) so authors edit only what THIS document owns;
+      // the print/render path requests the resolved form so the renderer
+      // sees the full tree.
+      const url = new URL(request.url);
+      if (url.searchParams.get('resolved') === '1') {
+        doc = await resolveInheritance(doc, schoolId);
+        const blocks = await listBlocks(schoolId);
+        doc = resolveBlockRefs(doc, blocks);
+      }
+
+      return NextResponse.json({ success: true, document: doc });
     } finally {
       await conn.end();
     }
@@ -80,9 +96,9 @@ export async function PUT(
     if (isNaN(docId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
     const body = await request.json();
-    const { name, description, schema_json, template_category: rawCategory } = body;
+    const { name, description, schema_json, template_category: rawCategory, parent_id } = body;
 
-    if (!name && !schema_json && rawCategory === undefined) {
+    if (!name && !schema_json && rawCategory === undefined && parent_id === undefined) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
     }
     if (rawCategory !== undefined && !isTemplateCategory(rawCategory)) {
@@ -118,6 +134,18 @@ export async function PUT(
       if (rawCategory !== undefined) {
         setClauses.push('template_category = ?');
         values.push(rawCategory);
+      }
+      // Phase H — template inheritance. parent_id may be a numeric id (set),
+      // null (clear), or undefined (leave unchanged). Self-reference is
+      // rejected to avoid the obvious 1-step cycle; deeper cycles are
+      // tolerated and broken by resolveInheritance's MAX_DEPTH + visited set.
+      if (parent_id !== undefined) {
+        const pid = parent_id === null ? null : Number(parent_id);
+        if (pid !== null && pid === docId) {
+          return NextResponse.json({ error: 'A document cannot inherit from itself' }, { status: 400 });
+        }
+        setClauses.push('parent_id = ?');
+        values.push(pid);
       }
 
       values.push(docId, schoolId);
