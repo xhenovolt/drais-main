@@ -3,7 +3,9 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Undo2, Redo2, Save, Loader2, Eye, EyeOff, X } from 'lucide-react';
+import { Undo2, Redo2, Save, Loader2, Eye, EyeOff, X, History, ZoomIn, ZoomOut } from 'lucide-react';
+import { VersionHistoryDrawer } from './VersionHistoryDrawer';
+import { VariablePicker } from './VariablePicker';
 import type { DRCEDocument, DRCEMutation, DRCEShape } from '@/lib/drce/schema';
 import { resolvePageDimensions } from '@/lib/drce/styleResolver';
 import { useDRCEEditor } from './useDRCEEditor';
@@ -104,6 +106,11 @@ export function DRCEEditor({ initial, onSave }: Props) {
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.65);
   const [attachQuery, setAttachQuery] = useState<{ shapeId: string; sectionType: string; sectionId: string } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [currentVersionNo, setCurrentVersionNo] = useState<number | undefined>(undefined);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const documentDbId = Number(initial.meta.id);
+  const hasDbId = Number.isFinite(documentDbId) && documentDbId > 0;
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y / Delete keyboard shortcuts
   useEffect(() => {
@@ -160,12 +167,36 @@ export function DRCEEditor({ initial, onSave }: Props) {
     try {
       await onSave(document);
       showToast('success', 'Template saved');
+      setSavedAt(new Date());
+      // Refresh the version chip — read the latest version number from the API.
+      if (hasDbId) {
+        try {
+          const res = await fetch(`/api/dvcf/documents/${documentDbId}/versions`);
+          const data = await res.json();
+          if (data?.success && Array.isArray(data.versions) && data.versions.length > 0) {
+            setCurrentVersionNo(Number(data.versions[0].version_no));
+          }
+        } catch { /* non-blocking */ }
+      }
     } catch {
       showToast('error', 'Failed to save');
     } finally {
       setSaving(false);
     }
   }
+
+  // Initial version chip — load the latest version_no once at mount.
+  useEffect(() => {
+    if (!hasDbId) return;
+    fetch(`/api/dvcf/documents/${documentDbId}/versions`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.success && Array.isArray(data.versions) && data.versions.length > 0) {
+          setCurrentVersionNo(Number(data.versions[0].version_no));
+        }
+      })
+      .catch(() => { /* silent */ });
+  }, [documentDbId, hasDbId]);
 
   // Called when a new shape is drawn — detect nearby sections and prompt to attach
   function handleShapeDrawn(shape: DRCEShape) {
@@ -192,53 +223,99 @@ export function DRCEEditor({ initial, onSave }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-slate-900 overflow-hidden">
-      {/* ── Top bar ────────────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex-shrink-0">
-        <span className="font-semibold text-sm text-gray-700 dark:text-gray-200 mr-2 truncate max-w-xs">
-          {document.meta.name}
-        </span>
-        {isDirty && <span className="text-xs text-amber-500 font-medium">● unsaved</span>}
+    <div className="flex flex-col h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 overflow-hidden">
+      {/* ── Top bar (refreshed) ──────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex-shrink-0 shadow-sm">
+        {/* Left: identity + save state pill */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-semibold text-sm text-gray-800 dark:text-white truncate max-w-[14rem]">
+            {document.meta.name}
+          </span>
+          {hasDbId && currentVersionNo != null && (
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              title="Open version history"
+              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 transition-colors"
+            >
+              v{currentVersionNo}
+            </button>
+          )}
+          {isDirty
+            ? <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">● unsaved</span>
+            : savedAt
+              ? <span className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ saved</span>
+              : null}
+        </div>
+
         <div className="flex-1" />
 
-        {/* Preview scale */}
-        <label className="text-xs text-gray-500 hidden sm:block">Scale</label>
-        <input
-          type="range" min={0.3} max={1.1} step={0.05}
-          value={previewScale}
-          onChange={e => setPreviewScale(Number(e.target.value))}
-          className="w-20 hidden sm:block"
-        />
+        {/* Variable picker — insert {tokens} into any focused text field */}
+        <VariablePicker />
 
+        <div className="w-px h-5 bg-gray-200 dark:bg-slate-700" />
+
+        {/* Zoom controls (clearer than the bare range slider) */}
         <button
           type="button"
-          title="Undo (Ctrl+Z)"
-          disabled={!canUndo}
-          onClick={undo}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30"
+          onClick={() => setPreviewScale(s => Math.max(0.3, Math.round((s - 0.1) * 100) / 100))}
+          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500"
+          title="Zoom out"
         >
-          <Undo2 size={16} />
+          <ZoomOut size={14} />
         </button>
+        <span className="text-[11px] font-mono w-9 text-center text-gray-500 tabular-nums">{Math.round(previewScale * 100)}%</span>
         <button
           type="button"
-          title="Redo (Ctrl+Y)"
-          disabled={!canRedo}
-          onClick={redo}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30"
+          onClick={() => setPreviewScale(s => Math.min(1.1, Math.round((s + 0.1) * 100) / 100))}
+          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500"
+          title="Zoom in"
         >
-          <Redo2 size={16} />
+          <ZoomIn size={14} />
         </button>
+
+        <div className="w-px h-5 bg-gray-200 dark:bg-slate-700" />
+
+        <button type="button" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undo}
+          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300 disabled:opacity-30">
+          <Undo2 size={15} />
+        </button>
+        <button type="button" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redo}
+          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300 disabled:opacity-30">
+          <Redo2 size={15} />
+        </button>
+
+        {hasDbId && (
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            title="Version history"
+            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300"
+          >
+            <History size={15} />
+          </button>
+        )}
 
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg disabled:opacity-60"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm disabled:opacity-60 transition-colors"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           Save
         </button>
       </div>
+
+      {hasDbId && (
+        <VersionHistoryDrawer
+          documentId={documentDbId}
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          onRestored={() => { window.location.reload(); }}
+          currentVersion={currentVersionNo}
+        />
+      )}
 
       {/* ── Drawing toolbar ───────────────────────────────────────────────────────── */}
       <DrawingToolbar

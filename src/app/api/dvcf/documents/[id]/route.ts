@@ -5,6 +5,7 @@ import { parseDRCERow, type DVCFDocumentRow } from '@/lib/drce/schema';
 import { getBuiltInDocument } from '@/lib/drce/defaults';
 import { isTemplateCategory } from '@/lib/drce/registry';
 import { resolveBuiltInDocument } from '@/lib/drce/builtin-resolver';
+import { snapshotVersion } from '@/lib/drce/versions';
 
 // ============================================================================
 // GET    /api/dvcf/documents/[id]  — get a single DVCF document
@@ -128,7 +129,25 @@ export async function PUT(
         values,
       );
 
-      return NextResponse.json({ success: true, message: 'Document updated' });
+      // Phase F: snapshot a version whenever schema_json changed. Fire-and-
+      // forget — a versioning failure must NEVER block the user's save.
+      let version_no: number | undefined;
+      if (schema_json !== undefined) {
+        try {
+          const snap = await snapshotVersion({
+            documentId:    docId,
+            schemaJson:    typeof schema_json === 'string' ? schema_json : JSON.stringify(schema_json),
+            name:          name ?? null,
+            authorUserId:  session.userId,
+            changeSummary: typeof body.change_summary === 'string' ? body.change_summary.slice(0, 255) : null,
+          });
+          version_no = snap.version_no;
+        } catch (e) {
+          console.warn('[dvcf/documents/[id] PUT] version snapshot failed', e);
+        }
+      }
+
+      return NextResponse.json({ success: true, message: 'Document updated', version_no });
     } finally {
       await conn.end();
     }

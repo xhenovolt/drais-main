@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Eye, EyeOff, Plus, X } from 'lucide-react';
-import type { DRCESection, DRCEMutation } from '@/lib/drce/schema';
+import type { DRCESection, DRCEMutation, DRCEContainerSection } from '@/lib/drce/schema';
 
 interface Props {
   sections: DRCESection[];
@@ -38,6 +38,9 @@ const SECTION_LABELS: Record<string, string> = {
   spacer:       'Spacer',
   divider:      'Divider',
   next_term_begins: 'Next Term Begins',
+  container:    'Container',
+  shape:        'Shape',
+  header_block: 'Header block',
 };
 
 const SECTION_ICONS: Record<string, string> = {
@@ -52,6 +55,9 @@ const SECTION_ICONS: Record<string, string> = {
   spacer:       '↕️',
   divider:      '➖',
   next_term_begins: '📅',
+  container:    '🧱',
+  shape:        '⬛',
+  header_block: '🧩',
 };
 
 function SortableItem({
@@ -288,17 +294,107 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sorted.map(s => s.id)} strategy={verticalListSortingStrategy}>
             {sorted.map(section => (
-              <SortableItem
+              <SectionRow
                 key={section.id}
                 section={section}
-                isSelected={selectedId === section.id}
-                onSelect={() => onSelect(section.id)}
-                onToggle={() => onMutate({ type: 'TOGGLE_SECTION', sectionId: section.id })}
+                depth={0}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                onMutate={onMutate}
               />
             ))}
           </SortableContext>
         </DndContext>
       </div>
     </div>
+  );
+}
+
+// Recursive list row — renders the section itself (sortable when at the top
+// level) and, for containers, its children indented underneath (read-only
+// rows, full selection + visibility-toggle). True drag-and-drop into
+// containers is a separate piece of work; this gives schools the visibility
+// they need today to navigate nested composition.
+function SectionRow({
+  section, depth, selectedId, onSelect, onMutate,
+}: {
+  section: DRCESection;
+  depth:   number;
+  selectedId: string | null;
+  onSelect:   (id: string) => void;
+  onMutate:   (m: DRCEMutation) => void;
+}) {
+  if (depth === 0) {
+    return (
+      <>
+        <SortableItem
+          section={section}
+          isSelected={selectedId === section.id}
+          onSelect={() => onSelect(section.id)}
+          onToggle={() => onMutate({ type: 'TOGGLE_SECTION', sectionId: section.id })}
+        />
+        {section.type === 'container' && (section as DRCEContainerSection).children?.length > 0 && (
+          <div className="ml-3 border-l border-gray-200 dark:border-slate-700 pl-2 space-y-0.5">
+            {[...(section as DRCEContainerSection).children]
+              .sort((a, b) => a.order - b.order)
+              .map(child => (
+                <SectionRow
+                  key={child.id}
+                  section={child}
+                  depth={depth + 1}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
+                  onMutate={onMutate}
+                />
+              ))}
+          </div>
+        )}
+      </>
+    );
+  }
+  // Nested rows: no drag-handle (drag into containers is future work).
+  const isSel = selectedId === section.id;
+  return (
+    <>
+      <div
+        className={[
+          'flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer select-none text-[12px]',
+          isSel
+            ? 'bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-300 dark:border-indigo-600'
+            : 'hover:bg-gray-50 dark:hover:bg-slate-700 border border-transparent',
+          !section.visible ? 'opacity-40' : '',
+        ].join(' ')}
+        onClick={() => onSelect(section.id)}
+      >
+        <span className="text-sm leading-none">{SECTION_ICONS[section.type] ?? '📄'}</span>
+        <span className="flex-1 truncate text-gray-700 dark:text-gray-200">
+          {SECTION_LABELS[section.type] ?? section.type}
+        </span>
+        <button
+          type="button"
+          className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          onClick={e => { e.stopPropagation(); onMutate({ type: 'TOGGLE_SECTION', sectionId: section.id }); }}
+          title={section.visible ? 'Hide' : 'Show'}
+        >
+          {section.visible ? <Eye size={12} /> : <EyeOff size={12} />}
+        </button>
+      </div>
+      {section.type === 'container' && (section as DRCEContainerSection).children?.length > 0 && (
+        <div className="ml-3 border-l border-gray-200 dark:border-slate-700 pl-2 space-y-0.5">
+          {[...(section as DRCEContainerSection).children]
+            .sort((a, b) => a.order - b.order)
+            .map(child => (
+              <SectionRow
+                key={child.id}
+                section={child}
+                depth={depth + 1}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                onMutate={onMutate}
+              />
+            ))}
+        </div>
+      )}
+    </>
   );
 }
