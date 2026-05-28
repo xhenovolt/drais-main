@@ -11,7 +11,8 @@ import type {
 // ─── Types ───────────────────────────────────────────────────────────────────────────────
 
 export type DrawTool = 'select' | 'rect' | 'ellipse' | 'arrow' | 'line' | 'text'
-  | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star';
+  | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
+  | 'pen' | 'polygon';     // Vector tools — drawing UX lands in commit 2
 
 type RectHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 type LineHandle = 'p1' | 'p2';
