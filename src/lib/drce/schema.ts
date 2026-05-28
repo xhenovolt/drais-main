@@ -127,7 +127,46 @@ export interface DRCEPolygonShape {
   x: number; y: number; w: number; h: number;
   fill: string; stroke: string; strokeWidth: number; opacity: number; rotation: number;
 }
-export type DRCEShape = DRCERectShape | DRCEEllipseShape | DRCELineShape | DRCETextShape | DRCEPolygonShape;
+
+/**
+ * Vector path shape — Phase F-vector. Output of the Pen Tool and the Custom
+ * Polygon tool. Nodes (`commands`) round-trip cleanly via SVG path syntax
+ * (`d` string) so renderers / PDFs / future external consumers can read the
+ * path with zero schema knowledge.
+ *
+ * Legacy primitives (rect / ellipse / triangle / diamond / etc.) continue to
+ * use their dedicated shapes; the loader does NOT auto-rewrite them into
+ * paths — keeping their typed positioning model preserves all existing
+ * resize / rotate behaviour. New shapes drawn with Pen / Polygon land as
+ * `'path'` directly.
+ */
+export interface DRCEPathNode {
+  /** Anchor point coordinates. */
+  x: number; y: number;
+  /** Bezier control handle relative to the anchor — first segment going IN. */
+  cpInX?: number; cpInY?: number;
+  /** Bezier control handle relative to the anchor — segment going OUT. */
+  cpOutX?: number; cpOutY?: number;
+}
+
+export interface DRCEPathShape {
+  id: string;
+  type: 'path';
+  nodes: DRCEPathNode[];
+  /** Cached SVG `d` string. Computed on every node mutation; recomputed at
+   *  render if absent. Storing it makes external/PDF consumers trivial. */
+  d?: string;
+  closed: boolean;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+  rotation: number;
+}
+
+export type DRCEShape =
+  | DRCERectShape | DRCEEllipseShape | DRCELineShape | DRCETextShape
+  | DRCEPolygonShape | DRCEPathShape;
 
 // ─── Column (used by results_table section) ──────────────────────────────────
 

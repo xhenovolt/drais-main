@@ -5,8 +5,9 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import type {
-  DRCEShape, DRCERectShape, DRCEEllipseShape, DRCELineShape, DRCETextShape, DRCEPolygonShape,
+  DRCEShape, DRCERectShape, DRCEEllipseShape, DRCELineShape, DRCETextShape, DRCEPolygonShape, DRCEPathShape, DRCEPathNode,
 } from '@/lib/drce/schema';
+import { nodesToPathD, refreshPathD } from '@/lib/drce/paths';
 
 // ─── Types ───────────────────────────────────────────────────────────────────────────────
 
@@ -22,7 +23,9 @@ type DragState =
   | null
   | { kind: 'drawing'; x1: number; y1: number; x2: number; y2: number }
   | { kind: 'moving';   id: string; orig: DRCEShape; sx: number; sy: number; cx: number; cy: number }
-  | { kind: 'resizing'; id: string; orig: DRCEShape; handle: HandleId; sx: number; sy: number; cx: number; cy: number };
+  | { kind: 'resizing'; id: string; orig: DRCEShape; handle: HandleId; sx: number; sy: number; cx: number; cy: number }
+  /** Phase-vector: tracking a bezier OUT handle on the latest pen-drawn anchor */
+  | { kind: 'pen-handle'; nodeIdx: number; anchorX: number; anchorY: number };
 
 interface Props {
   shapes: DRCEShape[];
@@ -113,7 +116,10 @@ function handleCursor(h: HandleId) {
 
 /** Return the shape with drag delta visually applied (without mutating the store). */
 function applyDrag(s: DRCEShape, drag: DragState): DRCEShape {
-  if (!drag || drag.kind === 'drawing' || drag.id !== s.id) return s;
+  if (!drag) return s;
+  // Only 'moving' and 'resizing' have a shape id + cx/cy/sx/sy.
+  if (drag.kind === 'drawing' || drag.kind === 'pen-handle') return s;
+  if (drag.id !== s.id) return s;
   const dx = drag.cx - drag.sx;
   const dy = drag.cy - drag.sy;
 
@@ -326,6 +332,11 @@ function renderShapeEl(
 export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, onUpdateShape, onSelectShape }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<DragState>(null);
+  // Phase-vector: in-progress path drawn by Pen / Custom Polygon tools.
+  const [pathDraft, setPathDraft] = useState<DRCEPathShape | null>(null);
+  // Live cursor position (path mode only) — drives the guide line from the
+  // last anchor to the cursor while the user is composing the path.
+  const [pathCursor, setPathCursor] = useState<{ x: number; y: number } | null>(null);
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [textDraft, setTextDraft] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -337,6 +348,42 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
       textareaRef.current.select();
     }
   }, [textEditId]);
+
+  // Cancel any in-progress path draft when switching away from pen/polygon.
+  useEffect(() => {
+    if (activeTool !== 'pen' && activeTool !== 'polygon') {
+      if (pathDraft) setPathDraft(null);
+      if (pathCursor) setPathCursor(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTool]);
+
+  // Enter commits the in-progress path open; Escape discards it.
+  useEffect(() => {
+    if (!pathDraft) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setPathDraft(null); setPathCursor(null); }
+      else if (e.key === 'Enter') {
+        if (pathDraft.nodes.length < 2) { setPathDraft(null); return; }
+        commitDraft({ closed: false });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathDraft]);
+
+  function commitDraft({ closed }: { closed: boolean }) {
+    if (!pathDraft || pathDraft.nodes.length < 2) {
+      setPathDraft(null);
+      setPathCursor(null);
+      return;
+    }
+    const finished = refreshPathD({ ...pathDraft, closed });
+    onAddShape(finished);
+    setPathDraft(null);
+    setPathCursor(null);
+  }
 
   function pt(e: React.MouseEvent) {
     return svgRef.current ? getSVGPoint(e, svgRef.current) : { x: 0, y: 0 };
@@ -350,24 +397,72 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
       }
       return;
     }
+
+    // ── Pen / Custom Polygon — both build a DRCEPathShape vertex by vertex.
+    if (activeTool === 'pen' || activeTool === 'polygon') {
+      e.stopPropagation();
+      const { x, y } = pt(e);
+      // Close + commit when clicking near the first node.
+      if (pathDraft && pathDraft.nodes.length >= 2) {
+        const first = pathDraft.nodes[0];
+        if (Math.hypot(first.x - x, first.y - y) < 8) {
+          commitDraft({ closed: true });
+          return;
+        }
+      }
+      const newNode: DRCEPathNode = { x, y };
+      const next: DRCEPathShape = pathDraft
+        ? refreshPathD({ ...pathDraft, nodes: [...pathDraft.nodes, newNode] })
+        : refreshPathD({
+            id: uid(), type: 'path',
+            nodes: [newNode], closed: false,
+            fill: 'transparent', stroke: '#4f46e5', strokeWidth: 2,
+            opacity: 1, rotation: 0,
+          });
+      setPathDraft(next);
+      // Pen tool also allows click-and-drag to extrude a bezier OUT handle.
+      if (activeTool === 'pen') {
+        setDrag({ kind: 'pen-handle', nodeIdx: next.nodes.length - 1, anchorX: x, anchorY: y });
+      }
+      return;
+    }
+
     e.stopPropagation();
     const { x, y } = pt(e);
     setDrag({ kind: 'drawing', x1: x, y1: y, x2: x, y2: y });
   }
 
   function onSVGMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const p = pt(e);
+    // Always track cursor in pen/polygon mode so we can draw the guide line.
+    if (activeTool === 'pen' || activeTool === 'polygon') setPathCursor(p);
+
     if (!drag) return;
-    const { x, y } = pt(e);
     if (drag.kind === 'drawing') {
-      setDrag({ ...drag, x2: x, y2: y });
+      setDrag({ ...drag, x2: p.x, y2: p.y });
     } else if (drag.kind === 'moving' || drag.kind === 'resizing') {
-      setDrag({ ...drag, cx: x, cy: y });
+      setDrag({ ...drag, cx: p.x, cy: p.y });
+    } else if (drag.kind === 'pen-handle' && pathDraft) {
+      // Live-update the OUT handle of the latest node as the user drags.
+      const idx = drag.nodeIdx;
+      const next = pathDraft.nodes.slice();
+      next[idx] = { ...next[idx], cpOutX: p.x, cpOutY: p.y };
+      // Symmetric IN handle on the OPPOSITE side gives the smooth-curve UX
+      // pen-tool users expect (mirror around the anchor).
+      next[idx].cpInX = drag.anchorX - (p.x - drag.anchorX);
+      next[idx].cpInY = drag.anchorY - (p.y - drag.anchorY);
+      setPathDraft(refreshPathD({ ...pathDraft, nodes: next }));
     }
   }
 
   function onSVGMouseUp(e: React.MouseEvent<SVGSVGElement>) {
     if (!drag) return;
     const { x, y } = pt(e);
+    if (drag.kind === 'pen-handle') {
+      // The dragged-out bezier is now baked into pathDraft; nothing else to do.
+      setDrag(null);
+      return;
+    }
     if (drag.kind === 'drawing') {
       commitDraw(drag.x1, drag.y1, x, y);
     } else if (drag.kind === 'moving') {
@@ -535,7 +630,99 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
 
         {/* Draft shape while drawing */}
         {draftShape && renderShapeEl(draftShape, false, true, undefined)}
+
+        {/* Pen / Custom Polygon — in-progress path preview */}
+        {pathDraft && (
+          <g pointerEvents="none">
+            <path
+              d={nodesToPathD(pathDraft.nodes, false)}
+              fill="none"
+              stroke="#4f46e5"
+              strokeWidth={2}
+              strokeDasharray={pathDraft.nodes.length > 1 ? undefined : '4 3'}
+            />
+            {/* Live guide from the last anchor to the cursor */}
+            {pathCursor && pathDraft.nodes.length > 0 && (() => {
+              const last = pathDraft.nodes[pathDraft.nodes.length - 1];
+              return (
+                <line
+                  x1={last.x} y1={last.y} x2={pathCursor.x} y2={pathCursor.y}
+                  stroke="#a5b4fc" strokeWidth={1} strokeDasharray="3 3"
+                />
+              );
+            })()}
+            {/* Anchor dots */}
+            {pathDraft.nodes.map((n, i) => (
+              <circle
+                key={i}
+                cx={n.x} cy={n.y} r={i === 0 ? 5 : 3.5}
+                fill={i === 0 ? '#4f46e5' : 'white'}
+                stroke="#4f46e5"
+                strokeWidth={1.5}
+              />
+            ))}
+            {/* Bezier control handles (pen tool) */}
+            {pathDraft.nodes.map((n, i) => {
+              const arms: React.ReactNode[] = [];
+              if (n.cpInX != null && n.cpInY != null) {
+                arms.push(
+                  <g key={`in-${i}`}>
+                    <line x1={n.x} y1={n.y} x2={n.cpInX} y2={n.cpInY} stroke="#a5b4fc" strokeWidth={1} />
+                    <circle cx={n.cpInX} cy={n.cpInY} r={3} fill="#fff" stroke="#a5b4fc" strokeWidth={1.5} />
+                  </g>
+                );
+              }
+              if (n.cpOutX != null && n.cpOutY != null) {
+                arms.push(
+                  <g key={`out-${i}`}>
+                    <line x1={n.x} y1={n.y} x2={n.cpOutX} y2={n.cpOutY} stroke="#a5b4fc" strokeWidth={1} />
+                    <circle cx={n.cpOutX} cy={n.cpOutY} r={3} fill="#fff" stroke="#a5b4fc" strokeWidth={1.5} />
+                  </g>
+                );
+              }
+              return <React.Fragment key={`arms-${i}`}>{arms}</React.Fragment>;
+            })}
+          </g>
+        )}
       </svg>
+
+      {/* Path-draft floating action bar */}
+      {pathDraft && (
+        <div
+          style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', pointerEvents: 'auto', zIndex: 60 }}
+          className="flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg px-2 py-1 text-xs"
+        >
+          <span className="text-gray-500 dark:text-gray-300 px-2 hidden sm:inline">
+            {activeTool === 'pen' ? 'Pen' : 'Polygon'} · {pathDraft.nodes.length} node{pathDraft.nodes.length === 1 ? '' : 's'}
+          </span>
+          <button
+            type="button"
+            onClick={() => commitDraft({ closed: false })}
+            disabled={pathDraft.nodes.length < 2}
+            className="px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+            title="Finish as an open path (Enter)"
+          >
+            Finish
+          </button>
+          <button
+            type="button"
+            onClick={() => commitDraft({ closed: true })}
+            disabled={pathDraft.nodes.length < 3}
+            className="px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40"
+            title="Close the path back to the first node and finish"
+          >
+            Close & finish
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPathDraft(null); setPathCursor(null); }}
+            className="px-2 py-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+            title="Cancel (Escape)"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* Floating textarea for text shape editing */}
       {editShape && (

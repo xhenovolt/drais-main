@@ -12,8 +12,9 @@
  */
 import React from 'react';
 import type {
-  DRCEShape, DRCEPolygonShape,
+  DRCEShape, DRCEPolygonShape, DRCEPathShape,
 } from '@/lib/drce/schema';
+import { nodesToPathD, pathBounds } from '@/lib/drce/paths';
 
 function polygonPoints(type: DRCEPolygonShape['type'], x: number, y: number, w: number, h: number): string {
   const cx = x + w / 2, cy = y + h / 2;
@@ -50,7 +51,8 @@ export function shapeBounds(s: DRCEShape): { x: number; y: number; w: number; h:
     const y = Math.min(s.y1, s.y2);
     return { x, y, w: Math.max(1, Math.abs(s.x2 - s.x1)), h: Math.max(1, Math.abs(s.y2 - s.y1)) };
   }
-  // After the line/arrow narrow, the remaining variants all carry x/y/w/h.
+  if (s.type === 'path') return pathBounds(s);
+  // Remaining variants all carry x/y/w/h.
   const r = s as { x: number; y: number; w: number; h: number };
   return { x: r.x, y: r.y, w: r.w, h: r.h };
 }
@@ -136,6 +138,25 @@ function ShapeBody({ s }: { s: DRCEShape }) {
         <polygon points={pts}
           fill={poly.fill} stroke={poly.stroke} strokeWidth={poly.strokeWidth}
           opacity={poly.opacity} />
+      </g>
+    );
+  }
+  if (s.type === 'path') {
+    const p = s as DRCEPathShape;
+    const d = p.d ?? nodesToPathD(p.nodes, p.closed);
+    const b = pathBounds(p);
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    return (
+      <g transform={p.rotation ? `rotate(${p.rotation} ${cx} ${cy})` : undefined}>
+        <path
+          d={d}
+          fill={p.closed ? p.fill : 'none'}
+          stroke={p.stroke}
+          strokeWidth={p.strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={p.opacity}
+        />
       </g>
     );
   }
