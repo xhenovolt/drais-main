@@ -4,8 +4,44 @@
 // All editor state changes go through applyMutation() for undo/redo safety.
 // ============================================================================
 
-import type { DRCEDocument, DRCEMutation, DRCEResultsTableSection, DRCEShape, DRCECommentsSection } from './schema';
+import type { DRCEDocument, DRCEMutation, DRCEResultsTableSection, DRCEShape, DRCECommentsSection, DRCESection, DRCEContainerSection } from './schema';
 import { setByPath } from './bindingResolver';
+
+/**
+ * Recursive helpers — needed for Phase C containers so mutations work uniformly
+ * across the top-level sections array AND any container's children at any depth.
+ */
+function mapSectionsDeep(
+  sections: DRCESection[],
+  fn: (s: DRCESection) => DRCESection,
+): DRCESection[] {
+  return sections.map(s => {
+    const mapped = fn(s);
+    if (mapped.type === 'container') {
+      const c = mapped as DRCEContainerSection;
+      return { ...c, children: mapSectionsDeep(c.children ?? [], fn) };
+    }
+    return mapped;
+  });
+}
+
+function filterSectionsDeep(
+  sections: DRCESection[],
+  predicate: (s: DRCESection) => boolean,
+): DRCESection[] {
+  const out: DRCESection[] = [];
+  for (const s of sections) {
+    if (!predicate(s)) continue;
+    if (s.type === 'container') {
+      const c = s as DRCEContainerSection;
+      out.push({ ...c, children: filterSectionsDeep(c.children ?? [], predicate) });
+    } else {
+      out.push(s);
+    }
+  }
+  // Re-number top-level orders; container children renumber within themselves.
+  return out.map((s, i) => ({ ...s, order: i }));
+}
 
 /**
  * Apply a single mutation to a document, returning a new document object.
@@ -59,12 +95,9 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
     }
 
     case 'TOGGLE_SECTION': {
-      return {
-        ...doc,
-        sections: doc.sections.map(s =>
-          s.id === mutation.sectionId ? { ...s, visible: !s.visible } : s
-        ),
-      };
+      // Recurse into container children so toggling works for nested sections.
+      return { ...doc, sections: mapSectionsDeep(doc.sections, s =>
+        s.id === mutation.sectionId ? { ...s, visible: !s.visible } : s) };
     }
 
     case 'REORDER_SECTIONS': {
@@ -80,6 +113,16 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
     }
 
     case 'ADD_SECTION': {
+      // Nested insert: if parentContainerId is set, append into that container's
+      // children. Otherwise the legacy top-level insert (with afterId positioning).
+      if (mutation.parentContainerId) {
+        return { ...doc, sections: mapSectionsDeep(doc.sections, s => {
+          if (s.id !== mutation.parentContainerId || s.type !== 'container') return s;
+          const cs = s as DRCEContainerSection;
+          const kids = [...(cs.children ?? []), { ...mutation.section, order: (cs.children ?? []).length }];
+          return { ...cs, children: kids.map((k, i) => ({ ...k, order: i })) };
+        }) };
+      }
       const newSections = [...doc.sections];
       if (mutation.afterId === null) {
         newSections.push({ ...mutation.section, order: newSections.length });
@@ -87,13 +130,12 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
         const idx = newSections.findIndex(s => s.id === mutation.afterId);
         newSections.splice(idx + 1, 0, { ...mutation.section, order: idx + 1 });
       }
-      // Re-number orders
       return { ...doc, sections: newSections.map((s, i) => ({ ...s, order: i })) };
     }
 
     case 'DELETE_SECTION': {
-      const filtered = doc.sections.filter(s => s.id !== mutation.sectionId);
-      return { ...doc, sections: filtered.map((s, i) => ({ ...s, order: i })) };
+      // Recurse: a section can live as a child of any container, at any depth.
+      return { ...doc, sections: filterSectionsDeep(doc.sections, s => s.id !== mutation.sectionId) };
     }
 
     case 'ADD_COLUMN': {

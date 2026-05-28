@@ -579,7 +579,7 @@ export type DRCEMutation =
   | { type: 'SET_SECTION_CONTENT'; sectionId: string; path: string; value: unknown }
   | { type: 'TOGGLE_SECTION';      sectionId: string }
   | { type: 'REORDER_SECTIONS';    ids: string[] }
-  | { type: 'ADD_SECTION';         section: DRCESection; afterId: string | null }
+  | { type: 'ADD_SECTION';         section: DRCESection; afterId: string | null; parentContainerId?: string | null }
   | { type: 'DELETE_SECTION';      sectionId: string }
   | { type: 'ADD_COLUMN';          sectionId: string; column: DRCEColumn }
   | { type: 'DELETE_COLUMN';       sectionId: string; columnId: string }

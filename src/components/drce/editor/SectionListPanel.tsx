@@ -128,6 +128,8 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     { type: 'spacer',        label: 'Spacer',        icon: '↕️' },
     { type: 'divider',       label: 'Divider',       icon: '➖' },
     { type: 'header',        label: 'Header',        icon: '🏫' },
+    { type: 'container',     label: 'Container',     icon: '🧱' },
+    { type: 'shape',         label: 'Shape',         icon: '⬛' },
   ];
 
   function buildNewSection(type: string): DRCESection {
@@ -205,6 +207,18 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
       case 'header':
         return { ...base, type: 'header',
           style: { layout: 'three-column', paddingBottom: 10, borderBottom: '1px solid #eee', opacity: 1, logoWidth: 64, logoHeight: 64 } } as DRCESection;
+      case 'container':
+        return { ...base, type: 'container', children: [],
+          style: { layout: 'stack', gap: 8, padding: '8px' } } as DRCESection;
+      case 'shape':
+        return { ...base, type: 'shape',
+          shape: {
+            id: `sh-${Date.now()}`, type: 'rect',
+            x: 0, y: 0, w: 120, h: 60,
+            fill: '#e0f2fe', stroke: '#0284c7', strokeWidth: 1,
+            opacity: 1, radius: 6, rotation: 0,
+          },
+          style: {} } as DRCESection;
       default:
         return { ...base, type: 'spacer', style: { height: 16 } } as DRCESection;
     }
@@ -250,7 +264,11 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
                 type="button"
                 className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left"
                 onClick={() => {
-                  onMutate({ type: 'ADD_SECTION', section: buildNewSection(s.type), afterId: null });
+                  // If the selected section is a container, add INSIDE it.
+                  // Otherwise add at the top level (legacy behaviour).
+                  const selected = sections.find(x => x.id === selectedId);
+                  const parentContainerId = selected?.type === 'container' ? selected.id : null;
+                  onMutate({ type: 'ADD_SECTION', section: buildNewSection(s.type), afterId: null, parentContainerId });
                   setShowPicker(false);
                 }}
               >

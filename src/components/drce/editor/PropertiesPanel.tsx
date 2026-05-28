@@ -1155,6 +1155,130 @@ function DividerPanel({ section, onMutate }: { section: DRCESection & { type: 'd
 
 // ─── Next Term Begins Panel ───────────────────────────────────────────────────
 
+// ───────────────────────────────────────────────────────────────────────────
+// Phase C — Container properties panel
+// ───────────────────────────────────────────────────────────────────────────
+function ContainerPanel({ section, onMutate }: { section: DRCESection & { type: 'container' }; onMutate: (m: DRCEMutation) => void }) {
+  const set = (path: string, value: unknown) =>
+    onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
+  const s = section.style ?? {};
+  const childCount = (section.children ?? []).length;
+
+  return (
+    <div className="p-3 space-y-3 text-xs">
+      <div className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Container</div>
+      <p className="text-[11px] text-gray-500">{childCount} child{childCount === 1 ? '' : 'ren'}. Add sections inside by selecting this container, then opening the section picker.</p>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Layout</span>
+        <select
+          value={(s.layout as string) ?? 'stack'}
+          onChange={e => set('layout', e.target.value)}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+        >
+          <option value="stack">Stack (vertical)</option>
+          <option value="row">Row (horizontal)</option>
+          <option value="grid">Grid</option>
+          <option value="absolute">Absolute (free positioning)</option>
+        </select>
+      </label>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Gap (px)</span>
+        <input type="number" min={0} value={Number(s.gap ?? 0)}
+          onChange={e => set('gap', Number(e.target.value))}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+      </label>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Padding</span>
+        <input value={(s.padding as string) ?? ''} placeholder="e.g. 8px or 4px 8px"
+          onChange={e => set('padding', e.target.value)}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+      </label>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Background</span>
+        <input type="color" value={(s.background as string) ?? '#ffffff'}
+          onChange={e => set('background', e.target.value)}
+          className="w-full mt-1 h-8 rounded-md bg-gray-100 dark:bg-slate-800" />
+      </label>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Border</span>
+        <input value={(s.border as string) ?? ''} placeholder="e.g. 1px solid #ccc"
+          onChange={e => set('border', e.target.value)}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+      </label>
+
+      {(s.layout === 'grid') && (
+        <>
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wide text-gray-500">Grid columns</span>
+            <input value={(s.gridTemplateColumns as string) ?? ''} placeholder="e.g. 1fr 1fr or 200px 1fr"
+              onChange={e => set('gridTemplateColumns', e.target.value)}
+              className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+          </label>
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wide text-gray-500">Grid rows</span>
+            <input value={(s.gridTemplateRows as string) ?? ''} placeholder="auto"
+              onChange={e => set('gridTemplateRows', e.target.value)}
+              className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+          </label>
+        </>
+      )}
+
+      <DeleteSectionBtn section={section} onMutate={onMutate} />
+    </div>
+  );
+}
+
+function ShapePanel({ section, onMutate }: { section: DRCESection & { type: 'shape' }; onMutate: (m: DRCEMutation) => void }) {
+  const setShape = (k: string, v: unknown) =>
+    onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: `shape.${k}`, value: v });
+  const sh = section.shape;
+  const isPositioned = sh.type !== 'line' && sh.type !== 'arrow';
+
+  return (
+    <div className="p-3 space-y-3 text-xs">
+      <div className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Shape ({sh.type})</div>
+      {isPositioned && (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wide text-gray-500">Width</span>
+            <input type="number" value={Number((sh as { w?: number }).w ?? 0)}
+              onChange={e => setShape('w', Number(e.target.value))}
+              className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+          </label>
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wide text-gray-500">Height</span>
+            <input type="number" value={Number((sh as { h?: number }).h ?? 0)}
+              onChange={e => setShape('h', Number(e.target.value))}
+              className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+          </label>
+        </div>
+      )}
+      {'fill' in sh && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">Fill</span>
+          <input type="color" value={(sh as { fill?: string }).fill ?? '#ffffff'}
+            onChange={e => setShape('fill', e.target.value)}
+            className="w-full mt-1 h-8 rounded-md bg-gray-100 dark:bg-slate-800" />
+        </label>
+      )}
+      {'stroke' in sh && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">Stroke</span>
+          <input type="color" value={(sh as { stroke?: string }).stroke ?? '#000000'}
+            onChange={e => setShape('stroke', e.target.value)}
+            className="w-full mt-1 h-8 rounded-md bg-gray-100 dark:bg-slate-800" />
+        </label>
+      )}
+      <DeleteSectionBtn section={section} onMutate={onMutate} />
+    </div>
+  );
+}
+
 function NextTermBeginsPanel({ section, onMutate }: { section: DRCESection & { type: 'next_term_begins' }; onMutate: (m: DRCEMutation) => void }) {
   const set = (path: string, value: unknown) => onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
   const setContent = (key: string, value: string) => onMutate({ type: 'SET_SECTION_CONTENT', sectionId: section.id, key, value });
@@ -1512,6 +1636,8 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       case 'spacer':        return <SpacerPanel        section={selectedSection as DRCESection & { type: 'spacer' }}        onMutate={onMutate} />;
       case 'divider':       return <DividerPanel       section={selectedSection as DRCESection & { type: 'divider' }}       onMutate={onMutate} />;
       case 'next_term_begins': return <NextTermBeginsPanel section={selectedSection as DRCESection & { type: 'next_term_begins' }} onMutate={onMutate} />;
+      case 'container':     return <ContainerPanel     section={selectedSection as DRCESection & { type: 'container' }}     onMutate={onMutate} />;
+      case 'shape':         return <ShapePanel         section={selectedSection as DRCESection & { type: 'shape' }}         onMutate={onMutate} />;
       default:              return (
         <div className="p-4 text-center text-xs text-gray-400">
           <p>No properties for</p>
