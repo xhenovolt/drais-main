@@ -141,6 +141,50 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
       return { ...doc, sections: filterSectionsDeep(doc.sections, s => s.id !== mutation.sectionId) };
     }
 
+    case 'MOVE_SECTION': {
+      // Cycle guard: cannot drop a container into itself or its descendants.
+      let moving: DRCESection | null = null;
+      const findMoving = (arr: DRCESection[]) => {
+        for (const s of arr) {
+          if (moving) return;
+          if (s.id === mutation.sectionId) { moving = s; return; }
+          if (s.type === 'container') findMoving(((s as DRCEContainerSection).children ?? []));
+        }
+      };
+      findMoving(doc.sections);
+      if (!moving) return doc;
+
+      if (mutation.targetContainerId) {
+        const subtreeIds = new Set<string>();
+        const collect = (arr: DRCESection[]) => {
+          for (const s of arr) {
+            subtreeIds.add(s.id);
+            if (s.type === 'container') collect(((s as DRCEContainerSection).children ?? []));
+          }
+        };
+        collect([moving]);
+        if (subtreeIds.has(mutation.targetContainerId)) return doc;  // illegal
+      }
+
+      // Extract from source by filtering deeply.
+      const withoutSource = filterSectionsDeep(doc.sections, s => s.id !== mutation.sectionId);
+      const insertInto = (arr: DRCESection[]): DRCESection[] => {
+        const pos = Math.max(0, Math.min(mutation.position, arr.length));
+        const out = arr.slice();
+        out.splice(pos, 0, moving!);
+        return out.map((s, i) => ({ ...s, order: i }));
+      };
+
+      if (mutation.targetContainerId === null) {
+        return { ...doc, sections: insertInto(withoutSource) };
+      }
+      return { ...doc, sections: mapSectionsDeep(withoutSource, s => {
+        if (s.id !== mutation.targetContainerId || s.type !== 'container') return s;
+        const c = s as DRCEContainerSection;
+        return { ...c, children: insertInto(c.children ?? []) };
+      }) };
+    }
+
     case 'ADD_COLUMN': {
       return {
         ...doc,

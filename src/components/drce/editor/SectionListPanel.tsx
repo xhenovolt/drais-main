@@ -8,6 +8,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
 } from '@dnd-kit/core';
 import {
@@ -242,9 +243,37 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
+    const activeId = String(active.id);
+    const overId   = String(over.id);
+
+    // Drop onto a container's nest zone → MOVE_SECTION into that container.
+    if (overId.startsWith('nest:')) {
+      const targetContainerId = overId.slice('nest:'.length);
+      if (targetContainerId === activeId) return;  // can't nest into self
+      onMutate({
+        type: 'MOVE_SECTION',
+        sectionId: activeId,
+        targetContainerId,
+        position: Number.MAX_SAFE_INTEGER,
+      });
+      return;
+    }
+
+    // Drop onto top-level "unnest" zone → MOVE_SECTION to top level.
+    if (overId === 'nest:__top__') {
+      onMutate({
+        type: 'MOVE_SECTION',
+        sectionId: activeId,
+        targetContainerId: null,
+        position: Number.MAX_SAFE_INTEGER,
+      });
+      return;
+    }
+
+    // Default — reorder among top-level sections.
     const ids = sorted.map(s => s.id);
-    const oldIdx = ids.indexOf(String(active.id));
-    const newIdx = ids.indexOf(String(over.id));
+    const oldIdx = ids.indexOf(activeId);
+    const newIdx = ids.indexOf(overId);
     if (oldIdx === -1 || newIdx === -1) return;
     const reordered = [...ids];
     const [moved] = reordered.splice(oldIdx, 1);
@@ -298,19 +327,64 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
       <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sorted.map(s => s.id)} strategy={verticalListSortingStrategy}>
+            <TopLevelDropZone />
             {sorted.map(section => (
-              <SectionRow
-                key={section.id}
-                section={section}
-                depth={0}
-                selectedId={selectedId}
-                onSelect={onSelect}
-                onMutate={onMutate}
-              />
+              <React.Fragment key={section.id}>
+                <SectionRow
+                  section={section}
+                  depth={0}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
+                  onMutate={onMutate}
+                />
+                {section.type === 'container' && (
+                  <NestDropZone
+                    containerId={section.id}
+                    hasChildren={((section as DRCEContainerSection).children?.length ?? 0) > 0}
+                  />
+                )}
+              </React.Fragment>
             ))}
           </SortableContext>
         </DndContext>
       </div>
+    </div>
+  );
+}
+
+/** A small drop strip rendered under each top-level container. Drag a row
+ *  onto it to nest that section inside the container. */
+function NestDropZone({ containerId, hasChildren }: { containerId: string; hasChildren: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({ id: 'nest:' + containerId });
+  return (
+    <div
+      ref={setNodeRef}
+      className={[
+        'ml-3 mb-0.5 px-2 py-0.5 text-[10px] rounded border border-dashed transition-colors',
+        isOver
+          ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
+          : 'border-gray-200 dark:border-slate-700 text-gray-400',
+      ].join(' ')}
+    >
+      {isOver ? 'Drop to nest inside' : (hasChildren ? 'Drop here to add inside' : 'Empty container — drop to add inside')}
+    </div>
+  );
+}
+
+/** Top-level "Drop here to un-nest" zone, only shown while dragging from a child. */
+function TopLevelDropZone() {
+  const { isOver, setNodeRef } = useDroppable({ id: 'nest:__top__' });
+  return (
+    <div
+      ref={setNodeRef}
+      className={[
+        'mb-1 px-2 py-1 text-[10px] rounded border border-dashed transition-colors',
+        isOver
+          ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
+          : 'border-gray-200 dark:border-slate-700 text-gray-400',
+      ].join(' ')}
+    >
+      {isOver ? 'Drop to promote to top level' : 'Drop a nested row here to un-nest'}
     </div>
   );
 }

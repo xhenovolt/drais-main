@@ -312,6 +312,9 @@ export function DRCEEditor({ initial, onSave }: Props) {
           documentId={documentDbId}
           open={historyOpen}
           onClose={() => setHistoryOpen(false)}
+          // The editor mounts with `initial`; swapping the active document
+          // mid-session would require lifting the fetch out. A full reload is
+          // the simplest correct boundary for restore, which is a rare action.
           onRestored={() => { window.location.reload(); }}
           currentVersion={currentVersionNo}
         />

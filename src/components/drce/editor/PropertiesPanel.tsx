@@ -118,6 +118,70 @@ function SpacingSection({ section, onMutate }: { section: DRCESection; onMutate:
 
 // ─── Shared: Delete Section ───────────────────────────────────────────────────
 
+/**
+ * "Move to…" picker — the accessible counterpart to drag-into-container.
+ * Lists every container in the document tree (with depth indent) plus
+ * "Top level". Picking a target dispatches MOVE_SECTION; the source
+ * section is found and re-inserted at the end of the destination list.
+ *
+ * Containers cannot host themselves — the picker filters out the selected
+ * section's own subtree if it is a container.
+ */
+function MoveToPicker({ section, doc, onMutate }: {
+  section:  DRCESection;
+  doc:      DRCEDocument;
+  onMutate: (m: DRCEMutation) => void;
+}) {
+  type Target = { id: string | null; label: string; depth: number };
+  const subtreeIds = new Set<string>();
+  const collectSubtree = (s: DRCESection) => {
+    subtreeIds.add(s.id);
+    if (s.type === 'container') (s as { children?: DRCESection[] }).children?.forEach(collectSubtree);
+  };
+  collectSubtree(section);
+
+  const targets: Target[] = [{ id: null, label: '↑ Top level', depth: 0 }];
+  const walk = (arr: DRCESection[], depth: number) => {
+    for (const s of arr) {
+      if (s.type === 'container' && !subtreeIds.has(s.id)) {
+        const labelHint = (s as { id: string }).id.slice(-6);
+        targets.push({ id: s.id, label: `${'  '.repeat(depth)}↳ Container · ${labelHint}`, depth });
+        walk(((s as { children?: DRCESection[] }).children ?? []), depth + 1);
+      }
+    }
+  };
+  walk(doc.sections, 1);
+
+  if (targets.length <= 1) return null;  // no eligible containers
+
+  return (
+    <div className="mt-3 px-1">
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">Move to</span>
+        <select
+          value=""
+          onChange={e => {
+            const v = e.target.value;
+            const target: string | null = v === '' ? null : (v === 'TOP' ? null : v);
+            onMutate({
+              type: 'MOVE_SECTION',
+              sectionId: section.id,
+              targetContainerId: target,
+              position: Number.MAX_SAFE_INTEGER,  // append at end
+            });
+          }}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+        >
+          <option value="">— pick destination —</option>
+          {targets.map((t, i) => (
+            <option key={i} value={t.id === null ? 'TOP' : t.id}>{t.label}</option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
 function DeleteSectionBtn({ section, onMutate }: { section: DRCESection; onMutate: (m: DRCEMutation) => void }) {
   const [confirm, setConfirm] = useState(false);
   if (confirm) {
@@ -1226,7 +1290,13 @@ function InheritancePanel({ doc }: { doc: DRCEDocument }) {
         </select>
       </label>
       {saving && <p className="text-[11px] text-gray-400">Saving…</p>}
-      {!saving && parentId && <p className="text-[11px] text-emerald-600">Linked to parent #{parentId}. Reload to see the merged tree in preview.</p>}
+      {!saving && parentId && (
+        <p className="text-[11px] text-emerald-600">
+          Linked to parent #{parentId}. The merged tree is what the renderer/print sees;
+          the editor preview deliberately shows only this document's own sections so
+          you edit deltas without visual confusion.
+        </p>
+      )}
     </div>
   );
 }
@@ -1850,9 +1920,19 @@ interface Props {
 }
 
 export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, onTabChange }: Props) {
-  const selectedSection = selectedSectionId
-    ? doc.sections.find(s => s.id === selectedSectionId) ?? null
-    : null;
+  // Recurse so nested children (inside containers) can be selected from the
+  // section list and surface their properties here.
+  const findDeep = (arr: DRCESection[]): DRCESection | null => {
+    for (const s of arr) {
+      if (s.id === selectedSectionId) return s;
+      if (s.type === 'container') {
+        const hit = findDeep((s as { children?: DRCESection[] }).children ?? []);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  const selectedSection = selectedSectionId ? findDeep(doc.sections) : null;
 
   const tabs = [
     { id: 'section' as const,   icon: <Layers size={14} />,  label: 'Section' },
@@ -1915,7 +1995,12 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
         {activeTab === 'theme'     && <><ThemePanel     doc={doc} onMutate={onMutate} /><InheritancePanel doc={doc} /></>}
         {activeTab === 'watermark' && <WatermarkPanel doc={doc} onMutate={onMutate} />}
         {activeTab === 'rules'     && <RulesPanel     doc={doc} onMutate={onMutate} />}
-        {activeTab === 'section'   && renderSectionPanel()}
+        {activeTab === 'section'   && (
+          <>
+            {renderSectionPanel()}
+            {selectedSection && <MoveToPicker section={selectedSection} doc={doc} onMutate={onMutate} />}
+          </>
+        )}
       </div>
     </div>
   );

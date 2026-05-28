@@ -652,6 +652,14 @@ export type DRCEMutation =
   | { type: 'TOGGLE_SECTION';      sectionId: string }
   | { type: 'REORDER_SECTIONS';    ids: string[] }
   | { type: 'ADD_SECTION';         section: DRCESection; afterId: string | null; parentContainerId?: string | null }
+  /**
+   * Phase C follow-up: move an existing section to a new location.
+   *   - targetContainerId: null → top level; string → inside that container
+   *   - position: 0-based index in the destination list; clamps to bounds
+   * Source is found recursively; both moves within a list and cross-
+   * container moves are supported. Re-numbers `order` everywhere it lands.
+   */
+  | { type: 'MOVE_SECTION';        sectionId: string; targetContainerId: string | null; position: number }
   | { type: 'DELETE_SECTION';      sectionId: string }
   | { type: 'ADD_COLUMN';          sectionId: string; column: DRCEColumn }
   | { type: 'DELETE_COLUMN';       sectionId: string; columnId: string }
