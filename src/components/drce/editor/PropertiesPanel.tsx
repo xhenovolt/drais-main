@@ -1156,6 +1156,118 @@ function DividerPanel({ section, onMutate }: { section: DRCESection & { type: 'd
 // ─── Next Term Begins Panel ───────────────────────────────────────────────────
 
 // ───────────────────────────────────────────────────────────────────────────
+// Phase E — Header block properties panel
+// ───────────────────────────────────────────────────────────────────────────
+function HeaderBlockPanel({ section, onMutate }: { section: DRCESection & { type: 'header_block' }; onMutate: (m: DRCEMutation) => void }) {
+  const setKind = (kind: string) =>
+    onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'kind', value: kind });
+  const setProp = (path: string, value: unknown) =>
+    onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path, value });
+  const setStyle = (path: string, value: unknown) =>
+    onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
+  const s = section.style ?? {};
+  const showText  = section.kind === 'custom_text' || section.kind === 'motto';
+  const showImage = section.kind === 'custom_image';
+  const showQr    = section.kind === 'qr';
+
+  return (
+    <div className="p-3 space-y-3 text-xs">
+      <div className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Header block</div>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Kind</span>
+        <select
+          value={section.kind}
+          onChange={e => setKind(e.target.value)}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+        >
+          <option value="logo">Logo (image)</option>
+          <option value="school_name">School name</option>
+          <option value="arabic_name">Arabic name</option>
+          <option value="address">Address</option>
+          <option value="contact">Contact</option>
+          <option value="center_no">Center number</option>
+          <option value="registration_no">Registration number</option>
+          <option value="motto">Motto</option>
+          <option value="qr">QR code</option>
+          <option value="custom_text">Custom text</option>
+          <option value="custom_image">Custom image</option>
+        </select>
+      </label>
+
+      {showText && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">Text (supports {'{tokens}'})</span>
+          <input value={section.text ?? ''}
+            onChange={e => setProp('text', e.target.value)}
+            placeholder="e.g. {school_name} | upper"
+            className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+        </label>
+      )}
+
+      {showImage && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">Image URL</span>
+          <input value={section.imageUrl ?? ''}
+            onChange={e => setProp('imageUrl', e.target.value)}
+            placeholder="https://…"
+            className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+        </label>
+      )}
+
+      {showQr && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">QR value (supports {'{tokens}'})</span>
+          <input value={section.qrValue ?? ''}
+            onChange={e => setProp('qrValue', e.target.value)}
+            placeholder="e.g. https://…/verify/{student.admissionNo}"
+            className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+        </label>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">Width</span>
+          <input value={String(s.width ?? '')}
+            onChange={e => setStyle('width', e.target.value ? (isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value)) : undefined)}
+            placeholder="auto" className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+        </label>
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-gray-500">Height</span>
+          <input value={String(s.height ?? '')}
+            onChange={e => setStyle('height', e.target.value ? (isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value)) : undefined)}
+            placeholder="auto" className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Align</span>
+        <select value={s.align ?? 'left'} onChange={e => setStyle('align', e.target.value)}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none">
+          <option value="left">Left</option><option value="center">Center</option><option value="right">Right</option>
+        </select>
+      </label>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Font size (px)</span>
+        <input type="number" min={6} value={Number(s.fontSize ?? 14)}
+          onChange={e => setStyle('fontSize', Number(e.target.value))}
+          className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none" />
+      </label>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wide text-gray-500">Color</span>
+        <input type="color" value={(s.color as string) ?? '#000000'}
+          onChange={e => setStyle('color', e.target.value)}
+          className="w-full mt-1 h-8 rounded-md bg-gray-100 dark:bg-slate-800" />
+      </label>
+
+      <DeleteSectionBtn section={section} onMutate={onMutate} />
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // Phase C — Container properties panel
 // ───────────────────────────────────────────────────────────────────────────
 function ContainerPanel({ section, onMutate }: { section: DRCESection & { type: 'container' }; onMutate: (m: DRCEMutation) => void }) {
@@ -1638,6 +1750,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       case 'next_term_begins': return <NextTermBeginsPanel section={selectedSection as DRCESection & { type: 'next_term_begins' }} onMutate={onMutate} />;
       case 'container':     return <ContainerPanel     section={selectedSection as DRCESection & { type: 'container' }}     onMutate={onMutate} />;
       case 'shape':         return <ShapePanel         section={selectedSection as DRCESection & { type: 'shape' }}         onMutate={onMutate} />;
+      case 'header_block':  return <HeaderBlockPanel   section={selectedSection as DRCESection & { type: 'header_block' }}  onMutate={onMutate} />;
       default:              return (
         <div className="p-4 text-center text-xs text-gray-400">
           <p>No properties for</p>

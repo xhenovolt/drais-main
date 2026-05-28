@@ -32,6 +32,7 @@ import { DividerSection }        from './DividerSection';
 import { NextTermBeginsSection } from './NextTermBeginsSection';
 import { ContainerSection, defaultContainer } from './ContainerSection';
 import { ShapeSection, defaultShapeSection } from './ShapeSection';
+import { HeaderBlockSection, defaultHeaderBlock } from './HeaderBlockSection';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -199,6 +200,16 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <DividerSection section={p.section as any} />) as any,
+});
+
+registerSection({
+  type:  'header_block',
+  label: 'Header block',
+  icon:  '🧩',
+  description: 'One header element (logo, name, address, contact, motto, QR, custom). Drop several into a row container for true header composition.',
+  defaultProps: defaultHeaderBlock,
+  Render: ((p: SectionRenderProps) =>
+    <HeaderBlockSection section={p.section as any} ctx={p.dataCtx} />) as any,
 });
 
 registerSection({

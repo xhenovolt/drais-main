@@ -128,6 +128,7 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     { type: 'spacer',        label: 'Spacer',        icon: '↕️' },
     { type: 'divider',       label: 'Divider',       icon: '➖' },
     { type: 'header',        label: 'Header',        icon: '🏫' },
+    { type: 'header_block',  label: 'Header block',  icon: '🧩' },
     { type: 'container',     label: 'Container',     icon: '🧱' },
     { type: 'shape',         label: 'Shape',         icon: '⬛' },
   ];
@@ -210,6 +211,9 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
       case 'container':
         return { ...base, type: 'container', children: [],
           style: { layout: 'stack', gap: 8, padding: '8px' } } as DRCESection;
+      case 'header_block':
+        return { ...base, type: 'header_block', kind: 'school_name',
+          style: { fontSize: 16, fontWeight: 'bold', align: 'center' } } as DRCESection;
       case 'shape':
         return { ...base, type: 'shape',
           shape: {

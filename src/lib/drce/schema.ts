@@ -19,7 +19,8 @@ export type DRCESectionType =
   | 'divider'
   | 'next_term_begins'
   | 'container'    // Phase C — composition primitive holding child sections
-  | 'shape';       // Phase C.2 — shape as section so it can live INSIDE a container
+  | 'shape'        // Phase C.2 — shape as section so it can live INSIDE a container
+  | 'header_block';// Phase E — one header element (logo, name, motto, QR …)
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -518,6 +519,53 @@ export interface DRCEShapeSection extends DRCESectionBase {
   style: Record<string, unknown>;
 }
 
+/**
+ * Phase E — header composability.
+ *
+ * One header element. Drop several inside a `container` (typically row with
+ * justify: 'space-between') to author any header layout — including
+ * multi-language, founder-photo, verification-QR — without editing the
+ * engine or coupling to the legacy DRCEHeaderSection slot map (which keeps
+ * working unchanged as a preset).
+ */
+export type DRCEHeaderBlockKind =
+  | 'logo'
+  | 'school_name'
+  | 'arabic_name'
+  | 'address'
+  | 'contact'
+  | 'center_no'
+  | 'registration_no'
+  | 'motto'
+  | 'qr'             // verification / lookup QR
+  | 'custom_text'    // arbitrary text (rendered through resolveExpression so {tokens} work)
+  | 'custom_image';
+
+export interface DRCEHeaderBlockStyle {
+  fontSize?:     number;
+  fontWeight?:   string;
+  color?:        string;
+  background?:   string;
+  padding?:      string;
+  align?:        'left' | 'center' | 'right';
+  width?:        number | string;
+  height?:       number | string;
+  border?:       string;
+  borderRadius?: number;
+}
+
+export interface DRCEHeaderBlockSection extends DRCESectionBase {
+  type:  'header_block';
+  kind:  DRCEHeaderBlockKind;
+  /** For custom_text / motto override — supports expression tokens. */
+  text?:     string;
+  /** For custom_image. */
+  imageUrl?: string;
+  /** For qr — what to encode. Supports expression tokens. */
+  qrValue?:  string;
+  style?:    DRCEHeaderBlockStyle;
+}
+
 export type DRCESection =
   | DRCEHeaderSection
   | DRCEBannerSection
@@ -531,7 +579,8 @@ export type DRCESection =
   | DRCEDividerSection
   | DRCENextTermBeginsSection
   | DRCEContainerSection
-  | DRCEShapeSection;
+  | DRCEShapeSection
+  | DRCEHeaderBlockSection;
 
 // ─── Document Metadata ────────────────────────────────────────────────────────
 
