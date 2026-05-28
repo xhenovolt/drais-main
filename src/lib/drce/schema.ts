@@ -17,7 +17,8 @@ export type DRCESectionType =
   | 'grade_table'
   | 'spacer'
   | 'divider'
-  | 'next_term_begins';
+  | 'next_term_begins'
+  | 'container';   // Phase C — composition primitive holding child sections
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -472,6 +473,36 @@ export type DRCENextTermBeginsStyle = {
   icon?: string;
 };
 
+/**
+ * Phase C — composition container. Holds an ordered list of child sections
+ * (including other containers, enabling nesting). C.1 supports the 'stack'
+ * layout; C.2 will add 'row' | 'grid' | 'absolute'. Shapes-as-children land
+ * in C.2 alongside the 'absolute' layout.
+ */
+export interface DRCEContainerStyle {
+  /** Layout mode. C.1 ships 'stack' only; other modes registered in C.2. */
+  layout?:        'stack' | 'row' | 'grid' | 'absolute';
+  gap?:           number;          // px — between children
+  padding?:       string;          // CSS shorthand
+  background?:    string;
+  border?:        string;
+  borderRadius?:  number;
+  align?:         'start' | 'center' | 'end' | 'stretch';
+  justify?:       'start' | 'center' | 'end' | 'between' | 'around' | 'evenly';
+  /** For grid: CSS grid-template-columns / -rows. C.2. */
+  gridTemplateColumns?: string;
+  gridTemplateRows?:    string;
+  /** For absolute layout: container becomes the positioning context. C.2. */
+  width?:  number | string;
+  height?: number | string;
+}
+
+export interface DRCEContainerSection extends DRCESectionBase {
+  type:     'container';
+  children: DRCESection[];
+  style:    DRCEContainerStyle;
+}
+
 export type DRCESection =
   | DRCEHeaderSection
   | DRCEBannerSection
@@ -483,7 +514,8 @@ export type DRCESection =
   | DRCEGradeTableSection
   | DRCESpacerSection
   | DRCEDividerSection
-  | DRCENextTermBeginsSection;
+  | DRCENextTermBeginsSection
+  | DRCEContainerSection;
 
 // ─── Document Metadata ────────────────────────────────────────────────────────
 

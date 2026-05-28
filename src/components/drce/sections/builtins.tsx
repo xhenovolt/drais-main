@@ -30,6 +30,7 @@ import { GradeTableSection }     from './GradeTableSection';
 import { SpacerSection }         from './SpacerSection';
 import { DividerSection }        from './DividerSection';
 import { NextTermBeginsSection } from './NextTermBeginsSection';
+import { ContainerSection, defaultContainer } from './ContainerSection';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -197,6 +198,23 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <DividerSection section={p.section as any} />) as any,
+});
+
+registerSection({
+  type:  'container',
+  label: 'Container',
+  icon:  '🧱',
+  description: 'Group child sections. Layouts: stack (C.1), row/grid/absolute (C.2). Containers can hold containers.',
+  defaultProps: defaultContainer,
+  Render: ((p: SectionRenderProps) =>
+    <ContainerSection
+      section={p.section as any}
+      theme={p.theme}
+      dataCtx={p.dataCtx}
+      renderCtx={p.renderCtx}
+      onCellChange={p.onCellChange}
+      onColumnHide={p.onColumnHide}
+    />) as any,
 });
 
 registerSection({
