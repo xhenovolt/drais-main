@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo, useOptimistic, useTransition } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo, useOptimistic, useTransition, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -148,7 +148,6 @@ export default function StudentsListPage() {
   const [bulkStatusBusy, setBulkStatusBusy] = useState(false);
   const [snapshot, setSnapshot] = useState<{ id: number; name: string } | null>(null);
   const [showBulkSms, setShowBulkSms] = useState(false);
-  const [snapshotStudent, setSnapshotStudent] = useState<{ id: number; name: string } | null>(null);
   const [showBulkMessage, setShowBulkMessage] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
   const [bulkMsgBusy, setBulkMsgBusy] = useState(false);
@@ -1085,12 +1084,27 @@ export default function StudentsListPage() {
   };
 
   // ── Avatar helper ────────────────────────────────────────────────────────
+  // Photo removal lives ON the avatar: a small X overlays the photo on hover,
+  // keeping the row action column compact.
   const AvatarCell = ({ student }: { student: Student }) => {
     const initials = `${student.first_name?.[0] ?? ''}${student.last_name?.[0] ?? ''}`.toUpperCase();
     const colors = ['bg-indigo-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500'];
     const color = colors[(student.id ?? 0) % colors.length];
     if (student.photo_url) {
-      return <img src={student.photo_url} alt={initials} className="w-7 h-7 rounded-full object-cover ring-1 ring-white dark:ring-slate-700 flex-shrink-0" />;
+      return (
+        <div className="relative group/avatar w-7 h-7 flex-shrink-0">
+          <img src={student.photo_url} alt={initials} className="w-7 h-7 rounded-full object-cover ring-1 ring-white dark:ring-slate-700" />
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleRemovePhoto(student.id); }}
+            title="Remove photo"
+            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white items-center justify-center shadow ring-2 ring-white dark:ring-slate-900 opacity-0 group-hover/avatar:opacity-100 hover:opacity-100 transition-opacity hidden group-hover/avatar:flex"
+            aria-label="Remove photo"
+          >
+            <X className="w-2 h-2" strokeWidth={3} />
+          </button>
+        </div>
+      );
     }
     return <div className={`w-7 h-7 rounded-full ${color} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>{initials || '?'}</div>;
   };
@@ -1229,8 +1243,59 @@ export default function StudentsListPage() {
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
 
-      {/* ── TOOLBAR (48px) ──────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 sticky top-0 z-40 h-12 flex items-center gap-2 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
+      {/* ── HEADER BAND (Row 1) ─────────────────────────────────────────── */}
+      {/* Page identity + primary navigation (tabs) + primary CTA. */}
+      <div className="flex-shrink-0 sticky top-0 z-50 h-14 flex items-center gap-3 px-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <h1 className="text-base font-bold text-slate-800 dark:text-white truncate">Students</h1>
+          <span className="text-[11px] text-slate-400 tabular-nums">
+            {activeTab === 'enrolled' ? enrolledCount : admittedCount}
+          </span>
+        </div>
+
+        {/* Tab toggle moved up here from the sticky toolbar */}
+        <div className="ml-2 flex items-center gap-0.5 h-8 p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => { setActiveTab('enrolled'); setSelectedIds(new Set()); resetPage(); }}
+            className={`flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all ${
+              activeTab === 'enrolled'
+                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            Enrolled
+            <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'enrolled' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+              {enrolledCount}
+            </span>
+          </button>
+          <button
+            onClick={() => { setActiveTab('admitted'); setSelectedIds(new Set()); resetPage(); }}
+            className={`flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all ${
+              activeTab === 'admitted'
+                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            Admitted
+            <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'admitted' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+              {admittedCount}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Primary CTA */}
+        <Link href="/students/admit"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-colors">
+          <Plus className="w-3.5 h-3.5" /> Add student
+        </Link>
+      </div>
+
+      {/* ── TOOLBAR (Row 2: search + filters + secondary actions) ────────── */}
+      <div className="flex-shrink-0 sticky top-14 z-40 h-12 flex items-center gap-2 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
 
         {/* Search */}
         <div className="relative flex items-center group">
@@ -1318,38 +1383,6 @@ export default function StudentsListPage() {
 
         {/* Spacer */}
         <div className="flex-1" />
-
-        {/* Center: Enrolled / Admitted pill tabs */}
-        <div className="flex items-center gap-0.5 h-8 p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-          <button
-            onClick={() => { setActiveTab('enrolled'); setSelectedIds(new Set()); resetPage(); }}
-            className={`flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all ${
-              activeTab === 'enrolled'
-                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5" />
-            Enrolled
-            <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'enrolled' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-              {enrolledCount}
-            </span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('admitted'); setSelectedIds(new Set()); resetPage(); }}
-            className={`flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all ${
-              activeTab === 'admitted'
-                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            Admitted
-            <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'admitted' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-              {admittedCount}
-            </span>
-          </button>
-        </div>
 
         <div className="flex-1" />
 
@@ -1532,10 +1565,6 @@ export default function StudentsListPage() {
             <Trash2 className="w-3.5 h-3.5" />
           </button>
 
-          <Link href="/students/admit" title="Add new student"
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors">
-            <Plus className="w-3.5 h-3.5" />
-          </Link>
         </div>
       </div>
 
@@ -1757,8 +1786,8 @@ export default function StudentsListPage() {
                       </td>
                       )}
 
-                      {/* Row actions */}
-                      <td className="px-3 py-2.5 w-16">
+                      {/* Row actions — three primary; the rest live under "More" */}
+                      <td className="px-3 py-2.5 w-20">
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {activeTab === 'enrolled' ? (
                             <>
@@ -1784,46 +1813,25 @@ export default function StudentsListPage() {
                               >
                                 <Activity className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => setSnapshotStudent({ id: student.id, name: `${student.first_name} ${student.last_name}` })}
-                                title="Quick snapshot"
-                                className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-sky-100 dark:hover:bg-sky-900/30 text-slate-400 hover:text-sky-600 transition-colors"
-                              >
-                                <Activity className="w-3.5 h-3.5" />
-                              </button>
-                              <Link href={`/students/${student.id}/fees`} title="Fees ledger" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 transition-colors">
-                                <DollarSign className="w-3.5 h-3.5" />
-                              </Link>
-                              {student.photo_url && (
-                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md bg-red-50 dark:bg-red-900/20 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors font-semibold">
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <button onClick={() => handleDeleteStudent(student.id)} title="Soft delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <RowMore
+                                items={[
+                                  { label: 'Fees ledger',  icon: <DollarSign className="w-3.5 h-3.5 text-emerald-500" />, href: `/students/${student.id}/fees` },
+                                  { label: 'Soft delete',  icon: <Trash2     className="w-3.5 h-3.5 text-rose-500" />,    onClick: () => handleDeleteStudent(student.id), danger: true },
+                                ]}
+                              />
                             </>
                           ) : (
-                            <div className="flex items-center gap-1">
+                            <>
                               <button onClick={() => openEnrollModal(student)} title="Enroll student" className="flex items-center justify-center w-6 h-6 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
                                 <UserPlus className="w-3.5 h-3.5" />
                               </button>
-                              {student.photo_url && (
-                                <button onClick={() => handleRemovePhoto(student.id)} title="Remove photo" className="flex items-center justify-center w-6 h-6 rounded-md bg-red-50 dark:bg-red-900/20 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors font-semibold">
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <button onClick={() => handleDeleteStudent(student.id)} title="Soft delete" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-colors">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handlePermanentDelete(student.id, `${student.first_name} ${student.last_name}`)}
-                                title="Permanently delete"
-                                className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50 text-red-400 hover:text-red-700 transition-colors"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                              <RowMore
+                                items={[
+                                  { label: 'Soft delete',         icon: <Trash2 className="w-3.5 h-3.5 text-rose-500" />, onClick: () => handleDeleteStudent(student.id), danger: true },
+                                  { label: 'Permanently delete',  icon: <X      className="w-3.5 h-3.5 text-rose-600" />, onClick: () => handlePermanentDelete(student.id, `${student.first_name} ${student.last_name}`), danger: true },
+                                ]}
+                              />
+                            </>
                           )}
                         </div>
                       </td>
@@ -2182,25 +2190,6 @@ export default function StudentsListPage() {
         defaultDeviceSn={relayDeviceSn}
       />
 
-      {/* Quick snapshot — read-only operational overview, reuses P2 endpoint */}
-      {snapshotStudent && (
-        <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 backdrop-blur-sm pt-[12vh] px-4" onMouseDown={() => setSnapshotStudent(null)}>
-          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5" onMouseDown={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-sky-500" />
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white">{snapshotStudent.name}</h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <Link href={`/students/${snapshotStudent.id}`} className="text-xs text-indigo-600 hover:underline">Full profile →</Link>
-                <button onClick={() => setSnapshotStudent(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
-              </div>
-            </div>
-            <LearnerOverview studentId={snapshotStudent.id} />
-          </div>
-        </div>
-      )}
-
       {/* Bulk message — SMS the guardians of selected learners */}
       {showBulkMessage && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onMouseDown={() => !bulkMsgBusy && setShowBulkMessage(false)}>
@@ -2260,6 +2249,59 @@ export default function StudentsListPage() {
           showToast('success', 'Learner updated');
         }}
       />
+    </div>
+  );
+}
+
+// ─── ROW "MORE" MENU ────────────────────────────────────────────────────────
+// Compact secondary-actions popover. Keeps the row-action area to a handful
+// of primary verbs; secondary verbs (fees ledger, soft-delete, permanent
+// delete, future row actions) live inside this menu.
+interface RowMoreItem {
+  label:    string;
+  icon?:    ReactNode;
+  onClick?: () => void;
+  href?:    string;
+  danger?:  boolean;
+}
+function RowMore({ items }: { items: RowMoreItem[] }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest?.('[data-row-more]')) setOpen(false);
+    };
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, [open]);
+  return (
+    <div className="relative" data-row-more>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        title="More actions"
+        className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+        aria-label="More actions"
+      >
+        <MoreHorizontal className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-7 z-30 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 text-xs">
+          {items.map((it, i) => {
+            const cls = `w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 ${it.danger ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`;
+            return it.href ? (
+              <Link key={i} href={it.href} onClick={() => setOpen(false)} className={cls}>
+                {it.icon}<span className="flex-1">{it.label}</span>
+              </Link>
+            ) : (
+              <button key={i} type="button" onClick={() => { setOpen(false); it.onClick?.(); }} className={cls}>
+                {it.icon}<span className="flex-1">{it.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
