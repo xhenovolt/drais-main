@@ -9,17 +9,10 @@ import type { DRCEDocument, DRCEDataContext, DRCESection } from '@/lib/drce/sche
 import { resolvePageStyle, resolvePageDimensions } from '@/lib/drce/styleResolver';
 import type { DRCERenderContext } from './types';
 
-import { HeaderSection }      from './sections/HeaderSection';
-import { BannerSection }      from './sections/BannerSection';
-import { StudentInfoSection } from './sections/StudentInfoSection';
-import { RibbonSection }      from './sections/RibbonSection';
-import { ResultsTableSection } from './sections/ResultsTableSection';
-import { AssessmentSection }  from './sections/AssessmentSection';
-import { CommentsSection }    from './sections/CommentsSection';
-import { GradeTableSection }  from './sections/GradeTableSection';
-import { SpacerSection }      from './sections/SpacerSection';
-import { DividerSection }     from './sections/DividerSection';
-import { NextTermBeginsSection } from './sections/NextTermBeginsSection';
+// Side-effect import: registers the 11 built-in section plugins on load.
+// Adding a new section type means registering it from elsewhere — no edits here.
+import './sections/builtins';
+import { getSectionPlugin } from '@/lib/drce/section-registry';
 
 interface Props {
   document: DRCEDocument;
@@ -51,25 +44,18 @@ function renderSection(
   }
   
   const { theme } = doc;
-  // Enhanced contexts with language support
-  const enhancedDataCtx = { ...dataCtx, language: renderCtx.language };
-  
-  switch (section.type) {
-    case 'header':       return <HeaderSection      key={section.id} section={section} theme={theme} ctx={renderCtx} />;
-    case 'banner':       return <BannerSection      key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
-    case 'student_info': return <StudentInfoSection key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
-    case 'ribbon':       return <RibbonSection      key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
-    case 'results_table':return <ResultsTableSection key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} onCellChange={onCellChange ? (columnId, rowIndex, newValue) => onCellChange(section.id, columnId, rowIndex, newValue) : undefined} onColumnHide={onColumnHide ? (columnId) => onColumnHide(section.id, columnId) : undefined} />;
-    case 'assessment':   return <AssessmentSection  key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
-    case 'comments':     return <CommentsSection    key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
-    case 'grade_table':  return <GradeTableSection  key={section.id} section={section} theme={theme} ctx={enhancedDataCtx} />;
-    case 'spacer':       return <SpacerSection      key={section.id} section={section} />;
-    case 'divider':      return <DividerSection     key={section.id} section={section} />;
-    case 'next_term_begins': return <NextTermBeginsSection key={section.id} section={section} nextTermBegins={dataCtx.meta.nextTermBegins} />;
-    default:
-      console.warn(`Unknown section type: ${(section as any).type}`);
-      return null;
+  const plugin = getSectionPlugin(section.type);
+  if (!plugin) {
+    console.warn(`[renderSection] No plugin registered for type: ${(section as { type?: string }).type}`);
+    return null;
   }
+  const node = plugin.Render({
+    section, theme, dataCtx,
+    renderCtx: renderCtx as unknown as { language?: 'en' | 'ar'; [k: string]: unknown },
+    onCellChange, onColumnHide,
+  });
+  // The registry's Render returns `unknown` to keep /lib React-free; cast at the call site.
+  return <React.Fragment key={section.id}>{node as React.ReactNode}</React.Fragment>;
 }
 
 function getSectionWrapperStyle(section: DRCESection, isSelected: boolean, isInteractive: boolean): React.CSSProperties {
