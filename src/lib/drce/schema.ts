@@ -621,6 +621,20 @@ export interface DRCEMetaContext {
   year: string;
   reportTitle: string;
   nextTermBegins?: string;
+  /**
+   * Optional academic calendar enrichment (Phase B). Populated by the
+   * snapshot adapter when the school's calendar can be inferred from
+   * `terms` / `academic_years`. Computed fields ({next_term_begins},
+   * {this_term_ends}) prefer these values; renderers that don't know
+   * about this field continue to work unchanged.
+   */
+  calendar?: {
+    next_term_starts_at?: string | null;
+    this_term_ends_at?:   string | null;
+    next_term_name?:      string | null;
+    prev_term_name?:      string | null;
+    year_rollover?:       boolean;
+  };
 }
 
 export type Language = 'en' | 'ar';
