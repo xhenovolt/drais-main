@@ -133,6 +133,10 @@ export function snapshotToDRCEDataContext(
     year:             snapshot.meta.yearName,
     reportTitle:      schoolMeta.reportTitle ?? `${snapshot.meta.type} report`,
     nextTermBegins:   snapshot.config.nextTermBegins,
+    // Academic-calendar enrichment (Phase B wiring). Populated when the
+    // snapshot was generated with calendar inference; undefined on legacy
+    // snapshots — computed fields fall back to nextTermBegins above.
+    calendar:         snapshot.config.calendar,
   };
 
   const language: Language = snapshot.meta.language;

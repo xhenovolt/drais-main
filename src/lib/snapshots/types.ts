@@ -164,6 +164,23 @@ export interface SnapshotConfig {
   gradingScale: Array<{ min: number; max: number; grade: string; remark: string }>;
   teacherMappings: Array<{ subjectPattern: string; classPattern: string; initials: string }>;
   nextTermBegins: string;
+  /**
+   * Optional academic-calendar enrichment, computed at snapshot generation
+   * by `src/lib/calendar/infer`. Compact, denormalised form (just what the
+   * renderer needs). Absent on snapshots generated before this feature
+   * landed — those fall back to the manual `nextTermBegins` field above.
+   *
+   * NOT included in `meta.dataHash` (which hashes the classes array only),
+   * so adding this field to existing snapshots on regeneration does not
+   * change their content hash.
+   */
+  calendar?: {
+    next_term_starts_at: string | null;
+    this_term_ends_at:   string | null;
+    next_term_name:      string | null;
+    prev_term_name:      string | null;
+    year_rollover:       boolean;
+  };
 }
 
 export interface ReportSnapshot {

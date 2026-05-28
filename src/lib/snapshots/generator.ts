@@ -43,6 +43,7 @@ import {
   toArabicNumerals,
 } from './normalizers';
 import { rankStudents } from './ranker';
+import { infer as inferCalendar } from '@/lib/calendar';
 import {
   applyGradingScale,
   buildDefaultConfig,
@@ -203,6 +204,26 @@ export async function generateSnapshot(
     const generatedAt = new Date().toISOString();
     const generationMs = Math.round(performance.now() - startedAtMs);
 
+    // Academic-calendar enrichment (Phase B wiring). Failure here MUST NOT
+    // fail the generation — the snapshot is still valid without it; the
+    // renderer falls back to the manual nextTermBegins. Calendar is also
+    // OUTSIDE the dataHash, so adding it does not change content hashes.
+    let calendarConfig: import('./types').SnapshotConfig['calendar'] | undefined;
+    try {
+      const inf = await inferCalendar(school.schoolId, term.termId);
+      if (inf.current_term) {
+        calendarConfig = {
+          next_term_starts_at: inf.next_term_starts_at,
+          this_term_ends_at:   inf.this_term_ends_at,
+          next_term_name:      inf.next_term?.name ?? null,
+          prev_term_name:      inf.prev_term?.name ?? null,
+          year_rollover:       inf.year_rollover,
+        };
+      }
+    } catch (e) {
+      console.warn(`[snapshots] calendar inference skipped for term ${term.termId}:`, e instanceof Error ? e.message : e);
+    }
+
     const snapshot: ReportSnapshot = {
       meta: {
         snapshotId,
@@ -253,7 +274,7 @@ export async function generateSnapshot(
         dataHash,
       },
       classes,
-      config: buildDefaultConfig(''),
+      config: { ...buildDefaultConfig(''), ...(calendarConfig ? { calendar: calendarConfig } : {}) },
     };
 
     await saveSnapshot({ snapshotId, snapshot, generationMs });
