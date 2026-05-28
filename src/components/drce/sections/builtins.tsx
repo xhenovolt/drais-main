@@ -31,6 +31,7 @@ import { SpacerSection }         from './SpacerSection';
 import { DividerSection }        from './DividerSection';
 import { NextTermBeginsSection } from './NextTermBeginsSection';
 import { ContainerSection, defaultContainer } from './ContainerSection';
+import { ShapeSection, defaultShapeSection } from './ShapeSection';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -198,6 +199,16 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <DividerSection section={p.section as any} />) as any,
+});
+
+registerSection({
+  type:  'shape',
+  label: 'Shape',
+  icon:  '⬛',
+  description: 'A single decorative shape, placed inside a container (typically absolute) instead of the legacy overlay.',
+  defaultProps: defaultShapeSection,
+  Render: ((p: SectionRenderProps) =>
+    <ShapeSection section={p.section as any} />) as any,
 });
 
 registerSection({

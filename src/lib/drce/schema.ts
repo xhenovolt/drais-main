@@ -18,7 +18,8 @@ export type DRCESectionType =
   | 'spacer'
   | 'divider'
   | 'next_term_begins'
-  | 'container';   // Phase C — composition primitive holding child sections
+  | 'container'    // Phase C — composition primitive holding child sections
+  | 'shape';       // Phase C.2 — shape as section so it can live INSIDE a container
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -503,6 +504,20 @@ export interface DRCEContainerSection extends DRCESectionBase {
   style:    DRCEContainerStyle;
 }
 
+/**
+ * Phase C.2 — a shape rendered as a section. This is the structural fix for
+ * "shapes drift after save": inside an `absolute` container, a shape section
+ * flows with the section tree instead of floating on the legacy overlay.
+ * The top-level `shapes[]` array continues to work for backward compat.
+ */
+export interface DRCEShapeSection extends DRCESectionBase {
+  type:  'shape';
+  shape: DRCEShape;
+  /** Pass-through style so the section wrapper can position the shape
+   *  (left/top/width/height/zIndex) when inside an absolute container. */
+  style: Record<string, unknown>;
+}
+
 export type DRCESection =
   | DRCEHeaderSection
   | DRCEBannerSection
@@ -515,7 +530,8 @@ export type DRCESection =
   | DRCESpacerSection
   | DRCEDividerSection
   | DRCENextTermBeginsSection
-  | DRCEContainerSection;
+  | DRCEContainerSection
+  | DRCEShapeSection;
 
 // ─── Document Metadata ────────────────────────────────────────────────────────
 
