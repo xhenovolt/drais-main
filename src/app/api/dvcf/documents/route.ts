@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
                 schema_json, schema_version, is_default, template_key,
-                template_category, status, created_at, updated_at
+                template_category, status, document_kind, created_at, updated_at
          FROM dvcf_documents
          WHERE (school_id IS NULL OR school_id = ?)
          ORDER BY is_default DESC, id ASC`,
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       name, description, schema_json,
       document_type = 'report_card',
       template_category: rawCategory,
+      document_kind: rawKind,
     } = body;
 
     if (!name || !schema_json) {
@@ -82,14 +83,21 @@ export async function POST(request: NextRequest) {
       ? schema_json
       : JSON.stringify(schema_json);
 
+    // Round 1 — document_kind is free-text (school-extensible). Normalise to
+    // safe identifier shape; fall back to 'report' so legacy callers stay
+    // bug-compatible.
+    const documentKind = typeof rawKind === 'string' && rawKind.trim()
+      ? rawKind.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').slice(0, 64)
+      : 'report';
+
     const conn = await getConnection();
     try {
       const [result] = await conn.execute(
         `INSERT INTO dvcf_documents
            (school_id, document_type, name, description, schema_json,
-            schema_version, is_default, template_category)
-         VALUES (?, ?, ?, ?, ?, 1, 0, ?)`,
-        [schoolId, document_type, name, description ?? '', schemaStr, templateCategory],
+            schema_version, is_default, template_category, document_kind)
+         VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)`,
+        [schoolId, document_type, name, description ?? '', schemaStr, templateCategory, documentKind],
       );
 
       return NextResponse.json({

@@ -789,6 +789,16 @@ export interface DRCEMeta {
    * of truth at read time. Pure render paths ignore status.
    */
   status?: import('./workflow').TemplateStatus;
+  /**
+   * Round 1 — Canva/Office-style "what is this?" classifier.
+   * Free-text on purpose so a school can introduce its own kinds
+   * (`prefects_badge`, `tahfiz_certificate`) without a schema change.
+   * Default 'report' for every legacy row. The kind is metadata only —
+   * the renderer never branches on it; the editor surfaces it as a chip
+   * and shows soft warnings when document settings look unusual for
+   * the kind (e.g. portrait orientation on a certificate).
+   */
+  document_kind?: string;
 }
 
 // ─── Page (P5 — multi-page document model) ───────────────────────────────────
@@ -1031,6 +1041,8 @@ export interface DVCFDocumentRow {
   parent_id?: number | null;
   /** P4 — workflow status from the dvcf_documents.status column. */
   status?: import('./workflow').TemplateStatus;
+  /** Round 1 — Canva-style "what is this?" classifier (see DRCEMeta). */
+  document_kind?: string;
   created_at: string;
   updated_at: string;
 }
@@ -1054,6 +1066,7 @@ export function parseDRCERow(row: DVCFDocumentRow): DRCEDocument {
     template_category: row.template_category,
     parent_id: row.parent_id ?? null,
     status: row.status ?? 'published',  // P4 — legacy rows default to published
+    document_kind: row.document_kind ?? 'report',  // Round 1
   };
 
   // Defensive defaults — guard against malformed / legacy schema_json

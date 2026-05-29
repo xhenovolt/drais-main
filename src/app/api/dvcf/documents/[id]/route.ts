@@ -43,7 +43,7 @@ export async function GET(
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
                 schema_json, schema_version, is_default, template_key,
-                template_category, parent_id, status, created_at, updated_at
+                template_category, parent_id, status, document_kind, created_at, updated_at
          FROM dvcf_documents
          WHERE id = ? AND (school_id IS NULL OR school_id = ?)
          LIMIT 1`,
@@ -103,9 +103,9 @@ export async function PUT(
     if (isNaN(docId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
     const body = await request.json();
-    const { name, description, schema_json, template_category: rawCategory, parent_id } = body;
+    const { name, description, schema_json, template_category: rawCategory, parent_id, document_kind: rawKind } = body;
 
-    if (!name && !schema_json && rawCategory === undefined && parent_id === undefined) {
+    if (!name && !schema_json && rawCategory === undefined && parent_id === undefined && rawKind === undefined) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
     }
     if (rawCategory !== undefined && !isTemplateCategory(rawCategory)) {
@@ -141,6 +141,13 @@ export async function PUT(
       if (rawCategory !== undefined) {
         setClauses.push('template_category = ?');
         values.push(rawCategory);
+      }
+      if (rawKind !== undefined) {
+        const normalised = typeof rawKind === 'string' && rawKind.trim()
+          ? rawKind.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').slice(0, 64)
+          : 'report';
+        setClauses.push('document_kind = ?');
+        values.push(normalised);
       }
       // Phase H — template inheritance. parent_id may be a numeric id (set),
       // null (clear), or undefined (leave unchanged). Self-reference is

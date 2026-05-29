@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { DRCEDocument, DRCEDataContext } from '@/lib/drce/schema';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
+import { findKind, BUILT_IN_KINDS } from '@/lib/drce/kinds';
 import type { DRCERenderContext } from '@/components/drce/types';
 import { GenerateSnapshotButton } from '@/components/reports/GenerateSnapshotButton';
 
@@ -116,6 +117,9 @@ export default function ReportsKitchen() {
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [activatingId, setActivatingId]   = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // Canva-style kind filter — defaults to "all" so the existing kitchen
+  // behaviour is unchanged for users who don't care about kinds.
+  const [kindFilter, setKindFilter] = useState<string>('all');
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -263,10 +267,18 @@ export default function ReportsKitchen() {
               <Library size={14} /> Block Library
             </button>
             <button
-              onClick={() => router.push('/reports/kitchen/drce/new')}
+              onClick={() => router.push('/drce/new')}
+              title="Pick a starter — report, certificate, ID card, transcript, letter, or blank"
               className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3 py-1.5 rounded hover:bg-indigo-700"
             >
-              <Plus size={14} /> New Template
+              <Plus size={14} /> New Document
+            </button>
+            <button
+              onClick={() => router.push('/reports/kitchen/drce/new')}
+              title="Start a blank template directly in the editor"
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800"
+            >
+              blank
             </button>
           </div>
         </div>
@@ -296,6 +308,47 @@ export default function ReportsKitchen() {
           </div>
         </div>
 
+        {/* Kind filter pills — Canva-style "What kind of document?" navigator.
+            Counts every kind present in the current list, plus "All". */}
+        {documents.length > 0 && (() => {
+          const counts = new Map<string, number>();
+          counts.set('all', documents.length);
+          for (const d of documents) {
+            const k = d.meta.document_kind ?? 'report';
+            counts.set(k, (counts.get(k) ?? 0) + 1);
+          }
+          const visibleKinds = BUILT_IN_KINDS.filter(k => counts.has(k.code));
+          // Surface any school-defined kinds the user actually uses, too.
+          for (const c of counts.keys()) {
+            if (c !== 'all' && !visibleKinds.some(k => k.code === c)) {
+              visibleKinds.push(findKind(c));
+            }
+          }
+          return (
+            <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1">
+              {([{ code: 'all', label: 'All', icon: '📚' } as { code: string; label: string; icon: string }, ...visibleKinds]).map(k => {
+                const active = kindFilter === k.code;
+                const n = counts.get(k.code) ?? 0;
+                return (
+                  <button
+                    key={k.code}
+                    onClick={() => setKindFilter(k.code)}
+                    className={[
+                      'inline-flex items-center text-[11px] px-2.5 py-1 rounded-full font-medium whitespace-nowrap',
+                      active
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200',
+                    ].join(' ')}
+                  >
+                    <span className="mr-1">{k.icon}</span>{k.label}
+                    <span className="ml-1 opacity-70">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
             <Loader2 size={22} className="animate-spin" /> Loading templates...
@@ -313,10 +366,13 @@ export default function ReportsKitchen() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {documents.map(doc => {
+            {documents
+              .filter(d => kindFilter === 'all' || (d.meta.document_kind ?? 'report') === kindFilter)
+              .map(doc => {
               const id       = docNumId(doc);
               const isActive = id === activeDocId;
               const isGlobal = doc.meta.school_id === null;
+              const kind     = findKind(doc.meta.document_kind);
 
               return (
                 <div
@@ -351,6 +407,13 @@ export default function ReportsKitchen() {
                         <p className="text-xs text-gray-400 mt-0.5 capitalize">{doc.meta.report_type?.replace('_', ' ')}</p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                        {/* Document kind chip — Canva-style "what is this?" */}
+                        <span
+                          className="text-xs bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"
+                          title={kind.description}
+                        >
+                          <span>{kind.icon}</span>{kind.label}
+                        </span>
                         {isGlobal && <span className="text-xs bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 px-1.5 py-0.5 rounded">Built-in</span>}
                         {!isGlobal && <span className="text-xs bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300 px-1.5 py-0.5 rounded">Custom</span>}
                       </div>

@@ -15,6 +15,8 @@ import type { DRCEDocument, DRCEMutation, DRCEShape } from '@/lib/drce/schema';
 import { useDRCECapabilities } from '@/components/drce/hooks/useDRCECapabilities';
 import type { TemplateStatus, WorkflowAction } from '@/lib/drce/workflow';
 import { allowedActions } from '@/lib/drce/workflow';
+import { findKind } from '@/lib/drce/kinds';
+import { KindAdvisories } from './KindAdvisories';
 import { resolvePageDimensions } from '@/lib/drce/styleResolver';
 import { useDRCEEditor } from './useDRCEEditor';
 import { SectionListPanel } from './SectionListPanel';
@@ -233,6 +235,34 @@ export function DRCEEditor({ initial, onSave }: Props) {
     setPropTab('section');
   }, []);
 
+  // Round 1 — Save current document as a reusable starter for the school.
+  async function saveAsStarter() {
+    if (!hasDbId) { showToast('error', 'Save the document first'); return; }
+    const k = findKind(document.meta.document_kind);
+    const name = window.prompt(`Name this starter (it will appear in the "${k.label}" section of the gallery)`, document.meta.name);
+    if (!name?.trim()) return;
+    try {
+      const res = await fetch('/api/drce/starters', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          name:           name.trim(),
+          kind:           document.meta.document_kind ?? 'report',
+          fromDocumentId: documentDbId,
+          description:    `Saved from "${document.meta.name}"`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        showToast('error', data?.error ?? 'Failed to save starter');
+        return;
+      }
+      showToast('success', `Saved as starter under "${k.label}"`);
+    } catch (e) {
+      showToast('error', (e as Error).message);
+    }
+  }
+
   // P4 — workflow action handler. Drives the per-status buttons in the header.
   async function runWorkflow(action: WorkflowAction) {
     if (!hasDbId) return;
@@ -356,6 +386,19 @@ export function DRCEEditor({ initial, onSave }: Props) {
               ? <span className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ saved</span>
               : null}
 
+          {/* Document-kind chip — Canva-style "what is this?" classifier */}
+          {(() => {
+            const k = findKind(document.meta.document_kind);
+            return (
+              <span
+                className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                title={`${k.description} (click "Save as starter" to share this layout under "${k.label}")`}
+              >
+                <span className="mr-0.5">{k.icon}</span>{k.label}
+              </span>
+            );
+          })()}
+
           {/* P4 — workflow status badge */}
           {hasDbId && (
             <span
@@ -450,6 +493,18 @@ export function DRCEEditor({ initial, onSave }: Props) {
           </button>
         ))}
 
+        {/* Save as starter — surfaces the current doc as a reusable seed in the gallery. */}
+        {hasDbId && (caps.edit || caps.admin) && (
+          <button
+            type="button"
+            onClick={saveAsStarter}
+            title="Make this layout available in the New Document gallery"
+            className="text-[11px] font-semibold px-2 py-1.5 rounded-md text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+          >
+            Save as starter
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleSave}
@@ -499,6 +554,11 @@ export function DRCEEditor({ initial, onSave }: Props) {
           }
         }}
       />
+
+      {/* Round 1 — soft warnings when document settings look unusual for
+          the declared document kind (portrait certificate, A4 ID card, …).
+          Dismissible, never blocking. */}
+      <KindAdvisories doc={document} onMutate={handleMutate} />
 
       {/* P5 — page navigator (visible always; offers Enable-multi-page for
           single-page docs and a pill-bar for multi-page docs). */}
