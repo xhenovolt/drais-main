@@ -262,9 +262,14 @@ function FieldManager({ section, sectionId, fields, onMutate }: {
 
   // P1 — merged static + custom-field bindings so newly-defined custom
   // fields appear immediately in every field-picker dropdown.
+  // CAFE Phase 1 — future bindings carry comingSoon and are visibly tagged
+  // so authors can see what's on the way without selecting unwired data.
   const allBindings = useAvailableBindings()
     .filter(b => b.group !== 'Subject Result')
-    .map(b => ({ label: `${b.group}: ${b.label}`, value: b.binding }));
+    .map(b => ({
+      label: `${b.group}: ${b.label}${b.comingSoon ? ' (under build)' : ''}`,
+      value: b.binding,
+    }));
 
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;

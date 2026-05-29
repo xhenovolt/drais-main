@@ -14,7 +14,51 @@
 import useSWR from 'swr';
 import { AVAILABLE_BINDINGS } from '@/lib/drce/bindingResolver';
 
-export interface BindingEntry { group: string; binding: string; label: string }
+export interface BindingEntry {
+  group: string;
+  binding: string;
+  label: string;
+  /**
+   * When true, the picker should render this binding with a "Coming soon"
+   * pill and a tooltip explaining the timeline. The binding still appears
+   * in dropdowns so authors can plan templates against future data shapes,
+   * but selecting it today yields empty strings in the renderer.
+   */
+  comingSoon?: boolean;
+  /** Optional one-liner shown as a hover tooltip on the picker chip. */
+  hint?: string;
+}
+
+/**
+ * CAFE Phase 1 — assessment bindings exposed as "Coming soon" so template
+ * authors can see what's on the way. The data isn't wired into the snapshot
+ * pipeline yet (lands in Phase 2 of CAFE); selecting one of these today
+ * yields '' in the renderer, by design.
+ *
+ * Naming follows the pattern of P1 custom fields (student.custom.<code>):
+ * the eventual binding lives under student.cafe.* / result.component.* /
+ * student.genericSkill.*.
+ */
+const CAFE_BINDINGS: BindingEntry[] = [
+  { group: 'CAFE — Framework', binding: 'student.cafe.frameworkName', label: 'Active framework name',
+    comingSoon: true, hint: 'Name of the assessment framework assigned to this learner\'s class for the term.' },
+  { group: 'CAFE — Framework', binding: 'student.cafe.frameworkMode', label: 'Framework mode',
+    comingSoon: true, hint: 'numeric · rubric · descriptor · mixed.' },
+  { group: 'CAFE — Components', binding: 'result.components',  label: 'All components (array)',
+    comingSoon: true, hint: 'Per-subject component scores with descriptors and weights.' },
+  { group: 'CAFE — Components', binding: 'result.component.theory',     label: 'Theory component',
+    comingSoon: true, hint: 'Example component binding. Schools define their own component codes.' },
+  { group: 'CAFE — Components', binding: 'result.component.practical',  label: 'Practical component',
+    comingSoon: true },
+  { group: 'CAFE — Components', binding: 'result.component.aoi',        label: 'Activity of Integration',
+    comingSoon: true },
+  { group: 'CAFE — Components', binding: 'result.competencyLevel',      label: 'Rolled-up competency level',
+    comingSoon: true },
+  { group: 'CAFE — Generic skills', binding: 'student.genericSkills', label: 'All generic skills',
+    comingSoon: true, hint: 'Communication · Collaboration · Problem solving · ICT · Creativity · …' },
+  { group: 'CAFE — Projects',  binding: 'student.projects',          label: 'Integrated projects',
+    comingSoon: true, hint: 'Project portfolio with descriptors and evidence links.' },
+];
 
 interface CustomFieldRow {
   code: string; label: string;
@@ -36,5 +80,7 @@ export function useAvailableBindings(): BindingEntry[] {
     label:   f.label,
   }));
 
-  return [...AVAILABLE_BINDINGS, ...customEntries];
+  // CAFE bindings come last so they appear at the bottom of the picker —
+  // they're future-facing and shouldn't push existing groups around.
+  return [...AVAILABLE_BINDINGS, ...customEntries, ...CAFE_BINDINGS];
 }
