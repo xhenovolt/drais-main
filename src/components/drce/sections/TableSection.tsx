@@ -23,7 +23,11 @@ import type {
 } from '@/lib/drce/schema';
 import { resolveExpression } from '@/lib/drce/computed/resolveExpression';
 import { getByPath } from '@/lib/drce/bindingResolver';
-import { evaluateFormula, type FormulaContext } from '@/lib/drce/table/formula';
+import { evaluateFormula, type FormulaContext, type FormulaError } from '@/lib/drce/table/formula';
+
+/** Cell-level metadata produced by the resolver — used by the renderer to
+ *  surface visible error states with hover tooltips. */
+interface CellMeta { error?: FormulaError }
 
 interface Props {
   section: Section;
@@ -55,15 +59,20 @@ function expandRows(section: Section, ctx: DRCEDataContext): {
   };
 }
 
-/** Two-pass resolve: pass 1 fills literal/binding cells; pass 2 evaluates
- *  formula cells so they can reference other cells.
+/** Two-pass resolve with cycle detection. Pass 1 fills literal + binding
+ *  cells; pass 2 evaluates formula cells topologically so dependent formulas
+ *  see their referenced values, and circular references render `#CYCLE!`
+ *  instead of silently returning empty. Every formula evaluation produces
+ *  either a value or a typed FormulaError surfaced via `cellMeta`.
  */
 function resolveCells(section: Section, ctx: DRCEDataContext): {
   rowKeys: string[];
-  cellValues: Record<string, Record<string, unknown>>;     // [colId][rowKey]
+  cellValues: Record<string, Record<string, unknown>>;
+  cellMeta:   Record<string, CellMeta>;             // keyed by `colId:rowKey`
 } {
   const { rowKeys, rowData } = expandRows(section, ctx);
   const cellValues: Record<string, Record<string, unknown>> = {};
+  const cellMeta:   Record<string, CellMeta> = {};
   for (const col of section.columns) cellValues[col.id] = {};
 
   // Pass 1 — non-formula cells.
@@ -72,39 +81,103 @@ function resolveCells(section: Section, ctx: DRCEDataContext): {
     const row    = rowData[i];
     for (const col of section.columns) {
       const override = section.cells?.[`${rowKey}:${col.id}`];
-      if (override?.formula) continue;            // Pass 2.
+      if (override?.formula) continue;
       if (override?.value !== undefined) {
         cellValues[col.id][rowKey] = override.value;
         continue;
       }
       const binding = override?.binding ?? col.binding;
       if (binding) {
-        // Per-row resolution — pass the row as `result` scope so legacy
-        // `result.subjectName` etc. bindings keep working.
         cellValues[col.id][rowKey] = resolveExpression(`{${binding}}`, ctx, row);
       }
     }
   }
 
-  // Pass 2 — formulas, with cellValues now populated.
-  for (const rowKey of rowKeys) {
-    for (const col of section.columns) {
-      const override = section.cells?.[`${rowKey}:${col.id}`];
-      if (!override?.formula) continue;
+  // Pass 2 — formula cells with cycle detection.
+  // Strategy: DFS resolution with a visiting set; if a formula references a
+  // cell currently being evaluated we mark every node in the cycle #CYCLE!.
+  const evaluating = new Set<string>();
+  const resolved   = new Set<string>();
+
+  function resolveCell(rowKey: string, colId: string) {
+    const k = `${colId}:${rowKey}`;
+    if (resolved.has(k)) return;
+    if (evaluating.has(k)) {
+      cellMeta[k] = { error: { code: '#CYCLE!', message: 'Circular reference detected' } };
+      cellValues[colId][rowKey] = '#CYCLE!';
+      return;
+    }
+    const override = section.cells?.[`${rowKey}:${colId}`];
+    if (!override?.formula) { resolved.add(k); return; }
+
+    evaluating.add(k);
+    try {
       const body = override.formula.replace(/^=/, '');
+      // Inspect the formula's referenced cells eagerly so dependencies are
+      // resolved before the parent. We do this via a recursive helper that
+      // also catches cycles; if a dep is itself a formula, recurse first.
+      const refs = formulaReferencedCells(body);
+      for (const r of refs) {
+        const depCol = section.columns[r.colIdx]?.id;
+        const depRow = rowKeys[r.rowIdx];
+        if (depCol && depRow) resolveCell(depRow, depCol);
+      }
+      // After deps are settled, evaluate.
       const fctx: FormulaContext = {
         cellValues, columnIds: section.columns.map(c => c.id), rowKeys,
-        currentCol: col.id, currentRow: rowKey, dataCtx: ctx,
+        currentCol: colId, currentRow: rowKey, dataCtx: ctx,
       };
-      cellValues[col.id][rowKey] = evaluateFormula(body, fctx);
+      const result = evaluateFormula(body, fctx);
+      if (result.ok === true) {
+        cellValues[colId][rowKey] = result.value;
+      } else {
+        cellMeta[k] = { error: result.error };
+        cellValues[colId][rowKey] = result.error.code;
+      }
+    } finally {
+      evaluating.delete(k);
+      resolved.add(k);
     }
   }
 
-  return { rowKeys, cellValues };
+  for (const rowKey of rowKeys) {
+    for (const col of section.columns) {
+      const override = section.cells?.[`${rowKey}:${col.id}`];
+      if (override?.formula) resolveCell(rowKey, col.id);
+    }
+  }
+
+  return { rowKeys, cellValues, cellMeta };
+}
+
+/** Lightweight regex scan for bare cell refs / ranges in a formula body.
+ *  Good enough for dependency detection (we don't need full AST here —
+ *  the evaluator handles syntax errors). */
+function formulaReferencedCells(body: string): { colIdx: number; rowIdx: number }[] {
+  const out: { colIdx: number; rowIdx: number }[] = [];
+  const re = /([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const ci0 = colLetterToIdx(m[1]), ri0 = parseInt(m[2], 10) - 1;
+    if (m[3]) {
+      const ci1 = colLetterToIdx(m[3]), ri1 = parseInt(m[4], 10) - 1;
+      for (let c = Math.min(ci0, ci1); c <= Math.max(ci0, ci1); c++)
+        for (let r = Math.min(ri0, ri1); r <= Math.max(ri0, ri1); r++)
+          out.push({ colIdx: c, rowIdx: r });
+    } else {
+      out.push({ colIdx: ci0, rowIdx: ri0 });
+    }
+  }
+  return out;
+}
+function colLetterToIdx(s: string): number {
+  let n = 0;
+  for (const c of s.toUpperCase()) { if (c < 'A' || c > 'Z') return -1; n = n * 26 + (c.charCodeAt(0) - 64); }
+  return n - 1;
 }
 
 export function TableSection({ section, theme, ctx, onCellChange }: Props) {
-  const { rowKeys, cellValues } = resolveCells(section, ctx);
+  const { rowKeys, cellValues, cellMeta } = resolveCells(section, ctx);
   const style = section.style ?? {};
 
   // Pre-compute merged-cell skip set: a cell that's being spanned ONTO by a
@@ -155,9 +228,14 @@ export function TableSection({ section, theme, ctx, onCellChange }: Props) {
               if (skipped.has(k)) return null;
               const override = section.cells?.[k];
               const v = cellValues[col.id]?.[rowKey];
-              const display = override?.format
-                ? resolveExpression(`{value | ${override.format}}`, { ...ctx, meta: { ...ctx.meta } } as DRCEDataContext, { value: v })
-                : (v == null ? '' : String(v));
+              // Formula error surface — Excel-style #ERROR! token with the
+              // parser's diagnostic exposed as a hover tooltip.
+              const errMeta = cellMeta[`${col.id}:${rowKey}`]?.error;
+              const display = errMeta
+                ? errMeta.code
+                : (override?.format
+                  ? resolveExpression(`{value | ${override.format}}`, { ...ctx, meta: { ...ctx.meta } } as DRCEDataContext, { value: v })
+                  : (v == null ? '' : String(v)));
               return (
                 <td
                   key={col.id}
@@ -165,6 +243,7 @@ export function TableSection({ section, theme, ctx, onCellChange }: Props) {
                   rowSpan={(override?.mergeDown  ?? 0) + 1}
                   contentEditable={!!onCellChange}
                   suppressContentEditableWarning
+                  title={errMeta ? errMeta.message : undefined}
                   onBlur={onCellChange ? (e) => {
                     const text = e.currentTarget.textContent ?? '';
                     if (text.startsWith('=')) onCellChange(rowKey, col.id, 'formula', text);
@@ -178,6 +257,11 @@ export function TableSection({ section, theme, ctx, onCellChange }: Props) {
                     border:    style.rowBorder ?? '1px solid #ddd',
                     outline:   'none',
                     cursor:    onCellChange ? 'text' : undefined,
+                    // Excel-style error tinting — kept subtle in print, more
+                    // emphatic in the editor where the user can fix it.
+                    color:     errMeta ? '#b91c1c' : undefined,
+                    background: errMeta ? '#fef2f2' : undefined,
+                    fontFamily: errMeta ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined,
                     ...(override?.style ?? {}),
                   }}
                 >
