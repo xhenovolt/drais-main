@@ -27,7 +27,10 @@ type DragState =
   /** Phase-vector: tracking a bezier OUT handle on the latest pen-drawn anchor */
   | { kind: 'pen-handle'; nodeIdx: number; anchorX: number; anchorY: number }
   /** Phase-vector: dragging one anchor of an already-committed path. */
-  | { kind: 'path-node'; id: string; orig: DRCEPathShape; nodeIdx: number; sx: number; sy: number; cx: number; cy: number };
+  | { kind: 'path-node'; id: string; orig: DRCEPathShape; nodeIdx: number; sx: number; sy: number; cx: number; cy: number }
+  /** Phase-vector: dragging an IN/OUT bezier handle of an existing path. */
+  | { kind: 'bezier'; id: string; orig: DRCEPathShape; nodeIdx: number; which: 'in' | 'out';
+      symmetric: boolean; sx: number; sy: number; cx: number; cy: number };
 
 interface Props {
   shapes: DRCEShape[];
@@ -144,6 +147,23 @@ function applyDrag(s: DRCEShape, drag: DragState): DRCEShape {
     const target = p.nodes[drag.nodeIdx];
     if (!target) return s;
     return setNodeAnchor(s as DRCEPathShape, drag.nodeIdx, target.x + dx, target.y + dy) as DRCEShape;
+  }
+
+  if (drag.kind === 'bezier') {
+    if (s.type !== 'path') return s;
+    const p = (s as DRCEPathShape);
+    const node = p.nodes[drag.nodeIdx];
+    if (!node) return s;
+    const handleX = (drag.which === 'in' ? (node.cpInX ?? node.x) : (node.cpOutX ?? node.x)) + dx;
+    const handleY = (drag.which === 'in' ? (node.cpInY ?? node.y) : (node.cpOutY ?? node.y)) + dy;
+    const nodes = p.nodes.slice();
+    nodes[drag.nodeIdx] = drag.which === 'in'
+      ? { ...node, cpInX:  handleX, cpInY:  handleY,
+          // Mirror the opposite handle when symmetric, so the curve stays smooth.
+          ...(drag.symmetric ? { cpOutX: node.x - (handleX - node.x), cpOutY: node.y - (handleY - node.y) } : {}) }
+      : { ...node, cpOutX: handleX, cpOutY: handleY,
+          ...(drag.symmetric ? { cpInX:  node.x - (handleX - node.x), cpInY:  node.y - (handleY - node.y) } : {}) };
+    return { ...s, nodes, d: nodesToPathD(nodes, p.closed) } as DRCEShape;
   }
 
   if (drag.kind === 'moving') {
@@ -593,7 +613,7 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
     if (!drag) return;
     if (drag.kind === 'drawing') {
       setDrag({ ...drag, x2: p.x, y2: p.y });
-    } else if (drag.kind === 'moving' || drag.kind === 'resizing' || drag.kind === 'path-node') {
+    } else if (drag.kind === 'moving' || drag.kind === 'resizing' || drag.kind === 'path-node' || drag.kind === 'bezier') {
       setDrag({ ...drag, cx: p.x, cy: p.y });
       // Live alignment guides while moving (not while resizing — that gets a
       // separate snap pass in a future commit).
@@ -653,6 +673,21 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
       if (target) {
         const updated = setNodeAnchor(drag.orig, drag.nodeIdx, target.x + dx, target.y + dy);
         onUpdateShape(drag.id, { nodes: updated.nodes, d: updated.d } as Partial<DRCEShape>);
+      }
+    } else if (drag.kind === 'bezier') {
+      const dx = x - drag.sx, dy = y - drag.sy;
+      const orig = drag.orig;
+      const node = orig.nodes[drag.nodeIdx];
+      if (node) {
+        const handleX = (drag.which === 'in' ? (node.cpInX ?? node.x) : (node.cpOutX ?? node.x)) + dx;
+        const handleY = (drag.which === 'in' ? (node.cpInY ?? node.y) : (node.cpOutY ?? node.y)) + dy;
+        const nodes = orig.nodes.slice();
+        nodes[drag.nodeIdx] = drag.which === 'in'
+          ? { ...node, cpInX: handleX, cpInY: handleY,
+              ...(drag.symmetric ? { cpOutX: node.x - (handleX - node.x), cpOutY: node.y - (handleY - node.y) } : {}) }
+          : { ...node, cpOutX: handleX, cpOutY: handleY,
+              ...(drag.symmetric ? { cpInX: node.x - (handleX - node.x), cpInY: node.y - (handleY - node.y) } : {}) };
+        onUpdateShape(drag.id, { nodes, d: nodesToPathD(nodes, orig.closed) } as Partial<DRCEShape>);
       }
     } else if (drag.kind === 'resizing') {
       const dx = x - drag.sx, dy = y - drag.sy;
@@ -783,7 +818,7 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
           const isSelected = s.id === selectedShapeId && s.id !== '__d';
           const handles = isSelected ? getHandles(s) : [];
           return (
-            <g key={s.id}>
+            <g key={s.id} data-drce-shape-id={s.id}>
               {renderShapeEl(s, isSelected, false,
                 (e) => onShapeMouseDown(e, s),
               )}
@@ -809,20 +844,71 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
               ))}
               {/* Path node-edit handles (selected path only) */}
               {isSelected && s.type === 'path' && (s as DRCEPathShape).nodes.map((n, idx) => (
-                <rect
-                  key={`node-${idx}`}
-                  x={n.x - 4} y={n.y - 4} width={8} height={8}
-                  fill="#fff" stroke="#10b981" strokeWidth={1.5}
-                  style={{ cursor: 'move', pointerEvents: 'all' }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    const p = pt(e as unknown as React.MouseEvent<SVGSVGElement>);
-                    setDrag({
-                      kind: 'path-node', id: s.id, orig: s as DRCEPathShape,
-                      nodeIdx: idx, sx: p.x, sy: p.y, cx: p.x, cy: p.y,
-                    });
-                  }}
-                />
+                <React.Fragment key={`node-${idx}`}>
+                  {/* IN bezier handle arm + pill */}
+                  {n.cpInX != null && n.cpInY != null && (
+                    <>
+                      <line x1={n.x} y1={n.y} x2={n.cpInX} y2={n.cpInY} stroke="#a5b4fc" strokeWidth={1} pointerEvents="none" />
+                      <circle
+                        cx={n.cpInX} cy={n.cpInY} r={3.5}
+                        fill="#fff" stroke="#6366f1" strokeWidth={1.5}
+                        style={{ cursor: 'move', pointerEvents: 'all' }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          const p = pt(e as unknown as React.MouseEvent<SVGSVGElement>);
+                          setDrag({
+                            kind: 'bezier', id: s.id, orig: s as DRCEPathShape,
+                            nodeIdx: idx, which: 'in', symmetric: !e.altKey,
+                            sx: p.x, sy: p.y, cx: p.x, cy: p.y,
+                          });
+                        }}
+                      />
+                    </>
+                  )}
+                  {/* OUT bezier handle arm + pill */}
+                  {n.cpOutX != null && n.cpOutY != null && (
+                    <>
+                      <line x1={n.x} y1={n.y} x2={n.cpOutX} y2={n.cpOutY} stroke="#a5b4fc" strokeWidth={1} pointerEvents="none" />
+                      <circle
+                        cx={n.cpOutX} cy={n.cpOutY} r={3.5}
+                        fill="#fff" stroke="#6366f1" strokeWidth={1.5}
+                        style={{ cursor: 'move', pointerEvents: 'all' }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          const p = pt(e as unknown as React.MouseEvent<SVGSVGElement>);
+                          setDrag({
+                            kind: 'bezier', id: s.id, orig: s as DRCEPathShape,
+                            nodeIdx: idx, which: 'out', symmetric: !e.altKey,
+                            sx: p.x, sy: p.y, cx: p.x, cy: p.y,
+                          });
+                        }}
+                      />
+                    </>
+                  )}
+                  {/* Anchor (drag = move just this vertex; alt-drag = extrude bezier handles) */}
+                  <rect
+                    x={n.x - 4} y={n.y - 4} width={8} height={8}
+                    fill="#fff" stroke="#10b981" strokeWidth={1.5}
+                    style={{ cursor: 'move', pointerEvents: 'all' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      const p = pt(e as unknown as React.MouseEvent<SVGSVGElement>);
+                      // Alt-drag from an anchor without handles → start extruding a new OUT handle.
+                      if (e.altKey && (n.cpOutX == null || n.cpOutY == null)) {
+                        setDrag({
+                          kind: 'bezier', id: s.id, orig: s as DRCEPathShape,
+                          nodeIdx: idx, which: 'out', symmetric: true,
+                          sx: p.x, sy: p.y, cx: p.x, cy: p.y,
+                        });
+                      } else {
+                        setDrag({
+                          kind: 'path-node', id: s.id, orig: s as DRCEPathShape,
+                          nodeIdx: idx, sx: p.x, sy: p.y, cx: p.x, cy: p.y,
+                        });
+                      }
+                    }}
+                  />
+                </React.Fragment>
               ))}
             </g>
           );

@@ -6,6 +6,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Undo2, Redo2, Save, Loader2, Eye, EyeOff, X, History, ZoomIn, ZoomOut } from 'lucide-react';
 import { VersionHistoryDrawer } from './VersionHistoryDrawer';
 import { VariablePicker } from './VariablePicker';
+import { selection, useSelection } from './selectionStore';
+import { ContextualToolbar } from './ContextualToolbar';
+import { TypographyPopover } from './TypographyPopover';
+import type { DRCETextShape } from '@/lib/drce/schema';
 import type { DRCEDocument, DRCEMutation, DRCEShape } from '@/lib/drce/schema';
 import { resolvePageDimensions } from '@/lib/drce/styleResolver';
 import { useDRCEEditor } from './useDRCEEditor';
@@ -96,9 +100,20 @@ interface Props {
 
 export function DRCEEditor({ initial, onSave }: Props) {
   const { document, mutate, undo, redo, canUndo, canRedo, isDirty } = useDRCEEditor(initial);
+  const canvasRef = React.useRef<HTMLDivElement>(null);
+  const sel = useSelection();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+
+  // Mirror local single-select state INTO the multi-select store so the
+  // contextual toolbar / typography popover can react to any selection
+  // change without refactoring every existing caller in one go.
+  useEffect(() => {
+    if (selectedId) selection.select('section', selectedId);
+    else if (selectedShapeId) selection.select('shape', selectedShapeId);
+    else selection.clear();
+  }, [selectedId, selectedShapeId]);
   const [activeTool, setActiveTool] = useState<DrawTool>('select');
   const [propTab, setPropTab] = useState<'section' | 'theme' | 'watermark' | 'rules'>('section');
   const [saving, setSaving] = useState(false);
@@ -138,6 +153,9 @@ export function DRCEEditor({ initial, onSave }: Props) {
             if (selectedShapeId) {
               mutate({ type: 'DELETE_SHAPE', id: selectedShapeId });
               setSelectedShapeId(null);
+            } else if (selectedId) {
+              mutate({ type: 'DELETE_SECTION', sectionId: selectedId });
+              setSelectedId(null);
             }
             break;
           case 'escape':
@@ -377,6 +395,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
             const { width } = resolvePageDimensions(document.theme);
             return (
               <div
+                ref={canvasRef}
                 style={{
                   transform: `scale(${previewScale})`,
                   transformOrigin: 'top center',
@@ -406,6 +425,24 @@ export function DRCEEditor({ initial, onSave }: Props) {
                     if (id) setSelectedId(null); // deselect section when shape selected
                   }}
                 />
+
+                {/* Floating contextual toolbar (any selection) */}
+                <ContextualToolbar document={document} onMutate={mutate} canvasRef={canvasRef} />
+
+                {/* Typography popover (text-shape selection only) */}
+                {(() => {
+                  if (sel.primary?.kind !== 'shape') return null;
+                  const sh = (document.shapes ?? []).find(s => s.id === sel.primary!.id);
+                  if (!sh || sh.type !== 'text') return null;
+                  return (
+                    <TypographyPopover
+                      shape={sh as DRCETextShape}
+                      canvasRef={canvasRef}
+                      onUpdate={(patch) => mutate({ type: 'UPDATE_SHAPE', id: sh.id, updates: patch as Partial<typeof sh> })}
+                      onClose={() => setSelectedShapeId(null)}
+                    />
+                  );
+                })()}
               </div>
             );
           })()}

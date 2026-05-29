@@ -196,6 +196,7 @@ export function DRCEDocumentRenderer({
           return (
             <div
               key={section.id}
+              data-drce-section-id={section.id}
               onClick={onSectionClick ? () => onSectionClick(section.id) : undefined}
               style={getSectionWrapperStyle(section, isSelected, Boolean(onSectionClick))}
             >
