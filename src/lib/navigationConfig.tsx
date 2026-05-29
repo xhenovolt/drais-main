@@ -236,6 +236,7 @@ export function getNavigationItems(
         { key: 'report-kitchen',  label: 'Template Kitchen', icon: <Palette className="w-4 h-4" />,      href: '/reports/kitchen', roles: ['admin', 'super_admin'] },
         { key: 'issuance',        label: 'Issuance',         icon: <FileCheck className="w-4 h-4" />,    href: '/issuance',        roles: ['admin', 'super_admin'] },
         { key: 'cafe',            label: 'CAFE (Assessment Engine)', icon: <Sliders className="w-4 h-4" />, href: '/admin/cafe', roles: ['admin', 'super_admin'] },
+        { key: 'cafe-entry',      label: 'CAFE Result Entry',        icon: <ClipboardList className="w-4 h-4" />, href: '/academics/results-cafe', roles: ['admin', 'super_admin', 'teacher'] },
         { key: 'drce-blocks',     label: 'Block Library',    icon: <Library className="w-4 h-4" />,      href: '/admin/drce/blocks', roles: ['admin', 'super_admin'] },
         { key: 'deadlines',       label: 'Deadlines',        icon: <AlarmClock className="w-4 h-4" />,   href: '/examinations/deadlines' },
       ],
