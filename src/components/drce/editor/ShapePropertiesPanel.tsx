@@ -6,7 +6,9 @@ import React from 'react';
 import { Trash2 } from 'lucide-react';
 import type {
   DRCEShape, DRCERectShape, DRCEEllipseShape, DRCELineShape, DRCETextShape,
+  DRCEImageShape,
 } from '@/lib/drce/schema';
+import { useAvailableBindings } from '@/components/drce/hooks/useAvailableBindings';
 
 interface Props {
   shape: DRCEShape | null;
@@ -257,6 +259,141 @@ function PolygonPanel({ shape, onUpdate }: { shape: DRCEShape & { type: 'triangl
   );
 }
 
+// ─── Image ────────────────────────────────────────────────────────────────────
+
+function ImagePanel({ shape, onUpdate }: {
+  shape: DRCEImageShape;
+  onUpdate: (u: Partial<DRCEShape>) => void;
+}) {
+  const bindings = useAvailableBindings();
+  // Filter to bindings that plausibly hold a URL string.
+  const urlBindings = bindings.filter(b =>
+    b.binding.endsWith('Url') || b.binding.endsWith('_url') ||
+    b.binding === 'student.photoUrl' || b.binding === 'meta.logoUrl' ||
+    b.group === 'Custom Field',  // any custom field could hold a URL
+  );
+
+  async function pickReplacementFile(file: File) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'drais/drce-images');
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data?.success && data.url) onUpdate({ src: data.url } as Partial<DRCEShape>);
+  }
+
+  return (
+    <div className="py-2 space-y-2 text-xs">
+      <div>
+        <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Source URL</label>
+        <input
+          type="text" value={shape.src ?? ''}
+          onChange={e => onUpdate({ src: e.target.value } as Partial<DRCEShape>)}
+          placeholder="https://… (or upload below)"
+          className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900"
+        />
+      </div>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Or upload</label>
+        <input
+          type="file" accept="image/*"
+          onChange={e => { const f = e.target.files?.[0]; if (f) pickReplacementFile(f); }}
+          className="text-[11px]"
+        />
+      </div>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">
+          Bind to data (overrides URL when set)
+        </label>
+        <select
+          value={shape.binding ?? ''}
+          onChange={e => onUpdate({ binding: e.target.value || undefined } as Partial<DRCEShape>)}
+          className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900"
+        >
+          <option value="">— none (use static URL) —</option>
+          {urlBindings.map(b => (
+            <option key={b.binding} value={b.binding}>{b.group}: {b.label}</option>
+          ))}
+        </select>
+        <p className="text-[10px] text-gray-400 mt-0.5">
+          When set, the printed image comes from this binding per learner (e.g. student photo, school logo).
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Fit</label>
+        <select
+          value={shape.fit ?? 'contain'}
+          onChange={e => onUpdate({ fit: e.target.value as DRCEImageShape['fit'] } as Partial<DRCEShape>)}
+          className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900"
+        >
+          <option value="contain">Contain (keep aspect, fit inside)</option>
+          <option value="cover">Cover (keep aspect, fill, crop overflow)</option>
+          <option value="stretch">Stretch (ignore aspect)</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Crop L</label>
+          <input type="number" step="0.05" min={0} max={0.9}
+            value={shape.cropLeft ?? 0}
+            onChange={e => onUpdate({ cropLeft: Number(e.target.value) } as Partial<DRCEShape>)}
+            className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900" />
+        </div>
+        <div>
+          <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Crop T</label>
+          <input type="number" step="0.05" min={0} max={0.9}
+            value={shape.cropTop ?? 0}
+            onChange={e => onUpdate({ cropTop: Number(e.target.value) } as Partial<DRCEShape>)}
+            className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900" />
+        </div>
+        <div>
+          <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Crop R</label>
+          <input type="number" step="0.05" min={0} max={0.9}
+            value={shape.cropRight ?? 0}
+            onChange={e => onUpdate({ cropRight: Number(e.target.value) } as Partial<DRCEShape>)}
+            className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900" />
+        </div>
+        <div>
+          <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Crop B</label>
+          <input type="number" step="0.05" min={0} max={0.9}
+            value={shape.cropBottom ?? 0}
+            onChange={e => onUpdate({ cropBottom: Number(e.target.value) } as Partial<DRCEShape>)}
+            className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900" />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Opacity</label>
+        <input type="range" min={0} max={1} step={0.05}
+          value={shape.opacity}
+          onChange={e => onUpdate({ opacity: Number(e.target.value) } as Partial<DRCEShape>)}
+          className="w-full" />
+      </div>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Rotation (°)</label>
+        <input type="number"
+          value={shape.rotation}
+          onChange={e => onUpdate({ rotation: Number(e.target.value) || 0 } as Partial<DRCEShape>)}
+          className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900" />
+      </div>
+
+      <div>
+        <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Alt text</label>
+        <input type="text"
+          value={shape.alt ?? ''}
+          onChange={e => onUpdate({ alt: e.target.value || undefined } as Partial<DRCEShape>)}
+          placeholder="signature of principal"
+          className="w-full px-2 py-1 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-white dark:bg-slate-900" />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function ShapePropertiesPanel({ shape, onUpdate, onDelete }: Props) {
@@ -278,7 +415,8 @@ export function ShapePropertiesPanel({ shape, onUpdate, onDelete }: Props) {
     shape.type === 'diamond' ? 'Diamond' :
     shape.type === 'pentagon' ? 'Pentagon' :
     shape.type === 'hexagon' ? 'Hexagon' :
-    shape.type === 'star' ? 'Star' : 'Shape';
+    shape.type === 'star' ? 'Star' :
+    shape.type === 'image' ? 'Image' : 'Shape';
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -307,6 +445,9 @@ export function ShapePropertiesPanel({ shape, onUpdate, onDelete }: Props) {
         )}
         {(shape.type === 'triangle' || shape.type === 'diamond' || shape.type === 'pentagon' || shape.type === 'hexagon' || shape.type === 'star') && (
           <PolygonPanel shape={shape as DRCEShape & { type: 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star' }} onUpdate={onUpdate} />
+        )}
+        {shape.type === 'image' && (
+          <ImagePanel shape={shape as DRCEImageShape} onUpdate={onUpdate} />
         )}
       </div>
     </div>

@@ -10,7 +10,7 @@ import type { DrawTool } from '../canvas/ShapeCanvas';
 import {
   MousePointer2, MoveUpRight, Minus, Square, Circle, Type, Trash2,
   Triangle, Diamond, Star, Pentagon, Hexagon, Shapes, ChevronDown,
-  Search, PenTool, Spline, Sparkles,
+  Search, PenTool, Spline, Sparkles, Image as ImageIcon, Loader2,
 } from 'lucide-react';
 
 // ── Categorized shape catalogue ────────────────────────────────────────────
@@ -58,16 +58,36 @@ const GROUPS: { id: Group; label: string }[] = [
 ];
 
 interface Props {
+  /** P3 — invoked after a file is picked + uploaded; parent inserts the image
+   *  shape with the returned URL. */
+  onAddImage?:      (url: string) => void;
   activeTool:       DrawTool;
   selectedShapeId:  string | null;
   onToolChange:     (t: DrawTool) => void;
   onDeleteShape:    () => void;
 }
 
-export function DrawingToolbar({ activeTool, selectedShapeId, onToolChange, onDeleteShape }: Props) {
+export function DrawingToolbar({ activeTool, selectedShapeId, onToolChange, onDeleteShape, onAddImage }: Props) {
   const [shapesOpen, setShapesOpen] = useState(false);
   const [filter, setFilter]         = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleImagePick(file: File) {
+    if (!onAddImage) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'drais/drce-images');
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data?.success && data.url) onAddImage(data.url);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // Click-outside close
   useEffect(() => {
@@ -188,6 +208,21 @@ export function DrawingToolbar({ activeTool, selectedShapeId, onToolChange, onDe
         shortcut="T"
         onClick={() => onToolChange('text')}
         icon={<Type size={15} />}
+      />
+
+      {/* P3 — image: file picker → upload → place. */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleImagePick(f); e.target.value = ''; }}
+      />
+      <ToolPill
+        active={false}
+        label={uploading ? 'Uploading…' : 'Image'}
+        onClick={() => !uploading && imageInputRef.current?.click()}
+        icon={uploading ? <Loader2 size={15} className="animate-spin" /> : <ImageIcon size={15} />}
       />
 
       {selectedShapeId && (

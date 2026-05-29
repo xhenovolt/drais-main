@@ -364,6 +364,18 @@ export function DRCEEditor({ initial, onSave }: Props) {
         activeTool={activeTool}
         selectedShapeId={selectedShapeId}
         onToolChange={(t) => { setActiveTool(t); if (t !== 'select') setSelectedId(null); }}
+        onAddImage={(url) => {
+          // P3 — Image tool: drop a default 200×140 image at the top-left of
+          // the canvas; the user can then drag/resize/rotate as usual.
+          const id = 'sh_' + Math.random().toString(36).slice(2, 10);
+          mutate({
+            type: 'ADD_SHAPE',
+            shape: { id, type: 'image', x: 40, y: 40, w: 200, h: 140,
+              src: url, fit: 'contain', opacity: 1, rotation: 0 },
+          });
+          setSelectedShapeId(id);
+          setActiveTool('select');
+        }}
         onDeleteShape={() => {
           if (selectedShapeId) {
             mutate({ type: 'DELETE_SHAPE', id: selectedShapeId });
@@ -444,6 +456,19 @@ export function DRCEEditor({ initial, onSave }: Props) {
                   onSelectShape={(id) => {
                     setSelectedShapeId(id);
                     if (id) setSelectedId(null); // deselect section when shape selected
+                  }}
+                  onFileDropUpload={async (file) => {
+                    // P3 — OS drag-drop of an image file: upload, return URL.
+                    try {
+                      const fd = new FormData();
+                      fd.append('file', file);
+                      fd.append('folder', 'drais/drce-images');
+                      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+                      const data = await res.json();
+                      return (data?.success && data.url) ? data.url as string : null;
+                    } catch {
+                      return null;
+                    }
                   }}
                 />
 

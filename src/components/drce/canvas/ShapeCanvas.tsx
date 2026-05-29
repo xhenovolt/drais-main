@@ -13,7 +13,8 @@ import { nodesToPathD, refreshPathD, setNodeAnchor } from '@/lib/drce/paths';
 
 export type DrawTool = 'select' | 'rect' | 'ellipse' | 'arrow' | 'line' | 'text'
   | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
-  | 'pen' | 'polygon';     // Vector tools — drawing UX lands in commit 2
+  | 'pen' | 'polygon'     // Vector tools — drawing UX lands in commit 2
+  | 'image';              // P3 — drag-to-place an uploaded image
 
 type RectHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 type LineHandle = 'p1' | 'p2';
@@ -39,6 +40,13 @@ interface Props {
   onAddShape: (s: DRCEShape) => void;
   onUpdateShape: (id: string, u: Partial<DRCEShape>) => void;
   onSelectShape: (id: string | null) => void;
+  /** P3 — URL to use when finishing an `image` tool drag, or when an OS file
+   *  is dropped onto the canvas. Wired up in DRCEEditor: the Image button in
+   *  the drawing toolbar uploads the file, then sets this prop. */
+  pendingImageSrc?: string | null;
+  /** P3 — invoked when an OS file is dropped on the canvas so the parent
+   *  can upload it and supply a URL via pendingImageSrc on the next tick. */
+  onFileDropUpload?: (file: File, x: number, y: number) => Promise<string | null>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -342,6 +350,9 @@ function makeDraft(tool: DrawTool, x1: number, y1: number, x2: number, y2: numbe
       return { id: '__d', type: 'line', x1, y1, x2, y2, stroke: '#374151', strokeWidth: 2, opacity: 1, dashed: false, endArrow: false, startArrow: false, arrowSize: 8 };
     case 'text':
       return { id: '__d', type: 'text', x: mx, y: my, w: Math.max(w, 80), h: Math.max(h, 28), content: 'Text', fontSize: 14, color: '#1f2937', background: 'transparent', bold: false, italic: false, align: 'left', rotation: 0 };
+    case 'image':
+      // P3 — ghost rectangle while drawing the placement box.
+      return { id: '__d', type: 'image', x: mx, y: my, w, h, src: '', fit: 'contain', opacity: 0.7, rotation: 0 };
     default:
       if (isPolygonTool(tool)) {
         return { id: '__d', type: tool, x: mx, y: my, w, h, fill: 'rgba(79,70,229,0.08)', stroke: '#4f46e5', strokeWidth: 2, opacity: 1, rotation: 0 } as DRCEShape;
@@ -473,6 +484,63 @@ function renderShapeEl(
       </g>
     );
   }
+  // P3 — image shape (interactive render). Crop is applied via SVG
+  // preserveAspectRatio + viewBox-style clipping: we map the crop window
+  // by drawing the image inside a <clipPath> sized to the shape.
+  if (s.type === 'image') {
+    const rotation = s.rotation || 0;
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    const cl = s.cropLeft   ?? 0, ct = s.cropTop    ?? 0;
+    const cr = s.cropRight  ?? 0, cb = s.cropBottom ?? 0;
+    const fit: 'contain' | 'cover' | 'stretch' = s.fit ?? 'contain';
+    // For "crop" we use a clipPath sized to the visible box. For "cover"/"contain"
+    // we let SVG handle aspect via preserveAspectRatio.
+    const preserve = fit === 'stretch' ? 'none'
+                   : fit === 'cover'   ? 'xMidYMid slice'
+                   : 'xMidYMid meet';
+    const hasCrop = cl + ct + cr + cb > 0;
+    const clipId = `img_clip_${s.id}`;
+    const placeholderId = `img_ph_${s.id}`;
+    const src = s.src || '';
+    return (
+      <g
+        style={{ cursor: moveCursor }}
+        transform={rotation ? `rotate(${rotation} ${cx} ${cy})` : undefined}
+        onMouseDown={onMouseDown}
+        opacity={s.opacity}
+      >
+        <defs>
+          {hasCrop && (
+            <clipPath id={clipId}>
+              <rect x={s.x} y={s.y} width={s.w} height={s.h} />
+            </clipPath>
+          )}
+        </defs>
+        {/* Placeholder while src missing — gives the rect something to click. */}
+        {!src && (
+          <rect id={placeholderId} x={s.x} y={s.y} width={s.w} height={s.h}
+            fill="rgba(99,102,241,0.06)" stroke="#a5b4fc" strokeDasharray="4 3" />
+        )}
+        {src && (
+          <image
+            href={src}
+            x={s.x - (cl * s.w)}
+            y={s.y - (ct * s.h)}
+            width={s.w * (1 + cl + cr) || s.w}
+            height={s.h * (1 + ct + cb) || s.h}
+            preserveAspectRatio={preserve}
+            clipPath={hasCrop ? `url(#${clipId})` : undefined}
+            style={{ pointerEvents: 'auto' }}
+          />
+        )}
+        {isSelected && (
+          <rect x={s.x} y={s.y} width={s.w} height={s.h}
+            fill="none" stroke={selStroke} strokeWidth={1.5} strokeDasharray="5 3"
+            style={{ pointerEvents: 'none' }} />
+        )}
+      </g>
+    );
+  }
   // Polygon shapes
   if (s.type === 'triangle' || s.type === 'diamond' || s.type === 'pentagon' || s.type === 'hexagon' || s.type === 'star') {
     const poly = s as DRCEPolygonShape;
@@ -501,7 +569,10 @@ function renderShapeEl(
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, onUpdateShape, onSelectShape }: Props) {
+export function ShapeCanvas({
+  shapes, activeTool, selectedShapeId, onAddShape, onUpdateShape, onSelectShape,
+  pendingImageSrc, onFileDropUpload,
+}: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<DragState>(null);
   // Phase-vector: in-progress path drawn by Pen / Custom Polygon tools.
@@ -748,6 +819,13 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
         setTextDraft('');
         break;
       }
+      case 'image': {
+        // P3 — placement box committed; use whichever URL the parent uploaded.
+        const src = pendingImageSrc ?? '';
+        onAddShape({ id, type: 'image', x: mx, y: my, w: Math.max(w, 40), h: Math.max(h, 40),
+          src, fit: 'contain', opacity: 1, rotation: 0 });
+        break;
+      }
       default:
         if (isPolygonTool(activeTool)) {
           onAddShape({ id, type: activeTool, x: mx, y: my, w, h, fill: 'transparent', stroke: '#4f46e5', strokeWidth: 2, opacity: 1, rotation: 0 } as DRCEShape);
@@ -755,6 +833,25 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
         break;
     }
     onSelectShape(id);
+  }
+
+  // P3 — OS drag-and-drop: receive an image file dropped on the canvas,
+  // upload it via the parent-supplied handler, then drop a default-sized
+  // image shape at the drop coordinates.
+  async function onSvgDrop(e: React.DragEvent<SVGSVGElement>) {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith('image/') || !onFileDropUpload) return;
+    const p = pt(e as unknown as React.MouseEvent);
+    const url = await onFileDropUpload(file, p.x, p.y);
+    if (!url) return;
+    const id = uid();
+    onAddShape({ id, type: 'image', x: p.x - 80, y: p.y - 60, w: 160, h: 120,
+      src: url, fit: 'contain', opacity: 1, rotation: 0 });
+    onSelectShape(id);
+  }
+  function onSvgDragOver(e: React.DragEvent<SVGSVGElement>) {
+    if (e.dataTransfer.types.includes('Files')) e.preventDefault();
   }
 
   function onShapeMouseDown(e: React.MouseEvent, shape: DRCEShape) {
@@ -804,6 +901,8 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
         onMouseDown={onSVGMouseDown}
         onMouseMove={onSVGMouseMove}
         onMouseUp={onSVGMouseUp}
+        onDrop={onSvgDrop}
+        onDragOver={onSvgDragOver}
       >
         {/* Transparent background rect for click-to-deselect in select mode */}
         <rect

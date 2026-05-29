@@ -220,7 +220,7 @@ function DRCEDocumentRendererInner({
           We render them as a passive SVG layer above the sections so they
           appear identically in editor preview AND in renderToStaticMarkup
           output for /print. Interactive shape editing remains in ShapeCanvas. */}
-      <StaticShapeLayer shapes={document.shapes ?? []} />
+      <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={dataCtx} />
     </div>
   );
 }
@@ -229,7 +229,7 @@ function DRCEDocumentRendererInner({
 // StaticShapeLayer — read-only SVG for legacy `document.shapes[]`.
 // Pure: no listeners, no state. Works under renderToStaticMarkup.
 // ─────────────────────────────────────────────────────────────────────────────
-function StaticShapeLayer({ shapes }: { shapes: DRCEShape[] }) {
+function StaticShapeLayer({ shapes, dataCtx }: { shapes: DRCEShape[]; dataCtx: DRCEDataContext }) {
   if (!shapes.length) return null;
   return (
     <svg
@@ -239,12 +239,12 @@ function StaticShapeLayer({ shapes }: { shapes: DRCEShape[] }) {
         pointerEvents: 'none', overflow: 'visible', zIndex: 5,
       }}
     >
-      {shapes.map(s => <StaticShape key={s.id} shape={s} />)}
+      {shapes.map(s => <StaticShape key={s.id} shape={s} dataCtx={dataCtx} />)}
     </svg>
   );
 }
 
-function StaticShape({ shape: s }: { shape: DRCEShape }) {
+function StaticShape({ shape: s, dataCtx }: { shape: DRCEShape; dataCtx: DRCEDataContext }) {
   switch (s.type) {
     case 'rect': {
       const tx = s.rotation ? `rotate(${s.rotation} ${s.x + s.w / 2} ${s.y + s.h / 2})` : undefined;
@@ -342,9 +342,76 @@ function StaticShape({ shape: s }: { shape: DRCEShape }) {
           strokeWidth={s.strokeWidth} opacity={s.opacity} transform={tx} />
       );
     }
+    case 'image': {
+      // P3 — print parity for image shape, with optional data-binding so
+      // `binding: 'student.photoUrl'` resolves per-learner at render time.
+      const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+      const tx = s.rotation ? `rotate(${s.rotation} ${cx} ${cy})` : undefined;
+      const fit = s.fit ?? 'contain';
+      const preserve = fit === 'stretch' ? 'none'
+                     : fit === 'cover'   ? 'xMidYMid slice'
+                     : 'xMidYMid meet';
+      const cl = s.cropLeft ?? 0, ct = s.cropTop ?? 0;
+      const cr = s.cropRight ?? 0, cb = s.cropBottom ?? 0;
+      const hasCrop = cl + ct + cr + cb > 0;
+      const clipId = `imgprint_clip_${s.id}`;
+      const resolvedSrc = resolveImageSrc(s, dataCtx);
+      if (!resolvedSrc) return null;
+      return (
+        <g transform={tx} opacity={s.opacity}>
+          {hasCrop && (
+            <defs>
+              <clipPath id={clipId}>
+                <rect x={s.x} y={s.y} width={s.w} height={s.h} />
+              </clipPath>
+            </defs>
+          )}
+          <image
+            href={resolvedSrc}
+            x={s.x - cl * s.w} y={s.y - ct * s.h}
+            width={s.w * (1 + cl + cr) || s.w}
+            height={s.h * (1 + ct + cb) || s.h}
+            preserveAspectRatio={preserve}
+            clipPath={hasCrop ? `url(#${clipId})` : undefined}
+          />
+        </g>
+      );
+    }
     default:
       return null;
   }
+}
+
+/**
+ * P3 — resolve an image shape's src. If `binding` is set we walk the
+ * dataCtx to fetch a URL (e.g. `student.photoUrl`, `meta.logoUrl`,
+ * `student.custom.signature_url`) — when the bound value is missing or
+ * empty we fall back to the static `src`. Never throws.
+ */
+function resolveImageSrc(
+  s: { src: string; binding?: string },
+  ctx: DRCEDataContext,
+): string {
+  const binding = s.binding?.trim();
+  if (!binding) return s.src || '';
+  try {
+    // Mirror bindingResolver's root shape.
+    const root: Record<string, unknown> = {
+      student:    ctx.student,
+      subjects:   ctx.subjects,
+      results:    ctx.results,
+      assessment: ctx.assessment,
+      comments:   ctx.comments,
+      meta:       ctx.meta,
+    };
+    let cur: unknown = root;
+    for (const part of binding.split('.')) {
+      if (cur == null || typeof cur !== 'object') { cur = null; break; }
+      cur = (cur as Record<string, unknown>)[part];
+    }
+    if (typeof cur === 'string' && cur.trim()) return cur;
+  } catch { /* fall through */ }
+  return s.src || '';
 }
 
 function polygonPoints(kind: string, x: number, y: number, w: number, h: number): string {

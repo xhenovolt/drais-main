@@ -141,6 +141,45 @@ function ShapeBody({ s }: { s: DRCEShape }) {
       </g>
     );
   }
+  // P3 — image shape (read-only render path).
+  if (s.type === 'image') {
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    const fit = s.fit ?? 'contain';
+    const preserve = fit === 'stretch' ? 'none'
+                   : fit === 'cover'   ? 'xMidYMid slice'
+                   : 'xMidYMid meet';
+    const cl = s.cropLeft   ?? 0, ct = s.cropTop    ?? 0;
+    const cr = s.cropRight  ?? 0, cb = s.cropBottom ?? 0;
+    const hasCrop = cl + ct + cr + cb > 0;
+    const clipId = `imgro_clip_${s.id}`;
+    return (
+      <g
+        transform={s.rotation ? `rotate(${s.rotation} ${cx} ${cy})` : undefined}
+        opacity={s.opacity}
+      >
+        <defs>
+          {hasCrop && (
+            <clipPath id={clipId}>
+              <rect x={s.x} y={s.y} width={s.w} height={s.h} />
+            </clipPath>
+          )}
+        </defs>
+        {s.src ? (
+          <image
+            href={s.src}
+            x={s.x - cl * s.w} y={s.y - ct * s.h}
+            width={s.w * (1 + cl + cr) || s.w}
+            height={s.h * (1 + ct + cb) || s.h}
+            preserveAspectRatio={preserve}
+            clipPath={hasCrop ? `url(#${clipId})` : undefined}
+          />
+        ) : (
+          <rect x={s.x} y={s.y} width={s.w} height={s.h}
+            fill="rgba(99,102,241,0.05)" stroke="#a5b4fc" strokeDasharray="4 3" />
+        )}
+      </g>
+    );
+  }
   if (s.type === 'path') {
     const p = s as DRCEPathShape;
     const d = p.d ?? nodesToPathD(p.nodes, p.closed);

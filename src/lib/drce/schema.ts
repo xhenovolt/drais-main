@@ -165,9 +165,44 @@ export interface DRCEPathShape {
   rotation: number;
 }
 
+/**
+ * P3 — Image shape primitive. Renders any URL (uploaded asset, bound data
+ * source like `student.photoUrl`, or a remote logo). Lives in the same
+ * `document.shapes[]` array as other shapes; the renderer treats it as a
+ * peer of rect / ellipse / path so it inherits drag, resize, rotate,
+ * opacity, z-order from the existing interaction layer.
+ */
+export interface DRCEImageShape {
+  id: string;
+  type: 'image';
+  x: number; y: number; w: number; h: number;
+  /** Resolved image URL. Set directly by upload, or computed at render
+   *  time from `binding` (which takes precedence when present). */
+  src: string;
+  /** Optional binding path. When set, the renderer resolves it against
+   *  the DRCEDataContext and uses the result as the src. Use cases:
+   *    • `student.photoUrl` for live student portraits
+   *    • `meta.logoUrl`     for the school crest
+   *    • `student.custom.signature_url` for any bound custom field. */
+  binding?: string;
+  /** How the image fills its box. Default 'contain' (preserves ratio). */
+  fit?: 'contain' | 'cover' | 'stretch';
+  /** Crop expressed as fractions [0..1] of the original asset. All four
+   *  default to 0 (no crop). The renderer maps these to SVG viewBox so the
+   *  uncropped pixels are discarded losslessly. */
+  cropLeft?:   number;
+  cropTop?:    number;
+  cropRight?:  number;
+  cropBottom?: number;
+  /** Alt text — surfaced into print output for accessibility / SEO. */
+  alt?: string;
+  opacity:  number;
+  rotation: number;
+}
+
 export type DRCEShape =
   | DRCERectShape | DRCEEllipseShape | DRCELineShape | DRCETextShape
-  | DRCEPolygonShape | DRCEPathShape;
+  | DRCEPolygonShape | DRCEPathShape | DRCEImageShape;
 
 // ─── Column (used by results_table section) ──────────────────────────────────
 
