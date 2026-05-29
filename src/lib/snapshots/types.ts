@@ -104,7 +104,9 @@ export interface SnapshotResult {
   subjectId:      number;
   subjectName:    string;
   displaySubject: string;
-  /** Western numeric only (null if absent). */
+  /** Western numeric only (null if absent). For CAFE-mode results this is
+   *  the weighted rollup of `components[].score` so legacy bindings keep
+   *  working unchanged. */
   score:          number | null;
   /** Pre-computed display string (Arabic numerals for theology, Western otherwise). */
   displayScore:   string;
@@ -113,6 +115,36 @@ export interface SnapshotResult {
   initials:       string;
   teacherName?:   string;
   enteredAt?:     string;          // ISO
+  /**
+   * CAFE Phase 2 — per-component breakdown. Present ONLY when the snapshot
+   * was generated against a class with a CAFE framework assignment for the
+   * term. Absent on every traditional / legacy snapshot — the absence is
+   * what preserves byte-equivalent dataHash for pre-CAFE snapshots.
+   *
+   * Each component carries its own raw score (for numeric/scale kinds),
+   * its descriptor (for descriptor kinds), its grade code (looked up from
+   * the configured scoring model's grade_mappings), and its weight.
+   */
+  components?: SnapshotResultComponent[];
+}
+
+/** CAFE Phase 2 — a single component score within a SnapshotResult. */
+export interface SnapshotResultComponent {
+  componentId:    number;
+  code:           string;
+  name:           string;
+  /** Numeric / scale value. Null for descriptor-only entries. */
+  score:          number | null;
+  /** Descriptor text or selected descriptor code. */
+  valueText:      string | null;
+  /** Grade code from grade_mappings (e.g. 'A', '3', 'Accomplished'). */
+  gradeCode:      string | null;
+  /** Weight as configured in assessment_components. Used by the rollup
+   *  computation; preserved on the snapshot so DRCE templates can show it. */
+  weight:         number;
+  /** Pre-computed display string. */
+  displayScore:   string;
+  remarks:        string | null;
 }
 
 export interface SnapshotStudent {
@@ -160,8 +192,24 @@ export interface SnapshotClass {
   };
 }
 
+/** CAFE Phase 2 — ranking mode controls how rankStudents behaves.
+ *
+ * - 'numeric'    — legacy: sum scores, sort desc, assign positions 1..N.
+ * - 'competency' — sum points from grade_mappings, sort desc; ties keep
+ *                  same rank (competency systems intentionally cluster).
+ * - 'none'       — skip ranking entirely; positions left at 0; UI shows '—'.
+ *
+ * Default 'numeric' so every existing snapshot regenerates identically.
+ * Set at generation time from school_academic_settings.academic_mode +
+ * the active framework's mode.
+ */
+export type RankingMode = 'numeric' | 'competency' | 'none';
+
 export interface SnapshotConfig {
   gradingScale: Array<{ min: number; max: number; grade: string; remark: string }>;
+  /** CAFE Phase 2 — optional ranking mode. Absent on legacy snapshots →
+   *  defaults to 'numeric' at evaluation time. */
+  rankingMode?: RankingMode;
   teacherMappings: Array<{ subjectPattern: string; classPattern: string; initials: string }>;
   nextTermBegins: string;
   /**

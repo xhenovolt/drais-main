@@ -55,10 +55,15 @@ import type {
   ReportSnapshot,
   SnapshotClass,
   SnapshotResult,
+  SnapshotResultComponent,
   SnapshotStudent,
   SnapshotSubject,
   SnapshotType,
+  RankingMode,
 } from './types';
+import { loadClassTermComponentResults, computeRollupScore } from '@/lib/cafe/component-results';
+import { resolveFrameworkForClass } from '@/lib/cafe/resolver';
+import { getSchoolSettings } from '@/lib/cafe/settings';
 
 export interface GenerateInput {
   type:         SnapshotType;
@@ -200,6 +205,19 @@ export async function generateSnapshot(
       subjects: classes.reduce((n, c) => n + c.subjects.length, 0),
     };
 
+    // CAFE Phase 2 — additive: only mutates classes whose (class, term) has
+    // a framework assignment AND has component result rows. Classes without
+    // a framework pass through untouched → byte-identical dataHash for
+    // every existing snapshot. Failure is non-fatal: missing CAFE tables on
+    // first deploy fall through with legacy behaviour.
+    let cafeRankingMode: RankingMode = 'numeric';
+    try {
+      const enriched = await enrichWithCAFE(classes, school.schoolId, term.termId, numerals);
+      cafeRankingMode = enriched.rankingMode;
+    } catch (e) {
+      console.warn('[snapshots] CAFE enrichment skipped:', e instanceof Error ? e.message : e);
+    }
+
     const dataHash = hashCanonical(classes);
     const generatedAt = new Date().toISOString();
     const generationMs = Math.round(performance.now() - startedAtMs);
@@ -294,7 +312,14 @@ export async function generateSnapshot(
         dataHash,
       },
       classes,
-      config: { ...buildDefaultConfig(''), ...(calendarConfig ? { calendar: calendarConfig } : {}) },
+      config: {
+        ...buildDefaultConfig(''),
+        ...(calendarConfig ? { calendar: calendarConfig } : {}),
+        // CAFE Phase 2 — emit rankingMode only when it diverges from the
+        // legacy 'numeric' default, to preserve byte-identical snapshot
+        // serialisation for every existing report school.
+        ...(cafeRankingMode !== 'numeric' ? { rankingMode: cafeRankingMode } : {}),
+      },
       ...(customValuesMap ? { customValues: customValuesMap } : {}),
     };
 
@@ -306,6 +331,118 @@ export async function generateSnapshot(
     await markSnapshotFailed(snapshotId, msg).catch(() => undefined);
     throw e;
   }
+}
+
+// ─── CAFE Phase 2 — additive component enrichment ──────────────────────────
+
+/**
+ * If (school, class, term) has a CAFE framework assignment, hydrate every
+ * SnapshotResult in that class with its `components[]` array and overwrite
+ * `score` with the rolled-up weighted mean so legacy bindings stay correct.
+ *
+ * Classes WITHOUT a framework assignment are untouched — this is the key
+ * invariant that preserves byte-identical `meta.dataHash` for every existing
+ * snapshot (none of which had a framework assigned at generation time).
+ *
+ * Determines `rankingMode` for the snapshot config: 'competency' if the
+ * school's academic_mode is 'competency' AND the active framework is mode
+ * 'rubric'/'descriptor', 'numeric' otherwise.
+ */
+async function enrichWithCAFE(
+  classes: SnapshotClass[],
+  schoolId: number,
+  termId:   number,
+  numerals: 'arabic' | 'western',
+): Promise<{ classes: SnapshotClass[]; rankingMode: RankingMode }> {
+  let anyCompetency = false;
+
+  for (const cls of classes) {
+    const frameworkId = await resolveFrameworkForClass({
+      schoolId, classId: cls.classId, termId, subjectId: null,
+    });
+    if (!frameworkId) continue;
+
+    const componentRows = await loadClassTermComponentResults({
+      schoolId, classId: cls.classId, termId,
+    });
+    if (!componentRows.length) continue;  // framework assigned but no data → leave legacy results
+
+    // Group by (student, subject) for fast lookup during result enrichment.
+    const grouped = new Map<string, typeof componentRows>();
+    for (const row of componentRows) {
+      const key = `${row.studentId}:${row.subjectId}`;
+      const arr = grouped.get(key);
+      if (arr) arr.push(row); else grouped.set(key, [row]);
+    }
+
+    for (const stu of cls.students) {
+      for (const res of stu.results) {
+        const key = `${stu.studentDbId}:${res.subjectId}`;
+        const comps = grouped.get(key);
+        if (!comps?.length) continue;
+
+        const components: SnapshotResultComponent[] = comps.map(c => ({
+          componentId:  c.componentId,
+          code:         c.componentCode,
+          name:         c.componentName,
+          score:        c.score,
+          valueText:    c.valueText,
+          gradeCode:    c.gradeCode,
+          weight:       c.componentWeight,
+          displayScore: c.score == null ? (c.valueText ?? '') : formatScoreForDisplay(c.score, numerals),
+          remarks:      c.remarks,
+        }));
+        res.components = components;
+
+        const rollup = computeRollupScore(comps);
+        if (rollup !== null) {
+          res.score = rollup;
+          res.displayScore = formatScoreForDisplay(rollup, numerals);
+        }
+        anyCompetency = true;
+      }
+    }
+  }
+
+  if (!anyCompetency) {
+    return { classes, rankingMode: 'numeric' };
+  }
+
+  // Read the school's academic_mode to decide if ranking should be 'numeric'
+  // (hybrid school still wants rank), 'competency' (sum points), or 'none'
+  // (skip entirely). Hybrid defaults to numeric so traditional behaviour
+  // wins unless the school has explicitly chosen pure competency mode.
+  let rankingMode: RankingMode = 'numeric';
+  try {
+    const settings = await getSchoolSettings(schoolId);
+    if (settings.academicMode === 'competency') rankingMode = 'none';
+  } catch { /* settings table may not exist on first deploy */ }
+
+  // Re-rank every touched class with the resolved mode AND the new scores.
+  // For classes that weren't touched (no framework / no component data)
+  // the initial 'numeric' pass already produced the right values, so we
+  // re-rank only if the mode itself changed away from 'numeric'.
+  if (rankingMode !== 'numeric') {
+    for (const cls of classes) rankStudents(cls.students, rankingMode);
+  } else {
+    // Components were added; rollup scores changed; re-rank in numeric mode.
+    for (const cls of classes) rankStudents(cls.students, 'numeric');
+  }
+
+  // Refresh display strings since rollup may have changed total/average.
+  for (const cls of classes) {
+    for (const stu of cls.students) {
+      stu.displayTotal    = formatScoreForDisplay(stu.total, numerals);
+      stu.displayAverage  = formatScoreForDisplay(stu.average, numerals);
+      stu.displayPosition = rankingMode === 'none'
+        ? '—'
+        : (numerals === 'arabic'
+            ? `${toArabicNumerals(stu.position)}/${toArabicNumerals(stu.totalInClass)}`
+            : `${stu.position}/${stu.totalInClass}`);
+    }
+  }
+
+  return { classes, rankingMode };
 }
 
 // ─── Internal helpers ───────────────────────────────────────────────────────
@@ -422,7 +559,9 @@ function buildClasses(
       stu.info.results = results;
       students.push(stu.info);
     }
-    rankStudents(students);
+    // Initial pass uses 'numeric' — CAFE Phase 2 re-ranks after enrichWithCAFE
+    // if the snapshot resolves to a non-numeric rankingMode.
+    rankStudents(students, 'numeric');
 
     // Now that totals/positions exist, fill in display strings.
     for (const stu of students) {

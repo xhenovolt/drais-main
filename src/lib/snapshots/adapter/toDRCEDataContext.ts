@@ -69,6 +69,31 @@ export function snapshotToDRCEDataContext(
     .filter(r => !hidden.has(String(r.subjectId)))
     .map(r => {
     const subj = cls.subjects.find(s => s.id === r.subjectId);
+    // CAFE Phase 2 — additive binding surface. Templates can read either:
+    //   • `result.score` / `result.total` / `result.grade` (legacy, polyfilled)
+    //   • `result.components` (array of per-component scores)
+    //   • `result.component.<code>` (looked up by component code)
+    //   • `result.competencyLevel` (highest gradeCode among components)
+    // Legacy fields are populated for every result; new fields are populated
+    // only when CAFE component data exists for this (student, subject).
+    const components = r.components;
+    const componentMap: Record<string, unknown> = {};
+    let competencyLevel: string | null = null;
+    if (components?.length) {
+      for (const c of components) {
+        componentMap[c.code] = {
+          score:      c.score,
+          valueText:  c.valueText,
+          gradeCode:  c.gradeCode,
+          weight:     c.weight,
+          display:    c.displayScore,
+        };
+      }
+      // Highest-rank grade among components becomes the competency level.
+      // Convention: empty/undefined codes sort last; alphabetical fallback.
+      const codes = components.map(c => c.gradeCode).filter((g): g is string => !!g).sort();
+      competencyLevel = codes[0] ?? null;
+    }
     return {
       subjectName:  r.displaySubject || r.subjectName,
       midTermScore: null,
@@ -87,6 +112,14 @@ export function snapshotToDRCEDataContext(
             subjectType: subj.subjectType,
           }
         : undefined,
+      // CAFE bindings — empty/null when no component data for this result.
+      components:       components ?? null,
+      component:        componentMap,
+      competencyLevel,
+    } as DRCEResultRow & {
+      components: typeof components | null;
+      component:  Record<string, unknown>;
+      competencyLevel: string | null;
     };
   });
 
