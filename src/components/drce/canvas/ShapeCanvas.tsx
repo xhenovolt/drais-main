@@ -7,7 +7,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import type {
   DRCEShape, DRCERectShape, DRCEEllipseShape, DRCELineShape, DRCETextShape, DRCEPolygonShape, DRCEPathShape, DRCEPathNode,
 } from '@/lib/drce/schema';
-import { nodesToPathD, refreshPathD } from '@/lib/drce/paths';
+import { nodesToPathD, refreshPathD, setNodeAnchor } from '@/lib/drce/paths';
 
 // ─── Types ───────────────────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,9 @@ type DragState =
   | { kind: 'moving';   id: string; orig: DRCEShape; sx: number; sy: number; cx: number; cy: number }
   | { kind: 'resizing'; id: string; orig: DRCEShape; handle: HandleId; sx: number; sy: number; cx: number; cy: number }
   /** Phase-vector: tracking a bezier OUT handle on the latest pen-drawn anchor */
-  | { kind: 'pen-handle'; nodeIdx: number; anchorX: number; anchorY: number };
+  | { kind: 'pen-handle'; nodeIdx: number; anchorX: number; anchorY: number }
+  /** Phase-vector: dragging one anchor of an already-committed path. */
+  | { kind: 'path-node'; id: string; orig: DRCEPathShape; nodeIdx: number; sx: number; sy: number; cx: number; cy: number };
 
 interface Props {
   shapes: DRCEShape[];
@@ -95,7 +97,20 @@ function getHandles(s: DRCEShape): { id: HandleId; cx: number; cy: number }[] {
       { id: 'p2', cx: (s as DRCELineShape).x2, cy: (s as DRCELineShape).y2 },
     ];
   }
-  const { x, y, w, h } = s as DRCERectShape | DRCEEllipseShape | DRCETextShape;
+  // Path shapes use a computed bounding box.
+  let x: number, y: number, w: number, h: number;
+  if (s.type === 'path') {
+    const b = (s as DRCEPathShape);
+    // Tiny inline bbox so we avoid importing the helper twice in this file.
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of b.nodes) {
+      if (n.x < minX) minX = n.x; if (n.y < minY) minY = n.y;
+      if (n.x > maxX) maxX = n.x; if (n.y > maxY) maxY = n.y;
+    }
+    x = minX; y = minY; w = Math.max(1, maxX - minX); h = Math.max(1, maxY - minY);
+  } else {
+    ({ x, y, w, h } = s as DRCERectShape | DRCEEllipseShape | DRCETextShape);
+  }
   return [
     { id: 'nw', cx: x,       cy: y       }, { id: 'n',  cx: x+w/2, cy: y       },
     { id: 'ne', cx: x+w,     cy: y       }, { id: 'e',  cx: x+w,   cy: y+h/2   },
@@ -123,10 +138,29 @@ function applyDrag(s: DRCEShape, drag: DragState): DRCEShape {
   const dx = drag.cx - drag.sx;
   const dy = drag.cy - drag.sy;
 
+  if (drag.kind === 'path-node') {
+    if (s.type !== 'path') return s;
+    const p = drag.orig as DRCEPathShape;
+    const target = p.nodes[drag.nodeIdx];
+    if (!target) return s;
+    return setNodeAnchor(s as DRCEPathShape, drag.nodeIdx, target.x + dx, target.y + dy) as DRCEShape;
+  }
+
   if (drag.kind === 'moving') {
     if (s.type === 'line' || s.type === 'arrow') {
       const l = drag.orig as DRCELineShape;
       return { ...s, x1: l.x1 + dx, y1: l.y1 + dy, x2: l.x2 + dx, y2: l.y2 + dy } as DRCEShape;
+    }
+    if (s.type === 'path') {
+      const p = drag.orig as DRCEPathShape;
+      const nodes = p.nodes.map(n => ({
+        x: n.x + dx, y: n.y + dy,
+        cpInX:  n.cpInX  != null ? n.cpInX  + dx : undefined,
+        cpInY:  n.cpInY  != null ? n.cpInY  + dy : undefined,
+        cpOutX: n.cpOutX != null ? n.cpOutX + dx : undefined,
+        cpOutY: n.cpOutY != null ? n.cpOutY + dy : undefined,
+      }));
+      return { ...s, nodes, d: nodesToPathD(nodes, p.closed) } as DRCEShape;
     }
     const b = drag.orig as DRCERectShape;
     return { ...s, x: b.x + dx, y: b.y + dy } as DRCEShape;
@@ -137,6 +171,10 @@ function applyDrag(s: DRCEShape, drag: DragState): DRCEShape {
       const l = drag.orig as DRCELineShape;
       if (drag.handle === 'p1') return { ...s, x1: l.x1 + dx, y1: l.y1 + dy } as DRCEShape;
       return { ...s, x2: l.x2 + dx, y2: l.y2 + dy } as DRCEShape;
+    }
+    if (s.type === 'path') {
+      const resized = resizePathByHandle(drag.orig as DRCEPathShape, drag.handle as RectHandle, dx, dy);
+      return { ...s, ...resized } as DRCEShape;
     }
     const { x, y, w, h } = drag.orig as DRCERectShape;
     let [nx, ny, nw, nh] = [x, y, w, h];
@@ -153,6 +191,119 @@ function applyDrag(s: DRCEShape, drag: DragState): DRCEShape {
     return { ...s, x: nx, y: ny, w: Math.max(nw, 10), h: Math.max(nh, 10) } as DRCEShape;
   }
   return s;
+}
+
+// ── Smart alignment guides ─────────────────────────────────────────────────
+
+const SNAP_PX = 5;
+
+/** Axis-aligned bounding box for any shape, for snap math. */
+function shapeBBox(s: DRCEShape): { l: number; r: number; t: number; b: number; cx: number; cy: number } {
+  if (s.type === 'line' || s.type === 'arrow') {
+    const l = Math.min(s.x1, s.x2), r = Math.max(s.x1, s.x2);
+    const t = Math.min(s.y1, s.y2), b = Math.max(s.y1, s.y2);
+    return { l, r, t, b, cx: (l + r) / 2, cy: (t + b) / 2 };
+  }
+  if (s.type === 'path') {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of (s as DRCEPathShape).nodes) {
+      if (n.x < minX) minX = n.x; if (n.y < minY) minY = n.y;
+      if (n.x > maxX) maxX = n.x; if (n.y > maxY) maxY = n.y;
+    }
+    return { l: minX, r: maxX, t: minY, b: maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+  }
+  const { x, y, w, h } = s as DRCERectShape;
+  return { l: x, r: x + w, t: y, b: y + h, cx: x + w / 2, cy: y + h / 2 };
+}
+
+/**
+ * For a shape being moved by (dx,dy), compute snap-adjustment for both axes
+ * AND the guide lines to render. Returns the EXTRA delta to add so the
+ * shape's edges/centre line up with sibling edges/centres within SNAP_PX.
+ */
+function computeSnap(
+  orig: DRCEShape, dx: number, dy: number, all: readonly DRCEShape[],
+): { adjustX: number; adjustY: number; guides: { orientation: 'v' | 'h'; coord: number }[] } {
+  const before = shapeBBox(orig);
+  // Move the bbox by the drag delta.
+  const moving = {
+    l: before.l + dx, r: before.r + dx, cx: before.cx + dx,
+    t: before.t + dy, b: before.b + dy, cy: before.cy + dy,
+  };
+  // Targets = bbox edges/centres of every OTHER shape.
+  const others = all.filter(s => s.id !== orig.id).map(shapeBBox);
+
+  let bestX: { delta: number; coord: number } | null = null;
+  let bestY: { delta: number; coord: number } | null = null;
+  const movingXs = [['l', moving.l], ['cx', moving.cx], ['r', moving.r]] as const;
+  const movingYs = [['t', moving.t], ['cy', moving.cy], ['b', moving.b]] as const;
+
+  for (const o of others) {
+    const targetXs = [o.l, o.cx, o.r];
+    const targetYs = [o.t, o.cy, o.b];
+    for (const [, mx] of movingXs) {
+      for (const tx of targetXs) {
+        const d = tx - mx;
+        if (Math.abs(d) <= SNAP_PX && (bestX === null || Math.abs(d) < Math.abs(bestX.delta))) {
+          bestX = { delta: d, coord: tx };
+        }
+      }
+    }
+    for (const [, my] of movingYs) {
+      for (const ty of targetYs) {
+        const d = ty - my;
+        if (Math.abs(d) <= SNAP_PX && (bestY === null || Math.abs(d) < Math.abs(bestY.delta))) {
+          bestY = { delta: d, coord: ty };
+        }
+      }
+    }
+  }
+
+  const guides: { orientation: 'v' | 'h'; coord: number }[] = [];
+  if (bestX) guides.push({ orientation: 'v', coord: bestX.coord });
+  if (bestY) guides.push({ orientation: 'h', coord: bestY.coord });
+
+  return {
+    adjustX: bestX?.delta ?? 0,
+    adjustY: bestY?.delta ?? 0,
+    guides,
+  };
+}
+
+/** Scale a path's nodes + bezier handles to match a bbox-handle drag. */
+function resizePathByHandle(p: DRCEPathShape, h: RectHandle, dx: number, dy: number): Partial<DRCEPathShape> {
+  // Compute the original bbox once.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of p.nodes) {
+    if (n.x < minX) minX = n.x; if (n.y < minY) minY = n.y;
+    if (n.x > maxX) maxX = n.x; if (n.y > maxY) maxY = n.y;
+  }
+  const ow = Math.max(1, maxX - minX);
+  const oh = Math.max(1, maxY - minY);
+  // Target bbox after the drag.
+  let nx = minX, ny = minY, nw = ow, nh = oh;
+  switch (h) {
+    case 'nw': nx += dx; ny += dy; nw -= dx; nh -= dy; break;
+    case 'n':             ny += dy;           nh -= dy; break;
+    case 'ne':            ny += dy; nw += dx; nh -= dy; break;
+    case 'e':                       nw += dx;           break;
+    case 'se':                      nw += dx; nh += dy; break;
+    case 's':                                 nh += dy; break;
+    case 'sw': nx += dx;            nw -= dx; nh += dy; break;
+    case 'w':  nx += dx;            nw -= dx;           break;
+  }
+  nw = Math.max(nw, 8); nh = Math.max(nh, 8);
+  const sx = nw / ow, sy = nh / oh;
+  const map = (x: number) => nx + (x - minX) * sx;
+  const mapY = (y: number) => ny + (y - minY) * sy;
+  const nodes = p.nodes.map(n => ({
+    x: map(n.x), y: mapY(n.y),
+    cpInX:  n.cpInX  != null ? map(n.cpInX)  : undefined,
+    cpInY:  n.cpInY  != null ? mapY(n.cpInY) : undefined,
+    cpOutX: n.cpOutX != null ? map(n.cpOutX) : undefined,
+    cpOutY: n.cpOutY != null ? mapY(n.cpOutY) : undefined,
+  }));
+  return { nodes, d: nodesToPathD(nodes, p.closed) };
 }
 
 /** Build a ghost shape from the current draw drag state. */
@@ -337,6 +488,8 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
   // Live cursor position (path mode only) — drives the guide line from the
   // last anchor to the cursor while the user is composing the path.
   const [pathCursor, setPathCursor] = useState<{ x: number; y: number } | null>(null);
+  // Smart alignment guide lines drawn during a 'moving' drag.
+  const [guides, setGuides] = useState<{ orientation: 'v' | 'h'; coord: number }[]>([]);
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [textDraft, setTextDraft] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -440,8 +593,14 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
     if (!drag) return;
     if (drag.kind === 'drawing') {
       setDrag({ ...drag, x2: p.x, y2: p.y });
-    } else if (drag.kind === 'moving' || drag.kind === 'resizing') {
+    } else if (drag.kind === 'moving' || drag.kind === 'resizing' || drag.kind === 'path-node') {
       setDrag({ ...drag, cx: p.x, cy: p.y });
+      // Live alignment guides while moving (not while resizing — that gets a
+      // separate snap pass in a future commit).
+      if (drag.kind === 'moving') {
+        const snap = computeSnap(drag.orig, p.x - drag.sx, p.y - drag.sy, shapes);
+        setGuides(snap.guides);
+      }
     } else if (drag.kind === 'pen-handle' && pathDraft) {
       // Live-update the OUT handle of the latest node as the user drags.
       const idx = drag.nodeIdx;
@@ -466,14 +625,34 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
     if (drag.kind === 'drawing') {
       commitDraw(drag.x1, drag.y1, x, y);
     } else if (drag.kind === 'moving') {
-      const dx = x - drag.sx, dy = y - drag.sy;
+      let dx = x - drag.sx, dy = y - drag.sy;
+      // Smart snap commit — collapse small residual drift into a clean snap.
+      const snap = computeSnap(drag.orig, dx, dy, shapes);
+      dx += snap.adjustX; dy += snap.adjustY;
       const orig = drag.orig;
       if (orig.type === 'line' || orig.type === 'arrow') {
         const l = orig as DRCELineShape;
         onUpdateShape(orig.id, { x1: l.x1 + dx, y1: l.y1 + dy, x2: l.x2 + dx, y2: l.y2 + dy } as Partial<DRCEShape>);
+      } else if (orig.type === 'path') {
+        const p = orig as DRCEPathShape;
+        const nodes = p.nodes.map(n => ({
+          x: n.x + dx, y: n.y + dy,
+          cpInX:  n.cpInX  != null ? n.cpInX  + dx : undefined,
+          cpInY:  n.cpInY  != null ? n.cpInY  + dy : undefined,
+          cpOutX: n.cpOutX != null ? n.cpOutX + dx : undefined,
+          cpOutY: n.cpOutY != null ? n.cpOutY + dy : undefined,
+        }));
+        onUpdateShape(orig.id, { nodes, d: nodesToPathD(nodes, p.closed) } as Partial<DRCEShape>);
       } else {
         const b = orig as DRCERectShape;
         onUpdateShape(orig.id, { x: b.x + dx, y: b.y + dy } as Partial<DRCEShape>);
+      }
+    } else if (drag.kind === 'path-node') {
+      const dx = x - drag.sx, dy = y - drag.sy;
+      const target = drag.orig.nodes[drag.nodeIdx];
+      if (target) {
+        const updated = setNodeAnchor(drag.orig, drag.nodeIdx, target.x + dx, target.y + dy);
+        onUpdateShape(drag.id, { nodes: updated.nodes, d: updated.d } as Partial<DRCEShape>);
       }
     } else if (drag.kind === 'resizing') {
       const dx = x - drag.sx, dy = y - drag.sy;
@@ -482,6 +661,9 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
         const l = orig as DRCELineShape;
         if (drag.handle === 'p1') onUpdateShape(orig.id, { x1: l.x1 + dx, y1: l.y1 + dy } as Partial<DRCEShape>);
         else onUpdateShape(orig.id, { x2: l.x2 + dx, y2: l.y2 + dy } as Partial<DRCEShape>);
+      } else if (orig.type === 'path') {
+        const patch = resizePathByHandle(orig as DRCEPathShape, drag.handle as RectHandle, dx, dy);
+        onUpdateShape(orig.id, patch as Partial<DRCEShape>);
       } else {
         const { x: bx, y: by, w: bw, h: bh } = orig as DRCERectShape;
         let [nx, ny, nw, nh] = [bx, by, bw, bh];
@@ -499,6 +681,7 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
       }
     }
     setDrag(null);
+    setGuides([]);
   }
 
   function commitDraw(x1: number, y1: number, x2: number, y2: number) {
@@ -624,9 +807,37 @@ export function ShapeCanvas({ shapes, activeTool, selectedShapeId, onAddShape, o
                   onMouseDown={(e) => { e.stopPropagation(); onHandleMouseDown(e, s, h.id); }}
                 />
               ))}
+              {/* Path node-edit handles (selected path only) */}
+              {isSelected && s.type === 'path' && (s as DRCEPathShape).nodes.map((n, idx) => (
+                <rect
+                  key={`node-${idx}`}
+                  x={n.x - 4} y={n.y - 4} width={8} height={8}
+                  fill="#fff" stroke="#10b981" strokeWidth={1.5}
+                  style={{ cursor: 'move', pointerEvents: 'all' }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    const p = pt(e as unknown as React.MouseEvent<SVGSVGElement>);
+                    setDrag({
+                      kind: 'path-node', id: s.id, orig: s as DRCEPathShape,
+                      nodeIdx: idx, sx: p.x, sy: p.y, cx: p.x, cy: p.y,
+                    });
+                  }}
+                />
+              ))}
             </g>
           );
         })}
+
+        {/* Smart alignment guides while moving */}
+        {guides.map((g, i) => (
+          g.orientation === 'v' ? (
+            <line key={`guide-${i}`} x1={g.coord} y1={-9999} x2={g.coord} y2={9999}
+              stroke="#ec4899" strokeWidth={1} strokeDasharray="3 3" pointerEvents="none" />
+          ) : (
+            <line key={`guide-${i}`} x1={-9999} y1={g.coord} x2={9999} y2={g.coord}
+              stroke="#ec4899" strokeWidth={1} strokeDasharray="3 3" pointerEvents="none" />
+          )
+        ))}
 
         {/* Draft shape while drawing */}
         {draftShape && renderShapeEl(draftShape, false, true, undefined)}
