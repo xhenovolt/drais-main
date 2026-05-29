@@ -331,20 +331,20 @@ else stays.
 
 ## 6. Component model breakdown (target)
 
-| Component | Layer | Responsibility |
-|---|---|---|
-| `DRCEEditor` | editor shell | Top bar, history, save, version chip; mounts everything. |
-| **`CanvasWorkspace`** ★ | editor canvas | Hosts the renderer, ShapeCanvas, SelectionLayer, ContextualToolbar, TypographyPopover. Owns multi-select, drag, keyboard, RAF batching. |
-| **`SelectionLayer`** ★ | editor overlay | Renders bbox + 8 handles for *any* selected element (section or shape). Drives drag/resize uniformly. |
-| **`ContextualToolbar`** ★ | editor overlay | Floats near selection. Duplicate · Delete · Align · Send-to-back / front · quick style. Tracks selection position via DOMRect + ResizeObserver. |
-| **`TypographyPopover`** ★ | editor overlay | On double-click of text element: font/size/colour/weight/line-height/alignment/spacing. Native inputs, applies via mutations. |
-| `SectionListPanel` | editor rail | Unchanged. |
-| `PropertiesPanel` | editor rail | Unchanged but no longer the *only* path to common verbs. |
-| `DRCEDocumentRenderer` | render | Pure render. New: wrapped per-section in `React.memo` keyed on `(section, theme, dataCtx slice for that section)`. |
-| **`DataGrid`** ★ | atomic block | Spreadsheet primitive used by `DRCETableSection`. Internal: cell focus, formula bar, range select, merge. |
-| `FormulaEvaluator` ★ | lib | Parses `=…` formulas, references (`A1`, `Math:Score`), ranges (`B2:B12`), aggregates; bridges to `resolveExpression`. |
-| `ShapeCanvas` | overlay | Unchanged except: emits its bbox + drag to `CanvasWorkspace` so SelectionLayer can render across both layers. |
-| `useDRCEEditor` | hook | Extended: `selectedIds: Set<string>`, `clipboard`, `interactionMode`, `pushCheckpoint(label)` for named cross-session undo. |
+| Component | Layer | Responsibility | Status |
+|---|---|---|---|
+| `DRCEEditor` | editor shell | Top bar, history, save, version chip; mounts the canvas + rails. | shipped |
+| **`SelectionLayer`** | editor overlay | bbox + 8 resize handles + drag for any selected section. Writes `style.position='absolute'/left/top/width/height`; previewScale-aware; RAF-batched commits. | X2 `0d4616a` / X3 `647c406` |
+| **`ContextualToolbar`** | editor overlay | Floats near selection (via `data-drce-section-id`/`data-drce-shape-id` rect + ResizeObserver). Duplicate · copy · paste · move up/down · delete. | X1 `f0a63cf` |
+| **`TypographyPopover`** | editor overlay | Double-click text shape → family/size/weight/italic/alignment/colour/background. `fontFamily` carried as an additive untyped extra on the shape. | X1 `f0a63cf` |
+| **`selectionStore`** | hook | `useSyncExternalStore`-backed store: `sectionIds`, `shapeIds`, `primary`, `clipboard`. Selection no longer triggers document re-render. | X1 `f0a63cf` |
+| `SectionListPanel` | editor rail | Added `table` to palette + labels + icons. | extended X4 `fbfc183` |
+| `PropertiesPanel` | editor rail | Switch routes `table` → new `TablePropertiesPanel`. Other panels unchanged. | extended X4 `fbfc183` |
+| `DRCEDocumentRenderer` | render | Pure. Wrapped per-section in `React.memo` with reference-equality predicate on `(section, dataCtx, renderCtx, isSelected, callbacks)`. Adds `data-drce-section-id` for overlay measurement. | X3 `647c406` |
+| **`TableSection`** | atomic section | Renders `DRCETableSection`. Two-pass cell resolver (literals/bindings, then formulas). Per-cell `mergeRight`/`mergeDown`, totals row, optional contentEditable cells. | X4 `fbfc183` |
+| **`TablePropertiesPanel`** | editor rail | Columns editor, `dataSource` binding, static row count, totals config, per-cell editor (value/binding/formula/format/merge/style). | X4 `fbfc183` |
+| **`formula` lib** | lib | `src/lib/drce/table/formula.ts` — A1 refs, A1:B5 ranges, `this.column`/`this.row`, SUM/AVG/MIN/MAX/COUNT/IF; bridges to `resolveExpression`. | X4 `fbfc183` |
+| `ShapeCanvas` | overlay | Added `data-drce-shape-id`; added `bezier` drag variant for post-creation IN/OUT handle editing (symmetric by default, Alt to break / extrude). | extended X1 `f0a63cf` |
 
 ## 7. Data flow
 
@@ -365,30 +365,34 @@ save                     →   PUT /api/dvcf/documents/[id]   →  snapshotVersi
                                                                 refresh version chip
 ```
 
-## 8. Performance strategy
+## 8. Performance strategy — what shipped
 
-The brief calls performance out explicitly. Concrete plan:
+1. **Per-section memoization.** `DRCEDocumentRenderer.tsx` wraps each
+   section in a `MemoSection` (`React.memo` with explicit equality on
+   `section`, `dataCtx`, `renderCtx`, `isSelected`, and the callback
+   refs). Immutable mutation produces a new `section` ref only for the
+   touched section; every sibling skips render. (X3 `647c406`)
+2. **RAF-batched drag.** `SelectionLayer` accumulates pointer deltas
+   into a ref and schedules a single `requestAnimationFrame` per frame
+   that commits via `SET_SECTION_STYLE`. Pending RAF is force-flushed
+   on `mouseup` so the final position is durable. (X3 `647c406`)
+3. **Selection lives outside the document.** `selectionStore.ts` is a
+   `useSyncExternalStore`-backed store; click/multi-select/clipboard
+   changes do NOT trigger a document re-render. (X1 `f0a63cf`)
+4. **Overlay measurement is DOM-anchored, not React-tree-coupled.** The
+   contextual toolbar and typography popover read positions from
+   `data-drce-section-id` / `data-drce-shape-id` via `getBoundingClientRect`
+   + `ResizeObserver`. They re-render independently of the document tree.
+5. **Two-pass cell evaluation.** `TableSection` resolves all literal /
+   binding cells first, then formula cells with the populated grid as
+   input — single linear pass per render rather than recursive resolution.
+   (X4 `fbfc183`)
+6. **ShapeCanvas drag preview is local SVG state**; the document mutation
+   fires once on `mouseup`. (pre-X1, unchanged.)
 
-1. **Per-section memoization.** Wrap each section's render output in
-   `React.memo` keyed on `(section, theme, languageSliceOf(dataCtx))`. The
-   wrapper checks reference equality on `section` — since mutations are
-   immutable, an untouched section passes equality and skips.
-2. **RAF-batched drag.** During a drag, the cursor delta accumulates in a
-   ref; a single `requestAnimationFrame` callback applies the accumulated
-   delta to the document state. Stops the 60-Hz `setState` flood.
-3. **Dirty-region paint.** SelectionLayer + ContextualToolbar are positioned
-   via CSS transform on a single `<div>` that's the only thing changing
-   during a drag. The renderer below doesn't re-mount; sections only paint
-   if their props change.
-4. **Selection state lives in a separate Zustand-style store** (or
-   `useSyncExternalStore`) so selection changes don't trigger document
-   re-render. Today selection lives in the same component that holds the
-   document; any selection change re-renders the entire DRCEEditor.
-5. **Formula evaluation memoised per cell** with a dependency graph: change
-   B2 → only B2 + its dependents recompute, not the whole table.
-6. **ShapeCanvas already uses local SVG state for drag preview** (commit 2);
-   final `onUpdateShape` is called once on `mouseup`. Will extend the same
-   pattern to sections in CanvasWorkspace.
+Not yet shipped: per-cell formula dependency graph (currently every render
+of a table re-evaluates every formula; fine for the row counts DRCE actually
+sees, but the obvious next optimisation when row counts grow).
 
 ## 9. Migration strategy — old DRCE templates → new canvas
 
@@ -398,7 +402,7 @@ need no migration.** What's new is opt-in.
 | Existing template feature | Action required |
 |---|---|
 | Flow-based sections | None. Renderer keeps treating absent `frame` as flow. |
-| `ResultsTableSection` | None today. Optional re-author as `DRCETableSection` to unlock formulas / merge / per-cell binding. Compatibility wrapper renders the old config as the new grid. |
+| `ResultsTableSection` | None. `DRCETableSection` ships in parallel (X4 `fbfc183`); use it for new documents that need formulas / merge / arbitrary `dataSource`. Legacy results table keeps rendering byte-identical. |
 | Header slot map (`DRCEHeaderSection`) | None. Phase E already provides `header_block` for new headers; the slot map keeps rendering as a preset. |
 | Shapes on the overlay (legacy `document.shapes[]`) | None. `shape` sections from Phase C.2 are the new path; the overlay layer continues to render the legacy array. |
 | `block_ref` already present | None. Inheritance + blocks (Phase H) work as-is. |
@@ -415,27 +419,26 @@ auto-convert:
 These are *additive cleanups*, not requirements. v1 documents render
 forever.
 
-## 10. Phased rebuild — what to ship and in what order
+## 10. Phased rebuild — what shipped
 
-The brief's "Phase 2 + commit 4 features" decompose into this safe sequence:
+All ten phases A–J landed. Commit hashes are the source of truth.
 
-| Step | Lands | Risk | Hard guarantees still hold? |
+| Step | Status | Commit | Notes |
 |---|---|---|---|
-| **A. State refactor — multi-select + selection store** | `selectedIds: Set<string>` everywhere; selection store decoupled from document state. | LOW | Yes. |
-| **B. `SelectionLayer` + section drag/resize (with `frame` opt-in)** | Click any section → bbox handles; drag to free-position (writes `style.position/left/top` so the renderer keeps flowing the un-framed ones). | MED | Yes — un-framed sections still flow; print determinism intact. |
-| **C. `ContextualToolbar`** | Duplicate · Delete · Align · Layer · quick style. Tracks selection rect. | LOW | Yes. |
-| **D. Keyboard + clipboard** | Del / Cmd+C / Cmd+V / Cmd+D / arrow-nudge for sections and shapes. | LOW | Yes. |
-| **E. `TypographyPopover`** | Double-click text → inline font/size/colour/weight/line-height/alignment. | LOW | Yes. |
-| **F. Bezier handle editing on selected paths** | Drag IN/OUT control handles after creation; smooth/sharp toggle per node. | LOW | Yes. |
-| **G. Performance pass** | `React.memo` per section; RAF-batched drag; selection in external store; dirty-region overlay. | MED | Yes. |
-| **H. `DataGrid` primitive + new `DRCETableSection`** | Spreadsheet behaviour: in-grid +row/+col/merge/split, per-cell binding & value, formula bar, range select. | HIGH | Yes — legacy `ResultsTableSection` keeps rendering until per-school migration. |
-| **I. Formula evaluator** | `=SUM(B2:B12)`, `=AVG(this.column)`, `=IF(score >= 50, "Pass", "Fail")` — built on `resolveExpression`. | MED | Yes (pure). |
-| **J. `dataSource` binding for table** | Tables can iterate any array (`{subjects}`, custom bindings) not just `results`. | LOW | Yes (additive field). |
+| **A. Selection store** (`useSyncExternalStore`, `selectedIds: Set<string>`, clipboard) | ✅ shipped | `f0a63cf` (X1) | `src/components/drce/editor/selectionStore.ts` |
+| **B. `SelectionLayer` + section drag/8-handle resize** | ✅ shipped | `0d4616a` (X2) | Writes `style.position='absolute'/left/top/width/height`; flow sections untouched. |
+| **C. `ContextualToolbar`** | ✅ shipped | `f0a63cf` (X1) | Floats over selection via `data-drce-section-id`/`data-drce-shape-id` rect + ResizeObserver. |
+| **D. Keyboard + clipboard** | ✅ shipped | `f0a63cf` (X1) | Del / Cmd+C / Cmd+V / Cmd+D / arrow nudge wired to selection store. |
+| **E. `TypographyPopover`** | ✅ shipped | `f0a63cf` (X1) | Double-click text shape → family/size/weight/italic/align/color/bg. |
+| **F. Bezier handle editing** | ✅ shipped | `f0a63cf` (X1) | IN/OUT handles on selected paths; Alt-drag breaks symmetry / extrudes new handle from anchor. |
+| **G. Performance pass** | ✅ shipped | `647c406` (X3) | `React.memo` per section with reference-equality predicate; RAF-batched drag commits. |
+| **H. New `DRCETableSection`** | ✅ shipped | `fbfc183` (X4) | Two-pass cell resolver, merged cells (`mergeRight`/`mergeDown`), totals row, contentEditable cells. Legacy `ResultsTableSection` unchanged. |
+| **I. Formula evaluator** | ✅ shipped | `fbfc183` (X4) | `src/lib/drce/table/formula.ts` — A1 refs, A1:B5 ranges, `this.column`/`this.row`, SUM/AVG/MIN/MAX/COUNT/IF. |
+| **J. `dataSource` binding for table** | ✅ shipped | `fbfc183` (X4) | `section.dataSource` resolves any context path (`subjects`, `results`, custom arrays) via `getByPath`. |
 
-**A→G is the "commit 4 + canvas engine" payload** the brief actually
-asks for. **H+I+J is a separate later workstream** because a spreadsheet
-engine is its own project (1–2 weeks of focused work) and the user has
-not asked to drop everything for it yet.
+Hard guarantees held throughout: snapshot `meta.dataHash` unchanged for
+existing reports; flow-rendered sections untouched; render pipeline still
+a pure function of `(document, dataCtx, renderCtx)`.
 
 ## 11. What I'm NOT proposing
 
