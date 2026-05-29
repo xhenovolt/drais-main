@@ -12,6 +12,9 @@ import { TypographyPopover } from './TypographyPopover';
 import { SelectionLayer } from './SelectionLayer';
 import type { DRCETextShape } from '@/lib/drce/schema';
 import type { DRCEDocument, DRCEMutation, DRCEShape } from '@/lib/drce/schema';
+import { useDRCECapabilities } from '@/components/drce/hooks/useDRCECapabilities';
+import type { TemplateStatus, WorkflowAction } from '@/lib/drce/workflow';
+import { allowedActions } from '@/lib/drce/workflow';
 import { resolvePageDimensions } from '@/lib/drce/styleResolver';
 import { useDRCEEditor } from './useDRCEEditor';
 import { SectionListPanel } from './SectionListPanel';
@@ -125,6 +128,12 @@ export function DRCEEditor({ initial, onSave }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [currentVersionNo, setCurrentVersionNo] = useState<number | undefined>(undefined);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  // P4 — current workflow status. `initial.meta` may carry it; otherwise we
+  // fetch it lazily so legacy callers keep working.
+  const [status, setStatus] = useState<TemplateStatus>(
+    ((initial.meta as { status?: TemplateStatus }).status as TemplateStatus) ?? 'draft',
+  );
+  const caps = useDRCECapabilities();
   const documentDbId = Number(initial.meta.id);
   const hasDbId = Number.isFinite(documentDbId) && documentDbId > 0;
 
@@ -196,6 +205,40 @@ export function DRCEEditor({ initial, onSave }: Props) {
     setSelectedShapeId(null); // deselect shape when section clicked
     setPropTab('section');
   }, []);
+
+  // P4 — workflow action handler. Drives the per-status buttons in the header.
+  async function runWorkflow(action: WorkflowAction) {
+    if (!hasDbId) return;
+    let notes: string | undefined;
+    if (action === 'reject' || action === 'approve') {
+      const ans = window.prompt(
+        action === 'reject'
+          ? 'Reason for sending this back to draft? (optional)'
+          : 'Optional approval note',
+        '',
+      );
+      if (ans === null) return;  // cancelled
+      notes = ans.trim() || undefined;
+    } else if (action === 'archive') {
+      if (!window.confirm('Archive this template? It stops appearing in the active list.')) return;
+    }
+    try {
+      const res = await fetch(`/api/dvcf/documents/${documentDbId}/workflow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, notes }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        showToast('error', data?.error ?? `Failed to ${action}`);
+        return;
+      }
+      setStatus(data.status as TemplateStatus);
+      showToast('success', `Template ${data.status.replace('_', ' ')}`);
+    } catch (e) {
+      showToast('error', (e as Error).message);
+    }
+  }
 
   async function handleSave() {
     if (saving) return;
@@ -285,6 +328,23 @@ export function DRCEEditor({ initial, onSave }: Props) {
             : savedAt
               ? <span className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ saved</span>
               : null}
+
+          {/* P4 — workflow status badge */}
+          {hasDbId && (
+            <span
+              className={[
+                'inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wide',
+                status === 'draft'            ? 'bg-gray-200 text-gray-700' :
+                status === 'pending_approval' ? 'bg-amber-100 text-amber-700' :
+                status === 'approved'         ? 'bg-blue-100 text-blue-700' :
+                status === 'published'        ? 'bg-emerald-100 text-emerald-700' :
+                                                'bg-rose-100 text-rose-700',
+              ].join(' ')}
+              title={`Workflow status: ${status.replace('_', ' ')}`}
+            >
+              {status.replace('_', ' ')}
+            </span>
+          )}
         </div>
 
         <div className="flex-1" />
@@ -335,11 +395,40 @@ export function DRCEEditor({ initial, onSave }: Props) {
           </button>
         )}
 
+        {/* P4 — workflow buttons. Each appears only when the lifecycle AND
+            the user's capabilities allow it. */}
+        {hasDbId && allowedActions(status, caps).map(action => (
+          <button
+            key={action}
+            type="button"
+            onClick={() => runWorkflow(action)}
+            className={[
+              'text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors',
+              action === 'submit'    ? 'bg-amber-500 text-white hover:bg-amber-400' :
+              action === 'approve'   ? 'bg-blue-600 text-white hover:bg-blue-500' :
+              action === 'publish'   ? 'bg-emerald-600 text-white hover:bg-emerald-500' :
+              action === 'reject'    ? 'bg-rose-100 text-rose-700 hover:bg-rose-200' :
+              action === 'archive'   ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' :
+              action === 'unarchive' ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' :
+                                       'bg-gray-200 text-gray-700',
+            ].join(' ')}
+            title={`${action.charAt(0).toUpperCase()}${action.slice(1)} template`}
+          >
+            {action === 'submit'    ? 'Submit for approval' :
+             action === 'approve'   ? 'Approve' :
+             action === 'reject'    ? 'Send back' :
+             action === 'publish'   ? 'Publish' :
+             action === 'archive'   ? 'Archive' :
+             action === 'unarchive' ? 'Restore' : action}
+          </button>
+        ))}
+
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm disabled:opacity-60 transition-colors"
+          disabled={saving || (!caps.edit && !caps.admin)}
+          title={caps.edit || caps.admin ? 'Save (Ctrl+S)' : 'You need drce.edit to save'}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           Save

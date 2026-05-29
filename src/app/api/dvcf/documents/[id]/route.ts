@@ -8,6 +8,7 @@ import { resolveBuiltInDocument } from '@/lib/drce/builtin-resolver';
 import { snapshotVersion } from '@/lib/drce/versions';
 import { resolveInheritance, resolveBlockRefs } from '@/lib/drce/inheritance';
 import { listBlocks } from '@/lib/drce/blocks';
+import { requirePermission } from '@/lib/rbac';
 
 // ============================================================================
 // GET    /api/dvcf/documents/[id]  — get a single DVCF document
@@ -42,7 +43,7 @@ export async function GET(
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
                 schema_json, schema_version, is_default, template_key,
-                template_category, parent_id, created_at, updated_at
+                template_category, parent_id, status, created_at, updated_at
          FROM dvcf_documents
          WHERE id = ? AND (school_id IS NULL OR school_id = ?)
          LIMIT 1`,
@@ -89,6 +90,12 @@ export async function PUT(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // P4 — drce.edit gates updates. Super-admin bypasses.
+    try {
+      await requirePermission(session.userId, session.schoolId, 'drce.edit', session.isSuperAdmin);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 403 });
+    }
     const { schoolId } = session;
 
     const { id } = await params;
@@ -185,6 +192,7 @@ export async function PUT(
   }
 }
 
+/* P4 — drce.admin gates delete. Falls through to existing 403 on missing perm. */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -192,6 +200,11 @@ export async function DELETE(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    try {
+      await requirePermission(session.userId, session.schoolId, 'drce.admin', session.isSuperAdmin);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 403 });
+    }
     const { schoolId } = session;
 
     const { id } = await params;

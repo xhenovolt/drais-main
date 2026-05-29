@@ -783,6 +783,12 @@ export interface DRCEMeta {
    * provide the baseline that the child overrides field-by-field.
    */
   parent_id?: number | null;
+  /**
+   * P4 — workflow status. Optional so legacy schema_json blobs (which never
+   * stored status) keep loading; the DB row's `status` column is the source
+   * of truth at read time. Pure render paths ignore status.
+   */
+  status?: import('./workflow').TemplateStatus;
 }
 
 // ─── Root Document ────────────────────────────────────────────────────────────
@@ -964,6 +970,8 @@ export interface DVCFDocumentRow {
   template_category: import('./registry').TemplateCategory;
   /** Phase H — parent template id (NULL when this document inherits from nothing). */
   parent_id?: number | null;
+  /** P4 — workflow status from the dvcf_documents.status column. */
+  status?: import('./workflow').TemplateStatus;
   created_at: string;
   updated_at: string;
 }
@@ -986,6 +994,7 @@ export function parseDRCERow(row: DVCFDocumentRow): DRCEDocument {
     template_key: row.template_key,
     template_category: row.template_category,
     parent_id: row.parent_id ?? null,
+    status: row.status ?? 'published',  // P4 — legacy rows default to published
   };
 
   // Defensive defaults — guard against malformed / legacy schema_json

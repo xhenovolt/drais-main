@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { parseDRCERow, type DVCFDocumentRow } from '@/lib/drce/schema';
 import { BUILT_IN_DOCUMENTS } from '@/lib/drce/defaults';
 import { isTemplateCategory, type TemplateCategory } from '@/lib/drce/registry';
+import { requirePermission } from '@/lib/rbac';
 
 // ============================================================================
 // GET  /api/dvcf/documents  — list all DVCF documents available to this school
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
       const [rows] = await conn.execute(
         `SELECT id, school_id, document_type, name, description,
                 schema_json, schema_version, is_default, template_key,
-                template_category, created_at, updated_at
+                template_category, status, created_at, updated_at
          FROM dvcf_documents
          WHERE (school_id IS NULL OR school_id = ?)
          ORDER BY is_default DESC, id ASC`,
@@ -44,6 +45,12 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // P4 — drce.edit gates create. Super-admin bypasses.
+    try {
+      await requirePermission(session.userId, session.schoolId, 'drce.edit', session.isSuperAdmin);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 403 });
+    }
     const { schoolId } = session;
 
     const body = await request.json();
