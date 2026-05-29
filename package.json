@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "lint:permissions": "node scripts/lint-permissions.mjs",
+    "test:drce": "npx tsx --test src/lib/drce/__tests__/*.test.mjs",
     "import:schema": "node scripts/import-schema.js",
     "setup:tidb": "bash scripts/setup-tidb.sh",
     "vercel-build": "npm run build",
