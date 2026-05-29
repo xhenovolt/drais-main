@@ -791,6 +791,47 @@ export interface DRCEMeta {
   status?: import('./workflow').TemplateStatus;
 }
 
+// ─── Page (P5 — multi-page document model) ───────────────────────────────────
+
+/**
+ * A single page in a multi-page document. Used for certificates, transcripts,
+ * long reports, anything that needs distinct header/footer/layout per page.
+ *
+ * When a document has `pages: DRCEPage[]`, the renderer iterates the pages
+ * and the top-level `document.sections` is ignored (a one-shot migration
+ * helper moves them into `pages[0]` the first time multi-page is enabled).
+ * Documents without `pages` continue to render exactly as before — the page
+ * model is opt-in per template.
+ */
+export interface DRCEPage {
+  id: string;
+  /** Display name in the page navigator, e.g. "Cover", "Page 1", "Transcript". */
+  name: string;
+  /** Sections that belong to this page. Identical model + mutation surface
+   *  as the legacy top-level `sections` — every existing section type
+   *  works inside a page without modification. */
+  sections: DRCESection[];
+  /** Optional per-page shape overlay. Top-level `document.shapes` still
+   *  renders on EVERY page (use it for full-document watermarks); per-page
+   *  shapes draw only on this page. */
+  shapes?: DRCEShape[];
+  /** Per-page theme override. Layered shallowly on top of `document.theme`
+   *  — only the fields you set here change for this page. Most commonly
+   *  used for page size / orientation overrides (a landscape cover, a
+   *  portrait body), but every theme field is overridable. */
+  themeOverride?: Partial<DRCETheme>;
+  /** Per-page watermark override. `undefined` inherits the document's
+   *  watermark; an explicit `{ enabled: false }` turns it off for this page. */
+  watermarkOverride?: Partial<DRCEWatermark>;
+  /** P2 — same conditional-visibility rule as sections. When the rule
+   *  evaluates false for a given learner, the whole page is skipped on
+   *  the print path. Powers "only print the transcript page for
+   *  graduating students" use cases. */
+  visibilityRule?: import('./visibility').VisibilityRule | null;
+  /** CSS page-break policy applied between this page and the previous one. */
+  pageBreakBefore?: 'auto' | 'always' | 'avoid';
+}
+
 // ─── Root Document ────────────────────────────────────────────────────────────
 
 export interface DRCEDocument {
@@ -804,6 +845,14 @@ export interface DRCEDocument {
   commentRules?: DRCECommentRule[];
   /** Teacher initials: map subject+class pattern to initials */
   teacherMappings?: DRCETeacherMapping[];
+  /**
+   * P5 — multi-page mode. When present and non-empty the renderer iterates
+   * the pages and the flat `sections` array is treated as legacy fallback
+   * (kept so older snapshots / draft conversions never lose data). Absent
+   * on every legacy document; the editor only writes here after the user
+   * explicitly enables multi-page on a template.
+   */
+  pages?: DRCEPage[];
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -814,8 +863,12 @@ export type DRCEMutation =
   | { type: 'SET_SECTION_PROP';    sectionId: string; path: string; value: unknown }
   | { type: 'SET_SECTION_CONTENT'; sectionId: string; path: string; value: unknown }
   | { type: 'TOGGLE_SECTION';      sectionId: string }
-  | { type: 'REORDER_SECTIONS';    ids: string[] }
-  | { type: 'ADD_SECTION';         section: DRCESection; afterId: string | null; parentContainerId?: string | null }
+  | { type: 'REORDER_SECTIONS';    ids: string[]; pageId?: string | null }
+  | { type: 'ADD_SECTION';         section: DRCESection; afterId: string | null; parentContainerId?: string | null;
+      /** P5 — when set, append into this page's section array instead of
+       *  the document's top-level array. Editor's active-page state passes
+       *  this through transparently; legacy callers omit it. */
+      pageId?: string | null }
   /**
    * Phase C follow-up: move an existing section to a new location.
    *   - targetContainerId: null → top level; string → inside that container
@@ -843,7 +896,13 @@ export type DRCEMutation =
   | { type: 'UPDATE_SHAPE';        id: string; updates: Partial<DRCEShape> }
   | { type: 'DELETE_SHAPE';        id: string }
   | { type: 'SET_COMMENT_RULES';   rules: DRCECommentRule[] }
-  | { type: 'SET_TEACHER_MAPPINGS'; mappings: DRCETeacherMapping[] };
+  | { type: 'SET_TEACHER_MAPPINGS'; mappings: DRCETeacherMapping[] }
+  // ── P5 — multi-page mutations ─────────────────────────────────────────────
+  | { type: 'ENABLE_MULTI_PAGE' }
+  | { type: 'ADD_PAGE';            name?: string; afterId?: string | null }
+  | { type: 'DELETE_PAGE';         pageId: string }
+  | { type: 'REORDER_PAGES';       ids: string[] }
+  | { type: 'SET_PAGE_PROP';       pageId: string; prop: 'name' | 'themeOverride' | 'watermarkOverride' | 'visibilityRule' | 'pageBreakBefore'; value: unknown };
 
 // ─── Data Context (passed to renderer at print/preview time) ─────────────────
 

@@ -20,6 +20,7 @@ import { useDRCEEditor } from './useDRCEEditor';
 import { SectionListPanel } from './SectionListPanel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { DrawingToolbar } from './DrawingToolbar';
+import { PageNavigator } from './PageNavigator';
 import { ShapePropertiesPanel } from './ShapePropertiesPanel';
 import { ShapeCanvas, type DrawTool } from '../canvas/ShapeCanvas';
 import { DRCEDocumentRenderer } from '../DRCEDocumentRenderer';
@@ -134,6 +135,16 @@ export function DRCEEditor({ initial, onSave }: Props) {
     ((initial.meta as { status?: TemplateStatus }).status as TemplateStatus) ?? 'draft',
   );
   const caps = useDRCECapabilities();
+  // P5 — active page id. null = single-page mode (legacy doc.sections).
+  // Initialized lazily once doc.pages exists.
+  const [activePageId, setActivePageId] = useState<string | null>(null);
+  useEffect(() => {
+    const pages = document.pages ?? [];
+    if (!pages.length) { if (activePageId !== null) setActivePageId(null); return; }
+    if (!activePageId || !pages.some(p => p.id === activePageId)) {
+      setActivePageId(pages[0].id);
+    }
+  }, [document.pages, activePageId]);
   const documentDbId = Number(initial.meta.id);
   const hasDbId = Number.isFinite(documentDbId) && documentDbId > 0;
 
@@ -196,7 +207,23 @@ export function DRCEEditor({ initial, onSave }: Props) {
     return () => window.removeEventListener('keydown', handler);
   }, [undo, redo, mutate]);
 
+  // P5 — transparently thread the active pageId into ADD_SECTION so newly
+  // added sections land on the page the user is currently viewing.
+  // REORDER_SECTIONS also picks up the page id when one is active.
+  const activePageIdRef = useRef(activePageId);
+  useEffect(() => { activePageIdRef.current = activePageId; }, [activePageId]);
   const handleMutate = useCallback((m: DRCEMutation) => {
+    const pid = activePageIdRef.current;
+    if (pid) {
+      if (m.type === 'ADD_SECTION' && m.pageId == null) {
+        mutate({ ...m, pageId: pid });
+        return;
+      }
+      if (m.type === 'REORDER_SECTIONS' && m.pageId == null) {
+        mutate({ ...m, pageId: pid });
+        return;
+      }
+    }
     mutate(m);
   }, [mutate]);
 
@@ -473,6 +500,15 @@ export function DRCEEditor({ initial, onSave }: Props) {
         }}
       />
 
+      {/* P5 — page navigator (visible always; offers Enable-multi-page for
+          single-page docs and a pill-bar for multi-page docs). */}
+      <PageNavigator
+        doc={document}
+        activePageId={activePageId}
+        onActivePageChange={setActivePageId}
+        onMutate={handleMutate}
+      />
+
       {/* ── Three-panel body ─────────────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
@@ -482,7 +518,14 @@ export function DRCEEditor({ initial, onSave }: Props) {
           leftCollapsed ? 'w-0' : 'w-52',
         ].join(' ')}>
           <SectionListPanel
-            sections={document.sections}
+            sections={
+              // P5 — in multi-page mode the section list shows ONLY the
+              // active page's sections; in single-page mode it shows the
+              // top-level array (legacy behaviour).
+              activePageId
+                ? (document.pages?.find(p => p.id === activePageId)?.sections ?? [])
+                : document.sections
+            }
             selectedId={selectedId}
             onSelect={setSelectedId}
             onMutate={handleMutate}

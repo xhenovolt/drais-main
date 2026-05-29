@@ -141,7 +141,69 @@ function DRCEDocumentRendererInner({
     return null;
   }
   
-  const { theme, watermark, sections } = document;
+  const { theme, watermark, sections, pages } = document;
+
+  // P5 — multi-page mode: when document.pages is set and non-empty, render
+  // one page wrapper per page with its own theme override + watermark
+  // override + page-break-after styling. Single-page documents fall through
+  // to the existing path so byte-identical render is preserved.
+  if (pages && pages.length) {
+    return (
+      <div className={className}>
+        {pages.map((p, idx) => {
+          // P2 — per-page visibility rule, evaluated against the same dataCtx.
+          if (!evaluateRule(p.visibilityRule, dataCtx) && !onSectionClick) return null;
+          // Theme override: shallow merge so unset fields fall back to the
+          // document-level theme. Most templates only override page size /
+          // orientation per page.
+          const pageTheme = { ...theme, ...(p.themeOverride ?? {}) };
+          const ps = resolvePageStyle(pageTheme);
+          const dims = resolvePageDimensions(pageTheme);
+          const pageWM = p.watermarkOverride
+            ? { ...watermark, ...p.watermarkOverride }
+            : watermark;
+          const breakBefore = p.pageBreakBefore ?? (idx > 0 ? 'always' : 'auto');
+          const sortedSections = [...(p.sections ?? [])].sort((a, b) => a.order - b.order);
+          return (
+            <div
+              key={p.id}
+              data-drce-page-id={p.id}
+              style={{
+                ...ps,
+                width: dims.width, minHeight: dims.minHeight,
+                pageBreakBefore: breakBefore,
+                pageBreakAfter: idx < pages.length - 1 ? 'always' : 'auto',
+                position: 'relative',
+                marginBottom: 16,  // visual gap in the editor preview only
+              }}
+            >
+              {pageWM?.enabled && <WatermarkLayer watermark={pageWM} />}
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                {sortedSections.map(section => (
+                  <MemoSection
+                    key={section.id}
+                    section={section}
+                    doc={document}
+                    dataCtx={dataCtx}
+                    renderCtx={renderCtx}
+                    isSelected={selectedSectionId === section.id}
+                    onClick={onSectionClick}
+                    onCellChange={onCellChange}
+                    onColumnHide={onColumnHide}
+                  />
+                ))}
+              </div>
+              {/* Per-page shapes overlay + document-wide shapes overlay */}
+              <StaticShapeLayer shapes={p.shapes ?? []} dataCtx={dataCtx} />
+              <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={dataCtx} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // ── Single-page path (unchanged) ─────────────────────────────────────────
   const pageStyle = resolvePageStyle(theme);
   const { width, minHeight } = resolvePageDimensions(theme);
 
@@ -229,6 +291,43 @@ function DRCEDocumentRendererInner({
 // StaticShapeLayer — read-only SVG for legacy `document.shapes[]`.
 // Pure: no listeners, no state. Works under renderToStaticMarkup.
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * P5 — extracted so per-page watermark overrides reuse the same JSX as the
+ * single-page watermark. Pure, deterministic, no React state.
+ */
+function WatermarkLayer({ watermark }: { watermark: { enabled?: boolean; type?: string; content?: string; color?: string; fontSize?: number; opacity?: number; rotation?: number; position?: string; imageUrl?: string } }) {
+  if (!watermark?.enabled) return null;
+  const rot = watermark.rotation ?? 0;
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute', inset: 0, display: 'flex',
+        alignItems:     watermark.position === 'center' ? 'center' : 'flex-start',
+        justifyContent: watermark.position === 'center' ? 'center' : 'flex-start',
+        pointerEvents: 'none', zIndex: 0, overflow: 'hidden',
+      }}
+    >
+      {watermark.type === 'text' ? (
+        <span style={{
+          color: watermark.color, fontSize: watermark.fontSize,
+          opacity: watermark.opacity, transform: `rotate(${rot}deg)`,
+          fontWeight: 'bold', userSelect: 'none', whiteSpace: 'nowrap',
+        }}>
+          {watermark.content}
+        </span>
+      ) : watermark.type === 'qrcode' ? (
+        <div style={{ opacity: watermark.opacity, transform: `rotate(${rot}deg)` }}>
+          <QRCodeSVG value={watermark.content || 'https://drais.app'} size={watermark.fontSize ?? 120} />
+        </div>
+      ) : watermark.imageUrl ? (
+        <img src={watermark.imageUrl} alt={watermark.content}
+          style={{ opacity: watermark.opacity, transform: `rotate(${rot}deg)`, maxWidth: '60%', maxHeight: '60%' }} />
+      ) : null}
+    </div>
+  );
+}
+
 function StaticShapeLayer({ shapes, dataCtx }: { shapes: DRCEShape[]; dataCtx: DRCEDataContext }) {
   if (!shapes.length) return null;
   return (
