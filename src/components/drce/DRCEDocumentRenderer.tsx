@@ -186,25 +186,61 @@ export function DRCEDocumentRenderer({
         </div>
       )}
 
-      {/* Sections */}
+      {/* Sections — memoised per-section so untouched ones skip re-render. */}
       <div style={{ position: 'relative', zIndex: 1 }}>
-        {sorted.map(section => {
-          const rendered = renderSection(section, document, dataCtx, renderCtx, onCellChange, onColumnHide);
-          if (!rendered) return null;
-
-          const isSelected = selectedSectionId === section.id;
-          return (
-            <div
-              key={section.id}
-              data-drce-section-id={section.id}
-              onClick={onSectionClick ? () => onSectionClick(section.id) : undefined}
-              style={getSectionWrapperStyle(section, isSelected, Boolean(onSectionClick))}
-            >
-              {rendered}
-            </div>
-          );
-        })}
+        {sorted.map(section => (
+          <MemoSection
+            key={section.id}
+            section={section}
+            doc={document}
+            dataCtx={dataCtx}
+            renderCtx={renderCtx}
+            isSelected={selectedSectionId === section.id}
+            onClick={onSectionClick}
+            onCellChange={onCellChange}
+            onColumnHide={onColumnHide}
+          />
+        ))}
       </div>
     </div>
   );
 }
+
+// Memo boundary — skips re-renders for sections whose reference, theme, and
+// data context all match. Mutations are immutable, so untouched sections
+// keep the same reference and pass equality.
+interface MemoProps {
+  section:     DRCESection;
+  doc:         DRCEDocument;
+  dataCtx:     DRCEDataContext;
+  renderCtx:   DRCERenderContext;
+  isSelected:  boolean;
+  onClick?:    (id: string) => void;
+  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string) => Promise<void>;
+  onColumnHide?: (sectionId: string, columnId: string) => Promise<void>;
+}
+
+const MemoSection = React.memo(function MemoSection(p: MemoProps) {
+  const rendered = renderSection(p.section, p.doc, p.dataCtx, p.renderCtx, p.onCellChange, p.onColumnHide);
+  if (!rendered) return null;
+  return (
+    <div
+      data-drce-section-id={p.section.id}
+      onClick={p.onClick ? () => p.onClick!(p.section.id) : undefined}
+      style={getSectionWrapperStyle(p.section, p.isSelected, Boolean(p.onClick))}
+    >
+      {rendered}
+    </div>
+  );
+}, (prev, next) =>
+  prev.section    === next.section    &&
+  prev.dataCtx    === next.dataCtx    &&
+  prev.renderCtx  === next.renderCtx  &&
+  prev.isSelected === next.isSelected &&
+  prev.onClick    === next.onClick    &&
+  prev.onCellChange === next.onCellChange &&
+  prev.onColumnHide === next.onColumnHide
+  // Note: `doc` reference WILL change on every mutation, but it's only used
+  // by results_table for theme/branding access — the section ref check above
+  // already covers per-section invalidation.
+);

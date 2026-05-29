@@ -52,6 +52,10 @@ export function SelectionLayer({ document: doc, onMutate, canvasRef, previewScal
     startY: number;
     startRect: Rect;         // canvas-relative
   } | null>(null);
+  // RAF-batched commit queue — coalesces ~60 mousemove events/sec into ONE
+  // mutation per paint so the document doesn't re-render on every pixel.
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ sectionId: string; patches: [string, unknown][] } | null>(null);
 
   useEffect(() => {
     if (sel.primary?.kind !== 'section' || !canvasRef.current) { setRect(null); return; }
@@ -98,15 +102,13 @@ export function SelectionLayer({ document: doc, onMutate, canvasRef, previewScal
       const curHeight = numOr(style.height, d.startRect.height / previewScale);
 
       if (d.mode === 'move') {
-        // Promote to absolute + update left/top.
-        emit(d.sectionId, [
+        schedule(d.sectionId, [
           ['position', 'absolute'],
           ['left', round(curLeft + dx)],
           ['top',  round(curTop  + dy)],
         ]);
         return;
       }
-      // Resize from a handle.
       let nx = curLeft, ny = curTop, nw = curWidth, nh = curHeight;
       switch (d.mode) {
         case 'nw': nx += dx; ny += dy; nw -= dx; nh -= dy; break;
@@ -120,13 +122,27 @@ export function SelectionLayer({ document: doc, onMutate, canvasRef, previewScal
       }
       nw = Math.max(40, nw);
       nh = Math.max(20, nh);
-      emit(d.sectionId, [
+      schedule(d.sectionId, [
         ['position', 'absolute'],
         ['left', round(nx)], ['top', round(ny)],
         ['width', round(nw)], ['height', round(nh)],
       ]);
     }
-    function onUp() { dragRef.current = null; }
+    function onUp() {
+      dragRef.current = null;
+      // Flush any pending RAF immediately so the final state is committed.
+      if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); flush(); }
+    }
+    function schedule(sectionId: string, patches: [string, unknown][]) {
+      pendingRef.current = { sectionId, patches };
+      if (rafRef.current == null) rafRef.current = requestAnimationFrame(flush);
+    }
+    function flush() {
+      rafRef.current = null;
+      const p = pendingRef.current;
+      pendingRef.current = null;
+      if (p) emit(p.sectionId, p.patches);
+    }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
