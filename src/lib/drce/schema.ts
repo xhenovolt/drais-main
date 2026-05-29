@@ -848,6 +848,13 @@ export interface DRCEStudentData {
   admissionNo: string;
   photoUrl: string | null;
   dateOfBirth: string | null;
+  /**
+   * P1 — Custom field values for this student, keyed by the field `code`
+   * defined in the per-school custom-fields catalog. DRCE bindings of the
+   * form `student.custom.<code>` resolve through this map. Absent on
+   * snapshots generated before P1 — fall back to `null` in templates.
+   */
+  custom?: Record<string, string | number | boolean | string[] | null>;
 }
 
 export interface DRCEMetaContext {

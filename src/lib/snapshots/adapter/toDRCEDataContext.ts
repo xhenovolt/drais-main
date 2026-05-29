@@ -90,6 +90,12 @@ export function snapshotToDRCEDataContext(
     };
   });
 
+  // P1 — custom field values surface as `student.custom.<code>` in DRCE
+  // templates. Snapshot stores them at top-level keyed by studentDbId
+  // (outside meta.dataHash). Empty object (rather than undefined) keeps
+  // binding lookups safe when the school has no custom fields yet.
+  const customForStudent = snapshot.customValues?.[stu.studentDbId] ?? {};
+
   const student: DRCEStudentData = {
     fullName:    stu.name,
     firstName:   stu.firstName,
@@ -100,6 +106,7 @@ export function snapshotToDRCEDataContext(
     admissionNo: stu.admissionNumber || stu.id,
     photoUrl:    stu.photoUrl,
     dateOfBirth: null,
+    custom:      customForStudent,
   };
 
   const assessment: DRCEAssessmentData = {

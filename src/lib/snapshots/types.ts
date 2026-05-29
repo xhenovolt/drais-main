@@ -187,6 +187,14 @@ export interface ReportSnapshot {
   meta:    SnapshotMeta;
   classes: SnapshotClass[];
   config:  SnapshotConfig;
+  /**
+   * P1 — per-student custom field values, keyed by studentDbId then by field
+   * code. Lives OUTSIDE `classes` on purpose: `meta.dataHash = hashCanonical(classes)`
+   * so adding this top-level map never invalidates an existing snapshot's
+   * content hash. Absent on snapshots generated before P1 — render path
+   * treats missing values as null.
+   */
+  customValues?: Record<number, Record<string, string | number | boolean | string[] | null>>;
 }
 
 /**

@@ -13,6 +13,7 @@ import type {
 } from '@/lib/drce/schema';
 import { DEFAULT_GRADE_ROWS } from '@/lib/drce/defaults';
 import { AVAILABLE_BINDINGS } from '@/lib/drce/bindingResolver';
+import { useAvailableBindings } from '@/components/drce/hooks/useAvailableBindings';
 import { Palette, Type, Layers, GripVertical, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
@@ -257,7 +258,9 @@ function FieldManager({ section, sectionId, fields, onMutate }: {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const sorted = [...(fields ?? [])].sort((a, b) => a.order - b.order);
 
-  const allBindings = AVAILABLE_BINDINGS
+  // P1 — merged static + custom-field bindings so newly-defined custom
+  // fields appear immediately in every field-picker dropdown.
+  const allBindings = useAvailableBindings()
     .filter(b => b.group !== 'Subject Result')
     .map(b => ({ label: `${b.group}: ${b.label}`, value: b.binding }));
 

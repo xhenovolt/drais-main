@@ -224,6 +224,26 @@ export async function generateSnapshot(
       console.warn(`[snapshots] calendar inference skipped for term ${term.termId}:`, e instanceof Error ? e.message : e);
     }
 
+    // P1 — bulk-load custom field values for every student in scope. Pulled
+    // AFTER dataHash is computed so adding the map never invalidates the
+    // existing classes-only hash. Failure is non-fatal: snapshots still ship
+    // without custom values; render path treats missing values as null.
+    let customValuesMap: ReportSnapshot['customValues'];
+    try {
+      const studentIds: number[] = [];
+      for (const c of classes) for (const s of c.students) studentIds.push(s.studentDbId);
+      if (studentIds.length) {
+        const { getStudentCustomValuesBulk } = await import('@/lib/custom-fields');
+        const m = await getStudentCustomValuesBulk({ studentIds, schoolId: school.schoolId });
+        if (m.size) {
+          customValuesMap = {};
+          for (const [sid, vals] of m) customValuesMap[sid] = vals;
+        }
+      }
+    } catch (e) {
+      console.warn('[snapshots] custom values load skipped:', e instanceof Error ? e.message : e);
+    }
+
     const snapshot: ReportSnapshot = {
       meta: {
         snapshotId,
@@ -275,6 +295,7 @@ export async function generateSnapshot(
       },
       classes,
       config: { ...buildDefaultConfig(''), ...(calendarConfig ? { calendar: calendarConfig } : {}) },
+      ...(customValuesMap ? { customValues: customValuesMap } : {}),
     };
 
     await saveSnapshot({ snapshotId, snapshot, generationMs });

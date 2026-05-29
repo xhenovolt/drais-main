@@ -12,7 +12,8 @@ import EnrollmentTimeline from '@/components/students/EnrollmentTimeline';
 import LearnerOverview from '@/components/students/LearnerOverview';
 import PhotoEditorModal from '@/components/students/PhotoEditorModal';
 import ExtendedProfileModal from '@/components/students/ExtendedProfileModal';
-import { Pencil, Home, Heart, Plus, ExternalLink, Fingerprint } from 'lucide-react';
+import { Pencil, Home, Heart, Plus, ExternalLink, Fingerprint, Settings2 } from 'lucide-react';
+import { CustomFieldsPanel } from '@/components/students/CustomFieldsPanel';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -292,6 +293,10 @@ export default function StudentDetailPage() {
               className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
               <Plus className="w-3 h-3" /> Upload / manage documents <ExternalLink className="w-3 h-3" />
             </Link>
+          </Section>
+
+          <Section title="Custom Fields" icon={Settings2}>
+            <CustomFieldsPanel studentId={Number(id)} onSaved={() => mutate()} />
           </Section>
         </div>
 
