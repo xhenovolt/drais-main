@@ -9,6 +9,7 @@ import { VariablePicker } from './VariablePicker';
 import { selection, useSelection } from './selectionStore';
 import { ContextualToolbar } from './ContextualToolbar';
 import { TypographyPopover } from './TypographyPopover';
+import { SelectionLayer } from './SelectionLayer';
 import type { DRCETextShape } from '@/lib/drce/schema';
 import type { DRCEDocument, DRCEMutation, DRCEShape } from '@/lib/drce/schema';
 import { resolvePageDimensions } from '@/lib/drce/styleResolver';
@@ -425,6 +426,9 @@ export function DRCEEditor({ initial, onSave }: Props) {
                     if (id) setSelectedId(null); // deselect section when shape selected
                   }}
                 />
+
+                {/* Section selection overlay (drag + 8-handle resize) */}
+                <SelectionLayer document={document} onMutate={mutate} canvasRef={canvasRef} previewScale={previewScale} />
 
                 {/* Floating contextual toolbar (any selection) */}
                 <ContextualToolbar document={document} onMutate={mutate} canvasRef={canvasRef} />
