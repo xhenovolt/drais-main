@@ -24,6 +24,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { TablePropertiesPanel } from './TablePropertiesPanel';
 import { newFieldId, newColumnId, newItemId, newId } from '@/lib/drce/ids';
+import { VisibilityRuleEditor } from './VisibilityRuleEditor';
+import type { VisibilityRule } from '@/lib/drce/visibility';
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
@@ -1924,6 +1926,31 @@ interface Props {
   onTabChange: (t: 'section' | 'theme' | 'watermark' | 'rules') => void;
 }
 
+/**
+ * P2 — visibility rule sub-panel shown beneath every per-type editor.
+ * Stored at `section.visibilityRule` and emitted via SET_SECTION_PROP so
+ * the existing deep-walking mutation path (Phase 0 fix C1) handles
+ * container-nested sections too.
+ */
+function VisibilitySection({ section, onMutate }: {
+  section: DRCESection;
+  onMutate: (m: DRCEMutation) => void;
+}) {
+  const rule = (section as DRCESection & { visibilityRule?: VisibilityRule | null }).visibilityRule ?? null;
+  return (
+    <div className="border-t border-gray-100 dark:border-slate-700 p-3 mt-2">
+      <h4 className="text-[10px] uppercase tracking-wide text-gray-500 mb-2 font-semibold">Conditional visibility</h4>
+      <VisibilityRuleEditor
+        value={rule}
+        onChange={next => onMutate({
+          type: 'SET_SECTION_PROP', sectionId: section.id,
+          path: 'visibilityRule', value: next,
+        })}
+      />
+    </div>
+  );
+}
+
 export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, onTabChange }: Props) {
   // Recurse so nested children (inside containers) can be selected from the
   // section list and surface their properties here.
@@ -2004,6 +2031,12 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
         {activeTab === 'section'   && (
           <>
             {renderSectionPanel()}
+            {selectedSection && (
+              <VisibilitySection
+                section={selectedSection}
+                onMutate={onMutate}
+              />
+            )}
             {selectedSection && <MoveToPicker section={selectedSection} doc={doc} onMutate={onMutate} />}
           </>
         )}

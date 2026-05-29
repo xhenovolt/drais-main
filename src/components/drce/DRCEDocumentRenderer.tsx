@@ -14,6 +14,7 @@ import type { DRCERenderContext } from './types';
 import './sections/builtins';
 import { getSectionPlugin } from '@/lib/drce/section-registry';
 import { SectionErrorBoundary } from './SectionErrorBoundary';
+import { evaluateRule } from '@/lib/drce/visibility';
 
 interface Props {
   document: DRCEDocument;
@@ -429,10 +430,23 @@ const MemoSection = React.memo(function MemoSection(p: MemoProps) {
   // grade_table, …) read doc.theme. We compare the theme REFERENCE so
   // typical edits (theme stays put while sections mutate) still skip
   // unrelated sections, but a theme change correctly busts every section.
-  prev.doc.theme    === next.doc.theme
+  prev.doc.theme    === next.doc.theme &&
+  // P2 — visibility rule reference is part of `section`, so the prev.section
+  // === next.section check above already covers re-render when the rule is
+  // edited. Kept explicit here as documentation.
+  prev.section.visibilityRule === next.section.visibilityRule
 );
 
 function MemoSectionInner(p: MemoProps) {
+  // P2 — conditional visibility rule. `visible:false` (static toggle) still
+  // hides for everyone; the rule layer narrows further per-learner.
+  // Editor mode (onClick present) keeps the section visible so the author
+  // can still select & edit a rule-hidden section.
+  const editorMode = Boolean(p.onClick);
+  const ruleOk = editorMode
+    ? true
+    : evaluateRule(p.section.visibilityRule, p.dataCtx);
+  if (!ruleOk) return null;
   const rendered = renderSection(p.section, p.doc, p.dataCtx, p.renderCtx, p.onCellChange, p.onColumnHide);
   if (!rendered) return null;
   return (

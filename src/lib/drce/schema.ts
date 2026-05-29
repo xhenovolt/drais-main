@@ -413,6 +413,14 @@ interface DRCESectionBase {
   type: DRCESectionType;
   visible: boolean;
   order: number;
+  /**
+   * P2 — Conditional visibility rule, evaluated per-student at render time.
+   *   • null / undefined → unconditionally rendered (legacy behaviour).
+   *   • A rule that evaluates false → section is skipped for THAT learner.
+   * `visible: false` still hides for everyone, so the static toggle wins
+   * over the dynamic rule. See src/lib/drce/visibility.ts.
+   */
+  visibilityRule?: import('./visibility').VisibilityRule | null;
 }
 
 export interface DRCEHeaderSection extends DRCESectionBase {

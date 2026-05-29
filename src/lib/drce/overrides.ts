@@ -190,7 +190,7 @@ export function applyOverrides(
               }
               return col;
             });
-            return { ...s, columns: updatedColumns };
+            return { ...s, columns: updatedColumns } as DRCESection;
           }
         }
         return s;
