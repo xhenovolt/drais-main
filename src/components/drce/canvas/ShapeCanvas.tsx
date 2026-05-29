@@ -43,7 +43,8 @@ interface Props {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function uid() { return 'sh_' + Math.random().toString(36).slice(2, 9); }
+import { newShapeId } from '@/lib/drce/ids';
+function uid() { return newShapeId(); }
 
 /** Compute SVG polygon `points` string for built-in polygon shapes. */
 function polygonPoints(type: DRCEPolygonShape['type'], x: number, y: number, w: number, h: number): string {

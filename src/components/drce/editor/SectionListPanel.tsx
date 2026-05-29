@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { DRCESection, DRCEMutation, DRCEContainerSection } from '@/lib/drce/schema';
+import { newSectionId, newFieldId, newColumnId, newItemId, newShapeId } from '@/lib/drce/ids';
 
 interface Props {
   sections: DRCESection[];
@@ -147,7 +148,8 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
   ];
 
   function buildNewSection(type: string): DRCESection {
-    const id = `${type}-${Date.now()}`;
+    // Phase 0 fix H4 — collision-free IDs (was `${type}-${Date.now()}`).
+    const id = newSectionId(type);
     const base = { id, visible: true, order: sections.length };
     switch (type) {
       case 'banner':
@@ -161,22 +163,22 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
             fontSize: 13, padding: '4px 0', textAlign: 'center' } } as DRCESection;
       case 'student_info':
         return { ...base, type: 'student_info',
-          fields: [{ id: `f-${Date.now()}`, label: 'Name', binding: 'student.fullName', visible: true, order: 0 }],
+          fields: [{ id: newFieldId(), label: 'Name', binding: 'student.fullName', visible: true, order: 0 }],
           style: { border: '1px solid #ccc', borderRadius: 4, padding: '12px 14px',
             background: '#f9f9f9', labelColor: '#555', valueColor: '#000',
             valueFontWeight: 'bold', valueFontSize: 13 } } as DRCESection;
       case 'results_table':
         return { ...base, type: 'results_table',
           columns: [
-            { id: `col-${Date.now()}-1`, header: 'Subject', binding: 'result.subjectName', width: '30%', visible: true, order: 0, align: 'left' },
-            { id: `col-${Date.now()}-2`, header: 'Grade',   binding: 'result.grade',       width: '15%', visible: true, order: 1, align: 'center' },
+            { id: newColumnId(), header: 'Subject', binding: 'result.subjectName', width: '30%', visible: true, order: 0, align: 'left' },
+            { id: newColumnId(), header: 'Grade',   binding: 'result.grade',       width: '15%', visible: true, order: 1, align: 'center' },
           ],
           style: { headerBackground: '#e5e7eb', headerBorder: '1px solid #ccc',
             rowBorder: '1px solid #ddd', headerFontSize: 11, rowFontSize: 11,
             headerTextTransform: 'uppercase', padding: 4 } } as DRCESection;
       case 'assessment':
         return { ...base, type: 'assessment',
-          fields: [{ id: `af-${Date.now()}`, label: 'Class Position', binding: 'assessment.classPosition', visible: true, order: 0 }],
+          fields: [{ id: newFieldId(), label: 'Class Position', binding: 'assessment.classPosition', visible: true, order: 0 }],
           style: {
             layout: 'table',
             width: '100%',
@@ -202,7 +204,7 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
           } } as DRCESection;
       case 'comments':
         return { ...base, type: 'comments',
-          items: [{ id: `ci-${Date.now()}`, label: 'Teacher Comment', binding: 'comments.classTeacher', visible: true, order: 0 }],
+          items: [{ id: newItemId(), label: 'Teacher Comment', binding: 'comments.classTeacher', visible: true, order: 0 }],
           style: { ribbonBackground: '#6b7280', ribbonColor: '#fff', textColor: '#333', textFontStyle: 'italic' } } as DRCESection;
       case 'grade_table':
         return { ...base, type: 'grade_table',
@@ -232,8 +234,8 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
       case 'table':
         return { ...base, type: 'table',
           columns: [
-            { id: 'col-1', header: 'Column A', width: '50%', align: 'left'  },
-            { id: 'col-2', header: 'Column B', width: '50%', align: 'right' },
+            { id: newColumnId(), header: 'Column A', width: '50%', align: 'left'  },
+            { id: newColumnId(), header: 'Column B', width: '50%', align: 'right' },
           ],
           staticRowCount: 3, cells: {},
           style: { headerBackground: '#e5e7eb', headerBorder: '1px solid #ccc',
@@ -242,7 +244,7 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
       case 'shape':
         return { ...base, type: 'shape',
           shape: {
-            id: `sh-${Date.now()}`, type: 'rect',
+            id: newShapeId(), type: 'rect',
             x: 0, y: 0, w: 120, h: 60,
             fill: '#e0f2fe', stroke: '#0284c7', strokeWidth: 1,
             opacity: 1, radius: 6, rotation: 0,

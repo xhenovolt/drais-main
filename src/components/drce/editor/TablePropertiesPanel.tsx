@@ -23,7 +23,8 @@ interface Props {
   onMutate: (m: DRCEMutation) => void;
 }
 
-function newColId() { return 'col-' + Math.random().toString(36).slice(2, 7); }
+import { newColumnId } from '@/lib/drce/ids';
+function newColId() { return newColumnId(); }
 
 function setProp(onMutate: (m: DRCEMutation) => void, sectionId: string, path: string, value: unknown) {
   onMutate({ type: 'SET_SECTION_PROP', sectionId, path, value });

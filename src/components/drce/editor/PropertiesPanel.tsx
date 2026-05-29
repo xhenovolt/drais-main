@@ -22,6 +22,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TablePropertiesPanel } from './TablePropertiesPanel';
+import { newFieldId, newColumnId, newItemId, newId } from '@/lib/drce/ids';
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ function FieldManager({ section, sectionId, fields, onMutate }: {
           type: 'ADD_FIELD',
           sectionId,
           field: {
-            id: `field-${Date.now()}`,
+            id: newFieldId(),
             label: 'New Field',
             binding: 'student.fullName',
             visible: true,
@@ -937,7 +938,7 @@ function CommentsPanel({ section, onMutate }: { section: DRCECommentsSection; on
             type: 'ADD_COMMENT_ITEM',
             sectionId: section.id,
             item: {
-              id: `ci-${Date.now()}`,
+              id: newItemId(),
               label: 'New Comment',
               binding: 'comments.classTeacher',
               visible: true,
@@ -1054,7 +1055,7 @@ function ResultsTablePanel({ section, onMutate }: {
             type: 'ADD_COLUMN',
             sectionId: section.id,
             column: {
-              id: `col-${Date.now()}`,
+              id: newColumnId(),
               header: 'New Column',
               binding: 'result.subjectName',
               width: '10%',
@@ -1758,7 +1759,7 @@ function RulesPanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMu
 
   const addCommentRule = () => {
     const newRule: DRCECommentRule = {
-      id: `cr-${Date.now()}`,
+      id: newId('cr'),
       minScore: 0,
       maxScore: 100,
       classTeacher: '',
@@ -1781,7 +1782,7 @@ function RulesPanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMu
 
   const addTeacherMapping = () => {
     const newMapping: DRCETeacherMapping = {
-      id: `tm-${Date.now()}`,
+      id: newId('tm'),
       subjectPattern: '',
       classPattern: '',
       initials: '',

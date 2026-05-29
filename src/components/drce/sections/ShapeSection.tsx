@@ -8,6 +8,7 @@
 import React from 'react';
 import type { DRCEShapeSection as Section } from '@/lib/drce/schema';
 import { ShapePrimitive, shapeBounds } from '@/components/drce/canvas/ShapePrimitive';
+import { newShapeId } from '@/lib/drce/ids';
 
 export function ShapeSection({ section }: { section: Section }) {
   const b = shapeBounds(section.shape);
@@ -26,7 +27,7 @@ export function defaultShapeSection(): Omit<DRCESection, 'id' | 'order'> {
   return {
     type: 'shape', visible: true,
     shape: {
-      id: `sh-${Date.now()}`, type: 'rect',
+      id: newShapeId(), type: 'rect',
       x: 0, y: 0, w: 120, h: 60,
       fill: '#e0f2fe', stroke: '#0284c7', strokeWidth: 1,
       opacity: 1, radius: 6, rotation: 0,

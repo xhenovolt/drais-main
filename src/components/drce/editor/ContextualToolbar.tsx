@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useSelection, selection } from './selectionStore';
 import type { DRCEDocument, DRCEMutation, DRCESection, DRCEShape } from '@/lib/drce/schema';
+import { newSectionId, newShapeId, newColumnId, newFieldId, newItemId } from '@/lib/drce/ids';
 
 interface Props {
   document: DRCEDocument;
@@ -84,15 +85,16 @@ export function ContextualToolbar({ document: doc, onMutate, canvasRef }: Props)
     if (sel.primary.kind === 'section') {
       const s = findSectionDeep(doc.sections, sel.primary.id);
       if (!s) return;
-      const clone = deepClone(s);
-      clone.id = `${s.type}-${Date.now()}`;
+      // Phase 0 fix H4 — collision-free IDs, deeply rewritten so cloning a
+      // container doesn't duplicate child / column / field / item IDs.
+      const clone = rewriteIdsDeep(deepClone(s));
       onMutate({ type: 'ADD_SECTION', section: clone, afterId: s.id });
       selection.select('section', clone.id);
     } else {
       const sh = doc.shapes?.find(x => x.id === sel.primary!.id);
       if (!sh) return;
       const clone = deepClone(sh);
-      clone.id = 'sh_' + Math.random().toString(36).slice(2, 9);
+      clone.id = newShapeId();
       // Nudge so it doesn't overlap exactly.
       const offset = 20;
       if ('x' in clone) (clone as { x: number }).x += offset;
@@ -129,14 +131,13 @@ export function ContextualToolbar({ document: doc, onMutate, canvasRef }: Props)
     if (!cb) return;
     let lastId: string | null = null;
     cb.sections.forEach(s => {
-      const clone = deepClone(s);
-      clone.id = `${s.type}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+      const clone = rewriteIdsDeep(deepClone(s));
       onMutate({ type: 'ADD_SECTION', section: clone, afterId: null });
       lastId = clone.id;
     });
     cb.shapes.forEach(sh => {
       const clone = deepClone(sh);
-      clone.id = 'sh_' + Math.random().toString(36).slice(2, 9);
+      clone.id = newShapeId();
       if ('x' in clone) (clone as { x: number }).x += 20;
       if ('y' in clone) (clone as { y: number }).y += 20;
       onMutate({ type: 'ADD_SHAPE', shape: clone });
@@ -228,3 +229,38 @@ function findSectionDeep(arr: DRCESection[], id: string): DRCESection | null {
 }
 
 function deepClone<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
+
+/**
+ * Phase 0 fix H4 — rewrite every id field in a cloned section subtree so a
+ * duplicate/paste doesn't ship duplicate keys. Walks: section.id, container
+ * children, results_table columns, student_info/assessment fields, comments
+ * items, shape-section inner shape id, table-section cells.
+ */
+function rewriteIdsDeep(s: DRCESection): DRCESection {
+  const out = { ...s, id: newSectionId(s.type) } as DRCESection & Record<string, unknown>;
+  if (s.type === 'container') {
+    const c = out as unknown as { children?: DRCESection[] };
+    c.children = (c.children ?? []).map(rewriteIdsDeep);
+  }
+  if ('columns' in out && Array.isArray((out as { columns?: { id: string }[] }).columns)) {
+    (out as { columns: { id: string }[] }).columns =
+      (out as { columns: { id: string }[] }).columns.map(c => ({ ...c, id: newColumnId() }));
+  }
+  if ('fields' in out && Array.isArray((out as { fields?: { id: string }[] }).fields)) {
+    (out as { fields: { id: string }[] }).fields =
+      (out as { fields: { id: string }[] }).fields.map(f => ({ ...f, id: newFieldId() }));
+  }
+  if ('items' in out && Array.isArray((out as { items?: { id: string }[] }).items)) {
+    (out as { items: { id: string }[] }).items =
+      (out as { items: { id: string }[] }).items.map(it => ({ ...it, id: newItemId() }));
+  }
+  if (s.type === 'shape') {
+    const shp = (out as unknown as { shape?: { id: string } }).shape;
+    if (shp) shp.id = newShapeId();
+  }
+  // Table cells: rewrite the rowKey:colId map. Column IDs above already changed,
+  // so the original cells map is stale anyway — safest is to drop overrides
+  // since they referenced now-defunct column IDs.
+  if (s.type === 'table') (out as { cells?: Record<string, unknown> }).cells = {};
+  return out as DRCESection;
+}

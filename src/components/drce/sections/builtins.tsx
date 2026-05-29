@@ -18,6 +18,7 @@ import type {
   DRCESection,
 } from '@/lib/drce/schema';
 import { registerSection, type SectionRenderProps } from '@/lib/drce/section-registry';
+import { newFieldId, newColumnId, newItemId } from '@/lib/drce/ids';
 
 import { HeaderSection }         from './HeaderSection';
 import { BannerSection }         from './BannerSection';
@@ -79,7 +80,7 @@ registerSection({
   description: 'Identity panel: name, class, photo, barcode.',
   defaultProps: () => ({
     type: 'student_info', visible: true,
-    fields: [{ id: `f-${Date.now()}`, label: 'Name', binding: 'student.fullName', visible: true, order: 0 }],
+    fields: [{ id: newFieldId(), label: 'Name', binding: 'student.fullName', visible: true, order: 0 }],
     style: { border: '1px solid #ccc', borderRadius: 4, padding: '12px 14px',
       background: '#f9f9f9', labelColor: '#555', valueColor: '#000',
       valueFontWeight: 'bold', valueFontSize: 13 },
@@ -110,8 +111,8 @@ registerSection({
   defaultProps: () => ({
     type: 'results_table', visible: true,
     columns: [
-      { id: `col-${Date.now()}-1`, header: 'Subject', binding: 'result.subjectName', width: '30%', visible: true, order: 0, align: 'left' },
-      { id: `col-${Date.now()}-2`, header: 'Grade',   binding: 'result.grade',       width: '15%', visible: true, order: 1, align: 'center' },
+      { id: newColumnId(), header: 'Subject', binding: 'result.subjectName', width: '30%', visible: true, order: 0, align: 'left' },
+      { id: newColumnId(), header: 'Grade',   binding: 'result.grade',       width: '15%', visible: true, order: 1, align: 'center' },
     ],
     style: { headerBackground: '#e5e7eb', headerBorder: '1px solid #ccc',
       rowBorder: '1px solid #ddd', headerFontSize: 11, rowFontSize: 11,
@@ -134,7 +135,7 @@ registerSection({
   description: 'Aggregate row: class position, average, grade.',
   defaultProps: () => ({
     type: 'assessment', visible: true,
-    fields: [{ id: `af-${Date.now()}`, label: 'Class Position', binding: 'assessment.classPosition', visible: true, order: 0 }],
+    fields: [{ id: newFieldId(), label: 'Class Position', binding: 'assessment.classPosition', visible: true, order: 0 }],
     style: {
       layout: 'table', width: '100%', positionFields: 1,
       assessmentLabel: 'Grade Assessment', tableLayout: 'fixed',
@@ -157,7 +158,7 @@ registerSection({
   description: 'Class-teacher / DOS / head-teacher comments.',
   defaultProps: () => ({
     type: 'comments', visible: true,
-    items: [{ id: `ci-${Date.now()}`, label: 'Teacher Comment', binding: 'comments.classTeacher', visible: true, order: 0 }],
+    items: [{ id: newItemId(), label: 'Teacher Comment', binding: 'comments.classTeacher', visible: true, order: 0 }],
     style: { ribbonBackground: '#6b7280', ribbonColor: '#fff', textColor: '#333', textFontStyle: 'italic' },
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>

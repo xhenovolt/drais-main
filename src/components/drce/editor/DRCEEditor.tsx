@@ -2,7 +2,7 @@
 // Three-panel DRCE editor: Left=sections | Centre=live preview | Right=properties
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Undo2, Redo2, Save, Loader2, Eye, EyeOff, X, History, ZoomIn, ZoomOut } from 'lucide-react';
 import { VersionHistoryDrawer } from './VersionHistoryDrawer';
 import { VariablePicker } from './VariablePicker';
@@ -100,7 +100,7 @@ interface Props {
 }
 
 export function DRCEEditor({ initial, onSave }: Props) {
-  const { document, mutate, undo, redo, canUndo, canRedo, isDirty } = useDRCEEditor(initial);
+  const { document, mutate, undo, redo, markSaved, canUndo, canRedo, isDirty } = useDRCEEditor(initial);
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const sel = useSelection();
 
@@ -128,6 +128,13 @@ export function DRCEEditor({ initial, onSave }: Props) {
   const documentDbId = Number(initial.meta.id);
   const hasDbId = Number.isFinite(documentDbId) && documentDbId > 0;
 
+  // Refs mirror the latest selection so the keydown handler reads fresh values
+  // without re-binding the listener on every selection change (Phase 0 fix C2).
+  const selectedIdRef       = useRef<string | null>(selectedId);
+  const selectedShapeIdRef  = useRef<string | null>(selectedShapeId);
+  useEffect(() => { selectedIdRef.current      = selectedId;      }, [selectedId]);
+  useEffect(() => { selectedShapeIdRef.current = selectedShapeId; }, [selectedShapeId]);
+
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y / Delete keyboard shortcuts
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -136,8 +143,15 @@ export function DRCEEditor({ initial, onSave }: Props) {
       if (e.ctrlKey && e.key === 's') { e.preventDefault(); handleSave(); }
       // Shortcut keys for drawing tools
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-        const tag = (e.target as HTMLElement).tagName;
+        // Phase 0 fix C2 — bail out for any field accepting text input, including:
+        //   • input / textarea / select
+        //   • contentEditable cells (X4 table cells, inline text edits)
+        //   • elements inside a [contenteditable] ancestor
+        const t = e.target as HTMLElement | null;
+        const tag = t?.tagName ?? '';
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (t?.isContentEditable) return;
+        if (t?.closest && t.closest('[contenteditable="true"]')) return;
         switch (e.key.toLowerCase()) {
           case 'v': setActiveTool('select');   break;
           case 'a': setActiveTool('arrow');    break;
@@ -150,15 +164,18 @@ export function DRCEEditor({ initial, onSave }: Props) {
           case '5': setActiveTool('pentagon'); break;
           case '6': setActiveTool('hexagon');  break;
           case '*': setActiveTool('star');     break;
-          case 'delete': case 'backspace':
-            if (selectedShapeId) {
-              mutate({ type: 'DELETE_SHAPE', id: selectedShapeId });
+          case 'delete': case 'backspace': {
+            const shapeId = selectedShapeIdRef.current;
+            const sectId  = selectedIdRef.current;
+            if (shapeId) {
+              mutate({ type: 'DELETE_SHAPE', id: shapeId });
               setSelectedShapeId(null);
-            } else if (selectedId) {
-              mutate({ type: 'DELETE_SECTION', sectionId: selectedId });
+            } else if (sectId) {
+              mutate({ type: 'DELETE_SECTION', sectionId: sectId });
               setSelectedId(null);
             }
             break;
+          }
           case 'escape':
             setActiveTool('select');
             setSelectedShapeId(null);
@@ -168,7 +185,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo, selectedShapeId, mutate]);
+  }, [undo, redo, mutate]);
 
   const handleMutate = useCallback((m: DRCEMutation) => {
     mutate(m);
@@ -185,6 +202,9 @@ export function DRCEEditor({ initial, onSave }: Props) {
     setSaving(true);
     try {
       await onSave(document);
+      // Phase 0 fix H3 — pin savedIndex to the just-saved doc so isDirty
+      // accurately reflects "differs from server" (not just "moved at all").
+      markSaved();
       showToast('success', 'Template saved');
       setSavedAt(new Date());
       // Refresh the version chip — read the latest version number from the API.
