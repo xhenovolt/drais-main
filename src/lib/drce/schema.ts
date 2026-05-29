@@ -22,7 +22,14 @@ export type DRCESectionType =
   | 'shape'        // Phase C.2 — shape as section so it can live INSIDE a container
   | 'header_block' // Phase E — one header element (logo, name, motto, QR …)
   | 'block_ref'    // Phase H — reference to a shared block in drce_blocks
-  | 'table';       // X4 — spreadsheet-style DataGrid with formulas + dataSource
+  | 'table'        // X4 — spreadsheet-style DataGrid with formulas + dataSource
+  // ─── CAFE Phase 4 — competency-aware section types ──────────────────────
+  | 'competency_table'   // Subjects × components grid with grade codes
+  | 'descriptor_grid'    // Subjects × components grid showing descriptors
+  | 'aoi_breakdown'      // Activity-of-Integration component breakdown
+  | 'skills_block'       // Student-level generic skills (Communication, ICT, …)
+  | 'project_outcomes'   // Student-level project portfolio outcomes
+  | 'narrative_block';   // Free-form narrative paragraph bindable to any path
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -737,6 +744,124 @@ export interface DRCETableSection extends DRCESectionBase {
   style:   DRCETableStyle;
 }
 
+// ─── CAFE Phase 4 — competency-aware section types ──────────────────────────
+
+/**
+ * Subjects × components grid showing the grade code (or short label) per
+ * cell. Reads `result.components[]` for each result. When components are
+ * absent (snapshot generated before CAFE), the grid renders empty cells.
+ */
+export interface DRCECompetencyTableSection extends DRCESectionBase {
+  type:  'competency_table';
+  /** Optional whitelist of component codes to include — empty/missing
+   *  means "include every component that appears in any result". */
+  componentCodes?: string[];
+  /** Show the rollup (weighted mean) column at the end. */
+  showRollup?:    boolean;
+  /** Show the per-row subject column on the left. */
+  showSubject?:   boolean;
+  style: {
+    headerBackground?: string;
+    headerBorder?:     string;
+    rowBorder?:        string;
+    headerFontSize?:   number;
+    rowFontSize?:      number;
+    padding?:          number;
+    /** When true and a grade_mapping color exists, the cell background
+     *  is tinted with that color. Off by default to stay neutral. */
+    colorByGrade?:     boolean;
+  };
+}
+
+/**
+ * Like competency_table but shows the descriptor TEXT in each cell instead
+ * of the grade code — for narrative-leaning competency reports.
+ */
+export interface DRCEDescriptorGridSection extends DRCESectionBase {
+  type:  'descriptor_grid';
+  componentCodes?: string[];
+  showSubject?:   boolean;
+  style: {
+    headerBackground?: string;
+    rowBorder?:        string;
+    fontSize?:         number;
+    padding?:          number;
+  };
+}
+
+/**
+ * Activity-of-Integration breakdown — a competency_table filtered to
+ * components whose code starts with the configured prefix (default 'aoi').
+ */
+export interface DRCEAoIBreakdownSection extends DRCESectionBase {
+  type:  'aoi_breakdown';
+  /** Component code prefix to filter (default 'aoi'). */
+  componentPrefix?: string;
+  style: {
+    headerBackground?: string;
+    accentColor?:      string;
+    fontSize?:         number;
+  };
+}
+
+/**
+ * Student-level generic skills (Communication, Collaboration, ICT, …).
+ * Reads `student.genericSkills[]`. Storage lands in a future CAFE phase;
+ * until then this section renders a placeholder row explaining what will
+ * appear when data exists.
+ */
+export interface DRCESkillsBlockSection extends DRCESectionBase {
+  type:  'skills_block';
+  /** Optional title row above the skills list. */
+  heading?: string;
+  /** Whitelist of skill codes (Communication, Collaboration, …); empty =
+   *  show all available. */
+  skillCodes?: string[];
+  style: {
+    headerBackground?: string;
+    rowBorder?:        string;
+    fontSize?:         number;
+  };
+}
+
+/**
+ * Student-level project portfolio. Reads `student.projects[]`. Renders a
+ * placeholder when no project data is present (Phase 5+ storage).
+ */
+export interface DRCEProjectOutcomesSection extends DRCESectionBase {
+  type:  'project_outcomes';
+  heading?: string;
+  /** When true, render a thumbnail / link for each project's evidence
+   *  attachment (Phase 5+). For now, render the descriptor text. */
+  showEvidence?: boolean;
+  style: {
+    headerBackground?: string;
+    accentColor?:      string;
+    fontSize?:         number;
+  };
+}
+
+/**
+ * Free-form narrative paragraph — like a banner but multi-line and
+ * bindable to any data path. Useful for headteacher remarks, programme
+ * descriptions, or competency-narrative reports.
+ */
+export interface DRCENarrativeBlockSection extends DRCESectionBase {
+  type:  'narrative_block';
+  /** Text body. Supports the same {binding | format} grammar as banner. */
+  content: { text: string };
+  style: {
+    background?: string;
+    color?:      string;
+    fontSize?:   number;
+    fontStyle?:  'normal' | 'italic';
+    textAlign?:  'left' | 'center' | 'right' | 'justify';
+    padding?:    string;
+    borderLeft?: string;
+    lineHeight?: number;
+  };
+}
+
 export type DRCESection =
   | DRCEHeaderSection
   | DRCEBannerSection
@@ -753,7 +878,14 @@ export type DRCESection =
   | DRCEShapeSection
   | DRCEHeaderBlockSection
   | DRCEBlockRefSection
-  | DRCETableSection;
+  | DRCETableSection
+  // CAFE Phase 4
+  | DRCECompetencyTableSection
+  | DRCEDescriptorGridSection
+  | DRCEAoIBreakdownSection
+  | DRCESkillsBlockSection
+  | DRCEProjectOutcomesSection
+  | DRCENarrativeBlockSection;
 
 // ─── Document Metadata ────────────────────────────────────────────────────────
 

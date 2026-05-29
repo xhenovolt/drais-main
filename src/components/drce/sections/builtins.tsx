@@ -36,6 +36,13 @@ import { ShapeSection, defaultShapeSection } from './ShapeSection';
 import { HeaderBlockSection, defaultHeaderBlock } from './HeaderBlockSection';
 import { BlockRefSection, defaultBlockRef } from './BlockRefSection';
 import { TableSection, defaultTable } from './TableSection';
+// CAFE Phase 4
+import { CompetencyTableSection, defaultCompetencyTable } from './CompetencyTableSection';
+import { DescriptorGridSection, defaultDescriptorGrid }   from './DescriptorGridSection';
+import { AoIBreakdownSection, defaultAoIBreakdown }       from './AoIBreakdownSection';
+import { SkillsBlockSection, defaultSkillsBlock }         from './SkillsBlockSection';
+import { ProjectOutcomesSection, defaultProjectOutcomes } from './ProjectOutcomesSection';
+import { NarrativeBlockSection, defaultNarrativeBlock }   from './NarrativeBlockSection';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -276,4 +283,66 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <NextTermBeginsSection section={p.section as any} nextTermBegins={p.dataCtx.meta.nextTermBegins} />) as any,
+});
+
+// ─── CAFE Phase 4 — competency-aware section types ──────────────────────────
+
+registerSection({
+  type:  'competency_table',
+  label: 'Competency Table',
+  icon:  '🧮',
+  description: 'Subjects × components grid showing grade codes. Reads result.components from the snapshot — perfect for NLSC competency reports.',
+  defaultProps: defaultCompetencyTable,
+  Render: ((p: SectionRenderProps) =>
+    <CompetencyTableSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
+});
+
+registerSection({
+  type:  'descriptor_grid',
+  label: 'Descriptor Grid',
+  icon:  '📋',
+  description: 'Same grid as Competency Table but renders descriptor text per cell — for narrative competency reports.',
+  defaultProps: defaultDescriptorGrid,
+  Render: ((p: SectionRenderProps) =>
+    <DescriptorGridSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
+});
+
+registerSection({
+  type:  'aoi_breakdown',
+  label: 'AoI Breakdown',
+  icon:  '🎯',
+  description: 'Activity-of-Integration breakdown — competency components whose code matches the configured prefix (default "aoi").',
+  defaultProps: defaultAoIBreakdown,
+  Render: ((p: SectionRenderProps) =>
+    <AoIBreakdownSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
+});
+
+registerSection({
+  type:  'skills_block',
+  label: 'Generic Skills',
+  icon:  '🌟',
+  description: 'Student-level generic competencies (Communication · Collaboration · ICT · …). Storage is a future CAFE phase; renders a placeholder until data exists.',
+  defaultProps: defaultSkillsBlock,
+  Render: ((p: SectionRenderProps) =>
+    <SkillsBlockSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
+});
+
+registerSection({
+  type:  'project_outcomes',
+  label: 'Project Outcomes',
+  icon:  '🏆',
+  description: 'Integrated project portfolio — title, descriptor, outcome, evidence link. Storage is a future CAFE phase; renders a placeholder until data exists.',
+  defaultProps: defaultProjectOutcomes,
+  Render: ((p: SectionRenderProps) =>
+    <ProjectOutcomesSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
+});
+
+registerSection({
+  type:  'narrative_block',
+  label: 'Narrative',
+  icon:  '✍️',
+  description: 'Multi-line paragraph bindable to any data path. Useful for head-teacher remarks and narrative competency summaries.',
+  defaultProps: defaultNarrativeBlock,
+  Render: ((p: SectionRenderProps) =>
+    <NarrativeBlockSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
 });

@@ -40,10 +40,11 @@ export interface BindingEntry {
  * student.genericSkill.*.
  */
 const CAFE_BINDINGS: BindingEntry[] = [
+  // CAFE Phase 4 — framework bindings now live (snapshot adapter populates).
   { group: 'CAFE — Framework', binding: 'student.cafe.frameworkName', label: 'Active framework name',
-    comingSoon: true, hint: 'Name of the assessment framework assigned to this learner\'s class for the term.' },
+    hint: 'Name of the assessment framework assigned to this learner\'s class for the term.' },
   { group: 'CAFE — Framework', binding: 'student.cafe.frameworkMode', label: 'Framework mode',
-    comingSoon: true, hint: 'numeric · rubric · descriptor · mixed.' },
+    hint: 'numeric · rubric · descriptor · mixed.' },
   // CAFE Phase 2 — these are live bindings now. Snapshot adapter populates
   // them when component data exists for the (student, subject).
   { group: 'CAFE — Components', binding: 'result.components',  label: 'All components (array)',

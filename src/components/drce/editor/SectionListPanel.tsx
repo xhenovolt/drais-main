@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { DRCESection, DRCEMutation, DRCEContainerSection } from '@/lib/drce/schema';
 import { newSectionId, newFieldId, newColumnId, newItemId, newShapeId } from '@/lib/drce/ids';
+import { getSectionPlugin } from '@/lib/drce/section-registry';
 
 interface Props {
   sections: DRCESection[];
@@ -45,6 +46,13 @@ const SECTION_LABELS: Record<string, string> = {
   header_block: 'Header block',
   block_ref:    'Shared block',
   table:        'Table',
+  // CAFE Phase 4
+  competency_table:  'Competency Table',
+  descriptor_grid:   'Descriptor Grid',
+  aoi_breakdown:     'AoI Breakdown',
+  skills_block:      'Generic Skills',
+  project_outcomes:  'Project Outcomes',
+  narrative_block:   'Narrative',
 };
 
 const SECTION_ICONS: Record<string, string> = {
@@ -64,6 +72,13 @@ const SECTION_ICONS: Record<string, string> = {
   header_block: '🧩',
   block_ref:    '📚',
   table:        '🧮',
+  // CAFE Phase 4
+  competency_table:  '🧮',
+  descriptor_grid:   '📋',
+  aoi_breakdown:     '🎯',
+  skills_block:      '🌟',
+  project_outcomes:  '🏆',
+  narrative_block:   '✍️',
 };
 
 function SortableItem({
@@ -145,6 +160,13 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     { type: 'shape',         label: 'Shape',         icon: '⬛' },
     { type: 'block_ref',     label: 'Shared block',  icon: '📚' },
     { type: 'table',         label: 'Table (grid)',  icon: '🧮' },
+    // CAFE Phase 4 — competency-aware sections
+    { type: 'competency_table', label: 'Competency Table',  icon: '🧮' },
+    { type: 'descriptor_grid',  label: 'Descriptor Grid',   icon: '📋' },
+    { type: 'aoi_breakdown',    label: 'AoI Breakdown',     icon: '🎯' },
+    { type: 'skills_block',     label: 'Generic Skills',    icon: '🌟' },
+    { type: 'project_outcomes', label: 'Project Outcomes',  icon: '🏆' },
+    { type: 'narrative_block',  label: 'Narrative',         icon: '✍️' },
   ];
 
   function buildNewSection(type: string): DRCESection {
@@ -250,8 +272,18 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
             opacity: 1, radius: 6, rotation: 0,
           },
           style: {} } as DRCESection;
-      default:
+      default: {
+        // CAFE Phase 4 + any future type: delegate to the section-registry's
+        // declared defaultProps so adding a new section variant requires
+        // editing only `sections/builtins.tsx`, not this palette switch.
+        try {
+          const reg = getSectionPlugin(type);
+          if (reg?.defaultProps) {
+            return { ...base, ...reg.defaultProps() } as DRCESection;
+          }
+        } catch { /* registry not loaded; fall through */ }
         return { ...base, type: 'spacer', style: { height: 16 } } as DRCESection;
+      }
     }
   }
 

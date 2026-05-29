@@ -129,7 +129,25 @@ export function snapshotToDRCEDataContext(
   // binding lookups safe when the school has no custom fields yet.
   const customForStudent = snapshot.customValues?.[stu.studentDbId] ?? {};
 
-  const student: DRCEStudentData = {
+  // CAFE Phase 4 — surface framework metadata as `student.cafe.*` bindings.
+  // Inferred from the presence of components on this student's results:
+  // if any result has components, this learner was assessed under a CAFE
+  // framework. The framework's name/mode aren't yet stored on the snapshot
+  // itself, so we derive a sensible label from the snapshot config and the
+  // observed component count. Phase 5 will persist the resolved framework
+  // on the snapshot at generation time so this becomes authoritative.
+  const hasCAFEData = stu.results.some(r => (r as { components?: unknown[] }).components?.length);
+  const cafe = hasCAFEData
+    ? {
+        frameworkName: 'CAFE Framework',  // overwritten below if config.cafeFrameworkName set
+        frameworkMode: snapshot.config?.rankingMode === 'none' ? 'descriptor' : 'mixed',
+      }
+    : null;
+  const cfgCafe = (snapshot.config as unknown as { cafeFrameworkName?: string; cafeFrameworkMode?: string });
+  if (cafe && cfgCafe?.cafeFrameworkName) cafe.frameworkName = cfgCafe.cafeFrameworkName;
+  if (cafe && cfgCafe?.cafeFrameworkMode) cafe.frameworkMode = cfgCafe.cafeFrameworkMode;
+
+  const student: DRCEStudentData & { cafe?: { frameworkName: string; frameworkMode: string } } = {
     fullName:    stu.name,
     firstName:   stu.firstName,
     lastName:    stu.lastName,
@@ -140,6 +158,7 @@ export function snapshotToDRCEDataContext(
     photoUrl:    stu.photoUrl,
     dateOfBirth: null,
     custom:      customForStudent,
+    ...(cafe ? { cafe } : {}),
   };
 
   const assessment: DRCEAssessmentData = {
