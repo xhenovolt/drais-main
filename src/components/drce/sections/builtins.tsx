@@ -34,6 +34,7 @@ import { ContainerSection, defaultContainer } from './ContainerSection';
 import { ShapeSection, defaultShapeSection } from './ShapeSection';
 import { HeaderBlockSection, defaultHeaderBlock } from './HeaderBlockSection';
 import { BlockRefSection, defaultBlockRef } from './BlockRefSection';
+import { TableSection, defaultTable } from './TableSection';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -201,6 +202,16 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <DividerSection section={p.section as any} />) as any,
+});
+
+registerSection({
+  type:  'table',
+  label: 'Table',
+  icon:  '🧮',
+  description: 'Spreadsheet-style DataGrid with per-cell editing, formulas (=SUM, =AVG, =IF), and arbitrary dataSource binding.',
+  defaultProps: defaultTable,
+  Render: ((p: SectionRenderProps) =>
+    <TableSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
 });
 
 registerSection({

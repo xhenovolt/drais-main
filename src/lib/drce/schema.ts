@@ -21,7 +21,8 @@ export type DRCESectionType =
   | 'container'    // Phase C — composition primitive holding child sections
   | 'shape'        // Phase C.2 — shape as section so it can live INSIDE a container
   | 'header_block' // Phase E — one header element (logo, name, motto, QR …)
-  | 'block_ref';   // Phase H — reference to a shared block in drce_blocks
+  | 'block_ref'    // Phase H — reference to a shared block in drce_blocks
+  | 'table';       // X4 — spreadsheet-style DataGrid with formulas + dataSource
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -619,6 +620,80 @@ export interface DRCEBlockRefSection extends DRCESectionBase {
   block_id: number;
 }
 
+// ─── Table (X4 — DataGrid with formulas, dataSource, merge) ───────────────────
+
+export interface DRCETableColumn {
+  id:     string;
+  header: string;
+  /** CSS width — '20%' or '120px'. */
+  width:  string;
+  align?: 'left' | 'center' | 'right';
+  /** Default binding for every cell in this column when no per-cell override. */
+  binding?: string;
+  /** Display formatter applied through resolveExpression pipes (e.g. 'number:"#,##0.0"'). */
+  format?:  string;
+}
+
+export interface DRCETableCellOverride {
+  /** Static literal — wins over binding/formula. */
+  value?:   string | number | boolean | null;
+  /** Tokenisable expression — resolved through resolveExpression. */
+  binding?: string;
+  /** Formula expression — e.g. '=SUM(B2:B12)'. */
+  formula?: string;
+  /** Per-cell display formatter (overrides column.format). E.g. 'number:"#,##0.0"'. */
+  format?:  string;
+  /** Span this cell across N columns to the right. */
+  mergeRight?: number;
+  /** Span this cell down N rows. */
+  mergeDown?:  number;
+  /** Style overrides for this single cell. */
+  style?: DRCEColumnStyle;
+}
+
+export interface DRCETableTotals {
+  enabled: boolean;
+  label?:  string;
+  /** Column ids whose cells are summed. */
+  sumColumnIds: string[];
+}
+
+export interface DRCETableStyle {
+  headerBackground?:      string;
+  headerBorder?:          string;
+  rowBorder?:             string;
+  headerFontSize?:        number;
+  rowFontSize?:           number;
+  headerTextTransform?:   'uppercase' | 'none' | 'capitalize';
+  padding?:               number;
+  stripe?:                string;   // alternating-row background
+}
+
+export interface DRCETableSection extends DRCESectionBase {
+  type:    'table';
+  /** Column definitions; left-to-right ordering. */
+  columns: DRCETableColumn[];
+  /**
+   * Either an expression resolving to an array (the dataSource) — each
+   * element becomes a row — OR an explicit row count for a static grid.
+   * When dataSource is set, `staticRowCount` is ignored.
+   *
+   * Examples: 'results' · 'subjects' · 'meta.calendar.upcoming'
+   */
+  dataSource?:      string;
+  /** For "blank spreadsheet" tables that don't iterate over a collection. */
+  staticRowCount?:  number;
+  /**
+   * Sparse per-cell overrides. Key format: `${rowKey}:${columnId}`.
+   * rowKey is the row index (0-based) for dataSource-driven tables, or
+   * 'r0', 'r1', … for static tables. Cells without an override fall back
+   * to `column.binding`.
+   */
+  cells?: Record<string, DRCETableCellOverride>;
+  totals?: DRCETableTotals;
+  style:   DRCETableStyle;
+}
+
 export type DRCESection =
   | DRCEHeaderSection
   | DRCEBannerSection
@@ -634,7 +709,8 @@ export type DRCESection =
   | DRCEContainerSection
   | DRCEShapeSection
   | DRCEHeaderBlockSection
-  | DRCEBlockRefSection;
+  | DRCEBlockRefSection
+  | DRCETableSection;
 
 // ─── Document Metadata ────────────────────────────────────────────────────────
 

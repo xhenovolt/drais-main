@@ -43,6 +43,7 @@ const SECTION_LABELS: Record<string, string> = {
   shape:        'Shape',
   header_block: 'Header block',
   block_ref:    'Shared block',
+  table:        'Table',
 };
 
 const SECTION_ICONS: Record<string, string> = {
@@ -61,6 +62,7 @@ const SECTION_ICONS: Record<string, string> = {
   shape:        '⬛',
   header_block: '🧩',
   block_ref:    '📚',
+  table:        '🧮',
 };
 
 function SortableItem({
@@ -141,6 +143,7 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     { type: 'container',     label: 'Container',     icon: '🧱' },
     { type: 'shape',         label: 'Shape',         icon: '⬛' },
     { type: 'block_ref',     label: 'Shared block',  icon: '📚' },
+    { type: 'table',         label: 'Table (grid)',  icon: '🧮' },
   ];
 
   function buildNewSection(type: string): DRCESection {
@@ -226,6 +229,16 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
           style: { fontSize: 16, fontWeight: 'bold', align: 'center' } } as DRCESection;
       case 'block_ref':
         return { ...base, type: 'block_ref', block_id: 0 } as DRCESection;
+      case 'table':
+        return { ...base, type: 'table',
+          columns: [
+            { id: 'col-1', header: 'Column A', width: '50%', align: 'left'  },
+            { id: 'col-2', header: 'Column B', width: '50%', align: 'right' },
+          ],
+          staticRowCount: 3, cells: {},
+          style: { headerBackground: '#e5e7eb', headerBorder: '1px solid #ccc',
+            rowBorder: '1px solid #ddd', headerFontSize: 11, rowFontSize: 11,
+            padding: 4 } } as DRCESection;
       case 'shape':
         return { ...base, type: 'shape',
           shape: {

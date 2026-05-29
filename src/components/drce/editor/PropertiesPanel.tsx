@@ -21,6 +21,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { TablePropertiesPanel } from './TablePropertiesPanel';
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
@@ -1965,6 +1966,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       case 'shape':         return <ShapePanel         section={selectedSection as DRCESection & { type: 'shape' }}         onMutate={onMutate} />;
       case 'header_block':  return <HeaderBlockPanel   section={selectedSection as DRCESection & { type: 'header_block' }}  onMutate={onMutate} />;
       case 'block_ref':     return <BlockRefPanel      section={selectedSection as DRCESection & { type: 'block_ref' }}     onMutate={onMutate} />;
+      case 'table':         return <TablePropertiesPanel section={selectedSection as DRCESection & { type: 'table' }}        onMutate={onMutate} />;
       default:              return (
         <div className="p-4 text-center text-xs text-gray-400">
           <p>No properties for</p>
