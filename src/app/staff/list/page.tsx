@@ -10,8 +10,10 @@ import { showToast, confirmAction } from '@/lib/toast';
 import AddStaffModal from '@/components/staff/AddStaffModal';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 import StaffBiometricModal from '@/components/staff/StaffBiometricModal';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const StaffListPage: React.FC = () => {
+  const { t } = useI18n();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -185,10 +187,10 @@ const StaffListPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              👥 Staff List
+              👥 {t('nav.staff.list')}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {staff.length} staff members
+              {staff.length} {t('people.staff')}
             </p>
           </div>
           <button
@@ -215,7 +217,7 @@ const StaffListPage: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search staff..."
+                placeholder={t('nav.staff.list')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
@@ -227,7 +229,7 @@ const StaffListPage: React.FC = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Status</option>
+              <option value="">{`${t('common.all')} — ${t('common.status')}`}</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="suspended">Suspended</option>
@@ -238,7 +240,7 @@ const StaffListPage: React.FC = () => {
               onChange={(e) => setDepartmentFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Departments</option>
+              <option value="">{`${t('common.all')} — ${t('orgUnits.departments')}`}</option>
               {departments.map((dept: any) => (
                 <option key={dept.id} value={dept.id}>{dept.name}</option>
               ))}
@@ -441,7 +443,7 @@ const StaffListPage: React.FC = () => {
                                 handleViewDetails(member);
                               }}
                               className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
-                              title="Edit"
+                              title={t('actions.edit')}
                             >
                               <Edit className="w-4 h-4" />
                             </button>
@@ -451,7 +453,7 @@ const StaffListPage: React.FC = () => {
                                 handleDeleteStaff(member.id, `${member.first_name} ${member.last_name}`);
                               }}
                               className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
-                              title="Delete"
+                              title={t('actions.delete')}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

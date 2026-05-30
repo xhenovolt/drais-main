@@ -9,6 +9,7 @@ import { showToast } from '@/lib/toast';
 import useSWR from 'swr';
 import { apiFetch } from '@/lib/apiClient';
 import { useDropzone } from 'react-dropzone';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AddStaffModalProps {
   open: boolean;
@@ -17,6 +18,7 @@ interface AddStaffModalProps {
 }
 
 const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess }) => {
+  const { t } = useI18n();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     // Personal Info
@@ -277,7 +279,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
               errors.first_name ? 'border-red-500' : 'border-gray-300'
             }`}
-            placeholder="Enter first name"
+            placeholder={t('fields.firstName')}
           />
           {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name}</p>}
         </div>
@@ -293,7 +295,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
               errors.last_name ? 'border-red-500' : 'border-gray-300'
             }`}
-            placeholder="Enter last name"
+            placeholder={t('fields.lastName')}
           />
           {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name}</p>}
         </div>
@@ -347,7 +349,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             value={formData.phone}
             onChange={(e) => handleInputChange('phone', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter phone number"
+            placeholder={t('fields.phone')}
           />
         </div>
 
@@ -362,7 +364,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
               errors.email ? 'border-red-500' : 'border-gray-300'
             }`}
-            placeholder="Enter email address"
+            placeholder={t('fields.email')}
           />
           {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
         </div>
@@ -376,7 +378,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             onChange={(e) => handleInputChange('address', e.target.value)}
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter home address"
+            placeholder={t('fields.address')}
           />
         </div>
       </div>
@@ -724,7 +726,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add New Staff</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.staff.add')}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Step {currentStep + 1} of {steps.length}: {steps[currentStep].title}
             </p>
