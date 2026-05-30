@@ -10,24 +10,54 @@ import {
 } from 'lucide-react';
 import StaffPhotoModal from '@/components/staff/StaffPhotoModal';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
+// Label/section title ↔ dictionary key map. Same pattern as students/[id].
+const LABEL_KEYS: Record<string, string> = {
+  // Section titles
+  'Personal Information':     'common.details',
+  'Professional Information': 'fields.position',
+  'Contact Information':      'fields.phone',
+  'Organization Information': 'orgUnits.department',
+  // Field labels
+  'Gender':       'fields.gender',
+  'Date of Birth':'fields.dateOfBirth',
+  'Phone':        'fields.phone',
+  'Email':        'fields.email',
+  'Address':      'fields.address',
+  'Position':     'fields.position',
+  'Department':   'fields.department',
+  'Hire Date':    'fields.hireDate',
+  'Qualification':'fields.qualification',
+  'Staff ID':     'fields.staffId',
+  'Status':       'common.status',
+};
+function translateLabel(t: (k: string) => string, label: string): string {
+  const key = LABEL_KEYS[label];
+  if (!key) return label;
+  const tr = t(key);
+  return tr === key ? label : tr;
+}
+
 function Field({ label, value }: { label: string; value?: string | null }) {
+  const { t } = useI18n();
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{label}</p>
+      <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{translateLabel(t, label)}</p>
       <p className="text-sm text-slate-700 dark:text-slate-200 mt-0.5">{value || '—'}</p>
     </div>
   );
 }
 
 function Section({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm space-y-4">
       <div className="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
         <Icon className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-        <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{translateLabel(t, title)}</h2>
       </div>
       {children}
     </div>

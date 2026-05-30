@@ -4,8 +4,10 @@ import { UserPlus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import AddStaffModal from '@/components/staff/AddStaffModal';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const AddStaffPage: React.FC = () => {
+  const { t } = useI18n();
   const [modalOpen, setModalOpen] = useState(true);
   const router = useRouter();
 
@@ -28,13 +30,13 @@ const AddStaffPage: React.FC = () => {
             className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Staff
+            {t('common.back')}
           </Link>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            👤 Add New Staff Member
+            👤 {t('nav.staff.add')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Complete the staff registration process
+            {t('common.details')}
           </p>
         </div>
 
