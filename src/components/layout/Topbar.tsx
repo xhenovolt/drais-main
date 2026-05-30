@@ -1,13 +1,36 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Menu, Bell, Cloud, CloudOff, Wifi, WifiOff, Check, CheckCheck, Loader, AlertCircle, Trash2, Loader2 } from 'lucide-react';
+import { Menu, Bell, Cloud, CloudOff, Wifi, WifiOff, Check, CheckCheck, Loader, AlertCircle, Trash2, Loader2, Globe } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { ProfileDropdown } from '@/components/ui/ProfileDropdown';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
+
+/** Compact language toggle. EN ⇄ AR single-click — no dropdown, no fluff.
+ *  Calls into the same I18nProvider used everywhere else, so toggling here
+ *  flips <html dir>, persists via useThemeStore, and re-renders every t()
+ *  consumer in place. */
+function LanguageToggle() {
+  const { lang, setLang } = useI18n();
+  const next = lang === 'ar' ? 'en' : 'ar';
+  return (
+    <button
+      onClick={() => setLang(next)}
+      title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+      aria-label="Toggle language"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
+    >
+      <Globe className="w-4 h-4" />
+      <span className="text-xs font-semibold tracking-wide">
+        {lang === 'ar' ? 'العربية' : 'EN'}
+      </span>
+    </button>
+  );
+}
 
 /** Small badge shown in the navbar indicating Cloudinary connection status. */
 function CloudinaryBadge() {
@@ -349,6 +372,9 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
 
           {/* Notification Bell */}
           <NotificationBell />
+
+          {/* Language Toggle — EN ⇄ AR, single click */}
+          <LanguageToggle />
 
           {/* Profile Dropdown */}
           <ProfileDropdown />
