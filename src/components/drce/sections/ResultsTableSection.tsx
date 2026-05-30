@@ -261,8 +261,11 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
               let cellContent: React.ReactNode = '';
 
               if (isFirstCol) {
-                // Show TOTAL label in the first column
-                cellContent = totalsConfig?.labelText ?? 'TOTAL';
+                // Show TOTAL label in the first column. The school-configured
+                // labelText takes precedence (dynamic content); the fallback
+                // localises so AR-mode reports don't show a stray English
+                // 'TOTAL' next to Arabic data.
+                cellContent = totalsConfig?.labelText ?? (language === 'ar' ? 'المجموع' : 'TOTAL');
               } else {
                 // Determine what to show based on column type and configuration
                 const header = col.header.toLowerCase();

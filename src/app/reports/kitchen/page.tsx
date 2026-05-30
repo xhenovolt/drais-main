@@ -65,7 +65,11 @@ const PREVIEW_DATA: DRCEDataContext = {
   },
 };
 
-const PREVIEW_RENDER: DRCERenderContext = {
+// Static portion of the preview context. The `language` and `isRTL` fields
+// are merged in at the call site so the live preview honours whatever
+// language the user has selected (Topbar language toggle ⇄ Settings →
+// Appearance card ⇄ MobileDrawer).
+const PREVIEW_RENDER_BASE: Omit<DRCERenderContext, 'language' | 'isRTL'> = {
   school: {
     name:            'DRAIS Model School',
     arabic_name:     'مدرسة درايس النموذجية',
@@ -81,9 +85,18 @@ const PREVIEW_RENDER: DRCERenderContext = {
 // Scaled-down live preview of a DRCE document
 // ============================================================================
 function DocMiniPreview({ doc }: { doc: DRCEDocument }) {
+  const { lang } = useI18n();
   const CARD_W = 280;
   const DOC_W  = 794; // A4 portrait px baseline
   const scale  = CARD_W / DOC_W;
+
+  // Inherit the user's active language so card previews flip whenever they
+  // toggle the Topbar language switcher. Falls back to 'en' on first paint.
+  const renderCtx: DRCERenderContext = {
+    ...PREVIEW_RENDER_BASE,
+    language: lang === 'ar' ? 'ar' : 'en',
+    isRTL: lang === 'ar',
+  };
 
   return (
     <div style={{ width: CARD_W, height: 200, overflow: 'hidden', position: 'relative', background: '#f5f5f5' }}>
@@ -97,7 +110,7 @@ function DocMiniPreview({ doc }: { doc: DRCEDocument }) {
         <DRCEDocumentRenderer
           document={doc}
           dataCtx={PREVIEW_DATA}
-          renderCtx={PREVIEW_RENDER}
+          renderCtx={renderCtx}
         />
       </div>
     </div>
@@ -109,7 +122,7 @@ function DocMiniPreview({ doc }: { doc: DRCEDocument }) {
 // MAIN: Kitchen Page — manages dvcf_documents directly
 // ============================================================================
 export default function ReportsKitchen() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const router = useRouter();
   const [documents, setDocuments] = useState<DRCEDocument[]>([]);
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
@@ -528,7 +541,11 @@ export default function ReportsKitchen() {
                 <DRCEDocumentRenderer
                   document={previewDoc}
                   dataCtx={PREVIEW_DATA}
-                  renderCtx={PREVIEW_RENDER}
+                  renderCtx={{
+                    ...PREVIEW_RENDER_BASE,
+                    language: lang === 'ar' ? 'ar' : 'en',
+                    isRTL: lang === 'ar',
+                  }}
                 />
               </div>
             </div>

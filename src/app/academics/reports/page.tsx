@@ -147,7 +147,7 @@ const TeacherInitialsContext = createContext<TeacherInitialsContextType | null>(
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 
 const ReportsPage = () => {
-  const { t } = useI18n();
+  const { t, lang: appLang } = useI18n();
   const [filters, setFilters] = useState<Filters>({ term: '', resultType: '', classId: '', student: '', academicYearId: '' });
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [termsData, setTermsData] = useState<Term[]>([]);
@@ -218,7 +218,11 @@ const ReportsPage = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [activeDrceDoc, setActiveDrceDoc] = useState<DRCEDocument | null>(null);
   const [curriculum, setCurriculum] = useState<'all' | 'secular' | 'theology'>('all');
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ar'>('en');
+  // Default the rendered-document language to whatever the user has currently
+  // selected app-wide. Schools that print exclusively in Arabic don't have to
+  // re-toggle this dropdown on every page load; they can still override it
+  // per render via the dropdown below if they want a one-off English copy.
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ar'>(appLang === 'ar' ? 'ar' : 'en');
 
   // Fetch all available DRCE templates
   useEffect(() => {
