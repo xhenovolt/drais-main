@@ -8,6 +8,7 @@ import {
 import clsx from 'clsx';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(r => r.json());
 
@@ -31,6 +32,7 @@ interface Term {
 // ─── Modals ─────────────────────────────────────────────────────────────────
 
 function YearModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({ name: '', start_date: '', end_date: '', status: 'draft' });
   const [saving, setSaving] = useState(false);
 
@@ -57,7 +59,7 @@ function YearModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="font-bold text-slate-900 dark:text-white text-lg">New Academic Year</h2>
+          <h2 className="font-bold text-slate-900 dark:text-white text-lg">{`${t('actions.addNew')} — ${t('academicTime.academicYear')}`}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X className="w-4 h-4 text-slate-500" />
           </button>
@@ -108,6 +110,7 @@ function YearModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
 }
 
 function TermModal({ yearId, yearName, onClose, onSaved }: { yearId: number; yearName: string; onClose: () => void; onSaved: () => void }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({ name: '', start_date: '', end_date: '', status: 'draft' });
   const [saving, setSaving] = useState(false);
 
@@ -135,7 +138,7 @@ function TermModal({ yearId, yearName, onClose, onSaved }: { yearId: number; yea
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <h2 className="font-bold text-slate-900 dark:text-white text-lg">Add Term</h2>
+            <h2 className="font-bold text-slate-900 dark:text-white text-lg">{`${t('common.add')} — ${t('academicTime.term')}`}</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{yearName}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -207,6 +210,7 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function AcademicYearsPage() {
+  const { t } = useI18n();
   const { data: yearsData, isLoading: yearsLoading, mutate: mutateYears } = useSWR('/api/academic_years', fetcher);
   const { data: termsData, mutate: mutateTerms } = useSWR('/api/terms', fetcher);
 
@@ -265,10 +269,10 @@ export default function AcademicYearsPage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <CalendarDays className="w-6 h-6 text-[var(--color-primary)]" />
-              Academic Years
+              {t('academicTime.academicYears')}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Create academic years and manage their terms. Set one year as active.
+              {`${t('academicTime.currentAcademicYear')} · ${t('academicTime.terms')}`}
             </p>
           </div>
           <button

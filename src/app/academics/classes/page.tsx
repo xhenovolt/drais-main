@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, X, BookOpen, GraduationCap, Users, User, UserCog 
 import { confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import ClassTeacherModal from '@/components/academics/ClassTeacherModal';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const API_BASE = '/api';
 
@@ -197,6 +198,7 @@ function ClassModal({ open, onClose, onSave, edit, curriculums, programs, teache
 }
 
 export default function ClassesCurriculumsPage() {
+  const { t } = useI18n();
   const currSWR  = useSWR(`${API_BASE}/curriculums`);
   const classSWR = useSWR(`${API_BASE}/classes`);
   const progSWR  = useSWR(`${API_BASE}/programs`);
@@ -263,7 +265,7 @@ export default function ClassesCurriculumsPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-7xl">
-      <h1 className="text-xl font-bold text-slate-800 dark:text-white mb-1">Classes, Programs & Curriculums</h1>
+      <h1 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{`${t('orgUnits.classes')} — ${t('academic.curriculum')}`}</h1>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
         A <strong>Program</strong> is an academic track (Secular, Theology, Tahfiz). A <strong>Class</strong> belongs to a program and has a class teacher. A <strong>Curriculum</strong> is the governing standard (UNEB, Cambridge).
       </p>
