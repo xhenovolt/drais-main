@@ -16,6 +16,7 @@ import { getSubjectName } from '@/templates/DualCurriculumTemplate';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
 import type { DRCEDocument, DRCEDataContext } from '@/lib/drce/schema';
 import type { DRCERenderContext } from '@/components/drce/types';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // Type definitions
 interface Student {
@@ -146,6 +147,7 @@ const TeacherInitialsContext = createContext<TeacherInitialsContextType | null>(
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 
 const ReportsPage = () => {
+  const { t } = useI18n();
   const [filters, setFilters] = useState<Filters>({ term: '', resultType: '', classId: '', student: '', academicYearId: '' });
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [termsData, setTermsData] = useState<Term[]>([]);
@@ -1131,9 +1133,9 @@ const ReportsPage = () => {
               value={filters.academicYearId}
               onChange={(e) => setFilters((f) => ({ ...f, academicYearId: e.target.value, term: '' }))}
               className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              title="Filter by academic year"
+              title={`${t('actions.filter')} — ${t('academicTime.academicYear')}`}
             >
-              <option value="">All Years</option>
+              <option value="">{`${t('common.all')} — ${t('academicTime.academicYears')}`}</option>
               {academicYears.map((ay) => (
                 <option key={ay.id} value={ay.id}>
                   {ay.name} {ay.status === 'active' ? '(Current)' : ''}
@@ -1146,7 +1148,7 @@ const ReportsPage = () => {
               onChange={(e) => setFilters((f) => ({ ...f, term: e.target.value }))}
               className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             >
-              <option value="">All Terms</option>
+              <option value="">{`${t('common.all')} — ${t('academicTime.terms')}`}</option>
             {filteredTerms.length > 0
               ? filteredTerms.map((t) => (
                   <option key={t.id} value={t.name}>
@@ -1166,7 +1168,7 @@ const ReportsPage = () => {
             onChange={(e) => setFilters((f) => ({ ...f, resultType: e.target.value }))}
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           >
-            <option value="">All Result Types</option>
+            <option value="">{`${t('common.all')} — ${t('academic.resultTypes')}`}</option>
             {[...new Set(allResults.map((r) => r.result_type_name || r.results_type))]
               .filter(Boolean)
               .map((rt) => (
@@ -1181,7 +1183,7 @@ const ReportsPage = () => {
             onChange={(e) => setFilters((f) => ({ ...f, classId: e.target.value }))}
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           >
-            <option value="">All Classes</option>
+            <option value="">{`${t('common.all')} — ${t('orgUnits.classes')}`}</option>
             {[...new Set(
               allStudents.length
                 ? allStudents.map((s) => s.class_name || s.class_id)
@@ -1203,7 +1205,7 @@ const ReportsPage = () => {
           <input
             value={filters.student}
             onChange={(e) => setFilters((f) => ({ ...f, student: e.target.value }))}
-            placeholder="Search student..."
+            placeholder={t('people.student')}
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-w-[160px]"
           />
 
@@ -1215,10 +1217,10 @@ const ReportsPage = () => {
               setSelectedTemplateId(key);
             }}
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-            title="Select report template"
+            title={t('drce.template')}
           >
             {availableDrceTemplates.length === 0 ? (
-              <option value="">Loading templates...</option>
+              <option value="">{t('common.loading')}</option>
             ) : (
               availableDrceTemplates.map(template => (
                 <option key={template.meta.id} value={template.meta.template_key || template.meta.id}>
@@ -1233,7 +1235,7 @@ const ReportsPage = () => {
             value={curriculum}
             onChange={(e) => setCurriculum(e.target.value as 'all' | 'secular' | 'theology')}
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            title="Filter by curriculum"
+            title={`${t('actions.filter')} — ${t('academic.curriculum')}`}
           >
             <option value="all">All Subjects</option>
             <option value="secular">Secular Only</option>
@@ -1245,7 +1247,7 @@ const ReportsPage = () => {
             value={selectedLanguage === 'ar' ? 'Arabic' : 'English'}
             onChange={(e) => setSelectedLanguage(e.target.value === 'Arabic' ? 'ar' : 'en')}
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            title="Display language"
+            title={t('settings.language')}
           >
             <option value="English">English</option>
             <option value="Arabic">العربية</option>
@@ -1311,7 +1313,7 @@ const ReportsPage = () => {
           {!activeDrceDoc && availableDrceTemplates.length === 0 && (
             <div className="no-print text-center py-12 text-gray-500">
               <svg className="w-12 h-12 mx-auto mb-3 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              <p className="font-medium">Loading report templates...</p>
+              <p className="font-medium">{t('common.loading')}</p>
               <p className="text-sm mt-1">Please wait while we prepare the report system.</p>
             </div>
           )}
@@ -1610,7 +1612,7 @@ const ReportsPage = () => {
                         className="text-center"
                         style={{ flex: 'none', cursor: 'pointer', position: 'relative' }}
                         onClick={() => defaultLogoInputRef.current?.click()}
-                        title="Click to change logo"
+                        title={`${t('actions.edit')} — ${t('settings.logo')}`}
                       >
                         <input
                           ref={defaultLogoInputRef}
