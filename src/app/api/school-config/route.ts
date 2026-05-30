@@ -58,6 +58,9 @@ export async function GET(request: NextRequest) {
         district: info.district || '',
         website: info.website || '',
         founded_year: info.founded_year,
+        // Phase 6 — exposed so the client can hydrate I18nProvider on
+        // first sign-in. Null when the school has not chosen a default.
+        default_locale: info.default_locale,
       },
       timestamp: new Date().toISOString(),
     });
@@ -116,6 +119,7 @@ export async function POST(request: NextRequest) {
       arabic_registration_no: 'arabic_registration_no',
       arabic_motto: 'arabic_motto',
       founded_year: 'founded_year',
+      default_locale: 'default_locale',
     };
 
     const updates: string[] = [];
@@ -124,6 +128,18 @@ export async function POST(request: NextRequest) {
     // Handle flat fields
     for (const [formKey, dbCol] of Object.entries(fieldMap)) {
       if (body[formKey] !== undefined) {
+        // Phase 6 — default_locale is constrained to the ENUM. Anything
+        // outside {'en','ar',null} would either fail at the DB or silently
+        // corrupt the column to ''; coerce here before sending it on.
+        if (formKey === 'default_locale') {
+          const v = body.default_locale;
+          if (v !== 'en' && v !== 'ar' && v !== null) {
+            return NextResponse.json(
+              { success: false, error: "default_locale must be 'en', 'ar', or null" },
+              { status: 400 },
+            );
+          }
+        }
         updates.push(`${dbCol} = ?`);
         values.push(body[formKey]);
       }

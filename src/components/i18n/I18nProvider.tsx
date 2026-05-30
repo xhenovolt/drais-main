@@ -39,10 +39,37 @@ function resolveKey(dict: Dictionary, path: string | null): string | undefined {
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const lang = useThemeStore(s=>s.language);
   const setLanguage = useThemeStore(s=>s.setLanguage);
+  const languageExplicit = useThemeStore(s=>s.languageExplicit);
+  const setLanguageFromSchoolDefault = useThemeStore(s=>s.setLanguageFromSchoolDefault);
   const [dict, setDict] = useState<Dictionary>({});
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Phase 6 — once per mount, fetch the school's default_locale and apply
+   * it ONLY IF the user has never explicitly chosen a language. Failures
+   * are swallowed: not authenticated, network glitch, pre-migration row
+   * (column absent) all just leave the existing language in place.
+   */
+  useEffect(() => {
+    if (languageExplicit) return; // user choice wins
+    let cancelled = false;
+    fetch('/api/school-config')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (cancelled || !d?.success) return;
+        const def = d.school?.default_locale;
+        if ((def === 'ar' || def === 'en') && def !== lang) {
+          setLanguageFromSchoolDefault(def);
+        }
+      })
+      .catch(() => { /* silent — keep current language */ });
+    return () => { cancelled = true; };
+    // Intentionally NOT depending on `lang` — only on the explicit flag.
+    // We hydrate at most once per mount when the user is implicit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [languageExplicit]);
 
   useEffect(() => {
     let active = true;

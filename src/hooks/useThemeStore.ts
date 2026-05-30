@@ -13,6 +13,13 @@ interface ThemeState {
   sidebarPosition: "left" | "right";
   iconScale: number;
   language: "en" | "ar";
+  /**
+   * Phase 6 — has the user (or anything other than the school default
+   * hydrator) explicitly set the language at least once? When false, the
+   * I18nProvider is allowed to apply schools.default_locale on first
+   * sign-in. When true, the user's choice always wins.
+   */
+  languageExplicit: boolean;
   fontFamily?: string;
   layoutWidth?: "full" | "boxed" | "wide";
   navbarStyle?: "solid" | "glass" | "transparent";
@@ -31,6 +38,13 @@ interface ThemeState {
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
   setLanguage: (lng: string) => void;
+  /**
+   * Phase 6 — set the language WITHOUT marking it as a user-explicit
+   * choice. Used by the I18nProvider to hydrate from
+   * schools.default_locale on first sign-in. Calling setLanguage()
+   * directly always flips the explicit flag to true.
+   */
+  setLanguageFromSchoolDefault: (lng: "en" | "ar") => void;
   setSidebarPosition: (pos: "left" | "right") => void;
   setIconScale: (n: number) => void;
   setFontFamily?: (f: string) => void;
@@ -53,6 +67,7 @@ const defaultState = {
   fontScale: 1,
   sidebarCollapsed: true,
   language: "en" as const,
+  languageExplicit: false,
   sidebarPosition: "left" as const,
   iconScale: 1,
   layoutWidth: "full" as const,
@@ -85,7 +100,9 @@ const useThemeStore = create<ThemeState>()(
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
       setLanguage: (lng) => {
-        set({ language: lng });
+        // User-explicit set — wins over school default forever after.
+        const norm: 'en' | 'ar' = lng === 'ar' ? 'ar' : 'en';
+        set({ language: norm, languageExplicit: true });
         // Update document direction
         if (typeof document !== "undefined") {
           document.documentElement.dir = lng === "ar" ? "rtl" : "ltr";
@@ -93,6 +110,19 @@ const useThemeStore = create<ThemeState>()(
         }
         // Set cookie for server-side rendering
         if (typeof document !== "undefined") {
+          document.cookie = `lang=${lng}; path=/; max-age=31536000; SameSite=Strict`;
+        }
+      },
+      setLanguageFromSchoolDefault: (lng) => {
+        // School-default hydrator path. Does NOT flip languageExplicit,
+        // so the next time the user opens the app on a different device
+        // (where localStorage is empty) the school default can apply
+        // again. Once they click the Topbar toggle, setLanguage above
+        // takes over and the flag is sticky.
+        set({ language: lng });
+        if (typeof document !== "undefined") {
+          document.documentElement.dir = lng === "ar" ? "rtl" : "ltr";
+          document.documentElement.lang = lng;
           document.cookie = `lang=${lng}; path=/; max-age=31536000; SameSite=Strict`;
         }
       },

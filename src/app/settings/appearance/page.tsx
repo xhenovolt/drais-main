@@ -2,8 +2,9 @@
 import React from 'react';
 import { useThemeStore } from '@/hooks/useThemeStore';
 import { useI18n } from '@/components/i18n/I18nProvider';
-import { Sun, Moon, Monitor, Check, RotateCcw, Languages } from 'lucide-react';
+import { Sun, Moon, Monitor, Check, RotateCcw, Languages, Building2 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
+import useSWR from 'swr';
 
 const languages = [
   { code: 'en', label: 'English',  native: 'English',   flag: '🇬🇧' },
@@ -258,6 +259,9 @@ export default function AppearancePage() {
         </div>
       </section>
 
+      {/* School default language (Phase 6) */}
+      <SchoolDefaultLocaleCard lang={lang} t={t} />
+
       {/* Glass Effect Toggle */}
       <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between">
@@ -274,5 +278,91 @@ export default function AppearancePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// ─── School default language (Phase 6) ────────────────────────────────────────
+// Lets a school admin pick the language that brand-new users see on first
+// sign-in. NULL = no preference (app falls back to 'en'). User-level
+// localStorage override always wins, so picking 'ar' here will NOT yank
+// existing users out of English mid-session.
+function SchoolDefaultLocaleCard({ lang, t }: { lang: string; t: (k: string) => string }) {
+  const { data, mutate, isLoading } = useSWR<{ school: { default_locale: 'en' | 'ar' | null } }>(
+    '/api/school-config',
+    (u: string) => fetch(u).then(r => r.json()),
+  );
+  const current = data?.school?.default_locale ?? null;
+  const [saving, setSaving] = React.useState(false);
+
+  async function set(value: 'en' | 'ar' | null) {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/school-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ default_locale: value }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        showToast('error', e?.error || (lang === 'ar' ? 'فشل الحفظ' : 'Failed to save'));
+        return;
+      }
+      await mutate();
+      showToast('success', lang === 'ar' ? 'تم تحديث الإعداد المدرسي' : 'School default updated');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const options: Array<{ value: 'en' | 'ar' | null; label: string; sub: string }> = [
+    { value: null, label: lang === 'ar' ? 'بلا تفضيل' : 'No preference',
+      sub: lang === 'ar' ? 'يفترض النظام الإنجليزية' : 'Falls back to English' },
+    { value: 'en', label: 'English',  sub: lang === 'ar' ? 'لكل مستخدم جديد' : 'For every new user' },
+    { value: 'ar', label: 'العربية', sub: lang === 'ar' ? 'لكل مستخدم جديد' : 'For every new user' },
+  ];
+
+  return (
+    <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Building2 className="w-4 h-4 text-gray-500" />
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          {lang === 'ar' ? 'اللغة الافتراضية للمدرسة' : 'School default language'}
+        </h2>
+      </div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+        {lang === 'ar'
+          ? 'يُطبَّق هذا الإعداد على المستخدمين الذين لم يختاروا لغة بعد. اختيار المستخدم الشخصي يبقى محفوظًا في جهازه ولا يُغيَّر.'
+          : "Applied to users who haven't picked a language yet. Each user's personal choice stays in their browser and is never overridden."}
+      </p>
+      {isLoading ? (
+        <div className="text-xs text-gray-400">{t('common.loading')}</div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {options.map(opt => {
+            const active = current === opt.value;
+            return (
+              <button
+                key={String(opt.value)}
+                onClick={() => set(opt.value)}
+                disabled={saving || active}
+                className={`flex flex-col items-start gap-1 px-3 py-3 rounded-lg border-2 transition-all text-start ${
+                  active
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 disabled:opacity-60'
+                }`}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <span className={`text-sm font-semibold flex-1 ${active ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-900 dark:text-white'}`}>
+                    {opt.label}
+                  </span>
+                  {active && <Check className="w-4 h-4 text-indigo-600" />}
+                </div>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">{opt.sub}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

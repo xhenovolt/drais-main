@@ -27,6 +27,12 @@ export interface SchoolInfo {
   arabic_registration_no: string | null;
   arabic_motto: string | null;
   arabic_po_box: string | null;
+  /**
+   * Phase 6 — preferred operating language for first-time visitors.
+   * NULL = no preference; client falls back to 'en'. User-level
+   * localStorage override always wins over this default.
+   */
+  default_locale: 'en' | 'ar' | null;
 }
 
 const DEFAULT_SCHOOL: SchoolInfo = {
@@ -56,6 +62,7 @@ const DEFAULT_SCHOOL: SchoolInfo = {
   arabic_registration_no: null,
   arabic_motto: null,
   arabic_po_box: null,
+  default_locale: null,
 };
 
 // In-memory cache to avoid repeated DB calls
@@ -112,6 +119,9 @@ export async function getSchoolFromDB(schoolId: number = 1): Promise<SchoolInfo>
         arabic_registration_no: r.arabic_registration_no || null,
         arabic_motto: r.arabic_motto || null,
         arabic_po_box: r.arabic_po_box || null,
+        // Phase 6 — Pre-migration rows return undefined here; coerce to null.
+        // Treat the literal strings 'en' / 'ar' as valid; anything else → null.
+        default_locale: r.default_locale === 'ar' || r.default_locale === 'en' ? r.default_locale : null,
       };
 
       // Update cache
