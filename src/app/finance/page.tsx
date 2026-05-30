@@ -3,17 +3,20 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Wallet, CreditCard, Receipt, FileText, TrendingDown, Users, Percent, BarChart3, Loader } from 'lucide-react';
 import { apiFetch } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
-const MODULES = [
-  { href: '/finance/ledger-v2', label: 'Ledger v2', desc: 'Accounts, fee items, debtors', icon: FileText, accent: 'indigo' },
-  { href: '/finance/learners-fees', label: 'Learner Fees', desc: 'Per-student fee status', icon: Users, accent: 'violet' },
-  { href: '/finance/payments', label: 'Payments', desc: 'Payment records', icon: Receipt, accent: 'emerald' },
-  { href: '/finance/fees', label: 'Fee Structures', desc: 'Class / term fee items', icon: CreditCard, accent: 'sky' },
-  { href: '/finance/wallets', label: 'Wallets', desc: 'School wallets', icon: Wallet, accent: 'amber' },
-  { href: '/finance/ledger', label: 'Legacy Ledger', desc: 'Old ledger system', icon: BarChart3, accent: 'slate' },
-  { href: '/finance/waivers', label: 'Waivers', desc: 'Discounts & waivers', icon: Percent, accent: 'rose' },
-  { href: '/finance/expenditures', label: 'Expenditures', desc: 'School spending', icon: TrendingDown, accent: 'orange' },
-];
+function useModules(t: (k: string) => string) {
+  return [
+    { href: '/finance/ledger-v2',     label: t('finance.feesStatement'),  desc: t('common.details'),         icon: FileText,    accent: 'indigo' },
+    { href: '/finance/learners-fees', label: `${t('people.learners')} — ${t('finance.fees')}`, desc: t('common.status'), icon: Users, accent: 'violet' },
+    { href: '/finance/payments',      label: t('finance.payments'),        desc: t('finance.receipt'),       icon: Receipt,     accent: 'emerald' },
+    { href: '/finance/fees',          label: t('finance.fees'),            desc: t('orgUnits.class'),        icon: CreditCard,  accent: 'sky' },
+    { href: '/finance/wallets',       label: t('orgUnits.school'),         desc: t('finance.feesStatement'), icon: Wallet,      accent: 'amber' },
+    { href: '/finance/ledger',        label: t('finance.feesStatement'),   desc: t('common.archived'),       icon: BarChart3,   accent: 'slate' },
+    { href: '/finance/waivers',       label: t('finance.discount'),        desc: t('finance.discount'),      icon: Percent,     accent: 'rose' },
+    { href: '/finance/expenditures',  label: t('finance.expenses'),        desc: t('finance.expenses'),      icon: TrendingDown, accent: 'orange' },
+  ];
+}
 
 const ACCENT_MAP: Record<string, string> = {
   indigo: 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 hover:border-indigo-400',
@@ -27,6 +30,8 @@ const ACCENT_MAP: Record<string, string> = {
 };
 
 export default function FinanceHome() {
+  const { t } = useI18n();
+  const MODULES = useModules(t);
   const [summary, setSummary] = useState<{ total_charged: number; total_paid: number; balance: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,8 +51,8 @@ export default function FinanceHome() {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-lg font-bold text-slate-900 dark:text-white">Finance</h1>
-        <p className="text-xs text-slate-500 mt-0.5">School financial management</p>
+        <h1 className="text-lg font-bold text-slate-900 dark:text-white">{t('nav.finance._')}</h1>
+        <p className="text-xs text-slate-500 mt-0.5">{`${t('orgUnits.school')} — ${t('nav.finance._')}`}</p>
       </div>
 
       {/* Summary cards */}
@@ -59,15 +64,15 @@ export default function FinanceHome() {
         ) : summary ? (
           <>
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-900">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Charged</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{t('finance.amountDue')}</p>
               <p className="text-base font-bold text-slate-800 dark:text-white mt-0.5">{fmt(summary.total_charged)}</p>
             </div>
             <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 p-4 bg-emerald-50 dark:bg-emerald-950/20">
-              <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wide">Collected</p>
+              <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wide">{t('finance.amountPaid')}</p>
               <p className="text-base font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">{fmt(summary.total_paid)}</p>
             </div>
             <div className="rounded-xl border border-red-200 dark:border-red-800 p-4 bg-red-50 dark:bg-red-950/20">
-              <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wide">Outstanding</p>
+              <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wide">{t('finance.outstandingBalance')}</p>
               <p className="text-base font-bold text-red-700 dark:text-red-300 mt-0.5">{fmt(summary.balance)}</p>
             </div>
           </>
