@@ -62,7 +62,7 @@ export default function BatchDetailPage() {
     <div className="max-w-5xl mx-auto p-6 space-y-4">
       <div className="flex items-center gap-2">
         <button onClick={() => router.back()} className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-          <ArrowLeft size={16} />
+          <ArrowLeft size={16} className="rtl-flip" />
         </button>
         <h1 className="text-xl font-bold text-slate-800 dark:text-white">{batch.name}</h1>
         <span className="text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wide font-semibold bg-indigo-50 text-indigo-700">

@@ -255,7 +255,7 @@ export default function ReportsKitchen() {
               onClick={() => router.push('/academics/reports')}
               className="text-gray-500 hover:text-gray-800 dark:hover:text-white flex items-center gap-1 text-sm"
             >
-              <ArrowLeft size={16} /> {t('common.back')}
+              <ArrowLeft size={16} className="rtl-flip" /> {t('common.back')}
             </button>
             <div className="h-4 w-px bg-gray-300 dark:bg-slate-600" />
             <ChefHat size={22} className="text-amber-600" />

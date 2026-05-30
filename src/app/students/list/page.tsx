@@ -1857,7 +1857,7 @@ export default function StudentsListPage() {
                 disabled={safePage <= 1}
                 className="flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-3.5 h-3.5 rtl-flip" />
               </button>
               {/* Page pills */}
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -1877,7 +1877,7 @@ export default function StudentsListPage() {
                 disabled={safePage >= totalPages}
                 className="flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-3.5 h-3.5 rtl-flip" />
               </button>
             </div>
           </div>

@@ -224,7 +224,7 @@ function NotificationBell() {
       >
         <Bell size={20} className="text-gray-700 dark:text-gray-300" />
         {unread > 0 && (
-          <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-[10px] text-white font-bold flex items-center justify-center leading-none">
+          <span className="absolute top-1.5 end-1.5 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-[10px] text-white font-bold flex items-center justify-center leading-none">
             {unread > 99 ? '99+' : unread}
           </span>
         )}
@@ -232,7 +232,7 @@ function NotificationBell() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+        <div className="absolute end-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <p className="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">

@@ -103,7 +103,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
           href={item.href}
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
             active
-              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-l-2 border-blue-500'
+              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-s-2 border-blue-500'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
         >
@@ -117,7 +117,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
       <div key={item.key} className="space-y-0.5">
         <button
           onClick={() => toggle(item.key)}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-left ${
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-start ${
             childActive || open
               ? 'text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/40'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/30'
@@ -131,7 +131,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
         </button>
 
         {open && item.children && (
-          <div className="ml-3 pl-3 border-l border-slate-200 dark:border-slate-700 space-y-0.5">
+          <div className="ms-3 ps-3 border-s border-slate-200 dark:border-slate-700 space-y-0.5">
             {item.children.map(child => (
               <Link
                 key={child.key}
@@ -156,7 +156,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
     <>
       {isOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />}
 
-      <div className={`fixed left-0 top-0 h-full w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 lg:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className={`fixed start-0 top-0 h-full w-72 bg-white dark:bg-slate-900 border-e border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 lg:hidden ${isOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`}>
 
         {/* ── User Profile Header ── */}
         <div className="px-4 pt-4 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -228,7 +228,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
                   <Globe className="w-4 h-4" />
                 </button>
                 {langOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="absolute end-0 top-full mt-1 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
                     {LANGUAGES.map(l => (
                       <button
                         key={l.code}

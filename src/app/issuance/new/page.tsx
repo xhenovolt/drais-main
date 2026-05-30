@@ -92,7 +92,7 @@ export default function NewIssuancePage() {
     <div className="max-w-3xl mx-auto p-6 space-y-5">
       <div className="flex items-center gap-2">
         <button onClick={() => router.back()} className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-          <ArrowLeft size={16} />
+          <ArrowLeft size={16} className="rtl-flip" />
         </button>
         <Sparkles size={18} className="text-indigo-500" />
         <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('issuance.newBatch')}</h1>

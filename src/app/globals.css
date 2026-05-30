@@ -91,6 +91,32 @@ html[dir="rtl"] .rtl\:text-left {
   text-align: left;
 }
 
+/* ─── Phase 5 — RTL polish ────────────────────────────────────────────────
+ * Two ergonomic helpers for screens that haven't been hand-converted to
+ * logical properties yet:
+ *
+ * 1. `.rtl-flip` — applied to navigation arrows / chevrons / pagination
+ *    icons that visually point in a direction. Under RTL, mirror them
+ *    horizontally so a "next" arrow points the same way the user reads.
+ *    Lucide icons that DO point in a direction (ArrowLeft, ArrowRight,
+ *    ChevronLeft, ChevronRight) should add this class.
+ *
+ * 2. `html[dir="rtl"] [data-no-mirror]` — opt-OUT escape hatch for icons
+ *    whose meaning does not depend on reading direction (clock, search
+ *    magnifier, settings cog). Cancels any inherited mirror.
+ *
+ * Tailwind 4 already supplies logical `ms-*` / `me-*` / `ps-*` / `pe-*` /
+ * `start-*` / `end-*` / `text-start` / `text-end`. Prefer those at the
+ * call site; reach for these helpers only when the icon orientation is
+ * what matters, not the box layout.
+ */
+html[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+html[dir="rtl"] [data-no-mirror] {
+  transform: none !important;
+}
+
 /* Custom scrollbar */
 .custom-scroll::-webkit-scrollbar { width: 6px; }
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }

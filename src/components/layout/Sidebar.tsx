@@ -90,7 +90,7 @@ export const Sidebar = () => {
           href={item.href}
           className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
             active
-              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-l-2 border-blue-500'
+              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-s-2 border-blue-500'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
         >
@@ -105,7 +105,7 @@ export const Sidebar = () => {
       <div key={item.key} className="space-y-0.5">
         <button
           onClick={() => toggle(item.key)}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-left ${
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-start ${
             childActive || open
               ? 'text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/40'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/30 hover:text-slate-800 dark:hover:text-slate-200'
@@ -121,7 +121,7 @@ export const Sidebar = () => {
         </button>
 
         {open && item.children && (
-          <div className="ml-3 pl-3 border-l border-slate-200 dark:border-slate-700 space-y-0.5">
+          <div className="ms-3 ps-3 border-s border-slate-200 dark:border-slate-700 space-y-0.5">
             {item.children.map(child => {
               const childIsActive = isActive(child.href);
               return (
