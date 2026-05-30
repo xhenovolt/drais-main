@@ -22,6 +22,7 @@ import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
 import AttendanceToday from '@/components/dashboard/AttendanceToday';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Signal type helpers ──────────────────────────────────────────────────
 const SIGNAL_STYLES: Record<string, { bg: string; border: string; text: string; icon: React.ReactNode }> = {
@@ -206,6 +207,7 @@ function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
 }
 
 const DashboardPage: React.FC = () => {
+  const { t } = useI18n();
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? null;
 
@@ -223,7 +225,7 @@ const DashboardPage: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <span className="text-xl font-bold text-slate-900 dark:text-white">Dashboard</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-white">{t('nav.dashboard')}</span>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -231,14 +233,14 @@ const DashboardPage: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
             >
               <Brain className="w-3.5 h-3.5" />
-              Intelligence
+              {t('modules.intelligence')}
             </Link>
             <Link
               href="/students/list"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
               <Users className="w-3.5 h-3.5" />
-              Students
+              {t('people.students')}
             </Link>
           </div>
         </div>
@@ -269,12 +271,12 @@ const DashboardPage: React.FC = () => {
         {/* Quick nav links */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {[
-            { href: '/intelligence?tab=risk', icon: <AlertTriangle className="w-4 h-4" />, label: 'At-Risk Students', color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
-            { href: '/intelligence?tab=classes', icon: <GraduationCap className="w-4 h-4" />, label: 'Class Insights', color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
-            { href: '/intelligence?tab=patterns', icon: <UserCheck className="w-4 h-4" />, label: 'Student Patterns', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
-            { href: '/intelligence?tab=subjects', icon: <BookOpen className="w-4 h-4" />, label: 'Subject Analysis', color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
-            { href: '/intelligence?tab=trends', icon: <TrendingUp className="w-4 h-4" />, label: 'Term Trends', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' },
-            { href: '/intelligence?tab=attendance', icon: <Activity className="w-4 h-4" />, label: 'Attendance Risk', color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
+            { href: '/intelligence?tab=risk', icon: <AlertTriangle className="w-4 h-4" />, label: `${t('people.students')} — ${t('common.warning')}`, color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
+            { href: '/intelligence?tab=classes', icon: <GraduationCap className="w-4 h-4" />, label: `${t('orgUnits.classes')} — ${t('common.details')}`, color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
+            { href: '/intelligence?tab=patterns', icon: <UserCheck className="w-4 h-4" />, label: `${t('people.students')} — ${t('common.summary')}`, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
+            { href: '/intelligence?tab=subjects', icon: <BookOpen className="w-4 h-4" />, label: `${t('academic.subjects')} — ${t('common.summary')}`, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
+            { href: '/intelligence?tab=trends', icon: <TrendingUp className="w-4 h-4" />, label: `${t('academicTime.term')} — ${t('common.details')}`, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' },
+            { href: '/intelligence?tab=attendance', icon: <Activity className="w-4 h-4" />, label: `${t('academic.attendance')} — ${t('common.warning')}`, color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
           ].map(({ href, icon, label, color }) => (
             <Link
               key={href}
