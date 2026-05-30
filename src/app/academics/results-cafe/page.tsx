@@ -18,6 +18,7 @@ import {
 import type {
   AssessmentFramework, ScoringModel, AssessmentComponent,
 } from '@/lib/cafe/types';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface StudentRow {
   id: number;
@@ -39,6 +40,7 @@ interface GridResponse {
 }
 
 export default function ResultsCAFEEntryPage() {
+  const { t } = useI18n();
   const [classes, setClasses]   = useState<Array<{ id: number; name: string }>>([]);
   const [subjects, setSubjects] = useState<Array<{ id: number; name: string }>>([]);
   const [terms, setTerms]       = useState<Array<{ id: number; name: string }>>([]);
@@ -143,7 +145,7 @@ export default function ResultsCAFEEntryPage() {
     <div className="max-w-7xl mx-auto p-6 space-y-4">
       <header>
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <GraduationCap size={22} className="text-indigo-500" /> CAFE — Result Entry
+          <GraduationCap size={22} className="text-indigo-500" /> {`CAFE — ${t('academic.result')}`}
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           Enter component-level scores for any (class, subject, term) covered by an
@@ -154,9 +156,9 @@ export default function ResultsCAFEEntryPage() {
 
       {/* Picker row */}
       <div className="grid grid-cols-3 gap-3">
-        <Picker label="Class" value={classId} onChange={setClassId} options={classes} />
-        <Picker label="Subject" value={subjectId} onChange={setSubjectId} options={subjects} disabled={!classId} />
-        <Picker label="Term" value={termId} onChange={setTermId} options={terms} />
+        <Picker label={t('orgUnits.class')} value={classId} onChange={setClassId} options={classes} />
+        <Picker label={t('academic.subject')} value={subjectId} onChange={setSubjectId} options={subjects} disabled={!classId} />
+        <Picker label={t('academicTime.term')} value={termId} onChange={setTermId} options={terms} />
       </div>
 
       {/* Phase 5 entry tabs */}
@@ -425,7 +427,7 @@ function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; 
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded p-3 bg-white dark:bg-slate-900 space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <Picker label="Learner" value={pickedStudent ?? ''} onChange={v => setPickedStudent(v ? Number(v) : null)}
+        <Picker label={t('people.learner')} value={pickedStudent ?? ''} onChange={v => setPickedStudent(v ? Number(v) : null)}
           options={studentList.map(s => ({ id: s.id, name: s.fullName }))} />
       </div>
       {loading ? <Spinner /> : (
@@ -499,7 +501,7 @@ function ProjectsEntryPanel({ studentList, termId }: { studentList: StudentRow[]
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded p-3 bg-white dark:bg-slate-900 space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <Picker label="Learner" value={pickedStudent ?? ''} onChange={v => setPickedStudent(v ? Number(v) : null)}
+        <Picker label={t('people.learner')} value={pickedStudent ?? ''} onChange={v => setPickedStudent(v ? Number(v) : null)}
           options={studentList.map(s => ({ id: s.id, name: s.fullName }))} />
       </div>
       {loading ? <Spinner /> : (
