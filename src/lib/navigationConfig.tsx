@@ -24,7 +24,7 @@ import {
   ClipboardList,
   UserCheck,
   DollarSign,
-  FileText, FileCheck, Sliders,
+  FileText, FileCheck, Sliders, Sparkles,
   Settings,
   Building,
   Boxes,
@@ -233,12 +233,26 @@ export function getNavigationItems(
         { key: 'report-cards-secular',   label: 'Secular Report Cards',   icon: <FileText className="w-4 h-4" />,     href: '/academics/report-cards/secular' },
         { key: 'report-cards-theology',  label: 'Theology Report Cards',  icon: <FileText className="w-4 h-4" />,     href: '/academics/report-cards/theology' },
         { key: 'report-cards-legacy',    label: 'Reports (Legacy)',       icon: <FileText className="w-4 h-4" />,     href: '/academics/reports',          roles: ['super_admin'] },
-        { key: 'report-kitchen',  label: 'Template Kitchen', icon: <Palette className="w-4 h-4" />,      href: '/reports/kitchen', roles: ['admin', 'super_admin'] },
-        { key: 'issuance',        label: 'Issuance',         icon: <FileCheck className="w-4 h-4" />,    href: '/issuance',        roles: ['admin', 'super_admin'] },
-        { key: 'cafe',            label: 'CAFE (Assessment Engine)', icon: <Sliders className="w-4 h-4" />, href: '/admin/cafe', roles: ['admin', 'super_admin'] },
-        { key: 'cafe-entry',      label: 'CAFE Result Entry',        icon: <ClipboardList className="w-4 h-4" />, href: '/academics/results-cafe', roles: ['admin', 'super_admin', 'teacher'] },
-        { key: 'drce-blocks',     label: 'Block Library',    icon: <Library className="w-4 h-4" />,      href: '/admin/drce/blocks', roles: ['admin', 'super_admin'] },
+        { key: 'cafe-entry-inline', label: 'CAFE Result Entry', icon: <ClipboardList className="w-4 h-4" />, href: '/academics/results-cafe', roles: ['admin', 'super_admin', 'teacher'] },
         { key: 'deadlines',       label: 'Deadlines',        icon: <AlarmClock className="w-4 h-4" />,   href: '/examinations/deadlines' },
+      ],
+    },
+
+    // ══ 4b. DOCUMENTS & ASSESSMENT ════════════════════════════════════════════
+    // Hoisted out of Academics so CAFE + DRCE + Issuance are top-level
+    // discoverable instead of buried at the bottom of a long children list.
+    {
+      key:   'documents',
+      label: 'Documents & Assessment',
+      icon:  <Sparkles className="w-5 h-5" />,
+      children: [
+        { key: 'cafe-top',        label: 'CAFE (Assessment Engine)', icon: <Sliders className="w-4 h-4" />,    href: '/admin/cafe',             roles: ['admin', 'super_admin'] },
+        { key: 'cafe-entry-top',  label: 'CAFE Result Entry',        icon: <ClipboardList className="w-4 h-4" />, href: '/academics/results-cafe', roles: ['admin', 'super_admin', 'teacher'] },
+        { key: 'drce-kitchen',    label: 'Template Kitchen',         icon: <Palette className="w-4 h-4" />,    href: '/reports/kitchen',        roles: ['admin', 'super_admin'] },
+        { key: 'drce-new-doc',    label: 'New Document',             icon: <FileText className="w-4 h-4" />,   href: '/drce/new',               roles: ['admin', 'super_admin'] },
+        { key: 'drce-blocks-top', label: 'Block Library',            icon: <Library className="w-4 h-4" />,    href: '/admin/drce/blocks',      roles: ['admin', 'super_admin'] },
+        { key: 'issuance-top',    label: 'Issuance',                 icon: <FileCheck className="w-4 h-4" />,  href: '/issuance',               roles: ['admin', 'super_admin'] },
+        { key: 'custom-fields-top', label: 'Custom Fields',          icon: <FileCog className="w-4 h-4" />,    href: '/admin/custom-fields',    roles: ['admin', 'super_admin'] },
       ],
     },
 
