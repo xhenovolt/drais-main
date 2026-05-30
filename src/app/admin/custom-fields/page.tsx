@@ -16,6 +16,7 @@ import type {
   CustomFieldDef, CustomFieldType, CustomFieldOption,
   FieldInput, CustomFieldValidation,
 } from '@/lib/custom-fields';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const TYPE_META: Record<CustomFieldType, { label: string; Icon: React.ElementType; hint: string }> = {
   text:        { label: 'Short text',  Icon: Type,        hint: 'Single line: name, code, sponsor.' },
@@ -31,6 +32,7 @@ const TYPE_META: Record<CustomFieldType, { label: string; Icon: React.ElementTyp
 };
 
 export default function CustomFieldsAdminPage() {
+  const { t } = useI18n();
   const [fields, setFields]   = useState<CustomFieldDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
@@ -59,7 +61,7 @@ export default function CustomFieldsAdminPage() {
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Custom Fields</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{t('customFields.customFields')}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Define per-school data fields that appear on the student profile and become bindings in DRCE (<code className="text-[11px] px-1 bg-slate-100 dark:bg-slate-800 rounded">{'{student.custom.<code>}'}</code>).
           </p>
@@ -68,22 +70,22 @@ export default function CustomFieldsAdminPage() {
           onClick={() => setEditing('new')}
           className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 shadow-sm"
         >
-          <Plus size={14} /> New field
+          <Plus size={14} /> {t('customFields.addField')}
         </button>
       </div>
 
       <label className="inline-flex items-center gap-2 text-xs text-slate-500">
         <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
-        Show archived
+        {t('common.archived')}
       </label>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-slate-400 text-sm"><Loader2 className="animate-spin" size={14} /> Loading…</div>
+        <div className="flex items-center gap-2 text-slate-400 text-sm"><Loader2 className="animate-spin" size={14} /> {t('common.loading')}</div>
       ) : error ? (
         <div className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 text-sm rounded">{error}</div>
       ) : !fields.length ? (
         <div className="p-10 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 text-sm">
-          No custom fields yet. Click <strong>New field</strong> to add the first one.
+          {t('common.nothingHere')} — <strong>{t('customFields.addField')}</strong>.
         </div>
       ) : (
         <div className="border border-slate-200 dark:border-slate-700 rounded-lg divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
