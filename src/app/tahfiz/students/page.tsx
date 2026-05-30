@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { StudentWizard } from '@/components/students/StudentWizard';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface TahfizStudent {
   name: string;
@@ -43,6 +44,7 @@ interface TahfizStudent {
 }
 
 function TahfizStudentsContent() {
+  const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
@@ -132,7 +134,7 @@ function TahfizStudentsContent() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Tahfiz Students</h1>
+            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('people.students')}`}</h1>
             <p className="text-slate-600 mt-1">Manage students enrolled in Tahfiz programs</p>
             
             {/* Summary Stats */}

@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Search, Upload, BookOpen, X, Loader2, Camera, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Learner {
   id: number;
@@ -26,6 +27,7 @@ interface StudyMode {
 }
 
 export default function LearnersPage() {
+  const { t } = useI18n();
   const [learners, setLearners] = useState<Learner[]>([]);
   const [filtered, setFiltered] = useState<Learner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +201,7 @@ export default function LearnersPage() {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-800">Tahfiz Learners</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">{`${t('tahfiz.tahfiz')} — ${t('people.learners')}`}</h1>
         <span className="text-sm text-gray-500">{filtered.length} learner{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 

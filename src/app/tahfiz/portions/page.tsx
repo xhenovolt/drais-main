@@ -11,6 +11,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import LearnerCard from '@/components/tahfiz/LearnerCard';
 import AssignPortionModal from '@/components/tahfiz/AssignPortionModal';
 import PresentModal from '@/components/tahfiz/PresentModal';
@@ -44,6 +45,7 @@ interface Learner {
 }
 
 function TahfizPortionsContent() {
+  const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [groupFilter, setGroupFilter] = useState('all');
@@ -176,7 +178,7 @@ function TahfizPortionsContent() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Tahfiz Learners</h1>
+            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('people.learners')}`}</h1>
             <p className="text-slate-600 mt-1">Monitor and manage student memorization progress</p>
             
             {/* Status counts */}

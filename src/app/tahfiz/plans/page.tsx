@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Target, Plus, Search, Calendar, BookOpen, MoreVertical } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Plan {
   id: number;
@@ -13,6 +14,7 @@ interface Plan {
 }
 
 export default function LearningPlans() {
+  const { t } = useI18n();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,7 +37,7 @@ export default function LearningPlans() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Learning Plans</h1>
+            <h1 className="text-3xl font-bold text-slate-800">{`${t('nav.staff.workplans')}`}</h1>
             <p className="text-slate-600 mt-1">Create and manage structured learning plans for students</p>
           </div>
           <motion.button

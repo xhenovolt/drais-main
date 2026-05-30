@@ -6,6 +6,7 @@ import {
   Calendar, Clock, Users, Check, X, 
   Search, Filter, ChevronLeft, ChevronRight, UserCheck, Plus
 } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AttendanceRecord {
   id: number;
@@ -18,6 +19,7 @@ interface AttendanceRecord {
 }
 
 export default function TahfizAttendance() {
+  const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedGroup, setSelectedGroup] = useState('all');
@@ -117,7 +119,7 @@ export default function TahfizAttendance() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Tahfiz Attendance</h1>
+            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('academic.attendance')}`}</h1>
             <p className="text-slate-600 mt-1">Track daily attendance for Tahfiz sessions</p>
           </div>
           <motion.button
