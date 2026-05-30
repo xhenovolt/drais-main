@@ -22,6 +22,7 @@ import useSWR from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import NewBadge from '@/components/ui/NewBadge';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface FeeItem {
   id: number;
@@ -42,6 +43,7 @@ interface FeeItem {
 }
 
 const FeesPage: React.FC = () => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'structure' | 'students' | 'templates'>('students');
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
@@ -100,7 +102,7 @@ const FeesPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                💳 Fees Management
+                💳 {t('finance.fees')}
               </h1>
               <NewBadge size="sm" animated />
             </div>

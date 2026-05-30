@@ -21,6 +21,7 @@ import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch, swrFetcher } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
 import WalletModal from '@/components/finance/WalletModal';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface WalletData {
   id: number;
@@ -40,6 +41,7 @@ interface WalletData {
 }
 
 const WalletsPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWallet, setSelectedWallet] = useState<WalletData | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -121,7 +123,7 @@ const WalletsPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                💰 Wallets
+                💰 {t('orgUnits.school')}
               </h1>
               <NewBadge size="sm" animated />
             </div>

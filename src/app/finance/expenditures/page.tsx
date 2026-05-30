@@ -5,6 +5,7 @@ import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, CheckCircle, Clock,
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Expenditure {
   id: number;
@@ -25,6 +26,7 @@ interface Expenditure {
 }
 
 export default function ExpendituresPage() {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -99,7 +101,7 @@ export default function ExpendituresPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">💰 Expenditures</h1>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">💰 {t('finance.expenses')}</h1>
               <NewBadge size="sm" animated />
             </div>
             <p className="text-gray-600 dark:text-gray-400">{entries.length} transactions • UGX {Number(summary.total_amount || 0).toLocaleString()} total</p>

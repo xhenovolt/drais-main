@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Summary {
@@ -63,6 +64,7 @@ function StatCard({ label, value, icon: Icon, color }: {
 }
 
 export default function FinanceLedgerPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<'overview' | 'fee-items' | 'accounts' | 'bulk-import'>('overview');
   const [summary, setSummary]   = useState<Summary | null>(null);
   const [debtors, setDebtors]   = useState<Debtor[]>([]);
@@ -166,7 +168,7 @@ export default function FinanceLedgerPage() {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">Finance Ledger</h1>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">{`${t('nav.finance._')} — ${t('finance.feesStatement')}`}</h1>
           <p className="text-xs text-slate-500 mt-0.5">Every shilling has a source, destination and history.</p>
         </div>
         <button onClick={loadAll} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">

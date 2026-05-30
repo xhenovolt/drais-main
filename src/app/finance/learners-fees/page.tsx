@@ -21,6 +21,7 @@ import useSWR from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import Pagination from '@/components/ui/Pagination';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface LearnerFees {
   student_id: number;
@@ -52,6 +53,7 @@ interface Meta {
 }
 
 const LearnersFeesPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -176,7 +178,7 @@ const LearnersFeesPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              👥 Learner Fees Overview
+              👥 {`${t('people.learners')} — ${t('finance.fees')}`}
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               {meta?.total_learners || 0} learners • 

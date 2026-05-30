@@ -20,6 +20,7 @@ import { showToast } from '@/lib/toast';
 import { apiFetch, swrFetcher } from '@/lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
 import NewBadge from '@/components/ui/NewBadge';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Payment {
   id: number;
@@ -45,6 +46,7 @@ interface Payment {
 }
 
 const PaymentsPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
@@ -133,7 +135,7 @@ const PaymentsPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                🧾 Payments
+                🧾 {t('finance.payments')}
               </h1>
               <NewBadge size="sm" animated />
             </div>
