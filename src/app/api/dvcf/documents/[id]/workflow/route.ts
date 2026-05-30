@@ -11,7 +11,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
-import { applyTransition, ACTION_PERMISSION, type WorkflowAction } from '@/lib/drce/workflow';
+import { ACTION_PERMISSION, type WorkflowAction } from '@/lib/drce/workflow';
+import { applyTransition } from '@/lib/drce/workflow-server';
 
 const VALID: WorkflowAction[] = ['submit', 'approve', 'reject', 'publish', 'archive', 'unarchive'];
 
