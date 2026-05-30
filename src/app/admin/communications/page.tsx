@@ -6,6 +6,7 @@ import {
   Loader2, Send, RotateCcw, AlertCircle, CheckCircle2, Clock, Ban, ShieldAlert, Eye,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = async (u: string) => {
   const r = await fetch(u, { credentials: 'same-origin' });
@@ -21,6 +22,7 @@ const fetcher = async (u: string) => {
 type Tab = 'settings' | 'templates' | 'rules' | 'log' | 'broadcast';
 
 export default function CommunicationsAdminPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('broadcast');
 
   return (
@@ -28,17 +30,17 @@ export default function CommunicationsAdminPage() {
       <div className="flex items-center gap-3">
         <MessageSquare className="w-6 h-6 text-indigo-500" />
         <div>
-          <h1 className="text-xl font-bold text-slate-800 dark:text-white">Communications</h1>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('nav.communication._')}</h1>
           <p className="text-xs text-slate-400">Event-driven SMS, templates, and automation rules.</p>
         </div>
       </div>
 
       <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
-        <TabBtn active={tab==='broadcast'} onClick={() => setTab('broadcast')} icon={Send}>Send Broadcast</TabBtn>
-        <TabBtn active={tab==='settings'}  onClick={() => setTab('settings')}  icon={SettingsIcon}>Settings</TabBtn>
-        <TabBtn active={tab==='templates'} onClick={() => setTab('templates')} icon={FileText}>Templates</TabBtn>
-        <TabBtn active={tab==='rules'}     onClick={() => setTab('rules')}     icon={Workflow}>Rules</TabBtn>
-        <TabBtn active={tab==='log'}       onClick={() => setTab('log')}       icon={Activity}>Dispatch Log</TabBtn>
+        <TabBtn active={tab==='broadcast'} onClick={() => setTab('broadcast')} icon={Send}>{t('actions.send')}</TabBtn>
+        <TabBtn active={tab==='settings'}  onClick={() => setTab('settings')}  icon={SettingsIcon}>{t('settings.settings')}</TabBtn>
+        <TabBtn active={tab==='templates'} onClick={() => setTab('templates')} icon={FileText}>{t('drce.templates')}</TabBtn>
+        <TabBtn active={tab==='rules'}     onClick={() => setTab('rules')}     icon={Workflow}>{t('cafe.promotionRules')}</TabBtn>
+        <TabBtn active={tab==='log'}       onClick={() => setTab('log')}       icon={Activity}>{t('operations.auditTrail')}</TabBtn>
       </div>
 
       {tab === 'broadcast' && <BroadcastPanel />}
