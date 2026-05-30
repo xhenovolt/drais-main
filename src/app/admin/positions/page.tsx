@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import useSWR from 'swr';
 import { Briefcase, Plus, Edit, Loader2, X, Lock, BookOpen, Building2, Coins, Heart, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -26,6 +27,7 @@ const CATEGORIES = [
 ];
 
 export default function PositionsAdminPage() {
+  const { t } = useI18n();
   const { data, mutate, isLoading } = useSWR<{ positions: Position[] }>(
     '/api/admin/positions?active_only=0', fetcher
   );
@@ -108,7 +110,7 @@ export default function PositionsAdminPage() {
         <div className="flex items-center gap-3">
           <Briefcase className="w-6 h-6 text-indigo-500" />
           <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Positions</h1>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('nav.staff.positions')}</h1>
             <p className="text-xs text-slate-400">Catalog of staff job titles. Global rows are read-only.</p>
           </div>
         </div>

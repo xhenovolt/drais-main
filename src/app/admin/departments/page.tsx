@@ -7,6 +7,7 @@ import { Building2, Plus, Pencil, Trash2, RefreshCw, Users, ChevronRight, X } fr
 
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Department {
   id: number;
@@ -21,6 +22,7 @@ interface FormState { name: string; description: string; head_id: string; }
 const EMPTY_FORM: FormState = { name: '', description: '', head_id: '' };
 
 export default function AdminDepartmentsPage() {
+  const { t } = useI18n();
   const [depts,   setDepts]   = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
@@ -95,7 +97,7 @@ export default function AdminDepartmentsPage() {
             <Building2 className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Departments</h1>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('orgUnits.departments')}</h1>
             <p className="text-sm text-slate-500">{depts.length} departments</p>
           </div>
         </div>

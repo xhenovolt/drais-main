@@ -11,6 +11,7 @@ import {
 
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Role {
   id: number;
@@ -57,6 +58,7 @@ const MODULE_COLORS: Record<string, string> = {
 };
 
 export default function AdminRolesPage() {
+  const { t } = useI18n();
   const [roles,    setRoles]    = useState<Role[]>([]);
   const [allPerms, setAllPerms] = useState<Record<string, Permission[]>>({});
   /** Module → Resource → Permission[] grouping from the new catalog API. */
@@ -463,6 +465,7 @@ export default function AdminRolesPage() {
 }
 
 function CreateRoleModal({ onClose, onCreate }: { onClose: () => void; onCreate: () => void }) {
+  const { t } = useI18n();
   const [name,  setName]  = useState('');
   const [desc,  setDesc]  = useState('');
   const [saving, setSaving] = useState(false);
@@ -487,7 +490,7 @@ function CreateRoleModal({ onClose, onCreate }: { onClose: () => void; onCreate:
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-slate-800 dark:text-white">Create Role</h2>
+          <h2 className="font-bold text-slate-800 dark:text-white">{`${t('actions.create')} — ${t('identity.role')}`}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"><X className="w-4 h-4" /></button>
         </div>
         {err && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 text-sm">{err}</div>}

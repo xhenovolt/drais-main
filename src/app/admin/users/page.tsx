@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { apiFetch } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -307,6 +308,7 @@ function TempPasswordDialog({ password, onClose }: { password: string; onClose: 
 // Main Page
 // ────────────────────────────────────────────────────────────────
 export default function AdminUsersPage() {
+  const { t } = useI18n();
   const { showToast } = useToast();
 
   const [users,     setUsers]     = useState<UserRow[]>([]);
@@ -455,7 +457,7 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-500" />
-            User Management
+            {t('identity.users')}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {filtered.length} users · <span className="text-emerald-600 dark:text-emerald-400 font-medium">{onlineCount} online</span>
@@ -719,6 +721,7 @@ export default function AdminUsersPage() {
 // Add User Modal
 // ────────────────────────────────────────────────────────────────
 function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', role_id: '' });
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState<string | null>(null);
@@ -756,7 +759,7 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-blue-500" />
-            <h2 className="font-semibold text-gray-900 dark:text-white">Add User</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-white">{`${t('common.add')} — ${t('identity.user')}`}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
             <X className="w-4 h-4" />

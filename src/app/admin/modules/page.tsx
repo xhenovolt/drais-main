@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import useSWR from 'swr';
 import { Boxes, Loader2, BookOpen, Coins, Wrench, BarChart3, Star, Lock, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -37,6 +38,7 @@ const CATEGORY_META: Record<Category, { label: string; icon: React.ElementType; 
 };
 
 export default function ModulesAdminPage() {
+  const { t } = useI18n();
   const { data, mutate, isLoading } = useSWR<ApiResponse>('/api/admin/school-modules', fetcher);
   const [pending, setPending] = useState<string | null>(null);
 
@@ -72,7 +74,7 @@ export default function ModulesAdminPage() {
       <div className="flex items-center gap-3">
         <Boxes className="w-6 h-6 text-indigo-500" />
         <div>
-          <h1 className="text-xl font-bold text-slate-800 dark:text-white">School Modules</h1>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('nav.admin.schoolModules')}</h1>
           <p className="text-xs text-slate-400">Toggle features for this school. Super-admin only.</p>
         </div>
       </div>

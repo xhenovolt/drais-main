@@ -5,6 +5,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Shield, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AuditLog {
   id: number;
@@ -46,6 +47,7 @@ function actionBadge(action: string) {
 }
 
 export default function AuditLogsPage() {
+  const { t } = useI18n();
   const [logs,        setLogs]        = useState<AuditLog[]>([]);
   const [pagination,  setPagination]  = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 1 });
   const [loading,     setLoading]     = useState(true);
@@ -85,7 +87,7 @@ export default function AuditLogsPage() {
             <Shield className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Audit Trail</h1>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('operations.auditTrail')}</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {pagination.total} total event{pagination.total !== 1 ? 's' : ''}
             </p>
