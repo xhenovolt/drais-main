@@ -2642,6 +2642,7 @@ function BulkEnrollModal({
   isLoading: boolean;
   onSubmit: (data: { classId: number | null; streamId: number | null; academicYearId: number | null; termId: number | null; studyModeId: number | null; programIds: number[] }) => void;
 }) {
+  const { t } = useI18n();
   const [classId, setClassId] = useState<number | null>(null);
   const [streamId, setStreamId] = useState<number | null>(null);
   const [academicYearId, setAcademicYearId] = useState<number | null>(null);
@@ -2661,7 +2662,7 @@ function BulkEnrollModal({
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-blue-500" />
-            Enroll {selectedCount} Student{selectedCount !== 1 ? 's' : ''}
+            {`${t('nav.students.add')} — ${selectedCount} ${t('people.students')}`}
           </h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X className="w-4 h-4 text-slate-400" />
@@ -2676,13 +2677,13 @@ function BulkEnrollModal({
           {/* Row 1: Class + Stream */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Class (optional)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{`${t('orgUnits.class')} (${t('common.optional')})`}</label>
               <select
                 value={classId ?? ''}
                 onChange={e => setClassId(e.target.value ? Number(e.target.value) : null)}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
               >
-                <option value="">Keep current class</option>
+                <option value="">{t('academicTime.currentTerm')}</option>
                 {(() => {
                   const grouped = (Array.isArray(classes) ? classes : []).reduce((acc: Record<string, SelectOption[]>, c) => {
                     const key = c.program_name || 'General';
@@ -2700,13 +2701,13 @@ function BulkEnrollModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Stream (optional)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{`${t('orgUnits.stream')} (${t('common.optional')})`}</label>
               <select
                 value={streamId ?? ''}
                 onChange={e => setStreamId(e.target.value ? Number(e.target.value) : null)}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
               >
-                <option value="">Keep current stream</option>
+                <option value="">{t('orgUnits.stream')}</option>
                 {streams.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
@@ -2715,13 +2716,13 @@ function BulkEnrollModal({
           {/* Row 2: Academic Year + Term */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Academic Year (optional)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{`${t('academicTime.academicYear')} (${t('common.optional')})`}</label>
               <select
                 value={academicYearId ?? ''}
                 onChange={e => setAcademicYearId(e.target.value ? Number(e.target.value) : null)}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
               >
-                <option value="">Use active year</option>
+                <option value="">{t('academicTime.currentAcademicYear')}</option>
                 {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
               </select>
             </div>
@@ -2732,7 +2733,7 @@ function BulkEnrollModal({
                 onChange={e => setTermId(e.target.value ? Number(e.target.value) : null)}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
               >
-                <option value="">Use active term</option>
+                <option value="">{t('academicTime.currentTerm')}</option>
                 {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
@@ -2834,6 +2835,7 @@ function BulkAssignProgramModal({
     streamId: number | null;
   }) => void;
 }) {
+  const { t } = useI18n();
   const [programId, setProgramId] = useState<number>(defaultProgramId ?? 0);
   const [classId, setClassId] = useState<number>(0);
   const [streamId, setStreamId] = useState<number | null>(null);
@@ -2859,7 +2861,7 @@ function BulkAssignProgramModal({
           <div>
             <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-violet-500" />
-              Assign Program — {selectedCount} Student{selectedCount !== 1 ? 's' : ''}
+              {`${t('common.add')} — ${selectedCount} ${t('people.students')}`}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Adds a second program enrollment. Existing enrollments are preserved.
@@ -2882,14 +2884,14 @@ function BulkAssignProgramModal({
           {/* Program */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-              Program <span className="text-red-500">*</span>
+              {`${t('common.category')} *`}
             </label>
             <select
               value={programId}
               onChange={e => setProgramId(Number(e.target.value))}
               className={`w-full px-3 py-2 text-sm rounded-lg border ${programId ? 'border-violet-400 ring-1 ring-violet-300' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none`}
             >
-              <option value={0}>Select program…</option>
+              <option value={0}>{t('common.select')}</option>
               {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
@@ -2897,14 +2899,14 @@ function BulkAssignProgramModal({
           {/* Class */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-              Class <span className="text-red-500">*</span>
+              {`${t('orgUnits.class')} *`}
             </label>
             <select
               value={classId}
               onChange={e => setClassId(Number(e.target.value))}
               className={`w-full px-3 py-2 text-sm rounded-lg border ${classId ? 'border-violet-400 ring-1 ring-violet-300' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none`}
             >
-              <option value={0}>Select class…</option>
+              <option value={0}>{`${t('common.select')} — ${t('orgUnits.class')}`}</option>
               {(() => {
                 const programClasses = programId
                   ? (Array.isArray(classes) ? classes : []).filter(c => c.program_id === programId)
@@ -2928,7 +2930,7 @@ function BulkAssignProgramModal({
                 onChange={e => setAcademicYearId(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
               >
-                <option value={0}>Select year…</option>
+                <option value={0}>{`${t('common.select')} — ${t('academicTime.academicYear')}`}</option>
                 {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
               </select>
             </div>
@@ -2941,7 +2943,7 @@ function BulkAssignProgramModal({
                 onChange={e => setTermId(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
               >
-                <option value={0}>Select term…</option>
+                <option value={0}>{`${t('common.select')} — ${t('academicTime.term')}`}</option>
                 {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
@@ -2950,7 +2952,7 @@ function BulkAssignProgramModal({
           {/* Stream + Study Mode (optional) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Stream (optional)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{`${t('orgUnits.stream')} (${t('common.optional')})`}</label>
               <select
                 value={streamId ?? ''}
                 onChange={e => setStreamId(e.target.value ? Number(e.target.value) : null)}
