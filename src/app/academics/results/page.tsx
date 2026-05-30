@@ -9,13 +9,16 @@ import TheologyResultsManager from '@/components/academics/TheologyResultsManage
 import { MarksMigrationWizard } from '@/components/academics/MarksMigrationWizard';
 import ResultsImportSystem from '@/components/academics/ResultsImportSystem';
 import { GenerateSnapshotButton } from '@/components/reports/GenerateSnapshotButton';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
-const tabs = [
-  { id: 'result-types',      label: 'Result Types',      icon: Settings2 },
-  { id: 'secular-results',   label: 'Academic Results',   icon: GraduationCap },
-  { id: 'theology-results',  label: 'Theology Results',   icon: BookOpen },
-  { id: 'import-results',    label: 'Import Results',     icon: Upload },
-];
+function useTabs(t: (k: string) => string) {
+  return [
+    { id: 'result-types',      label: t('academic.resultTypes'),     icon: Settings2 },
+    { id: 'secular-results',   label: t('academic.results'),         icon: GraduationCap },
+    { id: 'theology-results',  label: `${t('subjects.ire')} ${t('academic.results')}`, icon: BookOpen },
+    { id: 'import-results',    label: t('actions.import'),           icon: Upload },
+  ];
+}
 
 interface WizardData {
   academicYears: Array<{ id: number; name: string }>;
@@ -26,6 +29,8 @@ interface WizardData {
 }
 
 export default function ResultsPage() {
+  const { t } = useI18n();
+  const tabs = useTabs(t);
   const [activeTab, setActiveTab] = useState(1); // default to Academic Results
   const [migrationOpen, setMigrationOpen] = useState(false);
   const [wizardData, setWizardData] = useState<WizardData>({
@@ -193,6 +198,7 @@ export default function ResultsPage() {
  *     already know about CAFE don't see it every visit.
  */
 function CAFEBridgeBanner() {
+  const { t } = useI18n();
   const [frameworkCount, setFrameworkCount] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState<boolean>(false);
 
@@ -238,9 +244,9 @@ function CAFEBridgeBanner() {
           href="/academics/results-cafe"
           className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 whitespace-nowrap"
         >
-          Open CAFE Result Entry <ArrowRight className="w-3 h-3" />
+          {`CAFE — ${t('academic.results')}`} <ArrowRight className="w-3 h-3" />
         </Link>
-        <button onClick={dismiss} title="Dismiss for this session"
+        <button onClick={dismiss} title={t('common.close')}
           className="p-1 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded">
           <X className="w-3 h-3" />
         </button>
@@ -260,7 +266,7 @@ function CAFEBridgeBanner() {
         href="/admin/cafe"
         className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-amber-300 text-amber-800 dark:text-amber-200 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 whitespace-nowrap"
       >
-        Configure CAFE <ArrowRight className="w-3 h-3" />
+        {`CAFE — ${t('common.confirm')}`} <ArrowRight className="w-3 h-3" />
       </Link>
       <button onClick={dismiss} title="Dismiss for this session"
         className="p-1 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded">
