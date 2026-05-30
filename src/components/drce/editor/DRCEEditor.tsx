@@ -27,6 +27,7 @@ import { ShapePropertiesPanel } from './ShapePropertiesPanel';
 import { ShapeCanvas, type DrawTool } from '../canvas/ShapeCanvas';
 import { DRCEDocumentRenderer } from '../DRCEDocumentRenderer';
 import { showToast } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // Demo data context for the live preview
 import type { DRCEDataContext } from '@/lib/drce/schema';
@@ -106,6 +107,7 @@ interface Props {
 }
 
 export function DRCEEditor({ initial, onSave }: Props) {
+  const { t } = useI18n();
   const { document, mutate, undo, redo, markSaved, canUndo, canRedo, isDirty } = useDRCEEditor(initial);
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const sel = useSelection();
@@ -374,7 +376,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
             <button
               type="button"
               onClick={() => setHistoryOpen(true)}
-              title="Open version history"
+              title={t('drce.versions')}
               className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 transition-colors"
             >
               v{currentVersionNo}
@@ -429,7 +431,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
           type="button"
           onClick={() => setPreviewScale(s => Math.max(0.3, Math.round((s - 0.1) * 100) / 100))}
           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500"
-          title="Zoom out"
+          title={t('common.less')}
         >
           <ZoomOut size={14} />
         </button>
@@ -438,18 +440,18 @@ export function DRCEEditor({ initial, onSave }: Props) {
           type="button"
           onClick={() => setPreviewScale(s => Math.min(1.1, Math.round((s + 0.1) * 100) / 100))}
           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500"
-          title="Zoom in"
+          title={t('common.more')}
         >
           <ZoomIn size={14} />
         </button>
 
         <div className="w-px h-5 bg-gray-200 dark:bg-slate-700" />
 
-        <button type="button" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undo}
+        <button type="button" title={`${t('actions.undo')} (Ctrl+Z)`} disabled={!canUndo} onClick={undo}
           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300 disabled:opacity-30">
           <Undo2 size={15} />
         </button>
-        <button type="button" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redo}
+        <button type="button" title={`${t('actions.redo')} (Ctrl+Y)`} disabled={!canRedo} onClick={redo}
           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300 disabled:opacity-30">
           <Redo2 size={15} />
         </button>
@@ -458,7 +460,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
           <button
             type="button"
             onClick={() => setHistoryOpen(true)}
-            title="Version history"
+            title={t('drce.versions')}
             className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300"
           >
             <History size={15} />
@@ -498,7 +500,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
           <button
             type="button"
             onClick={saveAsStarter}
-            title="Make this layout available in the New Document gallery"
+            title={t('drce.saveAsBlock')}
             className="text-[11px] font-semibold px-2 py-1.5 rounded-md text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
           >
             Save as starter
@@ -509,7 +511,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
           type="button"
           onClick={handleSave}
           disabled={saving || (!caps.edit && !caps.admin)}
-          title={caps.edit || caps.admin ? 'Save (Ctrl+S)' : 'You need drce.edit to save'}
+          title={caps.edit || caps.admin ? `${t('actions.save')} (Ctrl+S)` : t('identity.youDontHavePermission')}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -596,7 +598,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
         <div className="flex flex-col gap-1 border-r border-gray-100 dark:border-slate-700 px-0.5 py-2 bg-gray-50 dark:bg-slate-800 flex-shrink-0">
           <button
             type="button"
-            title={leftCollapsed ? 'Show sections' : 'Hide sections'}
+            title={leftCollapsed ? `${t('drceProperties.show')} ${t('drce.sections')}` : `${t('drceProperties.hide')} ${t('drce.sections')}`}
             onClick={() => setLeftCollapsed(v => !v)}
             className="p-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           >
@@ -693,7 +695,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
         <div className="flex flex-col gap-1 border-l border-gray-100 dark:border-slate-700 px-0.5 py-2 bg-gray-50 dark:bg-slate-800 flex-shrink-0">
           <button
             type="button"
-            title={rightCollapsed ? 'Show properties' : 'Hide properties'}
+            title={rightCollapsed ? `${t('drceProperties.show')} ${t('drceProperties.style')}` : `${t('drceProperties.hide')} ${t('drceProperties.style')}`}
             onClick={() => setRightCollapsed(v => !v)}
             className="p-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           >
