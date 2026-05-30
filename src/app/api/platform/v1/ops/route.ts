@@ -18,6 +18,11 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const windowMin = Math.min(1440, Math.max(1, parseInt(url.searchParams.get('window') ?? '15', 10) || 15));
 
+  // Per-consumer view (operator key 'internal_ops' sees the whole platform).
+  const isOperator = ctx.consumer === 'internal_ops';
+  const consumerSql    = isOperator ? '' : 'AND consumer = ?';
+  const consumerParams = isOperator ? []  : [ctx.consumer];
+
   const [counters, latency, webhookHealth] = await Promise.all([
     safe(query(
       `SELECT
@@ -30,8 +35,9 @@ export async function GET(req: NextRequest) {
          SUM(error_code = 'PAYLOAD_TOO_LARGE')                             AS too_large,
          SUM(error_code = 'CONFLICT')                                      AS idempotency_conflicts
        FROM platform_api_audit
-       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
-      [windowMin],
+       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+         ${consumerSql}`,
+      [windowMin, ...consumerParams],
     ) as Promise<any[]>, [{}]),
 
     safe(query(
@@ -40,8 +46,9 @@ export async function GET(req: NextRequest) {
          MAX(response_ms) AS max_ms
        FROM platform_api_audit
        WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
-         AND response_ms IS NOT NULL`,
-      [windowMin],
+         AND response_ms IS NOT NULL
+         ${consumerSql}`,
+      [windowMin, ...consumerParams],
     ) as Promise<any[]>, [{}]),
 
     safe(query(

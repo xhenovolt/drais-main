@@ -15,14 +15,14 @@ export async function GET(req: NextRequest) {
   const status  = url.searchParams.get('status');
   const search  = url.searchParams.get('search');
 
-  const where: string[] = ['deleted_at IS NULL', 'external_id IS NOT NULL'];
+  const where: string[] = ['deleted_at IS NULL'];
   const params: any[]   = [];
   if (cursor) { where.push('id < ?'); params.push(cursor); }
   if (status) { where.push('status = ?'); params.push(status); }
   if (search) { where.push('(name LIKE ? OR email LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
 
   const rows = (await query(
-    `SELECT id, external_id, name, email, phone, status, subscription_status, subscription_plan,
+    `SELECT id AS external_id, name, email, phone, status, subscription_status, subscription_plan,
             created_at, updated_at
        FROM schools
       WHERE ${where.join(' AND ')}

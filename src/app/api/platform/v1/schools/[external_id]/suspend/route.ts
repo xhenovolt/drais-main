@@ -23,7 +23,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ext
       return { status: 200, body: { external_id, status: 'suspended', already: true }, schoolId: s.id };
     }
     const reason = json?.reason ?? null;
-    await query(`UPDATE schools SET status = 'suspended', updated_at = NOW() WHERE id = ?`, [s.id]);
+    // Conditional UPDATE is the synchronization point: under N concurrent
+    // calls only the first sees affectedRows=1 and emits the event. Others
+    // silently observe the already-suspended state.
+    const res: any = await query(
+      `UPDATE schools SET status = 'suspended', updated_at = NOW()
+        WHERE id = ? AND status <> 'suspended'`,
+      [s.id],
+    );
+    if (!res?.affectedRows) {
+      return { status: 200, body: { external_id, status: 'suspended', already: true }, schoolId: s.id };
+    }
     await emitPlatformEvent({
       eventType: 'school.suspended',
       schoolId:  s.id,

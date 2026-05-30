@@ -22,7 +22,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ext
     if (s.status === 'active') {
       return { status: 200, body: { external_id, status: 'active', already: true }, schoolId: s.id };
     }
-    await query(`UPDATE schools SET status = 'active', updated_at = NOW() WHERE id = ?`, [s.id]);
+    // Conditional UPDATE: only the first concurrent caller flips the row
+    // and emits the event. Subsequent racers see affectedRows=0.
+    const res: any = await query(
+      `UPDATE schools SET status = 'active', updated_at = NOW()
+        WHERE id = ? AND status <> 'active'`,
+      [s.id],
+    );
+    if (!res?.affectedRows) {
+      return { status: 200, body: { external_id, status: 'active', already: true }, schoolId: s.id };
+    }
     await emitPlatformEvent({
       eventType: 'school.reactivated',
       schoolId:  s.id,

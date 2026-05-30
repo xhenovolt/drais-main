@@ -15,8 +15,15 @@ export async function GET(req: NextRequest) {
   const keyId  = url.searchParams.get('key_id');
   const path   = url.searchParams.get('path');
 
+  // Tenant isolation: a consumer's audit:read scope MUST NOT expose another
+  // consumer's request history. Always filter by ctx.consumer. The exception
+  // is internal_ops, which is the operator-side observability key.
   const where: string[] = [];
   const params: any[]   = [];
+  if (ctx.consumer !== 'internal_ops') {
+    where.push('consumer = ?');
+    params.push(ctx.consumer);
+  }
   if (cursor) { where.push('id < ?'); params.push(cursor); }
   if (keyId)  { where.push('key_id = ?'); params.push(keyId); }
   if (path)   { where.push('path = ?');   params.push(path); }

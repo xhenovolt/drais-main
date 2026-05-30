@@ -2267,6 +2267,7 @@ interface RowMoreItem {
   danger?:  boolean;
 }
 function RowMore({ items }: { items: RowMoreItem[] }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -2364,6 +2365,7 @@ function EnrollmentModal({
   terms,
   toggleProgram,
 }: EnrollmentModalProps) {
+  const { t } = useI18n();
   const modalLogger = scopedLogger('EnrollmentModal');
   
   // Defensive array checks
@@ -2378,7 +2380,7 @@ function EnrollmentModal({
   const allFieldsValid = Object.values(validation).every(v => v);
 
   // Filtered terms based on selected academic year
-  const filteredTerms = safeTerms.filter(t => {
+  const filteredTerms = safeTerms.filter(_term => {
     // If no academic year selected, show all
     if (form.academic_year_id === 0) return true;
     // Otherwise, you might want to filter by academic_year_id if available

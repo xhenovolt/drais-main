@@ -383,6 +383,7 @@ interface SkillEntry { code: string; label: string; score: number | null; valueT
 interface ProjEntry  { id: number; title: string; descriptor: string | null; outcome: string | null; evidenceUrl: string | null; gradeCode: string | null }
 
 function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; termId: number }) {
+  const { t } = useI18n();
   const [pickedStudent, setPickedStudent] = useState<number | null>(studentList[0]?.id ?? null);
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -463,6 +464,7 @@ function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; 
 }
 
 function ProjectsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; termId: number }) {
+  const { t } = useI18n();
   const [pickedStudent, setPickedStudent] = useState<number | null>(studentList[0]?.id ?? null);
   const [projects, setProjects] = useState<ProjEntry[]>([]);
   const [loading, setLoading] = useState(false);
