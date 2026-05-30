@@ -11,6 +11,7 @@ import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
 import { findKind, BUILT_IN_KINDS } from '@/lib/drce/kinds';
 import type { DRCERenderContext } from '@/components/drce/types';
 import { GenerateSnapshotButton } from '@/components/reports/GenerateSnapshotButton';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ============================================================================
 // Sample data used for card mini-previews
@@ -108,6 +109,7 @@ function DocMiniPreview({ doc }: { doc: DRCEDocument }) {
 // MAIN: Kitchen Page — manages dvcf_documents directly
 // ============================================================================
 export default function ReportsKitchen() {
+  const { t } = useI18n();
   const router = useRouter();
   const [documents, setDocuments] = useState<DRCEDocument[]>([]);
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
@@ -240,11 +242,11 @@ export default function ReportsKitchen() {
               onClick={() => router.push('/academics/reports')}
               className="text-gray-500 hover:text-gray-800 dark:hover:text-white flex items-center gap-1 text-sm"
             >
-              <ArrowLeft size={16} /> Back to Reports
+              <ArrowLeft size={16} /> {t('common.back')}
             </button>
             <div className="h-4 w-px bg-gray-300 dark:bg-slate-600" />
             <ChefHat size={22} className="text-amber-600" />
-            <h1 className="text-lg font-bold text-gray-800 dark:text-white">Reports Kitchen</h1>
+            <h1 className="text-lg font-bold text-gray-800 dark:text-white">{t('drce.templateKitchen')}</h1>
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Template Engine</span>
           </div>
           <div className="flex items-center gap-2">
@@ -252,11 +254,11 @@ export default function ReportsKitchen() {
               onClick={fetchData}
               className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1"
             >
-              <RefreshCw size={14} /> Refresh
+              <RefreshCw size={14} /> {t('actions.refresh')}
             </button>
             <GenerateSnapshotButton
               defaultType="secular"
-              label="Generate Snapshot"
+              label={t('snapshot.generate')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
             />
             <button
@@ -264,14 +266,14 @@ export default function ReportsKitchen() {
               title="Reusable section subtrees referenced by templates via block_ref"
               className="flex items-center gap-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm px-3 py-1.5 rounded hover:bg-slate-50 dark:hover:bg-slate-600"
             >
-              <Library size={14} /> Block Library
+              <Library size={14} /> {t('drce.blockLibrary')}
             </button>
             <button
               onClick={() => router.push('/drce/new')}
               title="Pick a starter — report, certificate, ID card, transcript, letter, or blank"
               className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3 py-1.5 rounded hover:bg-indigo-700"
             >
-              <Plus size={14} /> New Document
+              <Plus size={14} /> {t('drce.newDocument')}
             </button>
             <button
               onClick={() => router.push('/reports/kitchen/drce/new')}
@@ -299,7 +301,7 @@ export default function ReportsKitchen() {
           <div className="flex items-start gap-3">
             <Sparkles size={20} className="text-amber-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h2 className="font-semibold text-amber-800 dark:text-amber-300">Template Engine</h2>
+              <h2 className="font-semibold text-amber-800 dark:text-amber-300">{t('drce.templateKitchen')}</h2>
               <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
                 Each card below is a real report template — what you see is exactly what prints.
                 Click <strong>Edit</strong> to open the visual designer. Set <strong>Use This</strong> to make it the active template for all report printing.
