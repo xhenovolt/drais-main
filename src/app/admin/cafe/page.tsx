@@ -80,6 +80,7 @@ export default function CAFEDashboard() {
 // ─── Mode panel ─────────────────────────────────────────────────────────────
 
 function ModePanel() {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<SchoolAcademicSettings | null>(null);
   const [frameworks, setFrameworks] = useState<AssessmentFramework[]>([]);
   const [saving, setSaving] = useState(false);
@@ -154,7 +155,7 @@ function ModePanel() {
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Default framework</label>
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{`${t('common.default')} — ${t('cafe.framework')}`}</label>
         <select
           value={settings.defaultFrameworkId ?? ''}
           onChange={e => save({ defaultFrameworkId: e.target.value ? Number(e.target.value) : null })}
@@ -177,6 +178,7 @@ function ModePanel() {
 // ─── Frameworks panel ──────────────────────────────────────────────────────
 
 function FrameworksPanel() {
+  const { t } = useI18n();
   const [list, setList] = useState<AssessmentFramework[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<AssessmentFramework | 'new' | null>(null);
@@ -242,6 +244,7 @@ function FrameworksPanel() {
 function FrameworkDrawer({
   initial, onClose, onSaved,
 }: { initial: AssessmentFramework | null; onClose: () => void; onSaved: () => void }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<'meta' | 'components'>('meta');
   const [code, setCode]               = useState(initial?.code ?? '');
   const [name, setName]               = useState(initial?.name ?? '');
@@ -284,18 +287,18 @@ function FrameworkDrawer({
   }
 
   return (
-    <Drawer onClose={onClose} title={initial ? 'Edit framework' : 'New framework'}>
+    <Drawer onClose={onClose} title={initial ? `${t('actions.edit')} — ${t('cafe.framework')}` : `${t('actions.create')} — ${t('cafe.framework')}`}>
       <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-700 mb-3">
-        <TabPill active={tab === 'meta'}       onClick={() => setTab('meta')}>Details</TabPill>
+        <TabPill active={tab === 'meta'}       onClick={() => setTab('meta')}>{t('common.details')}</TabPill>
         <TabPill active={tab === 'components'} onClick={() => setTab('components')} disabled={!initial}>
-          Components{initial ? '' : ' (save first)'}
+          {t('cafe.components')}
         </TabPill>
       </div>
 
       {tab === 'meta' && (
         <div className="space-y-3 text-xs">
-          <Row label="Name"><input value={name} onChange={e => setName(e.target.value)} className={inputCls} placeholder="NLSC Mathematics S1" /></Row>
-          <Row label="Code"><input value={code} onChange={e => setCode(e.target.value)} disabled={!!initial} className={inputCls + ' font-mono'} placeholder="nlsc_math_s1" />
+          <Row label={t('common.name')}><input value={name} onChange={e => setName(e.target.value)} className={inputCls} placeholder="NLSC Mathematics S1" /></Row>
+          <Row label={t('common.code')}><input value={code} onChange={e => setCode(e.target.value)} disabled={!!initial} className={inputCls + ' font-mono'} placeholder="nlsc_math_s1" />
             <p className="text-[10px] text-slate-400 mt-0.5">Immutable after creation.</p>
           </Row>
           <Row label="Description"><textarea value={description ?? ''} onChange={e => setDescription(e.target.value)} rows={2} className={inputCls} /></Row>
@@ -330,6 +333,7 @@ function FrameworkDrawer({
 function ComponentEditor({ framework, onChanged }: {
   framework: AssessmentFramework; onChanged: () => void;
 }) {
+  const { t } = useI18n();
   const [models, setModels] = useState<ScoringModel[]>([]);
   const [code, setCode]     = useState('');
   const [name, setName]     = useState('');
@@ -386,19 +390,19 @@ function ComponentEditor({ framework, onChanged }: {
       </div>
 
       <div className="p-3 border border-dashed border-indigo-300 rounded space-y-2">
-        <div className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">Add a component</div>
+        <div className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">{`${t('common.add')} — ${t('cafe.component')}`}</div>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Theory · AoI · Continuous Assessment" className={inputCls} />
         <div className="grid grid-cols-2 gap-2">
           <input value={code} onChange={e => setCode(e.target.value)} placeholder="code (optional)" className={inputCls + ' font-mono'} />
           <input type="number" step="0.1" value={weight} onChange={e => setWeight(Number(e.target.value) || 1)} className={inputCls} />
         </div>
         <select value={scoringModelId} onChange={e => setScoringModelId(e.target.value ? Number(e.target.value) : '')} className={inputCls}>
-          <option value="">— scoring model —</option>
+          <option value="">{t('cafe.scoringModel')}</option>
           {models.map(m => <option key={m.id} value={m.id}>{m.name} ({m.kind})</option>)}
         </select>
         {err && <ErrorBox msg={err} />}
         <button onClick={addComponent} disabled={busy || !name.trim() || !scoringModelId} className="w-full py-1.5 bg-indigo-600 text-white rounded text-[11px] hover:bg-indigo-500 disabled:opacity-40">
-          {busy ? 'Adding…' : 'Add component'}
+          {busy ? t('common.processing') : `${t('common.add')} — ${t('cafe.component')}`}
         </button>
       </div>
     </div>
@@ -408,6 +412,7 @@ function ComponentEditor({ framework, onChanged }: {
 // ─── Scoring models panel ──────────────────────────────────────────────────
 
 function ScoringPanel() {
+  const { t } = useI18n();
   const [list, setList] = useState<ScoringModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<ScoringModel | 'new' | null>(null);
@@ -464,6 +469,7 @@ function ScoringPanel() {
 }
 
 function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | null; onClose: () => void; onSaved: () => void }) {
+  const { t } = useI18n();
   const [code, setCode]               = useState(initial?.code ?? '');
   const [name, setName]               = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -516,7 +522,7 @@ function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | 
   }
 
   return (
-    <Drawer onClose={onClose} title={initial ? 'Edit scoring model' : 'New scoring model'}>
+    <Drawer onClose={onClose} title={initial ? `${t('actions.edit')} — ${t('cafe.scoringModel')}` : `${t('actions.create')} — ${t('cafe.scoringModel')}`}>
       <div className="space-y-3 text-xs">
         <Row label="Name"><input value={name} onChange={e => setName(e.target.value)} className={inputCls} /></Row>
         <Row label="Code"><input value={code} onChange={e => setCode(e.target.value)} disabled={!!initial} className={inputCls + ' font-mono'} /></Row>
@@ -563,6 +569,7 @@ function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | 
 // ─── Assignments panel ────────────────────────────────────────────────────
 
 function AssignmentsPanel() {
+  const { t } = useI18n();
   const [assignments, setAssignments] = useState<ClassFrameworkAssignment[]>([]);
   const [frameworks,  setFrameworks]  = useState<AssessmentFramework[]>([]);
   const [classes, setClasses]         = useState<Array<{ id: number; name: string }>>([]);
@@ -650,23 +657,23 @@ function AssignmentsPanel() {
       )}
 
       {adding && (
-        <Drawer onClose={() => setAdding(null)} title="New assignment">
+        <Drawer onClose={() => setAdding(null)} title={`${t('common.add')} — ${t('orgUnits.classes')}`}>
           <div className="space-y-3 text-xs">
             <Row label="Class">
               <select value={adding.classId ?? ''} onChange={e => setAdding({ ...adding, classId: e.target.value ? Number(e.target.value) : undefined })} className={inputCls}>
-                <option value="">— class —</option>
+                <option value="">{t('orgUnits.class')}</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Row>
             <Row label="Term">
               <select value={adding.termId ?? ''} onChange={e => setAdding({ ...adding, termId: e.target.value ? Number(e.target.value) : undefined })} className={inputCls}>
-                <option value="">— term —</option>
+                <option value="">{t('academicTime.term')}</option>
                 {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </Row>
             <Row label="Framework">
               <select value={adding.frameworkId ?? ''} onChange={e => setAdding({ ...adding, frameworkId: e.target.value ? Number(e.target.value) : undefined })} className={inputCls}>
-                <option value="">— framework —</option>
+                <option value="">{t('cafe.framework')}</option>
                 {frameworks.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </Row>
@@ -687,10 +694,29 @@ function AssignmentsPanel() {
 
 const inputCls = 'w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400';
 
+// Row label ↔ dictionary key map. Same pattern as PropertiesPanel + students/[id].
+const ROW_LABEL_KEYS: Record<string, string> = {
+  Name:        'common.name',
+  Code:        'common.code',
+  Description: 'common.description',
+  Mode:        'cafe.academicMode',
+  Kind:        'common.type',
+  Class:       'orgUnits.class',
+  Term:        'academicTime.term',
+  Framework:   'cafe.framework',
+};
+function rowLabel(t: (k: string) => string, label: string): string {
+  const k = ROW_LABEL_KEYS[label];
+  if (!k) return label;
+  const tr = t(k);
+  return tr === k ? label : tr;
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div>
-      <label className="block text-[11px] uppercase tracking-wide text-slate-500 mb-0.5">{label}</label>
+      <label className="block text-[11px] uppercase tracking-wide text-slate-500 mb-0.5">{rowLabel(t, label)}</label>
       {children}
     </div>
   );
