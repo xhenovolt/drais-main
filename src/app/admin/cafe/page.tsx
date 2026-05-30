@@ -21,10 +21,12 @@ import type {
   AcademicMode, FrameworkMode, ScoringKind, SchoolAcademicSettings,
   ClassFrameworkAssignment,
 } from '@/lib/cafe/types';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 type Tab = 'mode' | 'frameworks' | 'scoring' | 'assignments' | 'promotion';
 
 export default function CAFEDashboard() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('mode');
 
   return (
@@ -43,23 +45,23 @@ export default function CAFEDashboard() {
 
       <nav className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-700">
         {[
-          { id: 'mode',        label: 'School mode',     icon: <Settings2 size={13} /> },
-          { id: 'frameworks',  label: 'Frameworks',      icon: <Layers size={13} /> },
-          { id: 'scoring',     label: 'Scoring models',  icon: <Ruler size={13} /> },
-          { id: 'assignments', label: 'Class assignments', icon: <GraduationCap size={13} /> },
-          { id: 'promotion',   label: 'Promotion rule',  icon: <AlertTriangle size={13} /> },
-        ].map(t => (
+          { id: 'mode',        label: t('cafe.academicMode'),         icon: <Settings2 size={13} /> },
+          { id: 'frameworks',  label: t('cafe.frameworks'),           icon: <Layers size={13} /> },
+          { id: 'scoring',     label: t('cafe.scoringModels'),        icon: <Ruler size={13} /> },
+          { id: 'assignments', label: `${t('orgUnits.classes')} — ${t('cafe.frameworks')}`, icon: <GraduationCap size={13} /> },
+          { id: 'promotion',   label: t('cafe.promotionRule'),        icon: <AlertTriangle size={13} /> },
+        ].map(item => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id as Tab)}
+            key={item.id}
+            onClick={() => setTab(item.id as Tab)}
             className={[
               'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
-              tab === t.id
+              tab === item.id
                 ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200',
+                : 'border-transparent text-slate-500 hover:text-slate-200',
             ].join(' ')}
           >
-            {t.icon} {t.label}
+            {item.icon} {item.label}
           </button>
         ))}
       </nav>
