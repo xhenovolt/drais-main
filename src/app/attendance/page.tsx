@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import Link from 'next/link';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const verifyLabel = (v: number | null) => {
@@ -44,6 +45,7 @@ function useLiveFeed() {
 
 // ── Dashboard Page ─────────────────────────────────────────────────────────
 export default function AttendanceDashboard() {
+  const { t } = useI18n();
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
   const [liveFeedOpen, setLiveFeedOpen] = useState(true);
@@ -80,10 +82,10 @@ export default function AttendanceDashboard() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600
               bg-clip-text text-transparent flex items-center gap-3">
               <Fingerprint className="w-8 h-8 text-blue-600" />
-              Attendance Dashboard
+              {`${t('academic.attendance')} — ${t('nav.dashboard')}`}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-              Real-time biometric data — single source of truth
+              {t('modules.fingerprintAuth')}
             </p>
           </div>
           <div className="flex items-center gap-3">
