@@ -5,6 +5,7 @@ import { swrFetcher } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
 import { FileText, Plus, Copy, Star, Pencil, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Template {
   id: number;
@@ -15,6 +16,7 @@ interface Template {
 }
 
 export default function TemplatesPage() {
+  const { t } = useI18n();
   const { data, isLoading, mutate } = useSWR<{ success: boolean; templates: Template[] }>('/api/report-templates', swrFetcher);
   const templates = data?.templates || [];
   const [activating, setActivating] = useState<number | null>(null);
@@ -82,7 +84,7 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Report Templates</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{`${t('snapshot.reportCards')} — ${t('drce.templates')}`}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Design and manage report card layouts</p>
         </div>
         <Link

@@ -4,6 +4,7 @@ import { User, Save, Loader2, Upload, Camera, Lock, Eye, EyeOff } from 'lucide-r
 import { showToast } from '@/lib/toast';
 import useSWR from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface ProfileData {
   id: number;
@@ -17,6 +18,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
+  const { t } = useI18n();
   const { data, error, isLoading, mutate } = useSWR<{ success: boolean; user: ProfileData }>('/api/profile', swrFetcher);
   const user = data?.user;
 
@@ -131,7 +133,7 @@ export default function ProfilePage() {
     <div className="p-6 max-w-3xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Profile</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.profile')}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your account details and photo</p>
       </div>
 

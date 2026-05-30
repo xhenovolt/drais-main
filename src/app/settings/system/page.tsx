@@ -3,6 +3,7 @@ import React from 'react';
 import useSWR from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
 import { Database, Cloud, Radio, Clock, RefreshCw, Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 function StatusBadge({ status }: { status: string }) {
   const isOk = ['connected', 'configured', 'ok'].includes(status);
@@ -20,6 +21,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function SystemStatusPage() {
+  const { t } = useI18n();
   const { data, isLoading, mutate } = useSWR('/api/system-status', swrFetcher, { refreshInterval: 30000 });
   const checks = data?.checks || {};
 
@@ -27,7 +29,7 @@ export default function SystemStatusPage() {
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">System Status</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{`${t('settings.settings')} — ${t('common.status')}`}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time health monitoring for DRAIS infrastructure</p>
         </div>
         <button

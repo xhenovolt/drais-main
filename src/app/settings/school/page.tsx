@@ -4,6 +4,7 @@ import { School, Save, Loader2, Upload, RefreshCw, CheckCircle, ImagePlus, X } f
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface SchoolFormData {
   name: string;
@@ -32,6 +33,7 @@ interface SchoolFormData {
 }
 
 export default function SchoolSettingsPage() {
+  const { t } = useI18n();
   const { school, refresh, isLoading: configLoading } = useSchoolConfig();
   const [form, setForm] = useState<SchoolFormData>({
     name: '', shortName: '', address: '', city: '', country: 'Uganda',
@@ -168,7 +170,7 @@ export default function SchoolSettingsPage() {
             <School className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">School Identity Settings</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{`${t('orgUnits.school')} — ${t('settings.settings')}`}</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Manage your school&apos;s name, contact, and branding — changes apply system-wide</p>
           </div>
         </div>

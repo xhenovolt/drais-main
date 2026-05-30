@@ -14,6 +14,7 @@ import {
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import clsx from 'clsx';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface StudyMode {
   id: number;
@@ -24,6 +25,7 @@ interface StudyMode {
 }
 
 export default function StudyModesPage() {
+  const { t } = useI18n();
   const { data, mutate } = useSWR<{ success: boolean; data: StudyMode[] }>(
     '/api/study-modes',
   );
@@ -130,7 +132,7 @@ export default function StudyModesPage() {
             <Layers className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Study Modes</h1>
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{`${t('common.type')} — ${t('nav.academics._')}`}</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Define how students attend (e.g. Full-time, Part-time, Distance). One must be the default.
             </p>
