@@ -262,6 +262,41 @@ export async function generateSnapshot(
       console.warn('[snapshots] custom values load skipped:', e instanceof Error ? e.message : e);
     }
 
+    // CAFE Phase 5 — bulk-load generic skills + project portfolios so the
+    // adapter can surface student.genericSkills / student.projects. Same
+    // post-hash placement as customValuesMap — outside the hash window so
+    // snapshots that don't yet have skills/projects rows regenerate
+    // byte-identically.
+    let skillsMap:   ReportSnapshot['genericSkills'];
+    let projectsMap: ReportSnapshot['projects'];
+    try {
+      const studentIds: number[] = [];
+      for (const c of classes) for (const s of c.students) studentIds.push(s.studentDbId);
+      if (studentIds.length) {
+        const { loadSkillsBulk, loadProjectsBulk } = await import('@/lib/cafe/skills-projects');
+        const [sk, pr] = await Promise.all([
+          loadSkillsBulk({ schoolId: school.schoolId, termId: term.termId, studentIds }),
+          loadProjectsBulk({ schoolId: school.schoolId, termId: term.termId, studentIds }),
+        ]);
+        if (sk.size) {
+          skillsMap = {};
+          for (const [sid, vals] of sk) skillsMap[sid] = vals.map(v => ({
+            code: v.code, label: v.label, score: v.score, valueText: v.valueText,
+            gradeCode: v.gradeCode, remarks: v.remarks,
+          }));
+        }
+        if (pr.size) {
+          projectsMap = {};
+          for (const [sid, vals] of pr) projectsMap[sid] = vals.map(v => ({
+            id: v.id, title: v.title, descriptor: v.descriptor, outcome: v.outcome,
+            evidenceUrl: v.evidenceUrl, gradeCode: v.gradeCode,
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('[snapshots] CAFE skills/projects load skipped:', e instanceof Error ? e.message : e);
+    }
+
     const snapshot: ReportSnapshot = {
       meta: {
         snapshotId,
@@ -312,6 +347,8 @@ export async function generateSnapshot(
         dataHash,
       },
       classes,
+      ...(skillsMap     ? { genericSkills: skillsMap } : {}),
+      ...(projectsMap   ? { projects:     projectsMap } : {}),
       config: {
         ...buildDefaultConfig(''),
         ...(calendarConfig ? { calendar: calendarConfig } : {}),

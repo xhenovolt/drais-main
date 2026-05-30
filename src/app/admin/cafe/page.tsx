@@ -22,7 +22,7 @@ import type {
   ClassFrameworkAssignment,
 } from '@/lib/cafe/types';
 
-type Tab = 'mode' | 'frameworks' | 'scoring' | 'assignments';
+type Tab = 'mode' | 'frameworks' | 'scoring' | 'assignments' | 'promotion';
 
 export default function CAFEDashboard() {
   const [tab, setTab] = useState<Tab>('mode');
@@ -47,6 +47,7 @@ export default function CAFEDashboard() {
           { id: 'frameworks',  label: 'Frameworks',      icon: <Layers size={13} /> },
           { id: 'scoring',     label: 'Scoring models',  icon: <Ruler size={13} /> },
           { id: 'assignments', label: 'Class assignments', icon: <GraduationCap size={13} /> },
+          { id: 'promotion',   label: 'Promotion rule',  icon: <AlertTriangle size={13} /> },
         ].map(t => (
           <button
             key={t.id}
@@ -68,6 +69,7 @@ export default function CAFEDashboard() {
         {tab === 'frameworks'  && <FrameworksPanel />}
         {tab === 'scoring'     && <ScoringPanel />}
         {tab === 'assignments' && <AssignmentsPanel />}
+        {tab === 'promotion'   && <PromotionPanel />}
       </div>
     </div>
   );
@@ -729,4 +731,150 @@ function ErrorBox({ msg }: { msg: string }) {
 }
 function EmptyHint({ label }: { label: string }) {
   return <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded text-slate-400 text-xs">{label}</div>;
+}
+
+// ─── Promotion rule panel (CAFE Phase 5) ──────────────────────────────────
+
+import { VisibilityRuleEditor } from '@/components/drce/editor/VisibilityRuleEditor';
+import type { VisibilityRule } from '@/lib/drce/visibility';
+
+function PromotionPanel() {
+  const [rule, setRule] = useState<VisibilityRule | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Dry-run state
+  const [snapshots, setSnapshots] = useState<Array<{ snapshotId: string; label: string }>>([]);
+  const [chosenSnapshotId, setChosenSnapshotId] = useState<string>('');
+  const [evalResult, setEvalResult] = useState<null | {
+    totalCandidates: number; promotedCount: number; heldCount: number;
+    ruleConfigured: boolean; ruleSummary: string | null;
+    perStudent: Array<{ studentName: string; className: string; total: number; eligibility: string }>;
+  }>(null);
+  const [evaluating, setEvaluating] = useState(false);
+
+  // Load existing rule from school settings.
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/cafe/school-settings');
+        const d = await r.json();
+        if (d?.success) setRule((d.settings.promotionRuleJson as unknown as VisibilityRule | null) ?? null);
+      } catch (e) { setErr((e as Error).message); }
+      finally { setLoading(false); }
+    })();
+    // Load recent snapshots for the dry-run picker.
+    (async () => {
+      try {
+        const r = await fetch('/api/snapshots?limit=20');
+        const d = await r.json();
+        const list = (d?.snapshots ?? d?.data ?? []) as Array<{ snapshotId?: string; id?: string; termName?: string; yearName?: string }>;
+        setSnapshots(list.slice(0, 20).map(s => ({
+          snapshotId: String(s.snapshotId ?? s.id),
+          label: `${s.snapshotId ?? s.id} · ${s.termName ?? ''} ${s.yearName ?? ''}`.trim(),
+        })));
+      } catch { /* non-fatal */ }
+    })();
+  }, []);
+
+  async function saveRule() {
+    setSaving(true); setErr(null); setSavedNote(null);
+    try {
+      const r = await fetch('/api/cafe/school-settings', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promotion_rule_json: rule, promotionRuleJson: rule }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d?.success) throw new Error(d?.error || 'Save failed');
+      setSavedNote('Promotion rule saved.');
+    } catch (e) { setErr((e as Error).message); }
+    finally { setSaving(false); }
+  }
+
+  async function dryRun() {
+    if (!chosenSnapshotId) return;
+    setEvaluating(true); setErr(null); setEvalResult(null);
+    try {
+      const r = await fetch('/api/cafe/promotion/evaluate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshotId: chosenSnapshotId, ruleOverride: rule }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d?.success) throw new Error(d?.error || 'Evaluation failed');
+      setEvalResult(d.evaluation);
+    } catch (e) { setErr((e as Error).message); }
+    finally { setEvaluating(false); }
+  }
+
+  if (loading) return <Spinner />;
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <div className="p-3 rounded border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/10 dark:border-indigo-900/40 text-xs text-indigo-800 dark:text-indigo-300">
+        Build a rule that decides which learners get promoted at term end.
+        Same editor as per-section conditional visibility — no new rule language.
+        Example: <strong>average ≥ 50 AND assessment.classPosition ≤ 40</strong>.
+        Dry-run against any snapshot before relying on it.
+      </div>
+
+      <VisibilityRuleEditor value={rule} onChange={setRule} />
+
+      <div className="flex items-center gap-2">
+        <button onClick={saveRule} disabled={saving}
+          className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">
+          {saving ? 'Saving…' : 'Save promotion rule'}
+        </button>
+        {savedNote && <span className="text-xs text-emerald-600">{savedNote}</span>}
+      </div>
+
+      <hr className="border-slate-200 dark:border-slate-700" />
+
+      <div>
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Dry-run against a snapshot</h3>
+        <div className="flex items-center gap-2 mb-3">
+          <select value={chosenSnapshotId} onChange={e => setChosenSnapshotId(e.target.value)}
+            className="flex-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900">
+            <option value="">— pick a snapshot —</option>
+            {snapshots.map(s => <option key={s.snapshotId} value={s.snapshotId}>{s.label}</option>)}
+          </select>
+          <button onClick={dryRun} disabled={!chosenSnapshotId || evaluating}
+            className="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded disabled:opacity-40">
+            {evaluating ? 'Running…' : 'Run'}
+          </button>
+        </div>
+
+        {evalResult && (
+          <div className="space-y-2 border border-slate-200 dark:border-slate-700 rounded p-3 bg-white dark:bg-slate-900">
+            <div className="text-xs text-slate-600 dark:text-slate-300">
+              <strong className="text-slate-800 dark:text-slate-100">{evalResult.totalCandidates}</strong> candidates ·{' '}
+              <span className="text-emerald-600 font-semibold">{evalResult.promotedCount} promoted</span> ·{' '}
+              <span className="text-rose-600 font-semibold">{evalResult.heldCount} held</span>
+              {!evalResult.ruleConfigured && <> · <span className="text-amber-600">no rule — every learner returned as "no_rule"</span></>}
+            </div>
+            <div className="max-h-72 overflow-y-auto border-t border-slate-100 dark:border-slate-800 pt-2 space-y-0.5">
+              {evalResult.perStudent.slice(0, 100).map((s, i) => (
+                <div key={i} className="flex items-center gap-2 text-[11px] py-0.5">
+                  <span className={[
+                    'inline-block w-14 text-center px-1 py-0.5 rounded text-[9px] font-semibold uppercase',
+                    s.eligibility === 'promote' ? 'bg-emerald-100 text-emerald-700' :
+                    s.eligibility === 'hold' ? 'bg-rose-100 text-rose-700' :
+                    'bg-slate-100 text-slate-500',
+                  ].join(' ')}>{s.eligibility}</span>
+                  <span className="flex-1 truncate">{s.studentName}</span>
+                  <span className="text-slate-400 w-20 truncate">{s.className}</span>
+                  <span className="text-slate-500 font-mono">{s.total}</span>
+                </div>
+              ))}
+              {evalResult.perStudent.length > 100 && (
+                <div className="text-[10px] text-slate-400 pt-1">… plus {evalResult.perStudent.length - 100} more</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {err && <ErrorBox msg={err} />}
+    </div>
+  );
 }

@@ -36,9 +36,8 @@ export function ProjectOutcomesSection({ section, ctx }: Props) {
       </div>
       {projects.length === 0 ? (
         <div style={{ fontSize: 10, color: '#9ca3af', fontStyle: 'italic', padding: '4px 6px' }}>
-          Project portfolio tracking is a future CAFE storage feature.
-          Templates can bind <code style={{ background: '#f3f4f6', padding: '0 4px' }}>student.projects</code>;
-          entries will appear here once project storage ships.
+          No projects entered for this learner this term.
+          Enter via <code style={{ background: '#f3f4f6', padding: '0 4px' }}>/academics/results-cafe → Projects</code>.
         </div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>

@@ -243,6 +243,26 @@ export interface ReportSnapshot {
    * treats missing values as null.
    */
   customValues?: Record<number, Record<string, string | number | boolean | string[] | null>>;
+  /**
+   * CAFE Phase 5 — per-student generic skills (Communication, Collaboration,
+   * ICT, …) keyed by studentDbId. Lives outside `classes` for the same
+   * hash-stability reason as customValues. Absent on snapshots generated
+   * before Phase 5; SkillsBlockSection renders a placeholder when missing.
+   */
+  genericSkills?: Record<number, Array<{
+    code: string; label: string;
+    score: number | null; valueText: string | null;
+    gradeCode: string | null; remarks: string | null;
+  }>>;
+  /**
+   * CAFE Phase 5 — per-student integrated project portfolio, keyed by
+   * studentDbId. Also outside `classes` to preserve dataHash invariants.
+   */
+  projects?: Record<number, Array<{
+    id: number; title: string;
+    descriptor: string | null; outcome: string | null;
+    evidenceUrl: string | null; gradeCode: string | null;
+  }>>;
 }
 
 /**

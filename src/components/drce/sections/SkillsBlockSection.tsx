@@ -44,9 +44,8 @@ export function SkillsBlockSection({ section, ctx }: Props) {
       </div>
       {filtered.length === 0 ? (
         <div style={{ padding: 10, fontSize: 10, color: '#9ca3af', fontStyle: 'italic' }}>
-          Generic skills tracking is a future CAFE storage feature. Templates can already
-          bind <code style={{ background: '#f3f4f6', padding: '0 4px' }}>student.genericSkills</code> —
-          rendered values will appear here once entry storage ships.
+          No generic skills entered for this learner this term.
+          Enter via <code style={{ background: '#f3f4f6', padding: '0 4px' }}>/academics/results-cafe → Generic Skills</code>.
         </div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: style.fontSize ?? 11 }}>

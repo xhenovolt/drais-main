@@ -65,6 +65,10 @@ export async function updateSchoolSettings(args: {
   if (input.defaultFrameworkId         !== undefined) { sets.push('default_framework_id = ?');    params.push(input.defaultFrameworkId); }
   if (input.defaultTranscriptTemplateId !== undefined) { sets.push('default_transcript_template_id = ?'); params.push(input.defaultTranscriptTemplateId); }
   if (input.notes                      !== undefined) { sets.push('notes = ?');                   params.push(input.notes); }
+  if (input.promotionRuleJson          !== undefined) {
+    sets.push('promotion_rule_json = ?');
+    params.push(input.promotionRuleJson == null ? null : JSON.stringify(input.promotionRuleJson));
+  }
   if (sets.length) {
     params.push(schoolId);
     await query(

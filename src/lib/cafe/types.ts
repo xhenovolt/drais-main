@@ -175,4 +175,6 @@ export interface SchoolSettingsInput {
   defaultFrameworkId?:   number | null;
   defaultTranscriptTemplateId?: number | null;
   notes?:                string | null;
+  /** CAFE Phase 5 — VisibilityRule JSON (or null to clear). */
+  promotionRuleJson?:    Record<string, unknown> | null;
 }

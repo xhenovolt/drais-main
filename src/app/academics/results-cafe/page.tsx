@@ -51,6 +51,8 @@ export default function ResultsCAFEEntryPage() {
   const [saving, setSaving]     = useState(false);
   const [err, setErr]           = useState<string | null>(null);
   const [msg, setMsg]           = useState<string | null>(null);
+  // Phase 5 — entry mode (Components / Generic Skills / Projects).
+  const [entryMode, setEntryMode] = useState<'components' | 'skills' | 'projects'>('components');
 
   // Bootstrap pickers.
   useEffect(() => {
@@ -157,6 +159,12 @@ export default function ResultsCAFEEntryPage() {
         <Picker label="Term" value={termId} onChange={setTermId} options={terms} />
       </div>
 
+      {/* Phase 5 entry tabs */}
+      <EntryModeTabs
+        mode={entryMode}
+        onChange={setEntryMode}
+      />
+
       {err && <Banner kind="error">{err}</Banner>}
       {msg && <Banner kind="success">{msg}</Banner>}
 
@@ -166,6 +174,10 @@ export default function ResultsCAFEEntryPage() {
         <Empty label="Pick a class, subject, and term to begin." />
       ) : !grid?.framework ? (
         <NoFrameworkHint />
+      ) : entryMode === 'skills' ? (
+        <SkillsEntryPanel studentList={grid.students} termId={Number(termId)} />
+      ) : entryMode === 'projects' ? (
+        <ProjectsEntryPanel studentList={grid.students} termId={Number(termId)} />
       ) : (
         <>
           <div className="flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded p-2 bg-white dark:bg-slate-900">
@@ -334,6 +346,190 @@ function NoFrameworkHint() {
       <strong>No framework assigned</strong> to this (class, term). Configure one at{' '}
       <a href="/admin/cafe" className="text-indigo-600 hover:underline">/admin/cafe → Class assignments</a>{' '}
       or use the <a href="/academics/results" className="text-indigo-600 hover:underline">legacy results page</a> for traditional entry.
+    </div>
+  );
+}
+
+// ─── Phase 5 — Entry mode tabs + skills + projects panels ────────────────
+
+function EntryModeTabs({ mode, onChange }: {
+  mode: 'components' | 'skills' | 'projects';
+  onChange: (m: 'components' | 'skills' | 'projects') => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-700">
+      {[
+        { id: 'components' as const, label: 'Components' },
+        { id: 'skills'     as const, label: 'Generic Skills' },
+        { id: 'projects'   as const, label: 'Projects' },
+      ].map(t => (
+        <button key={t.id} onClick={() => onChange(t.id)}
+          className={[
+            'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
+            mode === t.id
+              ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200',
+          ].join(' ')}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface SkillEntry { code: string; label: string; score: number | null; valueText: string | null; gradeCode: string | null }
+interface ProjEntry  { id: number; title: string; descriptor: string | null; outcome: string | null; evidenceUrl: string | null; gradeCode: string | null }
+
+function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; termId: number }) {
+  const [pickedStudent, setPickedStudent] = useState<number | null>(studentList[0]?.id ?? null);
+  const [skills, setSkills] = useState<SkillEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [draftCode, setDraftCode] = useState('');
+  const [draftLabel, setDraftLabel] = useState('');
+  const [draftValue, setDraftValue] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pickedStudent || !termId) return;
+    setLoading(true); setErr(null);
+    fetch(`/api/cafe/skills?student_id=${pickedStudent}&term_id=${termId}`)
+      .then(r => r.json())
+      .then(d => { if (d?.success) setSkills(d.skills as SkillEntry[]); })
+      .catch(e => setErr((e as Error).message))
+      .finally(() => setLoading(false));
+  }, [pickedStudent, termId]);
+
+  async function addSkill() {
+    if (!pickedStudent || !draftLabel.trim()) return;
+    setErr(null);
+    const r = await fetch('/api/cafe/skills', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: pickedStudent, termId, code: draftCode || draftLabel,
+        label: draftLabel, valueText: draftValue || null,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) { setErr(d?.error || 'Failed'); return; }
+    setDraftCode(''); setDraftLabel(''); setDraftValue('');
+    fetch(`/api/cafe/skills?student_id=${pickedStudent}&term_id=${termId}`)
+      .then(r => r.json())
+      .then(d => { if (d?.success) setSkills(d.skills); });
+  }
+  async function removeSkill(code: string) {
+    if (!pickedStudent) return;
+    await fetch(`/api/cafe/skills?student_id=${pickedStudent}&term_id=${termId}&code=${encodeURIComponent(code)}`, { method: 'DELETE' });
+    setSkills(s => s.filter(x => x.code !== code));
+  }
+
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded p-3 bg-white dark:bg-slate-900 space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        <Picker label="Learner" value={pickedStudent ?? ''} onChange={v => setPickedStudent(v ? Number(v) : null)}
+          options={studentList.map(s => ({ id: s.id, name: s.fullName }))} />
+      </div>
+      {loading ? <Spinner /> : (
+        <>
+          <div className="space-y-1">
+            {skills.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No skills entered for this learner this term.</p>
+            ) : skills.map(s => (
+              <div key={s.code} className="flex items-center gap-2 p-1.5 border border-slate-100 dark:border-slate-800 rounded text-xs">
+                <span className="font-semibold flex-1">{s.label}</span>
+                <span className="text-slate-500">{s.valueText ?? s.gradeCode ?? (s.score ?? '')}</span>
+                <button onClick={() => removeSkill(s.code)} className="text-rose-500">×</button>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <input value={draftLabel} onChange={e => setDraftLabel(e.target.value)} placeholder="Skill (e.g. Communication)"
+              className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
+            <input value={draftCode} onChange={e => setDraftCode(e.target.value)} placeholder="code (optional)"
+              className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 font-mono" />
+            <div className="flex gap-2">
+              <input value={draftValue} onChange={e => setDraftValue(e.target.value)} placeholder="value / descriptor"
+                className="flex-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
+              <button onClick={addSkill} disabled={!draftLabel.trim() || !pickedStudent}
+                className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">Add</button>
+            </div>
+          </div>
+          {err && <p className="text-xs text-rose-600">{err}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProjectsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; termId: number }) {
+  const [pickedStudent, setPickedStudent] = useState<number | null>(studentList[0]?.id ?? null);
+  const [projects, setProjects] = useState<ProjEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftDesc, setDraftDesc] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pickedStudent || !termId) return;
+    setLoading(true); setErr(null);
+    fetch(`/api/cafe/projects?student_id=${pickedStudent}&term_id=${termId}`)
+      .then(r => r.json())
+      .then(d => { if (d?.success) setProjects(d.projects as ProjEntry[]); })
+      .catch(e => setErr((e as Error).message))
+      .finally(() => setLoading(false));
+  }, [pickedStudent, termId]);
+
+  async function addProject() {
+    if (!pickedStudent || !draftTitle.trim()) return;
+    const r = await fetch('/api/cafe/projects', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId: pickedStudent, termId, title: draftTitle, descriptor: draftDesc || null }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) { setErr(d?.error || 'Failed'); return; }
+    setDraftTitle(''); setDraftDesc('');
+    fetch(`/api/cafe/projects?student_id=${pickedStudent}&term_id=${termId}`)
+      .then(r => r.json())
+      .then(d => { if (d?.success) setProjects(d.projects); });
+  }
+  async function deleteProject(id: number) {
+    await fetch(`/api/cafe/projects?id=${id}`, { method: 'DELETE' });
+    setProjects(p => p.filter(x => x.id !== id));
+  }
+
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded p-3 bg-white dark:bg-slate-900 space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        <Picker label="Learner" value={pickedStudent ?? ''} onChange={v => setPickedStudent(v ? Number(v) : null)}
+          options={studentList.map(s => ({ id: s.id, name: s.fullName }))} />
+      </div>
+      {loading ? <Spinner /> : (
+        <>
+          {projects.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">No projects entered for this learner this term.</p>
+          ) : projects.map(p => (
+            <div key={p.id} className="p-2 border border-slate-100 dark:border-slate-800 rounded">
+              <div className="flex items-start gap-2 text-xs">
+                <div className="flex-1">
+                  <div className="font-semibold">{p.title}</div>
+                  {p.descriptor && <div className="text-slate-500 mt-0.5">{p.descriptor}</div>}
+                </div>
+                <button onClick={() => deleteProject(p.id)} className="text-rose-500">×</button>
+              </div>
+            </div>
+          ))}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} placeholder="Project title"
+              className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
+            <div className="flex gap-2">
+              <input value={draftDesc} onChange={e => setDraftDesc(e.target.value)} placeholder="Descriptor (optional)"
+                className="flex-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
+              <button onClick={addProject} disabled={!draftTitle.trim() || !pickedStudent}
+                className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">Add</button>
+            </div>
+          </div>
+          {err && <p className="text-xs text-rose-600">{err}</p>}
+        </>
+      )}
     </div>
   );
 }

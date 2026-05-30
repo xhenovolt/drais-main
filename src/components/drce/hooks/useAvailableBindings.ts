@@ -54,10 +54,11 @@ const CAFE_BINDINGS: BindingEntry[] = [
   { group: 'CAFE — Components', binding: 'result.component.practical',  label: 'Practical component' },
   { group: 'CAFE — Components', binding: 'result.component.aoi',        label: 'Activity of Integration' },
   { group: 'CAFE — Components', binding: 'result.competencyLevel',      label: 'Rolled-up competency level' },
+  // CAFE Phase 5 — these bindings now have real storage + entry UI.
   { group: 'CAFE — Generic skills', binding: 'student.genericSkills', label: 'All generic skills',
-    comingSoon: true, hint: 'Communication · Collaboration · Problem solving · ICT · Creativity · …' },
+    hint: 'Communication · Collaboration · Problem solving · ICT · Creativity · … — entered per (student, term).' },
   { group: 'CAFE — Projects',  binding: 'student.projects',          label: 'Integrated projects',
-    comingSoon: true, hint: 'Project portfolio with descriptors and evidence links.' },
+    hint: 'Project portfolio with descriptors, outcomes, evidence links.' },
 ];
 
 interface CustomFieldRow {

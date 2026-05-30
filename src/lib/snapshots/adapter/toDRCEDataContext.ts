@@ -147,7 +147,17 @@ export function snapshotToDRCEDataContext(
   if (cafe && cfgCafe?.cafeFrameworkName) cafe.frameworkName = cfgCafe.cafeFrameworkName;
   if (cafe && cfgCafe?.cafeFrameworkMode) cafe.frameworkMode = cfgCafe.cafeFrameworkMode;
 
-  const student: DRCEStudentData & { cafe?: { frameworkName: string; frameworkMode: string } } = {
+  // CAFE Phase 5 — student-level generic skills + project portfolio.
+  // Snapshot stores them at top-level keyed by studentDbId (outside the
+  // dataHash window) so adding the data never invalidates historical hashes.
+  const genericSkills = snapshot.genericSkills?.[stu.studentDbId] ?? [];
+  const projects      = snapshot.projects?.[stu.studentDbId]      ?? [];
+
+  const student: DRCEStudentData & {
+    cafe?:          { frameworkName: string; frameworkMode: string };
+    genericSkills?: typeof genericSkills;
+    projects?:      typeof projects;
+  } = {
     fullName:    stu.name,
     firstName:   stu.firstName,
     lastName:    stu.lastName,
@@ -159,6 +169,10 @@ export function snapshotToDRCEDataContext(
     dateOfBirth: null,
     custom:      customForStudent,
     ...(cafe ? { cafe } : {}),
+    // Always expose the keys (empty array when no data) so template authors
+    // don't see undefined; section components handle empty arrays gracefully.
+    genericSkills,
+    projects,
   };
 
   const assessment: DRCEAssessmentData = {
