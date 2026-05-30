@@ -466,6 +466,85 @@ function evalCall(name: string, args: AstNode[], ctx: FormulaContext): Value {
       const i = ns.indexOf(v);
       return i === -1 ? null : i + 1;
     }
+
+    // ─── CAFE Phase 6 — competency-aware functions ──────────────────────
+    case 'COMPONENT': {
+      // COMPONENT('code'[, 'field']) — read a per-result component from
+      // the current row's data context. The current row is interpreted as
+      // a result row when dataSource='results'; falls back to the first
+      // result on the dataCtx when no row scope is established.
+      // `field` defaults to 'score' but can be 'gradeCode', 'valueText',
+      // 'weight', 'displayScore', 'name'.
+      if (args.length < 1 || args.length > 2) {
+        throw new EvalError('#VALUE!', 'COMPONENT expects (code[, field])');
+      }
+      const code  = String(evaluate(args[0], ctx) ?? '').trim();
+      const field = args[1] ? String(evaluate(args[1], ctx) ?? 'score').trim() : 'score';
+      if (!code) return null;
+      // First try the current cell's row scope (when used inside a results
+      // dataSource'd table). The row data passed to resolveExpression isn't
+      // accessible from formula land, so we walk the outer ctx.results.
+      // Templates can also use binding paths directly (result.component.<code>.<field>).
+      const candidates = ctx.dataCtx.results ?? [];
+      for (const r of candidates) {
+        const comps = ((r as unknown) as { components?: Array<Record<string, unknown>> }).components;
+        if (!comps?.length) continue;
+        const hit = comps.find(c => String(c.code) === code);
+        if (hit) {
+          const v = hit[field];
+          if (v == null) return null;
+          if (typeof v === 'number' || typeof v === 'boolean') return v;
+          return String(v);
+        }
+      }
+      return null;
+    }
+    case 'COMPETENCY': {
+      // COMPETENCY([subjectName]) — return the competency level (grade code)
+      // for a given subject result; without args, returns the rollup
+      // student.cafe.frameworkMode'-style summary. With one arg, looks up
+      // the matching result by subjectName and returns its grade code.
+      if (args.length > 1) throw new EvalError('#VALUE!', 'COMPETENCY expects ([subjectName])');
+      if (args.length === 0) {
+        const cafe = (ctx.dataCtx.student as unknown as { cafe?: { frameworkMode?: string } }).cafe;
+        return cafe?.frameworkMode ?? null;
+      }
+      const wanted = String(evaluate(args[0], ctx) ?? '').toLowerCase();
+      const hit = (ctx.dataCtx.results ?? []).find(r =>
+        r.subjectName.toLowerCase() === wanted || r.displaySubject?.toLowerCase() === wanted,
+      );
+      if (!hit) return null;
+      // Prefer the explicit competencyLevel (highest grade across components),
+      // fall back to result.grade.
+      const cl = ((hit as unknown) as { competencyLevel?: string }).competencyLevel;
+      return cl ?? hit.grade ?? null;
+    }
+    case 'DESCRIPTOR': {
+      // DESCRIPTOR(code[, scope]) — translate a code into its mapped
+      // descriptor text from any component or generic skill on the current
+      // student. `scope` (optional) is 'component' (default) or 'skill';
+      // when 'skill', looks under student.genericSkills.
+      if (args.length < 1 || args.length > 2) {
+        throw new EvalError('#VALUE!', 'DESCRIPTOR expects (code[, scope])');
+      }
+      const code  = String(evaluate(args[0], ctx) ?? '').trim();
+      const scope = args[1] ? String(evaluate(args[1], ctx) ?? 'component').trim().toLowerCase() : 'component';
+      if (!code) return null;
+      if (scope === 'skill') {
+        const skills = ((ctx.dataCtx.student as unknown) as { genericSkills?: Array<{ code: string; valueText: string | null; gradeCode: string | null }> }).genericSkills ?? [];
+        const hit = skills.find(s => s.code === code);
+        return hit?.valueText ?? hit?.gradeCode ?? null;
+      }
+      // 'component' (default) — scan every result's components.
+      for (const r of ctx.dataCtx.results ?? []) {
+        const comps = ((r as unknown) as { components?: Array<{ code: string; valueText: string | null; gradeCode: string | null }> }).components;
+        if (!comps?.length) continue;
+        const hit = comps.find(c => c.code === code);
+        if (hit) return hit.valueText ?? hit.gradeCode ?? null;
+      }
+      return null;
+    }
+
     default:
       throw new EvalError('#NAME?', `Unknown function "${name}"`);
   }
