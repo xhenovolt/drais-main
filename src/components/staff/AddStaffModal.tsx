@@ -309,7 +309,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             value={formData.other_name}
             onChange={(e) => handleInputChange('other_name', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter other names"
+            placeholder={t('fields.middleName')}
           />
         </div>
 
@@ -397,7 +397,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             value={formData.staff_no}
             onChange={(e) => handleInputChange('staff_no', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Auto-generated if empty"
+            placeholder={t('common.automatic')}
           />
         </div>
 
@@ -492,7 +492,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             value={formData.salary}
             onChange={(e) => handleInputChange('salary', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter monthly salary"
+            placeholder={t('fields.salaryGrade')}
           />
         </div>
 
@@ -505,7 +505,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             onChange={(e) => handleInputChange('qualification', e.target.value)}
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter education qualifications and certificates"
+            placeholder={t('fields.qualification')}
           />
         </div>
       </div>
@@ -587,7 +587,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             value={formData.bank_name}
             onChange={(e) => handleInputChange('bank_name', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter bank name"
+            placeholder={t('finance.bankTransfer')}
           />
         </div>
 
@@ -600,7 +600,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             value={formData.bank_account_no}
             onChange={(e) => handleInputChange('bank_account_no', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter account number"
+            placeholder={t('fields.staffId')}
           />
         </div>
 
@@ -668,7 +668,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 pr-10 ${
                     errors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Enter password"
+                  placeholder={t('auth.password')}
                 />
                 <button
                   type="button"
@@ -692,7 +692,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                   errors.confirm_password ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Confirm password"
+                placeholder={t('auth.confirmPassword')}
               />
               {errors.confirm_password && <p className="text-red-500 text-xs mt-1">{errors.confirm_password}</p>}
             </div>
