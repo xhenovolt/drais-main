@@ -1,7 +1,9 @@
 "use client";
 import React, { useState } from 'react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const StaffAttendance = () => {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({ staff_id: '', date: '', status: '', notes: '' });
 
   const handleSubmit = async (e) => {
@@ -31,10 +33,10 @@ const StaffAttendance = () => {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Staff Attendance</h1>
+      <h1 className="text-2xl font-bold mb-4">{`${t('people.staff')} — ${t('academic.attendance')}`}</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block mb-2">Staff ID</label>
+          <label className="block mb-2">{t('fields.staffId')}</label>
           <input
             type="text"
             name="staff_id"
@@ -45,7 +47,7 @@ const StaffAttendance = () => {
           />
         </div>
         <div>
-          <label className="block mb-2">Date</label>
+          <label className="block mb-2">{t('common.date')}</label>
           <input
             type="date"
             name="date"
@@ -56,7 +58,7 @@ const StaffAttendance = () => {
           />
         </div>
         <div>
-          <label className="block mb-2">Status</label>
+          <label className="block mb-2">{t('common.status')}</label>
           <select
             name="status"
             value={formData.status}
@@ -64,13 +66,13 @@ const StaffAttendance = () => {
             className="border border-gray-300 px-4 py-2 w-full"
             required
           >
-            <option value="">Select Status</option>
-            <option value="present">Present</option>
-            <option value="absent">Absent</option>
+            <option value="">{t('common.select')}</option>
+            <option value="present">{t('academic.attendance')}</option>
+            <option value="absent">{t('academic.daysAbsent')}</option>
           </select>
         </div>
         <div>
-          <label className="block mb-2">Notes</label>
+          <label className="block mb-2">{t('academic.remarks')}</label>
           <textarea
             name="notes"
             value={formData.notes}
@@ -78,7 +80,7 @@ const StaffAttendance = () => {
             className="border border-gray-300 px-4 py-2 w-full"
           ></textarea>
         </div>
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2">Submit</button>
+        <button type="submit" className="bg-blue-500 text-white px-4 py-2">{t('actions.submit')}</button>
       </form>
     </div>
   );

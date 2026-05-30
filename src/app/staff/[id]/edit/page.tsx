@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, Loader, ArrowLeft, Save, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -26,6 +27,7 @@ interface ManagerOption {
 }
 
 export default function StaffEditPage() {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -169,7 +171,7 @@ export default function StaffEditPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Edit Staff Member</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{`${t('actions.edit')} — ${t('people.staffMember')}`}</h1>
           <p className="text-sm text-slate-500 mt-1">Update staff information</p>
         </div>
         <Link
