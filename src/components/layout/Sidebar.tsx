@@ -17,14 +17,16 @@ import { useEnabledModules } from '@/hooks/useEnabledModules';
  */
 export const Sidebar = () => {
   const pathname = usePathname();
-  const { t }    = useI18n();
+  const { t, lang } = useI18n();
   const { user } = useAuth() || {};
   const { school } = useSchoolConfig();
   const { enabled: enabledModules } = useEnabledModules();
 
   const navigationItems = useMemo(() => {
-    const tWrapper = (key: string, fallback?: string) => t(key) || fallback || key;
-    const items    = getNavigationItems(tWrapper);
+    // Forward the fallback into t() — the new I18nProvider signature uses
+    // it on dictionary miss to prevent raw key paths leaking to the UI.
+    const tWrapper = (key: string, fallback?: string) => t(key, fallback);
+    const items    = getNavigationItems(tWrapper, lang);
     if (!user) return items;
     const hasRole = (slug: string) => {
       if (!user.roles) return false;
@@ -34,7 +36,7 @@ export const Sidebar = () => {
     };
     // Pass enabled modules — super-admin sees everything regardless.
     return filterMenuByRole(items, hasRole, !!user.isSuperAdmin, enabledModules);
-  }, [t, user, enabledModules]);
+  }, [t, lang, user, enabledModules]);
 
   // Determine which groups should start expanded (ones that contain the current path)
   const defaultExpanded = useMemo(() => {

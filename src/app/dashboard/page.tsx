@@ -56,6 +56,8 @@ function SignalCard({ signal }: { signal: Signal }) {
 }
 
 function IntelligenceSummary({ schoolId }: { schoolId: number | null }) {
+  const { lang } = useI18n();
+  const isAr = lang === 'ar';
   const { data, isLoading } = useSWR(
     schoolId ? '/api/intelligence/overview' : null,
     fetcher,
@@ -67,7 +69,7 @@ function IntelligenceSummary({ schoolId }: { schoolId: number | null }) {
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-2.5">
         <div className="flex items-center gap-2 mb-3">
           <Brain className="w-4 h-4 text-indigo-500" />
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Intelligence Signals</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{isAr ? 'إشارات الذكاء' : 'Intelligence Signals'}</span>
         </div>
         {[1, 2, 3].map(i => (
           <div key={i} className="h-14 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
@@ -84,7 +86,7 @@ function IntelligenceSummary({ schoolId }: { schoolId: number | null }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Brain className="w-4 h-4 text-indigo-500" />
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Intelligence Signals</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{isAr ? 'إشارات الذكاء' : 'Intelligence Signals'}</span>
           {meta.currentTerm && (
             <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">
               {meta.currentTerm.name}
@@ -92,13 +94,15 @@ function IntelligenceSummary({ schoolId }: { schoolId: number | null }) {
           )}
         </div>
         <Link href="/intelligence" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 flex-shrink-0">
-          Full analysis <ArrowRight className="w-3 h-3" />
+          {isAr ? 'التحليل الكامل' : 'Full analysis'} <ArrowRight className="w-3 h-3 rtl-flip" />
         </Link>
       </div>
 
       {signals.length === 0 ? (
         <div className="text-center py-6 text-slate-400 text-sm">
-          {data ? 'No signals this term — all clear.' : 'No data yet for this term.'}
+          {data
+            ? (isAr ? 'لا توجد إشارات هذا الفصل — كل شيء واضح.' : 'No signals this term — all clear.')
+            : (isAr ? 'لا توجد بيانات بعد لهذا الفصل.' : 'No data yet for this term.')}
         </div>
       ) : (
         <div className="space-y-2">
@@ -112,7 +116,7 @@ function IntelligenceSummary({ schoolId }: { schoolId: number | null }) {
           className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
         >
           <BookOpen className="w-3.5 h-3.5" />
-          View Full Intelligence Report
+          {isAr ? 'عرض تقرير الذكاء الكامل' : 'View Full Intelligence Report'}
         </Link>
       )}
     </div>
@@ -121,6 +125,8 @@ function IntelligenceSummary({ schoolId }: { schoolId: number | null }) {
 
 // ─── Attendance Intelligence insight card (Phase 4) ─────────────────────────
 function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
+  const { lang } = useI18n();
+  const isAr = lang === 'ar';
   const { data, isLoading } = useSWR(
     schoolId ? '/api/intelligence/attendance-overview' : null,
     fetcher,
@@ -159,39 +165,39 @@ function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Fingerprint className="w-4 h-4 text-violet-500" />
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Attendance Intelligence</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{isAr ? 'ذكاء الحضور' : 'Attendance Intelligence'}</span>
           <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">
-            {d?.tracked_days ?? 0} days tracked
+            {d?.tracked_days ?? 0} {isAr ? 'يومًا مُتتبَّعًا' : 'days tracked'}
           </span>
         </div>
         <Link href="/intelligence?tab=attendance" className="text-xs text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 flex-shrink-0">
-          Full report <ArrowRight className="w-3 h-3" />
+          {isAr ? 'تقرير كامل' : 'Full report'} <ArrowRight className="w-3 h-3 rtl-flip" />
         </Link>
       </div>
 
       <div className="grid grid-cols-3 gap-2.5">
         {/* Metric 1: Today's scans */}
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
-          <span className="text-xs text-slate-500 dark:text-slate-400">Today Scanned</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'تم المسح اليوم' : 'Today Scanned'}</span>
           <span className="text-xl font-bold text-slate-900 dark:text-white">{d?.today_scans ?? 0}</span>
-          <span className="text-xs text-slate-400">of {d?.total_enrolled ?? '–'} enrolled</span>
+          <span className="text-xs text-slate-400">{isAr ? `من ${d?.total_enrolled ?? '–'} مسجَّل` : `of ${d?.total_enrolled ?? '–'} enrolled`}</span>
         </div>
 
         {/* Metric 2: Week trend */}
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
-          <span className="text-xs text-slate-500 dark:text-slate-400">Week Trend</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'اتجاه الأسبوع' : 'Week Trend'}</span>
           <div className="flex items-center gap-1">
             {TREND_ICON[trend as keyof typeof TREND_ICON] ?? TREND_ICON.no_data}
             <span className={`text-sm font-bold capitalize ${trendColor}`}>{trend === 'no_data' ? '–' : trend}</span>
           </div>
-          {deltaLabel && <span className={`text-xs font-medium ${trendColor}`}>{deltaLabel} vs prev week</span>}
+          {deltaLabel && <span className={`text-xs font-medium ${trendColor}`}>{isAr ? `${deltaLabel} مقابل الأسبوع السابق` : `${deltaLabel} vs prev week`}</span>}
         </div>
 
         {/* Metric 3: Coverage */}
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
-          <span className="text-xs text-slate-500 dark:text-slate-400">Biometric Coverage</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'تغطية البصمة' : 'Biometric Coverage'}</span>
           <span className="text-xl font-bold text-slate-900 dark:text-white">{d?.scan_rate_pct ?? 0}%</span>
-          <span className="text-xs text-slate-400">{d?.total_scanned_students ?? 0} students scanned</span>
+          <span className="text-xs text-slate-400">{isAr ? `${d?.total_scanned_students ?? 0} طالبًا تم مسحه` : `${d?.total_scanned_students ?? 0} students scanned`}</span>
         </div>
       </div>
 
@@ -200,7 +206,7 @@ function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
         className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-sm font-medium hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
       >
         <Activity className="w-3.5 h-3.5" />
-        View Attendance Intelligence
+        {isAr ? 'عرض ذكاء الحضور' : 'View Attendance Intelligence'}
       </Link>
     </div>
   );

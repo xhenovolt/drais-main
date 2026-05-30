@@ -33,8 +33,8 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const [langOpen, setLangOpen] = useState(false);
 
   const navigationItems = useMemo(() => {
-    const tWrapper = (key: string, fallback?: string) => t(key) || fallback || key;
-    const items    = getNavigationItems(tWrapper);
+    const tWrapper = (key: string, fallback?: string) => t(key, fallback);
+    const items    = getNavigationItems(tWrapper, lang);
     if (!user) return items;
     const hasRole = (slug: string) => {
       if (!user.roles) return false;
@@ -43,7 +43,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
         : (user.roles as any[]).some((r: any) => (r.slug || r.name || '').toLowerCase() === slug.toLowerCase());
     };
     return filterMenuByRole(items, hasRole, !!user.isSuperAdmin);
-  }, [t, user]);
+  }, [t, lang, user]);
 
   const defaultExpanded = useMemo(() => {
     const s = new Set<string>();

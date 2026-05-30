@@ -5,7 +5,25 @@ import { useThemeStore } from '@/hooks/useThemeStore';
 interface Dictionary { [key: string]: string | Dictionary; }
 interface I18nContextValue {
   lang: string;
-  t: (key: string, vars?: Record<string,string|number>) => string;
+  /**
+   * Resolve a dictionary key.
+   *
+   * Calling forms:
+   *   t('common.save')                                 → "Save" / "حفظ"
+   *   t('common.pageOf', { current: 1, total: 5 })     → "Page 1 of 5"
+   *   t('nav.students.admit', 'Admit Student')         → "Admit Student" if the key
+   *                                                       is missing, else the resolved value.
+   *   t('errors.fileTooLarge', { size: 5 }, 'File too big ({{size}}MB)')
+   *
+   * The fallback (last positional string) is used when the dictionary
+   * lookup returns undefined. Prevents raw key paths like
+   * "nav.students.admit" from ever leaking to the UI.
+   */
+  t: (
+    key: string,
+    varsOrFallback?: Record<string, string | number> | string,
+    fallback?: string,
+  ) => string;
   dir: 'ltr' | 'rtl';
   setLang: (lng: string) => void;
   ready: boolean;
@@ -117,17 +135,33 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.body.classList.toggle('ltr', lang !== 'ar');
   }, [lang]);
 
-  const t = useCallback((key: string, vars?: Record<string,string|number>) => {
-    let value = resolveKey(dict, key) || key;
-    if (typeof value !== 'string') return key;
-    
-    // Handle variable substitution
+  const t = useCallback((
+    key: string,
+    varsOrFallback?: Record<string, string | number> | string,
+    fallback?: string,
+  ) => {
+    // Normalise call shape: vars + optional fallback, or just fallback.
+    const vars =
+      typeof varsOrFallback === 'object' && varsOrFallback !== null
+        ? varsOrFallback
+        : undefined;
+    const fb =
+      typeof varsOrFallback === 'string'
+        ? varsOrFallback
+        : fallback;
+
+    const resolved = resolveKey(dict, key);
+    // Miss → use English fallback (if any) BEFORE giving up to the raw
+    // key path. Prevents leaks like "nav.students.admit" appearing in
+    // the UI when a dictionary entry has not been authored yet.
+    let value: string =
+      typeof resolved === 'string' ? resolved : (fb ?? key);
+
     if (vars) {
       Object.entries(vars).forEach(([k, v]) => {
         value = value.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
       });
     }
-    
     return value;
   }, [dict]);
 

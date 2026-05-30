@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { Users, UserCheck, UserX, TrendingUp, AlertTriangle } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface KPIData {
   totalStudents: number;
@@ -28,6 +29,7 @@ function KPISkeleton() {
 }
 
 const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
+  const { t, lang } = useI18n();
   if (!data) return <KPISkeleton />;
 
   const attendancePct = data.attendancePercentage || 0;
@@ -36,18 +38,23 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
     attendancePct >= 60 ? 'text-amber-600 dark:text-amber-400' :
     'text-red-600 dark:text-red-400';
 
+  const isAr = lang === 'ar';
   const cards = [
     {
-      label: 'Total Students',
+      label: isAr ? 'إجمالي الطلاب' : 'Total Students',
       value: (data.totalStudents || 0).toLocaleString(),
-      sub: `${data.enrollmentGrowth || 0} enrolled this month`,
+      sub: isAr
+        ? `${data.enrollmentGrowth || 0} مُسجَّل هذا الشهر`
+        : `${data.enrollmentGrowth || 0} enrolled this month`,
       icon: <Users className="w-4 h-4" />,
       iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
     },
     {
-      label: 'Present Today',
+      label: isAr ? 'حاضرون اليوم' : 'Present Today',
       value: (data.presentToday || 0).toLocaleString(),
-      sub: `${attendancePct}% attendance rate`,
+      sub: isAr
+        ? `معدل الحضور ${attendancePct}٪`
+        : `${attendancePct}% attendance rate`,
       subColor: attendanceColor,
       icon: <UserCheck className="w-4 h-4" />,
       iconBg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
@@ -55,18 +62,22 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
       barColor: attendancePct >= 80 ? 'bg-emerald-500' : attendancePct >= 60 ? 'bg-amber-500' : 'bg-red-500',
     },
     {
-      label: 'Absent Today',
+      label: isAr ? 'غائبون اليوم' : 'Absent Today',
       value: (data.absentToday || 0).toLocaleString(),
-      sub: data.absentToday > 0 ? 'needs follow-up' : 'all present',
+      sub: data.absentToday > 0
+        ? (isAr ? 'بحاجة إلى متابعة' : 'needs follow-up')
+        : (isAr ? 'الجميع حاضر' : 'all present'),
       icon: <UserX className="w-4 h-4" />,
       iconBg: data.absentToday > 0
         ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
         : 'bg-slate-100 dark:bg-slate-700 text-slate-500',
     },
     {
-      label: 'Fee Defaulters',
+      label: isAr ? 'المتأخرون عن الرسوم' : 'Fee Defaulters',
       value: (data.defaultersCount || 0).toLocaleString(),
-      sub: data.defaultersCount > 10 ? '⚠️ action required' : 'unpaid / partial',
+      sub: data.defaultersCount > 10
+        ? (isAr ? '⚠️ يلزم اتخاذ إجراء' : '⚠️ action required')
+        : (isAr ? 'غير مدفوع / جزئي' : 'unpaid / partial'),
       icon: <AlertTriangle className="w-4 h-4" />,
       iconBg: data.defaultersCount > 10
         ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'

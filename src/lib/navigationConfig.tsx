@@ -145,6 +145,149 @@ export function filterMenuByRole(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LABEL_AR — every literal English label in this file, mapped to its Arabic
+// equivalent. Applied as a post-processing tree-walk so we don't have to
+// touch ~110 individual `label: '...'` sites. Unknown labels fall through
+// verbatim (safe: shows the English literal until an entry is added).
+// ─────────────────────────────────────────────────────────────────────────────
+const LABEL_AR: Record<string, string> = {
+  // Dashboard
+  'Overview':                  'نظرة عامة',
+  'Dashboard':                 'لوحة التحكم',
+
+  // Students group
+  'Students':                  'الطلاب',
+  'Student List':              'قائمة الطلاب',
+  'Admit Student':             'قبول طالب',
+  'Admissions Pipeline':       'مسار القبول',
+  'Enroll Student':            'تسجيل طالب',
+  'Requirements':              'المتطلبات',
+  'Contacts':                  'جهات الاتصال',
+  'Documents':                 'المستندات',
+  'Duplicates':                'السجلات المكرّرة',
+  'History':                   'السجل',
+  'ID Cards':                  'بطاقات الهوية',
+  'Bulk Import':               'استيراد جماعي',
+  'Promotions':                'الترقيات',
+  'Attendance':                'الحضور',
+
+  // Staff & Roles group
+  'Staff & Roles':             'الموظفون والأدوار',
+  'Staff':                     'الموظفون',
+  'View Staff':                'عرض الموظفين',
+  'Add Staff':                 'إضافة موظف',
+  'User Management':           'إدارة المستخدمين',
+  'Workplans':                 'خطط العمل',
+  'Departments':               'الأقسام',
+  'Roles & Permissions':       'الأدوار والصلاحيات',
+  'User Monitoring':           'مراقبة المستخدمين',
+  'Audit Trail':               'سجل التدقيق',
+  'Trash':                     'المهملات',
+  'Positions':                 'الوظائف',
+  'School Modules':            'وحدات المدرسة',
+  'Communications':            'الاتصالات',
+  'Admission Mode':            'نمط القبول',
+
+  // Academics group
+  'Academics':                 'الأكاديميات',
+  'Classes':                   'الصفوف',
+  'Streams':                   'الشعب',
+  'Subjects':                  'المواد',
+  'Teacher Allocation':        'توزيع المعلمين',
+  'Allocation History':        'سجل التوزيع',
+  'Timetable':                 'الجدول الزمني',
+  'Academic Years':            'السنوات الدراسية',
+  'Terms':                     'الفصول الدراسية',
+  'Curriculums':               'المناهج الدراسية',
+  'Examinations':              'الامتحانات',
+  'Results':                   'النتائج',
+  'Report Cards':              'بطاقات التقارير',
+  'Snapshots':                 'اللقطات',
+
+  // Documents & Assessment group (the hoisted CAFE/DRCE/Issuance group)
+  'Documents & Assessment':    'الوثائق والتقييم',
+  'CAFE (Assessment Engine)':  'إدارة كفي',
+  'CAFE Result Entry':         'إدخال نتائج كفي',
+  'Template Kitchen':          'مطبخ القوالب',
+  'New Document':              'وثيقة جديدة',
+  'Block Library':             'مكتبة الكتل',
+  'Issuance':                  'الإصدار',
+  'Custom Fields':             'الحقول المخصصة',
+
+  // Reports group
+  'Reports':                   'التقارير',
+  'Analytics':                 'التحليلات',
+  'Exports':                   'التصديرات',
+  'Intelligence':              'الذكاء',
+
+  // Tahfiz group
+  'Tahfiz':                    'التحفيظ',
+  'Groups':                    'المجموعات',
+  'Books':                     'الكتب',
+  'Portions':                  'المقاطع',
+  'Progress':                  'التقدّم',
+  'Review':                    'المراجعة',
+  'Halaqat':                   'الحلقات',
+  'Learners':                  'المتعلمون',
+
+  // Finance group
+  'Finance':                   'الشؤون المالية',
+  'Fees':                      'الرسوم',
+  'Invoices':                  'الفواتير',
+  'Receipts':                  'الإيصالات',
+  'Payments':                  'المدفوعات',
+  'Expenses':                  'المصروفات',
+  'Payroll':                   'الرواتب',
+  'Wallets':                   'المحافظ',
+  'Waivers':                   'الإعفاءات',
+  'Expenditures':              'المصروفات',
+  'Learner Fees':              'رسوم الطلاب',
+  'Fee Structures':            'هياكل الرسوم',
+  'Ledger v2':                 'دفتر الأستاذ',
+  'Legacy Ledger':             'الدفتر القديم',
+
+  // Attendance group
+  'Devices':                   'الأجهزة',
+  'Logs':                      'السجلات',
+  'Enrollment':                'التسجيل',
+  'Mapping':                   'الربط',
+  'Remote Features':           'الميزات عن بُعد',
+  'Device Control':            'التحكم بالأجهزة',
+  'Device Logs':               'سجلات الأجهزة',
+  'Commands':                  'الأوامر',
+  'Biometric':                 'البصمة',
+
+  // Settings group
+  'Settings':                  'الإعدادات',
+  'School':                    'المدرسة',
+  'Appearance':                'المظهر',
+  'Profile':                   'الملف الشخصي',
+  'System':                    'النظام',
+  'Templates':                 'القوالب',
+  'Study Modes':               'أنماط الدراسة',
+  'Relay':                     'الترحيل',
+  'Branding':                  'العلامة التجارية',
+  'Modules':                   'الوحدات',
+  'School Identity':           'هوية المدرسة',
+  'Academic Calendar':         'التقويم الدراسي',
+  'Notifications':             'الإشعارات',
+};
+
+/**
+ * Apply LABEL_AR translations to a built menu tree in place. Unknown
+ * labels pass through verbatim. Recursive on `children`. Returns a
+ * new tree (does not mutate input).
+ */
+function translateMenuTree(items: MenuItem[], lang: string): MenuItem[] {
+  if (lang !== 'ar') return items;
+  return items.map(item => ({
+    ...item,
+    label: LABEL_AR[item.label] ?? item.label,
+    children: item.children ? translateMenuTree(item.children, lang) : undefined,
+  }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Navigation items factory
 // t = i18n translation function from useI18n()
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,8 +298,9 @@ export function filterMenuByRole(
 
 export function getNavigationItems(
   t: (key: string, fallback?: string) => string,
+  lang: string = 'en',
 ): MenuItem[] {
-  return [
+  const items: MenuItem[] = [
 
     // ══ 1. DASHBOARD ══════════════════════════════════════════════════════════
     {
@@ -362,4 +506,6 @@ export function getNavigationItems(
       ],
     },
   ];
+
+  return translateMenuTree(items, lang);
 }
