@@ -1,8 +1,14 @@
 "use client";
 import React from 'react';
 import { useThemeStore } from '@/hooks/useThemeStore';
-import { Sun, Moon, Monitor, Check, RotateCcw } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { Sun, Moon, Monitor, Check, RotateCcw, Languages } from 'lucide-react';
 import { showToast } from '@/lib/toast';
+
+const languages = [
+  { code: 'en', label: 'English',  native: 'English',   flag: '🇬🇧' },
+  { code: 'ar', label: 'Arabic',   native: 'العربية',   flag: '🇸🇦' },
+];
 
 const colorPresets = [
   { label: 'Blue',    value: '#2563eb' },
@@ -44,6 +50,7 @@ const borderRadii = [
 
 export default function AppearancePage() {
   const store = useThemeStore();
+  const { lang, setLang, t } = useI18n();
 
   const currentRadius = (store as any).borderRadius || 'lg';
   const setBorderRadius = (v: string) => {
@@ -202,6 +209,49 @@ export default function AppearancePage() {
               >
                 <div className={`w-8 h-8 bg-gray-300 dark:bg-gray-600 ${r.preview}`} />
                 <span className={`text-xs font-medium ${active ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-500'}`}>{r.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Language */}
+      <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Languages className="w-4 h-4 text-gray-500" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            {t('settings.language')}
+          </h2>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          {lang === 'ar'
+            ? 'يتم تطبيق التغيير على كامل النظام فورًا. تتحول الواجهة إلى اتجاه RTL تلقائيًا للعربية.'
+            : 'Changes apply instantly across the entire system. The interface flips to RTL automatically for Arabic.'}
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {languages.map((l) => {
+            const active = lang === l.code;
+            return (
+              <button
+                key={l.code}
+                onClick={() => {
+                  setLang(l.code);
+                  showToast('success', l.code === 'ar' ? 'تم تغيير اللغة' : 'Language changed');
+                }}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${
+                  active
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <span className="text-2xl">{l.flag}</span>
+                <div className="flex-1">
+                  <div className={`text-sm font-semibold ${active ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-900 dark:text-white'}`}>
+                    {l.native}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{l.label}</div>
+                </div>
+                {active && <Check className="w-4 h-4 text-indigo-600" />}
               </button>
             );
           })}
