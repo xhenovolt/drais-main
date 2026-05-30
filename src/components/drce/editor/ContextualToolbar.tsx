@@ -17,6 +17,7 @@ import {
 import { useSelection, selection } from './selectionStore';
 import type { DRCEDocument, DRCEMutation, DRCESection, DRCEShape } from '@/lib/drce/schema';
 import { newSectionId, newShapeId, newColumnId, newFieldId, newItemId } from '@/lib/drce/ids';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Props {
   document: DRCEDocument;
@@ -35,6 +36,7 @@ function findShapeEl(canvas: HTMLElement, id: string): SVGGraphicsElement | null
 }
 
 export function ContextualToolbar({ document: doc, onMutate, canvasRef }: Props) {
+  const { t } = useI18n();
   const sel = useSelection();
   const [rect, setRect] = useState<Rect | null>(null);
 
@@ -177,18 +179,18 @@ export function ContextualToolbar({ document: doc, onMutate, canvasRef }: Props)
       className="flex items-center gap-0.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl px-1 py-1 text-xs select-none"
       onMouseDown={e => e.stopPropagation()}
     >
-      <ToolBtn icon={<MoveDiagonal2 size={13} />} title="Duplicate (Ctrl+D)"      onClick={duplicate} />
-      <ToolBtn icon={<Copy          size={13} />} title="Copy (Ctrl+C)"           onClick={copy} />
-      <ToolBtn icon={<Clipboard     size={13} />} title="Paste (Ctrl+V)"          onClick={paste} disabled={!selection.hasClipboard()} />
+      <ToolBtn icon={<MoveDiagonal2 size={13} />} title={`${t('actions.duplicate')} (Ctrl+D)`} onClick={duplicate} />
+      <ToolBtn icon={<Copy          size={13} />} title={`${t('actions.copy')} (Ctrl+C)`}      onClick={copy} />
+      <ToolBtn icon={<Clipboard     size={13} />} title={`${t('actions.paste')} (Ctrl+V)`}     onClick={paste} disabled={!selection.hasClipboard()} />
       {sel.primary.kind === 'section' && (
         <>
           <Divider />
-          <ToolBtn icon={<ArrowUp   size={13} />} title="Move up"                 onClick={() => reorder('up')} />
-          <ToolBtn icon={<ArrowDown size={13} />} title="Move down"               onClick={() => reorder('down')} />
+          <ToolBtn icon={<ArrowUp   size={13} />} title={t('actions.move')}     onClick={() => reorder('up')} />
+          <ToolBtn icon={<ArrowDown size={13} />} title={t('actions.move')}     onClick={() => reorder('down')} />
         </>
       )}
       <Divider />
-      <ToolBtn icon={<Trash2 size={13} />} title="Delete (Del)" danger onClick={del} />
+      <ToolBtn icon={<Trash2 size={13} />} title={`${t('actions.delete')} (Del)`} danger onClick={del} />
     </div>
   );
 }

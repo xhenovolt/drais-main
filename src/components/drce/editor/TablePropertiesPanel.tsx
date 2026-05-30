@@ -24,6 +24,7 @@ interface Props {
 }
 
 import { newColumnId } from '@/lib/drce/ids';
+import { useI18n } from '@/components/i18n/I18nProvider';
 function newColId() { return newColumnId(); }
 
 function setProp(onMutate: (m: DRCEMutation) => void, sectionId: string, path: string, value: unknown) {
@@ -31,6 +32,7 @@ function setProp(onMutate: (m: DRCEMutation) => void, sectionId: string, path: s
 }
 
 export function TablePropertiesPanel({ section, onMutate }: Props) {
+  const { t } = useI18n();
   const [cellOpen, setCellOpen] = useState<string | null>(null);
 
   // Helpers that re-emit the entire columns or cells map; the schema panel is
@@ -122,13 +124,13 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
               <input
                 value={c.header}
                 onChange={e => patchColumn(c.id, { header: e.target.value })}
-                placeholder="Header"
+                placeholder={t('drce.header')}
                 className="flex-1 px-2 py-1 rounded bg-gray-100 dark:bg-slate-800 text-xs outline-none"
               />
               <input
                 value={c.width}
                 onChange={e => patchColumn(c.id, { width: e.target.value })}
-                title="CSS width"
+                title={t('drceProperties.width')}
                 placeholder="20%"
                 className="w-14 px-1.5 py-1 rounded bg-gray-100 dark:bg-slate-800 text-[10px] outline-none text-center"
               />
@@ -136,7 +138,7 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
                 value={c.align ?? 'left'}
                 onChange={e => patchColumn(c.id, { align: e.target.value as 'left' | 'center' | 'right' })}
                 className="px-1 py-1 rounded bg-gray-100 dark:bg-slate-800 text-[10px] outline-none"
-                title="Align"
+                title={t('drceProperties.align')}
               >
                 <option value="left">L</option><option value="center">C</option><option value="right">R</option>
               </select>

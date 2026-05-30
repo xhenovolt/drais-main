@@ -9,6 +9,7 @@ import type {
   DRCEImageShape,
 } from '@/lib/drce/schema';
 import { useAvailableBindings } from '@/components/drce/hooks/useAvailableBindings';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Props {
   shape: DRCEShape | null;
@@ -18,10 +19,31 @@ interface Props {
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
+// Map common Row labels onto dictionary keys. Same pattern as PropertiesPanel
+// so the call sites (label="Color", label="Width") never need to change.
+const LABEL_KEYS: Record<string, string> = {
+  Fill:      'drceProperties.color',
+  Stroke:    'drceProperties.border',
+  Thickness: 'drceProperties.border',
+  Radius:    'drceProperties.borderRadius',
+  Opacity:   'drceProperties.opacity',
+  Width:     'drceProperties.width',
+  Height:    'drceProperties.height',
+  Rotation:  'drceProperties.rotation',
+  Color:     'drceProperties.color',
+};
+function translateLabel(t: (k: string) => string, label: string): string {
+  const key = LABEL_KEYS[label];
+  if (!key) return label;
+  const tr = t(key);
+  return tr === key ? label : tr;
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center justify-between gap-2 py-1">
-      <label className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 w-20">{label}</label>
+      <label className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 w-20">{translateLabel(t, label)}</label>
       <div className="flex-1 flex items-center gap-1">{children}</div>
     </div>
   );

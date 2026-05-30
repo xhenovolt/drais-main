@@ -21,6 +21,7 @@ import { GripVertical, Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { DRCESection, DRCEMutation, DRCEContainerSection } from '@/lib/drce/schema';
 import { newSectionId, newFieldId, newColumnId, newItemId, newShapeId } from '@/lib/drce/ids';
 import { getSectionPlugin } from '@/lib/drce/section-registry';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Props {
   sections: DRCESection[];
@@ -136,6 +137,7 @@ function SortableItem({
 }
 
 export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: Props) {
+  const { t } = useI18n();
   const sorted = [...sections].sort((a, b) => a.order - b.order);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -332,11 +334,11 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-          Sections
+          {t('drce.sections')}
         </span>
         <button
           type="button"
-          title="Add section"
+          title={t('drce.addSection')}
           onClick={() => setShowPicker(v => !v)}
           className="w-6 h-6 flex items-center justify-center rounded-md bg-indigo-50 dark:bg-indigo-900/40 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-800/60"
         >
