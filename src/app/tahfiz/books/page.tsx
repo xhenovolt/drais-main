@@ -10,6 +10,7 @@ import {
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import AssignPortionModal from '@/components/tahfiz/AssignPortionModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface TahfizBook {
   id: number;
@@ -29,6 +30,7 @@ interface TahfizBook {
 }
 
 function TahfizBooksContent() {
+  const { t } = useI18n();
   const [books, setBooks] = useState<TahfizBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -233,7 +235,7 @@ function TahfizBooksContent() {
         {/* Header with Stats */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Tahfiz Books</h1>
+            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('subjects.quran')}`}</h1>
             <p className="text-slate-600 mt-1">Manage memorization books and track learning progress</p>
           </div>
           <motion.button

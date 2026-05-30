@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import GroupMembersModal from '@/components/tahfiz/GroupMembersModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Group {
   id: number;
@@ -32,6 +33,7 @@ interface Teacher {
 }
 
 export default function TahfizGroups() {
+  const { t } = useI18n();
   const [groups, setGroups] = useState<Group[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,7 +219,7 @@ export default function TahfizGroups() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Tahfiz Groups</h1>
+            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('orgUnits.groups')}`}</h1>
             <p className="text-slate-600 mt-1">Manage Tahfiz groups and track collective progress</p>
             {groups.length > 0 && (
               <div className="flex items-center space-x-4 mt-2 text-sm text-slate-500">
