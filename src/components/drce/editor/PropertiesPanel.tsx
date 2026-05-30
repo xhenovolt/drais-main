@@ -26,15 +26,107 @@ import { TablePropertiesPanel } from './TablePropertiesPanel';
 import { newFieldId, newColumnId, newItemId, newId } from '@/lib/drce/ids';
 import { VisibilityRuleEditor } from './VisibilityRuleEditor';
 import type { VisibilityRule } from '@/lib/drce/visibility';
+import { useI18n } from '@/components/i18n/I18nProvider';
+
+// ─── i18n label map ───────────────────────────────────────────────────────────
+// Maps every recurring English label in this panel onto a dictionary key.
+// Keeps the call sites (label="Position") unchanged while letting `Row` flip
+// language automatically. Unknown labels pass through verbatim — safe fallback.
+const LABEL_KEYS: Record<string, string> = {
+  // common
+  'Label': 'drce.blockName',
+  'Binding': 'drceCanvas.text',
+  'Visible': 'drceProperties.visibility',
+  // style
+  'Position': 'drceProperties.position',
+  'Align': 'drceProperties.align',
+  'Border': 'drceProperties.border',
+  'Border bottom': 'drceProperties.border',
+  'Border radius': 'drceProperties.borderRadius',
+  'Radius': 'drceProperties.borderRadius',
+  'Padding': 'drceProperties.padding',
+  'Padding bottom': 'drceProperties.padding',
+  'Margin': 'drceProperties.margin',
+  'Margin top': 'drceProperties.margin',
+  'Margin bottom': 'drceProperties.margin',
+  'Background': 'drceProperties.background',
+  'Color': 'drceProperties.color',
+  'Text color': 'drceProperties.textColor',
+  'Font': 'drceProperties.font',
+  'Font family': 'drceProperties.fontFamily',
+  'Font size': 'drceProperties.fontSize',
+  'Font weight': 'drceProperties.fontWeight',
+  'Width': 'drceProperties.width',
+  'Height': 'drceProperties.height',
+  'Opacity': 'drceProperties.opacity',
+  'Rotation': 'drceProperties.rotation',
+  'Style': 'drceProperties.style',
+  'Layout': 'drceProperties.layout',
+  'Spacing': 'drceProperties.spacing',
+  'Gap (px)': 'drceProperties.spacing',
+  // section toggles
+  'Show logo': 'drceCanvas.schoolLogo',
+  'Show name': 'drceCanvas.schoolName',
+  'Show Arabic name': 'drceCanvas.schoolName',
+  'Show address': 'fields.address',
+  'Show contact': 'fields.phone',
+  'Show centre no': 'fields.studentId',
+  'Show registration no': 'fields.admissionNo',
+  'Enable border': 'drceProperties.border',
+  // page settings
+  'Page size': 'drceProperties.pageSize',
+  'Orientation': 'drceProperties.orientation',
+  'Portrait': 'drceProperties.portrait',
+  'Landscape': 'drceProperties.landscape',
+  'Primary color': 'drceProperties.primaryColor',
+  'Accent color': 'drceProperties.accentColor',
+  // sub-headers
+  'Logo': 'drceCanvas.schoolLogo',
+  'School Name': 'drceCanvas.schoolName',
+  'Arabic Name': 'drceCanvas.schoolName',
+  'Address': 'fields.address',
+  'Contact': 'fields.phone',
+  'Centre No': 'fields.studentId',
+  'Registration No': 'fields.admissionNo',
+  'Conditional visibility': 'drce.conditionalVisibility',
+};
+
+function translateLabel(t: (k: string) => string, label: string): string {
+  const key = LABEL_KEYS[label];
+  if (!key) return label;
+  const translated = t(key);
+  // If the dictionary doesn't define the key, t() returns the key path itself
+  // — in that case fall back to the original English so the UI never shows
+  // raw paths like "drceProperties.position".
+  return translated === key ? label : translated;
+}
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-start gap-2 mb-2">
-      <label className="text-xs text-gray-500 dark:text-gray-400 w-24 flex-shrink-0 pt-1">{label}</label>
+      <label className="text-xs text-gray-500 dark:text-gray-400 w-24 flex-shrink-0 pt-1">{translateLabel(t, label)}</label>
       <div className="flex-1 min-w-0">{children}</div>
     </div>
+  );
+}
+
+// Translation-aware sub-section header. Mirrors the inline <h4> markup used
+// throughout this panel so the rich-styled regions stay visually identical.
+function SubHeader({ children }: { children: string }) {
+  const { t } = useI18n();
+  return (
+    <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">{translateLabel(t, children)}</h4>
+  );
+}
+
+// Same idea, the small uppercase variant used in the conditional-visibility section.
+function MicroHeader({ children }: { children: string }) {
+  const { t } = useI18n();
+  return (
+    <h4 className="text-[10px] uppercase tracking-wide text-gray-500 mb-2 font-semibold">{translateLabel(t, children)}</h4>
   );
 }
 
@@ -419,7 +511,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
       <PanelSection title="Component Styles" defaultOpen={false}>
         {/* Logo style */}
         <div className="border-b border-gray-100 dark:border-slate-700 pb-2 mb-2">
-          <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Logo</h4>
+          <SubHeader>Logo</SubHeader>
            <Row label="Position"><SelectInput value={style.logoStyle?.position ?? 'auto'} onChange={v => set('logoStyle', { ...(style.logoStyle || {}), position: v })} options={[
             { label: 'Auto', value: 'auto' },
             { label: 'Left', value: 'left' },
@@ -445,7 +537,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
 
         {/* Name style */}
         <div className="border-b border-gray-100 dark:border-slate-700 pb-2 mb-2">
-          <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">School Name</h4>
+          <SubHeader>School Name</SubHeader>
            <Row label="Position"><SelectInput value={style.nameStyle?.position ?? 'auto'} onChange={v => set('nameStyle', { ...(style.nameStyle || {}), position: v })} options={[
             { label: 'Auto', value: 'auto' },
             { label: 'Left', value: 'left' },
@@ -471,7 +563,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
 
         {/* Arabic name style */}
         <div className="border-b border-gray-100 dark:border-slate-700 pb-2 mb-2">
-          <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Arabic Name</h4>
+          <SubHeader>Arabic Name</SubHeader>
            <Row label="Position"><SelectInput value={style.arabicNameStyle?.position ?? 'auto'} onChange={v => set('arabicNameStyle', { ...(style.arabicNameStyle || {}), position: v })} options={[
             { label: 'Auto', value: 'auto' },
             { label: 'Left', value: 'left' },
@@ -497,7 +589,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
 
         {/* Address style */}
         <div className="border-b border-gray-100 dark:border-slate-700 pb-2 mb-2">
-          <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Address</h4>
+          <SubHeader>Address</SubHeader>
            <Row label="Position"><SelectInput value={style.addressStyle?.position ?? 'auto'} onChange={v => set('addressStyle', { ...(style.addressStyle || {}), position: v })} options={[
             { label: 'Auto', value: 'auto' },
             { label: 'Left', value: 'left' },
@@ -523,7 +615,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
 
         {/* Contact style */}
         <div className="border-b border-gray-100 dark:border-slate-700 pb-2 mb-2">
-          <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Contact</h4>
+          <SubHeader>Contact</SubHeader>
            <Row label="Position"><SelectInput value={style.contactStyle?.position ?? 'auto'} onChange={v => set('contactStyle', { ...(style.contactStyle || {}), position: v })} options={[
             { label: 'Auto', value: 'auto' },
             { label: 'Left', value: 'left' },
@@ -549,7 +641,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
 
         {/* Centre No style */}
         <div className="border-b border-gray-100 dark:border-slate-700 pb-2 mb-2">
-          <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Centre No</h4>
+          <SubHeader>Centre No</SubHeader>
            <Row label="Position"><SelectInput value={style.centreNoStyle?.position ?? 'auto'} onChange={v => set('centreNoStyle', { ...(style.centreNoStyle || {}), position: v })} options={[
             { label: 'Auto', value: 'auto' },
             { label: 'Left', value: 'left' },
@@ -575,7 +667,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
 
         {/* Registration No style */}
         <div className="border-b border-gray-100 dark:border-slate-700 pb-2 mb-2">
-          <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Registration No</h4>
+          <SubHeader>Registration No</SubHeader>
            <Row label="Position"><SelectInput value={style.registrationNoStyle?.position ?? 'auto'} onChange={v => set('registrationNoStyle', { ...(style.registrationNoStyle || {}), position: v })} options={[
             { label: 'Auto', value: 'auto' },
             { label: 'Left', value: 'left' },
@@ -1944,7 +2036,7 @@ function VisibilitySection({ section, onMutate }: {
   const rule = (section as DRCESection & { visibilityRule?: VisibilityRule | null }).visibilityRule ?? null;
   return (
     <div className="border-t border-gray-100 dark:border-slate-700 p-3 mt-2">
-      <h4 className="text-[10px] uppercase tracking-wide text-gray-500 mb-2 font-semibold">Conditional visibility</h4>
+      <MicroHeader>Conditional visibility</MicroHeader>
       <VisibilityRuleEditor
         value={rule}
         onChange={next => onMutate({
