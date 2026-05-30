@@ -16,12 +16,14 @@ import type { DRCEDocument } from '@/lib/drce/schema';
 import { VisibilityRuleEditor } from '@/components/drce/editor/VisibilityRuleEditor';
 import type { VisibilityRule } from '@/lib/drce/visibility';
 import { findKind, BUILT_IN_KINDS } from '@/lib/drce/kinds';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface TemplateRow {
   meta: { id: string; name: string; document_kind?: string };
 }
 
 export default function NewIssuancePage() {
+  const { t } = useI18n();
   const router = useRouter();
   const search = useSearchParams();
   const presetKind = search.get('kind') ?? 'certificate';
@@ -93,7 +95,7 @@ export default function NewIssuancePage() {
           <ArrowLeft size={16} />
         </button>
         <Sparkles size={18} className="text-indigo-500" />
-        <h1 className="text-xl font-bold text-slate-800 dark:text-white">New issuance batch</h1>
+        <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('issuance.newBatch')}</h1>
       </div>
 
       {/* Kind filter */}
@@ -116,13 +118,13 @@ export default function NewIssuancePage() {
 
       {/* Template picker */}
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">1. Pick a template</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">1. {t('issuance.selectedTemplate')}</h2>
         {loading ? (
-          <div className="text-xs text-slate-400 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Loading…</div>
+          <div className="text-xs text-slate-400 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> {t('common.loading')}</div>
         ) : filtered.length === 0 ? (
           <div className="p-3 text-xs text-slate-500 border border-dashed border-slate-200 dark:border-slate-700 rounded">
-            No <span className="font-semibold">{findKind(kindFilter).label}</span> templates yet.
-            <a href="/drce/new" className="text-indigo-600 hover:underline ml-1">Create one from the gallery →</a>
+            {t('drce.noTemplatesYet')} — <span className="font-semibold">{findKind(kindFilter).label}</span>.
+            <a href="/drce/new" className="text-indigo-600 hover:underline ml-1">{t('drce.chooseStarter')} →</a>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -150,7 +152,7 @@ export default function NewIssuancePage() {
 
       {/* Batch details */}
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">2. Batch details</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">2. {t('issuance.batchName')}</h2>
         <input
           value={name} onChange={e => setName(e.target.value)}
           placeholder={`e.g. ${findKind(kindFilter).label}s — Term 3 2026`}
@@ -158,7 +160,7 @@ export default function NewIssuancePage() {
         />
         <input
           value={description} onChange={e => setDescription(e.target.value)}
-          placeholder="Description (optional)"
+          placeholder={`${t('common.description')} (${t('common.optional')})`}
           className="w-full text-sm px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
         />
         <input
@@ -176,7 +178,7 @@ export default function NewIssuancePage() {
       {/* Eligibility */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-          3. Eligibility rule <span className="text-xs text-slate-400 font-normal">— reuses the same rule editor as per-section conditional visibility</span>
+          3. {t('issuance.eligibilityRule')}
         </h2>
         <VisibilityRuleEditor
           value={rule}
@@ -187,13 +189,13 @@ export default function NewIssuancePage() {
       {error && <div className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-700 text-xs rounded">{error}</div>}
 
       <div className="flex items-center justify-end gap-2">
-        <button onClick={() => router.back()} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+        <button onClick={() => router.back()} className="text-xs text-slate-500 hover:text-slate-700">{t('common.cancel')}</button>
         <button
           onClick={submit}
           disabled={submitting}
           className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500 disabled:opacity-40"
         >
-          {submitting ? 'Creating…' : 'Create batch'}
+          {submitting ? t('common.processing') : t('actions.create')}
         </button>
       </div>
     </div>

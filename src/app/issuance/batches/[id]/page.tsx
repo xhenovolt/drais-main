@@ -10,8 +10,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Eye, Sparkles, Printer, RefreshCw } from 'lucide-react';
 import type { IssuanceBatch, IssuanceItem } from '@/lib/issuance/types';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export default function BatchDetailPage() {
+  const { t } = useI18n();
   const params  = useParams<{ id: string }>();
   const router  = useRouter();
   const batchId = Number(params.id);
@@ -51,8 +53,8 @@ export default function BatchDetailPage() {
     }
   }
 
-  if (loading) return <div className="p-6 text-sm text-slate-400 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading…</div>;
-  if (!batch)  return <div className="p-6 text-sm text-rose-600">Not found</div>;
+  if (loading) return <div className="p-6 text-sm text-slate-400 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> {t('common.loading')}</div>;
+  if (!batch)  return <div className="p-6 text-sm text-rose-600">{t('messages.notFound')}</div>;
 
   const issuedCount = items.filter(i => i.status === 'issued' || i.status === 'reprinted').length;
 
@@ -93,7 +95,7 @@ export default function BatchDetailPage() {
           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded"
         >
           {busy === 'preview' ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
-          Preview candidates
+          {t('actions.preview')}
         </button>
         <button
           onClick={() => run('generate')}
@@ -102,7 +104,7 @@ export default function BatchDetailPage() {
           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {busy === 'generate' ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          Generate
+          {t('issuance.generateDocuments')}
         </button>
         {issuedCount > 0 && (
           <a
@@ -110,14 +112,14 @@ export default function BatchDetailPage() {
             target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded"
           >
-            <Printer size={12} /> Print ({issuedCount})
+            <Printer size={12} /> {t('actions.print')} ({issuedCount})
           </a>
         )}
         <button
           onClick={() => load()}
           className="ml-auto text-xs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
         >
-          <RefreshCw size={11} /> Refresh
+          <RefreshCw size={11} /> {t('actions.refresh')}
         </button>
       </div>
 

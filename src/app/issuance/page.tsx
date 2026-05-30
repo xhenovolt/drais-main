@@ -10,8 +10,10 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Plus, FileCheck, Clock, AlertTriangle, Printer } from 'lucide-react';
 import type { IssuanceBatch } from '@/lib/issuance/types';
 import { findKind } from '@/lib/drce/kinds';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export default function IssuanceDashboard() {
+  const { t } = useI18n();
   const router = useRouter();
   const [batches, setBatches] = useState<IssuanceBatch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,17 +44,16 @@ export default function IssuanceDashboard() {
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Issuance</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{t('issuance.issuance')}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Issue certificates, ID cards, transcripts and letters in batches —
-            same pipeline, same audit trail, same DRCE renderer.
+            {t('issuance.generateDocuments')} · {t('issuance.auditTrail')}
           </p>
         </div>
         <button
           onClick={() => router.push('/issuance/new')}
           className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-500 shadow-sm"
         >
-          <Plus size={14} /> New batch
+          <Plus size={14} /> {t('issuance.newBatch')}
         </button>
       </div>
 
@@ -61,12 +62,11 @@ export default function IssuanceDashboard() {
       )}
       {loading ? (
         <div className="flex items-center gap-2 text-slate-400 text-sm">
-          <Loader2 size={14} className="animate-spin" /> Loading batches…
+          <Loader2 size={14} className="animate-spin" /> {t('common.loading')}
         </div>
       ) : batches.length === 0 ? (
         <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 text-sm">
-          No issuance batches yet. Click <strong>New batch</strong> to issue your first
-          set of certificates or ID cards.
+          {t('common.nothingHere')} — <strong>{t('issuance.newBatch')}</strong>.
         </div>
       ) : (
         <div className="space-y-6">
