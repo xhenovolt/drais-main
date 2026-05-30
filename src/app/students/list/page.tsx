@@ -54,14 +54,15 @@ import { toast } from 'react-hot-toast';
 import { apiFetch } from '@/lib/apiClient';
 import DeviceSelector, { getPreferredDevice } from '@/components/modals/DeviceSelector';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
-import { 
-  safeArray, 
-  safeString, 
+import {
+  safeArray,
+  safeString,
   safeMultiFieldFilter,
   scopedLogger,
   standardizeResponse,
   assertArray,
 } from '@/lib/safety';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // Scoped logger for this module
 const logger = scopedLogger('StudentsList');
@@ -123,6 +124,7 @@ interface SelectOption {
 
 export default function StudentsListPage() {
   const { exportAsCSV, exportAsExcel, exporting } = useExport();
+  const { t } = useI18n();
   
   // State Management
   const [activeTab, setActiveTab] = useState<'enrolled' | 'admitted'>('enrolled');
@@ -1097,9 +1099,9 @@ export default function StudentsListPage() {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleRemovePhoto(student.id); }}
-            title="Remove photo"
+            title={t('fields.removePhoto')}
             className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white items-center justify-center shadow ring-2 ring-white dark:ring-slate-900 opacity-0 group-hover/avatar:opacity-100 hover:opacity-100 transition-opacity hidden group-hover/avatar:flex"
-            aria-label="Remove photo"
+            aria-label={t('fields.removePhoto')}
           >
             <X className="w-2 h-2" strokeWidth={3} />
           </button>
@@ -1197,8 +1199,8 @@ export default function StudentsListPage() {
           }}
           className="h-7 px-2 rounded-md border border-indigo-400 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="male">Male</option>
-          <option value="female">Female</option>
+          <option value="male">{t('fields.male')}</option>
+          <option value="female">{t('fields.female')}</option>
         </select>
       );
     }
@@ -1247,7 +1249,7 @@ export default function StudentsListPage() {
       {/* Page identity + primary navigation (tabs) + primary CTA. */}
       <div className="flex-shrink-0 sticky top-0 z-50 h-14 flex items-center gap-3 px-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-baseline gap-2 min-w-0">
-          <h1 className="text-base font-bold text-slate-800 dark:text-white truncate">Students</h1>
+          <h1 className="text-base font-bold text-slate-800 dark:text-white truncate">{t('people.students')}</h1>
           <span className="text-[11px] text-slate-400 tabular-nums">
             {activeTab === 'enrolled' ? enrolledCount : admittedCount}
           </span>
@@ -1302,7 +1304,7 @@ export default function StudentsListPage() {
           <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search students…"
+            placeholder={t('nav.students.list')}
             value={search}
             onChange={e => { setSearch(e.target.value); resetPage(); }}
             className="h-8 pl-8 pr-14 w-48 sm:w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all focus:w-72"
@@ -1319,7 +1321,7 @@ export default function StudentsListPage() {
                 onChange={e => { setFilterClassId(Number(e.target.value)); resetPage(); }}
                 className="h-8 pl-2.5 pr-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
               >
-                <option value={0}>All classes</option>
+                <option value={0}>{`${t('common.all')} — ${t('orgUnits.classes')}`}</option>
                 {(() => {
                   const grouped = (Array.isArray(classes) ? classes : []).reduce((acc: Record<string, SelectOption[]>, c) => {
                     const key = c.program_name || 'General';
@@ -1344,7 +1346,7 @@ export default function StudentsListPage() {
                 onChange={e => { setFilterYearId(Number(e.target.value)); resetPage(); }}
                 className="h-8 pl-2.5 pr-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
               >
-                <option value={0}>Current term</option>
+                <option value={0}>{t('academicTime.currentTerm')}</option>
                 {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
               </select>
               <ChevronDown className="absolute right-1.5 w-3 h-3 text-slate-400 pointer-events-none" />
@@ -1366,9 +1368,9 @@ export default function StudentsListPage() {
             onChange={e => { setFilterGender(e.target.value); resetPage(); }}
             className="h-8 pl-2.5 pr-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
           >
-            <option value="all">All genders</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
+            <option value="all">{`${t('common.all')} — ${t('fields.gender')}`}</option>
+            <option value="male">{t('fields.male')}</option>
+            <option value="female">{t('fields.female')}</option>
           </select>
           <ChevronDown className="absolute right-1.5 w-3 h-3 text-slate-400 pointer-events-none" />
         </div>
@@ -1499,7 +1501,7 @@ export default function StudentsListPage() {
           <div className="relative">
             <button
               onClick={() => setShowExportMenu(v => !v)}
-              title="Export students"
+              title={t('actions.export')}
               className="group flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
             >
               <FileDown className="w-4 h-4" />
@@ -1519,7 +1521,7 @@ export default function StudentsListPage() {
             )}
           </div>
 
-          <Link href="/students/promote" title="Promote students"
+          <Link href="/students/promote" title={t('academic.promotion')}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 transition-colors">
             <Zap className="w-4 h-4" />
           </Link>
@@ -1542,7 +1544,7 @@ export default function StudentsListPage() {
             </button>
           )}
 
-          <button title="Bulk Import" onClick={() => setShowImportModal(true)}
+          <button title={t('actions.import')} onClick={() => setShowImportModal(true)}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors">
             <Upload className="w-3.5 h-3.5" />
           </button>
@@ -1791,7 +1793,7 @@ export default function StudentsListPage() {
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {activeTab === 'enrolled' ? (
                             <>
-                              <Link href={`/students/${student.id}`} title="View profile" className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-slate-400 hover:text-indigo-600 transition-colors">
+                              <Link href={`/students/${student.id}`} title={t('nav.profile')} className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-slate-400 hover:text-indigo-600 transition-colors">
                                 <Eye className="w-3.5 h-3.5" />
                               </Link>
                               <button
@@ -1801,14 +1803,14 @@ export default function StudentsListPage() {
                                   phone: (student as any).phone, email: (student as any).email,
                                   status: (student as any).status, class_id: (student as any).class_id, class_name: (student as any).class_name,
                                 })}
-                                title="Quick edit"
+                                title={t('operations.quickEdit')}
                                 className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-violet-100 dark:hover:bg-violet-900/30 text-slate-400 hover:text-violet-600 transition-colors"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => setSnapshot({ id: student.id, name: `${student.first_name} ${student.last_name}` })}
-                                title="Quick snapshot"
+                                title={t('operations.quickSnapshot')}
                                 className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-sky-100 dark:hover:bg-sky-900/30 text-slate-400 hover:text-sky-600 transition-colors"
                               >
                                 <Activity className="w-3.5 h-3.5" />
@@ -2009,7 +2011,7 @@ export default function StudentsListPage() {
               <button
                 onClick={() => setSelectedIds(new Set())}
                 className="flex items-center justify-center w-7 h-7 rounded-lg hover:bg-slate-700 transition-colors"
-                title="Clear selection"
+                title={t('common.clear')}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -2196,7 +2198,7 @@ export default function StudentsListPage() {
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5" onMouseDown={e => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-1">
               <MessageSquare className="w-4 h-4 text-teal-500" />
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Message guardians</h3>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">{`${t('operations.messages')} — ${t('people.guardians')}`}</h3>
             </div>
             <p className="text-xs text-slate-400 mb-3">Sends to the guardians of {selectedIds.size} selected learner(s). The school SMS prefix is added automatically.</p>
             <textarea
@@ -2204,7 +2206,7 @@ export default function StudentsListPage() {
               onChange={e => setBulkMessage(e.target.value)}
               rows={4}
               maxLength={1600}
-              placeholder="Type your message…"
+              placeholder={t('operations.messages')}
               className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             />
             <div className="flex items-center justify-between mt-1">
@@ -2280,9 +2282,9 @@ function RowMore({ items }: { items: RowMoreItem[] }) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
-        title="More actions"
+        title={t('common.more')}
         className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-        aria-label="More actions"
+        aria-label={t('common.more')}
       >
         <MoreHorizontal className="w-3.5 h-3.5" />
       </button>
@@ -2390,7 +2392,7 @@ function EnrollmentModal({
         <div className="sticky top-0 z-20 bg-gradient-to-r from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Enroll Student</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('nav.students.add')}</h2>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
                 {student.first_name} {student.last_name} · Admission # {student.admission_no}
               </p>
@@ -2399,7 +2401,7 @@ function EnrollmentModal({
               onClick={onClose}
               disabled={loading}
               className="p-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-              aria-label="Close modal"
+              aria-label={t('common.close')}
             >
               <X size={24} className="text-slate-600 dark:text-slate-400" />
             </button>
@@ -2467,7 +2469,7 @@ function EnrollmentModal({
                   onChange={(e) => setForm({ ...form, stream_id: e.target.value ? parseInt(e.target.value) : undefined })}
                   className="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-400 transition-all"
                 >
-                  <option value={0}>No Stream</option>
+                  <option value={0}>{`${t('common.no')} ${t('orgUnits.stream')}`}</option>
                   {safeStreams.map(s => (
                     <option key={s.id} value={s.id}>{safeString(s.name)}</option>
                   ))}
