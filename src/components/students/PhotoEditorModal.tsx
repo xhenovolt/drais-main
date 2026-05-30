@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import Swal from 'sweetalert2';
 import { Camera, Trash2, X } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Student {
   id: number;
@@ -51,6 +52,7 @@ async function compressFile(file: File, maxWidth = 1920, quality = 0.85): Promis
 }
 
 export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: Props) {
+  const { t } = useI18n();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -162,7 +164,7 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-lg w-full p-6">
         <div className="flex items-start justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Learner Photo</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{`${t('actions.edit')} — ${t('fields.photo')}`}</h3>
           <button onClick={onClose} className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700">
             <X className="w-4 h-4" />
           </button>

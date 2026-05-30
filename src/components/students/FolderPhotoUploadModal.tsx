@@ -7,6 +7,7 @@ import {
   AlertTriangle, ArrowRight, RefreshCw,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,6 +139,7 @@ const CONFIDENCE_LABELS: Record<Confidence, string> = {
 export function FolderPhotoUploadModal({
   open, onClose, students, onUploadComplete,
 }: FolderPhotoUploadModalProps) {
+  const { t } = useI18n();
   const [step, setStep]              = useState<Step>('select');
   const [matches, setMatches]        = useState<MatchResult[]>([]);
   const [classFilter, setClassFilter] = useState<string>('');
@@ -320,10 +322,10 @@ export function FolderPhotoUploadModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                Folder Photo Upload
+                {`${t('fields.uploadPhoto')} — ${t('common.automatic')}`}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Auto-match photos by filename → review → upload
+                {`${t('fields.photo')} · ${t('actions.preview')} · ${t('actions.upload')}`}
               </p>
             </div>
           </div>

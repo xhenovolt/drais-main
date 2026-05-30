@@ -5,6 +5,7 @@ import { Fragment } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle, Download, FileSpreadsheet, Loader2, ArrowRight, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useDropzone } from 'react-dropzone';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface ImportModalProps {
   open: boolean;
@@ -36,6 +37,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   onClose,
   onImportSuccess
 }) => {
+  const { t } = useI18n();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase>('select');
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
@@ -235,7 +237,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                 {phase === 'select' && (
                   <div className="space-y-5">
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                      <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Import Instructions</h3>
+                      <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">{t('actions.import')}</h3>
                       <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
                         <li>• <strong>Formats:</strong> CSV (.csv) or Excel (.xlsx)</li>
                         <li>• <strong>Required:</strong> name (or first_name + last_name)</li>
@@ -402,7 +404,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                         <CheckCircle className="w-7 h-7 text-green-600" />
                       </div>
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Import Complete</h3>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{`${t('actions.import')} — ${t('common.completed')}`}</h3>
                       <p className="text-xs text-gray-500 mt-1">{result.message}</p>
                     </div>
 

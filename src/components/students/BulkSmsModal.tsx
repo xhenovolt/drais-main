@@ -8,6 +8,7 @@
  */
 import React, { useState } from 'react';
 import { X, Loader, Send, Users, AlertTriangle } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export default function BulkSmsModal({
   studentIds, open, onClose, onSent,
@@ -17,6 +18,7 @@ export default function BulkSmsModal({
   onClose: () => void;
   onSent?: (count: number) => void;
 }) {
+  const { t } = useI18n();
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState<{ count: number; body: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -64,7 +66,7 @@ export default function BulkSmsModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-500" />
-            <p className="text-sm font-bold text-slate-800 dark:text-white">Message guardians of {studentIds.length} learner{studentIds.length === 1 ? '' : 's'}</p>
+            <p className="text-sm font-bold text-slate-800 dark:text-white">{`${t('operations.bulkSms')} — ${studentIds.length} ${t('people.learners')}`}</p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"><X className="w-4 h-4" /></button>
         </div>
@@ -72,7 +74,7 @@ export default function BulkSmsModal({
         <div className="p-4 space-y-3">
           {err && <div className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-lg px-3 py-2">{err}</div>}
           <label className="block">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Message</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('operations.messages')}</span>
             <textarea
               value={message}
               onChange={e => { setMessage(e.target.value); setPreview(null); }}
@@ -99,14 +101,14 @@ export default function BulkSmsModal({
         </div>
 
         <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800">{t('common.cancel')}</button>
           {!preview ? (
             <button onClick={doPreview} disabled={busy || !message.trim()} className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
-              {busy && <Loader className="w-4 h-4 animate-spin" />} Preview recipients
+              {busy && <Loader className="w-4 h-4 animate-spin" />} {t('actions.preview')}
             </button>
           ) : (
             <button onClick={doSend} disabled={busy || preview.count === 0} className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
-              {busy ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send to {preview.count}
+              {busy ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {`${t('actions.send')} — ${preview.count}`}
             </button>
           )}
         </div>

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { X, Plus, Trash2, Loader2, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -34,6 +35,7 @@ interface Props {
 type Tab = 'personal' | 'family' | 'kin' | 'education';
 
 export default function ExtendedProfileModal({ open, onClose, studentId, initial, onSaved }: Props) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('personal');
   const [saving, setSaving] = useState(false);
 
@@ -162,7 +164,7 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold">Extended Profile</h3>
+          <h3 className="text-lg font-semibold">{t('nav.profile')}</h3>
           <button onClick={onClose} className="p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
             <X className="w-4 h-4" />
           </button>

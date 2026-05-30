@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Camera, Check, AlertCircle, Trash2, User, Image as ImageIcon, Users, Search, Filter } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Swal from 'sweetalert2';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Student {
   id: number;
@@ -40,6 +41,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
   students = [], // Add default empty array
   onUploadComplete,
 }) => {
+  const { t } = useI18n();
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -464,10 +466,10 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Bulk Photo Upload
+                  {`${t('operations.bulk')} — ${t('fields.uploadPhoto')}`}
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Upload multiple student photos and assign them efficiently
+                  {`${t('fields.photo')} — ${t('people.students')}`}
                 </p>
               </div>
             </div>

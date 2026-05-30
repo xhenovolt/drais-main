@@ -9,6 +9,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { X, Loader, Save } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export interface QuickEditLearner {
   id: number;
@@ -34,6 +35,7 @@ export default function QuickEditDrawer({
   onClose: () => void;
   onSaved: (updated: Partial<QuickEditLearner>) => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState<QuickEditLearner | null>(learner);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -92,7 +94,7 @@ export default function QuickEditDrawer({
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <p className="text-sm font-bold text-slate-800 dark:text-white">Quick edit</p>
+            <p className="text-sm font-bold text-slate-800 dark:text-white">{t('operations.quickEdit')}</p>
             <p className="text-[11px] text-slate-400">{form.first_name} {form.last_name}</p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
@@ -103,30 +105,30 @@ export default function QuickEditDrawer({
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {err && <div className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-lg px-3 py-2">{err}</div>}
           <div className="grid grid-cols-2 gap-3">
-            <label className="block"><Label>First name</Label>
+            <label className="block"><Label>{t('fields.firstName')}</Label>
               <input className={input} value={form.first_name ?? ''} onChange={e => set('first_name', e.target.value)} /></label>
-            <label className="block"><Label>Last name</Label>
+            <label className="block"><Label>{t('fields.lastName')}</Label>
               <input className={input} value={form.last_name ?? ''} onChange={e => set('last_name', e.target.value)} /></label>
           </div>
-          <label className="block"><Label>Other name</Label>
+          <label className="block"><Label>{t('fields.middleName')}</Label>
             <input className={input} value={form.other_name ?? ''} onChange={e => set('other_name', e.target.value)} /></label>
           <div className="grid grid-cols-2 gap-3">
-            <label className="block"><Label>Gender</Label>
+            <label className="block"><Label>{t('fields.gender')}</Label>
               <select className={input} value={form.gender ?? ''} onChange={e => set('gender', e.target.value)}>
-                <option value="">—</option><option value="male">Male</option><option value="female">Female</option>
+                <option value="">—</option><option value="male">{t('fields.male')}</option><option value="female">{t('fields.female')}</option>
               </select></label>
-            <label className="block"><Label>Status</Label>
+            <label className="block"><Label>{t('common.status')}</Label>
               <select className={input} value={form.status ?? ''} onChange={e => set('status', e.target.value)}>
-                <option value="active">Active</option><option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option><option value="graduated">Graduated</option>
-                <option value="transferred">Transferred</option>
+                <option value="active">{t('studentStatuses.active')}</option><option value="inactive">{t('studentStatuses.inactive')}</option>
+                <option value="suspended">{t('studentStatuses.suspended')}</option><option value="graduated">{t('studentStatuses.graduated')}</option>
+                <option value="transferred">{t('studentStatuses.transferred')}</option>
               </select></label>
           </div>
-          <label className="block"><Label>Phone</Label>
+          <label className="block"><Label>{t('fields.phone')}</Label>
             <input className={input} value={form.phone ?? ''} onChange={e => set('phone', e.target.value)} /></label>
-          <label className="block"><Label>Email</Label>
+          <label className="block"><Label>{t('fields.email')}</Label>
             <input className={input} value={form.email ?? ''} onChange={e => set('email', e.target.value)} /></label>
-          <label className="block"><Label>Class</Label>
+          <label className="block"><Label>{t('orgUnits.class')}</Label>
             <select className={input} value={form.class_id ?? ''} onChange={e => set('class_id', Number(e.target.value))}>
               <option value="">— keep current ({form.class_name ?? 'none'}) —</option>
               {classes.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -135,9 +137,9 @@ export default function QuickEditDrawer({
         </div>
 
         <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800">{t('common.cancel')}</button>
           <button onClick={save} disabled={busy} className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
-            {busy ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
+            {busy ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {t('actions.save')}
           </button>
         </div>
       </div>
