@@ -130,12 +130,24 @@ export async function GET(
   }
 
   // ── Launch puppeteer ────────────────────────────────────────────────────
+  // The route is divided into stages so each failure mode returns a
+  // SPECIFIC error message with an actionable hint. A generic "PDF
+  // failed" toast was useless — operators couldn't tell whether
+  // Chromium was missing, the HTML was bad, or auth had expired.
+  let puppeteer: typeof import('puppeteer').default;
+  try {
+    puppeteer = (await import('puppeteer')).default;
+  } catch (e) {
+    console.error('[snapshots/pdf] puppeteer import failed:', e);
+    return NextResponse.json({
+      error:   'PUPPETEER_IMPORT_FAILED',
+      message: e instanceof Error ? e.message : String(e),
+      hint:    'Run `npm install` to ensure puppeteer is present.',
+    }, { status: 500 });
+  }
+
   let browser: import('puppeteer').Browser | null = null;
   try {
-    // Dynamic import so a missing puppeteer install (or build-time
-    // bundling failure on platforms that ship without Chromium) does
-    // not blow up the entire route module.
-    const puppeteer = (await import('puppeteer')).default;
     browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -143,18 +155,58 @@ export async function GET(
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage', // small/CI containers
       ],
+      // Hard cap on internal protocol calls so a hung Chromium never
+      // freezes the Next.js process. Without this, a stuck launch can
+      // wedge the dev server until restart.
+      protocolTimeout: 60_000,
     });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[snapshots/pdf] browser.launch failed:', e);
+    let hint = '';
+    if (msg.includes('Could not find') || msg.includes('not installed') || msg.includes('cache')) {
+      hint = 'Chromium not found in puppeteer cache. Run `npx puppeteer browsers install chrome`.';
+    } else if (msg.includes('libnss3') || msg.includes('libatk')) {
+      hint = 'Missing system libraries for Chromium. On Debian/Ubuntu: `apt-get install -y libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 libasound2`.';
+    } else if (msg.includes('No usable sandbox')) {
+      hint = 'Sandbox unavailable — the route already passes --no-sandbox, but your container may also need --cap-add SYS_ADMIN.';
+    } else {
+      hint = 'See server logs for the full stack trace.';
+    }
+    return NextResponse.json({
+      error:   'BROWSER_LAUNCH_FAILED',
+      message: msg,
+      hint,
+    }, { status: 500 });
+  }
+
+  try {
     const page = await browser.newPage();
-    // setContent + waitUntil:'networkidle0' so external images
-    // (Cloudinary, logos) finish loading before the PDF is captured.
-    await page.setContent(built.html, { waitUntil: 'networkidle0', timeout: 30_000 });
-    // emulateMediaType('print') so the @media print blocks apply.
+    // waitUntil:'domcontentloaded' is enough for the static HTML we
+    // produce. Previously `networkidle0` could hang for 30s when a
+    // Cloudinary image stalled; we now only wait for the doc to parse
+    // and rely on the `evaluateHandle` below to flush remaining images.
+    await page.setContent(built.html, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    // Best-effort wait for in-flight images. Bounded — never blocks
+    // the response when an image source is unreachable.
+    await Promise.race([
+      page.evaluate(() => Promise.all(
+        Array.from(document.images)
+          .filter(img => !img.complete)
+          .map(img => new Promise<void>(res => {
+            img.addEventListener('load',  () => res(), { once: true });
+            img.addEventListener('error', () => res(), { once: true });
+          })),
+      )),
+      new Promise<void>(res => setTimeout(res, 5_000)),
+    ]);
     await page.emulateMediaType('print');
     const pdf = await page.pdf({
-      format: 'A4',
+      format:          'A4',
       printBackground: true,
-      margin: { top: '1cm', right: '1cm', bottom: '1cm', left: '1cm' },
-      preferCSSPageSize: true, // honour @page declarations in the HTML
+      margin:          { top: '1cm', right: '1cm', bottom: '1cm', left: '1cm' },
+      preferCSSPageSize: true,
+      timeout:         30_000,
     });
 
     const filename = `${snapshot.meta.schoolName}-${snapshot.meta.termName}-${snapshot.meta.yearName}.pdf`
@@ -170,11 +222,13 @@ export async function GET(
       },
     });
   } catch (e) {
-    console.error('[snapshots/pdf] puppeteer failed:', e);
-    return NextResponse.json(
-      { error: 'PDF_GENERATION_FAILED', message: e instanceof Error ? e.message : 'unknown' },
-      { status: 500 },
-    );
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[snapshots/pdf] render failed:', e);
+    return NextResponse.json({
+      error:   'PDF_RENDER_FAILED',
+      message: msg,
+      hint:    'The HTML was built but Chromium could not render it. Check server logs for the stack trace.',
+    }, { status: 500 });
   } finally {
     if (browser) {
       try { await browser.close(); } catch { /* best-effort */ }

@@ -252,10 +252,24 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   async function downloadPdf() {
     setPdfBusy(true);
     try {
-      const res = await fetch(pdfHref);
+      const res = await fetch(pdfHref, { credentials: 'same-origin' });
       if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        toast.error(`PDF failed: ${text.slice(0, 200) || res.statusText}`);
+        // The server now returns a structured { error, message, hint? }
+        // JSON body on failure. Try to parse it so the toast shows
+        // something actionable rather than the generic statusText.
+        let detail = res.statusText || `HTTP ${res.status}`;
+        const ct = res.headers.get('content-type') || '';
+        try {
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            detail = j.message || j.error || detail;
+            if (j.hint) detail += ` — ${j.hint}`;
+          } else {
+            const t = await res.text();
+            if (t) detail = t.slice(0, 300);
+          }
+        } catch { /* fall through with statusText */ }
+        toast.error(`PDF failed (${res.status}): ${detail}`, { duration: 8000 });
         return;
       }
       const blob = await res.blob();
@@ -268,7 +282,9 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      toast.error(`PDF error: ${e?.message || 'unknown'}`);
+      // Network-level failure (dev server crashed, lost connection).
+      // This is the "site can't be reached" case in toast form.
+      toast.error(`Network error: ${e?.message || 'unknown'} — is the dev server still running?`, { duration: 8000 });
     } finally {
       setPdfBusy(false);
     }
