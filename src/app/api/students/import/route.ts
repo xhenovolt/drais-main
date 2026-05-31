@@ -76,10 +76,27 @@ function parseCSV(csvContent: string): string[][] {
 
 interface ColMap {
   nameIdx: number; firstNameIdx: number; lastNameIdx: number;
+  otherNameIdx: number;
   regNoIdx: number; classIdx: number; sectionIdx: number;
   genderIdx: number; dobIdx: number; phoneIdx: number;
   addressIdx: number; photoUrlIdx: number; biometricIdIdx: number;
   feesBalanceIdx: number;
+}
+
+/**
+ * Whether `mapColumns` collapsed two distinct learner-name fields onto
+ * the same source column. When true, the import MUST refuse the row
+ * rather than silently writing `first_name == last_name` (the bug that
+ * produced "Kalungi Kalungi" etc.). Exposed on the preview payload so
+ * the UI can surface it and force the operator to remap.
+ */
+export interface ColMapDiagnostics {
+  /** First/last/other share a source — the collision pattern. */
+  nameCollision: boolean;
+  /** Which canonical fields collided. */
+  collidedFields: string[];
+  /** Headers that look like name columns but were not mapped. */
+  unmappedNameHeaders: string[];
 }
 
 function mapColumns(headers: string[], overrides?: Record<string, string>): ColMap {
@@ -96,6 +113,7 @@ function mapColumns(headers: string[], overrides?: Record<string, string>): ColM
       nameIdx:        findOverride('name'),
       firstNameIdx:   findOverride('first_name'),
       lastNameIdx:    findOverride('last_name'),
+      otherNameIdx:   findOverride('other_name'),
       regNoIdx:       findOverride('reg_no'),
       classIdx:       findOverride('class'),
       sectionIdx:     findOverride('section'),
@@ -109,43 +127,129 @@ function mapColumns(headers: string[], overrides?: Record<string, string>): ColM
     };
   }
 
-  const find = (...terms: string[]) => {
+  // EXACT detection — pass-1: equality, pass-2: equality with separators
+  // stripped. The previous pass-2 used `.includes(term)` which caused the
+  // catastrophic 'name' bucket to swallow 'first_name' and 'last_name' —
+  // the exact bug that produced first_name == last_name records.
+  // See PHASE 1A audit report for the trace.
+  const findExact = (...terms: string[]) => {
     for (const t of terms) {
       const idx = h.findIndex(x => x === t || x.replace(/[_\s-]/g, '') === t.replace(/[_\s-]/g, ''));
       if (idx !== -1) return idx;
     }
+    return -1;
+  };
+  // Loose match used ONLY for non-name fields where collision is harmless.
+  const findLoose = (...terms: string[]) => {
+    const exact = findExact(...terms);
+    if (exact !== -1) return exact;
     for (const t of terms) {
       const idx = h.findIndex(x => x.includes(t));
       if (idx !== -1) return idx;
     }
     return -1;
   };
+
+  // Name fields use STRICT exact matching. Better to leave a column
+  // unmapped (and force the operator to map it) than to silently
+  // collide.
+  let nameIdx      = findExact('full_name', 'fullname', 'student_name', 'studentname', 'learner_name', 'learnername', 'candidate_name', 'candidatename');
+  let firstNameIdx = findExact('first_name', 'firstname', 'given_name', 'givenname', 'fname');
+  let lastNameIdx  = findExact('last_name', 'lastname', 'surname', 'family_name', 'familyname', 'lname');
+  const otherNameIdx = findExact('other_name', 'othername', 'middle_name', 'middlename', 'mname');
+
+  // Defence-in-depth: if any two name buckets resolved to the same
+  // source column, blank out the lower-priority one. firstName/lastName
+  // win over the generic 'name' bucket — they're more specific.
+  if (nameIdx !== -1 && (nameIdx === firstNameIdx || nameIdx === lastNameIdx || nameIdx === otherNameIdx)) {
+    nameIdx = -1;
+  }
+  if (firstNameIdx !== -1 && firstNameIdx === lastNameIdx) {
+    // True collision between first and last — we refuse to guess. Drop
+    // both; the preview will surface this and force the operator to
+    // remap explicitly.
+    firstNameIdx = -1;
+    lastNameIdx  = -1;
+  }
+
   return {
-    nameIdx:        find('name', 'fullname', 'student_name', 'studentname'),
-    firstNameIdx:   find('first_name', 'firstname', 'first'),
-    lastNameIdx:    find('last_name', 'lastname', 'last', 'surname'),
-    regNoIdx:       find('reg_no', 'regno', 'admission_no', 'adm_no', 'registration'),
-    classIdx:       find('class', 'class_name', 'grade'),
-    sectionIdx:     find('section', 'stream', 'division'),
-    genderIdx:      find('gender', 'sex'),
-    dobIdx:         find('date_of_birth', 'dob', 'birth_date', 'birthday'),
-    phoneIdx:       find('phone', 'phone_no', 'mobile', 'contact'),
-    addressIdx:     find('address', 'home_address'),
-    photoUrlIdx:    find('photo_url', 'photo', 'image_url'),
-    biometricIdIdx: find('biometric_id', 'biometric', 'device_id'),
-    feesBalanceIdx: find('fees_balance', 'feesbalance', 'balance', 'fee_balance', 'fees', 'amount_due', 'outstanding'),
+    nameIdx,
+    firstNameIdx,
+    lastNameIdx,
+    otherNameIdx,
+    regNoIdx:       findLoose('reg_no', 'regno', 'admission_no', 'adm_no', 'registration'),
+    classIdx:       findLoose('class', 'class_name', 'grade'),
+    sectionIdx:     findLoose('section', 'stream', 'division'),
+    genderIdx:      findLoose('gender', 'sex'),
+    dobIdx:         findLoose('date_of_birth', 'dob', 'birth_date', 'birthday'),
+    phoneIdx:       findLoose('phone', 'phone_no', 'mobile', 'contact'),
+    addressIdx:     findLoose('address', 'home_address'),
+    photoUrlIdx:    findLoose('photo_url', 'photo', 'image_url'),
+    biometricIdIdx: findLoose('biometric_id', 'biometric', 'device_id'),
+    feesBalanceIdx: findLoose('fees_balance', 'feesbalance', 'balance', 'fee_balance', 'fees', 'amount_due', 'outstanding'),
   };
 }
 
-function getNames(row: any[], cm: ColMap): { firstName: string; lastName: string } {
+/**
+ * Inspect a ColMap for the failure modes that produced production
+ * corruption. Surfaced via the preview JSON so the UI can block import.
+ */
+function diagnoseColMap(headers: string[], cm: ColMap): ColMapDiagnostics {
+  const collidedFields: string[] = [];
+  if (cm.firstNameIdx !== -1 && cm.firstNameIdx === cm.lastNameIdx) {
+    collidedFields.push('first_name', 'last_name');
+  }
+  if (cm.nameIdx !== -1 && (cm.nameIdx === cm.firstNameIdx || cm.nameIdx === cm.lastNameIdx)) {
+    collidedFields.push('name', cm.nameIdx === cm.firstNameIdx ? 'first_name' : 'last_name');
+  }
+  const h = headers.map(x => String(x || '').toLowerCase().trim());
+  const nameLike = (s: string) => /\b(name|surname|fname|lname|firstname|lastname|givenname|familyname)\b/.test(s)
+    || s === 'name' || s.endsWith(' name') || s.startsWith('name ');
+  const mappedSet = new Set<number>([cm.nameIdx, cm.firstNameIdx, cm.lastNameIdx, cm.otherNameIdx].filter(i => i !== -1));
+  const unmappedNameHeaders = h
+    .map((label, idx) => ({ label: headers[idx], idx, isName: nameLike(label) }))
+    .filter(o => o.isName && !mappedSet.has(o.idx))
+    .map(o => String(o.label || ''));
+  return {
+    nameCollision: collidedFields.length > 0,
+    collidedFields: Array.from(new Set(collidedFields)),
+    unmappedNameHeaders,
+  };
+}
+
+/**
+ * Read learner names from a row using the resolved column map.
+ *
+ * SAFETY: if `firstNameIdx` / `lastNameIdx` are present, they win over
+ * the generic `nameIdx`. The previous behaviour preferred `nameIdx`
+ * which caused the collapsed first_name == last_name corruption. The
+ * fallback split of a single "full name" column is kept ONLY when no
+ * dedicated first/last column was detected.
+ */
+function getNames(row: any[], cm: ColMap): { firstName: string; lastName: string; otherName: string | null } {
+  const cell = (idx: number) => idx !== -1 ? String(row[idx] ?? '').trim() : '';
+  const otherName = cell(cm.otherNameIdx) || null;
+
+  // Dedicated first/last columns ALWAYS win when present.
+  if (cm.firstNameIdx !== -1 || cm.lastNameIdx !== -1) {
+    return { firstName: cell(cm.firstNameIdx), lastName: cell(cm.lastNameIdx), otherName };
+  }
+
+  // Fallback: split a single "full name" column.
   if (cm.nameIdx !== -1 && row[cm.nameIdx]) {
     const parts = String(row[cm.nameIdx]).trim().split(/\s+/);
-    return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || parts[0] || '' };
+    if (parts.length >= 2) {
+      // 2+ tokens: first token = first name, the rest = last name.
+      return { firstName: parts[0], lastName: parts.slice(1).join(' '), otherName };
+    }
+    // 1 token only: it goes in last_name (the surname-only convention
+    // used by many UG schools), first_name stays empty so the operator
+    // can complete it manually. We deliberately DO NOT duplicate the
+    // value into both fields — that's the corruption we are fixing.
+    return { firstName: '', lastName: parts[0] || '', otherName };
   }
-  return {
-    firstName: String(row[cm.firstNameIdx] ?? '').trim(),
-    lastName:  String(row[cm.lastNameIdx]  ?? '').trim(),
-  };
+
+  return { firstName: '', lastName: '', otherName };
 }
 
 // ─── Matching engine ───────────────────────────────────────────────────────────
@@ -405,10 +509,27 @@ export async function POST(request: NextRequest) {
   if (overridesRaw) { try { overrides = JSON.parse(overridesRaw); } catch {} }
 
   const cm = mapColumns(headers, overrides);
+  const colMapDiagnostics = diagnoseColMap(headers, cm);
 
   const warnings: string[] = [];
-  if (cm.nameIdx === -1 && cm.firstNameIdx === -1) {
-    return NextResponse.json({ success: false, error: `Missing name column. Found: ${headers.join(', ')}` }, { status: 400 });
+  if (cm.nameIdx === -1 && cm.firstNameIdx === -1 && cm.lastNameIdx === -1) {
+    return NextResponse.json({
+      success: false,
+      error: `Missing learner name column. Found: ${headers.join(', ')}`,
+      diagnostics: colMapDiagnostics,
+    }, { status: 400 });
+  }
+  // HARD BLOCK: if the auto-detected mapping collided two name fields
+  // onto the same column (the "Kalungi Kalungi" corruption pattern),
+  // refuse to proceed. The UI gets the diagnostics + must re-POST with
+  // an explicit `columnMapping` override.
+  if (colMapDiagnostics.nameCollision && !overrides) {
+    return NextResponse.json({
+      success: false,
+      error: `Multiple learner name fields are mapped to the same source column: ${colMapDiagnostics.collidedFields.join(', ')}. Map them explicitly to continue.`,
+      diagnostics: colMapDiagnostics,
+      fileHeaders: headers,
+    }, { status: 409 });
   }
   if (cm.classIdx === -1)       warnings.push('No "class" column — students will be imported without class enrollment');
   if (cm.genderIdx === -1)      warnings.push('No "gender" column detected');
@@ -491,6 +612,7 @@ export async function POST(request: NextRequest) {
       { key: 'name',          mapped: cm.nameIdx        >= 0 ? headers[cm.nameIdx]        : null },
       { key: 'first_name',    mapped: cm.firstNameIdx   >= 0 ? headers[cm.firstNameIdx]   : null },
       { key: 'last_name',     mapped: cm.lastNameIdx    >= 0 ? headers[cm.lastNameIdx]    : null },
+      { key: 'other_name',    mapped: cm.otherNameIdx   >= 0 ? headers[cm.otherNameIdx]   : null },
       { key: 'reg_no',        mapped: cm.regNoIdx       >= 0 ? headers[cm.regNoIdx]       : null },
       { key: 'class',         mapped: cm.classIdx       >= 0 ? headers[cm.classIdx]       : null },
       { key: 'section',       mapped: cm.sectionIdx     >= 0 ? headers[cm.sectionIdx]     : null },
@@ -523,6 +645,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true, total: dataRows.length, preview, warnings,
       readyToImport: true, fileHeaders: headers, columnMapping, columnTypes,
+      diagnostics: colMapDiagnostics,
       missingClasses, missingStreams,
     });
   }
@@ -821,8 +944,8 @@ export async function POST(request: NextRequest) {
             const row = chunk[i];
 
             try {
-              const { firstName, lastName } = getNames(row, cm);
-              if (!firstName) {
+              const { firstName, lastName, otherName } = getNames(row, cm);
+              if (!firstName && !lastName) {
                 stats.errors.push(`Row ${rowNum}: missing name — skipped`);
                 stats.skipped++;
                 stats.failedRows.push(rowNum);
@@ -876,9 +999,14 @@ export async function POST(request: NextRequest) {
 
                 if (action === 'update' && matched) {
                   // UPDATE existing student's person record
+                  // other_name is COALESCE-merged: re-importing a file
+                  // without a middle-name column must NOT clobber an
+                  // already-stored other_name.
                   await execTenant(conn,
                     `UPDATE people SET
-                       first_name = ?, last_name = ?,
+                       first_name    = ?,
+                       last_name     = ?,
+                       other_name    = COALESCE(?, other_name),
                        gender        = COALESCE(?, gender),
                        date_of_birth = COALESCE(?, date_of_birth),
                        phone         = COALESCE(?, phone),
@@ -887,7 +1015,7 @@ export async function POST(request: NextRequest) {
                        updated_at    = CURRENT_TIMESTAMP
                      WHERE id = (SELECT person_id FROM students WHERE id = ? AND school_id = ?)`,
                     [
-                      firstName, lastName,
+                      firstName, lastName, otherName,
                       safe(cm.genderIdx   !== -1 ? row[cm.genderIdx]   : null),
                       safe(cm.dobIdx      !== -1 ? row[cm.dobIdx]      : null),
                       safe(cm.phoneIdx    !== -1 ? row[cm.phoneIdx]    : null),
@@ -905,11 +1033,14 @@ export async function POST(request: NextRequest) {
                   const isExternal = regNo !== null;
                   const notes      = `Bulk imported ${new Date().toISOString()}`;
 
+                  // other_name is now persisted on create so middle/third
+                  // name fields stop being silently dropped (the audit
+                  // flagged this as Case 5 in Phase 0.5).
                   const pr = await execTenant(conn,
-                    `INSERT INTO people (school_id, first_name, last_name, gender, date_of_birth, phone, address, photo_url)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    `INSERT INTO people (school_id, first_name, last_name, other_name, gender, date_of_birth, phone, address, photo_url)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
-                      schoolId, firstName, lastName,
+                      schoolId, firstName, lastName, otherName,
                       safe(cm.genderIdx   !== -1 ? row[cm.genderIdx]   : null),
                       safe(cm.dobIdx      !== -1 ? row[cm.dobIdx]      : null),
                       safe(cm.phoneIdx    !== -1 ? row[cm.phoneIdx]    : null),

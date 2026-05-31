@@ -21,6 +21,17 @@ interface PreviewData {
   warnings: string[];
   columnMapping: Record<string, string | null>;
   fileHeaders: string[];
+  /**
+   * Diagnostics surfaced by the import route's `diagnoseColMap` helper.
+   * When `nameCollision` is true the import is blocked at the API level
+   * until the user submits an explicit `columnMapping` override.
+   * See PHASE 1A audit (Phase 0) for the original failure mode.
+   */
+  diagnostics?: {
+    nameCollision: boolean;
+    collidedFields: string[];
+    unmappedNameHeaders: string[];
+  };
 }
 
 interface ImportResult {
@@ -63,6 +74,21 @@ export const ImportModal: React.FC<ImportModalProps> = ({
    *  without enrolment. */
   const [missingClasses, setMissingClasses] = useState<string[]>([]);
   const [creatingClasses, setCreatingClasses] = useState(false);
+  /**
+   * User-supplied column mapping override. Shipped to the API on every
+   * subsequent preview / import request. When `null`, the server uses
+   * its auto-detector. Surfaced as editable rows in the preview phase.
+   *
+   * Keys are canonical DRAIS fields (`first_name`, `last_name`, …);
+   * values are the source-file header text.
+   */
+  const [mappingOverride, setMappingOverride] = useState<Record<string, string> | null>(null);
+  /**
+   * The preview API blocked the import because two name fields resolved
+   * to the same source column. The user must explicitly remap before we
+   * let them through. Surfaced as a red "Name collision detected" panel.
+   */
+  const [collisionError, setCollisionError] = useState<{ collidedFields: string[]; fileHeaders: string[] } | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -94,18 +120,30 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('mode', 'preview');
+      // When the user has remapped a column, ship the override so the
+      // server skips its auto-detector. Required after a 409 collision.
+      if (mappingOverride) formData.append('columnMapping', JSON.stringify(mappingOverride));
 
       const res = await fetch('/api/students/import', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (!data.success) {
+        // 409 = name collision. Show the dedicated remap panel so the
+        // user can pick the correct source column for first/last name.
+        if (res.status === 409 && data.diagnostics?.nameCollision) {
+          setCollisionError({
+            collidedFields: data.diagnostics.collidedFields || [],
+            fileHeaders: data.fileHeaders || [],
+          });
+          setPhase('preview');
+          return;
+        }
         toast.error(data.error || 'Preview failed');
         return;
       }
 
       setPreviewData(data);
-      // Capture missing classes detected at preview so the next phase
-      // can offer the user a one-click batch-create button.
+      setCollisionError(null);
       setMissingClasses(Array.isArray(data.missingClasses) ? data.missingClasses : []);
       setPhase('preview');
     } catch (err: any) {
@@ -131,6 +169,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('mode', 'import');
+      if (mappingOverride) formData.append('columnMapping', JSON.stringify(mappingOverride));
 
       const res = await fetch('/api/students/import', {
         method: 'POST',
@@ -434,8 +473,45 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                   </div>
                 )}
 
+                {/* ─── PHASE: PREVIEW (collision block) ──────────────────
+                    Rendered ONLY when the preview API returned 409 with a
+                    name collision. The user MUST remap before they can
+                    proceed; there is no "import anyway" escape hatch. */}
+                {phase === 'preview' && collisionError && (
+                  <div className="space-y-5">
+                    <div className="bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-800 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-bold text-red-900 dark:text-red-200">
+                            Name-column collision detected — import blocked
+                          </h3>
+                          <p className="text-xs text-red-800 dark:text-red-300 mt-1">
+                            Two or more learner-name fields ({collisionError.collidedFields.join(', ')}) are pointing at the same column in your file. If we proceeded, every learner would end up with <code className="font-mono bg-red-100 dark:bg-red-900/40 px-1 rounded">first_name == last_name</code> (this is the bug that produced &ldquo;Kalungi Kalungi&rdquo; in the past).
+                          </p>
+                          <p className="text-xs text-red-800 dark:text-red-300 mt-2">
+                            Map each name field to the correct source column below, then click <strong>Apply &amp; re-preview</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <MappingEditor
+                      mapping={{
+                        name: null, first_name: null, last_name: null, other_name: null,
+                        reg_no: null, class: null, section: null, gender: null,
+                        date_of_birth: null, phone: null, address: null,
+                      }}
+                      fileHeaders={collisionError.fileHeaders}
+                      override={mappingOverride}
+                      collidedFields={collisionError.collidedFields}
+                      onChange={(next) => setMappingOverride(next)}
+                      onApply={async () => { await handlePreview(); }}
+                    />
+                  </div>
+                )}
+
                 {/* ─── PHASE: PREVIEW ────────────────────────────────── */}
-                {phase === 'preview' && previewData && (
+                {phase === 'preview' && previewData && !collisionError && (
                   <div className="space-y-5">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -490,20 +566,22 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       </div>
                     )}
 
-                    {/* Column mapping display */}
-                    <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">Column Mapping</p>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(previewData.columnMapping).map(([sys, file]) => (
-                          <span key={sys} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
-                            file ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
-                                 : 'bg-gray-200 dark:bg-slate-600 text-gray-500 dark:text-gray-400'
-                          }`}>
-                            {sys} {file ? `→ ${file}` : '(unmapped)'}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    {/* Editable column mapping. The user can override
+                        each DRAIS field's source column — required when
+                        the auto-detector mis-assigned (and the only way
+                        to clear a 409 name-collision block). */}
+                    <MappingEditor
+                      mapping={previewData.columnMapping}
+                      fileHeaders={previewData.fileHeaders}
+                      override={mappingOverride}
+                      collidedFields={previewData.diagnostics?.collidedFields || []}
+                      onChange={(next) => setMappingOverride(next)}
+                      onApply={async () => {
+                        // Re-preview with the override so the user sees
+                        // the corrected mapping before they click Import.
+                        await handlePreview();
+                      }}
+                    />
 
                     {/* Preview table */}
                     <div className="border rounded-lg overflow-auto max-h-60">
@@ -711,5 +789,114 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
         </div>
       </Dialog>
     </Transition>
+  );
+};
+
+
+/**
+ * MappingEditor — per-canonical-field row, each with a <select> picking
+ * from the file headers. The user can override the auto-detected
+ * mapping, then click "Apply & re-preview" to ship it back to the API.
+ *
+ * Visual cues:
+ *   • Currently-detected mapping (auto OR overridden) shows the file header
+ *   • Collided fields render with a red ring + warning chip
+ *   • An "auto" button restores the field to the server-side detection
+ *
+ * Why this UI exists: the import API will refuse to proceed if
+ * first_name and last_name target the same source column — the
+ * operator HAS to remap explicitly. There is no longer a silent path.
+ */
+const MappingEditor: React.FC<{
+  mapping: Record<string, string | null>;
+  fileHeaders: string[];
+  override: Record<string, string> | null;
+  collidedFields: string[];
+  onChange: (next: Record<string, string> | null) => void;
+  onApply: () => void | Promise<void>;
+}> = ({ mapping, fileHeaders, override, collidedFields, onChange, onApply }) => {
+  const collided = new Set(collidedFields);
+  // Canonical fields surfaced in the editor — keep the order stable so
+  // the operator can rely on muscle memory across imports.
+  const FIELDS = [
+    { key: "name",          label: "Full name (single col)",  optional: true  },
+    { key: "first_name",    label: "First name",              optional: false },
+    { key: "last_name",     label: "Last name (surname)",     optional: false },
+    { key: "other_name",    label: "Other / middle name",     optional: true  },
+    { key: "reg_no",        label: "Admission / reg number",  optional: true  },
+    { key: "class",         label: "Class",                   optional: true  },
+    { key: "section",       label: "Stream / section",        optional: true  },
+    { key: "gender",        label: "Gender",                  optional: true  },
+    { key: "date_of_birth", label: "Date of birth",           optional: true  },
+    { key: "phone",         label: "Phone",                   optional: true  },
+    { key: "address",       label: "Address",                 optional: true  },
+  ];
+  const effective = (key: string) =>
+    (override && override[key]) || mapping[key] || "";
+
+  function set(key: string, value: string) {
+    const next: Record<string, string> = { ...(override || {}) };
+    // Seed from current effective mapping so a single edit does not
+    // wipe the rest of the auto-detected columns when the override is
+    // first created.
+    if (!override) {
+      for (const f of FIELDS) {
+        const cur = mapping[f.key];
+        if (cur) next[f.key] = cur;
+      }
+    }
+    if (value) next[key] = value;
+    else delete next[key];
+    onChange(Object.keys(next).length ? next : null);
+  }
+
+  return (
+    <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3 space-y-2">
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Column mapping</p>
+        <div className="flex items-center gap-2">
+          {override && (
+            <button
+              onClick={() => onChange(null)}
+              className="text-[11px] font-medium text-gray-600 dark:text-gray-300 hover:underline"
+              title="Restore the server-side auto-detected mapping"
+            >Reset to auto</button>
+          )}
+          <button
+            onClick={() => { void onApply(); }}
+            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            Apply &amp; re-preview
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {FIELDS.map(f => {
+          const isCollided = collided.has(f.key);
+          const value = effective(f.key);
+          return (
+            <label key={f.key} className={`flex items-center gap-2 p-2 rounded border ${isCollided ? "border-red-400 bg-red-50/60 dark:bg-red-950/20" : "border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800"}`}>
+              <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 w-44 shrink-0">
+                {f.label}
+                {!f.optional && <span className="text-red-500 ml-0.5">*</span>}
+                {isCollided && (
+                  <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100">collision</span>
+                )}
+              </span>
+              <select
+                value={value}
+                onChange={(e) => set(f.key, e.target.value)}
+                className="flex-1 text-xs px-2 py-1 rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
+              >
+                <option value="">(unmapped)</option>
+                {fileHeaders.map(h => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </select>
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 };
