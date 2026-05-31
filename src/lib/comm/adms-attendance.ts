@@ -40,6 +40,7 @@
 import { query } from '@/lib/db';
 import { emit } from './dispatcher';
 import type { CommEventType } from './events';
+import { resolveSchoolHours } from '@/lib/school-hours';
 
 export interface NotifyAdmsAttendanceArgs {
   schoolId:    number;
@@ -67,9 +68,30 @@ export async function notifyAdmsAttendance(args: NotifyAdmsAttendanceArgs): Prom
     // separately (zk_attendance_logs.matched=0).
     if (args.studentId == null && args.staffId == null) return;
 
-    // Decide direction.
-    const eventType = pickEventType(args);
+    // Decide direction (checkin vs checkout).
+    let eventType = pickEventType(args);
     if (!eventType) return;
+
+    // Consult the school's configured working/study hours. If the day is
+    // marked closed → no SMS at all (the school isn't expecting anyone).
+    // If the punch is after the configured late cutoff and the event is a
+    // CHECK-IN, upgrade it to learner.attendance.late so schools can route
+    // late notifications differently from on-time arrivals.
+    const audience = args.studentId != null ? 'student' : 'staff';
+    const hours = await resolveSchoolHours(args.schoolId, audience, args.checkTime);
+    if (hours?.isClosed) return;
+
+    if (
+      hours
+      && audience === 'student'
+      && eventType === 'learner.attendance.checkin'
+      && isAfterLateCutoff(args.checkTime, hours.startTime, hours.lateAfterMinutes)
+    ) {
+      // Only learners have a 'late' event type in the existing catalog —
+      // staff lateness still emits checkin (schools that need it can
+      // route via dispatch-log rules on the checkin event).
+      eventType = 'learner.attendance.late';
+    }
 
     // Resolve name (+ class for students) for the SMS template.
     const subject = args.studentId != null
@@ -80,7 +102,7 @@ export async function notifyAdmsAttendance(args: NotifyAdmsAttendanceArgs): Prom
 
     // Fire the dispatcher. emit() itself catches per-recipient errors
     // and writes audit rows, so we don't need to drill deeper here.
-    await dispatchByEventType(eventType, args, subject);
+    await dispatchByEventType(eventType, args, subject, computeMinutesLate(args.checkTime, hours));
   } catch (err) {
     // Last-line-of-defense — never let comm failures break the ADMS
     // push protocol. Log and swallow.
@@ -174,6 +196,7 @@ async function dispatchByEventType(
   eventType: CommEventType,
   args: NotifyAdmsAttendanceArgs,
   subject: StudentSubject | StaffSubject,
+  minutesLate: number | null,
 ): Promise<void> {
   const base = {
     schoolId:    args.schoolId,
@@ -188,6 +211,14 @@ async function dispatchByEventType(
       await emit('learner.attendance.checkin', {
         ...base, studentId: s.studentId, studentName: s.studentName,
         classLabel: s.classLabel ?? undefined, time,
+      });
+      return;
+    }
+    case 'learner.attendance.late': {
+      const s = subject as StudentSubject;
+      await emit('learner.attendance.late', {
+        ...base, studentId: s.studentId, studentName: s.studentName,
+        time, minutesLate: minutesLate ?? undefined,
       });
       return;
     }
@@ -226,4 +257,46 @@ function formatLocalTime(iso: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
+}
+
+/** Is the punch later than the school's effective late cutoff? */
+function isAfterLateCutoff(
+  checkTime: string,
+  startTimeHHMM: string,
+  graceMinutes: number | null,
+): boolean {
+  const punchMins = isoToLocalMinutes(checkTime);
+  if (punchMins == null) return false;
+  const cutoffMins = hhmmToMinutes(startTimeHHMM);
+  if (cutoffMins == null) return false;
+  const effective = cutoffMins + (graceMinutes ?? 0);
+  return punchMins > effective;
+}
+
+/** How many minutes late was the punch? Returns null when no hours
+ *  configured, or when punch is on/before the cutoff. */
+function computeMinutesLate(
+  checkTime: string,
+  hours: { startTime: string; lateAfterMinutes: number | null } | null,
+): number | null {
+  if (!hours) return null;
+  const punchMins = isoToLocalMinutes(checkTime);
+  if (punchMins == null) return null;
+  const cutoffMins = hhmmToMinutes(hours.startTime);
+  if (cutoffMins == null) return null;
+  const effective = cutoffMins + (hours.lateAfterMinutes ?? 0);
+  const delta = punchMins - effective;
+  return delta > 0 ? delta : null;
+}
+
+function isoToLocalMinutes(iso: string): number | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function hhmmToMinutes(hhmm: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!m) return null;
+  return Number.parseInt(m[1], 10) * 60 + Number.parseInt(m[2], 10);
 }

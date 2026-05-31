@@ -269,6 +269,7 @@ const LABEL_AR: Record<string, string> = {
   'Branding':                  'العلامة التجارية',
   'Modules':                   'الوحدات',
   'School Identity':           'هوية المدرسة',
+  'School Hours':              'ساعات المدرسة',
   'Academic Calendar':         'التقويم الدراسي',
   'Notifications':             'الإشعارات',
 };
@@ -497,6 +498,7 @@ export function getNavigationItems(
       icon:  <Settings className="w-5 h-5" />,
       children: [
         { key: 'school-settings', label: 'School',         icon: <School className="w-4 h-4" />,   href: '/settings/school' },
+        { key: 'school-hours',    label: 'School Hours',   icon: <Clock className="w-4 h-4" />,    href: '/settings/hours' },
         { key: 'appearance',      label: 'Appearance',     icon: <Palette className="w-4 h-4" />,  href: '/settings/appearance' },
         { key: 'profile',         label: 'My Profile',     icon: <UserCog className="w-4 h-4" />,  href: '/settings/profile' },
         { key: 'templates',       label: 'Templates',      icon: <FileCog className="w-4 h-4" />,  href: '/settings/templates' },
