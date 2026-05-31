@@ -189,6 +189,46 @@ await persistOrphans(result.errors, result.orphanedCount);
 
 ---
 
+## Phase 2 status — first migrated route is LIVE
+
+`POST /api/students/import/v2` ([route](../../app/api/students/import/v2/route.ts))
+is the first real importer wired through this pipeline.
+
+It runs **in parallel** with the legacy `/api/students/import` — both
+routes exist, both work, the ImportModal UI still points at the legacy
+path. Schools opt in to v2 by hitting the new URL directly (or via a
+future UI toggle) and validate it against their real exports before we
+flip the default.
+
+What v2 does that the legacy path doesn't:
+
+| Concern | Legacy | v2 |
+|---|---|---|
+| Header → field mapping | hand-rolled in `importHelpers.ts` | schema-inference engine (memory → exact → synonym → fuzzy + ambiguity guard) |
+| Identity resolution | admission_no → name+class → NO_MATCH | central `resolveIdentity` (4 signals + cross-checks) |
+| Conflict policy | `updateExisting` boolean | school-configurable `FieldConflictPolicy` per field |
+| Skipped rows | silent SSE counter | `ConflictDecision` in audit log — every action recorded |
+| Memory | none — every import re-detects | `ingestion_field_memory` caches school's prior approvals |
+| Orphan queue | none | `ingestion_orphans` — resolvable from admin UI (Phase 6) |
+
+When v2 is verified against multiple real schools' exports, the
+ImportModal flips its URL to `/v2` and the legacy route can be
+deprecated.
+
+Files added for the v2 path:
+
+| Path | Role |
+|---|---|
+| `pipelines/students.ts` | `IngestionPipeline<StudentRow>` + canonical fields + validator + commit fn |
+| `adapters/sql-person-lookup.ts` | Production `PersonLookup` (4 queries: admission_no / credential / device-mapping / name-prefix) |
+| `adapters/sql-memory.ts` | Production `MemoryReader` / `MemoryWriter` + `persistIngestionRun` + `persistOrphan` |
+| `../../app/api/students/import/v2/route.ts` | The parallel route. CSV/XLSX upload OR JSON body. |
+| `__tests__/students-pipeline.test.mjs` | 22 tests covering the pure helpers |
+
+Tests: 120/120 passing across the whole suite.
+
+---
+
 ## Non-goals for Phase 1
 
 - **No existing routes are touched.** The legacy importers all still
