@@ -122,7 +122,8 @@
       "Bash(grep -nE '\"[A-Z][a-z]{2,}\"|>[A-Z][^<{]{2,30}<' src/templates/DualCurriculumTemplate.tsx)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(git commit -m 'feat\\(i18n,Phase3\\): server-rendered output documents — locale propagation + hash invariant guard *)",
-      "Bash(git commit -m 'feat\\(i18n,Phase5\\): RTL polish — logical CSS properties + directional icon mirroring *)"
+      "Bash(git commit -m 'feat\\(i18n,Phase5\\): RTL polish — logical CSS properties + directional icon mirroring *)",
+      "Bash(node -e \"const ar = require\\('./src/locales/ar.json'\\); console.log\\('nav.students:', JSON.stringify\\(ar.nav.students, null, 2\\)\\)\")"
     ],
     "additionalDirectories": [
       "/home/xhenvolt/Systems/DraisLongTermVersion/src/app/api/terms",
