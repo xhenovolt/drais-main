@@ -110,11 +110,39 @@ export function wrapDRCEPrintDocument(args: {
     *, *::before, *::after { box-sizing: border-box; }
     body { margin: 0; padding: 16px; font-family: Arial, sans-serif; background: #fff; }
     @page { size: A4; margin: 1cm; }
-    /* DRCE renderer output already includes page-break-after on each student
-       container; this ensures nothing breaks unexpectedly across pages. */
+
+    /* PHASE 1A fix G6 — make each student block its own paper page so
+       Ctrl+P always produces N pages for N learners, regardless of
+       whether the underlying DRCE document is single-page or
+       multi-page. The per-page break inside DRCEDocumentRenderer
+       still applies within a student. */
+    .student-block {
+      page-break-after: always;
+      break-after: page;
+      page-break-inside: avoid;
+      break-inside: avoid-page;
+    }
+    .student-block:last-of-type {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    /* DRCE pages already carry their own break-* styles; this guards the
+       legacy unprefixed property for older Chromium. */
+    .drce-page {
+      page-break-after: always;
+      break-after: page;
+    }
+    .drce-page:last-of-type {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
     @media print {
       .no-print { display: none !important; }
       body { padding: 0; }
+      /* Remove visual gaps the editor preview adds between pages. */
+      .drce-page { margin-bottom: 0 !important; }
     }
   </style>
 </head>

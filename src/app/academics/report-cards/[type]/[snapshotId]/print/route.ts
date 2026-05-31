@@ -13,41 +13,13 @@
  * prints from snapshots they generated themselves.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { getSessionSchoolId } from '@/lib/auth';
 import { loadSnapshot } from '@/lib/snapshots/storage';
-import { snapshotToTemplateMap } from '@/lib/snapshots/adapter/toTemplateMap';
-import { renderEmergencyTemplate } from '@/lib/snapshots/adapter/renderEmergencyTemplate';
-import { listOverrides } from '@/lib/snapshots/overrides';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
-import { BUILT_IN_TEMPLATES } from '@/lib/drce/registry';
-import { resolveBuiltInDocument } from '@/lib/drce/builtin-resolver';
-import { renderStudentToDRCEHtml, wrapDRCEPrintDocument } from '@/lib/drce/print-renderer';
-import type { DRCEDocument } from '@/lib/drce/schema';
-
-const DEFAULT_TEMPLATE_BY_TYPE: Record<SnapshotType, string> = {
-  secular:  'emergency-secular',
-  theology: 'emergency-theology',
-  mixed:    'emergency-secular',
-};
-
-const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
-
-/**
- * Resolve a template registry id to its static HTML file under `backup/`.
- * Works for any built-in entry whose renderer is `emergency_html`, which
- * covers Phase 2 categories: emergency, arabic, legacy_rpt.
- *
- * Returns null when the id is unknown or the registry entry is not a
- * static-HTML template (e.g. a `dvcf_documents` row, which renders via
- * DRCEDocumentRenderer instead).
- */
-function resolveEmergencyTemplateFile(templateId: string): string | null {
-  const entry = BUILT_IN_TEMPLATES.find(t => t.id === templateId);
-  if (!entry || entry.renderer !== 'emergency_html' || !entry.engineRef) return null;
-  return entry.engineRef;
-}
+import {
+  buildSnapshotPrintHtml,
+  VALID_SNAPSHOT_TYPES as VALID_TYPES,
+} from '@/lib/snapshots/build-print-html';
 
 export async function GET(
   req: NextRequest,
@@ -73,9 +45,6 @@ export async function GET(
 
   const sp = req.nextUrl.searchParams;
   const templateIdRaw = sp.get('template');
-  const templateId = templateIdRaw && templateIdRaw.trim() !== ''
-    ? templateIdRaw.trim()
-    : DEFAULT_TEMPLATE_BY_TYPE[type as SnapshotType];
 
   const classIdRaw     = sp.get('class_id');
   const studentIdRaw   = sp.get('student_id');
@@ -85,137 +54,33 @@ export async function GET(
   const editMode           = editModeRaw === '1' || editModeRaw === 'true';
 
   const isArabic  = snapshot.meta.numerals === 'arabic';
-  const direction = isArabic ? 'rtl' : 'ltr';
-  const lang      = isArabic ? 'ar' : 'en';
 
-  // ── DRCE rendering path ────────────────────────────────────────────────────
-  // When the template id resolves to a DRCE-native document (built-in or DB),
-  // render each student via renderToStaticMarkup. Overrides are applied per-
-  // student inside renderStudentToDRCEHtml. Emergency_html path below handles
-  // everything else.
-  let drceDoc: DRCEDocument | null = resolveBuiltInDocument(templateId);
-  if (!drceDoc) {
-    // Try numeric DB id (school-authored DRCE template)
-    const numericId = Number(templateId);
-    if (Number.isFinite(numericId) && numericId > 0) {
-      try {
-        const { query } = await import('@/lib/db');
-        const rows = (await query(
-          `SELECT schema_json FROM dvcf_documents
-            WHERE id = ? AND (school_id IS NULL OR school_id = ?)
-            LIMIT 1`,
-          [numericId, session.schoolId],
-        )) as Array<{ schema_json: string }>;
-        if (rows.length) drceDoc = JSON.parse(rows[0].schema_json) as DRCEDocument;
-      } catch {
-        // Fall through to emergency_html
-      }
-    }
-  }
-
-  if (drceDoc) {
-    const allOverrides = await listOverrides({ snapshotId, schoolId: session.schoolId });
-    const renderCtx = {
-      school: snapshot.meta.branding
-        ? {
-            name:            snapshot.meta.branding.schoolName,
-            arabic_name:     snapshot.meta.branding.arabicName,
-            address:         snapshot.meta.branding.address,
-            contact:         snapshot.meta.branding.phone || snapshot.meta.branding.email,
-            center_no:       snapshot.meta.branding.centerNo,
-            registration_no: snapshot.meta.branding.registrationNumber,
-            logo_url:        snapshot.meta.branding.logoUrl,
-          }
-        : { name: snapshot.meta.schoolName },
-      isPrint:  true,
-      language: snapshot.meta.language,
-      isRTL:    isArabic,
-    };
-
-    const studentBlocks: string[] = [];
-    for (const [classIdx, cls] of snapshot.classes.entries()) {
-      if (filterClassIdx !== null && !Number.isNaN(filterClassIdx) && classIdx !== filterClassIdx) continue;
-      for (const [studentIdx, stu] of cls.students.entries()) {
-        if (filterStudentDbId !== null && !Number.isNaN(filterStudentDbId) && stu.studentDbId !== filterStudentDbId) continue;
-        const html = await renderStudentToDRCEHtml({
-          document:   drceDoc,
-          snapshot,
-          classIdx,
-          studentIdx,
-          overrides:  allOverrides,
-          renderCtx,
-        });
-        studentBlocks.push(
-          `<div class="student-block" data-class-index="${classIdx}" data-student-db-id="${stu.studentDbId}">${html}</div>`,
-        );
-      }
-    }
-
-    if (studentBlocks.length === 0) {
-      return new NextResponse(
-        `<!DOCTYPE html><html><body style="text-align:center;padding:60px;color:#666;">${isArabic ? 'لا توجد نتائج' : 'No results to display'}</body></html>`,
-        { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
-      );
-    }
-
-    const controls  = buildPrintControls(snapshot, isArabic, editMode);
-    const fullHtml  = wrapDRCEPrintDocument({ snapshot, body: studentBlocks.join('\n'), controls });
-    return new NextResponse(fullHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-  }
-
-  // ── Emergency HTML rendering path ──────────────────────────────────────────
-  // Overrides are NOT applied to emergency_html templates — they use string
-  // substitution and cannot honour DRCE override semantics. Schools wanting
-  // per-student overrides should use the DRCE-native equivalents above.
-  const templateFile = resolveEmergencyTemplateFile(templateId);
-  if (!templateFile) {
-    return NextResponse.json(
-      { error: 'TEMPLATE_NOT_FOUND', message: `Unknown template id: ${templateId}. Use a DRCE template id or an emergency_html template id.` },
-      { status: 400 },
-    );
-  }
-
-  const templatePath = path.join(process.cwd(), 'backup', templateFile);
-  let template: string;
-  try {
-    template = await fs.readFile(templatePath, 'utf8');
-  } catch (e: any) {
-    console.error('[snapshots/print] Missing template:', templatePath, e?.message);
-    return NextResponse.json(
-      { error: 'TEMPLATE_MISSING', message: `Template file not found: ${templateFile}` },
-      { status: 500 },
-    );
-  }
-
-  // Render every student into one big HTML body (matching emergency routes).
-  const studentBlocks: string[] = [];
-  snapshot.classes.forEach((cls, classIdx) => {
-    if (filterClassIdx !== null && !Number.isNaN(filterClassIdx) && classIdx !== filterClassIdx) return;
-    cls.students.forEach((stu, studentIdx) => {
-      if (filterStudentDbId !== null && !Number.isNaN(filterStudentDbId) && stu.studentDbId !== filterStudentDbId) return;
-      const out = snapshotToTemplateMap({ snapshot, classIdx, studentIdx, editMode });
-      const rendered = renderEmergencyTemplate(template, out);
-      studentBlocks.push(
-        `<div class="student-block" data-class-index="${classIdx}" data-student-db-id="${stu.studentDbId}">${rendered}</div>`
-      );
-    });
+  // Delegate the HTML build to the shared helper. The /print route adds
+  // its interactive controls + (in legacy emergency mode) the inline
+  // editable-cell script; the /pdf route omits both.
+  const result = await buildSnapshotPrintHtml({
+    snapshot,
+    schoolId:           session.schoolId,
+    templateId:         templateIdRaw ?? undefined,
+    filterClassIdx,
+    filterStudentDbId,
+    editMode,
+    controls:           buildPrintControls(snapshot, isArabic, editMode),
+    emergencyEditScript: editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : '',
+    // Preserve byte-equivalence with the previous emergency_html output
+    // by passing the existing `wrapDocument` wrapper. The /pdf route
+    // uses its own slimmer wrapper.
+    wrapEmergency: (body, snap, lang, direction) => wrapDocument(snap, lang, direction, body),
   });
 
-  if (studentBlocks.length === 0) {
-    return new NextResponse(emptyDocument(snapshot, lang, direction), {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
+  if (result.ok === false) {
+    return NextResponse.json(
+      { error: result.error.startsWith('TEMPLATE_NOT_FOUND') ? 'TEMPLATE_NOT_FOUND' : 'TEMPLATE_MISSING', message: result.error },
+      { status: result.status },
+    );
   }
 
-  const printControls = buildPrintControls(snapshot, isArabic, editMode);
-  const fullHtml = wrapDocument(
-    snapshot,
-    lang,
-    direction,
-    printControls + '\n' + studentBlocks.join('\n') + (editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : ''),
-  );
-
-  return new NextResponse(fullHtml, {
+  return new NextResponse(result.html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
 }
@@ -392,15 +257,6 @@ function buildEmergencyEditScript(snapshotId: string): string {
       })();
     </script>
   `;
-}
-
-function emptyDocument(snapshot: ReportSnapshot, lang: string, direction: 'ltr' | 'rtl'): string {
-  const msg = direction === 'rtl'
-    ? 'لا توجد نتائج للعرض'
-    : 'No results to display';
-  return wrapDocument(snapshot, lang, direction,
-    `<div style="padding: 60px; text-align: center; color: #666;">${msg}</div>`,
-  );
 }
 
 function escape(s: string): string {

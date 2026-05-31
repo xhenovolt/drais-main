@@ -30,6 +30,22 @@ const DEFAULT_EMERGENCY_BY_TYPE: Record<SnapshotType, string> = {
 };
 
 /**
+ * Sensible DRCE built-in id for the snapshot type, used when the user has
+ * not picked a specific DRCE template but is in DRCE mode. The print
+ * route's `resolveBuiltInDocument` will then resolve this to a
+ * DRCEDocument and the DRCE branch of the route runs.
+ *
+ * Without this fallback, an empty drceTemplateId would send `template=`
+ * to the route, which would silently fall through to the emergency
+ * template (PHASE 0 audit G1 — the original failure mode).
+ */
+const DEFAULT_DRCE_BY_TYPE: Record<SnapshotType, string> = {
+  secular:  'drce-emergency-secular',
+  theology: 'drce-emergency-theology',
+  mixed:    'drce-emergency-secular',
+};
+
+/**
  * Class-paginated snapshot preview with two render modes:
  *   - 'emergency': iframe of the deterministic print route. Pixel-identical
  *     to print output. Always works, no DRCE dependency.
@@ -201,18 +217,62 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   );
 
   const printBase = `/academics/report-cards/${snapshot.meta.type}/${snapshot.meta.snapshotId}/print`;
+  const pdfBase   = `/academics/report-cards/${snapshot.meta.type}/${snapshot.meta.snapshotId}/pdf`;
   const classes = snapshot.classes;
   const cls     = classes[classIdx];
   const stu     = cls?.students[studentIdx];
 
+  /**
+   * Single source of truth for the template id sent to the print/PDF
+   * routes. PHASE 0 G1 fix — the previous "Print" link hard-coded the
+   * emergency template id even when the user was in DRCE mode, which
+   * is why DRCE templates appeared unprintable. We now pick the id
+   * based on the active mode and fall back to a known DRCE built-in
+   * when no specific template was picked.
+   */
+  const activeTemplateId = useMemo(() => {
+    if (mode === 'drce') {
+      return drceTemplateId || DEFAULT_DRCE_BY_TYPE[snapshot.meta.type];
+    }
+    return emergencyTemplateId;
+  }, [mode, drceTemplateId, emergencyTemplateId, snapshot.meta.type]);
+
   const previewSrc = useMemo(() => {
     if (!cls) return printBase;
-    let url = `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(emergencyTemplateId)}`;
+    let url = `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
     if (mode === 'emergency' && isEditMode) {
       url += '&edit=1';
     }
     return url;
-  }, [printBase, classIdx, cls, emergencyTemplateId, mode, isEditMode]);
+  }, [printBase, classIdx, cls, activeTemplateId, mode, isEditMode]);
+
+  const printHref = `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
+  const pdfHref   = `${pdfBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
+  const [pdfBusy, setPdfBusy] = useState(false);
+  async function downloadPdf() {
+    setPdfBusy(true);
+    try {
+      const res = await fetch(pdfHref);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        toast.error(`PDF failed: ${text.slice(0, 200) || res.statusText}`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${snapshot.meta.schoolName} — ${cls?.className ?? 'class'} — ${snapshot.meta.termName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(`PDF error: ${e?.message || 'unknown'}`);
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   useEffect(() => {
     setStudentIdx(0);
@@ -362,13 +422,26 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
             </button>
           </div>
           <Link
-            href={`${printBase}?class_id=${classIdx}&template=${encodeURIComponent(emergencyTemplateId)}`}
+            href={printHref}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-blue-600 text-white hover:bg-blue-700"
+            title={mode === 'drce' ? 'Print this class using the DRCE template' : 'Print this class using the emergency template'}
           >
-            <Printer className="w-4 h-4" /> Print this class
+            <Printer className="w-4 h-4" /> Print
           </Link>
+          <button
+            type="button"
+            onClick={downloadPdf}
+            disabled={pdfBusy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+            title="Download a PDF rendered server-side (preserves multi-page DRCE layout)."
+          >
+            {pdfBusy
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Printer className="w-4 h-4" />}
+            {pdfBusy ? 'Building PDF…' : 'PDF'}
+          </button>
           {(mode === 'drce' || mode === 'emergency') && (
             <button
               onClick={() => setIsEditMode(!isEditMode)}

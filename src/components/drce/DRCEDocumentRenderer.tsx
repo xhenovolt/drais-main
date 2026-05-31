@@ -104,6 +104,12 @@ function getSectionWrapperStyle(section: DRCESection, isSelected: boolean, isInt
     outlineOffset: isSelected ? 2 : undefined,
     boxSizing: 'border-box',
     transition: isInteractive ? 'outline 0.1s' : undefined,
+    // PHASE 1A fix G2 — prevent a section from being split across two
+    // physical pages by the browser print engine. Tables, grade scales,
+    // and watermark anchors all break visually when split mid-row.
+    // Authors can override via `style.breakInside: 'auto'`.
+    pageBreakInside: ((sectionStyle as Record<string, unknown>).pageBreakInside as React.CSSProperties['pageBreakInside']) ?? 'avoid',
+    breakInside: ((sectionStyle as Record<string, unknown>).breakInside as React.CSSProperties['breakInside']) ?? 'avoid-page',
   };
 }
 
@@ -127,17 +133,28 @@ function DRCEDocumentRendererInner({
   onCellChange,
   onColumnHide,
 }: Props) {
-  // Defensive guards against undefined contexts
+  // Defensive guards against undefined contexts.
+  // PHASE 1A fix G4 — throw under SSR so the server print/PDF route
+  // can return a clear 500 instead of 200 with empty markup. Browser
+  // renders still return null silently to avoid unmount loops in the
+  // editor where contexts can briefly be undefined while loading.
+  const isServer = typeof window === 'undefined';
   if (!document) {
-    console.error('[DRCEDocumentRenderer] document is required but not provided');
+    const msg = '[DRCEDocumentRenderer] document is required but not provided';
+    if (isServer) throw new Error(msg);
+    console.error(msg);
     return null;
   }
   if (!dataCtx) {
-    console.error('[DRCEDocumentRenderer] dataCtx is required but not provided');
+    const msg = '[DRCEDocumentRenderer] dataCtx is required but not provided';
+    if (isServer) throw new Error(msg);
+    console.error(msg);
     return null;
   }
   if (!renderCtx) {
-    console.error('[DRCEDocumentRenderer] renderCtx is required but not provided');
+    const msg = '[DRCEDocumentRenderer] renderCtx is required but not provided';
+    if (isServer) throw new Error(msg);
+    console.error(msg);
     return null;
   }
   
@@ -164,17 +181,28 @@ function DRCEDocumentRendererInner({
             : watermark;
           const breakBefore = p.pageBreakBefore ?? (idx > 0 ? 'always' : 'auto');
           const sortedSections = [...(p.sections ?? [])].sort((a, b) => a.order - b.order);
+          // PHASE 1A fix G3 — modern `break-*` properties alongside the
+          // legacy `pageBreak*` so Chromium honours page breaks in print
+          // preview AND on actual print. Some print engines respect only
+          // one or the other.
+          const pageBreakStyle: React.CSSProperties = {
+            pageBreakBefore: breakBefore,
+            pageBreakAfter: idx < pages.length - 1 ? 'always' : 'auto',
+            breakBefore:    breakBefore === 'always' ? 'page' : undefined,
+            breakAfter:     idx < pages.length - 1 ? 'page' : undefined,
+          };
           return (
             <div
               key={p.id}
               data-drce-page-id={p.id}
+              className="drce-page"
               style={{
                 ...ps,
                 width: dims.width, minHeight: dims.minHeight,
-                pageBreakBefore: breakBefore,
-                pageBreakAfter: idx < pages.length - 1 ? 'always' : 'auto',
+                ...pageBreakStyle,
                 position: 'relative',
                 marginBottom: 16,  // visual gap in the editor preview only
+                overflow: 'hidden', // prevent absolute content from spilling
               }}
             >
               {pageWM?.enabled && <WatermarkLayer watermark={pageWM} />}
@@ -193,9 +221,13 @@ function DRCEDocumentRendererInner({
                   />
                 ))}
               </div>
-              {/* Per-page shapes overlay + document-wide shapes overlay */}
+              {/* Per-page shapes overlay always. Document-wide shapes
+                  overlay ONLY on the first page (PHASE 1A fix G7 — the
+                  previous code emitted document.shapes on every page,
+                  causing decorative shapes to repeat). Watermarks are
+                  intentionally per-page already. */}
               <StaticShapeLayer shapes={p.shapes ?? []} dataCtx={dataCtx} />
-              <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={dataCtx} />
+              {idx === 0 && <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={dataCtx} />}
             </div>
           );
         })}
