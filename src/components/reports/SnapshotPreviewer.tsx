@@ -218,6 +218,11 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
 
   const printBase = `/academics/report-cards/${snapshot.meta.type}/${snapshot.meta.snapshotId}/print`;
   const pdfBase   = `/academics/report-cards/${snapshot.meta.type}/${snapshot.meta.snapshotId}/pdf`;
+  // PHASE 1C — DRCE templates render through the naked /print-snapshot
+  // page so Next.js's standard SSR handles the `'use client'` boundary
+  // correctly. The legacy /print route stays for emergency_html, which
+  // is pure string substitution and works fine in a Route Handler.
+  const drcePrintBase = `/print-snapshot/${snapshot.meta.type}/${snapshot.meta.snapshotId}`;
   const classes = snapshot.classes;
   const cls     = classes[classIdx];
   const stu     = cls?.students[studentIdx];
@@ -246,7 +251,12 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     return url;
   }, [printBase, classIdx, cls, activeTemplateId, mode, isEditMode]);
 
-  const printHref = `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
+  // Print: DRCE goes to the naked page, emergency stays on the legacy
+  // route. PDF always goes through /pdf (which internally puppeteers
+  // the naked page for DRCE).
+  const printHref = mode === 'drce'
+    ? `${drcePrintBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`
+    : `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
   const pdfHref   = `${pdfBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
   const [pdfBusy, setPdfBusy] = useState(false);
   async function downloadPdf() {

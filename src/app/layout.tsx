@@ -143,7 +143,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     pathname === '/server-error' ||              // Error pages
     pathname === '/academics/reports' ||          // Report printing layout
     pathname.startsWith('/portal') ||            // Parent portal — own shell, no staff nav
-    pathname.startsWith('/rpt');                 // Standalone rpt.html clone
+    pathname.startsWith('/rpt') ||               // Standalone rpt.html clone
+    pathname.startsWith('/print-snapshot');      // Naked DRCE snapshot print/PDF target
 
   return (
     <div className="min-h-screen">
