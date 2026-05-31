@@ -150,17 +150,42 @@ function mapColumns(headers: string[], overrides?: Record<string, string>): ColM
     return -1;
   };
 
-  // Name fields use STRICT EXACT matching. Better to leave a column
-  // unmapped (and force the operator to map it) than to silently
-  // collide via .includes() — that was the original corruption bug.
-  //
-  // BUT: 'name' (bare) is a very common header in real schools' files.
-  // We accept it as a synonym for the full-name bucket. The collision
-  // guard below ensures it still can't collapse onto first/last.
-  let nameIdx      = findExact('name', 'full_name', 'fullname', 'student_name', 'studentname', 'learner_name', 'learnername', 'candidate_name', 'candidatename');
+  // Name fields use STRICT EXACT matching for first/last/other to avoid
+  // the includes() collision bug (PHASE 1A audit). The full-name bucket
+  // (`nameIdx`) gets a wider net because it represents the
+  // "single column with both names" pattern that real Ugandan school
+  // exports overwhelmingly use:
+  //   - Name                                        (bare)
+  //   - Names / Student Name / Student Names
+  //   - Pupil Name / Learner Name / Candidate Name
+  //   - Full Name / Names of Student / Name of Learner
+  // …with values like "Kalungi Steven" which `getNames` splits below.
+  let nameIdx      = findExact(
+    'name', 'names',
+    'full_name', 'fullname', 'full_names', 'fullnames',
+    'student_name', 'studentname', 'student_names', 'studentnames',
+    'learner_name', 'learnername', 'learner_names', 'learnernames',
+    'pupil_name', 'pupilname', 'pupil_names', 'pupilnames',
+    'candidate_name', 'candidatename', 'candidate_names', 'candidatenames',
+  );
   let firstNameIdx = findExact('first_name', 'firstname', 'given_name', 'givenname', 'fname', 'first', 'firstnames', 'first_names');
   let lastNameIdx  = findExact('last_name', 'lastname', 'surname', 'family_name', 'familyname', 'lname', 'last', 'lastnames', 'last_names');
   const otherNameIdx = findExact('other_name', 'othername', 'middle_name', 'middlename', 'mname', 'other', 'middle');
+
+  // GATED LOOSE MATCH for the full-name bucket. Fires ONLY when strict
+  // matching missed. Catches creative real-world headers like:
+  //   - "Names of pupil"
+  //   - "Learner Full Name"
+  //   - "Student's Name"
+  // Excludes anything that looks like first/last/other or a non-learner
+  // name (mother / father / guardian / parent / next of kin / former
+  // school name). This is safe because the explicit first/last/other
+  // detection already ran above and will win on collision via the
+  // guards further down.
+  if (nameIdx === -1) {
+    const excluded = /(first|last|sur(?!a)|given|family|other|middle|mother|father|guardian|parent|next_of_kin|kin|prev|previous|former|school|account|user|company)/;
+    nameIdx = h.findIndex(x => x.includes('name') && !excluded.test(x));
+  }
 
   // DUPLICATE-HEADER PROMOTION. Real-world export files often label two
   // adjacent columns identically — e.g. `name, name` meaning first +
@@ -257,18 +282,35 @@ function getNames(row: any[], cm: ColMap): { firstName: string; lastName: string
     return { firstName: cell(cm.firstNameIdx), lastName: cell(cm.lastNameIdx), otherName };
   }
 
-  // Fallback: split a single "full name" column.
+  // Fallback: split a single "full name" column on whitespace.
   if (cm.nameIdx !== -1 && row[cm.nameIdx]) {
-    const parts = String(row[cm.nameIdx]).trim().split(/\s+/);
-    if (parts.length >= 2) {
-      // 2+ tokens: first token = first name, the rest = last name.
-      return { firstName: parts[0], lastName: parts.slice(1).join(' '), otherName };
+    const parts = String(row[cm.nameIdx]).trim().split(/\s+/).filter(Boolean);
+    const explicitOther = otherName; // explicit other_name col always wins
+    if (parts.length === 0) {
+      return { firstName: '', lastName: '', otherName: explicitOther };
     }
-    // 1 token only: it goes in last_name (the surname-only convention
-    // used by many UG schools), first_name stays empty so the operator
-    // can complete it manually. We deliberately DO NOT duplicate the
-    // value into both fields — that's the corruption we are fixing.
-    return { firstName: '', lastName: parts[0] || '', otherName };
+    if (parts.length === 1) {
+      // 1 token only: it goes in last_name (the surname-only convention
+      // used by many UG schools), first_name stays empty so the
+      // operator can complete it manually. We deliberately DO NOT
+      // duplicate the value into both fields — that was the original
+      // corruption pattern.
+      return { firstName: '', lastName: parts[0], otherName: explicitOther };
+    }
+    if (parts.length === 2) {
+      // "Kalungi Steven" → first=Kalungi, last=Steven.
+      return { firstName: parts[0], lastName: parts[1], otherName: explicitOther };
+    }
+    // 3+ tokens: "Kalungi Steven Muwanga" → first=Kalungi,
+    // other=Steven, last=Muwanga. This is the common Ugandan
+    // three-name pattern; preserves the middle name as other_name
+    // rather than smushing it into last_name. The explicit
+    // other_name column still wins if the file has one.
+    return {
+      firstName: parts[0],
+      lastName:  parts[parts.length - 1],
+      otherName: explicitOther ?? parts.slice(1, -1).join(' '),
+    };
   }
 
   return { firstName: '', lastName: '', otherName };
