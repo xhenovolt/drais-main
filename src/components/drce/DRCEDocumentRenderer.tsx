@@ -134,29 +134,17 @@ function DRCEDocumentRendererInner({
   onColumnHide,
 }: Props) {
   // Defensive guards against undefined contexts.
-  // PHASE 1A fix G4 — throw under SSR so the server print/PDF route
-  // can return a clear 500 instead of 200 with empty markup. Browser
-  // renders still return null silently to avoid unmount loops in the
-  // editor where contexts can briefly be undefined while loading.
-  const isServer = typeof window === 'undefined';
-  if (!document) {
-    const msg = '[DRCEDocumentRenderer] document is required but not provided';
-    if (isServer) throw new Error(msg);
-    console.error(msg);
-    return null;
-  }
-  if (!dataCtx) {
-    const msg = '[DRCEDocumentRenderer] dataCtx is required but not provided';
-    if (isServer) throw new Error(msg);
-    console.error(msg);
-    return null;
-  }
-  if (!renderCtx) {
-    const msg = '[DRCEDocumentRenderer] renderCtx is required but not provided';
-    if (isServer) throw new Error(msg);
-    console.error(msg);
-    return null;
-  }
+  //
+  // PHASE 1A G4 fix originally threw under SSR so missing context was
+  // visible as a 500 rather than 200-with-empty-markup. That cure was
+  // worse than the disease — ONE bad student in a 200-learner batch
+  // killed the whole PDF. Reverted to console.error + return null so
+  // the rest of the batch succeeds. The print/pdf routes now catch
+  // catastrophic build failures higher up and surface them as typed
+  // JSON errors, which is the better place to enforce visibility.
+  if (!document)  { console.error('[DRCEDocumentRenderer] document is missing');  return null; }
+  if (!dataCtx)   { console.error('[DRCEDocumentRenderer] dataCtx is missing');   return null; }
+  if (!renderCtx) { console.error('[DRCEDocumentRenderer] renderCtx is missing'); return null; }
   
   const { theme, watermark, sections, pages } = document;
 

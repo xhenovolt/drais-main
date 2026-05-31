@@ -55,23 +55,39 @@ export async function GET(
 
   const isArabic  = snapshot.meta.numerals === 'arabic';
 
-  // Delegate the HTML build to the shared helper. The /print route adds
-  // its interactive controls + (in legacy emergency mode) the inline
-  // editable-cell script; the /pdf route omits both.
-  const result = await buildSnapshotPrintHtml({
-    snapshot,
-    schoolId:           session.schoolId,
-    templateId:         templateIdRaw ?? undefined,
-    filterClassIdx,
-    filterStudentDbId,
-    editMode,
-    controls:           buildPrintControls(snapshot, isArabic, editMode),
-    emergencyEditScript: editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : '',
-    // Preserve byte-equivalence with the previous emergency_html output
-    // by passing the existing `wrapDocument` wrapper. The /pdf route
-    // uses its own slimmer wrapper.
-    wrapEmergency: (body, snap, lang, direction) => wrapDocument(snap, lang, direction, body),
-  });
+  // Delegate the HTML build to the shared helper, wrapped in try/catch
+  // so SSR throws (G4) surface as a HTML error page the user can read
+  // rather than Next.js's default 500 HTML.
+  let result: Awaited<ReturnType<typeof buildSnapshotPrintHtml>>;
+  try {
+    result = await buildSnapshotPrintHtml({
+      snapshot,
+      schoolId:           session.schoolId,
+      templateId:         templateIdRaw ?? undefined,
+      filterClassIdx,
+      filterStudentDbId,
+      editMode,
+      controls:           buildPrintControls(snapshot, isArabic, editMode),
+      emergencyEditScript: editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : '',
+      // Preserve byte-equivalence with the previous emergency_html output
+      // by passing the existing `wrapDocument` wrapper. The /pdf route
+      // uses its own slimmer wrapper.
+      wrapEmergency: (body, snap, lang, direction) => wrapDocument(snap, lang, direction, body),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[snapshots/print] HTML build failed:', e);
+    const errorPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Report build failed</title></head>
+<body style="font-family: system-ui; padding: 40px; max-width: 720px; margin: 0 auto;">
+  <h1 style="color: #b91c1c;">Could not build this report</h1>
+  <p>The DRCE template threw an error while rendering this snapshot. Switch to the Emergency template in the preview header to confirm the snapshot itself is healthy.</p>
+  <pre style="background: #f3f4f6; padding: 16px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; font-size: 12px;">${escape(msg)}</pre>
+</body></html>`;
+    return new NextResponse(errorPage, {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
 
   if (result.ok === false) {
     return NextResponse.json(

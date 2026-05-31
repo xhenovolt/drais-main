@@ -98,7 +98,17 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
   }
 
-  const snapshot = await loadSnapshot(snapshotId, session.schoolId);
+  let snapshot;
+  try {
+    snapshot = await loadSnapshot(snapshotId, session.schoolId);
+  } catch (e) {
+    console.error('[snapshots/pdf] loadSnapshot threw:', e);
+    return NextResponse.json({
+      error:   'SNAPSHOT_LOAD_FAILED',
+      message: e instanceof Error ? e.message : String(e),
+      hint:    'Check that the snapshot row exists and that report_snapshots is reachable.',
+    }, { status: 500 });
+  }
   if (!snapshot) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
@@ -113,17 +123,36 @@ export async function GET(
   const filterClassIdx     = classIdRaw    !== null ? parseInt(classIdRaw,    10) : null;
   const filterStudentDbId  = studentIdRaw  !== null ? parseInt(studentIdRaw,  10) : null;
 
-  const built = await buildSnapshotPrintHtml({
-    snapshot,
-    schoolId:           session.schoolId,
-    templateId:         templateIdRaw ?? undefined,
-    filterClassIdx,
-    filterStudentDbId,
-    editMode:           false, // PDF never carries edit UI
-    controls:           '',     // no interactive widget in PDF
-    emergencyEditScript: '',
-    wrapEmergency:      wrapEmergencyForPdf,
-  });
+  // BUILD HTML — wrapped in its own try/catch so any throw from
+  // DRCEDocumentRenderer's SSR guard (the G4 fix in the PHASE 1A
+  // commit) or from the dvcf_documents DB lookup surfaces as a
+  // typed JSON error rather than crashing through Next.js's default
+  // 500 page (which returns HTML the client can't parse — that's
+  // what the user saw as 'HTTP 500' in the toast).
+  let built: Awaited<ReturnType<typeof buildSnapshotPrintHtml>>;
+  try {
+    built = await buildSnapshotPrintHtml({
+      snapshot,
+      schoolId:           session.schoolId,
+      templateId:         templateIdRaw ?? undefined,
+      filterClassIdx,
+      filterStudentDbId,
+      editMode:           false, // PDF never carries edit UI
+      controls:           '',     // no interactive widget in PDF
+      emergencyEditScript: '',
+      wrapEmergency:      wrapEmergencyForPdf,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[snapshots/pdf] HTML build failed:', e);
+    let hint = 'Check server logs for the stack trace.';
+    if (msg.includes('DRCEDocumentRenderer')) {
+      hint = 'A section in the DRCE template is missing required data context. Switch to the Emergency template to confirm the snapshot itself is healthy.';
+    } else if (msg.includes('TEMPLATE_NOT_FOUND') || msg.includes('TEMPLATE_MISSING')) {
+      hint = 'The selected template id is not recognised. Pick a different template in the preview header.';
+    }
+    return NextResponse.json({ error: 'HTML_BUILD_FAILED', message: msg, hint }, { status: 500 });
+  }
 
   if (built.ok === false) {
     return NextResponse.json({ error: built.error }, { status: built.status });
