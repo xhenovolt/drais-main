@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -685,6 +686,27 @@ async function saveAttendancePunch(
       staffId,
       schoolId,
     });
+
+    // ── SMS notification trigger (fire-and-forget) ─────────────────────────
+    // Phase 2 ADMS bridge: feed the matched punch into the existing comm
+    // dispatcher. Routing (parents for learners, headteacher for staff)
+    // is governed by the school's comm_rules table — schools that don't
+    // configure rules get no SMS (dispatcher writes a 'skipped' audit row).
+    //
+    // CRITICAL: never await — ADMS contract is "always respond OK FAST".
+    // notifyAdmsAttendance itself never throws; the .catch is belt-and-
+    // braces for any future regression.
+    if (matched) {
+      const inOutMode = record.INOUTMODE ? parseInt(record.INOUTMODE, 10) || 0 : null;
+      notifyAdmsAttendance({
+        schoolId,
+        studentId,
+        staffId,
+        checkTime,
+        inOutMode,
+        deviceSn,
+      }).catch((err) => zkLog('warn', 'ADMS_SMS_TRIGGER_FAILED', { error: String(err) }));
+    }
   } catch (err) {
     // ── Observability: ERROR on punch failure ──────────────────────────────
     logDeviceEvent({
