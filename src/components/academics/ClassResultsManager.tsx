@@ -383,11 +383,48 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       const list = (fresh.data || []) as Option[];
       setSubjects(list);
       const created = list.find(s => s.name.toLowerCase() === name.toLowerCase()) || null;
-      if (created) toast.success(`Subject "${name}" ready.`);
+      if (!created) return null;
+      // Auto-allocate to the currently-selected class. Without this the
+      // submit endpoint immediately rejects with SUBJECT_NOT_ALLOCATED
+      // and the operator has to detour through the allocations admin
+      // page. Allocation is silent (no toast on success) — failure is
+      // surfaced via toast.error so the operator knows the subject
+      // exists but is unallocated.
+      if (klass) {
+        await ensureSubjectAllocated(created.id, klass.id, /*announce*/ false);
+      }
+      toast.success(`Subject "${name}" ready.`);
       return created;
     } catch (e: any) {
       toast.error(e.message || 'Network error creating subject');
       return null;
+    }
+  }
+
+  /**
+   * Idempotently allocate a subject to a class. Returns true on success
+   * (or when an active allocation already exists), false on real
+   * failure. Used as part of inline subject creation AND as the
+   * "Allocate & retry" recovery after a SUBJECT_NOT_ALLOCATED submit.
+   */
+  async function ensureSubjectAllocated(subjectId: number, classId: number, announce: boolean): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/academics/allocations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_id: classId, subject_id: subjectId }),
+      });
+      // 409/200 both mean we now have an active allocation.
+      if (res.ok || res.status === 409) {
+        if (announce) toast.success('Allocation created. Resubmitting…');
+        return true;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (announce) toast.error(data.error || data.message || `Allocation failed (${res.status})`);
+      return false;
+    } catch (e: any) {
+      if (announce) toast.error(e.message || 'Network error allocating subject');
+      return false;
     }
   }
 
@@ -646,34 +683,53 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       include_missing: includeMissing,
       entries: rows.filter(r => r.score !== null || (r.grade && r.grade !== '') || (r.remarks && r.remarks !== '')).map(r => ({ student_id: r.student_id, score: r.score, grade: r.grade, remarks: r.remarks }))
     };
-    try {
-      const res = await fetch(API_SUBMIT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+    const postOnce = async () => fetch(API_SUBMIT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status} ${res.statusText}`);
+    try {
+      let res = await postOnce();
+      let data: any = await res.json().catch(() => ({}));
+
+      // SUBJECT_NOT_ALLOCATED recovery: the API refuses to write results
+      // for a subject the class doesn't have allocated. Until very
+      // recently the user was just shown the raw 400 with no path
+      // forward. Now: if the subject + class are both known, we
+      // auto-allocate and replay the submit. The fix matches the
+      // operator's intent — they're trying to enter marks for this
+      // subject in this class right now.
+      if (!res.ok && data?.code === 'SUBJECT_NOT_ALLOCATED' && klass && subject) {
+        toast('Allocating subject to class…', { icon: '⏳' });
+        const allocated = await ensureSubjectAllocated(subject.id, klass.id, /*announce*/ true);
+        if (allocated) {
+          res = await postOnce();
+          data = await res.json().catch(() => ({}));
+        }
       }
 
-      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error || `Server error: ${res.status} ${res.statusText}`;
+        setMessage(msg);
+        toast.error(msg);
+        return;
+      }
       if (data.error) {
         setMessage(data.error);
         toast.error(data.error);
-      } else {
-        setMessage('✓ Saved Successfully!');
-        setShowSuccessAnimation(true);
-        toast.success('Results submitted successfully!');
-        // Trigger list reload with slight delay to show success state
-        setTimeout(() => {
-          // Ensure duplicate key check by invalidating the list
-          setList([]);
-          setFilters(f => ({ ...f }));
-          setOpen(false);
-          setShowSuccessAnimation(false);
-        }, 800);
+        return;
       }
+
+      setMessage('✓ Saved Successfully!');
+      setShowSuccessAnimation(true);
+      toast.success('Results submitted successfully!');
+      setTimeout(() => {
+        setList([]);
+        setFilters(f => ({ ...f }));
+        setOpen(false);
+        setShowSuccessAnimation(false);
+      }, 800);
     } catch (e: any) {
       setMessage(e.message || 'Failed to submit results');
       toast.error(e.message || 'Failed to submit results');
