@@ -29,8 +29,8 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
   const { data: studentsData } = useSWR('/api/students/full', fetcher);
   const { data: documentTypesData } = useSWR('/api/document-types', fetcher);
 
-  const students = studentsData?.data || [];
-  const documentTypes = documentTypesData?.data || [];
+  const students = (studentsData as any)?.data || [];
+  const documentTypes = (documentTypesData as any)?.data || [];
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -112,170 +112,195 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
 
   if (!open) return null;
 
+  // VIEWPORT-SAFE LAYOUT.
+  //
+  // The previous layout was `flex items-center justify-center p-4` with a
+  // single `bg-white rounded-2xl` that contained the whole form. On
+  // anything shorter than ~720px (which is most phones and a lot of
+  // laptops with the dev tools open) the bottom buttons fell off the
+  // screen and the user could not submit. The header also wasn't
+  // sticky, so a long student-select dropdown pushed it out of view.
+  //
+  // The new shell:
+  //   - outer: full-viewport flex, top-aligned with `items-start` so
+  //     the modal grows down rather than centering and clipping.
+  //   - inner: `max-h-[90vh] flex flex-col` so the modal can never
+  //     exceed the viewport.
+  //   - header + footer: shrink-0 (and sticky in the column flow).
+  //   - body: `flex-1 overflow-y-auto` — only the form fields scroll.
+  //
+  // Form fields all get explicit dark-mode bg / text so they don't
+  // render as white-on-slate-800 in dark mode.
+  const fieldBase = "w-full px-3 py-2 rounded-lg border bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const fieldOk   = "border-gray-300 dark:border-slate-600";
+  const fieldErr  = "border-red-500 dark:border-red-500";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl"
+        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl my-4 sm:my-8 max-h-[90vh] flex flex-col"
+        // Stop click-through to backdrop (which would otherwise close)
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Upload Student Document</h2>
+        {/* Header — shrink-0 so it never gets squashed by the form */}
+        <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Upload Student Document</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+            className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Student *
-              </label>
-              <select
-                value={formData.student_id}
-                onChange={(e) => handleInputChange('student_id', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                  errors.student_id ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select a student</option>
-                {students.map((student: any) => (
-                  <option key={student.id} value={student.id}>
-                    {student.first_name} {student.last_name} - {student.admission_no}
-                  </option>
-                ))}
-              </select>
-              {errors.student_id && <p className="text-red-500 text-xs mt-1">{errors.student_id}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Document Type *
-              </label>
-              <select
-                value={formData.document_type_id}
-                onChange={(e) => handleInputChange('document_type_id', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                  errors.document_type_id ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select document type</option>
-                {documentTypes.map((type: any) => (
-                  <option key={type.id} value={type.id}>{type.label}</option>
-                ))}
-              </select>
-              {errors.document_type_id && <p className="text-red-500 text-xs mt-1">{errors.document_type_id}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Issued By
-              </label>
-              <input
-                type="text"
-                value={formData.issued_by}
-                onChange={(e) => handleInputChange('issued_by', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Who issued this document?"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Issue Date
-              </label>
-              <input
-                type="date"
-                value={formData.issue_date}
-                onChange={(e) => handleInputChange('issue_date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                File Upload *
-              </label>
-              <div
-                {...getRootProps()}
-                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                  isDragActive 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : errors.file 
-                    ? 'border-red-500 bg-red-50' 
-                    : 'border-gray-300 hover:border-blue-400'
-                }`}
-              >
-                <input {...getInputProps()} />
-                {selectedFile ? (
-                  <div className="space-y-2">
-                    <FileText className="w-12 h-12 text-blue-600 mx-auto" />
-                    <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedFile(null);
-                      }}
-                      className="text-sm text-red-600 hover:text-red-700"
-                    >
-                      Remove file
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto" />
-                    <p className="text-sm text-gray-600">
-                      {isDragActive ? 'Drop the file here' : 'Drag & drop a file here, or click to select'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Supports: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
-                    </p>
-                  </div>
-                )}
+        {/* Form (scrolling body + sticky footer)
+            We split <form> into a scrollable body and a non-scrolling
+            footer so the submit button is always visible. */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Student <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.student_id}
+                  onChange={(e) => handleInputChange('student_id', e.target.value)}
+                  className={`${fieldBase} ${errors.student_id ? fieldErr : fieldOk}`}
+                >
+                  <option value="">{studentsData ? 'Select a student' : 'Loading students…'}</option>
+                  {students.map((student: any) => (
+                    <option key={student.id} value={student.id}>
+                      {student.first_name} {student.last_name} — {student.admission_no}
+                    </option>
+                  ))}
+                </select>
+                {errors.student_id && <p className="text-red-500 text-xs mt-1">{errors.student_id}</p>}
               </div>
-              {errors.file && <p className="text-red-500 text-xs mt-1">{errors.file}</p>}
-            </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional notes about this document"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Document Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.document_type_id}
+                  onChange={(e) => handleInputChange('document_type_id', e.target.value)}
+                  className={`${fieldBase} ${errors.document_type_id ? fieldErr : fieldOk}`}
+                >
+                  <option value="">{documentTypesData ? 'Select document type' : 'Loading…'}</option>
+                  {documentTypes.map((type: any) => (
+                    <option key={type.id} value={type.id}>{type.label}</option>
+                  ))}
+                </select>
+                {errors.document_type_id && <p className="text-red-500 text-xs mt-1">{errors.document_type_id}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Issued By
+                </label>
+                <input
+                  type="text"
+                  value={formData.issued_by}
+                  onChange={(e) => handleInputChange('issued_by', e.target.value)}
+                  className={`${fieldBase} ${fieldOk}`}
+                  placeholder="Who issued this document?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Issue Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.issue_date}
+                  onChange={(e) => handleInputChange('issue_date', e.target.value)}
+                  className={`${fieldBase} ${fieldOk}`}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  File Upload <span className="text-red-500">*</span>
+                </label>
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                    isDragActive
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : errors.file
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                      : 'border-gray-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-400'
+                  }`}
+                >
+                  <input {...getInputProps()} />
+                  {selectedFile ? (
+                    <div className="space-y-2">
+                      <FileText className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto" />
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-all">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                        className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                      >
+                        Remove file
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto" />
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        {isDragActive ? 'Drop the file here' : 'Drag & drop a file here, or click to select'}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Supports: PDF, DOC, DOCX, JPG, PNG (Max 10 MB)
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {errors.file && <p className="text-red-500 text-xs mt-1">{errors.file}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  rows={3}
+                  className={`${fieldBase} ${fieldOk}`}
+                  placeholder="Additional notes about this document"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          {/* Footer — never scrolls, always visible. */}
+          <div className="flex-shrink-0 flex items-center justify-end gap-3 p-5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 rounded-b-2xl">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 inline-flex items-center gap-2"
             >
-              {loading ? 'Uploading...' : 'Upload Document'}
+              {loading && <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
+              {loading ? 'Uploading…' : 'Upload Document'}
             </button>
           </div>
         </form>
