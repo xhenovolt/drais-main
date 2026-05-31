@@ -150,17 +150,39 @@ function mapColumns(headers: string[], overrides?: Record<string, string>): ColM
     return -1;
   };
 
-  // Name fields use STRICT exact matching. Better to leave a column
+  // Name fields use STRICT EXACT matching. Better to leave a column
   // unmapped (and force the operator to map it) than to silently
-  // collide.
-  let nameIdx      = findExact('full_name', 'fullname', 'student_name', 'studentname', 'learner_name', 'learnername', 'candidate_name', 'candidatename');
-  let firstNameIdx = findExact('first_name', 'firstname', 'given_name', 'givenname', 'fname');
-  let lastNameIdx  = findExact('last_name', 'lastname', 'surname', 'family_name', 'familyname', 'lname');
-  const otherNameIdx = findExact('other_name', 'othername', 'middle_name', 'middlename', 'mname');
+  // collide via .includes() — that was the original corruption bug.
+  //
+  // BUT: 'name' (bare) is a very common header in real schools' files.
+  // We accept it as a synonym for the full-name bucket. The collision
+  // guard below ensures it still can't collapse onto first/last.
+  let nameIdx      = findExact('name', 'full_name', 'fullname', 'student_name', 'studentname', 'learner_name', 'learnername', 'candidate_name', 'candidatename');
+  let firstNameIdx = findExact('first_name', 'firstname', 'given_name', 'givenname', 'fname', 'first', 'firstnames', 'first_names');
+  let lastNameIdx  = findExact('last_name', 'lastname', 'surname', 'family_name', 'familyname', 'lname', 'last', 'lastnames', 'last_names');
+  const otherNameIdx = findExact('other_name', 'othername', 'middle_name', 'middlename', 'mname', 'other', 'middle');
 
-  // Defence-in-depth: if any two name buckets resolved to the same
-  // source column, blank out the lower-priority one. firstName/lastName
-  // win over the generic 'name' bucket — they're more specific.
+  // DUPLICATE-HEADER PROMOTION. Real-world export files often label two
+  // adjacent columns identically — e.g. `name, name` meaning first +
+  // last. We disambiguated them upstream (the second becomes `name_2`,
+  // a third becomes `name_3`, …), so we look for that suffix pattern
+  // here. When first/last would otherwise be empty AND a `<stem>_2`
+  // sibling of the `name` column exists, promote the pair to
+  // first_name = name, last_name = name_2.
+  const stem = (s: string) => s.replace(/_\d+$/, '');
+  if (nameIdx !== -1 && firstNameIdx === -1 && lastNameIdx === -1) {
+    const here = h[nameIdx];
+    const sibling2 = h.findIndex((x, i) => i !== nameIdx && stem(x) === stem(here) && /_\d+$/.test(x));
+    if (sibling2 !== -1) {
+      firstNameIdx = nameIdx;
+      lastNameIdx  = sibling2;
+      nameIdx      = -1;
+    }
+  }
+
+  // Defence-in-depth: if any two name buckets STILL resolved to the
+  // same column index, blank out the lower-priority one. first/last
+  // win over the generic 'name' bucket because they're more specific.
   if (nameIdx !== -1 && (nameIdx === firstNameIdx || nameIdx === lastNameIdx || nameIdx === otherNameIdx)) {
     nameIdx = -1;
   }
@@ -499,9 +521,24 @@ export async function POST(request: NextRequest) {
 
   if (rows.length < 2) return NextResponse.json({ success: false, error: 'File has no data rows' }, { status: 400 });
 
-  // Normalise headers: lowercase + trim + spaces→underscores
+  // Normalise headers: lowercase + trim + spaces→underscores.
+  // ALSO disambiguate duplicates — many real-world export files label
+  // two adjacent columns identically (e.g. "name", "name" meaning
+  // first + last). Without disambiguation, the operator's column-map
+  // override can't tell the two apart (both would post the same string
+  // and resolve via `headers.indexOf(...)` to only the first one).
+  // Suffix repeats with " (2)", " (3)", … so each column has a unique
+  // identifier.
   const rawHeaders  = rows[0] || [];
-  const headers     = rawHeaders.map(h => String(h || '').toLowerCase().trim().replace(/[\s\-]+/g, '_'));
+  const headers     = (() => {
+    const seen = new Map<string, number>();
+    return rawHeaders.map(h => {
+      const norm = String(h || '').toLowerCase().trim().replace(/[\s\-]+/g, '_');
+      const n = (seen.get(norm) || 0) + 1;
+      seen.set(norm, n);
+      return n === 1 ? norm : `${norm}_${n}`;
+    });
+  })();
   const dataRows    = rows.slice(1).filter(r => r.some(c => c !== '' && c != null));
 
   const overridesRaw = formData.get('columnMapping') as string | null;
