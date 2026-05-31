@@ -151,31 +151,35 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <DynamicTitle />
       <OrientationLock />
       {hideSidebarAndNavbar ? (
-        // For public/auth routes: no layout
+        // For public/auth/print routes: no layout, no global overlays.
+        // The overlays below (onboarding, splash, etc.) intentionally
+        // do NOT render here because puppeteer + naked print pages
+        // would otherwise capture them on top of the actual report.
         <main className="pt-0 ml-0">
           {children}
         </main>
       ) : (
-        // For protected routes: use MainLayout (mobile-first architecture)
-        <MainLayout>
-          <HeartbeatProvider />
-          {children}
-        </MainLayout>
-      )}
-      <FeatureUpdateNotification />
-      {/* Onboarding system — global modals, tour, help search */}
-      <OnboardingOrchestrator />
-      <OnboardingCompletionBanner />
-      {/* Mobile onboarding slides */}
-      {showMobileOnboarding && <MobileOnboarding onComplete={handleOnboardingComplete} />}
-      {/* Splash screen — shown once per session */}
-      {showSplash && (
-        <SplashScreen
-          onFinished={() => {
-            sessionStorage.setItem('drais_splash_shown', '1');
-            setShowSplash(false);
-          }}
-        />
+        <>
+          <MainLayout>
+            <HeartbeatProvider />
+            {children}
+          </MainLayout>
+          <FeatureUpdateNotification />
+          {/* Onboarding system — global modals, tour, help search */}
+          <OnboardingOrchestrator />
+          <OnboardingCompletionBanner />
+          {/* Mobile onboarding slides */}
+          {showMobileOnboarding && <MobileOnboarding onComplete={handleOnboardingComplete} />}
+          {/* Splash screen — shown once per session */}
+          {showSplash && (
+            <SplashScreen
+              onFinished={() => {
+                sessionStorage.setItem('drais_splash_shown', '1');
+                setShowSplash(false);
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );

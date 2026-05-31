@@ -152,6 +152,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       '/unauthorized',
       '/forbidden',
       '/docs',
+      // /print-snapshot enforces its own auth via the API fetches it
+      // makes. We do NOT want the AuthContext to redirect away while
+      // puppeteer is capturing a PDF — the API calls return 401 if the
+      // forwarded cookie is invalid, which the page surfaces as an
+      // inline error rather than a redirect.
+      '/print-snapshot',
     ];
 
     // Check if current route is public
