@@ -1,10 +1,12 @@
 "use client";
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, AlertCircle, CheckCircle, Download, Eye, ArrowRight, X } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Upload, FileText, AlertCircle, CheckCircle, Download, Eye, ArrowRight, X, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Progress } from '@/components/ui/loading/Progress';
 import * as XLSX from 'xlsx';
+import { EntityTypeahead, type TypeaheadOption } from './EntityTypeahead';
+import { toast } from 'react-hot-toast';
 
 interface Option { id: number; name: string; }
 
@@ -43,6 +45,15 @@ export default function ResultsImportSystem() {
   const [importing, setImporting] = useState(false);
   const [validation, setValidation] = useState<ValidationResult>({ isValid: false, errors: [], warnings: [] });
   const [importResult, setImportResult] = useState<any>(null);
+  // When true, the import route will UPDATE rows that already exist for
+  // the same (student, subject, term, result_type) tuple instead of
+  // skipping them. Mirrors the user's request: "drais must be wise enough
+  // to see the results that exist but might need refactoring just in case".
+  const [updateExisting, setUpdateExisting] = useState<boolean>(true);
+  // Subjects discovered in the upload that don't yet exist in DRAIS.
+  // We surface them on the mapping step with a one-click batch-create CTA.
+  const [missingSubjects, setMissingSubjects] = useState<string[]>([]);
+  const [creatingSubjects, setCreatingSubjects] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load metadata on mount
@@ -60,21 +71,99 @@ export default function ResultsImportSystem() {
         fetch('/api/subjects')
       ]);
 
-      const years = yearsRes.ok ? await yearsRes.json() : [];
-      const terms = termsRes.ok ? await termsRes.json() : [];
-      const classes = classesRes.ok ? await classesRes.json() : [];
-      const types = typesRes.ok ? await typesRes.json() : [];
-      const subjects = subjectsRes.ok ? await subjectsRes.json() : [];
+      // Each public API returns { data: [...] }. Defensive .data ?? [] unwrap.
+      const unwrap = async (r: Response): Promise<Option[]> => {
+        if (!r.ok) return [];
+        const j = await r.json().catch(() => ({}));
+        if (Array.isArray(j)) return j;
+        return (j.data || []) as Option[];
+      };
 
-      setAcademicYears(years);
-      setTerms(terms);
-      setClasses(classes);
-      setResultTypes(types);
-      setSubjects(subjects);
+      setAcademicYears(await unwrap(yearsRes));
+      setTerms(await unwrap(termsRes));
+      setClasses(await unwrap(classesRes));
+      setResultTypes(await unwrap(typesRes));
+      setSubjects(await unwrap(subjectsRes));
     } catch (error) {
       console.error('Error loading metadata:', error);
     }
   };
+
+  // ── Inline create handlers (background POST → toast → list refresh) ───
+  // Mirror of the same pattern in ClassResultsManager.tsx. Each returns
+  // the freshly-created option so the EntityTypeahead can auto-select it.
+
+  async function createTerm(name: string): Promise<Option | null> {
+    if (academicYears.length === 0) {
+      toast.error('Create an academic year first.');
+      return null;
+    }
+    const yearId = selectedAcademicYear || String(academicYears[0].id);
+    const res = await fetch('/api/terms', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, academic_year_id: yearId, status: 'active' }),
+    });
+    if (!res.ok && res.status !== 409) {
+      toast.error('Could not create term');
+      return null;
+    }
+    const fresh = await fetch('/api/terms').then(r => r.json()).catch(() => ({ data: [] }));
+    const list = (fresh.data || []) as Option[];
+    setTerms(list);
+    const made = list.find(t => t.name.toLowerCase() === name.toLowerCase()) || null;
+    if (made) toast.success(`Term "${name}" ready.`);
+    return made;
+  }
+
+  async function createResultType(name: string): Promise<Option | null> {
+    const baseCode = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24);
+    const code = `${baseCode}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const res = await fetch('/api/result_types', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, code, weight: 100 }),
+    });
+    if (!res.ok && res.status !== 409) {
+      toast.error('Could not create result type');
+      return null;
+    }
+    const fresh = await fetch('/api/result_types').then(r => r.json()).catch(() => ({ data: [] }));
+    const list = (fresh.data || []) as Option[];
+    setResultTypes(list);
+    const made = list.find(rt => rt.name.toLowerCase() === name.toLowerCase()) || null;
+    if (made) toast.success(`Result type "${name}" ready.`);
+    return made;
+  }
+
+  // Batch-create every name in `missingSubjects`. Used by the orange
+  // "Create N subjects" CTA in the mapping panel.
+  async function handleCreateMissingSubjects() {
+    if (missingSubjects.length === 0) return;
+    setCreatingSubjects(true);
+    let ok = 0;
+    for (const name of missingSubjects) {
+      const res = await fetch('/api/subjects', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, academic_type: 'secular', subject_type: 'core' }),
+      });
+      if (res.ok || res.status === 409) ok++;
+    }
+    // Refresh subjects + auto-map newly-created subjects to their original headers
+    const fresh = await fetch('/api/subjects').then(r => r.json()).catch(() => ({ data: [] }));
+    const list = (fresh.data || []) as Option[];
+    setSubjects(list);
+    setMappings(prev => {
+      const next = { ...prev };
+      for (const header of Object.keys(next)) {
+        if (next[header]) continue;
+        const found = list.find(s => s.name.toLowerCase() === header.toLowerCase().trim());
+        if (found) next[header] = `subject_${found.id}`;
+      }
+      return next;
+    });
+    setMissingSubjects([]);
+    setCreatingSubjects(false);
+    toast.success(`Created ${ok} subject${ok === 1 ? '' : 's'}. Mapped to your columns.`);
+  }
 
   const handleFileSelect = async (selectedFile: File) => {
     setFile(selectedFile);
@@ -111,10 +200,19 @@ export default function ResultsImportSystem() {
         sampleRows
       });
 
-      // Auto-detect mappings
+      // Auto-detect mappings AND flag potential subject columns that don't
+      // yet exist in DRAIS. The user gets a one-click batch-create panel
+      // before they're forced to map by hand.
       const autoMappings: Mapping = {};
+      const STUDENT_IDENT_NAMES = new Set([
+        'student no', 'student number', 'admission no', 'admission number',
+        'admno', 'reg no', 'first name', 'last name', 'name', 'student name',
+        'class', 'stream', 'gender', 'sex', 'dob', 'date of birth',
+      ]);
+      const possiblyMissingSubjects: string[] = [];
       headers.forEach((header: string) => {
-        const lowerHeader = header.toLowerCase().trim();
+        const lowerHeader = String(header).toLowerCase().trim();
+        if (!lowerHeader) return;
 
         if (lowerHeader.includes('student') && lowerHeader.includes('no')) {
           autoMappings[header] = 'admission_no';
@@ -125,18 +223,26 @@ export default function ResultsImportSystem() {
         } else if (lowerHeader.includes('last') && lowerHeader.includes('name')) {
           autoMappings[header] = 'last_name';
         } else {
-          // Check if it matches any subject
-          const matchingSubject = subjects.find(s =>
+          // Exact (case-insensitive) match wins over fuzzy includes — avoids
+          // "Math" matching "Mathematics 2" by accident.
+          const exact = subjects.find(s => s.name.toLowerCase() === lowerHeader);
+          const partial = !exact ? subjects.find(s =>
             s.name.toLowerCase().includes(lowerHeader) ||
             lowerHeader.includes(s.name.toLowerCase())
-          );
+          ) : null;
+          const matchingSubject = exact || partial;
           if (matchingSubject) {
             autoMappings[header] = `subject_${matchingSubject.id}`;
+          } else if (!STUDENT_IDENT_NAMES.has(lowerHeader)) {
+            // No exact / fuzzy match AND this isn't a known student-identity
+            // column. Likely a subject the school hasn't created yet.
+            possiblyMissingSubjects.push(String(header).trim());
           }
         }
       });
 
       setMappings(autoMappings);
+      setMissingSubjects(possiblyMissingSubjects);
       setStep('mapping');
     } catch (error) {
       console.error('Error processing file:', error);
@@ -203,6 +309,7 @@ export default function ResultsImportSystem() {
       formData.append('class_id', selectedClass);
       formData.append('result_type_id', selectedResultType);
       formData.append('mappings', JSON.stringify(mappings));
+      formData.append('update_existing', updateExisting ? '1' : '0');
 
       const response = await fetch('/api/class_results/import', {
         method: 'POST',
@@ -354,17 +461,16 @@ export default function ResultsImportSystem() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Term</label>
-                <select
-                  value={selectedTerm}
-                  onChange={(e) => setSelectedTerm(e.target.value)}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  <option value="">Select Term</option>
-                  {terms.map(term => (
-                    <option key={term.id} value={term.id}>{term.name}</option>
-                  ))}
-                </select>
+                <EntityTypeahead
+                  label="Term"
+                  variant="plain"
+                  value={terms.find(t => String(t.id) === selectedTerm) as TypeaheadOption || null}
+                  onChange={(v) => setSelectedTerm(v ? String(v.id) : '')}
+                  items={terms as TypeaheadOption[]}
+                  placeholder={terms.length === 0 ? 'Type to create your first term…' : 'Pick or type to create'}
+                  entityLabel="term"
+                  onCreate={createTerm}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Class</label>
@@ -380,18 +486,71 @@ export default function ResultsImportSystem() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Result Type</label>
-                <select
-                  value={selectedResultType}
-                  onChange={(e) => setSelectedResultType(e.target.value)}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  <option value="">Select Type</option>
-                  {resultTypes.map(type => (
-                    <option key={type.id} value={type.id}>{type.name}</option>
-                  ))}
-                </select>
+                <EntityTypeahead
+                  label="Result Type"
+                  variant="plain"
+                  value={resultTypes.find(rt => String(rt.id) === selectedResultType) as TypeaheadOption || null}
+                  onChange={(v) => setSelectedResultType(v ? String(v.id) : '')}
+                  items={resultTypes as TypeaheadOption[]}
+                  placeholder={resultTypes.length === 0 ? 'Type to create e.g. End-of-Term…' : 'Pick or type to create'}
+                  entityLabel="result type"
+                  onCreate={createResultType}
+                />
               </div>
+            </div>
+
+            {/* Missing-subjects panel — surfaces when the uploaded file
+                has columns that look like subjects but don't yet exist in
+                DRAIS. One-click batch-create + auto-remap. */}
+            {missingSubjects.length > 0 && (
+              <div className="p-4 border border-orange-300 bg-orange-50 dark:bg-orange-950/30 rounded-lg space-y-3">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-bold text-orange-900 dark:text-orange-200">
+                      {missingSubjects.length} subject{missingSubjects.length === 1 ? '' : 's'} in your file don&apos;t exist in DRAIS yet
+                    </h4>
+                    <p className="text-xs text-orange-800 dark:text-orange-300 mt-1">
+                      DRAIS will create them first, then import the marks. Adjust syllabus codes later from the Subjects tab.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {missingSubjects.map(s => (
+                        <span key={s} className="px-2 py-0.5 rounded text-[11px] font-mono bg-white dark:bg-slate-800 border border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-200">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleCreateMissingSubjects}
+                    disabled={creatingSubjects}
+                    className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-3 py-1.5 whitespace-nowrap"
+                  >
+                    {creatingSubjects ? (
+                      <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Creating…</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> Create {missingSubjects.length} subject{missingSubjects.length === 1 ? '' : 's'} now</span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Refactor-aware toggle — when on, the import UPDATEs marks
+                that already exist for the same (student, subject, term,
+                result_type) tuple instead of silently skipping. */}
+            <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900/40 flex items-start gap-3">
+              <input
+                id="update_existing_toggle"
+                type="checkbox"
+                checked={updateExisting}
+                onChange={(e) => setUpdateExisting(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="update_existing_toggle" className="text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                <span className="font-semibold inline-flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Update existing marks if found</span>
+                <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  When off (the legacy behaviour), rows that already exist for the same student + subject + term + result-type are skipped silently. When on, DRAIS treats the file as the source of truth and refactors them in place.
+                </span>
+              </label>
             </div>
 
             {/* Column Mappings */}
@@ -445,7 +604,8 @@ export default function ResultsImportSystem() {
               <Button onClick={() => setStep('upload')} variant="outline">
                 Back
               </Button>
-              <Button onClick={() => setStep('preview')} disabled={!validation.isValid}>
+              <Button onClick={() => setStep('preview')} disabled={!validation.isValid || missingSubjects.length > 0}
+                title={missingSubjects.length > 0 ? 'Create the missing subjects first' : undefined}>
                 Preview Import
               </Button>
             </div>
@@ -514,6 +674,9 @@ export default function ResultsImportSystem() {
               <h3 className="text-xl font-semibold text-green-900 mb-2">Import Successful!</h3>
               <div className="space-y-2 text-gray-600">
                 <p>Imported: {importResult.imported} records</p>
+                {typeof importResult.updated === 'number' && importResult.updated > 0 && (
+                  <p className="text-blue-700 font-medium">Refactored (updated in place): {importResult.updated} records</p>
+                )}
                 <p>Skipped: {importResult.skipped} records</p>
                 {importResult.warnings.length > 0 && (
                   <div className="mt-4">

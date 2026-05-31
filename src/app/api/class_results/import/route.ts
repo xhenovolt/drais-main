@@ -23,6 +23,13 @@ interface ValidationError {
 interface ImportResult {
   success: boolean;
   imported: number;
+  /**
+   * Rows that already existed for the same (student, subject, term,
+   * result_type) tuple and were rewritten in place. Surfaced separately
+   * from `imported` so the UI can tell the user "we refactored N
+   * existing marks" — see ResultsImportSystem.tsx success page.
+   */
+  updated: number;
   skipped: number;
   errors: ValidationError[];
   warnings: string[];
@@ -44,6 +51,11 @@ export async function POST(req: NextRequest) {
     const class_id = formData.get('class_id') as string;
     const result_type_id = formData.get('result_type_id') as string;
     const mappings = JSON.parse(formData.get('mappings') as string || '{}');
+    // When '1', existing (student, subject, term, result_type) tuples are
+    // UPDATEd in place rather than silently skipped. The UI toggle lives
+    // in ResultsImportSystem.tsx; default to off (legacy behaviour) so
+    // callers that don't pass the flag still get the old semantics.
+    const updateExisting = String(formData.get('update_existing') || '0') === '1';
 
     if (!file || !academic_year_id || !term_id || !class_id || !result_type_id) {
       return NextResponse.json({
@@ -105,8 +117,9 @@ export async function POST(req: NextRequest) {
 
     // Map headers to fields
     Object.entries(mappings).forEach(([header, field]) => {
-      if (field.startsWith('subject_')) {
-        const subjectId = parseInt(field.replace('subject_', ''));
+      const f = typeof field === 'string' ? field : '';
+      if (f.startsWith('subject_')) {
+        const subjectId = parseInt(f.replace('subject_', ''));
         subjectMappings[header] = subjectId;
       }
     });
@@ -174,46 +187,62 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Perform the import
+    // Perform the import.
+    //
+    // BUGFIX while here: the prior implementation used
+    //   Object.entries(...).forEach(async cb)
+    // which fires the awaited DB writes but DOES NOT wait for them — so
+    // `imported` and `skipped` were undercounted, the response often
+    // returned before INSERTs landed, and the connection sometimes
+    // closed mid-flight. Replaced with sequential for-of loops.
     let imported = 0;
+    let updated = 0;
     let skipped = 0;
 
     for (const rowData of importData) {
       if (!rowData.student_id) continue;
 
-      // Process each subject score
-      Object.entries(rowData).forEach(async ([key, value]) => {
-        if (key in subjectMappings && typeof value === 'number') {
-          const subjectId = subjectMappings[key];
+      for (const [key, value] of Object.entries(rowData)) {
+        if (!(key in subjectMappings) || typeof value !== 'number') continue;
+        const subjectId = subjectMappings[key];
 
-          // Verify subject is allocated to class
-          const subjectAllocated = await isSubjectAllocatedToClass(connection, class_id, subjectId);
-          if (!subjectAllocated) {
-            warnings.push(`Subject ${subjectNames[subjectId]} not allocated to class`);
-            return;
-          }
-
-          // Check if result already exists
-          const [existing]: any = await connection.execute(
-            `SELECT COUNT(*) as count FROM class_results
-             WHERE class_id = ? AND subject_id = ? AND result_type_id = ? AND term_id <=> ? AND student_id = ?`,
-            [class_id, subjectId, result_type_id, term_id || null, rowData.student_id]
-          );
-
-          if (existing[0].count > 0) {
-            skipped++;
-            return;
-          }
-
-          // Insert the result
-          await connection.execute(
-            `INSERT INTO class_results (class_id, subject_id, result_type_id, term_id, academic_year_id, student_id, score)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [class_id, subjectId, result_type_id, term_id || null, academic_year_id, rowData.student_id, value]
-          );
-          imported++;
+        const subjectAllocated = await isSubjectAllocatedToClass(connection, Number(class_id), subjectId);
+        if (!subjectAllocated) {
+          warnings.push(`Subject ${subjectNames[subjectId]} not allocated to class`);
+          continue;
         }
-      });
+
+        // Look up existing tuple (student, subject, term, result_type).
+        // We need the id when updateExisting is on so we can UPDATE in
+        // place rather than re-INSERT (which would violate any future
+        // unique index and double-count the result).
+        const [existingRows]: any = await connection.execute(
+          `SELECT id FROM class_results
+           WHERE class_id = ? AND subject_id = ? AND result_type_id = ? AND term_id <=> ? AND student_id = ?
+           LIMIT 1`,
+          [class_id, subjectId, result_type_id, term_id || null, rowData.student_id]
+        );
+
+        if (existingRows.length > 0) {
+          if (!updateExisting) {
+            skipped++;
+            continue;
+          }
+          await connection.execute(
+            `UPDATE class_results SET score = ?, updated_at = NOW() WHERE id = ?`,
+            [value, existingRows[0].id]
+          );
+          updated++;
+          continue;
+        }
+
+        await connection.execute(
+          `INSERT INTO class_results (class_id, subject_id, result_type_id, term_id, academic_year_id, student_id, score)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [class_id, subjectId, result_type_id, term_id || null, academic_year_id, rowData.student_id, value]
+        );
+        imported++;
+      }
     }
 
     // Log the import activity
@@ -230,7 +259,9 @@ export async function POST(req: NextRequest) {
           class_id,
           result_type_id,
           imported,
+          updated,
           skipped,
+          update_existing: updateExisting,
           errors: errors.length,
           warnings: warnings.length,
           file_name: file.name,
@@ -244,6 +275,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       imported,
+      updated,
       skipped,
       errors: [],
       warnings

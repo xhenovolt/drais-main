@@ -199,6 +199,11 @@ interface Option { id:number; name:string; }
 interface TermOption extends Option { academic_year_id:number; academic_year:string; }
 interface StudentRow { student_id:number; first_name:string; last_name:string; score:number|null; grade:string|null; remarks:string|null; }
 
+// Inline create-on-type combobox lives in a shared file so the results
+// import system can reuse the same affordance. See EntityTypeahead.tsx
+// for the why + behaviour notes.
+import { EntityTypeahead as Typeahead } from './EntityTypeahead';
+
 const SelectBox:React.FC<{label:string; value:any; onChange:(v:any)=>void; items:Option[]; placeholder?:string; disabled?:boolean}> = ({label,value,onChange,items,placeholder='Select',disabled}) => (
   <Listbox value={value} onChange={onChange} disabled={disabled}>
     <div className="space-y-1">
@@ -235,6 +240,9 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
   const [classes,setClasses]=useState<Option[]>([]);
   const [subjects,setSubjects]=useState<Option[]>([]);
   const [types,setTypes]=useState<Option[]>([]);
+  // Needed for inline term creation — terms require an academic_year_id.
+  // We pick the first / most recent one as the default parent year.
+  const [academicYears,setAcademicYears]=useState<Option[]>([]);
   const [term,setTerm]=useState<Option|null>(null);
   const [klass,setKlass]=useState<Option|null>(null);
   const [subject,setSubject]=useState<Option|null>(null);
@@ -280,7 +288,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
   // Fetch lookup data (terms, classes, subjects, result types)
   const loadMeta = async () => {
     try {
-      const [te, cl, su, rt] = await Promise.all([
+      const [te, cl, su, rt, ay] = await Promise.all([
         fetch(`${API_BASE}/terms`).then(r => {
           if (!r.ok) throw new Error(`Failed to fetch terms: ${r.status}`);
           return r.json();
@@ -296,9 +304,11 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         fetch(`${API_BASE}/result_types`).then(r => {
           if (!r.ok) throw new Error(`Failed to fetch result types: ${r.status}`);
           return r.json();
-        })
+        }),
+        fetch(`${API_BASE}/academic_years`).then(r => r.ok ? r.json() : { data: [] }).catch(() => ({ data: [] })),
       ]);
       setTerms((te.data || []) as TermOption[]);
+      setAcademicYears((ay.data || []) as Option[]);
       // Filter classes to only those belonging to the current academicType program.
       // Falls back to all classes if no classes have program tags yet.
       const allClasses: any[] = cl.data || [];
@@ -315,6 +325,101 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
   };
 
   useEffect(() => { loadMeta(); }, [academicType]);
+
+  // ── Inline create handlers for Typeahead.onCreate ────────────────────────
+  //
+  // Each returns the newly-created option (with id + name) so the Typeahead
+  // can auto-select it. They post to the existing public APIs — no new
+  // routes needed — and refresh the local cache so subsequent typeaheads see
+  // the new value. All three are tolerant of soft API rejections (the user
+  // sees the existing record selected rather than a hard error).
+
+  async function createTerm(name: string): Promise<Option | null> {
+    if (academicYears.length === 0) {
+      toast.error('Create an academic year first before adding a term.');
+      return null;
+    }
+    const year = academicYears[0]; // most recent — terms API orders by year DESC
+    try {
+      const res = await fetch(`${API_BASE}/terms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, academic_year_id: year.id, status: 'active' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        // 409 = exists; pick from the fresh list below
+        if (res.status !== 409) {
+          toast.error(data.error || 'Could not create term');
+          return null;
+        }
+      }
+      // Re-fetch terms so the new row is in the cache
+      const fresh = await fetch(`${API_BASE}/terms`).then(r => r.json()).catch(() => ({ data: [] }));
+      const list = (fresh.data || []) as TermOption[];
+      setTerms(list);
+      const created = list.find(t => t.name.toLowerCase() === name.toLowerCase()) || null;
+      if (created) toast.success(`Term "${name}" ready.`);
+      return created;
+    } catch (e: any) {
+      toast.error(e.message || 'Network error creating term');
+      return null;
+    }
+  }
+
+  async function createSubject(name: string): Promise<Option | null> {
+    try {
+      const res = await fetch(`${API_BASE}/subjects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, academic_type: academicType, subject_type: 'core' }),
+      });
+      const data = await res.json();
+      if (!res.ok && res.status !== 409) {
+        toast.error(data.error || 'Could not create subject');
+        return null;
+      }
+      const fresh = await fetch(`${API_BASE}/subjects?academic_type=${academicType}`).then(r => r.json()).catch(() => ({ data: [] }));
+      const list = (fresh.data || []) as Option[];
+      setSubjects(list);
+      const created = list.find(s => s.name.toLowerCase() === name.toLowerCase()) || null;
+      if (created) toast.success(`Subject "${name}" ready.`);
+      return created;
+    } catch (e: any) {
+      toast.error(e.message || 'Network error creating subject');
+      return null;
+    }
+  }
+
+  async function createResultType(name: string): Promise<Option | null> {
+    // result_types requires a unique code. Auto-derive from the name —
+    // upper-snake-case of the first 24 chars, plus a 4-char random suffix
+    // to avoid collisions when two schools both create "Mid Term".
+    const baseCode = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24);
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const code = `${baseCode}_${suffix}`;
+    try {
+      const res = await fetch(`${API_BASE}/result_types`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, code, weight: 100 }),
+      });
+      const data = await res.json();
+      if (!res.ok && res.status !== 409) {
+        toast.error(data.error || 'Could not create result type');
+        return null;
+      }
+      const fresh = await fetch(`${API_BASE}/result_types`).then(r => r.json()).catch(() => ({ data: [] }));
+      const list = (fresh.data || []) as Option[];
+      setTypes(list);
+      const created = list.find(rt => rt.name.toLowerCase() === name.toLowerCase()) || null;
+      if (created) toast.success(`Result type "${name}" ready. Adjust weight later in the Result Types tab.`);
+      return created;
+    } catch (e: any) {
+      toast.error(e.message || 'Network error creating result type');
+      return null;
+    }
+  }
 
   // Reset page to 1 whenever filters/sort/limit change
   useEffect(() => { setListPage(1); }, [filters.class_id, filters.subject_id, filters.result_type_id, filters.term_id, filters.academic_year_id, filters.search, listSortBy, listSortOrder, listLimit]);
@@ -1236,12 +1341,12 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Filter & Load</h3>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <SelectBox label={t('term')} value={term ?? null} onChange={setTerm} items={terms} placeholder={t('optional')} />
+                      <Typeahead label={t('term')} value={term ?? null} onChange={(v) => setTerm(v as TermOption | null)} items={terms} placeholder={terms.length === 0 ? 'Type to create your first term…' : 'Pick or type to create'} entityLabel="term" onCreate={createTerm} />
                       <SelectBox label={t('class')} value={klass ?? null} onChange={v=>{setKlass(v);}} items={classes} />
                       {!bulkMode && (
-                        <SelectBox label={t('subject')} value={subject ?? null} onChange={setSubject} items={subjects.filter(s=>!klass || s)} />
+                        <Typeahead label={t('subject')} value={subject ?? null} onChange={(v) => setSubject(v as Option | null)} items={subjects.filter(s=>!klass || s)} placeholder={subjects.length === 0 ? 'Type a subject name to create it…' : 'Pick or type to create'} entityLabel="subject" onCreate={createSubject} />
                       )}
-                      <SelectBox label={t('result_type')} value={rtype ?? null} onChange={setRtype} items={types} />
+                      <Typeahead label={t('result_type')} value={rtype ?? null} onChange={(v) => setRtype(v as Option | null)} items={types} placeholder={types.length === 0 ? 'Type to create e.g. End-of-Term…' : 'Pick or type to create'} entityLabel="result type" onCreate={createResultType} />
                       <div className="flex flex-col justify-end">
                         <button
                           disabled={!klass || (!bulkMode && !subject) || !rtype || loading}
