@@ -45,6 +45,14 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [progress, setProgress] = useState({ current: 0, total: 0, currentName: '' });
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  /** Persists the server-side error so the modal can SHOW it (rather than
+   *  flash a toast and clear). Cleared when the user clicks "Try again". */
+  const [importError, setImportError] = useState<string | null>(null);
+  /** The session_id the server returned on `type:'session'`. Needed to
+   *  POST mode=cancel so the SSE loop on the server stops, not just the
+   *  client-side fetch. */
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -99,6 +107,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     if (!selectedFile) return;
     setPhase('importing');
     setProgress({ current: 0, total: previewData?.total || 0, currentName: '' });
+    setImportError(null);
+    setSessionId(null);
 
     const ac = new AbortController();
     abortRef.current = ac;
@@ -137,22 +147,32 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           if (!match) continue;
           try {
             const evt = JSON.parse(match[1]);
-            if (evt.type === 'progress') {
+            if (evt.type === 'session') {
+              if (typeof evt.session_id === 'number') setSessionId(evt.session_id);
+            } else if (evt.type === 'progress') {
               setProgress({ current: evt.imported, total: evt.total, currentName: evt.current_name || '' });
             } else if (evt.type === 'complete') {
               setResult(evt as ImportResult);
               setPhase('complete');
               toast.success(evt.message || 'Import complete');
               onImportSuccess?.();
-            } else if (evt.type === 'error') {
-              toast.error(evt.message || 'Import failed');
+            } else if (evt.type === 'cancelled') {
+              setImportError(evt.message || 'Import cancelled');
               setPhase('select');
+              toast(evt.message || 'Import cancelled', { icon: '⏸️' });
+            } else if (evt.type === 'error') {
+              // Persist so the modal shows the actual reason rather than
+              // a transient toast that disappears in 4s.
+              setImportError(evt.message || 'Import failed');
+              setPhase('select');
+              toast.error(evt.message || 'Import failed');
             }
           } catch { /* ignore malformed events */ }
         }
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
+        setImportError(err.message || 'Unknown error');
         toast.error(`Import error: ${err.message || 'Unknown error'}`);
         setPhase('select');
       }
@@ -160,6 +180,36 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       abortRef.current = null;
     }
   };
+
+  // ── Cancel a running import ────────────────────────────────────────────
+  // Two-step: (1) abort the SSE fetch on the client; (2) POST mode=cancel
+  // so the server-side loop checks the import_sessions table and stops.
+  // The server's tryCheckCancelled() polls each chunk, so cancellation
+  // takes effect within ~CHUNK_SIZE rows.
+  const handleCancelImport = useCallback(async () => {
+    if (phase !== 'importing') return;
+    setCancelling(true);
+    try {
+      // 1. Abort the client-side stream reader.
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+      // 2. Tell the server to stop. Only meaningful if we got a session_id.
+      if (sessionId != null) {
+        const fd = new FormData();
+        fd.append('mode', 'cancel');
+        fd.append('session_id', String(sessionId));
+        await fetch('/api/students/import', { method: 'POST', body: fd })
+          .catch(() => { /* server side might already be done */ });
+      }
+      setPhase('select');
+      setImportError('Import cancelled by user.');
+      toast('Import cancelled', { icon: '⏸️' });
+    } finally {
+      setCancelling(false);
+    }
+  }, [phase, sessionId]);
 
   // ── Download error log ──────────────────────────────────────────────────
   const downloadErrorLog = () => {
@@ -236,6 +286,30 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                 {/* ─── PHASE: SELECT FILE ────────────────────────────── */}
                 {phase === 'select' && (
                   <div className="space-y-5">
+                    {/* Persisted error from the last attempt — shows the
+                        actual reason instead of a 4-second toast that
+                        disappears before the user can read it. */}
+                    {importError && (
+                      <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg p-4 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-rose-800 dark:text-rose-100 mb-1">
+                            Last import attempt failed
+                          </p>
+                          <p className="text-xs text-rose-700 dark:text-rose-200 break-words">
+                            {importError}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setImportError(null)}
+                          className="text-rose-400 hover:text-rose-600 flex-shrink-0"
+                          aria-label="Dismiss error"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                       <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">{t('actions.import')}</h3>
                       <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
@@ -394,6 +468,19 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       />
                     </div>
                     <p className="text-center text-xs text-gray-500">{pct}% complete</p>
+
+                    {/* Cancel button — was previously missing entirely. The
+                        abort infrastructure existed (abortRef) but had no UI. */}
+                    <div className="flex justify-center pt-2">
+                      <button
+                        onClick={handleCancelImport}
+                        disabled={cancelling}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:text-white bg-white dark:bg-slate-700 border border-red-300 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-60"
+                      >
+                        {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                        {cancelling ? 'Cancelling…' : 'Cancel import'}
+                      </button>
+                    </div>
                   </div>
                 )}
 

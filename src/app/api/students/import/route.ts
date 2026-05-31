@@ -487,14 +487,28 @@ export async function POST(request: NextRequest) {
         streamNames.get(s.class_id)!.add(s.name);
       }
 
-      // Load all students into engine
-      const [allStudents] = await conn.execute(
-        `SELECT s.id, s.person_id, s.admission_no, s.class_id,
-                UPPER(TRIM(CONCAT_WS(' ', p.first_name, p.last_name))) AS norm_name
-         FROM students s JOIN people p ON p.id = s.person_id
-         WHERE s.school_id = ? AND s.deleted_at IS NULL`,
-        [schoolId],
-      ) as any[];
+      // Load all students into engine. Defensive: deleted_at may not
+      // exist on pre-migration schemas.
+      let allStudents: any[];
+      try {
+        const [rows] = await conn.execute(
+          `SELECT s.id, s.person_id, s.admission_no, s.class_id,
+                  UPPER(TRIM(CONCAT_WS(' ', p.first_name, p.last_name))) AS norm_name
+             FROM students s JOIN people p ON p.id = s.person_id
+            WHERE s.school_id = ? AND s.deleted_at IS NULL`,
+          [schoolId],
+        ) as any[];
+        allStudents = rows;
+      } catch {
+        const [rows] = await conn.execute(
+          `SELECT s.id, s.person_id, s.admission_no, s.class_id,
+                  UPPER(TRIM(CONCAT_WS(' ', p.first_name, p.last_name))) AS norm_name
+             FROM students s JOIN people p ON p.id = s.person_id
+            WHERE s.school_id = ?`,
+          [schoolId],
+        ) as any[];
+        allStudents = rows;
+      }
       const engine = new MatchingEngine();
       engine.load(allStudents as any[]);
 
@@ -692,14 +706,31 @@ export async function POST(request: NextRequest) {
         const yearId = (rawYears as any[])[0]?.id ?? null;
         const termId = (rawTerms as any[])[0]?.id ?? null;
 
-        // Load matching engine
-        const [allStudents] = await conn.execute(
-          `SELECT s.id, s.person_id, s.admission_no, s.class_id,
-                  UPPER(TRIM(CONCAT_WS(' ', p.first_name, p.last_name))) AS norm_name
-           FROM students s JOIN people p ON p.id = s.person_id
-           WHERE s.school_id = ? AND s.deleted_at IS NULL`,
-          [schoolId],
-        ) as any[];
+        // Load matching engine. The `deleted_at IS NULL` filter requires
+        // the Phase 1 soft-delete migration; pre-migration TiDB throws
+        // "Unknown column 'deleted_at'". Fall back to the no-filter query
+        // so imports work on either schema.
+        let allStudents: any[];
+        try {
+          const [rows] = await conn.execute(
+            `SELECT s.id, s.person_id, s.admission_no, s.class_id,
+                    UPPER(TRIM(CONCAT_WS(' ', p.first_name, p.last_name))) AS norm_name
+               FROM students s JOIN people p ON p.id = s.person_id
+              WHERE s.school_id = ? AND s.deleted_at IS NULL`,
+            [schoolId],
+          ) as any[];
+          allStudents = rows;
+        } catch (err: any) {
+          // Most likely: pre-migration schema. Retry without the filter.
+          const [rows] = await conn.execute(
+            `SELECT s.id, s.person_id, s.admission_no, s.class_id,
+                    UPPER(TRIM(CONCAT_WS(' ', p.first_name, p.last_name))) AS norm_name
+               FROM students s JOIN people p ON p.id = s.person_id
+              WHERE s.school_id = ?`,
+            [schoolId],
+          ) as any[];
+          allStudents = rows;
+        }
         const engine = new MatchingEngine();
         engine.load(allStudents as any[]);
 
