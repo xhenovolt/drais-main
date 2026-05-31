@@ -111,13 +111,28 @@ export async function GET(
       // Capture whatever rendered — the error pane is also valid output
       // we can return so the operator sees what went wrong on-screen.
     }
+    // WYSIWYG: wait for web fonts to finish loading before printing.
+    // Without this, the first frame of the PDF can fall back to a
+    // generic system font while the editor preview shows the authored
+    // font, producing visible drift.
+    try {
+      await page.evaluate(() => (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready);
+    } catch { /* legacy or no FontFaceSet — skip */ }
     await page.emulateMediaType('print');
     const pdf = await page.pdf({
       format:          'A4',
       printBackground: true,
-      margin:          { top: '1cm', right: '1cm', bottom: '1cm', left: '1cm' },
+      // WYSIWYG: zero margins. The DRCE page is 794 px wide which is
+      // exactly the A4 width at 96 dpi, so any @page margin would
+      // force Chromium to scale the page down to fit. The DRCE theme
+      // provides its own pagePadding for visual breathing room — same
+      // as in the editor preview.
+      margin:          { top: '0', right: '0', bottom: '0', left: '0' },
       preferCSSPageSize: true,
       timeout:         30_000,
+      // Honour authored colors / backgrounds — without this, gradient
+      // banners and coloured table headers print as white.
+      tagged:          false,
     });
 
     const filename = `snapshot-${snapshotId}.pdf`;

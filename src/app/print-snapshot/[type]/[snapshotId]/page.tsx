@@ -184,12 +184,59 @@ export default function PrintSnapshotPage({ params }: PageProps) {
   return (
     <>
       <style>{`
-        @page { size: A4; margin: 1cm; }
-        body { margin: 0; padding: 0; background: #fff; font-family: Arial, sans-serif; }
-        .student-block { page-break-after: always; break-after: page; }
-        .student-block:last-of-type { page-break-after: auto; break-after: auto; }
+        /* WYSIWYG: zero @page margin so the DRCE page (794 px wide at
+           96 dpi = exact A4 width) is NOT shrunk by Chromium to fit
+           printable area. The DRCE renderer's own theme.pagePadding
+           provides the visual breathing room — same as in the editor.
+           Without this, prints came out at ~90% scale relative to the
+           editor preview. */
+        @page { size: A4; margin: 0; }
+        html, body {
+          margin: 0;
+          padding: 0;
+          background: #fff;
+          /* Stop Chrome/Safari from auto-scaling text up — the DRCE
+             theme.baseFontSize is the authority. */
+          -webkit-text-size-adjust: 100%;
+          text-size-adjust: 100%;
+        }
+        .student-block {
+          page-break-after: always;
+          break-after: page;
+          /* Keep each report card on its own physical page even if its
+             content is shorter than A4. */
+        }
+        .student-block:last-of-type {
+          page-break-after: auto;
+          break-after: auto;
+        }
+        /* WYSIWYG: stop borders / backgrounds from being clipped by
+           Chromium's default print color-adjust. */
+        * {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
         @media print {
           .no-print { display: none !important; }
+        }
+        /* Screen-only viewport — centre the page like the editor canvas
+           so the operator's screen view matches what they'll see when
+           it lands on paper. */
+        @media screen {
+          body {
+            background: #e5e7eb;
+            padding: 24px 0;
+          }
+          .student-block {
+            margin: 0 auto 24px auto;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+            border-radius: 2px;
+            background: #fff;
+            /* Stop screen-rendered children from leaking outside the
+               page width (rare but possible for images / oversized
+               sections). */
+            overflow: hidden;
+          }
         }
         .print-toolbar {
           position: fixed; top: 12px; right: 12px; z-index: 9999;
