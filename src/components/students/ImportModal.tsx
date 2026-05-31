@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { X, Upload, FileText, AlertCircle, CheckCircle, Download, FileSpreadsheet, Loader2, ArrowRight, Eye } from 'lucide-react';
+import { X, Upload, FileText, AlertCircle, CheckCircle, Download, FileSpreadsheet, Loader2, ArrowRight, Eye, Plus, Users, UserPlus, UserCheck, UserX } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useDropzone } from 'react-dropzone';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -53,6 +53,16 @@ export const ImportModal: React.FC<ImportModalProps> = ({
    *  client-side fetch. */
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  /** Live per-row counters during the import. Drives the 4-pill display
+   *  in the importing phase so the user sees in real time which rows
+   *  are landing as new vs updates vs skipped vs failed. */
+  const [liveStats, setLiveStats] = useState({ imported: 0, updated: 0, skipped: 0, failed: 0 });
+  /** Per-import-attempt list of missing classes detected at preview.
+   *  When non-empty the preview UI surfaces a "Create N classes" CTA
+   *  rather than letting the user import learners that would land
+   *  without enrolment. */
+  const [missingClasses, setMissingClasses] = useState<string[]>([]);
+  const [creatingClasses, setCreatingClasses] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -94,6 +104,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       }
 
       setPreviewData(data);
+      // Capture missing classes detected at preview so the next phase
+      // can offer the user a one-click batch-create button.
+      setMissingClasses(Array.isArray(data.missingClasses) ? data.missingClasses : []);
       setPhase('preview');
     } catch (err: any) {
       toast.error(`Preview error: ${err.message || 'Unknown error'}`);
@@ -107,6 +120,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     if (!selectedFile) return;
     setPhase('importing');
     setProgress({ current: 0, total: previewData?.total || 0, currentName: '' });
+    setLiveStats({ imported: 0, updated: 0, skipped: 0, failed: 0 });
     setImportError(null);
     setSessionId(null);
 
@@ -150,7 +164,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             if (evt.type === 'session') {
               if (typeof evt.session_id === 'number') setSessionId(evt.session_id);
             } else if (evt.type === 'progress') {
-              setProgress({ current: evt.imported, total: evt.total, currentName: evt.current_name || '' });
+              // Every server event = one real DB row processed (inserted,
+              // updated, skipped, or failed). The bar moves on the SUM so
+              // an import that's mostly updates doesn't look frozen.
+              const processed = (evt.imported || 0) + (evt.updated || 0)
+                              + (evt.skipped || 0)  + (evt.failed  || 0);
+              setProgress({ current: processed, total: evt.total, currentName: evt.current_name || '' });
+              setLiveStats({
+                imported: evt.imported || 0,
+                updated:  evt.updated  || 0,
+                skipped:  evt.skipped  || 0,
+                failed:   evt.failed   || 0,
+              });
             } else if (evt.type === 'complete') {
               setResult(evt as ImportResult);
               setPhase('complete');
@@ -210,6 +235,37 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       setCancelling(false);
     }
   }, [phase, sessionId]);
+
+  // ── Batch-create missing classes ───────────────────────────────────────
+  // When the preview surfaces classes the file references but the school
+  // doesn't have yet, this fires create-class for each in sequence,
+  // then re-previews the file so the missingClasses list shrinks. One
+  // click, no per-class dialogs.
+  const handleCreateMissingClasses = useCallback(async () => {
+    if (missingClasses.length === 0 || !selectedFile) return;
+    setCreatingClasses(true);
+    let created = 0;
+    let failed = 0;
+    try {
+      for (const name of missingClasses) {
+        try {
+          const fd = new FormData();
+          fd.append('mode', 'create-class');
+          fd.append('name', name);
+          const res = await fetch('/api/students/import', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (res.ok && data.success) created++;
+          else failed++;
+        } catch { failed++; }
+      }
+      toast.success(`Created ${created} class${created === 1 ? '' : 'es'}${failed > 0 ? ` (${failed} failed)` : ''}`);
+      // Re-preview so the user sees the updated missingClasses list (should
+      // now be empty if every create succeeded).
+      await handlePreview();
+    } finally {
+      setCreatingClasses(false);
+    }
+  }, [missingClasses, selectedFile]);
 
   // ── Download error log ──────────────────────────────────────────────────
   const downloadErrorLog = () => {
@@ -387,6 +443,43 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       </p>
                     </div>
 
+                    {/* Missing-classes batch CTA — fires before any of the
+                        existing per-row warnings, because no learner can
+                        actually enrol until their class exists. One-click
+                        batch create + auto re-preview. */}
+                    {missingClasses.length > 0 && (
+                      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-1">
+                              {missingClasses.length} class{missingClasses.length === 1 ? '' : 'es'} referenced in your file {missingClasses.length === 1 ? 'does' : 'do'} not exist yet
+                            </p>
+                            <p className="text-xs text-orange-800 dark:text-orange-200 mb-2">
+                              Create {missingClasses.length === 1 ? 'it' : 'them'} first so each learner lands in the right class. Without classes, learners will import but have no enrolment.
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mb-3">
+                              {missingClasses.map(c => (
+                                <span key={c} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200">
+                                  {c}
+                                </span>
+                              ))}
+                            </div>
+                            <button
+                              onClick={handleCreateMissingClasses}
+                              disabled={creatingClasses}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-60"
+                            >
+                              {creatingClasses ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                              {creatingClasses
+                                ? 'Creating classes…'
+                                : `Create ${missingClasses.length} class${missingClasses.length === 1 ? '' : 'es'} now`}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {previewData.warnings.length > 0 && (
                       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                         {previewData.warnings.map((w, i) => (
@@ -439,8 +532,14 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                         className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500 text-sm">
                         Back
                       </button>
-                      <button onClick={handleImport}
-                        className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm flex items-center gap-2 font-semibold">
+                      <button
+                        onClick={handleImport}
+                        disabled={missingClasses.length > 0}
+                        title={missingClasses.length > 0
+                          ? `Create the ${missingClasses.length} missing class${missingClasses.length === 1 ? '' : 'es'} first`
+                          : undefined}
+                        className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2 font-semibold"
+                      >
                         <Upload className="w-4 h-4" />
                         Import {previewData.total.toLocaleString()} Students
                         <ArrowRight className="w-4 h-4" />
@@ -469,6 +568,36 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                     </div>
                     <p className="text-center text-xs text-gray-500">{pct}% complete</p>
 
+                    {/* Live per-row stats — every move of these numbers is
+                        one row that just landed (or was skipped) in the
+                        DB. Replaces the user's "nothing is happening"
+                        confusion when the bar moved slowly on
+                        update-heavy imports. */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
+                        <div className="text-lg font-bold text-green-600 dark:text-green-400">{liveStats.imported}</div>
+                        <div className="text-[10px] text-green-700 dark:text-green-300 uppercase font-semibold flex items-center justify-center gap-1">
+                          <UserPlus className="w-3 h-3" /> Added
+                        </div>
+                      </div>
+                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 text-center">
+                        <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{liveStats.updated}</div>
+                        <div className="text-[10px] text-amber-700 dark:text-amber-300 uppercase font-semibold flex items-center justify-center gap-1">
+                          <UserCheck className="w-3 h-3" /> Updated
+                        </div>
+                      </div>
+                      <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-2 text-center">
+                        <div className="text-lg font-bold text-slate-600 dark:text-slate-300">{liveStats.skipped}</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Skipped</div>
+                      </div>
+                      <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
+                        <div className="text-lg font-bold text-red-600 dark:text-red-400">{liveStats.failed}</div>
+                        <div className="text-[10px] text-red-700 dark:text-red-300 uppercase font-semibold flex items-center justify-center gap-1">
+                          <UserX className="w-3 h-3" /> Failed
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Cancel button — was previously missing entirely. The
                         abort infrastructure existed (abortRef) but had no UI. */}
                     <div className="flex justify-center pt-2">
@@ -486,31 +615,46 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
 
                 {/* ─── PHASE: COMPLETE ─────────────────────────────────── */}
                 {phase === 'complete' && result && (
-                  <div className="space-y-5">
-                    <div className="text-center">
-                      <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                        <CheckCircle className="w-7 h-7 text-green-600" />
+                  <div className="space-y-6">
+                    {/* Hero — large celebration banner. The previous compact
+                        version was easy to miss; this one fills the modal
+                        the way a success page should. */}
+                    <div className="text-center py-6 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 rounded-2xl border border-green-200 dark:border-green-800">
+                      <div className="relative inline-block mb-4">
+                        <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                          <CheckCircle className="w-12 h-12 text-white" strokeWidth={2.5} />
+                        </div>
                       </div>
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{`${t('actions.import')} — ${t('common.completed')}`}</h3>
-                      <p className="text-xs text-gray-500 mt-1">{result.message}</p>
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                        Import Successful
+                      </h3>
+                      <p className="text-base text-gray-700 dark:text-gray-300 mb-1">
+                        <span className="font-bold text-green-700 dark:text-green-300">{(result.imported + result.updated).toLocaleString()}</span> learner{(result.imported + result.updated) === 1 ? '' : 's'} written to DRAIS
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{result.message}</p>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-3 text-center">
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-                        <div className="text-xl font-bold text-blue-600">{result.total}</div>
-                        <div className="text-[10px] text-blue-700 dark:text-blue-300 uppercase font-semibold">Total</div>
+                    {/* Bigger stat grid — same numbers, more room to breathe. */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-900/40">
+                        <Users className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+                        <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{result.total.toLocaleString()}</div>
+                        <div className="text-[11px] text-blue-700 dark:text-blue-300 uppercase tracking-wide font-semibold mt-1">Total</div>
                       </div>
-                      <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
-                        <div className="text-xl font-bold text-green-600">{result.imported}</div>
-                        <div className="text-[10px] text-green-700 dark:text-green-300 uppercase font-semibold">Added</div>
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-100 dark:border-green-900/40">
+                        <UserPlus className="w-5 h-5 text-green-500 mx-auto mb-1" />
+                        <div className="text-3xl font-bold text-green-600 dark:text-green-400">{result.imported.toLocaleString()}</div>
+                        <div className="text-[11px] text-green-700 dark:text-green-300 uppercase tracking-wide font-semibold mt-1">Added</div>
                       </div>
-                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
-                        <div className="text-xl font-bold text-amber-600">{result.updated}</div>
-                        <div className="text-[10px] text-amber-700 dark:text-amber-300 uppercase font-semibold">Updated</div>
+                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-900/40">
+                        <UserCheck className="w-5 h-5 text-amber-500 mx-auto mb-1" />
+                        <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">{result.updated.toLocaleString()}</div>
+                        <div className="text-[11px] text-amber-700 dark:text-amber-300 uppercase tracking-wide font-semibold mt-1">Updated</div>
                       </div>
-                      <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
-                        <div className="text-xl font-bold text-red-600">{result.skipped}</div>
-                        <div className="text-[10px] text-red-700 dark:text-red-300 uppercase font-semibold">Skipped</div>
+                      <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                        <UserX className="w-5 h-5 text-slate-500 mx-auto mb-1" />
+                        <div className="text-3xl font-bold text-slate-600 dark:text-slate-300">{result.skipped.toLocaleString()}</div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400 uppercase tracking-wide font-semibold mt-1">Skipped</div>
                       </div>
                     </div>
 
@@ -548,13 +692,14 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       </div>
                     )}
 
-                    <div className="flex justify-end gap-3">
+                    <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 dark:border-slate-700">
                       <button onClick={reset}
-                        className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500 text-sm">
-                        Import Another
+                        className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 text-sm font-medium">
+                        Import Another File
                       </button>
                       <button onClick={handleClose}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                        className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
                         Done
                       </button>
                     </div>

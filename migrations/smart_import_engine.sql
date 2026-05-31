@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS import_sessions (
 CREATE TABLE IF NOT EXISTS import_errors (
   id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
   session_id  BIGINT       NOT NULL,
-  row_number  INT          NOT NULL,
+  `row_number`  INT          NOT NULL,
   reason      VARCHAR(500) DEFAULT NULL,
   raw_data    JSON         DEFAULT NULL,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,

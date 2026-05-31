@@ -417,6 +417,62 @@ export async function POST(request: NextRequest) {
 
   // ── PREVIEW MODE ─────────────────────────────────────────────────────────────
   if (mode === 'preview') {
+    // Detect which class/stream names referenced in the file do NOT exist
+    // yet in this school. We surface them to the user so they can batch-
+    // create everything in ONE click before importing — preventing the
+    // 'import succeeded but learners have no enrolment' silent failure
+    // mode.
+    let existingClasses = new Set<string>();
+    let existingStreamsByClass = new Map<string, Set<string>>();
+    let connPreview: any;
+    try {
+      connPreview = await getConnection();
+      const [rawClasses] = await connPreview.execute(
+        'SELECT id, LOWER(name) AS name FROM classes WHERE school_id = ?',
+        [schoolId],
+      ) as any[];
+      for (const c of rawClasses as any[]) existingClasses.add(c.name);
+      const [rawStreams] = await connPreview.execute(
+        `SELECT LOWER(s.name) AS s_name, LOWER(c.name) AS c_name
+           FROM streams s JOIN classes c ON c.id = s.class_id
+          WHERE s.school_id = ?`,
+        [schoolId],
+      ) as any[];
+      for (const r of rawStreams as any[]) {
+        if (!existingStreamsByClass.has(r.c_name)) existingStreamsByClass.set(r.c_name, new Set());
+        existingStreamsByClass.get(r.c_name)!.add(r.s_name);
+      }
+    } catch { /* schema not yet migrated — treat as no classes */ }
+    finally { if (connPreview) { try { await connPreview.end(); } catch {} } }
+
+    const missingClassesSet = new Set<string>();
+    const missingStreamsSet = new Set<string>();
+    if (cm.classIdx !== -1) {
+      for (const row of dataRows) {
+        const className = safe(row[cm.classIdx]);
+        if (!className) continue;
+        const lower = className.toLowerCase();
+        if (!existingClasses.has(lower)) {
+          missingClassesSet.add(className); // preserve original casing for display
+          continue;
+        }
+        if (cm.sectionIdx !== -1) {
+          const stream = safe(row[cm.sectionIdx]);
+          if (!stream) continue;
+          const streamLower = stream.toLowerCase();
+          const classStreams = existingStreamsByClass.get(lower);
+          if (!classStreams || !classStreams.has(streamLower)) {
+            missingStreamsSet.add(`${className}::${stream}`);
+          }
+        }
+      }
+    }
+    const missingClasses = Array.from(missingClassesSet).sort();
+    const missingStreams = Array.from(missingStreamsSet).sort().map(s => {
+      const [cls, stream] = s.split('::');
+      return { class: cls, stream };
+    });
+
     const preview = dataRows.slice(0, 10).map((row, i) => {
       const { firstName, lastName } = getNames(row, cm);
       const obj: Record<string, string> = {
@@ -467,6 +523,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true, total: dataRows.length, preview, warnings,
       readyToImport: true, fileHeaders: headers, columnMapping, columnTypes,
+      missingClasses, missingStreams,
     });
   }
 
