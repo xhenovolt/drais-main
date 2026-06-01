@@ -1203,6 +1203,8 @@ export type DRCEMutation =
   | { type: 'REORDER_COMMENT_ITEMS'; sectionId: string; ids: string[] }
   | { type: 'SET_COMMENT_ITEM_PROP'; sectionId: string; itemId: string; path: string; value: unknown }
   | { type: 'SET_WATERMARK';       path: string; value: unknown }
+  | { type: 'SET_RUNNING_HEADER';  path: string; value: unknown }
+  | { type: 'SET_RUNNING_FOOTER';  path: string; value: unknown }
   | { type: 'SET_GRADE_ROWS';      sectionId: string; grades: DRCEGradeRow[] }
   | { type: 'ADD_SHAPE';           shape: DRCEShape }
   | { type: 'UPDATE_SHAPE';        id: string; updates: Partial<DRCEShape> }

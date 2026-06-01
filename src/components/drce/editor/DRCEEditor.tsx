@@ -124,7 +124,7 @@ export function DRCEEditor({ initial, onSave }: Props) {
     else selection.clear();
   }, [selectedId, selectedShapeId]);
   const [activeTool, setActiveTool] = useState<DrawTool>('select');
-  const [propTab, setPropTab] = useState<'section' | 'theme' | 'watermark' | 'rules'>('section');
+  const [propTab, setPropTab] = useState<'section' | 'theme' | 'watermark' | 'page' | 'rules'>('section');
   const [saving, setSaving] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);

@@ -331,6 +331,22 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
       };
     }
 
+    case 'SET_RUNNING_HEADER': {
+      const cur = doc.runningHeader ?? { show: false, text: '' };
+      return {
+        ...doc,
+        runningHeader: setByPath(cur, mutation.path, mutation.value) as DRCEDocument['runningHeader'],
+      };
+    }
+
+    case 'SET_RUNNING_FOOTER': {
+      const cur = doc.runningFooter ?? { show: false, text: '' };
+      return {
+        ...doc,
+        runningFooter: setByPath(cur, mutation.path, mutation.value) as DRCEDocument['runningFooter'],
+      };
+    }
+
     case 'SET_GRADE_ROWS': {
       // Phase 0 fix C1: deep-walk.
       return patchSections(doc, arr => mapSectionsDeep(arr, s => {

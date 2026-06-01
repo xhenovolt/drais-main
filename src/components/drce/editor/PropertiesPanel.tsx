@@ -14,7 +14,7 @@ import type {
 import { DEFAULT_GRADE_ROWS } from '@/lib/drce/defaults';
 import { AVAILABLE_BINDINGS } from '@/lib/drce/bindingResolver';
 import { useAvailableBindings } from '@/components/drce/hooks/useAvailableBindings';
-import { Palette, Type, Layers, GripVertical, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Palette, Type, Layers, GripVertical, Trash2, Plus, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core';
@@ -1982,6 +1982,97 @@ function WatermarkPanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DR
   );
 }
 
+// ─── Page (recurring header / footer) Panel ───────────────────────────────────
+
+function RunningSlotEditor({
+  title,
+  spec,
+  onSet,
+  placeholderText,
+}: {
+  title: 'Header' | 'Footer';
+  spec: { show?: boolean; text?: string; align?: string; fontSize?: number; color?: string; fontFamily?: string; reserveMm?: number } | undefined;
+  onSet: (path: string, value: unknown) => void;
+  placeholderText: string;
+}) {
+  const show       = spec?.show       ?? false;
+  const text       = spec?.text       ?? '';
+  const align      = (spec?.align     ?? 'center') as 'left' | 'center' | 'right';
+  const fontSize   = spec?.fontSize   ?? 8;
+  const color      = spec?.color      ?? '#666666';
+  const fontFamily = spec?.fontFamily ?? 'Arial, sans-serif';
+  const reserveMm  = spec?.reserveMm  ?? 10;
+  return (
+    <PanelSection title={title}>
+      <Row label="Show">
+        <input
+          type="checkbox" checked={show} className="w-4 h-4"
+          onChange={e => onSet('show', e.target.checked)}
+        />
+      </Row>
+      <Row label="Text">
+        <TextInput value={text} onChange={v => onSet('text', v)} placeholder={placeholderText} />
+      </Row>
+      <Row label="Align">
+        <SelectInput
+          value={align} onChange={v => onSet('align', v)}
+          options={[
+            { label: 'Left',   value: 'left'   },
+            { label: 'Center', value: 'center' },
+            { label: 'Right',  value: 'right'  },
+          ]}
+        />
+      </Row>
+      <Row label="Font size (pt)">
+        <NumberInput value={fontSize} onChange={v => onSet('fontSize', v)} min={6} max={32} />
+      </Row>
+      <Row label="Colour">
+        <ColorInput value={color} onChange={v => onSet('color', v)} />
+      </Row>
+      <Row label="Font family">
+        <TextInput value={fontFamily} onChange={v => onSet('fontFamily', v)} placeholder="Arial, sans-serif" />
+      </Row>
+      <Row label="Reserve (mm)">
+        <NumberInput value={reserveMm} onChange={v => onSet('reserveMm', v)} min={0} max={50} />
+      </Row>
+    </PanelSection>
+  );
+}
+
+function RunningPagePanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMutation) => void }) {
+  const setHeader = (path: string, value: unknown) =>
+    onMutate({ type: 'SET_RUNNING_HEADER', path, value });
+  const setFooter = (path: string, value: unknown) =>
+    onMutate({ type: 'SET_RUNNING_FOOTER', path, value });
+
+  return (
+    <div className="p-3 space-y-3">
+      <div className="rounded-md bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 p-2 text-[11px] text-indigo-900 dark:text-indigo-200 leading-snug">
+        Recurring text printed on <strong>every paper page</strong>. Supported
+        placeholders:
+        <code className="block mt-1 font-mono text-[10px] text-indigo-700 dark:text-indigo-300">
+          {'{schoolName}  {term}  {year}  {termYear}  {type}  {generatedAt}  {pageNumber}  {totalPages}'}
+        </code>
+        Honoured in the PDF export. Browser print preview may not show
+        these bars depending on Chromium version — the PDF is authoritative.
+      </div>
+
+      <RunningSlotEditor
+        title="Header"
+        spec={doc.runningHeader}
+        onSet={setHeader}
+        placeholderText="{schoolName} — {termYear}"
+      />
+      <RunningSlotEditor
+        title="Footer"
+        spec={doc.runningFooter}
+        onSet={setFooter}
+        placeholderText="Page {pageNumber} of {totalPages}"
+      />
+    </div>
+  );
+}
+
 // ─── Rules Panel ─────────────────────────────────────────────────────────────
 
 function RulesPanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMutation) => void }) {
@@ -2148,8 +2239,8 @@ interface Props {
   doc: DRCEDocument;
   selectedSectionId: string | null;
   onMutate: (m: DRCEMutation) => void;
-  activeTab: 'section' | 'theme' | 'watermark' | 'rules';
-  onTabChange: (t: 'section' | 'theme' | 'watermark' | 'rules') => void;
+  activeTab: 'section' | 'theme' | 'watermark' | 'page' | 'rules';
+  onTabChange: (t: 'section' | 'theme' | 'watermark' | 'page' | 'rules') => void;
 }
 
 /**
@@ -2196,6 +2287,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
     { id: 'section' as const,   icon: <Layers size={14} />,  label: 'Section' },
     { id: 'theme' as const,     icon: <Palette size={14} />, label: 'Theme' },
     { id: 'watermark' as const, icon: <Type size={14} />,    label: 'Mark' },
+    { id: 'page' as const,      icon: <FileText size={14} />,label: 'Page' },
     { id: 'rules' as const,     icon: <Plus size={14} />,    label: 'Rules' },
   ];
 
@@ -2254,6 +2346,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'theme'     && <><ThemePanel     doc={doc} onMutate={onMutate} /><InheritancePanel doc={doc} /></>}
         {activeTab === 'watermark' && <WatermarkPanel doc={doc} onMutate={onMutate} />}
+        {activeTab === 'page'      && <RunningPagePanel doc={doc} onMutate={onMutate} />}
         {activeTab === 'rules'     && <RulesPanel     doc={doc} onMutate={onMutate} />}
         {activeTab === 'section'   && (
           <>
