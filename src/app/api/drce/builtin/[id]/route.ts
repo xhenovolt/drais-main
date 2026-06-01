@@ -14,14 +14,21 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getParentSession } from '@/lib/portal/session';
 import { resolveBuiltInDocument } from '@/lib/drce/builtin-resolver';
 
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSessionSchoolId(req);
-  if (!session) {
+  // Built-in DRCE templates are hard-coded in the source bundle — there
+  // is no per-tenant data here. Auth gate is purely 'are you ANYONE
+  // we recognise', accepting BOTH staff and portal sessions. This is
+  // what lets the print-snapshot page render from the parent portal
+  // without leaking staff-only data: nothing here IS staff-only.
+  const staff  = await getSessionSchoolId(req);
+  const parent = await getParentSession(req);
+  if (!staff && !parent) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
   const { id } = await ctx.params;

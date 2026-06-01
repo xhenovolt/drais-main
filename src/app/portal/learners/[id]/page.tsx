@@ -3,12 +3,13 @@ import React, { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import {
-  ArrowLeft, Loader, TrendingUp, CalendarCheck, Wallet, BookOpen, FileText,
+  ArrowLeft, Loader, TrendingUp, CalendarCheck, Wallet, BookOpen, FileText, Download,
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
-type Tab = 'overview' | 'attendance' | 'results' | 'fees';
+type Tab = 'overview' | 'attendance' | 'results' | 'fees' | 'reports';
 
 function Stat({ icon: Icon, label, value, sub, tone }: any) {
   return (
@@ -31,6 +32,38 @@ export default function PortalLearnerPage() {
   const { data: att } = useSWR(id && tab === 'attendance' ? `/api/portal/learners/${id}/attendance` : null, fetcher);
   const { data: rez } = useSWR(id && tab === 'results' ? `/api/portal/learners/${id}/results` : null, fetcher);
   const { data: fees } = useSWR(id && tab === 'fees' ? `/api/portal/learners/${id}/fees` : null, fetcher);
+  const { data: reps } = useSWR(id && tab === 'reports' ? `/api/portal/learners/${id}/snapshots` : null, fetcher);
+
+  const [downloading, setDownloading] = useState<string | null>(null);
+  async function downloadReportPdf(snapshotId: string, label: string) {
+    if (!id) return;
+    setDownloading(snapshotId);
+    try {
+      const res = await fetch(`/api/portal/learners/${id}/snapshots/${snapshotId}/pdf`, { credentials: 'same-origin' });
+      if (!res.ok) {
+        let detail = res.statusText || `HTTP ${res.status}`;
+        try {
+          const j = await res.json();
+          detail = j.message || j.error || detail;
+        } catch { /* keep statusText */ }
+        toast.error(`PDF failed (${res.status}): ${detail}`, { duration: 6000 });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${label}.pdf`.replace(/[\\/:*?"<>|]+/g, '-');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(`Network error: ${e?.message || 'unknown'}`, { duration: 6000 });
+    } finally {
+      setDownloading(null);
+    }
+  }
 
   const fmt = (n: number | null, suffix = '') => (n == null ? '—' : `${n}${suffix}`);
   const money = (n: number | null) => (n == null ? '—' : Number(n).toLocaleString());
@@ -44,10 +77,10 @@ export default function PortalLearnerPage() {
       </Link>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
-        {(['overview', 'attendance', 'results', 'fees'] as Tab[]).map(t => (
+      <div className="flex gap-1 mb-4 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 overflow-x-auto">
+        {(['overview', 'attendance', 'results', 'fees', 'reports'] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
               tab === t ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm' : 'text-slate-500'
             }`}>{t}</button>
         ))}
@@ -110,6 +143,42 @@ export default function PortalLearnerPage() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        )
+      )}
+
+      {tab === 'reports' && (
+        !reps ? <Loading /> : (
+          <div className="space-y-3">
+            <p className="text-[10px] text-slate-400 flex items-center gap-1">
+              <FileText className="w-3 h-3" /> Ready report snapshots — tap to download
+            </p>
+            {((reps.snapshots ?? []) as Array<{ id: string; type: string; term: string | null; year: string | null; createdAt: string }>).length === 0 ? (
+              <Empty text="No report snapshots have been published yet." />
+            ) : (
+              ((reps.snapshots ?? []) as Array<{ id: string; type: string; term: string | null; year: string | null; createdAt: string }>).map(s => {
+                const label = `${s.term ?? 'Term'} ${s.year ?? ''}`.trim() || 'Report';
+                const isBusy = downloading === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => downloadReportPdf(s.id, label)}
+                    disabled={isBusy}
+                    className="w-full flex items-center justify-between p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors disabled:opacity-60"
+                  >
+                    <div className="text-left">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{label}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 capitalize">
+                        {s.type} · {new Date(s.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {isBusy
+                      ? <Loader className="w-4 h-4 animate-spin text-indigo-500" />
+                      : <Download className="w-4 h-4 text-indigo-500" />}
+                  </button>
+                );
+              })
             )}
           </div>
         )

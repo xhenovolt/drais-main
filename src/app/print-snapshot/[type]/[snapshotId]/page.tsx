@@ -71,14 +71,22 @@ export default function PrintSnapshotPage({ params }: PageProps) {
     if (sp === null) return;
     let cancelled = false;
     const templateId = sp.get('template') || DEFAULT_DRCE_BY_TYPE[type as SnapshotType] || 'drce-emergency-secular';
+    // PARENT MODE — when ?parent=1, the in-page fetches hit the
+    // /api/portal mirror endpoints which gate on a parent portal
+    // session + the (parent-linked, school-scoped) isolation rule.
+    // Staff staff session is required otherwise (default).
+    const isParent = sp.get('parent') === '1';
+    const snapshotApiBase = isParent ? '/api/portal/snapshots' : '/api/snapshots';
 
     (async () => {
       try {
         const [snapRes, ovRes, docRes] = await Promise.all([
-          fetch(`/api/snapshots/${encodeURIComponent(snapshotId)}`),
-          fetch(`/api/snapshots/${encodeURIComponent(snapshotId)}/overrides`),
-          // Resolve the DRCE template. Built-in ids resolve client-side
-          // via /api/drce/registry; numeric ids hit /api/dvcf/documents.
+          fetch(`${snapshotApiBase}/${encodeURIComponent(snapshotId)}`),
+          fetch(`${snapshotApiBase}/${encodeURIComponent(snapshotId)}/overrides`),
+          // DRCE built-in templates resolve via /api/drce/builtin/<id>
+          // which only requires SOME authenticated session — both staff
+          // and portal sessions pass that bar today via their
+          // respective cookies travelling on every same-origin fetch.
           /^\d+$/.test(templateId)
             ? fetch(`/api/dvcf/documents/${encodeURIComponent(templateId)}`)
             : fetch(`/api/drce/builtin/${encodeURIComponent(templateId)}`),
