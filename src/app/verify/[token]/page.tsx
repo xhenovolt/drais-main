@@ -15,7 +15,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import { CheckCircle2, XCircle, Loader2, Calendar, GraduationCap, User } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Calendar, GraduationCap, User, Download } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ token: string }>;
@@ -35,6 +35,32 @@ interface VerifyResult {
 export default function VerifyTokenPage({ params }: PageProps) {
   const { token } = use(params);
   const [result, setResult] = useState<VerifyResult | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/verify/${encodeURIComponent(token)}/pdf`);
+      if (!res.ok) {
+        alert(`PDF unavailable (${res.status}). Try again later.`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const stem = result?.learner?.name ?? result?.school ?? 'report';
+      a.download = `${stem.replace(/[\\/:*?"<>|]+/g, '-')} — verified.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Network error — could not download the PDF.');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -108,9 +134,20 @@ export default function VerifyTokenPage({ params }: PageProps) {
           )}
         </div>
 
+        <button
+          type="button"
+          onClick={downloadPdf}
+          disabled={downloading}
+          style={style.downloadBtn}
+        >
+          {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+          {downloading ? 'Building PDF…' : 'Download the verified PDF'}
+        </button>
+
         <p style={style.footer}>
-          To request the original PDF, contact the school. DRAIS does not
-          publish the marks on this public page — only proof of authenticity.
+          This download is generated server-side from the same DRAIS
+          template the school issued. The PDF is the authoritative
+          machine-readable proof of authenticity.
         </p>
       </div>
     </div>
@@ -242,5 +279,21 @@ const style = {
     color: '#94a3b8',
     justifyContent: 'center',
     padding: '24px 0',
+  } as React.CSSProperties,
+  downloadBtn: {
+    width: '100%',
+    marginTop: 12,
+    padding: '10px 14px',
+    background: '#15803d',
+    color: '#fff',
+    border: 0,
+    borderRadius: 8,
+    fontWeight: 700,
+    fontSize: 13,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    cursor: 'pointer',
   } as React.CSSProperties,
 };

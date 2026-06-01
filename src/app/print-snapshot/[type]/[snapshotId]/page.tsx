@@ -79,18 +79,33 @@ export default function PrintSnapshotPage({ params }: PageProps) {
     if (sp === null) return;
     let cancelled = false;
     const templateId = sp.get('template') || DEFAULT_DRCE_BY_TYPE[type as SnapshotType] || 'drce-emergency-secular';
-    // PARENT MODE — when ?parent=1, the in-page fetches hit the
-    // /api/portal mirror endpoints which gate on a parent portal
-    // session + the (parent-linked, school-scoped) isolation rule.
-    // Staff staff session is required otherwise (default).
-    const isParent = sp.get('parent') === '1';
-    const snapshotApiBase = isParent ? '/api/portal/snapshots' : '/api/snapshots';
+    // THREE FETCH MODES — picked by URL param, fall through in order:
+    //   1. ?verify_token=<t>  → public token-gated /api/verify/<t>/…
+    //   2. ?parent=1          → portal session /api/portal/snapshots/…
+    //   3. (default)          → staff session /api/snapshots/…
+    const verifyToken = sp.get('verify_token') || '';
+    const isParent    = sp.get('parent') === '1';
+    const snapshotApiBase =
+      verifyToken ? `/api/verify/${encodeURIComponent(verifyToken)}` :
+      isParent    ? '/api/portal/snapshots'                          :
+                    '/api/snapshots';
+
+    // URL shape diverges in verify mode: the token-gated routes don't
+    // re-encode the snapshot id (it's baked into the token already).
+    // Staff + portal both keep the legacy /…/<snapshotId>/[overrides]
+    // shape.
+    const snapUrl = verifyToken
+      ? `${snapshotApiBase}/snapshot`
+      : `${snapshotApiBase}/${encodeURIComponent(snapshotId)}`;
+    const ovUrl   = verifyToken
+      ? `${snapshotApiBase}/overrides`
+      : `${snapshotApiBase}/${encodeURIComponent(snapshotId)}/overrides`;
 
     (async () => {
       try {
         const [snapRes, ovRes, docRes] = await Promise.all([
-          fetch(`${snapshotApiBase}/${encodeURIComponent(snapshotId)}`),
-          fetch(`${snapshotApiBase}/${encodeURIComponent(snapshotId)}/overrides`),
+          fetch(snapUrl),
+          fetch(ovUrl),
           // DRCE built-in templates resolve via /api/drce/builtin/<id>
           // which only requires SOME authenticated session — both staff
           // and portal sessions pass that bar today via their
@@ -120,8 +135,14 @@ export default function PrintSnapshotPage({ params }: PageProps) {
         // get verify links without extra plumbing. Failures are
         // tolerated — a missing URL just means the QR binding falls
         // back to the static `value` set in the editor.
+        //
+        // SKIPPED in verify-token mode: this page is already being
+        // rendered FROM a verify token, the URL is already known to
+        // the visitor, and the mint endpoint requires a real session
+        // which the public visitor doesn't have.
         const verifyByStudent: Record<number, string> = {};
         let snapshotVerifyUrl: string | undefined;
+        if (!verifyToken) {
         try {
           const snapRes = await fetch(
             `/api/verify-token/mint?snapshot_id=${encodeURIComponent(snapshotId)}`,
@@ -131,23 +152,26 @@ export default function PrintSnapshotPage({ params }: PageProps) {
             if (typeof j.url === 'string') snapshotVerifyUrl = j.url;
           }
         } catch { /* fall back to static value */ }
-        try {
-          const visibleStudents: Array<{ studentDbId: number }> = [];
-          for (const cls of snapshot.classes) {
-            for (const s of cls.students) visibleStudents.push({ studentDbId: s.studentDbId });
-          }
-          await Promise.all(visibleStudents.map(async stu => {
-            try {
-              const r = await fetch(
-                `/api/verify-token/mint?snapshot_id=${encodeURIComponent(snapshotId)}&student_id=${stu.studentDbId}`,
-              );
-              if (r.ok) {
-                const j = await r.json();
-                if (typeof j.url === 'string') verifyByStudent[stu.studentDbId] = j.url;
-              }
-            } catch { /* skip — falls back to snapshot URL */ }
-          }));
-        } catch { /* tolerated */ }
+        }
+        if (!verifyToken) {
+          try {
+            const visibleStudents: Array<{ studentDbId: number }> = [];
+            for (const cls of snapshot.classes) {
+              for (const s of cls.students) visibleStudents.push({ studentDbId: s.studentDbId });
+            }
+            await Promise.all(visibleStudents.map(async stu => {
+              try {
+                const r = await fetch(
+                  `/api/verify-token/mint?snapshot_id=${encodeURIComponent(snapshotId)}&student_id=${stu.studentDbId}`,
+                );
+                if (r.ok) {
+                  const j = await r.json();
+                  if (typeof j.url === 'string') verifyByStudent[stu.studentDbId] = j.url;
+                }
+              } catch { /* skip — falls back to snapshot URL */ }
+            }));
+          } catch { /* tolerated */ }
+        }
 
         setState({
           snapshot, document, overrides, error: null, loaded: true,
