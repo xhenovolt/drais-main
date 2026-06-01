@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * Payroll definitions — per-school catalog of salary line items
@@ -13,6 +14,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.salaries.view', session.isSuperAdmin);
 
     connection = await getConnection();
@@ -36,6 +39,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.salaries.manage', session.isSuperAdmin);
 
     const { name, type } = await req.json();
@@ -59,6 +64,8 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.salaries.manage', session.isSuperAdmin);
 
     const { id, name, type } = await req.json();
@@ -84,6 +91,8 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.salaries.manage', session.isSuperAdmin);
 
     const { id } = await req.json();

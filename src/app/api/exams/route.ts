@@ -3,12 +3,19 @@ import { NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // Phase F — module gating. Closes the URL-paste bypass: navigationConfig
+    // already hides the Examinations nav item when the module is off, but
+    // the API previously served exam data anyway. Now: schools without
+    // examinations enabled get a 403 with code MODULE_DISABLED.
+    const denied = await checkModule(session.schoolId, 'examinations');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'examinations.exam.view', session.isSuperAdmin);
 
     const { searchParams } = new URL(req.url);
@@ -52,6 +59,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'examinations');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'examinations.exam.manage', session.isSuperAdmin);
 
     const body = await req.json();
@@ -90,6 +99,8 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'examinations');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'examinations.exam.manage', session.isSuperAdmin);
 
     const body = await req.json();
@@ -131,6 +142,8 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'examinations');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'examinations.exam.manage', session.isSuperAdmin);
 
     const { searchParams } = new URL(req.url);

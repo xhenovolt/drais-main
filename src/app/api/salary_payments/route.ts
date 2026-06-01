@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * Salary payments — actual outflows of cash from a wallet to a staff
@@ -14,6 +15,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.payments.view', session.isSuperAdmin);
 
     connection = await getConnection();
@@ -42,6 +45,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.payments.process', session.isSuperAdmin);
 
     const { staff_id, wallet_id, amount, method, reference } = await req.json();
@@ -100,6 +105,8 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.payments.process', session.isSuperAdmin);
 
     const { id, method, reference } = await req.json();
@@ -126,6 +133,8 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const denied = await checkModule(session.schoolId, 'payroll');
+    if (denied) return denied;
     await requirePermission(session.userId, session.schoolId, 'payroll.payments.process', session.isSuperAdmin);
 
     const { id, reason } = await req.json();
