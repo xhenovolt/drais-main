@@ -184,6 +184,27 @@ export const BUILT_IN_TEMPLATES: readonly RegistryEntry[] = [
     isDefault:        false,
     updatedAt:        null,
   },
+
+  // ── Phase L4 — Academic Transcript ───────────────────────────────────────
+  // First real entry with documentType: 'transcript'. The template
+  // renders against current snapshot data (term-bounded) with
+  // transcript-styling. Real multi-term cumulative data is a separate
+  // backfill task; surface ships first so schools can adopt the
+  // visual identity.
+  {
+    id:               'drce-transcript-academic',
+    name:             'Academic Transcript',
+    description:      'Cumulative-styled transcript layout with navy palette, watermark, signatures and a recurring authenticity footer.',
+    category:         'standard',
+    renderer:         'drce',
+    documentType:     'transcript',
+    supportedTypes:   ['secular', 'theology', 'mixed'],
+    supportsArabic:   false,
+    supportsTheology: true,
+    isCustom:         false,
+    isDefault:        false,
+    updatedAt:        null,
+  },
 ] as const;
 
 /**
