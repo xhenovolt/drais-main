@@ -44,6 +44,12 @@ interface State {
   overrides:  PersistedOverride[];
   error:      string | null;
   loaded:     boolean;
+  /** Snapshot-level verify URL — for QR shapes bound to
+   *  `meta.verificationUrl`. */
+  verifyUrl?: string;
+  /** Per-learner verify URLs keyed by studentDbId — for QR shapes
+   *  bound to `student.verificationUrl`. */
+  verifyByStudent: Record<number, string>;
 }
 
 const DEFAULT_DRCE_BY_TYPE: Record<SnapshotType, string> = {
@@ -56,6 +62,7 @@ export default function PrintSnapshotPage({ params }: PageProps) {
   const { type, snapshotId } = use(params);
   const [state, setState] = useState<State>({
     snapshot: null, document: null, overrides: [], error: null, loaded: false,
+    verifyByStudent: {},
   });
 
   // Read URL params on the client. We avoid Next's searchParams prop so the
@@ -106,10 +113,48 @@ export default function PrintSnapshotPage({ params }: PageProps) {
         const document = (docJson.document ?? docJson) as DRCEDocument;
         if (!document) throw new Error('Template payload missing');
 
-        setState({ snapshot, document, overrides, error: null, loaded: true });
+        // Phase L1 — mint verification URLs in parallel: one snapshot-
+        // level URL + one per visible student. The mint endpoint
+        // accepts staff OR portal sessions, so both print contexts
+        // get verify links without extra plumbing. Failures are
+        // tolerated — a missing URL just means the QR binding falls
+        // back to the static `value` set in the editor.
+        const verifyByStudent: Record<number, string> = {};
+        let snapshotVerifyUrl: string | undefined;
+        try {
+          const snapRes = await fetch(
+            `/api/verify-token/mint?snapshot_id=${encodeURIComponent(snapshotId)}`,
+          );
+          if (snapRes.ok) {
+            const j = await snapRes.json();
+            if (typeof j.url === 'string') snapshotVerifyUrl = j.url;
+          }
+        } catch { /* fall back to static value */ }
+        try {
+          const visibleStudents: Array<{ studentDbId: number }> = [];
+          for (const cls of snapshot.classes) {
+            for (const s of cls.students) visibleStudents.push({ studentDbId: s.studentDbId });
+          }
+          await Promise.all(visibleStudents.map(async stu => {
+            try {
+              const r = await fetch(
+                `/api/verify-token/mint?snapshot_id=${encodeURIComponent(snapshotId)}&student_id=${stu.studentDbId}`,
+              );
+              if (r.ok) {
+                const j = await r.json();
+                if (typeof j.url === 'string') verifyByStudent[stu.studentDbId] = j.url;
+              }
+            } catch { /* skip — falls back to snapshot URL */ }
+          }));
+        } catch { /* tolerated */ }
+
+        setState({
+          snapshot, document, overrides, error: null, loaded: true,
+          verifyUrl: snapshotVerifyUrl, verifyByStudent,
+        });
       } catch (e: any) {
         if (cancelled) return;
-        setState(s => ({ ...s, error: e?.message || 'load failed', loaded: true }));
+        setState(s => ({ ...s, error: e?.message || 'load failed', loaded: true, verifyByStudent: {} }));
       }
     })();
     return () => { cancelled = true; };
@@ -156,6 +201,10 @@ export default function PrintSnapshotPage({ params }: PageProps) {
         state.snapshot!, classIdx, studentIdx,
         { schoolName: state.snapshot!.meta.schoolName },
         hiddenSubjectIds,
+        {
+          snapshotUrl: state.verifyUrl,
+          studentUrl:  state.verifyByStudent[stu.studentDbId],
+        },
       );
 
       blocks.push(

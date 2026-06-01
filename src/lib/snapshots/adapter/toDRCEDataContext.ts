@@ -36,6 +36,17 @@ export interface SchoolMetaForRender {
   reportTitle?:     string;
 }
 
+export interface VerifyContext {
+  /** Snapshot-level verification URL — used by the QR shape's default
+   *  binding (`meta.verificationUrl`). Same URL for every student in a
+   *  snapshot; signals "this snapshot is authentic". */
+  snapshotUrl?: string;
+  /** Per-student verification URL — overrides snapshotUrl when set, so
+   *  per-learner QR codes encode a token that carries the studentDbId
+   *  alongside the snapshotId. Resolves via `student.verificationUrl`. */
+  studentUrl?: string;
+}
+
 export function snapshotToDRCEDataContext(
   snapshot: ReportSnapshot,
   classIdx: number,
@@ -48,6 +59,14 @@ export function snapshotToDRCEDataContext(
    * Snapshot data itself is NEVER mutated.
    */
   hiddenSubjectIds: readonly string[] = [],
+  /**
+   * Phase L1 — anti-forgery. When provided, the URLs are mirrored into
+   * the data context so QR / barcode shapes bound to
+   *   meta.verificationUrl
+   *   student.verificationUrl
+   * resolve to scannable proof-of-authenticity links.
+   */
+  verifyCtx: VerifyContext = {},
 ): DRCEDataContext {
   const cls = snapshot.classes[classIdx];
   if (!cls) throw new Error(`Class index ${classIdx} out of range`);
@@ -157,6 +176,7 @@ export function snapshotToDRCEDataContext(
     cafe?:          { frameworkName: string; frameworkMode: string };
     genericSkills?: typeof genericSkills;
     projects?:      typeof projects;
+    verificationUrl?: string;
   } = {
     fullName:    stu.name,
     firstName:   stu.firstName,
@@ -173,6 +193,12 @@ export function snapshotToDRCEDataContext(
     // don't see undefined; section components handle empty arrays gracefully.
     genericSkills,
     projects,
+    // Phase L1 — per-learner verify URL. Falls back to snapshot-level
+    // URL so a QR template authored before the per-student endpoint
+    // existed still resolves to a valid (but coarser) verify link.
+    ...(verifyCtx.studentUrl || verifyCtx.snapshotUrl
+      ? { verificationUrl: verifyCtx.studentUrl || verifyCtx.snapshotUrl }
+      : {}),
   };
 
   const assessment: DRCEAssessmentData = {
@@ -192,7 +218,7 @@ export function snapshotToDRCEDataContext(
     headTeacher:  stu.comments?.headTeacher ?? '',
   };
 
-  const meta: DRCEMetaContext = {
+  const meta: DRCEMetaContext & { verificationUrl?: string } = {
     schoolName:       schoolMeta.schoolName || snapshot.meta.schoolName,
     schoolAddress:    schoolMeta.schoolAddress    ?? '',
     schoolContact:    schoolMeta.schoolContact    ?? '',
@@ -210,6 +236,9 @@ export function snapshotToDRCEDataContext(
     // snapshot was generated with calendar inference; undefined on legacy
     // snapshots — computed fields fall back to nextTermBegins above.
     calendar:         snapshot.config.calendar,
+    // Phase L1 — snapshot-level verify URL. Resolves the QR shape's
+    // default binding `meta.verificationUrl`.
+    ...(verifyCtx.snapshotUrl ? { verificationUrl: verifyCtx.snapshotUrl } : {}),
   };
 
   const language: Language = snapshot.meta.language;

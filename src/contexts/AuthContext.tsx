@@ -158,6 +158,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // forwarded cookie is invalid, which the page surfaces as an
       // inline error rather than a redirect.
       '/print-snapshot',
+      // /verify is the public QR-landing page. No session of any kind
+      // is required — the HMAC-signed token IS the access proof.
+      '/verify',
     ];
 
     // Check if current route is public
