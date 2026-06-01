@@ -1323,6 +1323,135 @@ function DividerPanel({ section, onMutate }: { section: DRCESection & { type: 'd
   );
 }
 
+// ─── Signature Panel ──────────────────────────────────────────────────────────
+
+function SignaturePanel({
+  section,
+  onMutate,
+}: {
+  section: DRCESection & { type: 'signature_block' };
+  onMutate: (m: DRCEMutation) => void;
+}) {
+  const setStyle = (path: string, value: unknown) =>
+    onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
+
+  // The signatories array is mutated as a whole via SET_SECTION_PROP so we
+  // don't need new mutation types for ADD/REMOVE/UPDATE_SIGNATORY — the
+  // pattern matches how shape's full payload is mutated via UPDATE_SHAPE.
+  const setSignatories = (next: typeof section.signatories) =>
+    onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'signatories', value: next });
+
+  function patchSignatory(id: string, patch: Partial<typeof section.signatories[number]>) {
+    setSignatories(section.signatories.map(s => s.id === id ? { ...s, ...patch } : s));
+  }
+  function addSignatory() {
+    const id = `item-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    setSignatories([
+      ...section.signatories,
+      { id, roleLabel: 'SIGNED BY', name: '', showDate: true },
+    ]);
+  }
+  function removeSignatory(id: string) {
+    setSignatories(section.signatories.filter(s => s.id !== id));
+  }
+
+  const style = section.style ?? {};
+
+  return (
+    <div className="p-3 space-y-3">
+      <PanelSection title="Signatories">
+        <div className="space-y-2">
+          {section.signatories.map(sig => (
+            <div
+              key={sig.id}
+              className="border border-slate-200 dark:border-slate-700 rounded-lg p-2 space-y-1.5"
+            >
+              <Row label="Role label">
+                <TextInput
+                  value={sig.roleLabel}
+                  onChange={v => patchSignatory(sig.id, { roleLabel: v })}
+                  placeholder="HEADTEACHER"
+                />
+              </Row>
+              <Row label="Name">
+                <TextInput
+                  value={sig.name}
+                  onChange={v => patchSignatory(sig.id, { name: v })}
+                  placeholder="Mr. Kalungi Steven"
+                />
+              </Row>
+              <Row label="Signature URL">
+                <TextInput
+                  value={sig.signatureImageUrl ?? ''}
+                  onChange={v => patchSignatory(sig.id, { signatureImageUrl: v || undefined })}
+                  placeholder="https://… (optional)"
+                />
+              </Row>
+              <Row label="Image binding">
+                <TextInput
+                  value={sig.imageBinding ?? ''}
+                  onChange={v => patchSignatory(sig.id, { imageBinding: v || undefined })}
+                  placeholder="meta.headteacherSignatureUrl"
+                />
+              </Row>
+              <Row label="Date value">
+                <TextInput
+                  value={sig.dateValue ?? ''}
+                  onChange={v => patchSignatory(sig.id, { dateValue: v || undefined })}
+                  placeholder="23 Oct 2026 (blank = line)"
+                />
+              </Row>
+              <Row label="Show date">
+                <input
+                  type="checkbox"
+                  checked={sig.showDate !== false}
+                  onChange={e => patchSignatory(sig.id, { showDate: e.target.checked })}
+                />
+              </Row>
+              <button
+                type="button"
+                onClick={() => removeSignatory(sig.id)}
+                className="w-full mt-1 px-2 py-1 text-[11px] rounded bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50"
+              >
+                Remove signatory
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addSignatory}
+            className="w-full px-3 py-1.5 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            + Add signatory
+          </button>
+        </div>
+      </PanelSection>
+
+      <PanelSection title="Layout">
+        <Row label="Per row">
+          <NumberInput value={style.perRow ?? section.signatories.length} onChange={v => setStyle('perRow', v)} min={1} max={6} />
+        </Row>
+        <Row label="Gap (px)"><NumberInput value={style.gap ?? 24} onChange={v => setStyle('gap', v)} min={0} max={120} /></Row>
+        <Row label="Sig height (px)"><NumberInput value={style.signatureHeight ?? 48} onChange={v => setStyle('signatureHeight', v)} min={0} max={200} /></Row>
+        <Row label="Padding"><TextInput value={style.padding ?? '8px 0'} onChange={v => setStyle('padding', v)} placeholder="8px 0" /></Row>
+        <Row label="Background"><ColorInput value={style.background ?? 'transparent'} onChange={v => setStyle('background', v)} /></Row>
+      </PanelSection>
+
+      <PanelSection title="Line + text">
+        <Row label="Line colour"><ColorInput value={style.lineColor ?? '#111111'} onChange={v => setStyle('lineColor', v)} /></Row>
+        <Row label="Line thickness"><NumberInput value={style.lineThickness ?? 1} onChange={v => setStyle('lineThickness', v)} min={1} max={6} /></Row>
+        <Row label="Name colour"><ColorInput value={style.nameColor ?? '#111111'} onChange={v => setStyle('nameColor', v)} /></Row>
+        <Row label="Name size"><NumberInput value={style.nameFontSize ?? 12} onChange={v => setStyle('nameFontSize', v)} min={8} max={32} /></Row>
+        <Row label="Label colour"><ColorInput value={style.labelColor ?? '#444444'} onChange={v => setStyle('labelColor', v)} /></Row>
+        <Row label="Label size"><NumberInput value={style.labelFontSize ?? 10} onChange={v => setStyle('labelFontSize', v)} min={6} max={24} /></Row>
+        <Row label="Date label"><TextInput value={style.dateLabel ?? 'Date:'} onChange={v => setStyle('dateLabel', v)} /></Row>
+      </PanelSection>
+
+      <DeleteSectionBtn section={section} onMutate={onMutate} />
+    </div>
+  );
+}
+
 // ─── Next Term Begins Panel ───────────────────────────────────────────────────
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -2095,6 +2224,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       case 'header_block':  return <HeaderBlockPanel   section={selectedSection as DRCESection & { type: 'header_block' }}  onMutate={onMutate} />;
       case 'block_ref':     return <BlockRefPanel      section={selectedSection as DRCESection & { type: 'block_ref' }}     onMutate={onMutate} />;
       case 'table':         return <TablePropertiesPanel section={selectedSection as DRCESection & { type: 'table' }}        onMutate={onMutate} />;
+      case 'signature_block': return <SignaturePanel    section={selectedSection as DRCESection & { type: 'signature_block' }} onMutate={onMutate} />;
       default:              return (
         <div className="p-4 text-center text-xs text-gray-400">
           <p>No properties for</p>

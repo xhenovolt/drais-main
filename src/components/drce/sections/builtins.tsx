@@ -43,6 +43,7 @@ import { AoIBreakdownSection, defaultAoIBreakdown }       from './AoIBreakdownSe
 import { SkillsBlockSection, defaultSkillsBlock }         from './SkillsBlockSection';
 import { ProjectOutcomesSection, defaultProjectOutcomes } from './ProjectOutcomesSection';
 import { NarrativeBlockSection, defaultNarrativeBlock }   from './NarrativeBlockSection';
+import { SignatureSection }                                from './SignatureSection';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -210,6 +211,40 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <DividerSection section={p.section as any} />) as any,
+});
+
+registerSection({
+  type:  'signature_block',
+  label: 'Signatures',
+  icon:  '✍️',
+  description: 'Signed-by panel — headteacher / class teacher row with name, role and date.',
+  defaultProps: () => ({
+    type: 'signature_block',
+    visible: true,
+    signatories: [
+      { id: newItemId(), roleLabel: 'HEADTEACHER',   name: '', showDate: true },
+      { id: newItemId(), roleLabel: 'CLASS TEACHER', name: '', showDate: true },
+    ],
+    style: {
+      perRow:           2,
+      gap:              32,
+      lineColor:        '#111',
+      lineThickness:    1,
+      signatureHeight:  48,
+      imageFit:         'contain',
+      labelColor:       '#444',
+      labelFontSize:    10,
+      labelWeight:      700,
+      nameColor:        '#111',
+      nameFontSize:     12,
+      padding:          '8px 0',
+      background:       'transparent',
+      showDateLabel:    true,
+      dateLabel:        'Date:',
+    },
+  } as Omit<DRCESection, 'id' | 'order'>),
+  Render: ((p: SectionRenderProps) =>
+    <SignatureSection section={p.section as any} ctx={p.dataCtx} />) as any,
 });
 
 registerSection({

@@ -29,7 +29,8 @@ export type DRCESectionType =
   | 'aoi_breakdown'      // Activity-of-Integration component breakdown
   | 'skills_block'       // Student-level generic skills (Communication, ICT, …)
   | 'project_outcomes'   // Student-level project portfolio outcomes
-  | 'narrative_block';   // Free-form narrative paragraph bindable to any path
+  | 'narrative_block'    // Free-form narrative paragraph bindable to any path
+  | 'signature_block';   // Signed-by panel with one or more signatories
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -547,6 +548,73 @@ export interface DRCEDividerSection extends DRCESectionBase {
   style: { color: string; thickness: number; margin: string };
 }
 
+/**
+ * Signature block — for "signed by" panels at the foot of report cards.
+ * Renders as a row of one or more signatories, each with:
+ *   - optional signature image (uploaded, or bound from a person record)
+ *   - signature line (always rendered so paper-signed reports work)
+ *   - role label  (e.g. "HEADTEACHER", "CLASS TEACHER")
+ *   - signatory name  (e.g. "Mr. Kalungi Steven")
+ *   - optional date line / static date
+ *
+ * Static value vs binding:
+ *   - `signatureImageUrl` is the literal URL fall-back; if `imageBinding`
+ *     resolves to a non-empty string it wins. Same convention as the image
+ *     shape so authors switch between fixed and bound signatures
+ *     uniformly.
+ *   - `dateValue` is a literal "1st October 2026"-style string. When
+ *     empty AND `showDate` is true, the renderer falls back to a blank
+ *     line for hand-signing.
+ */
+export interface DRCESignatory {
+  id:                string;
+  /** Role title above or below the line. Empty hides the label row. */
+  roleLabel:         string;
+  /** Signatory name, e.g. "Mr. Kalungi Steven". Empty hides the name row. */
+  name:              string;
+  /** Static signature image URL — overridden by imageBinding when set. */
+  signatureImageUrl?: string;
+  /** Optional binding path (e.g. 'meta.headteacherSignatureUrl'). */
+  imageBinding?:     string;
+  /** Literal "23 Oct 2026" date string; blank → unfilled date line. */
+  dateValue?:        string;
+  /** Show the date line under the signature. Default true. */
+  showDate?:         boolean;
+}
+
+export interface DRCESignatureSectionStyle {
+  /** How many signatories per row. Defaults to children.length (single row). */
+  perRow?:        number;
+  /** Space between signatories. */
+  gap?:           number;
+  /** Signature line color + thickness. */
+  lineColor?:     string;
+  lineThickness?: number;
+  /** Height reserved for the signature image / signing area. */
+  signatureHeight?: number;
+  /** Image fit when signatureImageUrl is set. */
+  imageFit?:      'contain' | 'cover' | 'stretch';
+  /** Label font / colour. */
+  labelColor?:    string;
+  labelFontSize?: number;
+  labelWeight?:   number;
+  nameColor?:     string;
+  nameFontSize?:  number;
+  /** Outer padding around the whole block. */
+  padding?:       string;
+  /** Outer background — usually transparent or a very subtle wash. */
+  background?:    string;
+  /** Show a label like "Date:" next to the date value. */
+  showDateLabel?: boolean;
+  dateLabel?:     string;
+}
+
+export interface DRCESignatureSection extends DRCESectionBase {
+  type:        'signature_block';
+  signatories: DRCESignatory[];
+  style:       DRCESignatureSectionStyle;
+}
+
 export interface DRCENextTermBeginsSection extends DRCESectionBase {
   type: 'next_term_begins';
   content: { text: string; customDate?: string };
@@ -885,7 +953,8 @@ export type DRCESection =
   | DRCEAoIBreakdownSection
   | DRCESkillsBlockSection
   | DRCEProjectOutcomesSection
-  | DRCENarrativeBlockSection;
+  | DRCENarrativeBlockSection
+  | DRCESignatureSection;
 
 // ─── Document Metadata ────────────────────────────────────────────────────────
 

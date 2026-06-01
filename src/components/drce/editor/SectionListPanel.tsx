@@ -169,6 +169,7 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     { type: 'skills_block',     label: 'Generic Skills',    icon: '🌟' },
     { type: 'project_outcomes', label: 'Project Outcomes',  icon: '🏆' },
     { type: 'narrative_block',  label: 'Narrative',         icon: '✍️' },
+    { type: 'signature_block',  label: 'Signatures',        icon: '✍️' },
   ];
 
   function buildNewSection(type: string): DRCESection {
