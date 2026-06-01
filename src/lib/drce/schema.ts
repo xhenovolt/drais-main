@@ -208,9 +208,70 @@ export interface DRCEImageShape {
   rotation: number;
 }
 
+/**
+ * QR code shape primitive. Renders a square QR via qrcode.react.
+ * `value` is the literal string encoded; when `binding` is set it
+ * resolves at render time and overrides `value`. The renderer fills
+ * the entire (x,y,w,h) box edge-to-edge — no inner whitespace,
+ * trivial to resize.
+ *
+ * Use case: anti-forgery — encode a signed report-card URL so a
+ * verifier can scan and reach an authoritative read-only view.
+ */
+export interface DRCEQRCodeShape {
+  id: string;
+  type: 'qrcode';
+  x: number; y: number; w: number; h: number;
+  /** Literal string to encode. Falls back to '' when missing. */
+  value: string;
+  /** Optional binding path that overrides `value` at render time. */
+  binding?: string;
+  /** Foreground (modules). */
+  fg?: string;
+  /** Background (quiet zone). */
+  bg?: string;
+  /** Error correction level (default 'M'). */
+  level?: 'L' | 'M' | 'Q' | 'H';
+  /** Include a margin INSIDE the SVG (default false — DRCE already controls outer spacing). */
+  includeMargin?: boolean;
+  opacity:  number;
+  rotation: number;
+}
+
+/**
+ * Barcode shape primitive. Renders a tight-fit pseudo-Code-128 SVG
+ * — every bar fills the full (x,y,w,h) box edge-to-edge, no
+ * preserveAspectRatio shenanigans. Differs from the InlineBarcode
+ * inside StudentInfoSection which was fixed at 36 px wide; this one
+ * is freely resizable.
+ *
+ * The underlying barcode pattern is the same heuristic used by
+ * InlineBarcode (charCode % 10 → bar width) — visually scannable on a
+ * dedicated scanner is NOT guaranteed but the value is rendered as a
+ * label below the bars for unambiguous human read-out. For
+ * scanner-grade barcodes, integrate a real Code128/EAN library.
+ */
+export interface DRCEBarcodeShape {
+  id: string;
+  type: 'barcode';
+  x: number; y: number; w: number; h: number;
+  /** Literal string to encode. Falls back to '' when missing. */
+  value: string;
+  /** Optional binding (e.g. 'student.admissionNo'). Overrides `value`. */
+  binding?: string;
+  fg?: string;
+  bg?: string;
+  /** Show the value as text below the bars. Default true. */
+  showLabel?:    boolean;
+  labelFontSize?: number;
+  opacity:  number;
+  rotation: number;
+}
+
 export type DRCEShape =
   | DRCERectShape | DRCEEllipseShape | DRCELineShape | DRCETextShape
-  | DRCEPolygonShape | DRCEPathShape | DRCEImageShape;
+  | DRCEPolygonShape | DRCEPathShape | DRCEImageShape
+  | DRCEQRCodeShape | DRCEBarcodeShape;
 
 // ─── Column (used by results_table section) ──────────────────────────────────
 

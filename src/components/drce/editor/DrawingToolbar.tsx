@@ -11,11 +11,12 @@ import {
   MousePointer2, MoveUpRight, Minus, Square, Circle, Type, Trash2,
   Triangle, Diamond, Star, Pentagon, Hexagon, Shapes, ChevronDown,
   Search, PenTool, Spline, Sparkles, Image as ImageIcon, Loader2,
+  QrCode, Barcode,
 } from 'lucide-react';
 
 // ── Categorized shape catalogue ────────────────────────────────────────────
 
-type Group = 'basic' | 'polygon_star' | 'banner_badge' | 'custom_vector';
+type Group = 'basic' | 'polygon_star' | 'banner_badge' | 'custom_vector' | 'codes';
 
 interface ShapeEntry {
   id:        DrawTool;
@@ -48,6 +49,10 @@ const ENTRIES: ShapeEntry[] = [
   // Custom vectors (drawing UX lands in commit 2)
   { id: 'pen',      label: 'Pen Tool',          icon: <PenTool size={16} />, group: 'custom_vector', preview: true, keywords: ['bezier', 'path', 'vector'] },
   { id: 'polygon',  label: 'Custom Polygon',    icon: <Spline  size={16} />, group: 'custom_vector', preview: true, keywords: ['path', 'lasso'] },
+
+  // Codes — anti-forgery + scannable elements.
+  { id: 'qrcode',   label: 'QR code',           icon: <QrCode  size={16} />, group: 'codes', keywords: ['qr', 'scan', 'verification', 'anti-forge'] },
+  { id: 'barcode',  label: 'Barcode',           icon: <Barcode size={16} />, group: 'codes', keywords: ['code128', 'bars', 'scan'] },
 ];
 
 const GROUPS: { id: Group; label: string }[] = [
@@ -55,6 +60,7 @@ const GROUPS: { id: Group; label: string }[] = [
   { id: 'polygon_star',   label: 'Polygons & stars' },
   { id: 'banner_badge',   label: 'Banners & badges' },
   { id: 'custom_vector',  label: 'Custom vectors' },
+  { id: 'codes',          label: 'Codes (QR / Barcode)' },
 ];
 
 interface Props {

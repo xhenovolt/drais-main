@@ -21,9 +21,17 @@ interface Props {
 }
 
 // ── Inline SVG barcode (tight bounding box, print-safe) ──────────────────────
+//
+// Whitespace fix (2026-06): the previous version sized the outer SVG to a
+// fixed `width` while letting the bars span their natural `totalW`, then
+// set preserveAspectRatio="xMidYMin meet" — which scaled the bars down
+// to fit and produced large empty bands around them. The new version
+// computes each bar in unit fractions of `width`, so the bars fill the
+// box exactly. The author resizes via style.barcodeWidth and the bars
+// track the box perfectly.
 function InlineBarcode({
   value,
-  width = 36,
+  width = 44,
   height = 52,
   labelSpacing = 1,
   labelFontSize = 7,
@@ -35,35 +43,53 @@ function InlineBarcode({
   labelFontSize?: number;
 }) {
   const pattern = [3, 1, 2, 1, 3, 1, 2, 2, 1, 2];
-  const bars: React.ReactNode[] = [];
-  let x = 0;
-  // Guard against null/undefined value
-  const safeValue = value || '';
-  // Use every character, map char-code mod 10 to a bar width
-  for (let i = 0; i < Math.min(safeValue.length, 18); i++) {
+  const safeValue = (value || '').slice(0, 18);
+  // Pass 1 — accumulate natural unit widths so we can rescale to fill `width`.
+  const units: Array<{ w: number; bar: boolean }> = [];
+  let totalUnits = 0;
+  for (let i = 0; i < safeValue.length; i++) {
     const code = safeValue.charCodeAt(i) % 10;
-    const w = pattern[code];
-    bars.push(<rect key={i} x={x} y={0} width={w} height={height} fill="#111" />);
-    x += w + 1.5;
-    // thin white gap bar every few chars for readability
-    if (i % 3 === 2) { bars.push(<rect key={`g${i}`} x={x} y={0} width={1} height={height} fill="#fff" />); x += 1; }
+    const bw = pattern[code];
+    units.push({ w: bw, bar: true });
+    units.push({ w: 1.5, bar: false });
+    totalUnits += bw + 1.5;
+    if (i % 3 === 2) {
+      units.push({ w: 1, bar: false });
+      totalUnits += 1;
+    }
   }
-  const totalW = Math.max(x, 36);
   const labelText = value || '';
   const labelY = height + labelSpacing + labelFontSize;
   const totalHeight = height + labelSpacing + labelFontSize + 1;
+  if (totalUnits === 0) {
+    return (
+      <svg width={width} height={totalHeight} style={{ display: 'block', background: '#fff' }} aria-label="Barcode (empty)" />
+    );
+  }
+  const unitPx = width / totalUnits;
+  const bars: React.ReactNode[] = [];
+  let x = 0;
+  let idx = 0;
+  for (const u of units) {
+    const w = u.w * unitPx;
+    if (u.bar) {
+      bars.push(<rect key={idx} x={x} y={0} width={w} height={height} fill="#111" />);
+    }
+    x += w;
+    idx++;
+  }
   return (
     <svg
       width={width}
       height={totalHeight}
-      viewBox={`0 0 ${totalW} ${totalHeight}`}
-      preserveAspectRatio="xMidYMin meet"
-      style={{ display: 'block', margin: '0 auto', border: '0.5px solid #111', background: '#fff' }}
+      viewBox={`0 0 ${width} ${totalHeight}`}
+      preserveAspectRatio="none"
+      style={{ display: 'block', margin: 0, background: '#fff' }}
       aria-label={`Barcode ${labelText}`}
     >
       {bars}
       <text
-        x={totalW / 2}
+        x={width / 2}
         y={labelY}
         textAnchor="middle"
         fontSize={labelFontSize}

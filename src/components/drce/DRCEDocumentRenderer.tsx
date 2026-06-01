@@ -496,9 +496,151 @@ function StaticShape({ shape: s, dataCtx }: { shape: DRCEShape; dataCtx: DRCEDat
         </g>
       );
     }
+    case 'qrcode': {
+      // QR shapes fill the bounding box edge-to-edge. We use
+      // qrcode.react's SVG output inside a <foreignObject> so the QR
+      // stays vector + scales perfectly to the (w,h) the author dragged.
+      // Resolves binding the same way image shapes do — if `binding`
+      // resolves to a non-empty string it overrides `value`.
+      const tx = s.rotation ? `rotate(${s.rotation} ${s.x + s.w / 2} ${s.y + s.h / 2})` : undefined;
+      const resolved = resolveStringValue(s.value, s.binding, dataCtx);
+      const sz = Math.min(s.w, s.h);
+      return (
+        <g transform={tx} opacity={s.opacity}>
+          <foreignObject x={s.x + (s.w - sz) / 2} y={s.y + (s.h - sz) / 2} width={sz} height={sz}>
+            <div
+              {...({ xmlns: 'http://www.w3.org/1999/xhtml' } as Record<string, string>)}
+              style={{ width: '100%', height: '100%', background: s.bg ?? '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <QRCodeSVG
+                value={resolved || 'https://drais.app'}
+                size={sz}
+                fgColor={s.fg ?? '#000'}
+                bgColor={s.bg ?? '#fff'}
+                level={s.level ?? 'M'}
+                marginSize={s.includeMargin ? 4 : 0}
+              />
+            </div>
+          </foreignObject>
+        </g>
+      );
+    }
+    case 'barcode': {
+      // Tight-fit Code128-ish barcode. The bars are sized in EXACT
+      // pixels of (w, h) so the rendered box matches what the author
+      // dragged — no preserveAspectRatio scaling, no internal padding.
+      // The label sits below the bars within the same box; when
+      // `showLabel` is false the bars take the full height.
+      const tx = s.rotation ? `rotate(${s.rotation} ${s.x + s.w / 2} ${s.y + s.h / 2})` : undefined;
+      const resolved = resolveStringValue(s.value, s.binding, dataCtx);
+      const showLabel = s.showLabel !== false;
+      const labelSize = s.labelFontSize ?? Math.max(6, Math.min(12, Math.floor(s.h * 0.15)));
+      const labelGap  = showLabel ? labelSize + 2 : 0;
+      const barsH     = Math.max(1, s.h - labelGap);
+      const fg        = s.fg ?? '#111';
+      const bg        = s.bg ?? '#fff';
+      const bars      = buildBarcodeRects(resolved, s.x, s.y, s.w, barsH, fg, bg);
+      return (
+        <g transform={tx} opacity={s.opacity}>
+          {/* Background fill so the bars sit on a white quiet zone even
+              when the page background is coloured. */}
+          <rect x={s.x} y={s.y} width={s.w} height={s.h} fill={bg} />
+          {bars}
+          {showLabel && (
+            <text
+              x={s.x + s.w / 2}
+              y={s.y + s.h - 1}
+              textAnchor="middle"
+              fontSize={labelSize}
+              fill={fg}
+              style={{ fontFamily: 'monospace' }}
+            >
+              {resolved}
+            </text>
+          )}
+        </g>
+      );
+    }
     default:
       return null;
   }
+}
+
+/**
+ * Build the bar rectangles for a barcode shape. Bars fill the box
+ * edge-to-edge with no inner padding. Uses the same charCode % 10 →
+ * width heuristic as the legacy InlineBarcode for visual continuity
+ * — NOT a real Code128 scanner-grade encoder.
+ */
+function buildBarcodeRects(
+  value: string, x: number, y: number, w: number, h: number, fg: string, bg: string,
+): React.ReactNode[] {
+  const pattern = [3, 1, 2, 1, 3, 1, 2, 2, 1, 2];
+  const safe = (value || '').slice(0, 32);
+  if (!safe.length) return [];
+  // Compute total natural width so we can scale bars to fill exactly `w`.
+  let totalUnits = 0;
+  const seq: Array<{ w: number; bar: boolean }> = [];
+  for (let i = 0; i < safe.length; i++) {
+    const code = safe.charCodeAt(i) % 10;
+    const bw = pattern[code];
+    seq.push({ w: bw, bar: true });
+    seq.push({ w: 1, bar: false });
+    totalUnits += bw + 1;
+    if (i % 3 === 2) {
+      seq.push({ w: 1, bar: false });
+      totalUnits += 1;
+    }
+  }
+  if (totalUnits === 0) return [];
+  const unitPx = w / totalUnits;
+  const out: React.ReactNode[] = [];
+  let cx = x;
+  let idx = 0;
+  for (const s of seq) {
+    const segW = s.w * unitPx;
+    if (s.bar) {
+      out.push(<rect key={`b${idx}`} x={cx} y={y} width={segW} height={h} fill={fg} />);
+    } else if (bg !== '#fff' && bg !== 'transparent') {
+      // Explicit gap fills only when bg is non-default — the underlying
+      // background rect already covers '#fff'.
+      out.push(<rect key={`g${idx}`} x={cx} y={y} width={segW} height={h} fill={bg} />);
+    }
+    cx += segW;
+    idx++;
+  }
+  return out;
+}
+
+/**
+ * Resolve a string-valued shape prop. Mirrors resolveImageSrc but for
+ * any binding that should yield a string (barcode + qrcode values).
+ */
+function resolveStringValue(
+  staticValue: string,
+  binding: string | undefined,
+  ctx: DRCEDataContext,
+): string {
+  if (binding && binding.trim()) {
+    try {
+      const root: Record<string, unknown> = {
+        student:    ctx.student,
+        subjects:   ctx.subjects,
+        results:    ctx.results,
+        assessment: ctx.assessment,
+        comments:   ctx.comments,
+        meta:       ctx.meta,
+      };
+      let cur: unknown = root;
+      for (const part of binding.split('.')) {
+        if (cur == null || typeof cur !== 'object') { cur = null; break; }
+        cur = (cur as Record<string, unknown>)[part];
+      }
+      if (typeof cur === 'string' && cur.trim()) return cur;
+      if (typeof cur === 'number') return String(cur);
+    } catch { /* fall through */ }
+  }
+  return staticValue || '';
 }
 
 /**

@@ -14,7 +14,8 @@ import { nodesToPathD, refreshPathD, setNodeAnchor } from '@/lib/drce/paths';
 export type DrawTool = 'select' | 'rect' | 'ellipse' | 'arrow' | 'line' | 'text'
   | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'star'
   | 'pen' | 'polygon'     // Vector tools — drawing UX lands in commit 2
-  | 'image';              // P3 — drag-to-place an uploaded image
+  | 'image'               // P3 — drag-to-place an uploaded image
+  | 'qrcode' | 'barcode'; // Phase L1 — anti-forgery / scannable shapes
 
 type RectHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 type LineHandle = 'p1' | 'p2';
@@ -824,6 +825,25 @@ export function ShapeCanvas({
         const src = pendingImageSrc ?? '';
         onAddShape({ id, type: 'image', x: mx, y: my, w: Math.max(w, 40), h: Math.max(h, 40),
           src, fit: 'contain', opacity: 1, rotation: 0 });
+        break;
+      }
+      case 'qrcode': {
+        // QR shape — square by default, takes the smaller of (w,h).
+        const sz = Math.max(Math.min(w, h), 60);
+        onAddShape({ id, type: 'qrcode', x: mx, y: my, w: sz, h: sz,
+          value: '', binding: 'meta.verificationUrl',
+          fg: '#000', bg: '#fff', level: 'M', includeMargin: false,
+          opacity: 1, rotation: 0 });
+        break;
+      }
+      case 'barcode': {
+        // Barcode — sized exactly to the drag rect; bars + label fill it
+        // edge-to-edge.
+        onAddShape({ id, type: 'barcode', x: mx, y: my,
+          w: Math.max(w, 80), h: Math.max(h, 32),
+          value: '', binding: 'student.admissionNo',
+          fg: '#111', bg: '#fff', showLabel: true,
+          opacity: 1, rotation: 0 });
         break;
       }
       default:
