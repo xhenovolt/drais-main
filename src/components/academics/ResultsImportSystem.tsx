@@ -37,6 +37,12 @@ export default function ResultsImportSystem() {
   const [classes, setClasses] = useState<Option[]>([]);
   const [resultTypes, setResultTypes] = useState<Option[]>([]);
   const [subjects, setSubjects] = useState<Option[]>([]);
+  // PHASE L3 — the import surface is shared across secular + theology.
+  // Previously every batch-created subject was hardcoded to academic_type
+  // 'secular', so theology imports landed under the wrong program.
+  // Operator picks the type at the top of the import form; defaults to
+  // secular because that's the dominant case.
+  const [academicType, setAcademicType] = useState<'secular' | 'theology'>('secular');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
   const [selectedTerm, setSelectedTerm] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -143,7 +149,10 @@ export default function ResultsImportSystem() {
     for (const name of missingSubjects) {
       const res = await fetch('/api/subjects', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, academic_type: 'secular', subject_type: 'core' }),
+        // PHASE L3 — honour the operator's academic-type pick instead of
+        // hard-coding 'secular'. Theology imports now land in the right
+        // program.
+        body: JSON.stringify({ name, academic_type: academicType, subject_type: 'core' }),
       });
       if (res.ok || res.status === 409) ok++;
     }
@@ -445,6 +454,27 @@ export default function ResultsImportSystem() {
             <CardTitle>Map Columns to Fields</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Academic type — secular vs theology. Drives which program
+                newly batch-created subjects land in. Default secular. */}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3 flex items-center gap-4">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Program</span>
+              <label className="inline-flex items-center gap-1.5 text-xs">
+                <input type="radio" name="academic_type" value="secular"
+                  checked={academicType === 'secular'}
+                  onChange={() => setAcademicType('secular')} />
+                Secular
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-xs">
+                <input type="radio" name="academic_type" value="theology"
+                  checked={academicType === 'theology'}
+                  onChange={() => setAcademicType('theology')} />
+                Theology
+              </label>
+              <span className="ml-auto text-[10px] text-slate-400">
+                Any subjects DRAIS creates from your file will be filed under this program.
+              </span>
+            </div>
+
             {/* Target Selection */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>

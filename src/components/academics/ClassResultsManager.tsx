@@ -761,37 +761,82 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       });
     });
 
-    const payload = {
-      entries,
-      academic_type: academicType
-    };
-
-    try {
+    const postBulk = async (es: any[]) => {
       const res = await fetch(`${API_BASE}/class_results/bulk-submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ entries: es, academic_type: academicType }),
       });
+      if (!res.ok) throw new Error(`Server error: ${res.status} ${res.statusText}`);
+      return res.json();
+    };
 
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status} ${res.statusText}`);
+    try {
+      let data = await postBulk(entries);
+
+      // SUBJECT_NOT_ALLOCATED recovery (bulk variant). The bulk endpoint
+      // does not 400 on un-allocated subjects — it silently pushes the
+      // affected rows into `ignored[]` with reason ~ "Subject not
+      // allocated to class". Before this fix, the operator saw
+      // "X records saved" with no warning that some were dropped.
+      // Now: detect those rows, batch-allocate their subjects to the
+      // class via /api/academics/allocations, then replay JUST those
+      // entries. Bounded to one retry — if the second attempt still
+      // ignores anything, the toast surfaces the residual count.
+      const isAllocIgnored = (r: { reason?: string }) =>
+        typeof r.reason === 'string' && /not allocated to class/i.test(r.reason);
+      const ignored1: Array<{ subject_id: number; student_id: number; reason?: string }> = Array.isArray(data?.ignored) ? data.ignored : [];
+      const allocBlocked = ignored1.filter(isAllocIgnored);
+      if (allocBlocked.length > 0) {
+        const subjectIds = Array.from(new Set(allocBlocked.map(r => r.subject_id)));
+        toast(`Allocating ${subjectIds.length} subject${subjectIds.length === 1 ? '' : 's'} to class…`, { icon: '⏳' });
+        const allocatedSubjects = new Set<number>();
+        for (const sid of subjectIds) {
+          const ok = await ensureSubjectAllocated(sid, klass.id, /*announce*/ false);
+          if (ok) allocatedSubjects.add(sid);
+        }
+        if (allocatedSubjects.size > 0) {
+          const blockedKeys = new Set(allocBlocked.map(r => `${r.student_id}::${r.subject_id}`));
+          const retryEntries = entries.filter(e =>
+            allocatedSubjects.has(e.subject_id) &&
+            blockedKeys.has(`${e.student_id}::${e.subject_id}`),
+          );
+          if (retryEntries.length > 0) {
+            const second = await postBulk(retryEntries);
+            const insertedSecond = Number(second?.inserted ?? 0);
+            // Roll up the combined picture into `data` so the success
+            // toast reflects everything that actually landed.
+            data = {
+              ...data,
+              inserted: Number(data.inserted ?? 0) + insertedSecond,
+              ignored:  ignored1
+                .filter(r => !(allocatedSubjects.has(r.subject_id) && blockedKeys.has(`${r.student_id}::${r.subject_id}`)))
+                .concat(Array.isArray(second?.ignored) ? second.ignored : []),
+            };
+          }
+        }
       }
 
-      const data = await res.json();
       if (data.error) {
         setMessage(data.error);
         toast.error(data.error);
-      } else {
-        setMessage('✓ Bulk results saved successfully!');
-        setShowSuccessAnimation(true);
-        toast.success(`Bulk results submitted successfully! ${data.inserted || 0} records saved.`);
-        setTimeout(() => {
-          setList([]);
-          setFilters(f => ({ ...f }));
-          setOpen(false);
-          setShowSuccessAnimation(false);
-        }, 800);
+        return;
       }
+      const remainingIgnored = Array.isArray(data.ignored) ? data.ignored.length : 0;
+      const inserted = Number(data.inserted ?? 0);
+      setMessage('✓ Bulk results saved successfully!');
+      setShowSuccessAnimation(true);
+      if (remainingIgnored > 0) {
+        toast.success(`Saved ${inserted}; ${remainingIgnored} row${remainingIgnored === 1 ? '' : 's'} ignored`);
+      } else {
+        toast.success(`Bulk results submitted successfully! ${inserted} records saved.`);
+      }
+      setTimeout(() => {
+        setList([]);
+        setFilters(f => ({ ...f }));
+        setOpen(false);
+        setShowSuccessAnimation(false);
+      }, 800);
     } catch (e: any) {
       setMessage(e.message || 'Failed to submit bulk results');
       toast.error(e.message || 'Failed to submit bulk results');
