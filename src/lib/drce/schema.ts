@@ -1102,6 +1102,24 @@ export interface DRCEPage {
   visibilityRule?: import('./visibility').VisibilityRule | null;
   /** CSS page-break policy applied between this page and the previous one. */
   pageBreakBefore?: 'auto' | 'always' | 'avoid';
+  /**
+   * Phase L3 — per-page HEADER section. Single full DRCESection (any
+   * type — banner, header, container, table, …) rendered ABOVE
+   * `sections[]` on this page. Different from doc-level
+   * `runningHeader` which prints on every paper page via puppeteer's
+   * headerTemplate: this slot renders once per DRCE page, in the
+   * normal document flow. Use it for per-page titles, banners, and
+   * decorative bars that the operator wants to compose with the
+   * full section vocabulary (results tables, shapes, formulas).
+   *
+   * Doc-level `runningHeader` is the right tool for "Page X of Y" on
+   * every paper page; `pageHeader` is the right tool for "Term 1
+   * Marks — Page 1" decorative top-of-page.
+   */
+  pageHeader?: DRCESection;
+  /** Phase L3 — per-page FOOTER section. Mirror of pageHeader,
+   *  rendered BELOW `sections[]` on this page. */
+  pageFooter?: DRCESection;
 }
 
 // ─── Root Document ────────────────────────────────────────────────────────────
@@ -1205,6 +1223,13 @@ export type DRCEMutation =
   | { type: 'SET_WATERMARK';       path: string; value: unknown }
   | { type: 'SET_RUNNING_HEADER';  path: string; value: unknown }
   | { type: 'SET_RUNNING_FOOTER';  path: string; value: unknown }
+  /**
+   * Phase L3 — set / replace / clear a page-level header / footer
+   * section. `section: null` clears the slot. Identified by pageId
+   * because the slot lives on a DRCEPage, not the document.
+   */
+  | { type: 'SET_PAGE_HEADER';     pageId: string; section: DRCESection | null }
+  | { type: 'SET_PAGE_FOOTER';     pageId: string; section: DRCESection | null }
   | { type: 'SET_GRADE_ROWS';      sectionId: string; grades: DRCEGradeRow[] }
   | { type: 'ADD_SHAPE';           shape: DRCEShape }
   | { type: 'UPDATE_SHAPE';        id: string; updates: Partial<DRCEShape> }

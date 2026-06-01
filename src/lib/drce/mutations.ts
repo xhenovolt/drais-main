@@ -347,6 +347,19 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
       };
     }
 
+    case 'SET_PAGE_HEADER':
+    case 'SET_PAGE_FOOTER': {
+      const slot = mutation.type === 'SET_PAGE_HEADER' ? 'pageHeader' : 'pageFooter';
+      if (!doc.pages) return doc;
+      return {
+        ...doc,
+        pages: doc.pages.map(p => p.id === mutation.pageId
+          ? { ...p, [slot]: mutation.section ?? undefined }
+          : p,
+        ),
+      };
+    }
+
     case 'SET_GRADE_ROWS': {
       // Phase 0 fix C1: deep-walk.
       return patchSections(doc, arr => mapSectionsDeep(arr, s => {

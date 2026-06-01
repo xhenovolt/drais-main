@@ -195,6 +195,25 @@ function DRCEDocumentRendererInner({
             >
               {pageWM?.enabled && <WatermarkLayer watermark={pageWM} />}
               <div style={{ position: 'relative', zIndex: 1 }}>
+                {/* Phase L3 — per-page header section. Renders ABOVE the
+                    page's regular sections. Operator authors any
+                    DRCESection (header, banner, container, …) and it
+                    appears once per page in normal document flow. For
+                    bars that repeat on EVERY paper page, use
+                    document.runningHeader instead (puppeteer-driven). */}
+                {p.pageHeader && (
+                  <MemoSection
+                    key={`${p.id}-header`}
+                    section={p.pageHeader}
+                    doc={document}
+                    dataCtx={dataCtx}
+                    renderCtx={renderCtx}
+                    isSelected={selectedSectionId === p.pageHeader.id}
+                    onClick={onSectionClick}
+                    onCellChange={onCellChange}
+                    onColumnHide={onColumnHide}
+                  />
+                )}
                 {sortedSections.map(section => (
                   <MemoSection
                     key={section.id}
@@ -208,6 +227,21 @@ function DRCEDocumentRendererInner({
                     onColumnHide={onColumnHide}
                   />
                 ))}
+                {/* Phase L3 — per-page footer section. Mirror of the
+                    pageHeader slot, rendered BELOW regular sections. */}
+                {p.pageFooter && (
+                  <MemoSection
+                    key={`${p.id}-footer`}
+                    section={p.pageFooter}
+                    doc={document}
+                    dataCtx={dataCtx}
+                    renderCtx={renderCtx}
+                    isSelected={selectedSectionId === p.pageFooter.id}
+                    onClick={onSectionClick}
+                    onCellChange={onCellChange}
+                    onColumnHide={onColumnHide}
+                  />
+                )}
               </div>
               {/* Per-page shapes overlay always. Document-wide shapes
                   overlay ONLY on the first page (PHASE 1A fix G7 — the
