@@ -1106,6 +1106,42 @@ export interface DRCEPage {
 
 // ─── Root Document ────────────────────────────────────────────────────────────
 
+/**
+ * Recurring page header / footer. Repeats on EVERY physical paper
+ * page a report card flows onto — distinct from a header SECTION
+ * which appears once at the start of the body flow.
+ *
+ * The `text` field supports a small set of placeholders resolved at
+ * render time:
+ *   {schoolName}   from snapshot meta
+ *   {termYear}     "Term 1 · 2026" composed from snapshot meta
+ *   {term}         term name alone
+ *   {year}         year name alone
+ *   {type}         snapshot type (secular / theology / mixed)
+ *   {pageNumber}   physical page index (1-based)
+ *   {totalPages}   total physical pages in the print job
+ *   {generatedAt}  formatted snapshot generation timestamp
+ *
+ * Per-learner placeholders (name, class, …) are NOT supported here
+ * because puppeteer's PDF header template is global across pages.
+ * Use a HeaderSection in the body for per-learner identification.
+ */
+export interface DRCERunningHeaderFooter {
+  /** False hides this slot regardless of `text`. Default false. */
+  show?:      boolean;
+  /** Plain-string template with placeholders. HTML is escaped. */
+  text:       string;
+  align?:     'left' | 'center' | 'right';
+  /** Font size in points (puppeteer header/footer template convention). */
+  fontSize?:  number;
+  color?:     string;
+  fontFamily?: string;
+  /** Reserved space (mm) at the corresponding paper edge. Larger
+   *  values give the header/footer more room; smaller values pull
+   *  the body closer to the edge. */
+  reserveMm?: number;
+}
+
 export interface DRCEDocument {
   $schema: 'drce/v1';
   meta: DRCEMeta;
@@ -1125,6 +1161,10 @@ export interface DRCEDocument {
    * explicitly enables multi-page on a template.
    */
   pages?: DRCEPage[];
+  /** Phase L2 — recurring header repeated on every physical paper page. */
+  runningHeader?: DRCERunningHeaderFooter;
+  /** Phase L2 — recurring footer repeated on every physical paper page. */
+  runningFooter?: DRCERunningHeaderFooter;
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────

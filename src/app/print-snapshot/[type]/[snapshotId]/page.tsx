@@ -31,6 +31,7 @@ import { use, useEffect, useState } from 'react';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
 import type { DRCEDocument } from '@/lib/drce/schema';
 import { snapshotToDRCEDataContext } from '@/lib/snapshots/adapter/toDRCEDataContext';
+import { buildPuppeteerHeaderFooterHtml, reserveMmFor } from '@/lib/snapshots/running-header';
 import { applyOverrides, readHiddenSubjectIds, selectOverridesForStudent, type PersistedOverride } from '@/lib/drce/overrides';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 
@@ -238,8 +239,37 @@ export default function PrintSnapshotPage({ params }: PageProps) {
     return <div style={{ padding: 40, color: '#666' }}>No results to display</div>;
   }
 
+  // Phase L2 — pre-render recurring header / footer HTML for puppeteer
+  // AND drop them into hidden dataset nodes so the /pdf route can read
+  // them via page.evaluate. Pre-resolving placeholders here means the
+  // server side doesn't need access to the snapshot meta — it just
+  // copies the HTML through.
+  const headerSpec = state.document?.runningHeader;
+  const footerSpec = state.document?.runningFooter;
+  const headerHtml = state.snapshot ? buildPuppeteerHeaderFooterHtml(headerSpec, state.snapshot) : '<div></div>';
+  const footerHtml = state.snapshot ? buildPuppeteerHeaderFooterHtml(footerSpec, state.snapshot) : '<div></div>';
+  const headerReserveMm = reserveMmFor(headerSpec);
+  const footerReserveMm = reserveMmFor(footerSpec);
+
   return (
     <>
+      {/* Bridge nodes for the puppeteer /pdf route. Hidden in screen
+          AND print — they exist only to carry pre-resolved HTML out to
+          page.evaluate(). */}
+      {headerSpec?.show && headerSpec?.text && (
+        <div
+          data-drce-running-header-html={headerHtml}
+          data-drce-reserve-mm={String(headerReserveMm)}
+          style={{ display: 'none' }}
+        />
+      )}
+      {footerSpec?.show && footerSpec?.text && (
+        <div
+          data-drce-running-footer-html={footerHtml}
+          data-drce-reserve-mm={String(footerReserveMm)}
+          style={{ display: 'none' }}
+        />
+      )}
       <style>{`
         /* WYSIWYG: zero @page margin so the DRCE page (794 px wide at
            96 dpi = exact A4 width) is NOT shrunk by Chromium to fit

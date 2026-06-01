@@ -119,20 +119,49 @@ export async function GET(
       await page.evaluate(() => (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready);
     } catch { /* legacy or no FontFaceSet — skip */ }
     await page.emulateMediaType('print');
+
+    // Phase L2 — extract the DRCE running header/footer the page has
+    // dropped into the DOM. Resolves placeholders client-side (where
+    // it has access to the snapshot data) and surfaces the rendered
+    // HTML on dataset attributes for the puppeteer route to consume.
+    //
+    // Returns nulls when the document has no recurring header/footer
+    // configured — we then turn off displayHeaderFooter so puppeteer
+    // doesn't insert its default URL/page banner.
+    const running = await page.evaluate(() => {
+      const h = document.querySelector('[data-drce-running-header-html]');
+      const f = document.querySelector('[data-drce-running-footer-html]');
+      return {
+        header: h instanceof HTMLElement ? h.dataset.drceRunningHeaderHtml ?? null : null,
+        footer: f instanceof HTMLElement ? f.dataset.drceRunningFooterHtml ?? null : null,
+        headerReserveMm: h instanceof HTMLElement ? Number(h.dataset.drceReserveMm ?? '0') : 0,
+        footerReserveMm: f instanceof HTMLElement ? Number(f.dataset.drceReserveMm ?? '0') : 0,
+      };
+    });
+
+    const displayHeaderFooter = !!(running.header || running.footer);
     const pdf = await page.pdf({
       format:          'A4',
       printBackground: true,
-      // WYSIWYG: zero margins. The DRCE page is 794 px wide which is
-      // exactly the A4 width at 96 dpi, so any @page margin would
-      // force Chromium to scale the page down to fit. The DRCE theme
-      // provides its own pagePadding for visual breathing room — same
-      // as in the editor preview.
-      margin:          { top: '0', right: '0', bottom: '0', left: '0' },
-      preferCSSPageSize: true,
-      timeout:         30_000,
-      // Honour authored colors / backgrounds — without this, gradient
-      // banners and coloured table headers print as white.
-      tagged:          false,
+      // Margins agree with the @page declaration in the print-snapshot
+      // CSS, but grow vertically when a running header/footer is
+      // present so they have room without overlapping the body.
+      margin: {
+        top:    displayHeaderFooter && running.header
+          ? `${Math.max(running.headerReserveMm, 10)}mm`
+          : '0',
+        right:  '0',
+        bottom: displayHeaderFooter && running.footer
+          ? `${Math.max(running.footerReserveMm, 10)}mm`
+          : '0',
+        left:   '0',
+      },
+      preferCSSPageSize: !displayHeaderFooter, // can't honour @page size when margins are explicit
+      displayHeaderFooter,
+      headerTemplate: running.header ?? '<div></div>',
+      footerTemplate: running.footer ?? '<div></div>',
+      timeout: 30_000,
+      tagged:  false,
     });
 
     const filename = `snapshot-${snapshotId}.pdf`;
