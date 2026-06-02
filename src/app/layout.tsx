@@ -145,6 +145,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/portal') ||            // Parent portal — own shell, no staff nav
     pathname.startsWith('/rpt') ||               // Standalone rpt.html clone
     pathname.startsWith('/print-snapshot') ||    // Naked DRCE snapshot print/PDF target
+    pathname.startsWith('/print-transcript') ||  // Naked cumulative transcript print/PDF target
     pathname.startsWith('/verify');              // Public QR verification page
 
   return (
