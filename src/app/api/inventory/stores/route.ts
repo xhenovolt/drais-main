@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 import { requirePermission } from '@/lib/rbac';
 
 export async function GET(req: NextRequest) {
@@ -8,6 +9,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const __denied = await checkModule(session.schoolId, 'inventory');
+    if (__denied) return __denied;
     await requirePermission(session.userId, session.schoolId, 'inventory.stock.view', session.isSuperAdmin);
 
     connection = await getConnection();
@@ -33,6 +36,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const __denied = await checkModule(session.schoolId, 'inventory');
+    if (__denied) return __denied;
     await requirePermission(session.userId, session.schoolId, 'inventory.stock.manage', session.isSuperAdmin);
 
     const { name, location, notes } = await req.json();
@@ -56,6 +61,8 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const __denied = await checkModule(session.schoolId, 'inventory');
+    if (__denied) return __denied;
     await requirePermission(session.userId, session.schoolId, 'inventory.stock.manage', session.isSuperAdmin);
 
     const { id, name, location, notes } = await req.json();
@@ -81,6 +88,8 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const __denied = await checkModule(session.schoolId, 'inventory');
+    if (__denied) return __denied;
     await requirePermission(session.userId, session.schoolId, 'inventory.stock.manage', session.isSuperAdmin);
 
     const { id } = await req.json();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 import { requirePermission } from '@/lib/rbac';
 
 /**
@@ -16,6 +17,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const __denied = await checkModule(session.schoolId, 'inventory');
+    if (__denied) return __denied;
     await requirePermission(session.userId, session.schoolId, 'inventory.stock.view', session.isSuperAdmin);
 
     const { searchParams } = new URL(req.url);
@@ -49,6 +52,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const __denied = await checkModule(session.schoolId, 'inventory');
+    if (__denied) return __denied;
     await requirePermission(session.userId, session.schoolId, 'inventory.stock.manage', session.isSuperAdmin);
 
     const { item_id, tx_type, quantity, reference, notes } = await req.json();

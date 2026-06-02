@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const __denied = await checkModule(session.schoolId, 'work_plans');
+    if (__denied) return __denied;
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
@@ -84,6 +87,8 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const __denied = await checkModule(session.schoolId, 'work_plans');
+    if (__denied) return __denied;
     const schoolId = session.schoolId;
 
     const body = await req.json();

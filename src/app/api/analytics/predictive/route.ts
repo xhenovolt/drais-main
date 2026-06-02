@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 /**
  * GET /api/analytics/predictive
  * AI-Powered Predictive Analytics for Academic Performance
@@ -21,6 +22,8 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const __denied = await checkModule(session.schoolId, 'analytics');
+    if (__denied) return __denied;
     const schoolId = session.schoolId;
 
     connection = await getConnection();
