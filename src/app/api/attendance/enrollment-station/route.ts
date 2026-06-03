@@ -248,6 +248,48 @@ export async function POST(req: NextRequest) {
 
       const pin = mapping[0].device_user_id;
 
+      // PHASE BIO-7 — firmware-capability gate.
+      //
+      // The capability catalogue in /api/attendance/remote-features
+      // has already tested every variant of ENROLL / ENROLL_FP /
+      // ENROLL_BIO on push v2.x firmware (the K40 baseline) and
+      // documented the return codes (-1002, 6, -1003). They do not
+      // work. Queueing the command on a known-incompatible device
+      // creates a pending row that fails on ACK, and the operator
+      // sees no signal between "device is offline" and "firmware
+      // does not support this".
+      //
+      // We now inspect devices.push_version. If the device reports
+      // push v3.x or newer, queue the command (it might work).
+      // Otherwise, refuse with a structured response so the UI can
+      // route the operator to the working path (identity sync +
+      // local enrolment at the device).
+      const deviceRow = (await query(
+        `SELECT push_version FROM devices WHERE sn = ? LIMIT 1`,
+        [device_sn],
+      )) as Array<{ push_version: string | null }>;
+      const pushVer = (deviceRow[0]?.push_version ?? '').trim();
+      const majorMatch = /^(\d+)/.exec(pushVer);
+      const major = majorMatch ? Number(majorMatch[1]) : NaN;
+      const supportsEnrollFp = Number.isFinite(major) && major >= 3;
+      if (!supportsEnrollFp) {
+        return NextResponse.json({
+          success: false,
+          error:   'NOT_SUPPORTED_BY_FIRMWARE',
+          message:
+            `Device firmware (push ${pushVer || 'unknown'}) does not support ` +
+            `remote ENROLL_FP. The identity sync command (DATA UPDATE USERINFO) ` +
+            `that put PIN ${pin} on the device has already been queued — please ` +
+            `ask the operator to enrol the fingerprint at the device itself. ` +
+            `The captured template will arrive back via OPERLOG and bind to ` +
+            `the learner automatically.`,
+          fallback:        'identity_sync_only',
+          device_sn,
+          pin,
+          push_version:    pushVer || null,
+        }, { status: 400 });
+      }
+
       // Check for existing pending ENROLL_FP
       const existing = await query(
         `SELECT id FROM zk_device_commands
