@@ -581,6 +581,14 @@ async function resolveUser(
 
   // 2. Check device_users table (general biometric mapping)
   // NOTE: school_id intentionally NOT enforced — same reasoning as above.
+  //
+  // BUGFIX (PHASE BIO-1): the previous version routed person_type to
+  // staffId ONLY when row.person_type === 'teacher'. Every WRITER in
+  // the codebase uses 'staff' (and a handful use 'teacher'). The
+  // strict equality silently dropped every 'staff' row in this table
+  // — an entire mapping source was unreachable for years. We now
+  // accept BOTH spellings on read; writers can be migrated to a
+  // single canonical value in a later sweep.
   try {
     const deviceUser = await query(
       `SELECT du.person_type, du.person_id
@@ -591,9 +599,10 @@ async function resolveUser(
     );
     if (deviceUser && deviceUser.length > 0) {
       const row = deviceUser[0];
+      const isStaff = row.person_type === 'staff' || row.person_type === 'teacher';
       return {
         studentId: row.person_type === 'student' ? row.person_id : null,
-        staffId: row.person_type === 'teacher' ? row.person_id : null,
+        staffId:   isStaff                        ? row.person_id : null,
         matched: true,
       };
     }
