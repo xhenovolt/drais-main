@@ -577,17 +577,36 @@ async function resolveUser(
   // hit carries the source-table tag for log forensics.
   const hits: Array<{ source: string; studentId: number | null; staffId: number | null }> = [];
 
-  // 1. zk_user_mapping. NOTE: school_id intentionally NOT enforced —
-  //    device may legitimately serve students from a different school
-  //    than the device's registered school. The school-scope guard
-  //    (BIO-5) wraps this in a per-school override.
+  // SCHOOL-SCOPE GUARD (BIO-5). Phase 4 of the audit flagged that
+  // resolveUser "intentionally" did not enforce school_id — which
+  // structurally enables cross-school attribution. A device in
+  // school A could attribute a punch to a learner in school B if a
+  // global (device_sn IS NULL) mapping existed for the PIN.
+  //
+  // Default behaviour is now: when the device has a registered
+  // school_id, only mappings belonging to that school can match.
+  // Unknown-school devices (school_id IS NULL on devices row)
+  // fall back to the previous unrestricted behaviour so brand-new
+  // devices still produce useful logs during initial setup.
+  const enforceSchool = typeof schoolId === 'number' && schoolId > 0;
+
+  // 1. zk_user_mapping.
   try {
-    const rows = await query(
-      `SELECT user_type, student_id, staff_id FROM zk_user_mapping
-       WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
-       LIMIT 1`,
-      [deviceUserId, deviceSn],
-    );
+    const rows = enforceSchool
+      ? await query(
+          `SELECT user_type, student_id, staff_id FROM zk_user_mapping
+           WHERE device_user_id = ?
+             AND (device_sn = ? OR device_sn IS NULL)
+             AND (school_id  = ? OR school_id  IS NULL)
+           LIMIT 1`,
+          [deviceUserId, deviceSn, schoolId],
+        )
+      : await query(
+          `SELECT user_type, student_id, staff_id FROM zk_user_mapping
+           WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
+           LIMIT 1`,
+          [deviceUserId, deviceSn],
+        );
     if (rows && rows.length > 0) {
       hits.push({
         source:    'zk_user_mapping',
@@ -600,14 +619,24 @@ async function resolveUser(
   }
 
   // 2. device_users (BIO-1: accept staff OR teacher tagging).
+  //    device_users has a school_id column too — apply the same guard.
   try {
-    const rows = await query(
-      `SELECT du.person_type, du.person_id
-       FROM device_users du
-       WHERE du.device_user_id = ? AND du.is_enrolled = 1
-       LIMIT 1`,
-      [deviceUserId],
-    );
+    const rows = enforceSchool
+      ? await query(
+          `SELECT du.person_type, du.person_id
+           FROM device_users du
+           WHERE du.device_user_id = ? AND du.is_enrolled = 1
+             AND (du.school_id = ? OR du.school_id IS NULL)
+           LIMIT 1`,
+          [deviceUserId, schoolId],
+        )
+      : await query(
+          `SELECT du.person_type, du.person_id
+           FROM device_users du
+           WHERE du.device_user_id = ? AND du.is_enrolled = 1
+           LIMIT 1`,
+          [deviceUserId],
+        );
     if (rows && rows.length > 0) {
       const row = rows[0];
       const isStaff = row.person_type === 'staff' || row.person_type === 'teacher';
@@ -618,18 +647,58 @@ async function resolveUser(
       });
     }
   } catch (err) {
-    zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: String(err) });
+    // If the device_users table doesn't have a school_id column on
+    // this deploy, MySQL throws ER_BAD_FIELD_ERROR. Fall through to
+    // the school-less query so production stays online.
+    const msg = String(err);
+    if (/Unknown column 'du\.school_id'/i.test(msg) && enforceSchool) {
+      try {
+        const rows = await query(
+          `SELECT du.person_type, du.person_id
+           FROM device_users du
+           WHERE du.device_user_id = ? AND du.is_enrolled = 1
+           LIMIT 1`,
+          [deviceUserId],
+        );
+        if (rows && rows.length > 0) {
+          const row = rows[0];
+          const isStaff = row.person_type === 'staff' || row.person_type === 'teacher';
+          hits.push({
+            source:    'device_users',
+            studentId: row.person_type === 'student' ? row.person_id : null,
+            staffId:   isStaff                        ? row.person_id : null,
+          });
+        }
+      } catch (err2) {
+        zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: String(err2) });
+      }
+    } else {
+      zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: msg });
+    }
   }
 
-  // 3. device_user_mappings.
+  // 3. device_user_mappings — device_sn match already constrains the
+  //    physical device, but we still apply the school guard so a
+  //    cross-tenant mapping written by an admin error doesn't fire.
   try {
-    const rows = await query(
-      `SELECT dum.student_id, dum.staff_id
-       FROM device_user_mappings dum
-       WHERE dum.device_user_id = ? AND dum.device_sn = ?
-       LIMIT 1`,
-      [deviceUserId, deviceSn],
-    );
+    const rows = enforceSchool
+      ? await query(
+          `SELECT dum.student_id, dum.staff_id
+           FROM device_user_mappings dum
+           LEFT JOIN devices d ON d.sn = dum.device_sn
+           WHERE dum.device_user_id = ?
+             AND dum.device_sn = ?
+             AND (d.school_id = ? OR d.school_id IS NULL)
+           LIMIT 1`,
+          [deviceUserId, deviceSn, schoolId],
+        )
+      : await query(
+          `SELECT dum.student_id, dum.staff_id
+           FROM device_user_mappings dum
+           WHERE dum.device_user_id = ? AND dum.device_sn = ?
+           LIMIT 1`,
+          [deviceUserId, deviceSn],
+        );
     if (rows && rows.length > 0) {
       hits.push({
         source:    'device_user_mappings',
