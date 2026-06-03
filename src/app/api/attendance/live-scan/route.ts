@@ -137,6 +137,28 @@ export async function GET(req: NextRequest) {
                 }
               }
 
+              // PHASE BIO-8 — when still unmatched, attach the
+              // device-known name from device_user_directory. This is
+              // what the device thinks it knows about the punching
+              // user, captured from earlier USERINFO/OPERLOG records.
+              // Lets the popup show "ABUBAKAR SHEKHA ALI" rather than
+              // "User ID = 2". Best-effort; tolerates missing table.
+              let deviceKnownName: string | null = null;
+              if (!matched) {
+                try {
+                  const dud = await query(
+                    `SELECT device_name
+                       FROM device_user_directory
+                      WHERE device_sn = ? AND device_user_id = ?
+                      LIMIT 1`,
+                    [r.device_sn, r.device_user_id],
+                  );
+                  if (Array.isArray(dud) && (dud as any[]).length > 0) {
+                    deviceKnownName = (dud as any[])[0].device_name || null;
+                  }
+                } catch { /* table not yet created or query failed — keep null */ }
+              }
+
               const event = {
                 scan_id: r.id,
                 device_user_id: r.device_user_id,
@@ -146,6 +168,8 @@ export async function GET(req: NextRequest) {
                 matched,
                 person_type: personType,
                 device_name: r.device_name,
+                /** What the device thinks it knows. Useful when matched=false. */
+                device_known_name: deviceKnownName,
                 learner,
                 staff,
               };

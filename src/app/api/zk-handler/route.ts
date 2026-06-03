@@ -337,6 +337,66 @@ async function logDeviceEvent(entry: ZkDeviceLogEntry): Promise<void> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * PHASE BIO-8 — capture (device_sn, device_user_id) → name from every
+ * USERINFO push and every OPERLOG USER line. Keeps a directory of what
+ * the device thinks about its users so the popup can show
+ * "ABUBAKAR SHEKHA ALI" instead of "User ID = 2" even when the
+ * zk_user_mapping row doesn't exist yet.
+ *
+ * The table is created lazily (CREATE TABLE IF NOT EXISTS) on the
+ * first capture — no migration file, no startup hook.
+ *
+ * Idempotent: re-seeing the same PIN/Name updates last_seen and
+ * keeps first_seen. A name change on the device updates the row.
+ */
+async function captureDeviceUserDirectory(
+  deviceSn: string,
+  deviceUserId: string,
+  name: string,
+  schoolId: number | null,
+  extras: { card?: string; priv?: string } = {},
+): Promise<void> {
+  if (!deviceSn || !deviceUserId || !name) return;
+  const cleanName = String(name).trim();
+  if (!cleanName || cleanName.toLowerCase() === 'admin') return;
+
+  try {
+    await query(
+      `CREATE TABLE IF NOT EXISTS device_user_directory (
+         id              BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+         school_id       BIGINT       DEFAULT NULL,
+         device_sn       VARCHAR(64)  NOT NULL,
+         device_user_id  VARCHAR(64)  NOT NULL,
+         device_name     VARCHAR(255) NOT NULL,
+         device_card     VARCHAR(64)  DEFAULT NULL,
+         device_priv     VARCHAR(8)   DEFAULT NULL,
+         first_seen      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         last_seen       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         UNIQUE KEY uk_dud (device_sn, device_user_id),
+         KEY idx_dud_name (device_name),
+         KEY idx_dud_school (school_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      [],
+    );
+    await query(
+      `INSERT INTO device_user_directory
+         (school_id, device_sn, device_user_id, device_name, device_card, device_priv,
+          first_seen, last_seen)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+         device_name = VALUES(device_name),
+         device_card = COALESCE(NULLIF(VALUES(device_card), ''), device_card),
+         device_priv = COALESCE(NULLIF(VALUES(device_priv), ''), device_priv),
+         school_id   = COALESCE(VALUES(school_id), school_id),
+         last_seen   = NOW()`,
+      [schoolId, deviceSn, deviceUserId, cleanName, extras.card ?? null, extras.priv ?? null],
+    );
+  } catch (err) {
+    zkLog('warn', 'DUD_CAPTURE_FAILED', { deviceSn, deviceUserId, error: String(err) });
+  }
+}
+
 /** Get the school_id for a device from the devices table. */
 async function getDeviceSchoolId(sn: string): Promise<number | null> {
   try {
@@ -864,6 +924,15 @@ async function processUserInfo(
     const name = (record.NAME || record.USERNAME || '').trim();
     const cardNo = record.CARDNO || record.CARD || '';
     const deviceUserId = String(userId).trim();
+
+    // BIO-8 — capture into directory before any other processing.
+    // Runs even if name looks admin-ish (the directory is the
+    // forensic source of truth for what the device knows). Skip
+    // happens below for the create-student path only.
+    await captureDeviceUserDirectory(
+      deviceSn, deviceUserId, name, schoolId,
+      { card: cardNo, priv: record.PRI || record.PRIV },
+    );
 
     // Skip unnamed / admin accounts
     if (!name || name.toLowerCase() === 'admin') {
@@ -1513,6 +1582,15 @@ export async function POST(req: NextRequest) {
         // Format: USER PIN=4\tName=...\tPri=0\tPasswd=\tCard=\tGrp=1\t...
         const userPin = rec['USER PIN'];
         if (userPin) {
+          // BIO-8 — capture (sn, pin) → name so the popup can show the
+          // human-readable name on a future unmatched punch.
+          const userName = (rec.NAME || rec.USERNAME || '').trim();
+          if (userName) {
+            await captureDeviceUserDirectory(
+              sn, userPin, userName, schoolId,
+              { card: rec.CARD || rec.CARDNO, priv: rec.PRI },
+            );
+          }
           await saveParsedLog({
             rawLogId: rawLogId!, deviceSn: sn, schoolId,
             tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),

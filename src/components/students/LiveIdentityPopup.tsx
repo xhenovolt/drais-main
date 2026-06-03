@@ -36,6 +36,10 @@ interface ScanEvent {
   matched: boolean;
   person_type: 'student' | 'staff' | 'unmatched';
   device_name: string | null;
+  /** PHASE BIO-8: what the device thinks it knows about this PIN.
+   *  Captured from USERINFO/OPERLOG pushes. Useful when matched is
+   *  false — the popup shows this instead of just the PIN. */
+  device_known_name?: string | null;
   learner: LearnerInfo | null;
   staff: { first_name: string; last_name: string } | null;
 }
@@ -225,12 +229,28 @@ function buildSwalHtml(scan: ScanEvent): string {
   }
 
   // ── Unmatched ──
+  // PHASE BIO-8: prefer the device-known name (captured from
+  // USERINFO/OPERLOG) over the bare PIN. The popup now shows what the
+  // device thinks the person is called even when DRAIS doesn't have
+  // a mapping yet, so the operator can immediately see "ABUBAKAR
+  // SHEKHA ALI" and reach for the orphan-claim queue.
+  const knownName = (scan.device_known_name ?? '').trim();
+  if (knownName) {
+    return `
+      ${headerHtml}
+      <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
+        <div style="font-size:16px;font-weight:700;color:#0f172a">${escHtml(knownName)}</div>
+        <div style="color:#ef4444;font-weight:600;font-size:11px;margin:4px 0">Not mapped to a DRAIS learner or staff member</div>
+        <div style="font-family:monospace;color:#6b7280;font-size:11px">Device User: ${escHtml(scan.device_user_id)} (per device)</div>
+        <div style="color:#475569;font-size:11px;margin-top:6px">Go to <strong>Biometric &rsaquo; Orphan templates</strong> to claim this PIN for the right person.</div>
+      </div>`;
+  }
   return `
     ${headerHtml}
     <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
       <div style="font-size:16px;font-weight:700;color:#ef4444">Unrecognized ID</div>
       <div style="font-family:monospace;color:#6b7280;font-size:11px;margin-top:4px">Device User: ${escHtml(scan.device_user_id)}</div>
-      <div style="color:#ef4444;font-weight:600;font-size:11px;margin-top:4px">Not mapped to any student or staff</div>
+      <div style="color:#ef4444;font-weight:600;font-size:11px;margin-top:4px">No mapping AND no device-supplied name yet</div>
     </div>`;
 }
 
