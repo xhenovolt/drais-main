@@ -1,0 +1,30 @@
+#!/bin/sh
+# DRAIS pre-commit — bump package.json patch by 1 on every commit so
+# the version number is a literal odometer of git commits. See
+# scripts/bump-version.mjs for rationale.
+#
+# Cross-platform: this file runs under Git for Windows' bundled bash
+# (MINGW) the same way it runs under Linux. We deliberately do not
+# touch the .git/hooks/ directory directly; instead the project sets
+# `core.hooksPath` to .githooks via scripts/install-hooks.mjs (invoked
+# by `npm install`). That keeps the hook tracked in the repo.
+#
+# Failure modes:
+#   - If node is not on PATH: skip the bump and let the commit proceed.
+#     A stale version is annoying but better than blocking development.
+#   - If the script errors: same — skip rather than block.
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "[pre-commit] node not on PATH; skipping version bump."
+  exit 0
+fi
+
+if ! node scripts/bump-version.mjs; then
+  echo "[pre-commit] bump-version.mjs failed; committing without bump."
+  exit 0
+fi
+
+# Re-stage package.json so the bumped version is part of THIS commit
+# rather than dangling unstaged in the working tree.
+git add package.json
+exit 0
