@@ -2,6 +2,14 @@ import { NextRequest } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { getLearnerDeepInfo, type LearnerDeepInfo } from '@/lib/getLearnerDeepInfo';
+import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
+
+/** A fuzzy-match score this confident is treated as a "likely match"
+ *  for the operator — we surface the suspected learner's rich card
+ *  (class, fees, boarding/day) but tag it clearly so they still
+ *  confirm via the orphan-claim flow. Two strong tokens overlapping
+ *  out of three usually scores >= 0.5. */
+const TENTATIVE_SCORE_THRESHOLD = 0.5;
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -144,6 +152,9 @@ export async function GET(req: NextRequest) {
               // Lets the popup show "ABUBAKAR SHEKHA ALI" rather than
               // "User ID = 2". Best-effort; tolerates missing table.
               let deviceKnownName: string | null = null;
+              let tentativeLearner: LearnerDeepInfo | null = null;
+              let tentativeScore: number | null = null;
+              let tentativeStaffName: string | null = null;
               if (!matched) {
                 try {
                   const dud = await query(
@@ -157,6 +168,31 @@ export async function GET(req: NextRequest) {
                     deviceKnownName = (dud as any[])[0].device_name || null;
                   }
                 } catch { /* table not yet created or query failed — keep null */ }
+
+                // The whole reason we bother capturing the
+                // device-supplied name (BIO-8) is so we can surface
+                // the *learner context* — class, balance, boarding/day
+                // — for the suspected person while the operator
+                // formally claims the orphan PIN. Run the same fuzzy
+                // matcher that powers the orphan-claim queue and, if
+                // we're confident, hydrate the rich deep-info card.
+                if (deviceKnownName) {
+                  try {
+                    const cands = await fuzzyCandidates(deviceKnownName, session.schoolId);
+                    const top = cands[0];
+                    if (top && top.score >= TENTATIVE_SCORE_THRESHOLD) {
+                      if (top.type === 'student') {
+                        tentativeLearner = await getLearnerDeepInfo(top.id);
+                        tentativeScore = top.score;
+                      } else {
+                        tentativeStaffName = top.name;
+                        tentativeScore = top.score;
+                      }
+                    }
+                  } catch (err) {
+                    console.error('[LiveScan] Tentative fuzzy match failed:', err);
+                  }
+                }
               }
 
               const event = {
@@ -170,6 +206,15 @@ export async function GET(req: NextRequest) {
                 device_name: r.device_name,
                 /** What the device thinks it knows. Useful when matched=false. */
                 device_known_name: deviceKnownName,
+                /** Best-guess learner the device name resolves to —
+                 *  populated only when matched=false AND the fuzzy
+                 *  score is high enough to be useful. The popup shows
+                 *  this as a "Likely match" card with class, balance,
+                 *  and boarding/day, but the operator still has to
+                 *  claim the PIN before subsequent scans auto-resolve. */
+                tentative_learner: tentativeLearner,
+                tentative_staff_name: tentativeStaffName,
+                tentative_score: tentativeScore,
                 learner,
                 staff,
               };

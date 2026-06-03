@@ -12,11 +12,45 @@ export interface LearnerDeepInfo {
   enrollment_status: string | null;
   fee_balance: number;
   attendance_today: number;
+  /** Boarding | Day | null. Resolved from school-defined custom fields
+   *  whose codes typically include `is_boarding`, `boarding`,
+   *  `accommodation`, `accommodation_type`, `residence_type`,
+   *  `boarding_status`, `day_or_boarding`, `boarder`. */
+  accommodation: 'Boarding' | 'Day' | null;
+  /** Free-text section label (e.g. "House A", "Block 3") sourced from
+   *  custom fields with codes like `section`, `house`, `block`,
+   *  `dormitory`. */
+  section: string | null;
   guardian: {
     name: string;
     phone: string;
     relationship: string;
   } | null;
+}
+
+/** Codes (case-insensitive) that we treat as boarding-vs-day indicators. */
+const ACCOMMODATION_CODES = [
+  'is_boarding', 'boarding', 'boarder',
+  'accommodation', 'accommodation_type',
+  'residence_type', 'boarding_status', 'day_or_boarding',
+];
+
+/** Codes that we treat as a "section / house / block" label. */
+const SECTION_CODES = ['section', 'house', 'block', 'dormitory', 'dorm'];
+
+function coerceAccommodation(raw: unknown): 'Boarding' | 'Day' | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+  if (typeof raw === 'boolean') return raw ? 'Boarding' : 'Day';
+  if (typeof raw === 'number') return raw === 1 ? 'Boarding' : raw === 0 ? 'Day' : null;
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return null;
+  if (['1', 'true', 'yes', 'y', 'boarding', 'boarder', 'resident', 'residential'].includes(s)) return 'Boarding';
+  if (['0', 'false', 'no', 'n', 'day', 'day_scholar', 'day-scholar', 'non-boarding', 'non_boarding'].includes(s)) return 'Day';
+  // Schools sometimes put their own label — surface it as boarding when it
+  // looks boarding-y; otherwise default to Day to avoid false positives.
+  if (s.includes('board')) return 'Boarding';
+  if (s.includes('day')) return 'Day';
+  return null;
 }
 
 /**
@@ -76,6 +110,48 @@ export async function getLearnerDeepInfo(studentId: number): Promise<LearnerDeep
   );
   const attendanceToday = Number((attRows as any[])[0]?.cnt || 0);
 
+  // Boarding / Day + section from custom_fields.
+  // We probe by code (case-insensitive) so schools that named the
+  // field `is_boarding`, `accommodation`, `residence_type`, etc. all
+  // resolve. The query is best-effort — if the table is absent we
+  // simply return null for these fields rather than failing the popup.
+  let accommodation: 'Boarding' | 'Day' | null = null;
+  let section: string | null = null;
+  try {
+    const allCodes = [...ACCOMMODATION_CODES, ...SECTION_CODES];
+    const placeholders = allCodes.map(() => '?').join(',');
+    const cfRows = (await query(
+      `SELECT LOWER(f.code) AS code, f.data_type,
+              v.value_text, v.value_number, v.value_bool, v.value_json
+         FROM student_custom_values v
+         JOIN custom_fields f ON f.id = v.field_id
+        WHERE v.student_id = ?
+          AND f.is_active = 1
+          AND LOWER(f.code) IN (${placeholders})`,
+      [studentId, ...allCodes],
+    )) as Array<{
+      code: string; data_type: string;
+      value_text: string | null; value_number: number | null;
+      value_bool: number | null; value_json: string | null;
+    }>;
+
+    for (const cf of cfRows) {
+      const raw =
+        cf.value_bool !== null ? Boolean(cf.value_bool) :
+        cf.value_text          ? cf.value_text :
+        cf.value_number !== null ? cf.value_number :
+        cf.value_json          ? cf.value_json :
+        null;
+      if (ACCOMMODATION_CODES.includes(cf.code)) {
+        const decoded = coerceAccommodation(raw);
+        if (decoded && !accommodation) accommodation = decoded;
+      } else if (SECTION_CODES.includes(cf.code)) {
+        const txt = raw == null ? '' : String(raw).trim();
+        if (txt && !section) section = txt;
+      }
+    }
+  } catch { /* custom fields table missing — fall through with nulls */ }
+
   return {
     student_id: r.student_id,
     admission_no: r.admission_no,
@@ -88,6 +164,8 @@ export async function getLearnerDeepInfo(studentId: number): Promise<LearnerDeep
     enrollment_status: r.enrollment_status || null,
     fee_balance: feeBalance,
     attendance_today: attendanceToday,
+    accommodation,
+    section,
     guardian: r.guardian_phone
       ? {
           name: [r.guardian_first_name, r.guardian_last_name].filter(Boolean).join(' '),

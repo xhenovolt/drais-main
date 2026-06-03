@@ -24,6 +24,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 
 const FINGER_NAMES = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
@@ -101,137 +102,6 @@ export async function GET(req: NextRequest) {
   }));
 
   return NextResponse.json({ success: true, orphans: enriched });
-}
-
-/**
- * Find up to 3 people in this school whose name overlaps with the
- * device-supplied name. Uses a simple word-Jaccard scoring against a
- * normalised form (uppercase, strip non-letters, single spaces). Cheap
- * enough to run per orphan; intentionally NOT auto-claiming.
- *
- * The audit (Phase 8) warned that device names are often garbled, so
- * we surface ALL candidates with their scores; the operator picks.
- */
-async function fuzzyCandidates(
-  deviceName: string,
-  schoolId: number,
-): Promise<Array<{
-  type: 'student' | 'staff';
-  id: number;
-  name: string;
-  admissionNo?: string | null;
-  position?: string | null;
-  score: number;
-}>> {
-  const targetTokens = tokenize(deviceName);
-  if (targetTokens.length === 0) return [];
-
-  // Cheap WHERE: any LIKE on a "long enough" token. Keeps the row set
-  // small before we score in JS. We bias toward 4+-char tokens to
-  // dodge two-letter false positives (e.g. "ALI" could match too
-  // many; "ABUBAKAR" is tight).
-  const meatTokens = targetTokens.filter(t => t.length >= 4);
-  if (meatTokens.length === 0) return [];
-
-  // students
-  const studentLikes = meatTokens.map(t => `(LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR LOWER(p.other_name) LIKE ?)`).join(' OR ');
-  const studentParams: unknown[] = [schoolId];
-  for (const t of meatTokens) {
-    const pat = `%${t.toLowerCase()}%`;
-    studentParams.push(pat, pat, pat);
-  }
-  const students = (await query(
-    `SELECT s.id   AS student_id,
-            p.first_name, p.other_name, p.last_name,
-            s.admission_no
-       FROM students s
-       JOIN people  p ON p.id = s.person_id
-      WHERE s.school_id = ?
-        AND (${studentLikes})
-      LIMIT 25`,
-    studentParams,
-  )) as Array<{
-    student_id: number;
-    first_name: string | null; other_name: string | null; last_name: string | null;
-    admission_no: string | null;
-  }>;
-
-  // staff
-  const staffLikes = meatTokens.map(_ => `(LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR LOWER(p.other_name) LIKE ?)`).join(' OR ');
-  const staffParams: unknown[] = [schoolId];
-  for (const t of meatTokens) {
-    const pat = `%${t.toLowerCase()}%`;
-    staffParams.push(pat, pat, pat);
-  }
-  const staff = (await query(
-    `SELECT st.id AS staff_id, st.position,
-            p.first_name, p.other_name, p.last_name
-       FROM staff st
-       JOIN people p ON p.id = st.person_id
-      WHERE st.school_id = ?
-        AND (${staffLikes})
-      LIMIT 25`,
-    staffParams,
-  )) as Array<{
-    staff_id: number; position: string | null;
-    first_name: string | null; other_name: string | null; last_name: string | null;
-  }>;
-
-  type Candidate = { type: 'student' | 'staff'; id: number; name: string; admissionNo?: string | null; position?: string | null; score: number };
-  const all: Candidate[] = [];
-  for (const s of students) {
-    const fullName = [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ').trim();
-    all.push({
-      type: 'student',
-      id:   s.student_id,
-      name: fullName,
-      admissionNo: s.admission_no,
-      score: jaccardScore(targetTokens, tokenize(fullName)),
-    });
-  }
-  for (const s of staff) {
-    const fullName = [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ').trim();
-    all.push({
-      type: 'staff',
-      id:   s.staff_id,
-      name: fullName,
-      position: s.position,
-      score: jaccardScore(targetTokens, tokenize(fullName)),
-    });
-  }
-  // Sort by score desc, dedupe by (type, id), keep top 3 above 0.34 (one strong word match out of three).
-  all.sort((a, b) => b.score - a.score);
-  const seen = new Set<string>();
-  const out: Candidate[] = [];
-  for (const c of all) {
-    if (c.score < 0.34) break;
-    const key = `${c.type}:${c.id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(c);
-    if (out.length >= 3) break;
-  }
-  return out;
-}
-
-function tokenize(s: string): string[] {
-  return s
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-}
-
-function jaccardScore(a: string[], b: string[]): number {
-  if (a.length === 0 || b.length === 0) return 0;
-  const setA = new Set(a);
-  const setB = new Set(b);
-  let inter = 0;
-  for (const t of setA) if (setB.has(t)) inter++;
-  const union = setA.size + setB.size - inter;
-  return union === 0 ? 0 : inter / union;
 }
 
 export async function POST(req: NextRequest) {

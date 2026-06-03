@@ -24,6 +24,10 @@ interface LearnerInfo {
   enrollment_status: string | null;
   fee_balance: number;
   attendance_today: number;
+  /** "Boarding" | "Day" | null — from school-defined custom field. */
+  accommodation?: 'Boarding' | 'Day' | null;
+  /** Section / house / block / dorm label, if the school tracks it. */
+  section?: string | null;
   guardian: Guardian | null;
 }
 
@@ -40,6 +44,13 @@ interface ScanEvent {
    *  Captured from USERINFO/OPERLOG pushes. Useful when matched is
    *  false — the popup shows this instead of just the PIN. */
   device_known_name?: string | null;
+  /** Best-guess learner the device name fuzzy-resolves to when the
+   *  PIN itself is unmapped. The popup renders this as a "Likely
+   *  match" card so the operator gets the full context (class,
+   *  balance, boarding/day) while the orphan claim is still pending. */
+  tentative_learner?: LearnerInfo | null;
+  tentative_staff_name?: string | null;
+  tentative_score?: number | null;
   learner: LearnerInfo | null;
   staff: { first_name: string; last_name: string } | null;
 }
@@ -144,6 +155,99 @@ function escHtml(s: string | null | undefined): string {
     .replace(/'/g, '&#x27;');
 }
 
+/** Renders the rich learner card body. Shared by the confirmed-match
+ *  (person_type === 'student') branch and the tentative-match branch
+ *  used when an unrecognised PIN's device-supplied name fuzzy-resolves
+ *  to a known learner. The `tentative` flag swaps to softer styling
+ *  and shows a "Likely match" caveat instead of the IO/check-in line. */
+function buildLearnerCard(
+  scan: ScanEvent,
+  learner: LearnerInfo,
+  options: { tentative?: boolean; score?: number | null } = {},
+): string {
+  const { tentative = false, score = null } = options;
+
+  const photoHtml = learner.photo_url
+    ? `<img src="${escHtml(learner.photo_url)}" alt="" style="width:56px;height:56px;border-radius:12px;object-fit:cover" />`
+    : `<div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0">${escHtml((learner.first_name?.[0] ?? '') + (learner.last_name?.[0] ?? ''))}</div>`;
+
+  const classHtml = learner.class_name
+    ? `${escHtml(learner.class_name)}${learner.stream_name ? ' · ' + escHtml(learner.stream_name) : ''}`
+    : 'Admitted · Not Yet Enrolled';
+
+  // Boarding/Day pill + optional section pill, rendered inline next
+  // to the class line so the operator sees at a glance which section
+  // the learner belongs to. We only render badges that have a value;
+  // schools without these custom fields just see the class line.
+  const accommodationBadge = learner.accommodation
+    ? `<span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:6px;letter-spacing:.02em;${
+        learner.accommodation === 'Boarding'
+          ? 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0'
+          : 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe'
+      }">${escHtml(learner.accommodation)}</span>`
+    : '';
+  const sectionBadge = learner.section
+    ? `<span style="display:inline-block;font-size:10px;font-weight:600;padding:2px 6px;border-radius:6px;margin-left:4px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0">${escHtml(learner.section)}</span>`
+    : '';
+
+  const balanceBg = learner.fee_balance > 0 ? '#fff7ed' : '#f0fdf4';
+  const balanceColor = learner.fee_balance > 0 ? '#b45309' : '#15803d';
+
+  const guardianHtml = learner.guardian
+    ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;margin-top:8px">
+        <span style="font-size:11px;color:#374151">👤 <strong>${escHtml(learner.guardian.name)}</strong> (${escHtml(learner.guardian.relationship)})<br/><a href="tel:${escHtml(learner.guardian.phone)}" style="color:#2563eb;text-decoration:none">${escHtml(learner.guardian.phone)}</a></span>
+      </div>`
+    : '';
+
+  const profileUrl = `/students/${learner.student_id}`;
+
+  const tentativeBanner = tentative
+    ? `<div style="background:#fef3c7;border:1px solid #fcd34d;color:#92400e;padding:6px 8px;border-radius:8px;font-size:11px;font-weight:600;margin-bottom:8px">
+        ⚠ Likely match — PIN ${escHtml(scan.device_user_id)} not yet claimed${score != null ? ` · ${Math.round(score * 100)}% confidence` : ''}
+      </div>`
+    : '';
+
+  const footerLine = tentative
+    ? `<span>Go to <strong>Biometric &rsaquo; Orphan templates</strong> to confirm</span>
+       <span>${escHtml(formatTime(scan.check_time))}</span>`
+    : `<span>${escHtml(verifyLabel(scan.verify_type))} · ${escHtml(ioLabel(scan.io_mode))}</span>
+       <span>${escHtml(formatTime(scan.check_time))}</span>
+       ${scan.device_name ? `<span>${escHtml(scan.device_name)}</span>` : ''}`;
+
+  return `
+    <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
+      ${tentativeBanner}
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+        ${photoHtml}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(learner.first_name)} ${escHtml(learner.last_name)}</div>
+          <div style="font-size:11px;color:#6b7280;font-family:monospace">${escHtml(learner.admission_no || 'ID: ' + scan.device_user_id)}</div>
+          <div style="font-size:11px;color:#4f46e5;font-weight:600;margin-top:2px;display:flex;align-items:center;flex-wrap:wrap">
+            <span>${classHtml}</span>${accommodationBadge}${sectionBadge}
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="background:${balanceBg};border-radius:8px;padding:8px 10px;border:1px solid #e5e7eb">
+          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Balance</div>
+          <div style="font-weight:700;color:${balanceColor}">UGX ${learner.fee_balance.toLocaleString()}</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;border:1px solid #e5e7eb">
+          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Today</div>
+          <div style="font-weight:700;color:#374151">${learner.attendance_today} scan${learner.attendance_today !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
+      ${guardianHtml}
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <a href="${escHtml(profileUrl)}" onclick="window.location.href='${escHtml(profileUrl)}';Swal.close();return false;" style="flex:1;display:block;text-align:center;padding:8px;background:${tentative ? '#f59e0b' : '#4f46e5'};color:#fff;border-radius:8px;font-weight:600;font-size:12px;text-decoration:none">${tentative ? 'Open Suspected Profile' : 'View Profile'}</a>
+        ${learner.guardian?.phone ? `<a href="tel:${escHtml(learner.guardian.phone)}" style="padding:8px 12px;border:1px solid #93c5fd;color:#2563eb;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">Call Parent</a>` : ''}
+      </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between;gap:6px">
+        ${footerLine}
+      </div>
+    </div>`;
+}
+
 function buildSwalHtml(scan: ScanEvent): string {
   const learner = scan.learner;
 
@@ -164,57 +268,7 @@ function buildSwalHtml(scan: ScanEvent): string {
 
   // ── Student ──
   if (scan.person_type === 'student' && learner) {
-    const photoHtml = learner.photo_url
-      ? `<img src="${escHtml(learner.photo_url)}" alt="" style="width:56px;height:56px;border-radius:12px;object-fit:cover" />`
-      : `<div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0">${escHtml((learner.first_name?.[0] ?? '') + (learner.last_name?.[0] ?? ''))}</div>`;
-
-    const classHtml = learner.class_name
-      ? `${escHtml(learner.class_name)}${learner.stream_name ? ' · ' + escHtml(learner.stream_name) : ''}`
-      : 'Admitted · Not Yet Enrolled';
-
-    const balanceBg = learner.fee_balance > 0 ? '#fff7ed' : '#f0fdf4';
-    const balanceColor = learner.fee_balance > 0 ? '#b45309' : '#15803d';
-
-    const guardianHtml = learner.guardian
-      ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;margin-top:8px">
-          <span style="font-size:11px;color:#374151">👤 <strong>${escHtml(learner.guardian.name)}</strong> (${escHtml(learner.guardian.relationship)})<br/><a href="tel:${escHtml(learner.guardian.phone)}" style="color:#2563eb;text-decoration:none">${escHtml(learner.guardian.phone)}</a></span>
-        </div>`
-      : '';
-
-    const profileUrl = `/students/${learner.student_id}`;
-
-    return `
-      ${headerHtml}
-      <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
-          ${photoHtml}
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(learner.first_name)} ${escHtml(learner.last_name)}</div>
-            <div style="font-size:11px;color:#6b7280;font-family:monospace">${escHtml(learner.admission_no || 'ID: ' + scan.device_user_id)}</div>
-            <div style="font-size:11px;color:#4f46e5;font-weight:600;margin-top:2px">${classHtml}</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <div style="background:${balanceBg};border-radius:8px;padding:8px 10px;border:1px solid #e5e7eb">
-            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Balance</div>
-            <div style="font-weight:700;color:${balanceColor}">UGX ${learner.fee_balance.toLocaleString()}</div>
-          </div>
-          <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;border:1px solid #e5e7eb">
-            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Today</div>
-            <div style="font-weight:700;color:#374151">${learner.attendance_today} scan${learner.attendance_today !== 1 ? 's' : ''}</div>
-          </div>
-        </div>
-        ${guardianHtml}
-        <div style="margin-top:10px;display:flex;gap:6px">
-          <a href="${escHtml(profileUrl)}" onclick="window.location.href='${escHtml(profileUrl)}';Swal.close();return false;" style="flex:1;display:block;text-align:center;padding:8px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:600;font-size:12px;text-decoration:none">View Profile</a>
-          ${learner.guardian?.phone ? `<a href="tel:${escHtml(learner.guardian.phone)}" style="padding:8px 12px;border:1px solid #93c5fd;color:#2563eb;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">Call Parent</a>` : ''}
-        </div>
-        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between">
-          <span>${escHtml(verifyLabel(scan.verify_type))} · ${escHtml(ioLabel(scan.io_mode))}</span>
-          <span>${escHtml(formatTime(scan.check_time))}</span>
-          ${scan.device_name ? `<span>${escHtml(scan.device_name)}</span>` : ''}
-        </div>
-      </div>`;
+    return headerHtml + buildLearnerCard(scan, learner);
   }
 
   // ── Staff ──
@@ -229,11 +283,37 @@ function buildSwalHtml(scan: ScanEvent): string {
   }
 
   // ── Unmatched ──
-  // PHASE BIO-8: prefer the device-known name (captured from
-  // USERINFO/OPERLOG) over the bare PIN. The popup now shows what the
-  // device thinks the person is called even when DRAIS doesn't have
-  // a mapping yet, so the operator can immediately see "ABUBAKAR
-  // SHEKHA ALI" and reach for the orphan-claim queue.
+  // PHASE BIO-8 / BIO-9: when the device gave us a name, we first try
+  // to fuzzy-resolve it to a real learner in DRAIS. If we're
+  // confident, the popup renders the full rich card (class, balance,
+  // boarding/day) with a "Likely match" caveat so the operator gets
+  // actionable context. If only a name (no confident match), we still
+  // surface that name so they know who to look for in the orphan
+  // queue. Last resort: just the PIN.
+  if (scan.tentative_learner) {
+    const tentHeaderHtml = `
+      <div style="background:#f59e0b;color:#fff;padding:10px 16px;margin:-20px -20px 12px;border-radius:12px 12px 0 0;font-weight:700;font-size:14px;text-align:left">
+        Unclaimed PIN — Likely Match
+      </div>`;
+    return tentHeaderHtml + buildLearnerCard(scan, scan.tentative_learner, {
+      tentative: true,
+      score: scan.tentative_score ?? null,
+    });
+  }
+
+  if (scan.tentative_staff_name) {
+    return `
+      ${headerHtml}
+      <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
+        <div style="background:#fef3c7;border:1px solid #fcd34d;color:#92400e;padding:6px 8px;border-radius:8px;font-size:11px;font-weight:600;margin-bottom:8px">
+          ⚠ Likely staff match — PIN ${escHtml(scan.device_user_id)} not yet claimed
+        </div>
+        <div style="font-size:16px;font-weight:700;color:#0f172a">${escHtml(scan.tentative_staff_name)}</div>
+        <div style="color:#6366f1;font-weight:600;margin:2px 0 6px">Staff Member (suspected)</div>
+        <div style="color:#475569;font-size:11px">Go to <strong>Biometric &rsaquo; Orphan templates</strong> to confirm.</div>
+      </div>`;
+  }
+
   const knownName = (scan.device_known_name ?? '').trim();
   if (knownName) {
     return `

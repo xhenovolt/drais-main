@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
+import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -394,6 +395,130 @@ async function captureDeviceUserDirectory(
     );
   } catch (err) {
     zkLog('warn', 'DUD_CAPTURE_FAILED', { deviceSn, deviceUserId, error: String(err) });
+  }
+}
+
+/**
+ * PHASE BIO-9 — autonomous PIN→learner linking from a device-supplied
+ * name.
+ *
+ * Until this helper existed, OPERLOG USER records (sent by the device
+ * whenever a user is enrolled or edited on the keypad / via the DRAIS
+ * enrollment cycle) were captured into device_user_directory but no
+ * lookup against the real `people` table was attempted. processUserInfo
+ * tried, but only with a strict first/last exact-equality match — a
+ * three-token device name like "ABUBAKAR SHEKHA ALI" splits as
+ * first="ABUBAKAR", last="SHEKHA ALI" and never matches a real row
+ * stored as first/other/last. The audit (Phase 8) flagged this as the
+ * reason the live popup kept saying "Unrecognized ID" even right after
+ * a successful enrollment.
+ *
+ * Behaviour:
+ *   1. If (device_sn, device_user_id) already resolves to a real
+ *      student/staff via zk_user_mapping, do nothing.
+ *   2. Otherwise run fuzzyCandidates over students + staff in the
+ *      device's school.
+ *   3. Auto-link ONLY when the top candidate is unambiguous:
+ *        - top.score >= AUTOLINK_MIN_SCORE (0.6), and
+ *        - either there is no runner-up, or top - second >= AUTOLINK_MARGIN (0.2).
+ *      A tie or a thin margin is left to the operator (the orphan-claim
+ *      queue + the popup's "Likely match" card still surface it).
+ *   4. On link, write the zk_user_mapping row with school scope. Every
+ *      decision (link or skip) is logged with the score and runner-up
+ *      so the trail is auditable.
+ *
+ * Returns true when a mapping was created. Best-effort; never throws.
+ */
+const AUTOLINK_MIN_SCORE = 0.6;
+const AUTOLINK_MARGIN    = 0.2;
+
+async function autoLinkPinFromName(
+  deviceSn: string,
+  deviceUserId: string,
+  name: string,
+  schoolId: number | null,
+): Promise<boolean> {
+  if (!deviceSn || !deviceUserId || !name || !schoolId) return false;
+  const cleanName = String(name).trim();
+  if (!cleanName || cleanName.toLowerCase() === 'admin') return false;
+
+  try {
+    const existing = await query(
+      `SELECT student_id, staff_id FROM zk_user_mapping
+       WHERE device_user_id = ? AND school_id = ?
+         AND (student_id IS NOT NULL OR staff_id IS NOT NULL)
+       LIMIT 1`,
+      [deviceUserId, schoolId],
+    );
+    if (Array.isArray(existing) && existing.length > 0) return false;
+
+    const candidates = await fuzzyCandidates(cleanName, schoolId);
+    if (candidates.length === 0) {
+      zkLog('info', 'AUTOLINK_NO_CANDIDATES', { deviceSn, deviceUserId, name: cleanName });
+      return false;
+    }
+    const top = candidates[0];
+    const second = candidates[1];
+    if (top.score < AUTOLINK_MIN_SCORE) {
+      zkLog('info', 'AUTOLINK_BELOW_THRESHOLD', {
+        deviceSn, deviceUserId, name: cleanName,
+        topScore: top.score, topName: top.name,
+      });
+      return false;
+    }
+    if (second && (top.score - second.score) < AUTOLINK_MARGIN) {
+      zkLog('info', 'AUTOLINK_AMBIGUOUS', {
+        deviceSn, deviceUserId, name: cleanName,
+        topScore: top.score, topName: top.name,
+        secondScore: second.score, secondName: second.name,
+      });
+      return false;
+    }
+
+    const studentId = top.type === 'student' ? top.id : null;
+    const staffId   = top.type === 'staff'   ? top.id : null;
+    const userType  = top.type;
+
+    await query(
+      `INSERT INTO zk_user_mapping
+         (school_id, device_user_id, user_type, student_id, staff_id, device_sn)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         student_id = COALESCE(VALUES(student_id), student_id),
+         staff_id   = COALESCE(VALUES(staff_id),   staff_id),
+         user_type  = VALUES(user_type),
+         device_sn  = COALESCE(VALUES(device_sn),  device_sn),
+         updated_at = CURRENT_TIMESTAMP`,
+      [schoolId, deviceUserId, userType, studentId, staffId, deviceSn],
+    );
+
+    zkLog('info', 'AUTOLINK_OK', {
+      deviceSn, deviceUserId, name: cleanName,
+      matchedType: top.type, matchedId: top.id, matchedName: top.name,
+      topScore: top.score, secondScore: second?.score ?? null,
+    });
+
+    // Backfill any prior unmatched attendance logs for this (sn, pin)
+    // so they now resolve in reports + live popup deduplication.
+    try {
+      const updateField = studentId ? 'student_id' : 'staff_id';
+      const updateValue = studentId ?? staffId;
+      await query(
+        `UPDATE zk_attendance_logs
+            SET ${updateField} = ?, matched = 1
+          WHERE device_user_id = ?
+            AND device_sn = ?
+            AND matched = 0`,
+        [updateValue, deviceUserId, deviceSn],
+      );
+    } catch { /* non-critical backfill */ }
+
+    return true;
+  } catch (err) {
+    zkLog('warn', 'AUTOLINK_FAILED', {
+      deviceSn, deviceUserId, name, error: String(err),
+    });
+    return false;
   }
 }
 
@@ -987,8 +1112,20 @@ async function processUserInfo(
         studentId = existingStudent[0].student_id;
         personId = existingStudent[0].person_id;
         zkLog('info', 'USERINFO_NAME_MATCHED', { userId, name, studentId, personId });
+      } else if (await autoLinkPinFromName(deviceSn, deviceUserId, name, schoolId)) {
+        // BIO-9 — fuzzy match wrote zk_user_mapping for us. Skip the
+        // exact-match phantom-creation path; the next attendance punch
+        // will resolve via zk_user_mapping. Multi-token device names
+        // ("ABUBAKAR SHEKHA ALI" → first/other/last) fall in here.
+        created++;
+        learnersCreated++;
+        continue;
       } else {
-        // No name match — create new person + student records
+        // No exact match AND no confident fuzzy match — create new
+        // person + student records as a stub so the operator can
+        // reconcile manually later. This is the only path that creates
+        // a phantom row, and only when we're genuinely confident the
+        // name does not belong to anyone already in DRAIS.
         const personResult: any = await query(
           `INSERT INTO people (school_id, first_name, last_name, created_at)
            VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
@@ -1590,6 +1727,13 @@ export async function POST(req: NextRequest) {
               sn, userPin, userName, schoolId,
               { card: rec.CARD || rec.CARDNO, priv: rec.PRI },
             );
+            // BIO-9 — and try to bind the PIN to the real learner/staff
+            // member that name fuzzy-resolves to. Without this, an
+            // enrollment that came through DRAIS leaves zk_user_mapping
+            // empty for the new PIN and the very next punch shows
+            // "Unrecognized ID" in the live popup. Conservative: only
+            // links when the top match is unambiguous.
+            await autoLinkPinFromName(sn, userPin, userName, schoolId);
           }
           await saveParsedLog({
             rawLogId: rawLogId!, deviceSn: sn, schoolId,
