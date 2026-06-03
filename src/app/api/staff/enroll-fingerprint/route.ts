@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { allocatePin, PinExhaustedError } from '@/lib/biometric/pin-allocator';
+import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 
 export const runtime = 'nodejs';
 
@@ -221,6 +222,11 @@ export async function POST(req: NextRequest) {
     );
 
     const commandId = (result as any)?.insertId;
+
+    // BIO-10 — see lib/biometric/device-directory.ts: write the
+    // directory at queue time because most firmware never echoes a
+    // USER OPERLOG line after a DATA UPDATE USERINFO push.
+    await captureDeviceUserDirectory(device_sn, String(device_user_id), safeName, deviceSchoolId);
 
     console.log(
       `[staff/enroll-fingerprint] Synced identity for ${safeName} (PIN=${device_user_id}) on ${device_sn}, cmd=${commandId}`,

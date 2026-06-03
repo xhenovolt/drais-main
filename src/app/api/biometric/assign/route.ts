@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 
 export const runtime = 'nodejs';
 
@@ -117,6 +118,14 @@ export async function POST(req: NextRequest) {
        VALUES (?, ?, 5, 'pending', ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))`,
       [enr.device_sn, updateCmd, schoolId],
     ).catch(() => {}); // non-fatal — device will show correct name on next name re-confirm
+
+    // BIO-10 — populate the device-name directory immediately so the
+    // live popup can resolve the PIN even before the device echoes
+    // back. Without this the popup keeps saying "Unrecognized ID"
+    // after a freshly DRAIS-assigned enrollment.
+    await captureDeviceUserDirectory(
+      enr.device_sn, String(enr.device_slot), zkName, schoolId,
+    );
 
     return NextResponse.json({ ok: true, enrollment_id, student_id, student_name: studentName });
   } catch (e: any) {

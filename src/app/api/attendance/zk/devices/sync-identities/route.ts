@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 
 export const runtime = 'nodejs';
 
@@ -185,6 +186,13 @@ export async function POST(req: NextRequest) {
             `INSERT INTO zk_device_commands (school_id, device_sn, command, priority, max_retries, expires_at, created_by)
              VALUES (?, ?, ?, 5, 5, DATE_ADD(NOW(), INTERVAL 24 HOUR), ?)`,
             [deviceSchoolId, device_sn, cmd, session.userId],
+          );
+
+          // BIO-10 — record what name we just told the device about
+          // this PIN, so the live popup can show it on the very next
+          // scan even if the device never echoes a USER OPERLOG line.
+          await captureDeviceUserDirectory(
+            device_sn, String(entry.pin), entry.name, deviceSchoolId,
           );
 
           // Log to system_logs

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 
 export const runtime = 'nodejs';
 
@@ -214,6 +215,13 @@ export async function POST(req: NextRequest) {
              VALUES (?, ?, ?, 5, 5, DATE_ADD(NOW(), INTERVAL 24 HOUR), ?)`,
             [deviceSchoolId, device_sn, cmd, session.userId],
           );
+
+          // BIO-10 — record the directory entry now, while DRAIS knows
+          // the name. Without this the popup can't show a name until
+          // the device echoes back a USER OPERLOG line, which most
+          // firmware never does after a DATA UPDATE USERINFO push.
+          await captureDeviceUserDirectory(device_sn, String(pin), name, deviceSchoolId);
+
           queued++;
         } catch (err: any) {
           errors.push(`PIN ${pin}: ${err.message}`);

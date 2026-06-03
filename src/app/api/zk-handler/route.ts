@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
+import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -337,66 +338,6 @@ async function logDeviceEvent(entry: ZkDeviceLogEntry): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * PHASE BIO-8 — capture (device_sn, device_user_id) → name from every
- * USERINFO push and every OPERLOG USER line. Keeps a directory of what
- * the device thinks about its users so the popup can show
- * "ABUBAKAR SHEKHA ALI" instead of "User ID = 2" even when the
- * zk_user_mapping row doesn't exist yet.
- *
- * The table is created lazily (CREATE TABLE IF NOT EXISTS) on the
- * first capture — no migration file, no startup hook.
- *
- * Idempotent: re-seeing the same PIN/Name updates last_seen and
- * keeps first_seen. A name change on the device updates the row.
- */
-async function captureDeviceUserDirectory(
-  deviceSn: string,
-  deviceUserId: string,
-  name: string,
-  schoolId: number | null,
-  extras: { card?: string; priv?: string } = {},
-): Promise<void> {
-  if (!deviceSn || !deviceUserId || !name) return;
-  const cleanName = String(name).trim();
-  if (!cleanName || cleanName.toLowerCase() === 'admin') return;
-
-  try {
-    await query(
-      `CREATE TABLE IF NOT EXISTS device_user_directory (
-         id              BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-         school_id       BIGINT       DEFAULT NULL,
-         device_sn       VARCHAR(64)  NOT NULL,
-         device_user_id  VARCHAR(64)  NOT NULL,
-         device_name     VARCHAR(255) NOT NULL,
-         device_card     VARCHAR(64)  DEFAULT NULL,
-         device_priv     VARCHAR(8)   DEFAULT NULL,
-         first_seen      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-         last_seen       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-         UNIQUE KEY uk_dud (device_sn, device_user_id),
-         KEY idx_dud_name (device_name),
-         KEY idx_dud_school (school_id)
-       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-      [],
-    );
-    await query(
-      `INSERT INTO device_user_directory
-         (school_id, device_sn, device_user_id, device_name, device_card, device_priv,
-          first_seen, last_seen)
-       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-       ON DUPLICATE KEY UPDATE
-         device_name = VALUES(device_name),
-         device_card = COALESCE(NULLIF(VALUES(device_card), ''), device_card),
-         device_priv = COALESCE(NULLIF(VALUES(device_priv), ''), device_priv),
-         school_id   = COALESCE(VALUES(school_id), school_id),
-         last_seen   = NOW()`,
-      [schoolId, deviceSn, deviceUserId, cleanName, extras.card ?? null, extras.priv ?? null],
-    );
-  } catch (err) {
-    zkLog('warn', 'DUD_CAPTURE_FAILED', { deviceSn, deviceUserId, error: String(err) });
-  }
-}
 
 /**
  * PHASE BIO-9 — autonomous PIN→learner linking from a device-supplied
