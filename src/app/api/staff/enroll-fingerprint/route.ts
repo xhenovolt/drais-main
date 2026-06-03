@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { allocatePin, PinExhaustedError } from '@/lib/biometric/pin-allocator';
 
 export const runtime = 'nodejs';
 
@@ -159,27 +160,29 @@ export async function POST(req: NextRequest) {
     if (mappingRows && mappingRows.length > 0) {
       device_user_id = Number(mappingRows[0].device_user_id);
     } else {
-      // ── 4a. No mapping → assign next sequential PIN ──
-      const maxRow = await query(
-        `SELECT MAX(CAST(device_user_id AS UNSIGNED)) AS max_pin FROM device_user_mappings`,
-      );
-      device_user_id = Math.max(1, (Number(maxRow?.[0]?.max_pin) || 0) + 1);
-      if (device_user_id > 65535) {
-        return NextResponse.json(
-          { error: 'PIN limit reached (65535). Cannot assign more users.' },
-          { status: 400 },
-        );
+      // PHASE BIO-6 — collision-safe allocator. Also converges
+      // writes onto zk_user_mapping (the dominant table) so the
+      // staff>student precedence rule in resolveUser fires
+      // correctly. Previous code wrote to device_user_mappings with
+      // person_type='teacher' — which the audit (Phase 5) flagged as
+      // a structurally-secondary table.
+      try {
+        const allocated = await allocatePin({
+          schoolId:  deviceSchoolId,
+          deviceSn:  device_sn,
+          userType:  'staff',
+          staffId:   Number(staff_id),
+        });
+        device_user_id = allocated.pin;
+      } catch (e) {
+        if (e instanceof PinExhaustedError) {
+          return NextResponse.json(
+            { error: 'PIN limit reached (65535). Cannot assign more users.' },
+            { status: 400 },
+          );
+        }
+        throw e;
       }
-
-      // Upsert mapping with staff_id
-      await query(
-        `INSERT INTO device_user_mappings (school_id, device_user_id, person_type, staff_id, device_sn)
-         VALUES (?, ?, 'teacher', ?, ?)
-         ON DUPLICATE KEY UPDATE
-           staff_id = VALUES(staff_id),
-           updated_at = CURRENT_TIMESTAMP`,
-        [deviceSchoolId, String(device_user_id), staff_id, device_sn],
-      );
     }
 
     // ── 5. Check for existing pending/sent DATA UPDATE USERINFO command for this PIN ──
