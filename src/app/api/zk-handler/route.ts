@@ -548,90 +548,126 @@ async function markCommandSent(commandId: number, batchIds?: number[]): Promise<
 
 /**
  * Match a device USERID to a student or staff record.
- * Matching chain:
- *   1. zk_user_mapping (ZK-specific mapping, per-device or global)
- *   2. device_users (general biometric device mapping by device_user_id)
- *   3. Unmatched — still saved for later manual mapping
+ *
+ * Lookup chain (BIO-2 — role-transition safe):
+ *   1. zk_user_mapping        (ZK-specific mapping, per-device or global)
+ *   2. device_users           (general biometric device mapping)
+ *   3. device_user_mappings   (ADMS device-level mapping)
+ *
+ * PRECEDENCE: when multiple rows for the same device_user_id resolve
+ * to DIFFERENT roles, STAFF wins. Rationale: the forensic audit
+ * found that a former-learner-now-staff person keeps their original
+ * student mapping (append-only writers). Without precedence, the
+ * stale student row shadows the staff row and every staff scan lands
+ * on a deleted-from-active-roster student record. Staff > student
+ * means a real role transition surfaces correctly the moment the
+ * staff mapping is written.
+ *
+ * Within a single table we still take the first row (LIMIT 1).
+ * Across tables we now collect all hits and pick the highest-priority
+ * non-null staffId; only if no staff row exists anywhere do we use a
+ * studentId.
  */
 async function resolveUser(
   deviceUserId: string,
   deviceSn: string,
   schoolId: number,
 ): Promise<{ studentId: number | null; staffId: number | null; matched: boolean }> {
-  // 1. Check ZK user mapping (ZK-specific)
-  // NOTE: school_id intentionally NOT enforced — device may serve students
-  // from a different school than the device's registered school.
+  // Collect hits from every table that has data for this PIN. Each
+  // hit carries the source-table tag for log forensics.
+  const hits: Array<{ source: string; studentId: number | null; staffId: number | null }> = [];
+
+  // 1. zk_user_mapping. NOTE: school_id intentionally NOT enforced —
+  //    device may legitimately serve students from a different school
+  //    than the device's registered school. The school-scope guard
+  //    (BIO-5) wraps this in a per-school override.
   try {
-    const mapping = await query(
+    const rows = await query(
       `SELECT user_type, student_id, staff_id FROM zk_user_mapping
        WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
        LIMIT 1`,
       [deviceUserId, deviceSn],
     );
-    if (mapping && mapping.length > 0) {
-      return {
-        studentId: mapping[0].student_id ?? null,
-        staffId: mapping[0].staff_id ?? null,
-        matched: true,
-      };
+    if (rows && rows.length > 0) {
+      hits.push({
+        source:    'zk_user_mapping',
+        studentId: rows[0].student_id ?? null,
+        staffId:   rows[0].staff_id   ?? null,
+      });
     }
   } catch (err) {
     zkLog('warn', 'ZK_MAPPING_QUERY_FAILED', { deviceUserId, error: String(err) });
   }
 
-  // 2. Check device_users table (general biometric mapping)
-  // NOTE: school_id intentionally NOT enforced — same reasoning as above.
-  //
-  // BUGFIX (PHASE BIO-1): the previous version routed person_type to
-  // staffId ONLY when row.person_type === 'teacher'. Every WRITER in
-  // the codebase uses 'staff' (and a handful use 'teacher'). The
-  // strict equality silently dropped every 'staff' row in this table
-  // — an entire mapping source was unreachable for years. We now
-  // accept BOTH spellings on read; writers can be migrated to a
-  // single canonical value in a later sweep.
+  // 2. device_users (BIO-1: accept staff OR teacher tagging).
   try {
-    const deviceUser = await query(
+    const rows = await query(
       `SELECT du.person_type, du.person_id
        FROM device_users du
        WHERE du.device_user_id = ? AND du.is_enrolled = 1
        LIMIT 1`,
       [deviceUserId],
     );
-    if (deviceUser && deviceUser.length > 0) {
-      const row = deviceUser[0];
+    if (rows && rows.length > 0) {
+      const row = rows[0];
       const isStaff = row.person_type === 'staff' || row.person_type === 'teacher';
-      return {
+      hits.push({
+        source:    'device_users',
         studentId: row.person_type === 'student' ? row.person_id : null,
         staffId:   isStaff                        ? row.person_id : null,
-        matched: true,
-      };
+      });
     }
   } catch (err) {
     zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: String(err) });
   }
 
-  // 3. Check device_user_mappings table (ADMS device-level mapping)
+  // 3. device_user_mappings.
   try {
-    const dum = await query(
+    const rows = await query(
       `SELECT dum.student_id, dum.staff_id
        FROM device_user_mappings dum
        WHERE dum.device_user_id = ? AND dum.device_sn = ?
        LIMIT 1`,
       [deviceUserId, deviceSn],
     );
-    if (dum && dum.length > 0) {
-      return {
-        studentId: dum[0].student_id ?? null,
-        staffId: dum[0].staff_id ?? null,
-        matched: true,
-      };
+    if (rows && rows.length > 0) {
+      hits.push({
+        source:    'device_user_mappings',
+        studentId: rows[0].student_id ?? null,
+        staffId:   rows[0].staff_id   ?? null,
+      });
     }
   } catch (err) {
     zkLog('warn', 'DEVICE_USER_MAPPINGS_QUERY_FAILED', { deviceUserId, error: String(err) });
   }
 
-  // 4. No match found
-  return { studentId: null, staffId: null, matched: false };
+  if (hits.length === 0) {
+    return { studentId: null, staffId: null, matched: false };
+  }
+
+  // STAFF PRECEDENCE. The first row with a non-null staffId wins,
+  // regardless of source-table order. Only if no staff row exists do
+  // we look for a studentId. This is the fix for "learner becomes
+  // teacher; student mapping shadows the staff mapping" identified in
+  // Phase 5 of the forensic audit.
+  const staffHit   = hits.find(h => h.staffId   !== null);
+  const studentHit = hits.find(h => h.studentId !== null);
+
+  // Log shadow conflicts so operators see which mappings are still
+  // outdated. This is what "self-healing" looks like at MVP — surface
+  // the data drift, don't silently mask it.
+  if (staffHit && studentHit && staffHit.source !== studentHit.source) {
+    zkLog('info', 'RESOLVE_ROLE_SHADOW', {
+      deviceUserId, deviceSn,
+      preferred: { source: staffHit.source, staffId: staffHit.staffId },
+      shadowed:  { source: studentHit.source, studentId: studentHit.studentId },
+    });
+  }
+
+  if (staffHit) {
+    return { studentId: null, staffId: staffHit.staffId, matched: true };
+  }
+  return { studentId: studentHit?.studentId ?? null, staffId: null, matched: true };
 }
 
 /** Save a parsed attendance punch with full matching chain. */
