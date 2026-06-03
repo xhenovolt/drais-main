@@ -999,7 +999,63 @@ async function processFingerprint(
     );
     zkLog('info', 'FP_CAPTURED', { deviceSn, pin, fid, size, studentId, fingerPosition, hand, valid });
   } else {
-    // Store raw even without student mapping — can be linked later
+    // PHASE BIO-4: store the orphan template so an admin can claim it
+    // later. The previous behaviour was to log FP_CAPTURED_UNMAPPED
+    // and drop the bytes — operators believed the enrollment had
+    // succeeded but no template was ever stored, so subsequent
+    // scans returned 'Unrecognized'.
+    //
+    // We INSERT IGNORE on (device_sn, pin, fid) so if the same
+    // finger is re-enrolled the orphan row updates instead of
+    // duplicating. The admin claim flow promotes a chosen orphan to
+    // student_fingerprints by writing the matching zk_user_mapping
+    // row + re-running processFingerprint over the orphan template.
+    //
+    // The table is created on first write — see CREATE TABLE IF
+    // NOT EXISTS guard. No migration file required (idempotent on
+    // every handler boot).
+    try {
+      await query(
+        `CREATE TABLE IF NOT EXISTS fingerprint_orphans (
+           id              BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+           school_id       BIGINT       DEFAULT NULL,
+           device_sn       VARCHAR(64)  NOT NULL,
+           device_user_id  VARCHAR(64)  NOT NULL,
+           finger_id       VARCHAR(8)   NOT NULL,
+           template_size   INT          DEFAULT NULL,
+           template_data   LONGTEXT     NOT NULL,
+           valid_flag      VARCHAR(8)   DEFAULT NULL,
+           captured_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           claimed_at      DATETIME     DEFAULT NULL,
+           claimed_by      BIGINT       DEFAULT NULL,
+           claimed_student_id BIGINT    DEFAULT NULL,
+           claimed_staff_id   BIGINT    DEFAULT NULL,
+           UNIQUE KEY uk_orphan (device_sn, device_user_id, finger_id),
+           KEY idx_orphan_unclaimed (claimed_at, device_sn),
+           KEY idx_orphan_school (school_id, captured_at)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+        [],
+      );
+      await query(
+        `INSERT INTO fingerprint_orphans
+           (school_id, device_sn, device_user_id, finger_id,
+            template_size, template_data, valid_flag, captured_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE
+           template_data = VALUES(template_data),
+           template_size = VALUES(template_size),
+           valid_flag    = VALUES(valid_flag),
+           captured_at   = NOW(),
+           claimed_at    = NULL,
+           claimed_by    = NULL,
+           claimed_student_id = NULL,
+           claimed_staff_id   = NULL`,
+        [schoolId, deviceSn, pin, fid, parseInt(size, 10) || null, templateData, valid],
+      );
+      zkLog('info', 'FP_ORPHAN_STORED', { deviceSn, pin, fid, size, staffId, valid });
+    } catch (err) {
+      zkLog('warn', 'FP_ORPHAN_STORE_FAILED', { deviceSn, pin, fid, error: String(err) });
+    }
     zkLog('info', 'FP_CAPTURED_UNMAPPED', { deviceSn, pin, fid, size, staffId, valid });
   }
 }
