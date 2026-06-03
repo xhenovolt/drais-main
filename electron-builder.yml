@@ -1,0 +1,87 @@
+# electron-builder configuration for DRAIS Windows packaging.
+#
+# Produces two Windows artefacts:
+#   1. NSIS installer (.exe) — installs into Program Files, creates Start
+#      Menu + desktop shortcuts.
+#   2. Portable (.exe)       — self-contained, runs without install. Useful
+#      for running off a USB stick during pilot deployments.
+#
+# Run on the Windows build machine after:
+#   npm install
+#   npm run build:electron
+#   npm run dist:win
+
+appId: ug.drais.desktop
+productName: DRAIS
+copyright: Copyright © ${author}
+
+directories:
+  output: dist
+  buildResources: build
+
+# The Next standalone bundle (under .next/standalone) is the actual
+# application. Everything outside that is build tooling we deliberately
+# exclude to keep the installer small.
+files:
+  - electron/**/*
+  - package.json
+
+extraResources:
+  # The whole standalone tree (server.js + .next + public + node_modules)
+  # is shipped as an extraResource — at runtime electron/main.cjs
+  # require()s standalone/server.js from process.resourcesPath.
+  - from: .next/standalone
+    to: standalone
+    filter:
+      - "**/*"
+  # Ship the runtime icon next to standalone/ so the BrowserWindow can
+  # set its taskbar icon without depending on the asar layout. The
+  # installer/shortcut icon is wired separately via `win.icon` below.
+  # If build/icon.ico is missing, this entry copies nothing (no build
+  # failure) and main.cjs gracefully falls back to no window icon.
+  - from: build
+    to: .
+    filter:
+      - "icon.ico"
+
+# Native deps: DRAIS uses bcryptjs (pure JS), mysql2 (pure JS),
+# formidable (pure JS). No native rebuild needed. If a native dep is
+# ever added, set asarUnpack and enable nodeGypRebuild.
+asar: true
+asarUnpack: []
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-${arch}-${os}.${ext}
+  # Add an icon at build/icon.ico (256x256) for branded shortcuts.
+  # If absent, electron-builder falls back to the default Electron icon.
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DRAIS
+  # The installer offers a "Run DRAIS" tick on the final page.
+  runAfterFinish: true
+  # Show the Xhenvolt Software License Agreement on the page after the
+  # welcome screen. NSIS renders the file in a scrollable text box with
+  # "I Agree / I Disagree" radio buttons; the Next button stays disabled
+  # until the user selects "I Agree". A user who selects "I Disagree"
+  # cannot proceed with installation.
+  license: build/license.txt
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+# Disable auto-update for now (no update server). When ready, switch
+# `publish` to an S3/GitHub Releases provider and electron-updater.
+publish: null

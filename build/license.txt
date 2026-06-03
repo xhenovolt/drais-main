@@ -1,0 +1,137 @@
+XHENVOLT UGANDA SMC LIMITED
+SOFTWARE LICENSE AGREEMENT
+
+By installing, accessing, or using the Software, the Licensee acknowledges that they have read, understood, and agree to be bound by the terms of this Agreement. If the Licensee does not agree, they must not install or use the Software.
+
+PARTIES
+
+This Software License Agreement (the "Agreement") is entered into between Xhenvolt Uganda SMC Limited, a company duly incorporated and existing under the laws of the Republic of Uganda (the "Licensor"), and the individual, institution, or legal entity installing or using the Software (the "Licensee").
+
+This Agreement sets forth the terms and conditions under which the Licensor grants the Licensee rights to use certain proprietary software products developed by the Licensor.
+
+
+1. DEFINITIONS
+
+1.1 "Software" refers to proprietary digital solutions developed and owned by Xhenvolt Uganda Limited, including but not limited to: DRAIS (Digital Records and Academic Information System), SACCO Suite, SENTRA POS Manager, HealthSuite, Pharmacy Manager, and any related modules, applications, web portals, or mobile platforms.
+
+1.2 "Licensee" means the individual, institution, or legal entity granted the right to use the Software under this Agreement.
+
+1.3 "Authorized Users" are employees, agents, or representatives of the Licensee permitted to use the Software for the Licensee's internal business purposes.
+
+1.4 "Documentation" includes all manuals, guides, user instructions, and technical materials provided by the Licensor.
+
+1.5 "Support Services" refers to technical support, maintenance, training, bug fixes, or troubleshooting provided by the Licensor during the agreed support period.
+
+1.6 "Term" means the duration of this Agreement as defined in Section 8, and corresponds to the Subscription Period selected by the Licensee.
+
+1.7 "Modules" are additional components or features of the Software, which may be licensed separately.
+
+1.8 "Upgrades" means enhanced versions, additional features, or improvements to the Software.
+
+1.9 "Subscription Period" means the billing cycle selected by the Licensee, which may be monthly, termly, or annual, as set out in the applicable commercial agreement or invoice.
+
+
+2. GRANT OF LICENSE
+
+2.1 The Licensor hereby grants the Licensee a limited, non-exclusive, non-transferable license to install, access, and use the Software solely for the Licensee's internal business and educational operations.
+
+2.2 The Licensee shall not sublicense, sell, lease, rent, reverse engineer, decompile, disassemble, or otherwise attempt to derive source code or modify the Software, except as expressly permitted in writing by the Licensor.
+
+2.3 The license scope includes usage of the Business Plan modules: Student Admission, Academics, Teachers Management, and Accounting & Finance.
+
+2.4 Additional features, integrations (including SMS gateways, payment systems), or new modules shall be subject to separate written agreements and additional fees.
+
+
+3. LICENSE FEES AND PAYMENT TERMS
+
+3.1 License fees are determined by the subscription plan and Subscription Period (monthly, termly, or annual) selected by the Licensee, as set out in the applicable commercial agreement or invoice issued by the Licensor.
+
+3.2 Payment terms — including initial payment, balance, and any instalments — shall be governed by the commercial agreement or invoice issued by the Licensor.
+
+3.3 A grace period of thirty (30) days may be granted at the Licensor's discretion. Failure to complete payment may result in suspension or limitation of access.
+
+3.4 Upgrades to higher plans are permitted upon payment of the applicable price difference.
+
+3.5 Foundational clients (the first ten clients) may receive preferential support, discounted upgrades, early access to new features, and consultation services.
+
+
+4. INTELLECTUAL PROPERTY
+
+4.1 The Software, source code, trademarks, interfaces, and all related intellectual property are the sole property of Xhenvolt Uganda SMC Limited.
+
+4.2 Any unauthorized duplication, reproduction, or claim of ownership shall constitute a breach and may result in legal proceedings.
+
+4.3 The Licensee acknowledges that no ownership rights are transferred under this Agreement.
+
+
+5. INSTALLATION AND CUSTOMIZATION
+
+5.1 The Software shall be installed and configured exclusively by the Licensor or its authorized representatives.
+
+5.2 The Licensor shall deliver the Software in a functional and tested state.
+
+5.3 Any customization beyond standard features shall be subject to separate documentation and charges.
+
+
+6. WARRANTY AND SUPPORT
+
+6.1 The Licensor warrants that the Software will substantially perform as described in the Documentation for a period of six (6) months from installation.
+
+6.2 During the warranty/support period, reasonable bug fixes, improvements, and upgrades may be provided at no additional cost, unless expressly excluded.
+
+6.3 After the warranty/support period, further services may be billed separately.
+
+6.4 The Licensor shall use reasonable efforts to resolve support queries within a commercially reasonable timeframe.
+
+
+7. LIMITATION OF LIABILITY
+
+7.1 The Licensor shall not be liable for indirect, incidental, consequential, or special damages, including but not limited to data loss, third-party failures, or loss of revenue.
+
+7.2 The Licensor's liability shall not exceed the total fees paid by the Licensee under this Agreement.
+
+7.3 The Licensor shall not be responsible for issues caused by misuse, negligence, or failure to operate the Software in recommended environments.
+
+
+8. TERM AND TERMINATION
+
+8.1 This Agreement remains in force for the duration of the Subscription Period selected by the Licensee — monthly, termly, or annual — and renews in line with that period unless terminated in accordance with this Section.
+
+8.2 Either party may terminate this Agreement with thirty (30) days' prior written notice.
+
+8.3 Breach of payment terms, intellectual property misuse, or violation of this Agreement shall entitle the Licensor to terminate immediately.
+
+8.4 Upon termination, the Licensee shall cease all use of the Software and return or delete all copies.
+
+
+9. CONFIDENTIALITY
+
+9.1 Each party shall maintain confidentiality of all non-public information, including trade secrets, client data, and technical systems.
+
+9.2 Confidentiality obligations shall survive termination of this Agreement.
+
+
+10. GOVERNING LAW
+
+10.1 This Agreement shall be governed by and construed in accordance with the laws of the Republic of Uganda.
+
+10.2 Any dispute shall first be resolved amicably through negotiation. If unresolved, disputes shall be submitted to competent courts within Uganda.
+
+
+11. LICENSE FLEXIBILITY
+
+11.1 The Licensor reserves the right to revise or upgrade the licensing terms. Such revisions shall be communicated in writing.
+
+11.2 Foundational clients may retain initial terms, unless modification is required by law, technology updates, or operational necessity.
+
+
+12. ACCEPTANCE
+
+12.1 By clicking "I Agree" during installation, or by installing, accessing, or otherwise using the Software, the Licensee confirms that they have read, understood, and accept all the terms and conditions of this Agreement.
+
+12.2 If the Licensee does not agree to these terms, they must select "I Disagree" and must not proceed with installation or use of the Software.
+
+
+Licensor:
+Xhenvolt Uganda SMC Limited
+HAMUZA IBRAHIM — Chief Executive Officer

@@ -20,8 +20,19 @@ workers/drais-relay.config.json
 /.next/
 /out/
 
-# production
-/build
+# production / electron-builder buildResources
+# /build itself stays as the buildResources directory; ignore unknown
+# files inside it but track our installer assets (license, icon).
+# (Using /build/* + targeted negations because a blanket /build ignore
+# would prevent any child re-inclusion per gitignore semantics.)
+/build/*
+!/build/.gitkeep
+!/build/license.txt
+!/build/icon.ico
+
+# electron-builder output
+/dist/
+/release/
 
 # misc
 .DS_Store
@@ -35,6 +46,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# The .example files are templates, not secrets — track them.
+!.env.example
+!.env.local.example
+!.env.production.example
 
 # vercel
 .vercel

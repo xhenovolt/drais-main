@@ -1,0 +1,10 @@
+Drop the Windows icon here as `icon.ico` before running `npm run dist:win`.
+
+Requirements:
+  - filename: icon.ico (exact, lowercase)
+  - format:   Windows .ico (multi-resolution preferred; include 256x256, 128x128, 64x64, 48x48, 32x32, 16x16)
+  - location: build/icon.ico (this directory)
+
+If the file is absent, the build still succeeds — electron-builder falls
+back to the default Electron icon for the installer, and the
+BrowserWindow comes up with no custom icon.
