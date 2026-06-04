@@ -1630,3 +1630,100 @@ CREATE TABLE IF NOT EXISTS template_distributions (
   KEY idx_device_status (device_sn, status),
   KEY idx_queued (status, queued_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- PHASE 5 — EVENT-DRIVEN NOTIFICATION LAYER
+-- ----------------------------------------------------------------------------
+-- Wires attendance verdicts to SMS/email/push fan-out via an outbox
+-- pattern. The attendance engine emits attendance.record.upserted; a
+-- fanout subscriber matches events against notification_policies and
+-- writes to notification_outbox. A drainer cron consumes outbox rows
+-- and calls the existing comm/providers layer.
+--
+-- INVARIANTS:
+--   * NEVER call an external provider synchronously from the engine
+--     or zk-handler path. The outbox is the contract; ingest stays
+--     fast and unconditional.
+--   * Each outbox row is one delivery attempt unit. retries grow the
+--     row's `attempts` count; permanent failures land in 'failed'
+--     with last_error populated for ops review.
+--   * notification_deliveries is an append-only audit of every
+--     provider call we made (success or failure). The outbox is the
+--     pending queue; deliveries is the history.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS notification_policies (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id       BIGINT NOT NULL,
+  name            VARCHAR(120) NOT NULL,
+  -- The event type this policy reacts to. v1: only attendance.*
+  -- supported; v2 will add device.* and enrollment.* as the bus
+  -- gains publishers.
+  event_type      VARCHAR(60) NOT NULL,
+  -- Who receives the message. 'guardian' looks up primary contact
+  -- from student_contacts; 'self' is the person themselves; 'staff_room'
+  -- is a fixed broadcast list configured per school.
+  target_role     ENUM('guardian','self','staff_room','admin') NOT NULL DEFAULT 'guardian',
+  channel         ENUM('sms','email','push') NOT NULL DEFAULT 'sms',
+  -- JSON-encoded match clauses. Schema (all optional, ANDed):
+  --   status_in: ['late','absent','half_day']
+  --   role_type: 'student' | 'staff'
+  --   class_ids: [12,13]
+  -- Empty/missing object = match-all.
+  conditions      JSON DEFAULT NULL,
+  -- Template body. Placeholders: {first_name}, {last_name}, {status},
+  -- {date}, {first_in}, {school_name}. Empty = use a sane default.
+  template_body   VARCHAR(480) DEFAULT NULL,
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Per-school daily cap for this policy. Defends against runaway
+  -- enqueues from a misconfigured condition.
+  daily_cap       INT NOT NULL DEFAULT 5000,
+  created_by      BIGINT DEFAULT NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_school_event (school_id, event_type, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notification_outbox (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  policy_id       BIGINT NOT NULL,
+  school_id       BIGINT NOT NULL,
+  -- Subject the notification refers to (the person whose attendance
+  -- triggered it). The recipient may differ — e.g. guardian phone for
+  -- a student's late row.
+  subject_person_id BIGINT DEFAULT NULL,
+  recipient_phone VARCHAR(30) DEFAULT NULL,
+  recipient_email VARCHAR(150) DEFAULT NULL,
+  recipient_name  VARCHAR(120) DEFAULT NULL,
+  channel         ENUM('sms','email','push') NOT NULL,
+  body            VARCHAR(480) NOT NULL,
+  status          ENUM('queued','sending','delivered','failed','expired') NOT NULL DEFAULT 'queued',
+  attempts        INT NOT NULL DEFAULT 0,
+  max_attempts    INT NOT NULL DEFAULT 3,
+  last_error      VARCHAR(255) DEFAULT NULL,
+  -- Idempotency key. Prevents the fanout from enqueueing the same
+  -- (policy, subject, day) twice across re-emits (engine re-runs).
+  dedup_key       VARCHAR(120) DEFAULT NULL,
+  scheduled_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  attempted_at    TIMESTAMP NULL,
+  delivered_at    TIMESTAMP NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_dedup (dedup_key),
+  KEY idx_status_sched (status, scheduled_at),
+  KEY idx_school_status (school_id, status, created_at),
+  KEY idx_policy (policy_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notification_deliveries (
+  id                 BIGINT PRIMARY KEY AUTO_INCREMENT,
+  outbox_id          BIGINT NOT NULL,
+  school_id          BIGINT NOT NULL,
+  provider           VARCHAR(40) NOT NULL,
+  provider_message_id VARCHAR(120) DEFAULT NULL,
+  cost               VARCHAR(20) DEFAULT NULL,
+  success            BOOLEAN NOT NULL,
+  error              VARCHAR(255) DEFAULT NULL,
+  delivered_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_outbox (outbox_id),
+  KEY idx_school_day (school_id, delivered_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

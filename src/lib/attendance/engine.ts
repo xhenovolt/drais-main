@@ -41,6 +41,14 @@ import {
   type RawPunch,
 } from '@/lib/attendance/rule-evaluator';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
+import { publishEvent } from '@/lib/events/eventbus';
+// Phase 5 — registers the notification fanout subscriber the first
+// time the engine module loads. The subscriber listens for
+// attendance.record.upserted, matches policies, and enqueues
+// notification_outbox rows. NO synchronous external calls happen on
+// the engine's emit path — the drainer cron is what actually sends.
+import { installNotificationFanout } from '@/lib/notifications/fanout';
+installNotificationFanout();
 
 export type AttendanceSource = 'zkteco_push' | 'dahua_pull' | 'manual' | 'relay';
 
@@ -189,7 +197,12 @@ export async function evaluateDay(
   // 3. Load holiday context for the date.
   const isHoliday = await isHolidayForSchool(schoolId, dayStart);
 
-  // 4. Evaluate.
+  // 4. PHASE 5 — capture the previous status for the event payload's
+  //    `previousStatus` field so notification policies can react to
+  //    state transitions (e.g. condition status_changed=true).
+  const previousStatus = await loadPreviousStatus(personId, dayStart);
+
+  // 5. Evaluate.
   const verdict = evaluate(
     rule,
     rawPunches,
@@ -205,8 +218,44 @@ export async function evaluateDay(
     },
   );
 
-  // 5. UPSERT.
+  // 6. UPSERT.
   await persistVerdict(schoolId, personId, roleType, dayStart, rule.id ?? null, verdict);
+
+  // 7. PHASE 5 — emit attendance.record.upserted onto the event bus.
+  //    The fanout subscriber matches policies and enqueues outbox
+  //    rows. publishEvent never throws — listener errors are swallowed
+  //    by the bus, so the engine return is unaffected.
+  publishEvent('attendance.record.upserted', {
+    schoolId,
+    personId,
+    roleType,
+    attendanceDate: formatDate(dayStart),
+    status: verdict.status,
+    previousStatus,
+    firstInAt: verdict.firstInAt ? verdict.firstInAt.toISOString() : null,
+    lastOutAt: verdict.lastOutAt ? verdict.lastOutAt.toISOString() : null,
+    lateMinutes: verdict.lateMinutes,
+    earlyMinutes: verdict.earlyMinutes,
+    totalMinutes: verdict.totalMinutes,
+    ruleId: rule.id ?? null,
+  });
+}
+
+async function loadPreviousStatus(
+  personId: number,
+  attendanceDate: Date,
+): Promise<string | null> {
+  try {
+    const rows = (await query(
+      `SELECT status FROM attendance_records
+        WHERE person_id = ? AND attendance_date = ?
+        LIMIT 1`,
+      [personId, formatDate(attendanceDate)],
+    )) as Array<{ status: string }>;
+    return rows[0]?.status ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function loadActiveRule(

@@ -46,12 +46,16 @@ const REFACTOR_OWNED_PREFIXES = [
   'src/lib/biometric/template-service',
   'src/lib/attendance',
   'src/lib/devices',
+  'src/lib/events',
+  'src/lib/notifications',
   'src/app/api/zk-handler/route.ts',
   'src/app/api/attendance/live-scan/route.ts',
   'src/app/api/admin/biometric',
   'src/app/api/admin/devices',
+  'src/app/api/admin/notification-policies',
   'src/app/api/biometric/orphans/route.ts',
   'src/app/api/cron/device-status/route.ts',
+  'src/app/api/cron/notification-drain',
 ];
 
 function header(title) {
