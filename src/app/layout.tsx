@@ -26,6 +26,14 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 
 const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
 const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
+// Phase 7 — global live-scan popup. Was previously mounted only on
+// /students/list (F10 in the audit). Lives at the app shell layer so
+// every authenticated route shows scan events in real time. Users can
+// opt out via localStorage['drais.liveScan.disabled']='1'.
+const LiveIdentityPopup = dynamic(
+  () => import('@/components/students/LiveIdentityPopup').then(m => m.LiveIdentityPopup),
+  { ssr: false },
+);
 
 // Create a stable QueryClient instance
 const queryClient = new QueryClient({
@@ -164,6 +172,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         <>
           <MainLayout>
             <HeartbeatProvider />
+            {/* Phase 7 — global live-scan popup (was /students/list only). */}
+            <LiveIdentityPopup />
             {children}
           </MainLayout>
           <FeatureUpdateNotification />

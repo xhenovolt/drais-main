@@ -11,6 +11,7 @@ import {
   queueDistributionsForSchool,
   lookupActiveEnrollment,
 } from '@/lib/biometric/template-service';
+import { publishEvent } from '@/lib/events/eventbus';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -825,6 +826,7 @@ async function saveAttendancePunch(
     // attendance_records (the derived state) is recomputed from.
     // Fire-and-forget on errors — the engine must NEVER fail the
     // ingest path.
+    let rawEventIdPublished: number | null = null;
     try {
       const punchAt = new Date(checkTime);
       const rawEventId = await recordRawEvent({
@@ -845,6 +847,7 @@ async function saveAttendancePunch(
         legacyTable: 'zk_attendance_logs',
         legacyId:    insLegacy?.insertId ?? null,
       });
+      rawEventIdPublished = rawEventId;
       if (rawEventId && matched && resolution.personId) {
         // Recompute the (person, date) attendance_records row.
         // Idempotent — safe to call multiple times for the same punch.
@@ -858,6 +861,24 @@ async function saveAttendancePunch(
       zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
         deviceUserId: userId, error: String(err),
       });
+    }
+
+    // PHASE 7 — publish to the in-process event bus so the live-scan
+    // SSE can push to listeners in sub-second time. Bus is an
+    // OPTIMISATION — the SSE still polls every 2s as a safety net,
+    // so a missed publish causes at most 2s of latency, never a
+    // missed scan. Never throws.
+    if (insLegacy?.insertId) {
+      try {
+        publishEvent('attendance.event.recorded', {
+          schoolId,
+          scanId:       insLegacy.insertId,
+          rawEventId:   rawEventIdPublished,
+          deviceSn,
+          deviceUserId: String(userId),
+          matched,
+        });
+      } catch { /* bus listener errors are isolated by the bus itself */ }
     }
 
     // ── Observability: PUNCH_SAVED (truth record) ──────────────────────────
@@ -1754,6 +1775,7 @@ export async function POST(req: NextRequest) {
           // See processAttendanceRecord for the rationale; this is
           // the parallel call site that handles inline batch ATTLOG
           // processing in the POST route.
+          let rawEventIdPublished: number | null = null;
           try {
             const punchAt = new Date(checkTime);
             const rawEventId = await recordRawEvent({
@@ -1774,6 +1796,7 @@ export async function POST(req: NextRequest) {
               legacyTable: 'zk_attendance_logs',
               legacyId:    insLegacy?.insertId ?? null,
             });
+            rawEventIdPublished = rawEventId;
             if (rawEventId && matched && resolution.personId) {
               evaluatePunch(rawEventId).catch(err =>
                 zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
@@ -1785,6 +1808,21 @@ export async function POST(req: NextRequest) {
             zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
               deviceUserId: userId, error: String(err),
             });
+          }
+
+          // PHASE 7 — sub-second SSE push via the bus. See the
+          // matching call in processAttendanceRecord for rationale.
+          if (insLegacy?.insertId) {
+            try {
+              publishEvent('attendance.event.recorded', {
+                schoolId,
+                scanId:       insLegacy.insertId,
+                rawEventId:   rawEventIdPublished,
+                deviceSn:     sn,
+                deviceUserId: String(userId),
+                matched,
+              });
+            } catch { /* isolated by bus */ }
           }
 
           // Save to zk_parsed_logs (per-record truth)

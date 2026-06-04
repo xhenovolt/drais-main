@@ -47,7 +47,7 @@ import LearnerOverview from '@/components/students/LearnerOverview';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
 import { FolderPhotoUploadModal } from '@/components/students/FolderPhotoUploadModal';
 import { ImportModal } from '@/components/students/ImportModal';
-import { LiveIdentityPopup } from '@/components/students/LiveIdentityPopup';
+// Phase 7 — LiveIdentityPopup mounted globally in app/layout.tsx; removed here.
 import { useExport } from '@/hooks/useExport';
 import { showToast, confirmAction } from '@/lib/toast';
 import { toast } from 'react-hot-toast';
@@ -2174,8 +2174,9 @@ export default function StudentsListPage() {
         }}
       />
 
-      {/* LIVE IDENTITY POPUP — real-time biometric scan notifications */}
-      <LiveIdentityPopup />
+      {/* Phase 7 — live identity popup now mounted globally in
+          src/app/layout.tsx. The per-page mount was removed so the
+          popup is no longer scoped to /students/list. */}
 
       {/* DEVICE SELECTOR MODAL — Quick-Capture fingerprint enrollment */}
       <DeviceSelector

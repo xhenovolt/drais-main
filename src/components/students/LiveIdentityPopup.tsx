@@ -336,13 +336,46 @@ function buildSwalHtml(scan: ScanEvent): string {
 
 /* ── Component ───────────────────────────────────────────────────────── */
 
+/**
+ * Phase 7 — global mount.  Reads localStorage['drais.liveScan.disabled']
+ * so an operator can opt-out per-browser without code changes (e.g. on a
+ * shared kiosk where the popup is unwanted). Default: enabled.
+ *
+ * Re-evaluates on the storage event so toggling from another tab takes
+ * effect without reload.
+ */
+const LIVE_SCAN_DISABLED_KEY = 'drais.liveScan.disabled';
+
+function readDisabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(LIVE_SCAN_DISABLED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function LiveIdentityPopup() {
   const [connected, setConnected] = useState(false);
+  const [disabled, setDisabled] = useState(readDisabled);
   const eventSourceRef = useRef<EventSource | null>(null);
   const seenIds = useRef(new Set<number>());
 
-  // SSE connection
+  // Watch for cross-tab preference flips.
   useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === LIVE_SCAN_DISABLED_KEY) setDisabled(readDisabled());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  // SSE connection (gated on the localStorage preference).
+  useEffect(() => {
+    if (disabled) {
+      setConnected(false);
+      return;
+    }
     const es = new EventSource('/api/attendance/live-scan');
     eventSourceRef.current = es;
 
@@ -402,7 +435,10 @@ export function LiveIdentityPopup() {
       es.close();
       Swal.close();
     };
-  }, []);
+  }, [disabled]);
+
+  // When disabled, render nothing — no indicator, no SSE, no popup.
+  if (disabled) return null;
 
   return (
     <>

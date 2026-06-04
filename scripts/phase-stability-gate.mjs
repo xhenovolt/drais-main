@@ -56,6 +56,7 @@ const REFACTOR_OWNED_PREFIXES = [
   'src/app/api/biometric/orphans/route.ts',
   'src/app/api/cron/device-status/route.ts',
   'src/app/api/cron/notification-drain',
+  'src/components/students/LiveIdentityPopup.tsx',
 ];
 
 function header(title) {

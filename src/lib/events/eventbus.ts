@@ -56,8 +56,29 @@ export interface AttendanceRecordUpsertedEvent {
   ruleId: number | null;
 }
 
+/**
+ * Phase 7 — emitted right after a raw punch is persisted to
+ * zk_attendance_logs (and dual-written to attendance_raw_events). The
+ * live-scan SSE subscribes to this for sub-second push delivery to
+ * the LiveIdentityPopup; without it the SSE falls back to a 2-second
+ * poll, so this event is an OPTIMISATION, not a correctness boundary.
+ *
+ * Payload deliberately carries only IDs + matched flag — the SSE
+ * listener re-fetches the row using the same SELECT it uses for
+ * polling, so the enrichment logic stays in one place.
+ */
+export interface AttendanceEventRecordedEvent {
+  schoolId: number;
+  scanId: number;                    // zk_attendance_logs.id (legacy)
+  rawEventId: number | null;         // attendance_raw_events.id (canonical)
+  deviceSn: string;
+  deviceUserId: string;
+  matched: boolean;
+}
+
 export interface EventMap {
   'attendance.record.upserted': AttendanceRecordUpsertedEvent;
+  'attendance.event.recorded':  AttendanceEventRecordedEvent;
 }
 
 // ── Bus interface ──────────────────────────────────────────────────────
