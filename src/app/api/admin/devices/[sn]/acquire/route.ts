@@ -1,0 +1,70 @@
+/**
+ * POST /api/admin/devices/[sn]/acquire
+ *
+ * The caller's school picks up a previously-released device. Requires
+ * the device to be in status='released'. Updates devices.school_id,
+ * wipes any unclaimed fingerprint_orphans for the SN, closes the open
+ * device_transfers row.
+ *
+ * Auth
+ * ----
+ * Any authenticated school admin can acquire a released device into
+ * their own school. Super-admin can acquire into any school by
+ * passing schoolId in the body.
+ *
+ * Request body
+ * ------------
+ *   { reason?: string, schoolId?: number }   // schoolId super-admin only
+ *
+ * Response
+ * --------
+ *   200 { success: true, impact: TransferImpact }
+ *   400 / 403 / 404 on invalid state
+ */
+import { NextRequest, NextResponse } from 'next/server';
+import { getSessionSchoolId } from '@/lib/auth';
+import { acquireDevice, TransferStateError } from '@/lib/devices/transfer-service';
+
+export const runtime = 'nodejs';
+
+export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ sn: string }> },
+) {
+  const session = await getSessionSchoolId(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  const { sn } = await ctx.params;
+  if (!sn) {
+    return NextResponse.json({ error: 'Missing device sn' }, { status: 400 });
+  }
+
+  let body: { reason?: string; schoolId?: number } = {};
+  try { body = await req.json(); } catch { /* empty body ok */ }
+
+  // Cross-school acquire requires super-admin.
+  const toSchoolId = body.schoolId ?? session.schoolId;
+  if (toSchoolId !== session.schoolId && !session.isSuperAdmin) {
+    return NextResponse.json(
+      { error: 'Cross-school acquire requires super-admin' },
+      { status: 403 },
+    );
+  }
+
+  try {
+    const impact = await acquireDevice(sn, toSchoolId, {
+      userId: session.userId,
+      schoolId: toSchoolId,
+      ip: req.headers.get('x-forwarded-for') ?? null,
+      userAgent: req.headers.get('user-agent') ?? null,
+    }, body.reason ?? null);
+    return NextResponse.json({ success: true, impact });
+  } catch (err: unknown) {
+    if (err instanceof TransferStateError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg || 'Acquire failed' }, { status: 500 });
+  }
+}

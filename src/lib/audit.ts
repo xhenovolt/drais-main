@@ -69,6 +69,14 @@ export const AuditAction = {
   CONTROL_ACTIVATE:         'CONTROL_ACTIVATE',
   CONTROL_GET_SCHOOLS:      'CONTROL_GET_SCHOOLS',
   CONTROL_READ_AUDIT_LOGS:  'CONTROL_READ_AUDIT_LOGS',
+  // Device ownership ceremony (Phase 2). Direct school_id UPDATEs
+  // are deprecated; every transition flows through the transfer
+  // service which writes one of these audit rows.
+  DEVICE_RELEASED:          'DEVICE_RELEASED',
+  DEVICE_ACQUIRED:          'DEVICE_ACQUIRED',
+  DEVICE_DECOMMISSIONED:    'DEVICE_DECOMMISSIONED',
+  DEVICE_TRANSFER_ABORTED:  'DEVICE_TRANSFER_ABORTED',
+  DEVICE_ALERT_ACKNOWLEDGED:'DEVICE_ALERT_ACKNOWLEDGED',
 } as const;
 
 export type AuditActionType = typeof AuditAction[keyof typeof AuditAction];

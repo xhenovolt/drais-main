@@ -3,6 +3,10 @@
     {
       "path": "/api/result-deadlines",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/device-status",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

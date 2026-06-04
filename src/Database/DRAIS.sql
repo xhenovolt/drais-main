@@ -1502,3 +1502,75 @@ CREATE TABLE IF NOT EXISTS attendance_records (
   KEY idx_status        (school_id, attendance_date, status),
   KEY idx_school_role   (school_id, role_type, attendance_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- PHASE 2 — DEVICE OWNERSHIP & TRANSFER SYSTEM
+-- ----------------------------------------------------------------------------
+-- Promotes device ownership from "an UPDATE devices.school_id with no
+-- audit" (the F4 root cause) to a state machine with an explicit
+-- ceremony:
+--
+--   pending ──register──▶ active ──release──▶ released
+--                           │                    │
+--                           │                    └──acquire──▶ active (new school_id)
+--                           │
+--                           ├──maintenance──▶ maintenance ──resume──┘
+--                           └──retire──────▶ retired (terminal)
+--
+-- INVARIANTS:
+--   * Every (school_id) change goes through device_transfers. The
+--     legacy direct-UPDATE path remains usable for 30 days but the
+--     transfer service is the only sanctioned writer.
+--   * Released devices keep their school_id until acquired. Resolver
+--     queries scoped by status='active' so released devices stop
+--     attributing punches.
+--   * Decommission is terminal. Historical raw events are preserved
+--     under the original school_id; enrollments are revoked.
+-- ============================================================================
+
+-- device_transfers — audit trail for every release/acquire/decommission
+-- ceremony. Append-only. One device may have many transfer rows over
+-- time (a fleet device that rotates between schools each year).
+CREATE TABLE IF NOT EXISTS device_transfers (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  device_sn       VARCHAR(64) NOT NULL,
+  from_school_id  BIGINT DEFAULT NULL,
+  to_school_id    BIGINT DEFAULT NULL,
+  initiated_by    BIGINT DEFAULT NULL,
+  initiated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at    TIMESTAMP NULL,
+  status          ENUM('initiated','released','acquired','decommissioned','aborted') NOT NULL,
+  reason          VARCHAR(255) DEFAULT NULL,
+  -- Counts so an operator can see the impact of the ceremony at a glance.
+  enrollments_archived INT NOT NULL DEFAULT 0,
+  orphans_archived     INT NOT NULL DEFAULT 0,
+  raw_events_preserved INT NOT NULL DEFAULT 0,
+  KEY idx_device_time (device_sn, initiated_at),
+  KEY idx_from_school (from_school_id),
+  KEY idx_to_school   (to_school_id),
+  KEY idx_status      (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- device_alerts — first-class event stream produced by the cron
+-- sweeper and other detectors. Replaces "silent status flip" with an
+-- ack-able alert surface. Phase 5 notification policies subscribe to
+-- these to fan out SMS/email; Phase 8 surfaces them in the consolidated
+-- /admin/devices UI.
+CREATE TABLE IF NOT EXISTS device_alerts (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  device_sn       VARCHAR(64) NOT NULL,
+  school_id       BIGINT DEFAULT NULL,
+  severity        ENUM('info','warning','critical') NOT NULL DEFAULT 'warning',
+  code            VARCHAR(40) NOT NULL,
+  message         VARCHAR(255) DEFAULT NULL,
+  details         JSON DEFAULT NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  acknowledged_at TIMESTAMP NULL,
+  acknowledged_by BIGINT DEFAULT NULL,
+  -- Dedup window: identical (sn, code) inside this many minutes
+  -- collapses to one row. Default coalesces a stream of "offline"
+  -- pings into a single alert until ack.
+  KEY idx_device_time  (device_sn, created_at),
+  KEY idx_school_open  (school_id, acknowledged_at, severity),
+  KEY idx_code_open    (code, acknowledged_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
