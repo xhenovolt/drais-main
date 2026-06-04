@@ -350,6 +350,7 @@ export function getNavigationItems(
         { key: 'admin-positions',   label: 'Positions',          icon: <Briefcase className="w-4 h-4" />,  href: '/admin/positions',     roles: ['admin', 'super_admin'] },
         { key: 'admin-modules',     label: 'School Modules',     icon: <Boxes className="w-4 h-4" />,      href: '/admin/modules',         roles: ['super_admin'] },
         { key: 'admin-comm',           label: 'Communications',     icon: <MessageSquare className="w-4 h-4" />, href: '/admin/communications', roles: ['admin', 'super_admin'] },
+        { key: 'admin-notifications',  label: 'Notification Policies', icon: <Bell className="w-4 h-4" />,        href: '/admin/notifications/policies', roles: ['admin', 'super_admin'] },
         { key: 'admin-admission-mode', label: 'Admission Mode',     icon: <Workflow className="w-4 h-4" />,      href: '/admin/admission-mode', roles: ['admin', 'super_admin'] },
       ],
     },

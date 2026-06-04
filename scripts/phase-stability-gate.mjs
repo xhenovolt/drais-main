@@ -59,6 +59,7 @@ const REFACTOR_OWNED_PREFIXES = [
   'src/app/api/cron/aggregate-refresh',
   'src/app/api/attendance/reports/v2',
   'src/app/api/attendance/reports/aggregates',
+  'src/app/admin/notifications',
   'src/components/students/LiveIdentityPopup.tsx',
 ];
 
