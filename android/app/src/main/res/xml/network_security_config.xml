@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DRAIS — Android network security config.
+
+  The embedded Next.js standalone server (booted by nodejs-mobile
+  from mobile/nodejs-project/main.js) listens on http://127.0.0.1:3210.
+  Android 9+ rejects cleartext HTTP by default; this file whitelists
+  the loopback addresses so the WebView (and any in-app fetch() call)
+  can talk to the embedded server.
+
+  We deliberately do NOT whitelist arbitrary hosts. Outbound
+  cleartext to anything other than the loopback addresses is still
+  blocked, so a school network MITM cannot intercept TiDB credentials
+  or session cookies on the wire — those are HTTPS to TiDB Cloud /
+  Cloudinary / Africa's Talking as normal.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

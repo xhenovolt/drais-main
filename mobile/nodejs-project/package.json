@@ -1,0 +1,7 @@
+{
+  "name": "drais-mobile-runtime",
+  "version": "1.0.0",
+  "main": "main.js",
+  "description": "nodejs-mobile entrypoint that boots the Next.js standalone server inside the APK. The standalone tree (server.js + .next + public + node_modules) is copied here by scripts/build-mobile.mjs before `cap sync`.",
+  "private": true
+}
