@@ -25,6 +25,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
+import {
+  recordTemplate,
+  queueDistributionsForSchool,
+  lookupActiveEnrollment,
+} from '@/lib/biometric/template-service';
 
 const FINGER_NAMES = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
@@ -231,6 +236,40 @@ export async function POST(req: NextRequest) {
     [(session as { userId?: number }).userId ?? null, studentId, staffId, orphanId],
   );
 
+  // PHASE 4 — promote the orphan's bytes into the canonical
+  // biometric_templates table and queue distribution to sibling
+  // devices. The legacy student_fingerprints write above remains the
+  // reader contract; this step is what eventually lets the learner be
+  // recognised on every device of the school without re-enrolling per
+  // device (F6).
+  let templateId: number | null = null;
+  let distributionsQueued = 0;
+  try {
+    const pinValue = parseInt(orphan.device_user_id, 10) || 0;
+    const enrollment = await lookupActiveEnrollment(session.schoolId, pinValue);
+    if (enrollment) {
+      const fingerIndex = parseInt(orphan.finger_id, 10) || 0;
+      const t = await recordTemplate({
+        enrollmentId: enrollment.enrollmentId,
+        fingerIndex,
+        templateBytes: orphan.template_data,
+        templateSize: orphan.template_size,
+        capturedDeviceSn: orphan.device_sn,
+      });
+      templateId = t.templateId;
+      if (templateId) {
+        distributionsQueued = await queueDistributionsForSchool(
+          templateId, session.schoolId, orphan.device_sn,
+        );
+      }
+    }
+  } catch (err) {
+    // Non-fatal: the orphan is already claimed and the legacy
+    // student_fingerprints row already written. Surface the failure
+    // so ops can replay via the admin redistribute route.
+    console.warn('[orphans/claim] template promotion failed', err);
+  }
+
   return NextResponse.json({
     success: true,
     claimed: {
@@ -239,6 +278,8 @@ export async function POST(req: NextRequest) {
       deviceUserId: orphan.device_user_id,
       fingerId:     orphan.finger_id,
       assignedTo:   studentId ? { type: 'student', id: studentId } : { type: 'staff', id: staffId },
+      templateId,
+      distributionsQueued,
     },
   });
 }

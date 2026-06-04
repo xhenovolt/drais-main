@@ -43,12 +43,14 @@ const REFACTOR_OWNED_PREFIXES = [
   'src/lib/biometric/pin-allocator',
   'src/lib/biometric/name-fuzzy',
   'src/lib/biometric/device-directory',
+  'src/lib/biometric/template-service',
   'src/lib/attendance',
   'src/lib/devices',
   'src/app/api/zk-handler/route.ts',
   'src/app/api/attendance/live-scan/route.ts',
   'src/app/api/admin/biometric',
   'src/app/api/admin/devices',
+  'src/app/api/biometric/orphans/route.ts',
   'src/app/api/cron/device-status/route.ts',
 ];
 

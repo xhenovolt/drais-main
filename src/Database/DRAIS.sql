@@ -1574,3 +1574,59 @@ CREATE TABLE IF NOT EXISTS device_alerts (
   KEY idx_school_open  (school_id, acknowledged_at, severity),
   KEY idx_code_open    (code, acknowledged_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- PHASE 4 — TEMPLATE DISTRIBUTION SYSTEM
+-- ----------------------------------------------------------------------------
+-- Promotes fingerprint templates from "captured on one device, lives
+-- only there" (F6) to "captured once, distributed to every active
+-- device of the school" via an explicit, observable queue.
+--
+-- INVARIANTS:
+--   * One (enrollment_id, finger_index) — one row in biometric_templates.
+--     A re-capture UPDATEs in place; templates are versioned by
+--     captured_at + captured_device_sn for forensic trail.
+--   * template_distributions is the per-device fan-out state. UNIQUE
+--     (template_id, device_sn) means each device knows about each
+--     template at most once.
+--   * Status FSM: queued → loading → loaded.  Failures route through
+--     'failed' with a last_error string for ops review.  An explicit
+--     'removed' state lets the transfer ceremony tombstone a row when
+--     the target device leaves the school.
+--
+-- The actual ADMS command emitter that drains queued rows lives
+-- behind a firmware-capability gate (Phase 4 follow-up). Until then,
+-- distribution rows accumulate as INTENT — the schema is the
+-- contract; the worker can plug in later without schema changes.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS biometric_templates (
+  id                 BIGINT PRIMARY KEY AUTO_INCREMENT,
+  enrollment_id      BIGINT NOT NULL,
+  finger_index       TINYINT NOT NULL,             -- 0-9 (ZK convention)
+  template_bytes     MEDIUMBLOB NOT NULL,
+  template_size      INT DEFAULT NULL,
+  template_format    VARCHAR(20) NOT NULL DEFAULT 'ZK_ADMS',
+  quality_score      INT DEFAULT NULL,
+  captured_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  captured_device_sn VARCHAR(64) DEFAULT NULL,
+  updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_enrollment_finger (enrollment_id, finger_index),
+  KEY idx_enrollment (enrollment_id),
+  KEY idx_captured_device (captured_device_sn)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS template_distributions (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  template_id     BIGINT NOT NULL,
+  device_sn       VARCHAR(64) NOT NULL,
+  status          ENUM('queued','loading','loaded','failed','removed') NOT NULL DEFAULT 'queued',
+  queued_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  attempted_at    TIMESTAMP NULL,
+  loaded_at       TIMESTAMP NULL,
+  attempts        INT NOT NULL DEFAULT 0,
+  last_error      VARCHAR(255) DEFAULT NULL,
+  UNIQUE KEY uk_template_device (template_id, device_sn),
+  KEY idx_device_status (device_sn, status),
+  KEY idx_queued (status, queued_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

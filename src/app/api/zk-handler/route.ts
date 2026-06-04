@@ -6,6 +6,11 @@ import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent, evaluatePunch } from '@/lib/attendance/engine';
+import {
+  recordTemplate,
+  queueDistributionsForSchool,
+  lookupActiveEnrollment,
+} from '@/lib/biometric/template-service';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -1143,7 +1148,7 @@ async function processFingerprint(
     const deviceRow = await query('SELECT id FROM devices WHERE sn = ? LIMIT 1', [deviceSn]);
     const deviceId = deviceRow?.[0]?.id || null;
 
-    // Upsert into student_fingerprints
+    // Upsert into student_fingerprints (legacy reader contract).
     await query(
       `INSERT INTO student_fingerprints
          (school_id, student_id, device_id, finger_position, hand, template_data,
@@ -1166,6 +1171,41 @@ async function processFingerprint(
       ],
     );
     zkLog('info', 'FP_CAPTURED', { deviceSn, pin, fid, size, studentId, fingerPosition, hand, valid });
+
+    // PHASE 4 — canonical template store + multi-device distribution.
+    // The student_fingerprints UPSERT above remains the legacy reader
+    // contract. We additionally record the template in
+    // biometric_templates keyed by the Phase 1 enrollment row, then
+    // fan-out queue rows to every sibling device of the school. The
+    // firmware-capable drainer (Phase 4.5) executes the actual
+    // commands; until then the queue rows ARE the operational record
+    // of "this device should have this template".
+    try {
+      const enrollment = await lookupActiveEnrollment(schoolId, parseInt(pin, 10) || 0);
+      if (enrollment) {
+        const t = await recordTemplate({
+          enrollmentId: enrollment.enrollmentId,
+          fingerIndex: parseInt(fid, 10) || 0,
+          templateBytes: templateData,
+          templateSize: parseInt(size, 10) || null,
+          capturedDeviceSn: deviceSn,
+        });
+        if (t.templateId) {
+          const queued = await queueDistributionsForSchool(t.templateId, schoolId, deviceSn);
+          zkLog('info', 'PHASE4_TEMPLATE_RECORDED', {
+            enrollmentId: enrollment.enrollmentId,
+            templateId: t.templateId,
+            distributionsQueued: queued,
+          });
+        }
+      }
+    } catch (err) {
+      // Best-effort; the legacy student_fingerprints write already
+      // succeeded so the ingest path is complete.
+      zkLog('warn', 'PHASE4_TEMPLATE_RECORD_FAILED', {
+        deviceSn, pin, error: String(err),
+      });
+    }
   } else {
     // PHASE BIO-4: store the orphan template so an admin can claim it
     // later. The previous behaviour was to log FP_CAPTURED_UNMAPPED
