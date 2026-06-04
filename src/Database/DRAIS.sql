@@ -1727,3 +1727,37 @@ CREATE TABLE IF NOT EXISTS notification_deliveries (
   KEY idx_outbox (outbox_id),
   KEY idx_school_day (school_id, delivered_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- PHASE 6 — REPORTING UNIFICATION
+-- ----------------------------------------------------------------------------
+-- attendance_records (Phase 3) is the detail-level source of truth for
+-- reports. Phase 6 adds a denormalised projection on top, sized for
+-- dashboards and per-class summaries, refreshed by an idempotent
+-- worker.
+--
+-- INVARIANTS:
+--   * UNIQUE(school_id, class_id, attendance_date, status) — the
+--     UPSERT key. Re-running the refresher for the same (school,
+--     date) yields the same rows; no double-counting.
+--   * class_id may be NULL (catches learners not in an active
+--     enrollment for the date). NULL is treated as a distinct class
+--     bucket — UNIQUE accepts multiple NULLs in MySQL but we always
+--     use COALESCE(class_id, 0) in the refresher's UPSERT to keep
+--     dedup tight.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS attendance_daily_aggregates (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id       BIGINT NOT NULL,
+  -- 0 = "no active class" bucket. Real class ids start at 1.
+  class_id        BIGINT NOT NULL DEFAULT 0,
+  attendance_date DATE NOT NULL,
+  role_type       ENUM('student','staff') NOT NULL,
+  status          ENUM('present','late','absent','half_day','early_leave','holiday','weekend') NOT NULL,
+  count           INT NOT NULL DEFAULT 0,
+  last_refreshed  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_bucket (school_id, class_id, attendance_date, role_type, status),
+  KEY idx_school_day  (school_id, attendance_date),
+  KEY idx_school_class_day (school_id, class_id, attendance_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

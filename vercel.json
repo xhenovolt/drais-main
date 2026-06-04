@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/notification-drain",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/aggregate-refresh",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
