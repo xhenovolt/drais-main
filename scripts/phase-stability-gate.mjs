@@ -53,6 +53,7 @@ const REFACTOR_OWNED_PREFIXES = [
   'src/app/api/admin/biometric',
   'src/app/api/admin/devices',
   'src/app/api/admin/notification-policies',
+  'src/app/api/admin/notifications',
   'src/app/api/biometric/orphans/route.ts',
   'src/app/api/cron/device-status/route.ts',
   'src/app/api/cron/notification-drain',
