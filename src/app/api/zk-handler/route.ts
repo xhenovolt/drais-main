@@ -5,6 +5,7 @@ import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
+import { recordRawEvent, evaluatePunch } from '@/lib/attendance/engine';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -712,7 +713,19 @@ async function resolveUser(
   deviceUserId: string,
   deviceSn: string,
   schoolId: number,
-): Promise<{ studentId: number | null; staffId: number | null; matched: boolean }> {
+): Promise<{
+  studentId: number | null;
+  staffId: number | null;
+  matched: boolean;
+  // Phase 3 — the attendance engine indexes by person_id, not role_ref_id.
+  // Expose the canonical fields so the dual-write path can feed them
+  // straight into recordRawEvent without re-querying.
+  enrollmentId?: number;
+  personId?: number;
+  roleType?: 'student' | 'staff' | 'visitor';
+  resolutionPath?: string;
+  resolutionScore?: number;
+}> {
   const measureMismatch = process.env.BIO_PHASE1_MEASURE_MISMATCH === '1';
   const result = await resolveIdentity(
     { schoolId, deviceSn, deviceUserId },
@@ -743,6 +756,14 @@ async function resolveUser(
     studentId: result.studentId,
     staffId:   result.staffId,
     matched:   result.resolved,
+    enrollmentId:   result.enrollmentId,
+    personId:       result.personId,
+    roleType:       result.roleType,
+    resolutionPath: result.path,
+    // resolutionScore is reserved for when the unified resolver
+    // absorbs fuzzy auto-link (currently handled out-of-band via
+    // src/app/api/zk-handler/route.ts:autoLinkPinFromName). Until
+    // then, score is undefined here.
   };
 }
 
@@ -766,9 +787,13 @@ async function saveAttendancePunch(
   if (!checkTime) return;
 
   try {
-    const { studentId, staffId, matched } = await resolveUser(userId, deviceSn, schoolId);
+    const resolution = await resolveUser(userId, deviceSn, schoolId);
+    const { studentId, staffId, matched } = resolution;
 
-    await query(
+    const verifyType = record.VERIFYTYPE ? parseInt(record.VERIFYTYPE, 10) || null : null;
+    const ioMode    = record.INOUTMODE  ? parseInt(record.INOUTMODE, 10)  || null : null;
+
+    const insLegacy = (await query(
       `INSERT INTO zk_attendance_logs
          (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
           verify_type, io_mode, log_id, work_code, matched, raw_log_id)
@@ -780,14 +805,55 @@ async function saveAttendancePunch(
         studentId,
         staffId,
         checkTime,
-        record.VERIFYTYPE ? parseInt(record.VERIFYTYPE, 10) || null : null,
-        record.INOUTMODE ? parseInt(record.INOUTMODE, 10) || null : null,
+        verifyType,
+        ioMode,
         record.LOGID || null,
         record.WORKCODE || null,
         matched ? 1 : 0,
         rawLogId,
       ],
-    );
+    )) as { insertId?: number };
+
+    // PHASE 3 — dual-write to attendance_raw_events + invoke engine.
+    // The legacy zk_attendance_logs row above remains the contract
+    // for current readers; raw_events is the canonical journal that
+    // attendance_records (the derived state) is recomputed from.
+    // Fire-and-forget on errors — the engine must NEVER fail the
+    // ingest path.
+    try {
+      const punchAt = new Date(checkTime);
+      const rawEventId = await recordRawEvent({
+        schoolId,
+        deviceSn,
+        deviceUserId: Number(userId),
+        punchAt,
+        verifyType,
+        ioMode,
+        source: 'zkteco_push',
+        enrollmentId: resolution.enrollmentId ?? null,
+        personId:     resolution.personId ?? null,
+        roleType:     resolution.roleType ?? null,
+        roleRefId:    studentId ?? staffId ?? null,
+        matched,
+        resolutionPath:  resolution.resolutionPath ?? null,
+        resolutionScore: resolution.resolutionScore ?? null,
+        legacyTable: 'zk_attendance_logs',
+        legacyId:    insLegacy?.insertId ?? null,
+      });
+      if (rawEventId && matched && resolution.personId) {
+        // Recompute the (person, date) attendance_records row.
+        // Idempotent — safe to call multiple times for the same punch.
+        evaluatePunch(rawEventId).catch(err =>
+          zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
+            rawEventId, error: String(err),
+          }),
+        );
+      }
+    } catch (err) {
+      zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
+        deviceUserId: userId, error: String(err),
+      });
+    }
 
     // ── Observability: PUNCH_SAVED (truth record) ──────────────────────────
     await logDeviceEvent({
@@ -1622,24 +1688,64 @@ export async function POST(req: NextRequest) {
 
         // ── Match + Save attendance ──────────────────────────────────────
         try {
-          const { studentId, staffId, matched } = await resolveUser(userId, sn, schoolId);
+          const resolution = await resolveUser(userId, sn, schoolId);
+          const { studentId, staffId, matched } = resolution;
+          const verifyType = record.VERIFYTYPE ? parseInt(record.VERIFYTYPE, 10) || null : null;
+          const ioMode    = record.INOUTMODE  ? parseInt(record.INOUTMODE, 10)  || null : null;
 
-          // Save to zk_attendance_logs (existing system)
-          await query(
+          // Save to zk_attendance_logs (existing system).
+          const insLegacy = (await query(
             `INSERT INTO zk_attendance_logs
                (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
                 verify_type, io_mode, log_id, work_code, matched, raw_log_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               schoolId, sn, userId, studentId, staffId, checkTime,
-              record.VERIFYTYPE ? parseInt(record.VERIFYTYPE, 10) || null : null,
-              record.INOUTMODE ? parseInt(record.INOUTMODE, 10) || null : null,
+              verifyType,
+              ioMode,
               record.LOGID || null,
               record.WORKCODE || null,
               matched ? 1 : 0,
               rawLogId,
             ],
-          );
+          )) as { insertId?: number };
+
+          // PHASE 3 — dual-write to attendance_raw_events + engine.
+          // See processAttendanceRecord for the rationale; this is
+          // the parallel call site that handles inline batch ATTLOG
+          // processing in the POST route.
+          try {
+            const punchAt = new Date(checkTime);
+            const rawEventId = await recordRawEvent({
+              schoolId,
+              deviceSn: sn,
+              deviceUserId: Number(userId),
+              punchAt,
+              verifyType,
+              ioMode,
+              source: 'zkteco_push',
+              enrollmentId: resolution.enrollmentId ?? null,
+              personId:     resolution.personId ?? null,
+              roleType:     resolution.roleType ?? null,
+              roleRefId:    studentId ?? staffId ?? null,
+              matched,
+              resolutionPath:  resolution.resolutionPath ?? null,
+              resolutionScore: resolution.resolutionScore ?? null,
+              legacyTable: 'zk_attendance_logs',
+              legacyId:    insLegacy?.insertId ?? null,
+            });
+            if (rawEventId && matched && resolution.personId) {
+              evaluatePunch(rawEventId).catch(err =>
+                zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
+                  rawEventId, error: String(err),
+                }),
+              );
+            }
+          } catch (err) {
+            zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
+              deviceUserId: userId, error: String(err),
+            });
+          }
 
           // Save to zk_parsed_logs (per-record truth)
           await saveParsedLog({

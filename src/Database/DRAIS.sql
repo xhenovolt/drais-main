@@ -1361,3 +1361,144 @@ CREATE TABLE IF NOT EXISTS biometric_enrollments (
   KEY idx_school_status (school_id, status),
   KEY idx_card     (school_id, card_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- PHASE 3 — ATTENDANCE ENGINE NORMALIZATION
+-- ----------------------------------------------------------------------------
+-- Replaces six fragmented attendance INSERT sinks (zk_attendance_logs,
+-- dahua_attendance_logs, student_attendance, daily_attendance,
+-- staff_attendance, tahfiz_attendance) with a two-layer model:
+--
+--   attendance_raw_events    — append-only forensic journal. ONE row per
+--                              device punch (or manual mark). Source-
+--                              tagged so the ZK/Dahua/manual paths share
+--                              the same table.
+--   attendance_records       — derived state. ONE row per
+--                              (person_id, attendance_date). Recomputable
+--                              at any time from raw events of that day.
+--
+-- INVARIANTS enforced at the DB layer:
+--   * attendance_records.uk_person_day  guarantees idempotency. The
+--     engine's UPSERT is functional — same raw input set yields the
+--     same row.
+--   * Raw events are NEVER updated except for `matched`, `enrollment_id`,
+--     `person_id` (when a late identity resolution arrives — Phase 1
+--     orphan-claim path).
+-- ============================================================================
+
+-- attendance_rules — extend the existing lazy table with departure /
+-- half-day / weekend / holiday / boarding semantics. The base table is
+-- created here for fresh databases; the runtime ensure helper applies
+-- ALTER TABLE for in-place upgrades.
+CREATE TABLE IF NOT EXISTS attendance_rules (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id       BIGINT NOT NULL,
+  rule_name       VARCHAR(120) NOT NULL DEFAULT 'Default',
+  rule_description TEXT DEFAULT NULL,
+  -- Arrival window
+  arrival_start_time TIME DEFAULT NULL,
+  arrival_end_time   TIME DEFAULT NULL,
+  late_threshold_minutes INT NOT NULL DEFAULT 15,
+  absence_cutoff_time  TIME DEFAULT NULL,
+  closing_time         TIME DEFAULT NULL,
+  -- Phase 3 additions — departure semantics + half-day + weekday/holiday
+  departure_start_time TIME DEFAULT NULL,
+  departure_end_time   TIME DEFAULT NULL,
+  early_leave_threshold_minutes INT NOT NULL DEFAULT 30,
+  half_day_threshold_minutes    INT NOT NULL DEFAULT 240,
+  -- bit field, Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64. 31 = Mon-Fri.
+  weekday_mask         TINYINT NOT NULL DEFAULT 31,
+  applies_on_holidays  BOOLEAN NOT NULL DEFAULT FALSE,
+  boarding_scope       ENUM('all','boarding','day') NOT NULL DEFAULT 'all',
+  -- Phase 1 hook for the BIO-9 fuzzy auto-link gate (off by default).
+  auto_link_from_device_name BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Scoping
+  applies_to           ENUM('students','teachers','all') NOT NULL DEFAULT 'students',
+  applies_to_classes   VARCHAR(255) DEFAULT NULL,
+  ignore_duplicate_scans_within_minutes INT NOT NULL DEFAULT 2,
+  -- Lifecycle
+  is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+  effective_date       DATE DEFAULT NULL,
+  priority             INT NOT NULL DEFAULT 100,
+  created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_school_active (school_id, is_active, priority)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- holidays — first-class table replacing the per-school custom-field
+-- workaround. school_id NULL = global (national). scope='class' allows
+-- a holiday to apply to a subset (e.g. exam class on study leave).
+CREATE TABLE IF NOT EXISTS holidays (
+  id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id     BIGINT DEFAULT NULL,
+  holiday_date  DATE NOT NULL,
+  name          VARCHAR(150) NOT NULL,
+  scope         ENUM('national','school','class') NOT NULL DEFAULT 'school',
+  applies_to_classes VARCHAR(255) DEFAULT NULL,
+  created_by    BIGINT DEFAULT NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_school_date_name (school_id, holiday_date, name),
+  KEY idx_date (holiday_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- attendance_raw_events — unified forensic journal. Replaces
+-- zk_attendance_logs + dahua_attendance_logs at the storage layer;
+-- those two will become views in the cutover commit. Partitioning is
+-- by month via UNIX_TIMESTAMP(punch_at) so retention is range-friendly.
+CREATE TABLE IF NOT EXISTS attendance_raw_events (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id       BIGINT NOT NULL,
+  device_sn       VARCHAR(64) NOT NULL,
+  device_user_id  INT NOT NULL,
+  -- Resolved fields. NULL until identity is known; backfilled by the
+  -- orphan-claim path when a late mapping arrives.
+  enrollment_id   BIGINT DEFAULT NULL,
+  person_id       BIGINT DEFAULT NULL,
+  role_type       ENUM('student','staff','visitor') DEFAULT NULL,
+  role_ref_id     BIGINT DEFAULT NULL,
+  -- Punch data
+  punch_at        DATETIME NOT NULL,
+  verify_type     TINYINT DEFAULT NULL,
+  io_mode         TINYINT DEFAULT NULL,
+  source          ENUM('zkteco_push','dahua_pull','manual','relay') NOT NULL,
+  matched         BOOLEAN NOT NULL DEFAULT FALSE,
+  resolution_path VARCHAR(20) DEFAULT NULL,
+  resolution_score DECIMAL(4,3) DEFAULT NULL,
+  -- Provenance — points back at the legacy table during dual-write,
+  -- NULL for natively-ingested rows post-cutover.
+  legacy_table    VARCHAR(40) DEFAULT NULL,
+  legacy_id       BIGINT DEFAULT NULL,
+  ingested_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_school_punch  (school_id, punch_at),
+  KEY idx_device_pin    (device_sn, device_user_id, punch_at),
+  KEY idx_person_day    (person_id, punch_at),
+  KEY idx_unresolved    (matched, school_id, ingested_at),
+  KEY idx_legacy        (legacy_table, legacy_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- attendance_records — denormalised derived state. ONE row per
+-- (person_id, attendance_date). UPSERTed by the engine after every
+-- raw event for that day. Reports read from here; raw_events is
+-- forensic only.
+CREATE TABLE IF NOT EXISTS attendance_records (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id       BIGINT NOT NULL,
+  person_id       BIGINT NOT NULL,
+  role_type       ENUM('student','staff') NOT NULL,
+  attendance_date DATE NOT NULL,
+  first_in_at     DATETIME DEFAULT NULL,
+  last_out_at     DATETIME DEFAULT NULL,
+  first_in_device VARCHAR(64) DEFAULT NULL,
+  last_out_device VARCHAR(64) DEFAULT NULL,
+  status          ENUM('present','late','absent','half_day','early_leave','holiday','weekend') NOT NULL,
+  late_minutes    INT NOT NULL DEFAULT 0,
+  early_minutes   INT NOT NULL DEFAULT 0,
+  total_minutes   INT NOT NULL DEFAULT 0,
+  rule_id         BIGINT DEFAULT NULL,
+  raw_event_count INT NOT NULL DEFAULT 0,
+  evaluated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_person_day (person_id, attendance_date),
+  KEY idx_school_day    (school_id, attendance_date),
+  KEY idx_status        (school_id, attendance_date, status),
+  KEY idx_school_role   (school_id, role_type, attendance_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
