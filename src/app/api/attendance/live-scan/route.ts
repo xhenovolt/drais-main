@@ -3,6 +3,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { getLearnerDeepInfo, type LearnerDeepInfo } from '@/lib/getLearnerDeepInfo';
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
+import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 
 /** A fuzzy-match score this confident is treated as a "likely match"
  *  for the operator — we surface the suspected learner's rich card
@@ -88,35 +89,26 @@ export async function GET(req: NextRequest) {
               let staffId = r.staff_id;
               let matched = Boolean(r.matched);
 
-              // ── Live re-resolve: if the log is unmatched, try mapping tables ──
+              // ── Live re-resolve: if the log is unmatched, run the
+              // unified Phase-1 resolver. Replaces the inline two-table
+              // chain. Same dual-read semantics as zk-handler so the
+              // SSE late-resolution and the original ingest path always
+              // agree on the answer.
               if (!studentId && !staffId) {
                 try {
-                  const mapping = await query(
-                    `SELECT user_type, student_id, staff_id FROM zk_user_mapping
-                     WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
-                     LIMIT 1`,
-                    [r.device_user_id, r.device_sn],
+                  const res = await resolveIdentity(
+                    {
+                      schoolId: session.schoolId,
+                      deviceSn: r.device_sn,
+                      deviceUserId: String(r.device_user_id),
+                    },
+                    { legacyFallback: true },
                   );
-                  if (mapping && (mapping as any[]).length > 0) {
-                    studentId = (mapping as any[])[0].student_id;
-                    staffId = (mapping as any[])[0].staff_id;
+                  if (res.resolved) {
+                    studentId = res.studentId;
+                    staffId   = res.staffId;
                   }
-                } catch { /* non-critical */ }
-
-                // Fallback: device_user_mappings
-                if (!studentId && !staffId) {
-                  try {
-                    const dum = await query(
-                      `SELECT student_id, staff_id FROM device_user_mappings
-                       WHERE device_user_id = ? AND device_sn = ? LIMIT 1`,
-                      [r.device_user_id, r.device_sn],
-                    );
-                    if (dum && (dum as any[]).length > 0) {
-                      studentId = (dum as any[])[0].student_id;
-                      staffId = (dum as any[])[0].staff_id;
-                    }
-                  } catch { /* non-critical */ }
-                }
+                } catch { /* non-critical — keep punch unresolved */ }
 
                 // If we found a match, update the log for future reads
                 if (studentId || staffId) {

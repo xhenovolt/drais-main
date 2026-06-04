@@ -4,6 +4,7 @@ import { logAudit, AuditAction } from '@/lib/audit';
 import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
+import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -694,176 +695,61 @@ async function markCommandSent(commandId: number, batchIds?: number[]): Promise<
  * non-null staffId; only if no staff row exists anywhere do we use a
  * studentId.
  */
+/**
+ * PHASE 1 — single entry point for identity resolution. Delegates to
+ * the unified resolver in src/lib/biometric/identity/resolve.ts which
+ * reads biometric_enrollments (canonical) first and falls back to the
+ * legacy three-table chain during the migration window.
+ *
+ * Mismatch monitoring is opt-in via BIO_PHASE1_MEASURE_MISMATCH=1; off
+ * by default because it doubles the read cost on every punch. Operators
+ * flip it on per environment to drive the per-school cutover decision.
+ *
+ * Signature and return shape are unchanged from the BIO-1..BIO-5 era so
+ * every existing call site stays untouched.
+ */
 async function resolveUser(
   deviceUserId: string,
   deviceSn: string,
   schoolId: number,
 ): Promise<{ studentId: number | null; staffId: number | null; matched: boolean }> {
-  // Collect hits from every table that has data for this PIN. Each
-  // hit carries the source-table tag for log forensics.
-  const hits: Array<{ source: string; studentId: number | null; staffId: number | null }> = [];
+  const measureMismatch = process.env.BIO_PHASE1_MEASURE_MISMATCH === '1';
+  const result = await resolveIdentity(
+    { schoolId, deviceSn, deviceUserId },
+    { legacyFallback: true, measureMismatch },
+  );
 
-  // SCHOOL-SCOPE GUARD (BIO-5). Phase 4 of the audit flagged that
-  // resolveUser "intentionally" did not enforce school_id — which
-  // structurally enables cross-school attribution. A device in
-  // school A could attribute a punch to a learner in school B if a
-  // global (device_sn IS NULL) mapping existed for the PIN.
-  //
-  // Default behaviour is now: when the device has a registered
-  // school_id, only mappings belonging to that school can match.
-  // Unknown-school devices (school_id IS NULL on devices row)
-  // fall back to the previous unrestricted behaviour so brand-new
-  // devices still produce useful logs during initial setup.
-  const enforceSchool = typeof schoolId === 'number' && schoolId > 0;
-
-  // 1. zk_user_mapping.
-  try {
-    const rows = enforceSchool
-      ? await query(
-          `SELECT user_type, student_id, staff_id FROM zk_user_mapping
-           WHERE device_user_id = ?
-             AND (device_sn = ? OR device_sn IS NULL)
-             AND (school_id  = ? OR school_id  IS NULL)
-           LIMIT 1`,
-          [deviceUserId, deviceSn, schoolId],
-        )
-      : await query(
-          `SELECT user_type, student_id, staff_id FROM zk_user_mapping
-           WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
-           LIMIT 1`,
-          [deviceUserId, deviceSn],
-        );
-    if (rows && rows.length > 0) {
-      hits.push({
-        source:    'zk_user_mapping',
-        studentId: rows[0].student_id ?? null,
-        staffId:   rows[0].staff_id   ?? null,
-      });
-    }
-  } catch (err) {
-    zkLog('warn', 'ZK_MAPPING_QUERY_FAILED', { deviceUserId, error: String(err) });
-  }
-
-  // 2. device_users (BIO-1: accept staff OR teacher tagging).
-  //    device_users has a school_id column too — apply the same guard.
-  try {
-    const rows = enforceSchool
-      ? await query(
-          `SELECT du.person_type, du.person_id
-           FROM device_users du
-           WHERE du.device_user_id = ? AND du.is_enrolled = 1
-             AND (du.school_id = ? OR du.school_id IS NULL)
-           LIMIT 1`,
-          [deviceUserId, schoolId],
-        )
-      : await query(
-          `SELECT du.person_type, du.person_id
-           FROM device_users du
-           WHERE du.device_user_id = ? AND du.is_enrolled = 1
-           LIMIT 1`,
-          [deviceUserId],
-        );
-    if (rows && rows.length > 0) {
-      const row = rows[0];
-      const isStaff = row.person_type === 'staff' || row.person_type === 'teacher';
-      hits.push({
-        source:    'device_users',
-        studentId: row.person_type === 'student' ? row.person_id : null,
-        staffId:   isStaff                        ? row.person_id : null,
-      });
-    }
-  } catch (err) {
-    // If the device_users table doesn't have a school_id column on
-    // this deploy, MySQL throws ER_BAD_FIELD_ERROR. Fall through to
-    // the school-less query so production stays online.
-    const msg = String(err);
-    if (/Unknown column 'du\.school_id'/i.test(msg) && enforceSchool) {
-      try {
-        const rows = await query(
-          `SELECT du.person_type, du.person_id
-           FROM device_users du
-           WHERE du.device_user_id = ? AND du.is_enrolled = 1
-           LIMIT 1`,
-          [deviceUserId],
-        );
-        if (rows && rows.length > 0) {
-          const row = rows[0];
-          const isStaff = row.person_type === 'staff' || row.person_type === 'teacher';
-          hits.push({
-            source:    'device_users',
-            studentId: row.person_type === 'student' ? row.person_id : null,
-            staffId:   isStaff                        ? row.person_id : null,
-          });
-        }
-      } catch (err2) {
-        zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: String(err2) });
-      }
-    } else {
-      zkLog('warn', 'DEVICE_USERS_QUERY_FAILED', { deviceUserId, error: msg });
-    }
-  }
-
-  // 3. device_user_mappings — device_sn match already constrains the
-  //    physical device, but we still apply the school guard so a
-  //    cross-tenant mapping written by an admin error doesn't fire.
-  try {
-    const rows = enforceSchool
-      ? await query(
-          `SELECT dum.student_id, dum.staff_id
-           FROM device_user_mappings dum
-           LEFT JOIN devices d ON d.sn = dum.device_sn
-           WHERE dum.device_user_id = ?
-             AND dum.device_sn = ?
-             AND (d.school_id = ? OR d.school_id IS NULL)
-           LIMIT 1`,
-          [deviceUserId, deviceSn, schoolId],
-        )
-      : await query(
-          `SELECT dum.student_id, dum.staff_id
-           FROM device_user_mappings dum
-           WHERE dum.device_user_id = ? AND dum.device_sn = ?
-           LIMIT 1`,
-          [deviceUserId, deviceSn],
-        );
-    if (rows && rows.length > 0) {
-      hits.push({
-        source:    'device_user_mappings',
-        studentId: rows[0].student_id ?? null,
-        staffId:   rows[0].staff_id   ?? null,
-      });
-    }
-  } catch (err) {
-    zkLog('warn', 'DEVICE_USER_MAPPINGS_QUERY_FAILED', { deviceUserId, error: String(err) });
-  }
-
-  if (hits.length === 0) {
-    return { studentId: null, staffId: null, matched: false };
-  }
-
-  // STAFF PRECEDENCE. The first row with a non-null staffId wins,
-  // regardless of source-table order. Only if no staff row exists do
-  // we look for a studentId. This is the fix for "learner becomes
-  // teacher; student mapping shadows the staff mapping" identified in
-  // Phase 5 of the forensic audit.
-  const staffHit   = hits.find(h => h.staffId   !== null);
-  const studentHit = hits.find(h => h.studentId !== null);
-
-  // Log shadow conflicts so operators see which mappings are still
-  // outdated. This is what "self-healing" looks like at MVP — surface
-  // the data drift, don't silently mask it.
-  if (staffHit && studentHit && staffHit.source !== studentHit.source) {
-    zkLog('info', 'RESOLVE_ROLE_SHADOW', {
-      deviceUserId, deviceSn,
-      preferred: { source: staffHit.source, staffId: staffHit.staffId },
-      shadowed:  { source: studentHit.source, studentId: studentHit.studentId },
+  // Log mismatch when measurement is on, so we can drive the per-school
+  // cutover decision off real-world disagreement rates.
+  if (measureMismatch && result.dualReadAgreed === false) {
+    zkLog('warn', 'PHASE1_DUAL_READ_MISMATCH', {
+      deviceUserId, deviceSn, schoolId,
+      canonicalPath: result.path,
+      canonicalStudent: result.studentId,
+      canonicalStaff:   result.staffId,
     });
   }
 
-  if (staffHit) {
-    return { studentId: null, staffId: staffHit.staffId, matched: true };
+  // Log when we fell through to a legacy table — telemetry for how
+  // much of production has been backfilled. Once this number trends
+  // to zero per school, we can disable legacyFallback for that school.
+  if (result.resolved && result.path !== 'enrollments') {
+    zkLog('info', 'PHASE1_LEGACY_PATH_HIT', {
+      deviceUserId, deviceSn, schoolId, path: result.path,
+    });
   }
-  return { studentId: studentHit?.studentId ?? null, staffId: null, matched: true };
+
+  return {
+    studentId: result.studentId,
+    staffId:   result.staffId,
+    matched:   result.resolved,
+  };
 }
+
+/* Legacy resolveUser body was inlined here through BIO-5. Phase 1
+ * lifts that logic into src/lib/biometric/identity/resolve.ts
+ * (function legacyResolve) so it is no longer duplicated. Rollback
+ * path is `git revert` against this commit. */
 
 /** Save a parsed attendance punch with full matching chain. */
 async function saveAttendancePunch(

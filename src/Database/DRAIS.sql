@@ -1299,3 +1299,65 @@ CREATE TABLE IF NOT EXISTS student_fingerprints (
   INDEX idx_student (student_id),
   INDEX idx_credential (credential_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- PHASE 1 — IDENTITY CORE CONSOLIDATION
+-- ----------------------------------------------------------------------------
+-- biometric_enrollments is the single canonical mapping between a school's
+-- physical biometric credential (PIN, optionally a card number) and a
+-- DRAIS-internal person. It supersedes the three lazy-created tables that
+-- have been competing for this responsibility:
+--
+--     zk_user_mapping        (BIO-1..BIO-9 era)
+--     device_user_mappings   (parallel writer #1)
+--     device_users           (parallel writer #2, broken until BIO-1)
+--
+-- INVARIANTS enforced at the DB layer (not application code):
+--   * (school_id, pin_value) is UNIQUE — no two enrollments in one school
+--     can share a PIN. This eliminates the BIO-6 PIN-collision race at the
+--     storage layer instead of relying on application retry loops.
+--   * Either role_type='student' AND role_ref_id REFERENCES students.id
+--     OR     role_type='staff'   AND role_ref_id REFERENCES staff.id
+--     OR     role_type='visitor' AND role_ref_id REFERENCES person_visitors.id
+--     (Application-enforced; mysql does not support partial FKs.)
+--
+-- enrollment_uuid is the stable cross-device identifier used by Phase 4's
+-- template distribution. Once allocated, NEVER changes. The PIN may change
+-- (e.g. on a different device after transfer); enrollment_uuid does not.
+--
+-- This table is created here (canonical), AND ensured-at-runtime by
+-- src/lib/biometric/migrations/biometric-enrollments-schema.ts to defend
+-- against deployments that bypass the schema file.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS biometric_enrollments (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  enrollment_uuid CHAR(36) NOT NULL,
+  school_id       BIGINT NOT NULL,
+  person_id       BIGINT NOT NULL,
+  role_type       ENUM('student','staff','visitor') NOT NULL,
+  role_ref_id     BIGINT NOT NULL,
+  pin_value       INT NOT NULL,
+  card_number     VARCHAR(32) DEFAULT NULL,
+  status          ENUM('active','suspended','revoked','transferred') NOT NULL DEFAULT 'active',
+  -- The device on which the enrollment was first captured (for forensic
+  -- trail and Phase-2 transfer ceremony). NULL until a USERINFO/template
+  -- arrives. Distribution to other devices is tracked separately in
+  -- template_distributions (Phase 4).
+  origin_device_sn VARCHAR(64) DEFAULT NULL,
+  enrolled_by     BIGINT DEFAULT NULL,
+  enrolled_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  revoked_at      TIMESTAMP NULL,
+  revoked_reason  VARCHAR(255) DEFAULT NULL,
+  -- Source of truth for legacy backfill: NULL for native enrollments,
+  -- 'zk_user_mapping' / 'device_user_mappings' / 'device_users' for rows
+  -- copied from legacy tables. Lets the migration job re-run safely.
+  legacy_source   VARCHAR(40) DEFAULT NULL,
+  legacy_id       BIGINT DEFAULT NULL,
+  updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_enrollment_uuid (enrollment_uuid),
+  UNIQUE KEY uk_school_pin       (school_id, pin_value),
+  KEY idx_person   (person_id),
+  KEY idx_role     (role_type, role_ref_id),
+  KEY idx_school_status (school_id, status),
+  KEY idx_card     (school_id, card_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
