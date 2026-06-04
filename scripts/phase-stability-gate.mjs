@@ -60,6 +60,8 @@ const REFACTOR_OWNED_PREFIXES = [
   'src/app/api/attendance/reports/v2',
   'src/app/api/attendance/reports/aggregates',
   'src/app/admin/notifications',
+  'src/app/api/admin/holidays',
+  'src/app/attendance/holidays',
   'src/components/students/LiveIdentityPopup.tsx',
 ];
 
