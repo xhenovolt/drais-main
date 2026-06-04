@@ -1,20 +1,4 @@
 {
-  "//": [
-    "Vercel Hobby plan accepts only DAILY (or coarser) cron schedules — see",
-    "https://vercel.com/docs/cron-jobs/usage-and-pricing. Anything more frequent",
-    "than once-a-day fails 'vercel deploy' with `Hobby accounts are limited to",
-    "daily cron jobs.`",
-    "",
-    "Three high-frequency crons that DRAIS would like at Pro tier are routed",
-    "via daily one-shot runs here (better than nothing); production-tier",
-    "deployments should swap these for their target cadence:",
-    "    /api/cron/device-status    target */2 * * * *",
-    "    /api/cron/notification-drain target * * * * *",
-    "    /api/cron/aggregate-refresh target */5 * * * *",
-    "",
-    "All three endpoints stay callable manually + via external schedulers",
-    "(UptimeRobot, GitHub Actions, etc.) at any cadence."
-  ],
   "crons": [
     {
       "path": "/api/result-deadlines",
