@@ -38,7 +38,16 @@ yarn-error.log*
 .gitignore
 
 # Scripts and docs
-/scripts
+# /scripts is excluded from the deploy by default — these are dev /
+# build-time helpers, not runtime code. BUT scripts/install-hooks.mjs
+# is referenced from package.json's `postinstall`, so Vercel's
+# `npm install` step needs it to exist. Without the carve-out below,
+# the postinstall fails with MODULE_NOT_FOUND and the deploy aborts.
+# The script itself short-circuits when no .git directory is present
+# (which is always the case on Vercel), so it never actually mutates
+# anything there.
+/scripts/*
+!/scripts/install-hooks.mjs
 *.md
 DAHUA_*
 DATABASE_*

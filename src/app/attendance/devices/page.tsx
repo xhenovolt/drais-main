@@ -8,6 +8,8 @@ import {
   Fingerprint, RefreshCw, Edit2, X, Save, UserPlus, Send,
   RotateCcw, ShieldAlert, Database, Power, ClipboardList,
   Timer, Info, Download,
+  // Phase 2 — ownership ceremony actions.
+  LogOut, LogIn, Archive,
 } from 'lucide-react';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
@@ -456,6 +458,74 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
     } catch { /* apiFetch shows error toast */ } finally { setActionLoading(null); }
   }, [device, isOnline, onMutate]);
 
+  // ── Phase 2 — ownership ceremony actions ──
+  // Routes were shipped in commit d7ee2e3; this is just the UI handle.
+  const [transferLoading, setTransferLoading] = useState<null | 'release' | 'acquire' | 'decommission'>(null);
+
+  const runTransferAction = useCallback(
+    async (action: 'release' | 'acquire' | 'decommission', label: string, body: { reason?: string } = {}) => {
+      setTransferLoading(action);
+      try {
+        const r = await fetch(`/api/admin/devices/${device.serial_number}/${action}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const j = await r.json();
+        if (!r.ok) {
+          showToast('error', j.error || `${label} failed`);
+          return;
+        }
+        const impact = j.impact;
+        let msg = `${label} OK`;
+        if (impact) {
+          const parts: string[] = [];
+          if (impact.enrollmentsArchived) parts.push(`${impact.enrollmentsArchived} enrollments archived`);
+          if (impact.orphansArchived)     parts.push(`${impact.orphansArchived} orphans cleared`);
+          if (impact.rawEventsPreserved)  parts.push(`${impact.rawEventsPreserved} raw events preserved`);
+          if (parts.length) msg = `${label}: ${parts.join(', ')}`;
+        }
+        showToast('success', msg);
+        onMutate();
+      } catch (err) {
+        showToast('error', err instanceof Error ? err.message : `${label} failed`);
+      } finally {
+        setTransferLoading(null);
+      }
+    },
+    [device.serial_number, onMutate],
+  );
+
+  const handleRelease = useCallback(async () => {
+    const confirmed = await confirmAction(
+      'Release Device',
+      `Release "${device.device_name || device.serial_number}" from this school? All active enrollments on this device will be archived to status='transferred'. Historical attendance is preserved. Another school can then acquire it.`,
+      'Release',
+    );
+    if (!confirmed) return;
+    await runTransferAction('release', 'Released');
+  }, [device, runTransferAction]);
+
+  const handleAcquire = useCallback(async () => {
+    const confirmed = await confirmAction(
+      'Acquire Device',
+      `Take ownership of "${device.serial_number}" into this school? Requires the device to be in status='released'. Any unclaimed fingerprint orphans tied to this device will be wiped.`,
+      'Acquire',
+    );
+    if (!confirmed) return;
+    await runTransferAction('acquire', 'Acquired');
+  }, [device, runTransferAction]);
+
+  const handleDecommission = useCallback(async () => {
+    const confirmed = await confirmAction(
+      'Decommission Device',
+      `Permanently retire "${device.device_name || device.serial_number}"? This is irreversible. All active enrollments will be revoked. Historical attendance stays in place.`,
+      'Decommission',
+    );
+    if (!confirmed) return;
+    await runTransferAction('decommission', 'Decommissioned');
+  }, [device, runTransferAction]);
+
   const handleDelete = async () => {
     const confirmed = await confirmAction(
       'Remove Device',
@@ -727,6 +797,34 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 loading={actionLoading === 'reset'}
                 disabled={!isOnline}
                 onClick={handleResetAndSync}
+              />
+              {/* Phase 2 — Release device. Available unless already
+                  released or retired; offline is fine (DRAIS-side state). */}
+              <ActionIcon
+                icon={<LogOut className="w-4 h-4" />}
+                label="Release Device"
+                color="orange"
+                loading={transferLoading === 'release'}
+                disabled={device.status === 'released' || device.status === 'retired'}
+                onClick={handleRelease}
+              />
+              {/* Phase 2 — Acquire (released → active). */}
+              <ActionIcon
+                icon={<LogIn className="w-4 h-4" />}
+                label="Acquire Device"
+                color="teal"
+                loading={transferLoading === 'acquire'}
+                disabled={device.status !== 'released'}
+                onClick={handleAcquire}
+              />
+              {/* Phase 2 — Decommission (terminal). */}
+              <ActionIcon
+                icon={<Archive className="w-4 h-4" />}
+                label="Decommission Device"
+                color="red"
+                loading={transferLoading === 'decommission'}
+                disabled={device.status === 'retired'}
+                onClick={handleDecommission}
               />
               {/* Edit */}
               <ActionIcon
