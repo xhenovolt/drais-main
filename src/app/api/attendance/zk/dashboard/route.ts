@@ -89,17 +89,22 @@ export async function GET(req: NextRequest) {
       `SELECT
          al.id, al.device_sn, al.device_user_id, al.check_time,
          al.verify_type, al.io_mode, al.matched,
-         al.student_id, al.staff_id,
-         d.device_name, d.location,
-         sp.first_name AS student_first_name,
-         sp.last_name AS student_last_name,
-         stf.first_name AS staff_first_name,
-         stf.last_name AS staff_last_name
+       al.student_id, al.staff_id,
+       d.device_name, d.location,
+       sp.first_name AS student_first_name,
+       sp.last_name AS student_last_name,
+        stf.first_name AS staff_first_name,
+        stf.last_name AS staff_last_name,
+        dud.device_name AS device_known_name
        FROM zk_attendance_logs al
        LEFT JOIN devices d ON al.device_sn = d.sn
        LEFT JOIN students st ON al.student_id = st.id
        LEFT JOIN people sp ON st.person_id = sp.id
        LEFT JOIN staff stf ON al.staff_id = stf.id
+       LEFT JOIN device_user_directory dud
+         ON dud.school_id = al.school_id
+        AND dud.device_sn = al.device_sn
+        AND dud.device_user_id = al.device_user_id
        WHERE al.school_id = ?
        ORDER BY al.check_time DESC
        LIMIT 20`,

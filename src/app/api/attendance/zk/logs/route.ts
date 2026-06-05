@@ -52,7 +52,8 @@ export async function GET(req: NextRequest) {
       conditions.push('al.staff_id IS NOT NULL');
     }
     if (search) {
-      conditions.push('al.device_user_id LIKE ?');
+      conditions.push('(al.device_user_id LIKE ? OR dud.device_name LIKE ?)');
+      params.push(`%${search}%`);
       params.push(`%${search}%`);
     }
 
@@ -60,7 +61,13 @@ export async function GET(req: NextRequest) {
 
     // Count
     const countResult = await query(
-      `SELECT COUNT(*) AS total FROM zk_attendance_logs al WHERE ${where}`,
+      `SELECT COUNT(*) AS total
+       FROM zk_attendance_logs al
+       LEFT JOIN device_user_directory dud
+         ON dud.school_id = al.school_id
+        AND dud.device_sn = al.device_sn
+        AND dud.device_user_id = al.device_user_id
+       WHERE ${where}`,
       params,
     );
     const total = Number(countResult[0]?.total || 0);
@@ -71,18 +78,45 @@ export async function GET(req: NextRequest) {
          al.id, al.device_sn, al.device_user_id, al.student_id, al.staff_id,
          al.check_time, al.verify_type, al.io_mode, al.log_id, al.work_code,
          al.processed, al.matched, al.created_at,
-         d.device_name, d.location AS device_location
+         d.device_name, d.location AS device_location,
+         dud.device_name AS device_known_name,
+         sp.first_name AS student_first_name,
+         sp.last_name AS student_last_name,
+         stf.first_name AS staff_first_name,
+         stf.last_name AS staff_last_name
        FROM zk_attendance_logs al
        LEFT JOIN devices d ON al.device_sn = d.sn
+       LEFT JOIN students st ON al.student_id = st.id
+       LEFT JOIN people sp ON st.person_id = sp.id
+       LEFT JOIN staff stf ON al.staff_id = stf.id
+       LEFT JOIN device_user_directory dud
+         ON dud.school_id = al.school_id
+        AND dud.device_sn = al.device_sn
+        AND dud.device_user_id = al.device_user_id
        WHERE ${where}
        ORDER BY al.check_time DESC
        LIMIT ${limit} OFFSET ${offset}`,
       params,
     );
 
+    const enrichedRows = (rows as any[]).map((row) => {
+      const studentName = row.student_first_name || row.student_last_name
+        ? [row.student_first_name, row.student_last_name].filter(Boolean).join(' ')
+        : null;
+      const staffName = row.staff_first_name || row.staff_last_name
+        ? [row.staff_first_name, row.staff_last_name].filter(Boolean).join(' ')
+        : null;
+
+      return {
+        ...row,
+        person_name: studentName || staffName || row.device_known_name || null,
+        person_type: studentName ? 'student' : staffName ? 'staff' : 'unmatched',
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      data: rows,
+      data: enrichedRows,
       pagination: {
         page,
         limit,

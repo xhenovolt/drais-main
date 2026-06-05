@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
                cl.name        AS class_name,
                stf.first_name AS staff_first_name,
                stf.last_name  AS staff_last_name,
+               dud.device_name AS device_known_name,
                d.device_name
              FROM zk_attendance_logs al
              LEFT JOIN devices d      ON al.device_sn = d.sn
@@ -68,6 +69,10 @@ export async function GET(req: NextRequest) {
              LEFT JOIN people sp      ON st.person_id = sp.id
              LEFT JOIN classes cl     ON st.class_id = cl.id
              LEFT JOIN staff stf      ON al.staff_id = stf.id
+             LEFT JOIN device_user_directory dud
+               ON dud.school_id = al.school_id
+              AND dud.device_sn = al.device_sn
+              AND dud.device_user_id = al.device_user_id
              WHERE al.id > ?
              ORDER BY al.id ASC
              LIMIT 20`,
@@ -85,6 +90,8 @@ export async function GET(req: NextRequest) {
               } else if (r.staff_id && (r.staff_first_name || r.staff_last_name)) {
                 personName = [r.staff_first_name, r.staff_last_name].filter(Boolean).join(' ');
                 personType = 'staff';
+              } else if (r.device_known_name) {
+                personName = r.device_known_name;
               }
 
               const event = {
@@ -98,6 +105,7 @@ export async function GET(req: NextRequest) {
                 verify_type: r.verify_type,
                 io_mode: r.io_mode,
                 device_name: r.device_name,
+                device_known_name: r.device_known_name || null,
                 photo_url: r.student_photo || null,
               };
 

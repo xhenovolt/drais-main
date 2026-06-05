@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
          sc.name                 AS student_class,
          -- Staff details (if matched)
          CONCAT(tp.first_name, ' ', tp.last_name) AS staff_name,
-         st.position             AS staff_position
+         st.position             AS staff_position,
+         dud.device_name         AS device_known_name
        FROM zk_attendance_logs al
        LEFT JOIN devices d          ON al.device_sn = d.sn
        LEFT JOIN students s         ON al.student_id = s.id AND s.school_id = ?
@@ -54,6 +55,10 @@ export async function GET(req: NextRequest) {
        LEFT JOIN classes sc         ON e.class_id = sc.id
        LEFT JOIN staff st           ON al.staff_id = st.id
        LEFT JOIN people tp          ON st.person_id = tp.id
+       LEFT JOIN device_user_directory dud
+         ON dud.school_id = al.school_id
+        AND dud.device_sn = al.device_sn
+        AND dud.device_user_id = al.device_user_id
        WHERE al.school_id = ? ${sinceClause}
        ORDER BY al.id DESC
        LIMIT ?`,
@@ -91,6 +96,8 @@ export async function GET(req: NextRequest) {
         resolvedName = row.staff_name;
         role = 'staff';
         classInfo = row.staff_position || null;
+      } else if (row.device_known_name) {
+        resolvedName = row.device_known_name;
       }
 
       return {

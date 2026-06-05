@@ -340,12 +340,12 @@ export default function AttendanceDashboard() {
                     No attendance data yet. Punches will appear here when the device sends them.
                   </td></tr>
                 )}
-                {recentPunches.map((p: any) => {
+              {recentPunches.map((p: any) => {
                   const name = p.student_first_name
                     ? `${p.student_first_name} ${p.student_last_name || ''}`
                     : p.staff_first_name
                       ? `${p.staff_first_name} ${p.staff_last_name || ''}`
-                      : null;
+                      : p.device_known_name || null;
                   return (
                     <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
                       <td className="px-4 py-2 text-sm whitespace-nowrap">

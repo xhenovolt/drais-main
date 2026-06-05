@@ -69,10 +69,10 @@ export async function GET(req: NextRequest) {
     if (search) {
       conditions.push(
         `(al.device_user_id LIKE ? OR sp.first_name LIKE ? OR sp.last_name LIKE ?
-          OR stf.first_name LIKE ? OR stf.last_name LIKE ?)`,
+          OR stf.first_name LIKE ? OR stf.last_name LIKE ? OR dud.device_name LIKE ?)`,
       );
       const s = `%${search}%`;
-      params.push(s, s, s, s, s);
+      params.push(s, s, s, s, s, s);
     }
     if (classId) {
       conditions.push('st.class_id = ?');
@@ -92,6 +92,10 @@ export async function GET(req: NextRequest) {
       LEFT JOIN students st ON al.student_id = st.id
       LEFT JOIN people sp ON st.person_id = sp.id
       LEFT JOIN staff stf ON al.staff_id = stf.id
+      LEFT JOIN device_user_directory dud
+        ON dud.school_id = al.school_id
+       AND dud.device_sn = al.device_sn
+       AND dud.device_user_id = al.device_user_id
       WHERE ${where}
     `;
     const countResult = await query(countSql, params);
@@ -139,6 +143,7 @@ export async function GET(req: NextRequest) {
         cl.name        AS class_name,
         stf.first_name AS staff_first_name,
         stf.last_name  AS staff_last_name,
+        dud.device_name AS device_known_name,
         pfstf.photo_url AS staff_photo
       FROM zk_attendance_logs al
       LEFT JOIN devices d      ON al.device_sn = d.sn
@@ -147,6 +152,10 @@ export async function GET(req: NextRequest) {
       LEFT JOIN classes cl     ON st.class_id = cl.id
       LEFT JOIN staff stf      ON al.staff_id = stf.id
       LEFT JOIN people pfstf   ON stf.person_id = pfstf.id
+      LEFT JOIN device_user_directory dud
+        ON dud.school_id = al.school_id
+       AND dud.device_sn = al.device_sn
+       AND dud.device_user_id = al.device_user_id
       WHERE ${where}
       ORDER BY al.check_time DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -169,6 +178,8 @@ export async function GET(req: NextRequest) {
         personName = [r.staff_first_name, r.staff_last_name].filter(Boolean).join(' ');
         personType = 'staff';
         photoUrl = r.staff_photo;
+      } else if (r.device_known_name) {
+        personName = r.device_known_name;
       }
 
       return {
@@ -181,6 +192,7 @@ export async function GET(req: NextRequest) {
         matched: r.matched,
         person_name: personName,
         person_type: personType,
+        device_known_name: r.device_known_name || null,
         photo_url: photoUrl,
         class_name: className,
         student_id: r.student_id,
