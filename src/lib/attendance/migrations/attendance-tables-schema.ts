@@ -109,6 +109,16 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
         [],
       );
 
+      try {
+        await query(
+          `ALTER TABLE attendance_raw_events
+             ADD COLUMN IF NOT EXISTS display_name VARCHAR(255) DEFAULT NULL`,
+          [],
+        );
+      } catch {
+        /* idempotent; ignore */
+      }
+
       // attendance_records.
       await query(
         `CREATE TABLE IF NOT EXISTS attendance_records (

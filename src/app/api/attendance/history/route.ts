@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
 
 export const runtime = 'nodejs';
 
@@ -33,6 +34,8 @@ export async function GET(req: NextRequest) {
   const gender = url.searchParams.get('gender');
 
   try {
+    await ensureAttendanceEngineSchema();
+
     const conditions: string[] = ['ar.school_id = ?'];
     const params: any[] = [schoolId];
 
