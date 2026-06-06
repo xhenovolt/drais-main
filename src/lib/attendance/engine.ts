@@ -42,6 +42,9 @@ import {
 } from '@/lib/attendance/rule-evaluator';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
 import { publishEvent } from '@/lib/events/eventbus';
+import {
+  syncByAttendanceRecordId,
+} from '@/lib/attendance/sync';
 // Phase 5 — registers the notification fanout subscriber the first
 // time the engine module loads. The subscriber listens for
 // attendance.record.upserted, matches policies, and enqueues
@@ -211,77 +214,93 @@ export async function evaluateDay(
 
   // 1. Load rule.
   const rule = await loadActiveRule(schoolId, roleType);
+  let recordId: number;
+
   if (!rule) {
     // No rule configured — record a present/absent verdict based on
     // raw count only. This keeps Phase 3 useful for schools that
     // haven't filled in attendance_rules yet.
-    await upsertWithFallback(schoolId, personId, roleType, attendanceDate);
-    return;
+    recordId = await upsertWithFallback(schoolId, personId, roleType, attendanceDate);
+  } else {
+    // 2. Load all raw punches for the (person, date).
+    const dayStart = startOfDay(attendanceDate);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const punchRows = (await query(
+      `SELECT punch_at, device_sn, io_mode
+         FROM attendance_raw_events
+        WHERE person_id = ?
+          AND punch_at >= ? AND punch_at < ?
+        ORDER BY punch_at ASC`,
+      [personId, dayStart, dayEnd],
+    )) as Array<{ punch_at: Date | string; device_sn: string | null; io_mode: number | null }>;
+
+    const rawPunches: RawPunch[] = punchRows.map(p => ({
+      punch_at: p.punch_at instanceof Date ? p.punch_at : new Date(p.punch_at),
+      device_sn: p.device_sn,
+      io_mode: p.io_mode,
+    }));
+
+    // 3. Load holiday context for the date.
+    const isHoliday = await isHolidayForSchool(schoolId, dayStart);
+
+    // 4. PHASE 5 — capture the previous status for the event payload's
+    //    `previousStatus` field so notification policies can react to
+    //    state transitions (e.g. condition status_changed=true).
+    const previousStatus = await loadPreviousStatus(personId, dayStart);
+
+    // 5. Evaluate.
+    const verdict = evaluate(
+      rule,
+      rawPunches,
+      {
+        attendanceDate: dayStart,
+        isHoliday,
+        personRole: roleType,
+        // Phase 3 doesn't yet read boarding status off the student
+        // record — that's wired in the Phase 3 follow-up commit that
+        // also extends the UI. Until then evaluator treats all
+        // boarding_scope='all' rules as covering everyone.
+        personIsBoarding: undefined,
+      },
+    );
+
+    // 6. UPSERT.
+    recordId = await persistVerdict(schoolId, personId, roleType, dayStart, rule.id ?? null, verdict);
+
+    // 8. NEW: Sync to legacy UI tables (student_attendance, staff_attendance)
+    //    Fire-and-forget: errors logged but never thrown. Sync must not crash
+    //    the attendance engine.
+    syncByAttendanceRecordId(recordId).catch(err => {
+      // Logged within sync.ts; this catch just prevents propagation.
+      console.error('ATTENDANCE_SYNC_FIRE_FORGET_ERROR', err);
+    });
+
+    // 7. PHASE 5 — emit attendance.record.upserted onto the event bus.
+    //    The fanout subscriber matches policies and enqueues outbox
+    //    rows. publishEvent never throws — listener errors are swallowed
+    //    by the bus, so the engine return is unaffected.
+    publishEvent('attendance.record.upserted', {
+      schoolId,
+      personId,
+      roleType,
+      attendanceDate: formatDate(dayStart),
+      status: verdict.status,
+      previousStatus,
+      firstInAt: verdict.firstInAt ? verdict.firstInAt.toISOString() : null,
+      lastOutAt: verdict.lastOutAt ? verdict.lastOutAt.toISOString() : null,
+      lateMinutes: verdict.lateMinutes,
+      earlyMinutes: verdict.earlyMinutes,
+      totalMinutes: verdict.totalMinutes,
+      ruleId: rule.id ?? null,
+    });
   }
 
-  // 2. Load all raw punches for the (person, date).
-  const dayStart = startOfDay(attendanceDate);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const punchRows = (await query(
-    `SELECT punch_at, device_sn, io_mode
-       FROM attendance_raw_events
-      WHERE person_id = ?
-        AND punch_at >= ? AND punch_at < ?
-      ORDER BY punch_at ASC`,
-    [personId, dayStart, dayEnd],
-  )) as Array<{ punch_at: Date | string; device_sn: string | null; io_mode: number | null }>;
-
-  const rawPunches: RawPunch[] = punchRows.map(p => ({
-    punch_at: p.punch_at instanceof Date ? p.punch_at : new Date(p.punch_at),
-    device_sn: p.device_sn,
-    io_mode: p.io_mode,
-  }));
-
-  // 3. Load holiday context for the date.
-  const isHoliday = await isHolidayForSchool(schoolId, dayStart);
-
-  // 4. PHASE 5 — capture the previous status for the event payload's
-  //    `previousStatus` field so notification policies can react to
-  //    state transitions (e.g. condition status_changed=true).
-  const previousStatus = await loadPreviousStatus(personId, dayStart);
-
-  // 5. Evaluate.
-  const verdict = evaluate(
-    rule,
-    rawPunches,
-    {
-      attendanceDate: dayStart,
-      isHoliday,
-      personRole: roleType,
-      // Phase 3 doesn't yet read boarding status off the student
-      // record — that's wired in the Phase 3 follow-up commit that
-      // also extends the UI. Until then evaluator treats all
-      // boarding_scope='all' rules as covering everyone.
-      personIsBoarding: undefined,
-    },
-  );
-
-  // 6. UPSERT.
-  await persistVerdict(schoolId, personId, roleType, dayStart, rule.id ?? null, verdict);
-
-  // 7. PHASE 5 — emit attendance.record.upserted onto the event bus.
-  //    The fanout subscriber matches policies and enqueues outbox
-  //    rows. publishEvent never throws — listener errors are swallowed
-  //    by the bus, so the engine return is unaffected.
-  publishEvent('attendance.record.upserted', {
-    schoolId,
-    personId,
-    roleType,
-    attendanceDate: formatDate(dayStart),
-    status: verdict.status,
-    previousStatus,
-    firstInAt: verdict.firstInAt ? verdict.firstInAt.toISOString() : null,
-    lastOutAt: verdict.lastOutAt ? verdict.lastOutAt.toISOString() : null,
-    lateMinutes: verdict.lateMinutes,
-    earlyMinutes: verdict.earlyMinutes,
-    totalMinutes: verdict.totalMinutes,
-    ruleId: rule.id ?? null,
-  });
+  // If no rule (fallback path), still need to sync the record
+  if (!rule && recordId) {
+    syncByAttendanceRecordId(recordId).catch(err => {
+      console.error('ATTENDANCE_SYNC_FIRE_FORGET_ERROR', err);
+    });
+  }
 }
 
 async function loadPreviousStatus(
@@ -367,7 +386,7 @@ async function persistVerdict(
   attendanceDate: Date,
   ruleId: number | null,
   v: AttendanceVerdict,
-): Promise<void> {
+): Promise<number> {
   await query(
     `INSERT INTO attendance_records
        (school_id, person_id, role_type, attendance_date,
@@ -393,6 +412,16 @@ async function persistVerdict(
       ruleId, v.rawEventCount,
     ],
   );
+
+  // Fetch the record ID for sync/event purposes.
+  const rows = (await query(
+    `SELECT id FROM attendance_records
+     WHERE person_id = ? AND attendance_date = ?
+     LIMIT 1`,
+    [personId, formatDate(attendanceDate)],
+  )) as Array<{ id: number }>;
+
+  return rows[0]?.id ?? 0;
 }
 
 /**
@@ -405,7 +434,7 @@ async function upsertWithFallback(
   personId: number,
   roleType: 'student' | 'staff',
   attendanceDate: Date,
-): Promise<void> {
+): Promise<number> {
   const dayStart = startOfDay(attendanceDate);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const rows = (await query(
@@ -424,7 +453,7 @@ async function upsertWithFallback(
   }>;
   const r = rows[0];
   const status = r && Number(r.n) > 0 ? 'present' : 'absent';
-  await persistVerdict(schoolId, personId, roleType, dayStart, null, {
+  return await persistVerdict(schoolId, personId, roleType, dayStart, null, {
     status,
     firstInAt: r?.first_in ? new Date(r.first_in as any) : null,
     lastOutAt: r?.last_out ? new Date(r.last_out as any) : null,
