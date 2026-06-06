@@ -451,3 +451,95 @@ function formatDate(d: Date): string {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
+
+/**
+ * Sync attendance_records to student_attendance table for UI display.
+ * 
+ * The attendance engine (Phase 3) stores canonical state in attendance_records.
+ * However, the legacy student_attendance table is still used by the UI to
+ * display attendance with student names. This function bridges them by:
+ * 1. Reading the attendance_record verdict
+ * 2. Resolving the student and class
+ * 3. Converting the Phase 3 status to student_attendance format
+ * 4. Upserting to student_attendance with method='device'
+ * 
+ * Called after evaluatePunch/evaluateDay to keep UI in sync.
+ */
+export async function syncAttendanceRecordToStudentAttendance(
+  schoolId: number,
+  personId: number,
+  attendanceDate: Date,
+): Promise<void> {
+  try {
+    // Step 1: Get the attendance_record we just created
+    const attendanceRecords = (await query(
+      `SELECT status, first_in_at, last_out_at, role_type
+         FROM attendance_records
+        WHERE person_id = ? AND attendance_date = ? AND school_id = ?
+        LIMIT 1`,
+      [personId, formatDate(attendanceDate), schoolId],
+    )) as Array<{
+      status: string;
+      first_in_at: Date | string | null;
+      last_out_at: Date | string | null;
+      role_type: string;
+    }>;
+
+    if (!attendanceRecords || attendanceRecords.length === 0) return;
+    const record = attendanceRecords[0];
+
+    // Only sync student records (not staff)
+    if (record.role_type !== 'student') return;
+
+    // Step 2: Resolve student_id and class_id
+    const studentResults = (await query(
+      `SELECT id FROM students
+        WHERE person_id = ? AND school_id = ? AND deleted_at IS NULL
+        LIMIT 1`,
+      [personId, schoolId],
+    )) as Array<{ id: number }>;
+
+    if (!studentResults || studentResults.length === 0) return;
+    const studentId = studentResults[0].id;
+
+    const classResults = (await query(
+      `SELECT class_id FROM enrollments
+        WHERE student_id = ? AND status = 'active'
+        LIMIT 1`,
+      [studentId],
+    )) as Array<{ class_id: number | null }>;
+
+    const classId = classResults?.[0]?.class_id ?? null;
+
+    // Step 3: Extract time_in from first_in_at
+    let timeIn: string | null = null;
+    if (record.first_in_at) {
+      const date = record.first_in_at instanceof Date ? record.first_in_at : new Date(record.first_in_at);
+      timeIn = date.toTimeString().split(' ')[0];
+    }
+
+    // Step 4: Sync to student_attendance
+    await query(
+      `INSERT INTO student_attendance
+         (student_id, date, status, method, time_in, class_id, marked_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         status = VALUES(status),
+         method = VALUES(method),
+         time_in = VALUES(time_in),
+         marked_at = VALUES(marked_at)`,
+      [
+        studentId,
+        formatDate(attendanceDate),
+        record.status,
+        'device',
+        timeIn,
+        classId,
+        new Date(),
+      ],
+    );
+  } catch (err) {
+    // Best-effort sync — never crash the engine
+    console.warn('[attendance-engine] syncAttendanceRecordToStudentAttendance failed:', err);
+  }
+}

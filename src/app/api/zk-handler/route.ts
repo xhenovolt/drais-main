@@ -5,7 +5,7 @@ import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
-import { recordRawEvent, evaluatePunch } from '@/lib/attendance/engine';
+import { recordRawEvent, evaluatePunch, syncAttendanceRecordToStudentAttendance } from '@/lib/attendance/engine';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import {
   recordTemplate,
@@ -477,6 +477,18 @@ async function autoLinkPinFromName(
           const roleType = studentId ? 'student' : 'staff';
           for (const attendanceDate of backfill.affectedDates) {
             await evaluateDay(schoolId, Number(mappedPersonId), roleType, attendanceDate);
+            // Sync to student_attendance for UI display
+            if (studentId) {
+              await syncAttendanceRecordToStudentAttendance(
+                schoolId,
+                Number(mappedPersonId),
+                attendanceDate
+              ).catch(err =>
+                zkLog('warn', 'SYNC_BACKFILL_FAILED', {
+                  personId: mappedPersonId, date: attendanceDate, error: String(err),
+                })
+              );
+            }
           }
         }
       }
@@ -871,7 +883,19 @@ async function saveAttendancePunch(
       if (rawEventId && matched && resolution.personId) {
         // Recompute the (person, date) attendance_records row.
         // Idempotent — safe to call multiple times for the same punch.
-        evaluatePunch(rawEventId).catch(err =>
+        evaluatePunch(rawEventId).then(async () => {
+          // Sync the attendance_record to student_attendance table for UI display
+          const punchAtDate = new Date(checkTime);
+          await syncAttendanceRecordToStudentAttendance(
+            schoolId,
+            resolution.personId!,
+            punchAtDate
+          ).catch(err =>
+            zkLog('warn', 'SYNC_TO_STUDENT_ATTENDANCE_FAILED', {
+              personId: resolution.personId, error: String(err),
+            })
+          );
+        }).catch(err =>
           zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
             rawEventId, error: String(err),
           }),

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { evaluateDay } from '@/lib/attendance/engine';
+import { evaluateDay, syncAttendanceRecordToStudentAttendance } from '@/lib/attendance/engine';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 
 export const runtime = 'nodejs';
@@ -161,6 +161,16 @@ export async function POST(req: NextRequest) {
         const roleType = user_type === 'student' ? 'student' : 'staff';
         for (const attendanceDate of backfill.affectedDates) {
           await evaluateDay(session.schoolId, Number(mappedPersonId), roleType, attendanceDate);
+          // Sync to student_attendance for UI display
+          if (user_type === 'student') {
+            await syncAttendanceRecordToStudentAttendance(
+              session.schoolId,
+              Number(mappedPersonId),
+              attendanceDate
+            ).catch(err =>
+              console.warn('[ZK UserMapping] Sync to student_attendance failed:', err)
+            );
+          }
         }
       }
     } catch (backfillErr) {
@@ -264,6 +274,16 @@ export async function PUT(req: NextRequest) {
         const roleType = user_type === 'student' ? 'student' : 'staff';
         for (const attendanceDate of backfill.affectedDates) {
           await evaluateDay(session.schoolId, Number(mappedPersonId), roleType, attendanceDate);
+          // Sync to student_attendance for UI display
+          if (user_type === 'student') {
+            await syncAttendanceRecordToStudentAttendance(
+              session.schoolId,
+              Number(mappedPersonId),
+              attendanceDate
+            ).catch(err =>
+              console.warn('[ZK UserMapping] Sync to student_attendance failed:', err)
+            );
+          }
         }
       }
     } catch (backfillErr) {
