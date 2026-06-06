@@ -566,3 +566,121 @@ export async function updateRawEventStatus(
   }
 }
 
+/**
+ * Backfill attendance_raw_events from zk_parsed_logs for any missing scans.
+ * Ensures attendance/logs shows all device logs with learner mappings.
+ * Call this periodically to catch any logs that bypassed the normal ZK handler.
+ */
+export async function syncParsedLogsToRawEvents(schoolId: number): Promise<void> {
+  try {
+    const limit = 1000;
+    let offset = 0;
+    let totalSynced = 0;
+
+    // Continuously sync batches until no more logs
+    while (true) {
+      // Find zk_parsed_logs not yet in attendance_raw_events
+      const unsynced = (await query(
+        `SELECT
+            pl.id AS parsed_log_id,
+            pl.device_sn,
+            pl.user_id AS device_user_id,
+            pl.check_time AS punch_at,
+            pl.verify_type,
+            pl.inout_mode AS io_mode,
+            pl.matched,
+            pl.student_id,
+            pl.staff_id,
+            pl.error_message,
+            pl.created_at
+         FROM zk_parsed_logs pl
+         LEFT JOIN attendance_raw_events ar
+           ON ar.legacy_table = 'zk_parsed_logs'
+           AND ar.legacy_id = pl.id
+         WHERE ar.id IS NULL
+         LIMIT ?`,
+        [limit],
+      )) as Array<{
+        parsed_log_id: number;
+        device_sn: string;
+        device_user_id: string;
+        punch_at: string;
+        verify_type: number | null;
+        io_mode: number | null;
+        matched: number;
+        student_id: number | null;
+        staff_id: number | null;
+        error_message: string | null;
+        created_at: string;
+      }>;
+
+      if (unsynced.length === 0) break;
+
+      // Determine role_type and person_id based on student_id/staff_id
+      for (const log of unsynced) {
+        let roleType: 'student' | 'staff' | null = null;
+        let personId: number | null = null;
+
+        if (log.student_id) {
+          const student = (await query(
+            'SELECT person_id FROM students WHERE id = ? AND school_id = ?',
+            [log.student_id, schoolId],
+          )) as Array<{ person_id: number }>;
+          if (student.length > 0) {
+            roleType = 'student';
+            personId = student[0].person_id;
+          }
+        } else if (log.staff_id) {
+          const staff = (await query(
+            'SELECT person_id FROM staff WHERE id = ?',
+            [log.staff_id],
+          )) as Array<{ person_id: number }>;
+          if (staff.length > 0) {
+            roleType = 'staff';
+            personId = staff[0].person_id;
+          }
+        }
+
+        // Insert into attendance_raw_events
+        await query(
+          `INSERT INTO attendance_raw_events
+             (school_id, device_sn, device_user_id, punch_at, verify_type, io_mode,
+              matched, role_type, person_id, role_ref_id, source, legacy_table, legacy_id,
+              status, error_message)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            schoolId,
+            log.device_sn,
+            Number(log.device_user_id),
+            log.punch_at,
+            log.verify_type,
+            log.io_mode,
+            log.matched,
+            roleType,
+            personId,
+            log.student_id || log.staff_id || null,
+            'relay',
+            'zk_parsed_logs',
+            log.parsed_log_id,
+            log.error_message ? 'failed' : 'success',
+            log.error_message,
+          ],
+        ).catch(() => {
+          // Ignore duplicates
+        });
+
+        totalSynced++;
+      }
+
+      if (unsynced.length < limit) break;
+      offset += limit;
+    }
+
+    if (totalSynced > 0) {
+      console.log(`[attendance-engine] Synced ${totalSynced} parsed logs to raw events`);
+    }
+  } catch (err) {
+    console.warn('[attendance-engine] syncParsedLogsToRawEvents failed:', err);
+  }
+}
+
