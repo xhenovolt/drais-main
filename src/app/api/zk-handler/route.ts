@@ -5,7 +5,7 @@ import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
-import { recordRawEvent, evaluatePunch, syncAttendanceRecordToStudentAttendance } from '@/lib/attendance/engine';
+import { recordRawEvent, evaluatePunch, syncAttendanceRecordToStudentAttendance, updateRawEventStatus } from '@/lib/attendance/engine';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import {
   recordTemplate,
@@ -880,6 +880,12 @@ async function saveAttendancePunch(
         legacyId:    insLegacy?.insertId ?? null,
       });
       rawEventIdPublished = rawEventId;
+      
+      // Mark as processing while evaluating
+      if (rawEventId) {
+        await updateRawEventStatus(rawEventId, 'processing');
+      }
+      
       if (rawEventId && matched && resolution.personId) {
         // Recompute the (person, date) attendance_records row.
         // Idempotent — safe to call multiple times for the same punch.
@@ -895,11 +901,26 @@ async function saveAttendancePunch(
               personId: resolution.personId, error: String(err),
             })
           );
-        }).catch(err =>
+          
+          // Mark as success after all processing complete
+          await updateRawEventStatus(rawEventId, 'success').catch(err =>
+            zkLog('warn', 'UPDATE_STATUS_FAILED', { rawEventId, error: String(err) })
+          );
+        }).catch(err => {
           zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
             rawEventId, error: String(err),
-          }),
-        );
+          });
+          // Mark as failed on error
+          updateRawEventStatus(
+            rawEventId,
+            'failed',
+            'EVAL_ERROR',
+            String(err)
+          ).catch(() => {});
+        });
+      } else if (rawEventId && !matched) {
+        // Unmatched but still mark as processing complete (waiting for manual assignment)
+        await updateRawEventStatus(rawEventId, 'success');
       }
     } catch (err) {
       zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {

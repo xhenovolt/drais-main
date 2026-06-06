@@ -366,7 +366,11 @@ export default function UnifiedAttendancePage() {
                     {ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched'}
                   </span>
                   {ev.class_name && <span className="text-xs text-gray-400">{ev.class_name}</span>}
-                  {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
+                  {ev.status === 'success' && <Check className="w-3 h-3 text-green-600" />}
+                   {ev.status === 'failed' && <X className="w-3 h-3 text-red-600" />}
+                   {(ev.status === 'pending' || ev.status === 'processing') && <RefreshCw className="w-3 h-3 animate-spin text-amber-600" />}
+                   <span className="text-xs font-medium ml-auto text-gray-500">{ev.status || 'processing'}</span>
+                   {ev.device_name && <span className="text-xs text-gray-400">{ev.device_name}</span>}
                 </div>
               ))}
             </div>
@@ -699,15 +703,38 @@ export default function UnifiedAttendancePage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {log.matched ? (
-                        <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
-                          <UserCheck className="w-3.5 h-3.5" /> Matched
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-red-500 text-xs font-medium">
-                          <AlertTriangle className="w-3.5 h-3.5" /> Unmatched
-                        </span>
-                      )}
+                      {(() => {
+                        const status = log.status || 'pending';
+                        const errorMessage = log.error_message;
+                        
+                        if (status === 'success') {
+                          return (
+                            <div className="flex items-center gap-1">
+                              <Check className="w-4 h-4 text-green-600" />
+                              <span className="text-xs font-medium text-green-600">Recorded</span>
+                            </div>
+                          );
+                        }
+                        if (status === 'failed') {
+                          return (
+                            <div>
+                              <div className="flex items-center gap-1 mb-1">
+                                <X className="w-4 h-4 text-red-600" />
+                                <span className="text-xs font-medium text-red-600">Failed</span>
+                              </div>
+                              {errorMessage && (
+                                <span className="text-xs text-gray-500 block">{errorMessage}</span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3 text-amber-600 animate-spin" />
+                            <span className="text-xs font-medium text-amber-600">Processing</span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     {tab === 'unmatched' && (
                       <td className="px-4 py-3">

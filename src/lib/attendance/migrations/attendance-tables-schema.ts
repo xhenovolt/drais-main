@@ -99,12 +99,17 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
            resolution_score DECIMAL(4,3) DEFAULT NULL,
            legacy_table    VARCHAR(40) DEFAULT NULL,
            legacy_id       BIGINT DEFAULT NULL,
+           status          ENUM('pending','processing','success','failed') NOT NULL DEFAULT 'pending',
+           error_code      VARCHAR(50) DEFAULT NULL,
+           error_message   TEXT DEFAULT NULL,
+           processed_at    DATETIME DEFAULT NULL,
            ingested_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
            KEY idx_school_punch  (school_id, punch_at),
            KEY idx_device_pin    (device_sn, device_user_id, punch_at),
            KEY idx_person_day    (person_id, punch_at),
            KEY idx_unresolved    (matched, school_id, ingested_at),
-           KEY idx_legacy        (legacy_table, legacy_id)
+           KEY idx_legacy        (legacy_table, legacy_id),
+           KEY idx_status        (school_id, status, processed_at)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
         [],
       );
@@ -113,6 +118,56 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
         await query(
           `ALTER TABLE attendance_raw_events
              ADD COLUMN IF NOT EXISTS display_name VARCHAR(255) DEFAULT NULL`,
+          [],
+        );
+      } catch {
+        /* idempotent; ignore */
+      }
+
+      try {
+        await query(
+          `ALTER TABLE attendance_raw_events
+             ADD COLUMN IF NOT EXISTS status ENUM('pending','processing','success','failed') NOT NULL DEFAULT 'pending'`,
+          [],
+        );
+      } catch {
+        /* idempotent; ignore */
+      }
+
+      try {
+        await query(
+          `ALTER TABLE attendance_raw_events
+             ADD COLUMN IF NOT EXISTS error_code VARCHAR(50) DEFAULT NULL`,
+          [],
+        );
+      } catch {
+        /* idempotent; ignore */
+      }
+
+      try {
+        await query(
+          `ALTER TABLE attendance_raw_events
+             ADD COLUMN IF NOT EXISTS error_message TEXT DEFAULT NULL`,
+          [],
+        );
+      } catch {
+        /* idempotent; ignore */
+      }
+
+      try {
+        await query(
+          `ALTER TABLE attendance_raw_events
+             ADD COLUMN IF NOT EXISTS processed_at DATETIME DEFAULT NULL`,
+          [],
+        );
+      } catch {
+        /* idempotent; ignore */
+      }
+
+      try {
+        await query(
+          `ALTER TABLE attendance_raw_events
+             ADD KEY IF NOT EXISTS idx_status (school_id, status, processed_at)`,
           [],
         );
       } catch {

@@ -543,3 +543,26 @@ export async function syncAttendanceRecordToStudentAttendance(
     console.warn('[attendance-engine] syncAttendanceRecordToStudentAttendance failed:', err);
   }
 }
+
+/**
+ * Update status of a raw event to mark processing/success/failure.
+ * Used to provide real-time feedback in the UI.
+ */
+export async function updateRawEventStatus(
+  rawEventId: number,
+  status: 'processing' | 'success' | 'failed',
+  errorCode?: string | null,
+  errorMessage?: string | null,
+): Promise<void> {
+  try {
+    await query(
+      `UPDATE attendance_raw_events
+         SET status = ?, error_code = ?, error_message = ?, processed_at = NOW()
+       WHERE id = ?`,
+      [status, errorCode ?? null, errorMessage ?? null, rawEventId],
+    );
+  } catch (err) {
+    console.warn('[attendance-engine] updateRawEventStatus failed:', err);
+  }
+}
+

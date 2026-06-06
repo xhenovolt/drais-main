@@ -8,9 +8,9 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/attendance/stream
  *
- * Server-Sent Events (SSE) endpoint for live attendance feed.
- * Polls zk_attendance_logs every 3s for new rows since last seen ID,
- * enriches with person names, and pushes to connected clients.
+ * Server-Sent Events (SSE) endpoint for live attendance feed with status tracking.
+ * Polls attendance_raw_events every 3s for new rows since last seen ID,
+ * enriches with person names and status info, and pushes to connected clients.
  *
  * The client connects with:
  *   const es = new EventSource('/api/attendance/stream');
@@ -32,9 +32,9 @@ export async function GET(req: NextRequest) {
 
       let lastId = 0;
 
-      // Get starting point: latest log ID
+      // Get starting point: latest raw event ID
       try {
-        const latest = await query('SELECT MAX(id) AS max_id FROM zk_attendance_logs');
+        const latest = await query('SELECT MAX(id) AS max_id FROM attendance_raw_events WHERE school_id = ?', [session.schoolId]);
         lastId = Number(latest[0]?.max_id || 0);
       } catch {
         // Start from 0 if table is empty
@@ -46,37 +46,45 @@ export async function GET(req: NextRequest) {
         try {
           const rows = await query(
             `SELECT
-               al.id,
-               al.device_sn,
-               al.device_user_id,
-               al.student_id,
-               al.staff_id,
-               al.check_time,
-               al.verify_type,
-               al.io_mode,
-               al.matched,
-               sp.first_name  AS student_first_name,
-               sp.last_name   AS student_last_name,
-               sp.photo_url   AS student_photo,
-               cl.name        AS class_name,
-               stf.first_name AS staff_first_name,
-               stf.last_name  AS staff_last_name,
-               dud.device_name AS device_known_name,
-               d.device_name
-             FROM zk_attendance_logs al
-             LEFT JOIN devices d      ON al.device_sn = d.sn
-             LEFT JOIN students st    ON al.student_id = st.id
-             LEFT JOIN people sp      ON st.person_id = sp.id
-             LEFT JOIN classes cl     ON st.class_id = cl.id
-             LEFT JOIN staff stf      ON al.staff_id = stf.id
-             LEFT JOIN device_user_directory dud
-               ON dud.school_id = al.school_id
-              AND dud.device_sn = al.device_sn
-              AND dud.device_user_id = al.device_user_id
-             WHERE al.id > ?
-             ORDER BY al.id ASC
-             LIMIT 20`,
-            [lastId],
+                are.id,
+                are.device_user_id,
+                are.punch_at,
+                are.status,
+                are.error_code,
+                are.error_message,
+                are.processed_at,
+                are.person_id,
+                are.role_type,
+                zal.id AS legacy_id,
+                zal.student_id,
+                zal.staff_id,
+                zal.device_sn,
+                zal.verify_type,
+                zal.io_mode,
+                zal.matched,
+                sp.first_name  AS student_first_name,
+                sp.last_name   AS student_last_name,
+                sp.photo_url   AS student_photo,
+                cl.name        AS class_name,
+                stf.first_name AS staff_first_name,
+                stf.last_name  AS staff_last_name,
+                dud.device_name AS device_known_name,
+                d.device_name
+              FROM attendance_raw_events are
+              LEFT JOIN zk_attendance_logs zal ON are.legacy_table = 'zk_attendance_logs' AND are.legacy_id = zal.id
+              LEFT JOIN devices d ON zal.device_sn = d.sn
+              LEFT JOIN students st ON zal.student_id = st.id
+              LEFT JOIN people sp ON st.person_id = sp.id
+              LEFT JOIN classes cl ON st.class_id = cl.id
+              LEFT JOIN staff stf ON zal.staff_id = stf.id
+              LEFT JOIN device_user_directory dud
+                ON dud.school_id = are.school_id
+               AND dud.device_sn = zal.device_sn
+               AND dud.device_user_id = are.device_user_id
+              WHERE are.school_id = ? AND are.id > ?
+              ORDER BY are.id ASC
+              LIMIT 20`,
+            [session.schoolId, lastId],
           );
 
           if (rows && (rows as any[]).length > 0) {
@@ -97,7 +105,7 @@ export async function GET(req: NextRequest) {
               const event = {
                 id: r.id,
                 device_user_id: r.device_user_id,
-                check_time: r.check_time,
+                check_time: r.punch_at,
                 person_name: personName,
                 person_type: personType,
                 class_name: r.class_name,
@@ -107,6 +115,10 @@ export async function GET(req: NextRequest) {
                 device_name: r.device_name,
                 device_known_name: r.device_known_name || null,
                 photo_url: r.student_photo || null,
+                status: r.status || 'pending',
+                error_code: r.error_code || null,
+                error_message: r.error_message || null,
+                processed_at: r.processed_at || null,
               };
 
               controller.enqueue(
