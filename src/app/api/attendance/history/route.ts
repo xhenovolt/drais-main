@@ -61,10 +61,10 @@ export async function GET(req: NextRequest) {
     }
     if (search) {
       conditions.push(
-        `(ar.device_user_id LIKE ? OR p.first_name LIKE ? OR p.last_name LIKE ? OR dud.device_name LIKE ?)`,
+        `(ar.device_user_id LIKE ? OR ar.display_name LIKE ? OR p.first_name LIKE ? OR p.last_name LIKE ? OR dud.device_name LIKE ?)`,
       );
       const s = `%${search}%`;
-      params.push(s, s, s, s);
+      params.push(s, s, s, s, s);
     }
     if (classId) {
       conditions.push(
@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
          ar.io_mode,
          ar.matched,
          ar.role_type,
+         ar.display_name,
          ar.person_id,
          ar.enrollment_id,
          ar.source,
@@ -156,9 +157,9 @@ export async function GET(req: NextRequest) {
     );
 
     const enriched = (rows as any[]).map((row) => {
-      const personName = row.first_name || row.last_name
+      const personName = row.display_name || (row.first_name || row.last_name
         ? [row.first_name, row.last_name].filter(Boolean).join(' ')
-        : row.device_known_name || null;
+        : row.device_known_name || null);
 
       return {
         ...row,

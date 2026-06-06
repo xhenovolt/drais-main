@@ -85,6 +85,7 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
            school_id       BIGINT NOT NULL,
            device_sn       VARCHAR(64) NOT NULL,
            device_user_id  INT NOT NULL,
+           display_name    VARCHAR(255) DEFAULT NULL,
            enrollment_id   BIGINT DEFAULT NULL,
            person_id       BIGINT DEFAULT NULL,
            role_type       ENUM('student','staff','visitor') DEFAULT NULL,

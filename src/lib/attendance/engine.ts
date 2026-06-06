@@ -56,6 +56,7 @@ export interface RecordRawEventInput {
   schoolId: number;
   deviceSn: string;
   deviceUserId: number;
+  displayName?: string | null;
   punchAt: Date;
   verifyType?: number | null;
   ioMode?: number | null;
@@ -84,17 +85,19 @@ export async function recordRawEvent(
 ): Promise<number | null> {
   try {
     await ensureAttendanceEngineSchema();
+    const displayName = await resolveDisplayName(input);
     const result = (await query(
       `INSERT INTO attendance_raw_events
-         (school_id, device_sn, device_user_id, enrollment_id, person_id,
+         (school_id, device_sn, device_user_id, display_name, enrollment_id, person_id,
           role_type, role_ref_id, punch_at, verify_type, io_mode, source,
           matched, resolution_path, resolution_score,
           legacy_table, legacy_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.schoolId,
         input.deviceSn,
         input.deviceUserId,
+        displayName,
         input.enrollmentId ?? null,
         input.personId ?? null,
         input.roleType ?? null,
@@ -118,6 +121,46 @@ export async function recordRawEvent(
     console.warn('[attendance-engine] recordRawEvent failed', err);
     return null;
   }
+}
+
+async function resolveDisplayName(input: RecordRawEventInput): Promise<string | null> {
+  if (input.displayName && String(input.displayName).trim()) {
+    return String(input.displayName).trim();
+  }
+
+  if (input.personId) {
+    try {
+      const rows = (await query(
+        `SELECT TRIM(CONCAT_WS(' ', first_name, last_name)) AS display_name
+           FROM people
+          WHERE id = ?
+          LIMIT 1`,
+        [input.personId],
+      )) as Array<{ display_name: string | null }>;
+      const displayName = rows[0]?.display_name?.trim();
+      if (displayName) return displayName;
+    } catch {
+      // fall through to device directory
+    }
+  }
+
+  try {
+    const rows = (await query(
+      `SELECT device_name
+         FROM device_user_directory
+        WHERE school_id = ?
+          AND device_sn = ?
+          AND device_user_id = ?
+        LIMIT 1`,
+      [input.schoolId, input.deviceSn, String(input.deviceUserId)],
+    )) as Array<{ device_name: string | null }>;
+    const deviceName = rows[0]?.device_name?.trim();
+    if (deviceName) return deviceName;
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 /**

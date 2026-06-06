@@ -64,10 +64,23 @@ export async function captureDeviceUserDirectory(
          device_name = VALUES(device_name),
          device_card = COALESCE(NULLIF(VALUES(device_card), ''), device_card),
          device_priv = COALESCE(NULLIF(VALUES(device_priv), ''), device_priv),
-         school_id   = COALESCE(VALUES(school_id), school_id),
-         last_seen   = NOW()`,
+        school_id   = COALESCE(VALUES(school_id), school_id),
+        last_seen   = NOW()`,
       [schoolId, deviceSn, deviceUserId, cleanName, extras.card ?? null, extras.priv ?? null],
     );
+
+    try {
+      await query(
+        `UPDATE attendance_raw_events
+            SET display_name = COALESCE(NULLIF(display_name, ''), ?)
+          WHERE school_id = ?
+            AND device_sn = ?
+            AND CAST(device_user_id AS CHAR) = ?`,
+        [cleanName, schoolId, deviceSn, deviceUserId],
+      );
+    } catch (err) {
+      console.warn('[device-directory] raw event backfill failed:', err);
+    }
   } catch (err) {
     // Best-effort. The popup's device_known_name lookup tolerates a
     // missing/failed row by simply falling back to the PIN-only
