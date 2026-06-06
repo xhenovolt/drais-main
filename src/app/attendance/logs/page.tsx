@@ -226,11 +226,10 @@ function useLiveFeed() {
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function UnifiedAttendancePage() {
-  const today = new Date().toISOString().split('T')[0];
   const [tab, setTab] = useState<TabKey>('all');
   const [page, setPage] = useState(1);
-  const [dateFrom, setDateFrom] = useState(today);
-  const [dateTo, setDateTo] = useState(today);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [deviceSn, setDeviceSn] = useState('');
   const [search, setSearch] = useState('');
   const [assignTarget, setAssignTarget] = useState<string | null>(null);
@@ -255,7 +254,7 @@ export default function UnifiedAttendancePage() {
   }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender]);
 
   const { data, isLoading, mutate } = useSWR<any>(
-    `/api/attendance/unified?${params}`,
+    `/api/attendance/history?${params}`,
     { refreshInterval: 15000 },
   );
 
@@ -296,7 +295,7 @@ export default function UnifiedAttendancePage() {
     const blob = new Blob([csvRows], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `attendance-${tab}-${dateFrom}.csv`;
+    a.download = `attendance-${tab}-${dateFrom || 'all-time'}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
     showToast('success', 'CSV exported');
@@ -314,7 +313,7 @@ export default function UnifiedAttendancePage() {
             Attendance Logs
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Human-readable logs from biometric devices — single source of truth
+            Human-readable logs from biometric devices — persisted history
           </p>
         </div>
 
@@ -341,6 +340,9 @@ export default function UnifiedAttendancePage() {
           </button>
           {liveFeedOpen && (
             <div className="max-h-48 overflow-y-auto border-t border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+              <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-900/40">
+                Realtime only. Historical logs stay in the table below even if the device is offline.
+              </div>
               {liveEvents.length === 0 && (
                 <p className="px-4 py-6 text-center text-sm text-gray-400">
                   Waiting for new attendance events...
@@ -480,6 +482,9 @@ export default function UnifiedAttendancePage() {
             </div>
           </div>
         </div>
+        <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+          Leave the date filters blank to show all saved attendance logs. The live panel above is only for new punches arriving right now.
+        </p>
 
         {/* ── Toolbar ────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-4">
