@@ -119,6 +119,27 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
         /* idempotent; ignore */
       }
 
+      try {
+        await query(
+          `UPDATE attendance_raw_events ar
+             LEFT JOIN device_user_directory dud
+               ON dud.school_id = ar.school_id
+              AND dud.device_sn = ar.device_sn
+              AND dud.device_user_id = CAST(ar.device_user_id AS CHAR)
+             LEFT JOIN people p
+               ON p.id = ar.person_id
+            SET ar.display_name = COALESCE(
+                  NULLIF(TRIM(ar.display_name), ''),
+                  NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+                  NULLIF(TRIM(dud.device_name), '')
+                )
+          WHERE ar.display_name IS NULL OR TRIM(ar.display_name) = ''`,
+          [],
+        );
+      } catch {
+        /* best-effort historical backfill */
+      }
+
       // attendance_records.
       await query(
         `CREATE TABLE IF NOT EXISTS attendance_records (

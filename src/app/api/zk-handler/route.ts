@@ -6,6 +6,7 @@ import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent, evaluatePunch } from '@/lib/attendance/engine';
+import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import {
   recordTemplate,
   queueDistributionsForSchool,
@@ -460,6 +461,25 @@ async function autoLinkPinFromName(
             AND matched = 0`,
         [updateValue, deviceUserId, deviceSn],
       );
+
+      const backfill = await backfillAttendanceRawEventsForMapping({
+        schoolId,
+        deviceUserId,
+        deviceSn,
+        studentId,
+        staffId,
+      });
+      if (backfill.affectedDates.length > 0) {
+        const mappedPersonId = studentId
+          ? (await query('SELECT person_id FROM students WHERE id = ? AND school_id = ? LIMIT 1', [studentId, schoolId]))[0]?.person_id ?? null
+          : (await query('SELECT person_id FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [staffId, schoolId]))[0]?.person_id ?? null;
+        if (mappedPersonId) {
+          const roleType = studentId ? 'student' : 'staff';
+          for (const attendanceDate of backfill.affectedDates) {
+            await evaluateDay(schoolId, Number(mappedPersonId), roleType, attendanceDate);
+          }
+        }
+      }
     } catch { /* non-critical backfill */ }
 
     return true;

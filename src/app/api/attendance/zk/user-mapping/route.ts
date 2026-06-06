@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { evaluateDay } from '@/lib/attendance/engine';
+import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 
 export const runtime = 'nodejs';
 
@@ -140,9 +142,34 @@ export async function POST(req: NextRequest) {
       // Non-fatal — mapping was still created
     }
 
+    let rawBackfilled = 0;
+    try {
+      const backfill = await backfillAttendanceRawEventsForMapping({
+        schoolId: session.schoolId,
+        deviceUserId: trimmedUserId,
+        deviceSn: device_sn || null,
+        studentId: mappedStudentId,
+        staffId: mappedStaffId,
+      });
+      rawBackfilled = backfill.affectedRows;
+
+      const mappedPersonId = user_type === 'student'
+        ? (await query('SELECT person_id FROM students WHERE id = ? AND school_id = ? LIMIT 1', [mappedStudentId, session.schoolId]))[0]?.person_id ?? null
+        : (await query('SELECT person_id FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [mappedStaffId, session.schoolId]))[0]?.person_id ?? null;
+
+      if (mappedPersonId && backfill.affectedDates.length > 0) {
+        const roleType = user_type === 'student' ? 'student' : 'staff';
+        for (const attendanceDate of backfill.affectedDates) {
+          await evaluateDay(session.schoolId, Number(mappedPersonId), roleType, attendanceDate);
+        }
+      }
+    } catch (backfillErr) {
+      console.error('[ZK UserMapping POST] Raw event backfill failed:', backfillErr);
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Mapping created${rematched > 0 ? `. ${rematched} existing logs re-matched.` : ''}`,
+      message: `Mapping created${rematched > 0 ? `. ${rematched} existing logs re-matched.` : ''}${rawBackfilled > 0 ? `. ${rawBackfilled} raw events backfilled.` : ''}`,
       id: (result as any)?.insertId,
       rematched,
     });
@@ -218,9 +245,34 @@ export async function PUT(req: NextRequest) {
       console.error('[ZK UserMapping PUT] Re-match failed:', rematchErr);
     }
 
+    let rawBackfilled = 0;
+    try {
+      const backfill = await backfillAttendanceRawEventsForMapping({
+        schoolId: session.schoolId,
+        deviceUserId: String(targetDeviceUserId).trim(),
+        deviceSn: device_sn || null,
+        studentId: mappedStudentId,
+        staffId: mappedStaffId,
+      });
+      rawBackfilled = backfill.affectedRows;
+
+      const mappedPersonId = user_type === 'student'
+        ? (await query('SELECT person_id FROM students WHERE id = ? AND school_id = ? LIMIT 1', [mappedStudentId, session.schoolId]))[0]?.person_id ?? null
+        : (await query('SELECT person_id FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [mappedStaffId, session.schoolId]))[0]?.person_id ?? null;
+
+      if (mappedPersonId && backfill.affectedDates.length > 0) {
+        const roleType = user_type === 'student' ? 'student' : 'staff';
+        for (const attendanceDate of backfill.affectedDates) {
+          await evaluateDay(session.schoolId, Number(mappedPersonId), roleType, attendanceDate);
+        }
+      }
+    } catch (backfillErr) {
+      console.error('[ZK UserMapping PUT] Raw event backfill failed:', backfillErr);
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Mapping updated${rematched > 0 ? `. ${rematched} logs re-matched.` : ''}`,
+      message: `Mapping updated${rematched > 0 ? `. ${rematched} logs re-matched.` : ''}${rawBackfilled > 0 ? `. ${rawBackfilled} raw events backfilled.` : ''}`,
       rematched,
     });
   } catch (err) {
