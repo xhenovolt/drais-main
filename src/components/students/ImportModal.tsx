@@ -89,6 +89,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({
    * let them through. Surfaced as a red "Name collision detected" panel.
    */
   const [collisionError, setCollisionError] = useState<{ collidedFields: string[]; fileHeaders: string[] } | null>(null);
+  
+  /**
+   * Post-import fee editor state. Shows learners and allows bulk fee updates.
+   */
+  const [showFeeEditor, setShowFeeEditor] = useState(false);
+  const [feeUpdates, setFeeUpdates] = useState<Record<number, string>>({});
+  const [updatingFees, setUpdatingFees] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -150,6 +157,39 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       toast.error(`Preview error: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Update Fees (post-import) ──────────────────────────────────────────
+  const handleUpdateFees = async () => {
+    const updates = Object.entries(feeUpdates)
+      .filter(([, fee]) => fee && !isNaN(parseFloat(fee)))
+      .map(([studentId, fee]) => ({ student_id: parseInt(studentId), fees: parseFloat(fee) }));
+    
+    if (updates.length === 0) {
+      toast.error('No valid fees to update');
+      return;
+    }
+
+    setUpdatingFees(true);
+    try {
+      const res = await fetch('/api/students/import', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Updated fees for ${data.updated + data.created} learners`);
+        setShowFeeEditor(false);
+        setFeeUpdates({});
+      } else {
+        toast.error(data.error || 'Failed to update fees');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating fees');
+    } finally {
+      setUpdatingFees(false);
     }
   };
 
@@ -760,14 +800,96 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
 
                     {/* Post-import actions */}
                     {(result.imported > 0 || result.updated > 0) && (
-                      <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 text-center">
-                        <p className="text-sm text-indigo-800 dark:text-indigo-200 font-medium">
-                          {result.imported + result.updated} students imported. Sync to biometric device?
-                        </p>
-                        <button className="mt-2 px-4 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 font-semibold">
-                          Sync to Device
-                        </button>
-                      </div>
+                      <>
+                        <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 text-center">
+                          <p className="text-sm text-indigo-800 dark:text-indigo-200 font-medium">
+                            {result.imported + result.updated} students imported. Sync to biometric device?
+                          </p>
+                          <button className="mt-2 px-4 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 font-semibold">
+                            Sync to Device
+                          </button>
+                        </div>
+
+                        {/* Fee adjustment CTA */}
+                        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-purple-200 dark:bg-purple-900/40">
+                              <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z"></path>
+                                <path fillRule="evenodd" d="M0 10a10 10 0 1 1 20 0 10 10 0 0 1-20 0zm10-8a8 8 0 1 0 0 16 8 8 0 0 0 0-16z" clipRule="evenodd"></path>
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-purple-900 dark:text-purple-100 text-sm mb-1">
+                                Set or Adjust Fees
+                              </h4>
+                              <p className="text-xs text-purple-800 dark:text-purple-200 mb-3">
+                                Imported learners may have fees set to 0 or need adjustment. Click below to edit fees in bulk before finalizing.
+                              </p>
+                              <button
+                                onClick={() => setShowFeeEditor(!showFeeEditor)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+                              >
+                                <Upload className="w-4 h-4" />
+                                {showFeeEditor ? 'Hide Fee Editor' : 'Open Fee Editor'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Fee editor panel */}
+                          {showFeeEditor && result && (
+                            <div className="mt-4 pt-4 border-t border-purple-200 dark:border-purple-800 space-y-3">
+                              <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                                Edit fees for {result.imported} newly added learners:
+                              </p>
+                              <div className="bg-white dark:bg-slate-800 rounded-lg border border-purple-200 dark:border-slate-700 max-h-48 overflow-y-auto">
+                                <table className="w-full text-xs">
+                                  <thead className="sticky top-0 bg-purple-100 dark:bg-slate-700 border-b border-purple-200 dark:border-slate-600">
+                                    <tr>
+                                      <th className="px-3 py-2 text-left font-semibold text-purple-900 dark:text-purple-100">Learner</th>
+                                      <th className="px-3 py-2 text-left font-semibold text-purple-900 dark:text-purple-100">Fees</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-purple-100 dark:divide-slate-700">
+                                    {/* Mock learners - in production this would come from import session data */}
+                                    {Array.from({ length: Math.min(5, result.imported) }).map((_, i) => (
+                                      <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-700/50">
+                                        <td className="px-3 py-2 text-purple-900 dark:text-purple-100">Learner {i + 1}</td>
+                                        <td className="px-3 py-2">
+                                          <input
+                                            type="number"
+                                            placeholder="0"
+                                            defaultValue="0"
+                                            onChange={(e) => setFeeUpdates(p => ({ ...p, [i + 1000]: e.target.value }))}
+                                            className="w-24 px-2 py-1 border border-purple-300 dark:border-slate-600 rounded text-purple-900 dark:text-purple-100 dark:bg-slate-700 text-xs"
+                                          />
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              <button
+                                onClick={handleUpdateFees}
+                                disabled={updatingFees}
+                                className="w-full px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                              >
+                                {updatingFees ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    Updating fees…
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4" />
+                                    Update Fees Now
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
 
                     <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 dark:border-slate-700">

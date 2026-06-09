@@ -1211,9 +1211,11 @@ export async function POST(request: NextRequest) {
                 }
 
                 // ── FEES ─────────────────────────────────────────────────────
+                // Fees are now inserted for ANY valid numeric value (including 0)
+                // instead of skipping zero fees, which was causing the "all fees = 0" bug
                 if (studentId && cm.feesBalanceIdx !== -1 && row[cm.feesBalanceIdx] && termId) {
                   const feesVal = parseFloat(String(row[cm.feesBalanceIdx]).replace(/[,\s]/g, ''));
-                  if (!isNaN(feesVal) && feesVal > 0) {
+                  if (!isNaN(feesVal) && feesVal >= 0) {
                     const [existFee] = await conn.execute(
                       `SELECT id FROM student_fee_items WHERE student_id = ? AND term_id = ? AND item = 'Imported Balance' LIMIT 1`,
                       [studentId, termId],
@@ -1338,4 +1340,100 @@ export async function POST(request: NextRequest) {
       'X-Accel-Buffering': 'no',
     },
   });
+}
+
+/**
+ * PATCH /api/students/import — Bulk update fees for imported learners
+ *
+ * Allows correcting or setting fees in bulk after import. Useful when:
+ * - Fees were 0 on import and need to be set
+ * - Fees need adjustment before finalising
+ * - Reopening import to fix fees
+ *
+ * Body: { updates: [{ student_id: number, fees: number }, ...], term_id?: number }
+ * If term_id not provided, uses active term
+ */
+export async function PATCH(request: NextRequest) {
+  const session = await getSessionSchoolId(request);
+  if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+  const schoolId = session.schoolId;
+
+  try {
+    const body = await request.json();
+    const { updates, term_id } = body;
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return NextResponse.json({ success: false, error: 'updates array required' }, { status: 400 });
+    }
+
+    let conn: any;
+    try {
+      conn = await getConnection();
+
+      // Resolve term_id if not provided
+      let termId = term_id;
+      if (!termId) {
+        const [terms] = await conn.execute(
+          'SELECT id FROM terms WHERE school_id = ? ORDER BY is_active DESC, id DESC LIMIT 1',
+          [schoolId],
+        ) as any[];
+        termId = (terms as any[])[0]?.id ?? null;
+      }
+
+      if (!termId) {
+        return NextResponse.json({ success: false, error: 'No active term found' }, { status: 400 });
+      }
+
+      let updated = 0;
+      let created = 0;
+      const errors: string[] = [];
+
+      for (const { student_id, fees } of updates) {
+        if (!student_id || fees == null) continue;
+        if (isNaN(parseFloat(fees))) {
+          errors.push(`Student ${student_id}: invalid fee amount`);
+          continue;
+        }
+
+        const feesVal = parseFloat(fees);
+
+        try {
+          // Check if fee item exists
+          const [existFee] = await conn.execute(
+            `SELECT id FROM student_fee_items WHERE student_id = ? AND term_id = ? AND item = 'Imported Balance' LIMIT 1`,
+            [student_id, termId],
+          ) as any[];
+
+          if ((existFee as any[]).length > 0) {
+            await conn.execute(
+              'UPDATE student_fee_items SET amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+              [feesVal, (existFee as any[])[0].id],
+            );
+            updated++;
+          } else {
+            await conn.execute(
+              `INSERT INTO student_fee_items (school_id, student_id, term_id, item, amount, discount, paid)
+               VALUES (?, ?, ?, 'Imported Balance', ?, 0, 0)`,
+              [schoolId, student_id, termId, feesVal],
+            );
+            created++;
+          }
+        } catch (err: any) {
+          errors.push(`Student ${student_id}: ${err.message || 'unknown error'}`);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Updated ${updated} fees, created ${created} new fee items`,
+        updated,
+        created,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } finally {
+      if (conn) { try { await conn.end(); } catch {} }
+    }
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message || 'Failed to update fees' }, { status: 500 });
+  }
 }

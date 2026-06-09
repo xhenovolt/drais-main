@@ -77,7 +77,7 @@ function QuickAssignModal({
     }
     setSaving(true);
     try {
-      await apiFetch('/api/attendance/zk/user-mapping', {
+      await apiFetch('/api/attendance/zk/urser-mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -629,6 +629,28 @@ export default function UnifiedAttendancePage() {
                   <tr>
                     <td colSpan={tab === 'unmatched' ? 9 : 8} className="px-4 py-12 text-center text-gray-400">
                       No records found for this filter.
+                      Try to see this live view here <br></br>
+                      {liveEvents.map((ev, i) => (
+                        <div key={`${ev.id}-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
+                          <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 text-xs whitespace-nowrap">
+                            {ev.check_time ? new Date(ev.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                          </span>
+                          {ev.person_name ? (
+                            <span className="font-medium">{ev.person_name}</span>
+                          ) : (
+                            <span className="text-amber-600 font-mono text-xs">UID: {ev.device_user_id}</span>
+                          )}
+                          <span className={`px-1.5 py-0.5 rounded text-xs
+                            ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                              : ev.person_type === 'staff' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                            {ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched'}
+                          </span>
+                          {ev.class_name && <span className="text-xs text-gray-400">{ev.class_name}</span>}
+                          {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
+                        </div>
+                      ))}
                     </td>
                   </tr>
                 )}
