@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { allocatePin, PinExhaustedError } from '@/lib/biometric/pin-allocator';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
+import { setCaptureStatusByPin } from '@/lib/biometric/enrollment-service';
 
 export const runtime = 'nodejs';
 
@@ -220,6 +221,11 @@ export async function POST(req: NextRequest) {
     );
 
     const commandId = (result as any)?.insertId;
+
+    // Phase 2G — the canonical enrollment (created by allocatePin) now
+    // tracks the capture pipeline: identity command queued, fingerprint
+    // not yet captured.
+    await setCaptureStatusByPin(deviceSchoolId, Number(device_user_id), 'command_queued');
 
     // BIO-10 — record the directory entry now. The device rarely
     // echoes a USER OPERLOG line after a DATA UPDATE USERINFO push, so

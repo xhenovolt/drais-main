@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
+    // TEMPORARY TECHNICAL DEBT (attendance trust audit, Phase 0):
+    // the codebase has pre-existing type errors outside the attendance
+    // module, so builds still ignore them. `npm run typecheck` is the
+    // required gate — run it in CI / before merging. Attendance-critical
+    // files must be type-clean (the audit found a shipped TS2304 in
+    // zk-handler that this flag masked). Remove this flag once the
+    // backlog of legacy type errors is cleared.
     ignoreBuildErrors: true,
   },
   images: {

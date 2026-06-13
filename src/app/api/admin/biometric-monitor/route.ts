@@ -84,12 +84,47 @@ export async function GET(req: NextRequest) {
       [],
     );
 
+    // 5. Phase 3 — reconciliation mismatch summary per device.
+    //    Open device_reconciliation_items grouped by device + type, plus
+    //    live unclaimed orphan-template counts and recent unmatched
+    //    punches. Powers the monitor's "unknown users / mismatches"
+    //    counters and the deep-link into the Reconciliation Center.
+    let mismatchSummary: any[] = [];
+    let unmatchedRecent = 0;
+    try {
+      mismatchSummary = await query(
+        `SELECT i.device_sn,
+                SUM(i.mismatch_type IN ('DEVICE_ONLY_USER','DEVICE_ONLY_TEMPLATE','STAFF_STUDENT_AMBIGUOUS')) AS device_only,
+                SUM(i.mismatch_type IN ('DRAIS_ONLY_PERSON','STALE_MAPPING','DRAIS_TEMPLATE_NOT_ON_DEVICE')) AS missing_from_device,
+                SUM(i.mismatch_type IN ('ORPHAN_TEMPLATE')) AS orphan_templates,
+                SUM(i.mismatch_type IN ('NAME_DRIFT','PIN_CONFLICT','ROLE_CONFLICT')) AS conflicts,
+                COUNT(*) AS open_items
+           FROM device_reconciliation_items i
+           JOIN (SELECT device_sn, MAX(run_id) AS run_id
+                   FROM device_reconciliation_items GROUP BY device_sn) latest
+             ON latest.device_sn = i.device_sn AND latest.run_id = i.run_id
+          WHERE i.school_id = ? AND i.action_status = 'open'
+          GROUP BY i.device_sn`,
+        [schoolId],
+      );
+    } catch { /* reconciliation tables optional pre-migration */ }
+    try {
+      const um = await query(
+        `SELECT COUNT(*) AS n FROM zk_attendance_logs
+          WHERE school_id = ? AND matched = 0 AND check_time > DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+        [schoolId],
+      );
+      unmatchedRecent = Number(um?.[0]?.n ?? 0);
+    } catch { /* ignore */ }
+
     return NextResponse.json({
       success: true,
       devices,
       recent_logs: recentLogs,
       heartbeats,
       command_stats: commandStats,
+      mismatch_summary: mismatchSummary,
+      unmatched_recent: unmatchedRecent,
     });
   } catch (err) {
     console.error('[Biometric Monitor] Error:', err);

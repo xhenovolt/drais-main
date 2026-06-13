@@ -77,7 +77,7 @@ function QuickAssignModal({
     }
     setSaving(true);
     try {
-      await apiFetch('/api/attendance/zk/urser-mapping', {
+      await apiFetch('/api/attendance/zk/user-mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

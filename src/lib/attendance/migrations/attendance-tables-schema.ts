@@ -100,6 +100,7 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
            legacy_table    VARCHAR(40) DEFAULT NULL,
            legacy_id       BIGINT DEFAULT NULL,
            ingested_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           UNIQUE KEY uk_raw_punch (school_id, device_sn, device_user_id, punch_at, source),
            KEY idx_school_punch  (school_id, punch_at),
            KEY idx_device_pin    (device_sn, device_user_id, punch_at),
            KEY idx_person_day    (person_id, punch_at),
@@ -108,6 +109,30 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
         [],
       );
+
+      // Phase 0 dedup key for tables created before uk_raw_punch
+      // existed. Fails harmlessly while duplicate rows are present —
+      // apply database/migrations/020_attendance_trust_phase0.sql to
+      // dedupe first; this then succeeds on the next cold start.
+      try {
+        const idx = (await query(
+          `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'attendance_raw_events'
+              AND INDEX_NAME = 'uk_raw_punch'
+            LIMIT 1`,
+          [],
+        )) as unknown[];
+        if (idx.length === 0) {
+          await query(
+            `ALTER TABLE attendance_raw_events
+               ADD UNIQUE KEY uk_raw_punch (school_id, device_sn, device_user_id, punch_at, source)`,
+            [],
+          );
+        }
+      } catch {
+        /* duplicates still present or no ALTER privilege — migration 020 handles it */
+      }
 
       try {
         await query(

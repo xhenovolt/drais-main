@@ -30,6 +30,8 @@ import {
   queueDistributionsForSchool,
   lookupActiveEnrollment,
 } from '@/lib/biometric/template-service';
+import { upsertEnrollment } from '@/lib/biometric/enrollment-service';
+import { markPendingResolved } from '@/lib/biometric/pending-device-users';
 
 const FINGER_NAMES = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
@@ -166,28 +168,51 @@ export async function POST(req: NextRequest) {
     if (ok.length === 0) return NextResponse.json({ error: 'Staff not in your school' }, { status: 404 });
   }
 
-  // 3. Write the zk_user_mapping row that the scan-time resolveUser
-  //    would have wanted. INSERT with ON DUPLICATE KEY UPDATE so a
-  //    pre-existing orphan-only mapping (created by manual-upload's
-  //    placeholder student row) gets rebound to the correct identity.
-  await query(
-    `INSERT INTO zk_user_mapping
-       (school_id, device_user_id, user_type, student_id, staff_id, device_sn)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       user_type  = VALUES(user_type),
-       student_id = VALUES(student_id),
-       staff_id   = VALUES(staff_id),
-       updated_at = CURRENT_TIMESTAMP`,
-    [
-      session.schoolId,
-      orphan.device_user_id,
-      studentId ? 'student' : 'staff',
-      studentId,
-      staffId,
-      orphan.device_sn,
-    ],
-  );
+  // 3. PHASE 1C — claim goes through the enrollment service: canonical
+  //    biometric_enrollments row + legacy zk_user_mapping mirror. A PIN
+  //    actively held by a DIFFERENT person is a conflict the operator
+  //    must resolve (no silent rebind).
+  const claimPin = parseInt(orphan.device_user_id, 10) || 0;
+  let claimedEnrollmentId: number | null = null;
+  if (claimPin > 0 && claimPin <= 65535) {
+    const enrollment = await upsertEnrollment({
+      schoolId: session.schoolId,
+      roleType: studentId ? 'student' : 'staff',
+      roleRefId: Number(studentId ?? staffId),
+      pin: claimPin,
+      deviceSn: orphan.device_sn,
+      source: 'orphan_claim',
+      enrolledBy: (session as { userId?: number }).userId ?? null,
+    });
+    if (!enrollment.ok) {
+      return NextResponse.json({
+        error: enrollment.reason === 'pin_conflict'
+          ? `PIN ${claimPin} is actively mapped to another person. Unmap them first.`
+          : `Claim rejected: ${enrollment.reason}${enrollment.detail ? ` (${enrollment.detail})` : ''}`,
+      }, { status: 409 });
+    }
+    claimedEnrollmentId = enrollment.enrollmentId ?? null;
+  } else {
+    // Non-numeric PIN — legacy-only mapping (rare).
+    await query(
+      `INSERT INTO zk_user_mapping
+         (school_id, device_user_id, user_type, student_id, staff_id, device_sn)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         user_type  = VALUES(user_type),
+         student_id = VALUES(student_id),
+         staff_id   = VALUES(staff_id),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        session.schoolId,
+        orphan.device_user_id,
+        studentId ? 'student' : 'staff',
+        studentId,
+        staffId,
+        orphan.device_sn,
+      ],
+    );
+  }
 
   // 4. If a student was chosen, also write the student_fingerprints
   //    row using the orphan's template bytes. Staff fingerprint
@@ -245,12 +270,13 @@ export async function POST(req: NextRequest) {
   let templateId: number | null = null;
   let distributionsQueued = 0;
   try {
-    const pinValue = parseInt(orphan.device_user_id, 10) || 0;
-    const enrollment = await lookupActiveEnrollment(session.schoolId, pinValue);
-    if (enrollment) {
+    const enrollmentIdForTemplate = claimedEnrollmentId
+      ?? (await lookupActiveEnrollment(session.schoolId, claimPin))?.enrollmentId
+      ?? null;
+    if (enrollmentIdForTemplate) {
       const fingerIndex = parseInt(orphan.finger_id, 10) || 0;
       const t = await recordTemplate({
-        enrollmentId: enrollment.enrollmentId,
+        enrollmentId: enrollmentIdForTemplate,
         fingerIndex,
         templateBytes: orphan.template_data,
         templateSize: orphan.template_size,
@@ -263,6 +289,13 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+    // If this device user was sitting in the pending triage queue,
+    // close it out as mapped.
+    markPendingResolved(
+      session.schoolId, orphan.device_sn, orphan.device_user_id,
+      'mapped', (session as { userId?: number }).userId ?? null,
+      claimedEnrollmentId,
+    ).catch(() => {});
   } catch (err) {
     // Non-fatal: the orphan is already claimed and the legacy
     // student_fingerprints row already written. Surface the failure

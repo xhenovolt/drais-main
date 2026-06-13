@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
+import { upsertEnrollment } from '@/lib/biometric/enrollment-service';
 
 export const runtime = 'nodejs';
 
@@ -55,12 +56,20 @@ export async function POST(req: NextRequest) {
     }
     const deviceSchoolId = session.schoolId;
 
-    // ── Step 1: Find the current max PIN for this school's zk_user_mapping ──
+    // ── Step 1: Find the current max PIN across legacy AND canonical ──
     const maxRow = await query(
       `SELECT MAX(CAST(device_user_id AS UNSIGNED)) AS max_pin FROM zk_user_mapping WHERE school_id = ?`,
       [session.schoolId],
     );
-    let nextPin = Math.max(1, (Number(maxRow?.[0]?.max_pin) || 0) + 1);
+    let maxCanonical = 0;
+    try {
+      const canonRow = await query(
+        `SELECT MAX(pin_value) AS max_pin FROM biometric_enrollments WHERE school_id = ?`,
+        [session.schoolId],
+      );
+      maxCanonical = Number(canonRow?.[0]?.max_pin) || 0;
+    } catch { /* canonical table ensured lazily */ }
+    let nextPin = Math.max(1, (Number(maxRow?.[0]?.max_pin) || 0) + 1, maxCanonical + 1);
 
     // ── Step 2: Get all active students with their names ──
     const students = await query(
@@ -161,24 +170,22 @@ export async function POST(req: NextRequest) {
 
       for (const entry of chunk) {
         try {
-          // Upsert zk_user_mapping
-          await query(
-            `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, student_id, staff_id, device_sn)
-             VALUES (?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE
-               user_type = VALUES(user_type),
-               student_id = VALUES(student_id),
-               staff_id = VALUES(staff_id),
-               updated_at = CURRENT_TIMESTAMP`,
-            [
-              deviceSchoolId,
-              String(entry.pin),
-              entry.user_type,
-              entry.user_type === 'student' ? entry.ref_id : null,
-              entry.user_type === 'staff' ? entry.ref_id : null,
-              device_sn,
-            ],
-          );
+          // PHASE 1C — canonical enrollment + legacy zk_user_mapping
+          // mirror in one call. A PIN conflict (held by a different
+          // person) skips this entry instead of silently rebinding.
+          const enrollment = await upsertEnrollment({
+            schoolId: deviceSchoolId,
+            roleType: entry.user_type,
+            roleRefId: entry.ref_id,
+            pin: entry.pin,
+            deviceSn: device_sn,
+            source: 'sync_identities',
+            enrolledBy: (session as any).userId ?? null,
+          });
+          if (!enrollment.ok) {
+            errors.push(`PIN ${entry.pin} (${entry.name}): ${enrollment.reason}${enrollment.detail ? ` — ${enrollment.detail}` : ''}`);
+            continue;
+          }
 
           // Queue DATA UPDATE USER command
           const cmd = `DATA UPDATE USERINFO PIN=${entry.pin}\tName=${entry.name}\tPri=0\tPasswd=\tCard=\tGrp=0\tTZ=0000000100000000`;

@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { allocatePin, PinExhaustedError } from '@/lib/biometric/pin-allocator';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
+import { setCaptureStatusByPin } from '@/lib/biometric/enrollment-service';
 
 export const runtime = 'nodejs';
 
@@ -222,6 +223,9 @@ export async function POST(req: NextRequest) {
     );
 
     const commandId = (result as any)?.insertId;
+
+    // Phase 2G — stamp the capture pipeline on the canonical enrollment.
+    await setCaptureStatusByPin(deviceSchoolId, Number(device_user_id), 'command_queued');
 
     // BIO-10 — see lib/biometric/device-directory.ts: write the
     // directory at queue time because most firmware never echoes a

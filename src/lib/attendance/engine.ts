@@ -86,8 +86,12 @@ export async function recordRawEvent(
   try {
     await ensureAttendanceEngineSchema();
     const displayName = await resolveDisplayName(input);
+    // INSERT IGNORE + UNIQUE uk_raw_punch (school, sn, pin, punch_at,
+    // source): ZKTeco devices re-send ATTLOG batches when an ACK is
+    // missed. A duplicate returns insertId 0 → caller gets null →
+    // evaluatePunch / fanout / SSE are all skipped for the re-send.
     const result = (await query(
-      `INSERT INTO attendance_raw_events
+      `INSERT IGNORE INTO attendance_raw_events
          (school_id, device_sn, device_user_id, display_name, enrollment_id, person_id,
           role_type, role_ref_id, punch_at, verify_type, io_mode, source,
           matched, resolution_path, resolution_score,
@@ -112,8 +116,11 @@ export async function recordRawEvent(
         input.legacyTable ?? null,
         input.legacyId ?? null,
       ],
-    )) as { insertId?: number };
-    return result?.insertId ?? null;
+    )) as { insertId?: number; affectedRows?: number };
+    // affectedRows 0 → duplicate ignored. Return null so the caller
+    // skips evaluation/eventing for the re-sent punch.
+    if (!result?.insertId || (result.affectedRows ?? 0) === 0) return null;
+    return result.insertId;
   } catch (err) {
     // Phase 3 invariant: a raw-event write failure must NOT abort the
     // ingest path. Log and continue; the legacy table still has the

@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { evaluateDay } from '@/lib/attendance/engine';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
+import { upsertEnrollment } from '@/lib/biometric/enrollment-service';
 
 export const runtime = 'nodejs';
 
@@ -20,8 +21,8 @@ export async function GET(req: NextRequest) {
   const userType = url.searchParams.get('user_type'); // 'student' | 'staff'
   const deviceSn = url.searchParams.get('device_sn');
   const search = url.searchParams.get('search');
-  const page = Math.max(1, parseInt(url.searchParams.get('page', 10) || '1', 10));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit', 10) || '50', 10)));
+  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
   const offset = (page - 1) * limit;
 
   try {
@@ -113,19 +114,54 @@ export async function POST(req: NextRequest) {
     const mappedStudentId = user_type === 'student' ? student_id : null;
     const mappedStaffId = user_type === 'staff' ? staff_id : null;
 
-    const result = await query(
-      `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, student_id, staff_id, device_sn, card_number)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        session.schoolId,
-        trimmedUserId,
-        user_type,
-        mappedStudentId,
-        mappedStaffId,
-        device_sn || null,
-        card_number || null,
-      ],
-    );
+    // PHASE 1C — manual mappings now flow through the enrollment
+    // service: canonical biometric_enrollments row + legacy
+    // zk_user_mapping mirror in one call. Non-numeric device user IDs
+    // (rare alphanumeric PINs) fall back to a legacy-only write — the
+    // canonical model keys PINs as integers.
+    const numericPin = Number(trimmedUserId);
+    let enrollmentId: number | null = null;
+    if (Number.isFinite(numericPin) && numericPin > 0 && numericPin <= 65535) {
+      const enrollment = await upsertEnrollment({
+        schoolId: session.schoolId,
+        roleType: user_type,
+        roleRefId: Number(mappedStudentId ?? mappedStaffId),
+        pin: numericPin,
+        deviceSn: device_sn || null,
+        cardNumber: card_number || null,
+        source: 'manual_mapping_ui',
+        enrolledBy: (session as any).userId ?? null,
+      });
+      if (!enrollment.ok) {
+        const msg = enrollment.reason === 'pin_conflict'
+          ? `PIN ${numericPin} is actively mapped to another person. Unmap them first.`
+          : `Mapping rejected: ${enrollment.reason}${enrollment.detail ? ` (${enrollment.detail})` : ''}`;
+        return NextResponse.json({ error: msg }, { status: 409 });
+      }
+      enrollmentId = enrollment.enrollmentId ?? null;
+    } else {
+      await query(
+        `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, student_id, staff_id, device_sn, card_number)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          session.schoolId,
+          trimmedUserId,
+          user_type,
+          mappedStudentId,
+          mappedStaffId,
+          device_sn || null,
+          card_number || null,
+        ],
+      );
+    }
+
+    const mappingRow = await query(
+      `SELECT id FROM zk_user_mapping
+        WHERE school_id = ? AND device_user_id = ?
+        ORDER BY id DESC LIMIT 1`,
+      [session.schoolId, trimmedUserId],
+    ).catch(() => null);
+    const result = { insertId: mappingRow?.[0]?.id ?? null };
 
     // Re-match existing unmatched attendance logs for this device_user_id
     let rematched = 0;
@@ -171,6 +207,7 @@ export async function POST(req: NextRequest) {
       success: true,
       message: `Mapping created${rematched > 0 ? `. ${rematched} existing logs re-matched.` : ''}${rawBackfilled > 0 ? `. ${rawBackfilled} raw events backfilled.` : ''}`,
       id: (result as any)?.insertId,
+      enrollment_id: enrollmentId,
       rematched,
     });
   } catch (err) {
@@ -229,6 +266,29 @@ export async function PUT(req: NextRequest) {
         session.schoolId,
       ],
     );
+
+    // PHASE 1C — keep the canonical table in sync with the edit.
+    const targetPinForCanonical = Number(device_user_id || existing[0].device_user_id);
+    if (Number.isFinite(targetPinForCanonical) && targetPinForCanonical > 0
+        && targetPinForCanonical <= 65535
+        && (user_type === 'student' || user_type === 'staff')
+        && (mappedStudentId || mappedStaffId)) {
+      const enrollment = await upsertEnrollment({
+        schoolId: session.schoolId,
+        roleType: user_type,
+        roleRefId: Number(mappedStudentId ?? mappedStaffId),
+        pin: targetPinForCanonical,
+        deviceSn: device_sn || null,
+        cardNumber: card_number || null,
+        source: 'manual_mapping_ui_edit',
+        enrolledBy: (session as any).userId ?? null,
+      });
+      if (!enrollment.ok && enrollment.reason === 'pin_conflict') {
+        return NextResponse.json({
+          error: `PIN ${targetPinForCanonical} is actively mapped to another person. Unmap them first.`,
+        }, { status: 409 });
+      }
+    }
 
     // Re-match existing attendance logs for the device_user_id
     const targetDeviceUserId = device_user_id || existing[0].device_user_id;
@@ -300,7 +360,7 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const existing = await query(
-      'SELECT id FROM zk_user_mapping WHERE id = ? AND school_id = ?',
+      'SELECT id, device_user_id FROM zk_user_mapping WHERE id = ? AND school_id = ?',
       [id, session.schoolId],
     );
     if (!existing || existing.length === 0) {
@@ -311,6 +371,21 @@ export async function DELETE(req: NextRequest) {
       'DELETE FROM zk_user_mapping WHERE id = ? AND school_id = ?',
       [id, session.schoolId],
     );
+
+    // PHASE 1C — revoke (never delete) the canonical enrollment for
+    // this PIN so it stops resolving punches. The row is kept with
+    // status='revoked' for audit.
+    const pin = Number(existing[0].device_user_id);
+    if (Number.isFinite(pin) && pin > 0) {
+      await query(
+        `UPDATE biometric_enrollments
+            SET status = 'revoked', revoked_at = CURRENT_TIMESTAMP,
+                revoked_reason = 'mapping deleted via UI', updated_at = CURRENT_TIMESTAMP
+          WHERE school_id = ? AND pin_value = ?
+            AND status IN ('active','pending_capture','suspended')`,
+        [session.schoolId, pin],
+      ).catch(() => {});
+    }
 
     return NextResponse.json({ success: true, message: 'Mapping deleted' });
   } catch (err) {

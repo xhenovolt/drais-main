@@ -1,18 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { logAudit, AuditAction } from '@/lib/audit';
-import { notifyAdmsAttendance } from '@/lib/comm/adms-attendance';
+// (saveAttendancePunch + its notifyAdmsAttendance bridge were dead code
+// — never called — and were removed in the Phase 0/1 trust refactor.
+// Scan-driven notifications flow through the attendance engine's
+// Phase 5 fanout: evaluateDay → attendance.record.upserted →
+// notification_outbox → drainOutboxOpportunistically.)
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
-import { recordRawEvent, evaluatePunch } from '@/lib/attendance/engine';
+import { recordRawEvent, evaluatePunch, evaluateDay } from '@/lib/attendance/engine';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import {
   recordTemplate,
   queueDistributionsForSchool,
-  lookupActiveEnrollment,
+  lookupEnrollmentForCapture,
+  completeEnrollmentCapture,
+  touchEnrollmentSeen,
 } from '@/lib/biometric/template-service';
 import { publishEvent } from '@/lib/events/eventbus';
+import { upsertEnrollment, decideNameMatchAction } from '@/lib/biometric/enrollment-service';
+import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
+import { drainOutboxOpportunistically } from '@/lib/notifications/drain';
+import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -378,10 +388,17 @@ async function logDeviceEvent(entry: ZkDeviceLogEntry): Promise<void> {
  *      so the trail is auditable.
  *
  * Returns true when a mapping was created. Best-effort; never throws.
+ *
+ * PHASE 1E REWRITE — name-only auto-linking is now governed by the
+ * pure deterministic policy in enrollment-service.decideNameMatchAction:
+ * only a full-score match with no plausible runner-up may map
+ * permanently. Everything else lands in pending_device_users for
+ * operator confirmation instead of being guessed (the old 0.6
+ * threshold + 0.2 margin permanently mapped "close enough" names —
+ * the audit flagged that as wrong-learner attribution risk).
+ * Permanent mappings go through upsertEnrollment so the canonical
+ * row and the legacy mirror are written together.
  */
-const AUTOLINK_MIN_SCORE = 0.6;
-const AUTOLINK_MARGIN    = 0.2;
-
 async function autoLinkPinFromName(
   deviceSn: string,
   deviceUserId: string,
@@ -403,49 +420,71 @@ async function autoLinkPinFromName(
     if (Array.isArray(existing) && existing.length > 0) return false;
 
     const candidates = await fuzzyCandidates(cleanName, schoolId);
-    if (candidates.length === 0) {
-      zkLog('info', 'AUTOLINK_NO_CANDIDATES', { deviceSn, deviceUserId, name: cleanName });
-      return false;
-    }
-    const top = candidates[0];
-    const second = candidates[1];
-    if (top.score < AUTOLINK_MIN_SCORE) {
-      zkLog('info', 'AUTOLINK_BELOW_THRESHOLD', {
+    const decision = decideNameMatchAction(candidates);
+
+    if (decision.action === 'no_match') {
+      zkLog('info', 'AUTOLINK_NO_DETERMINISTIC_MATCH', {
         deviceSn, deviceUserId, name: cleanName,
-        topScore: top.score, topName: top.name,
+        topScore: candidates[0]?.score ?? null, topName: candidates[0]?.name ?? null,
+      });
+      await recordPendingDeviceUser({
+        schoolId, deviceSn, devicePin: deviceUserId, deviceName: cleanName,
+        status: 'pending',
+        reason: candidates.length === 0 ? 'no name candidates' : `best score ${candidates[0].score.toFixed(2)} below deterministic threshold`,
+        candidates: candidates.slice(0, 5),
       });
       return false;
     }
-    if (second && (top.score - second.score) < AUTOLINK_MARGIN) {
+
+    if (decision.action === 'ambiguous') {
       zkLog('info', 'AUTOLINK_AMBIGUOUS', {
         deviceSn, deviceUserId, name: cleanName,
-        topScore: top.score, topName: top.name,
-        secondScore: second.score, secondName: second.name,
+        candidates: decision.candidates.map(c => ({ type: c.type, id: c.id, name: c.name, score: c.score })),
+      });
+      await recordPendingDeviceUser({
+        schoolId, deviceSn, devicePin: deviceUserId, deviceName: cleanName,
+        status: 'ambiguous',
+        reason: `${decision.candidates.length} people plausibly match this name`,
+        candidates: decision.candidates.slice(0, 5),
+      });
+      return false;
+    }
+
+    const top = decision.candidate;
+    const pin = Number(deviceUserId);
+    if (!Number.isFinite(pin) || pin <= 0 || pin > 65535) {
+      zkLog('warn', 'AUTOLINK_NON_NUMERIC_PIN', { deviceSn, deviceUserId, name: cleanName });
+      return false;
+    }
+
+    const enrollment = await upsertEnrollment({
+      schoolId,
+      roleType: top.type,
+      roleRefId: top.id,
+      pin,
+      deviceSn,
+      source: 'autolink_name_deterministic',
+    });
+    if (!enrollment.ok) {
+      zkLog('warn', 'AUTOLINK_ENROLLMENT_REJECTED', {
+        deviceSn, deviceUserId, name: cleanName, reason: enrollment.reason, detail: enrollment.detail,
+      });
+      await recordPendingDeviceUser({
+        schoolId, deviceSn, devicePin: deviceUserId, deviceName: cleanName,
+        status: 'pending',
+        reason: `deterministic match blocked: ${enrollment.reason}`,
+        candidates: [top],
       });
       return false;
     }
 
     const studentId = top.type === 'student' ? top.id : null;
     const staffId   = top.type === 'staff'   ? top.id : null;
-    const userType  = top.type;
-
-    await query(
-      `INSERT INTO zk_user_mapping
-         (school_id, device_user_id, user_type, student_id, staff_id, device_sn)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         student_id = COALESCE(VALUES(student_id), student_id),
-         staff_id   = COALESCE(VALUES(staff_id),   staff_id),
-         user_type  = VALUES(user_type),
-         device_sn  = COALESCE(VALUES(device_sn),  device_sn),
-         updated_at = CURRENT_TIMESTAMP`,
-      [schoolId, deviceUserId, userType, studentId, staffId, deviceSn],
-    );
 
     zkLog('info', 'AUTOLINK_OK', {
       deviceSn, deviceUserId, name: cleanName,
       matchedType: top.type, matchedId: top.id, matchedName: top.name,
-      topScore: top.score, secondScore: second?.score ?? null,
+      topScore: top.score, enrollmentId: enrollment.enrollmentId,
     });
 
     // Backfill any prior unmatched attendance logs for this (sn, pin)
@@ -798,179 +837,13 @@ async function resolveUser(
  * (function legacyResolve) so it is no longer duplicated. Rollback
  * path is `git revert` against this commit. */
 
-/** Save a parsed attendance punch with full matching chain. */
-async function saveAttendancePunch(
-  deviceSn: string,
-  record: Record<string, string>,
-  rawLogId: number | null,
-  schoolId: number,
-): Promise<void> {
-  const userId = record.USERID;
-  const rawCheckTime = record.CHECKTIME;
-  if (!userId || !rawCheckTime) return;
-
-  const checkTime = normalizeCheckTime(rawCheckTime);
-  if (!checkTime) return;
-
-  try {
-    const resolution = await resolveUser(userId, deviceSn, schoolId);
-    const { studentId, staffId, matched } = resolution;
-
-    const verifyType = record.VERIFYTYPE ? parseInt(record.VERIFYTYPE, 10) || null : null;
-    const ioMode    = record.INOUTMODE  ? parseInt(record.INOUTMODE, 10)  || null : null;
-
-    const insLegacy = (await query(
-      `INSERT INTO zk_attendance_logs
-         (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
-          verify_type, io_mode, log_id, work_code, matched, raw_log_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        schoolId,
-        deviceSn,
-        userId,
-        studentId,
-        staffId,
-        checkTime,
-        verifyType,
-        ioMode,
-        record.LOGID || null,
-        record.WORKCODE || null,
-        matched ? 1 : 0,
-        rawLogId,
-      ],
-    )) as { insertId?: number };
-
-    // PHASE 3 — dual-write to attendance_raw_events + invoke engine.
-    // The legacy zk_attendance_logs row above remains the contract
-    // for current readers; raw_events is the canonical journal that
-    // attendance_records (the derived state) is recomputed from.
-    // Fire-and-forget on errors — the engine must NEVER fail the
-    // ingest path.
-    let rawEventIdPublished: number | null = null;
-    try {
-      const punchAt = new Date(checkTime);
-      const rawEventId = await recordRawEvent({
-        schoolId,
-        deviceSn,
-        deviceUserId: Number(userId),
-        punchAt,
-        verifyType,
-        ioMode,
-        source: 'zkteco_push',
-        enrollmentId: resolution.enrollmentId ?? null,
-        personId:     resolution.personId ?? null,
-        roleType:     resolution.roleType ?? null,
-        roleRefId:    studentId ?? staffId ?? null,
-        matched,
-        resolutionPath:  resolution.resolutionPath ?? null,
-        resolutionScore: resolution.resolutionScore ?? null,
-        legacyTable: 'zk_attendance_logs',
-        legacyId:    insLegacy?.insertId ?? null,
-      });
-      rawEventIdPublished = rawEventId;
-      if (rawEventId && matched && resolution.personId) {
-        // Recompute the (person, date) attendance_records row.
-        // Idempotent — safe to call multiple times for the same punch.
-        evaluatePunch(rawEventId).catch(err =>
-          zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
-            rawEventId, error: String(err),
-          }),
-        );
-      }
-    } catch (err) {
-      zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
-        deviceUserId: userId, error: String(err),
-      });
-    }
-
-    // PHASE 7 — publish to the in-process event bus so the live-scan
-    // SSE can push to listeners in sub-second time. Bus is an
-    // OPTIMISATION — the SSE still polls every 2s as a safety net,
-    // so a missed publish causes at most 2s of latency, never a
-    // missed scan. Never throws.
-    if (insLegacy?.insertId) {
-      try {
-        publishEvent('attendance.event.recorded', {
-          schoolId,
-          scanId:       insLegacy.insertId,
-          rawEventId:   rawEventIdPublished,
-          deviceSn,
-          deviceUserId: String(userId),
-          matched,
-        });
-      } catch { /* bus listener errors are isolated by the bus itself */ }
-    }
-
-    // ── Observability: PUNCH_SAVED (truth record) ──────────────────────────
-    await logDeviceEvent({
-      deviceSn,
-      eventType:  'PUNCH_SAVED',
-      tableName:  'ATTLOG',
-      userId,
-      checkTime,
-      matched,
-      studentId,
-      staffId,
-      status:     'success',
-      schoolId,
-    });
-
-    zkLog('info', 'PUNCH_SAVED', {
-      deviceSn,
-      userId,
-      checkTime,
-      matched,
-      studentId,
-      staffId,
-      schoolId,
-    });
-
-    // ── SMS notification trigger (fire-and-forget) ─────────────────────────
-    // Phase 2 ADMS bridge: feed the matched punch into the existing comm
-    // dispatcher. Routing (parents for learners, headteacher for staff)
-    // is governed by the school's comm_rules table — schools that don't
-    // configure rules get no SMS (dispatcher writes a 'skipped' audit row).
-    //
-    // CRITICAL: never await — ADMS contract is "always respond OK FAST".
-    // notifyAdmsAttendance itself never throws; the .catch is belt-and-
-    // braces for any future regression.
-    if (matched) {
-      const inOutMode = record.INOUTMODE ? parseInt(record.INOUTMODE, 10) || 0 : null;
-      notifyAdmsAttendance({
-        schoolId,
-        studentId,
-        staffId,
-        checkTime,
-        inOutMode,
-        deviceSn,
-      }).catch((err) => zkLog('warn', 'ADMS_SMS_TRIGGER_FAILED', { error: String(err) }));
-    }
-  } catch (err) {
-    // ── Observability: ERROR on punch failure ──────────────────────────────
-    logDeviceEvent({
-      deviceSn,
-      eventType:    'ERROR',
-      tableName:    'ATTLOG',
-      userId,
-      checkTime,
-      status:       'failed',
-      errorMessage: String(err),
-      schoolId,
-    }).catch(() => {});
-
-    zkLog('error', 'PUNCH_SAVE_FAILED', {
-      deviceSn,
-      userId,
-      checkTime: rawCheckTime,
-      error: String(err),
-    });
-  }
-}
 
 /**
  * Process USERINFO data pushed by device after a DATA QUERY USERINFO command.
- * Creates zk_user_mapping entries AND actual people + students records
- * so learners appear immediately in the DRAIS system.
+ * Captures every record into device_user_directory, then maps PINs to
+ * existing learners/staff ONLY when the name match is deterministic
+ * (Phase 1E). Everything else lands in pending_device_users for
+ * operator triage. Never creates people/students rows from device data.
  */
 async function processUserInfo(
   deviceSn: string,
@@ -997,6 +870,11 @@ async function processUserInfo(
       deviceSn, deviceUserId, name, schoolId,
       { card: cardNo, priv: record.PRI || record.PRIV },
     );
+
+    // Phase 2I — the device just confirmed it holds this PIN.
+    if (schoolId) {
+      touchEnrollmentSeen(schoolId, parseInt(deviceUserId, 10) || 0).catch(() => {});
+    }
 
     // Skip unnamed / admin accounts
     if (!name || name.toLowerCase() === 'admin') {
@@ -1026,86 +904,29 @@ async function processUserInfo(
         continue;
       }
 
-      // Split name intelligently
-      const nameParts = name.split(/\s+/);
-      const firstName = nameParts[0] || name;
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-
-      // ── Try to match existing student by name before creating new records ──
-      let studentId: number | null = null;
-      let personId: number | null = null;
-
-      const existingStudent = await query(
-        `SELECT s.id AS student_id, s.person_id
-         FROM students s
-         JOIN people p ON s.person_id = p.id
-         WHERE s.school_id = ?
-           AND LOWER(TRIM(p.first_name)) = LOWER(?)
-           AND LOWER(TRIM(p.last_name)) = LOWER(?)
-           AND s.status = 'active'
-         LIMIT 1`,
-        [schoolId, firstName, lastName],
-      );
-
-      if (existingStudent && existingStudent.length > 0) {
-        studentId = existingStudent[0].student_id;
-        personId = existingStudent[0].person_id;
-        zkLog('info', 'USERINFO_NAME_MATCHED', { userId, name, studentId, personId });
-      } else if (await autoLinkPinFromName(deviceSn, deviceUserId, name, schoolId)) {
-        // BIO-9 — fuzzy match wrote zk_user_mapping for us. Skip the
-        // exact-match phantom-creation path; the next attendance punch
-        // will resolve via zk_user_mapping. Multi-token device names
-        // ("ABUBAKAR SHEKHA ALI" → first/other/last) fall in here.
+      // ── PHASE 1E — deterministic-or-pending identity resolution ──
+      //
+      // The old behaviour here was the audit's CRITICAL violation pair:
+      //   (a) exact first/last name match with LIMIT 1 — two learners
+      //       sharing a name silently mapped the PIN to the lower id;
+      //   (b) unmatched names CREATED phantom people+students rows.
+      //
+      // Both are gone. autoLinkPinFromName applies the deterministic
+      // policy (full-score, no plausible runner-up) and writes through
+      // the enrollment service (canonical + legacy mirror). Anything
+      // weaker — including exact-name ties — lands in
+      // pending_device_users for operator triage. NO people/students
+      // rows are ever created from device-supplied names.
+      if (await autoLinkPinFromName(deviceSn, deviceUserId, name, schoolId)) {
         created++;
         learnersCreated++;
-        continue;
+        zkLog('info', 'USERINFO_LINKED_DETERMINISTIC', { userId, name, schoolId });
       } else {
-        // No exact match AND no confident fuzzy match — create new
-        // person + student records as a stub so the operator can
-        // reconcile manually later. This is the only path that creates
-        // a phantom row, and only when we're genuinely confident the
-        // name does not belong to anyone already in DRAIS.
-        const personResult: any = await query(
-          `INSERT INTO people (school_id, first_name, last_name, created_at)
-           VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
-          [schoolId, firstName, lastName],
-        );
-        personId = personResult?.insertId;
-
-        if (!personId) {
-          skipped++;
-          zkLog('warn', 'USERINFO_PERSON_CREATE_FAILED', { userId, name });
-          continue;
-        }
-
-        const studentResult: any = await query(
-          `INSERT INTO students (school_id, person_id, status, admission_date, created_at)
-           VALUES (?, ?, 'active', CURDATE(), CURRENT_TIMESTAMP)`,
-          [schoolId, personId],
-        );
-        studentId = studentResult?.insertId;
-
-        if (!studentId) {
-          skipped++;
-          zkLog('warn', 'USERINFO_STUDENT_CREATE_FAILED', { userId, name, personId });
-          continue;
-        }
+        // autoLinkPinFromName already recorded the pending_device_users
+        // row (pending or ambiguous) with candidate evidence.
+        skipped++;
+        zkLog('info', 'USERINFO_QUEUED_PENDING', { userId, name, schoolId });
       }
-
-      // Upsert into zk_user_mapping with the matched/new student_id
-      await query(
-        `INSERT INTO zk_user_mapping (school_id, device_user_id, user_type, student_id, device_sn, card_number)
-         VALUES (?, ?, 'student', ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           student_id = VALUES(student_id),
-           card_number = COALESCE(VALUES(card_number), card_number),
-           updated_at = CURRENT_TIMESTAMP`,
-        [schoolId, deviceUserId, studentId, deviceSn, cardNo || null],
-      );
-
-      created++;
-      learnersCreated++;
-      zkLog('info', 'USERINFO_LEARNER_LINKED', { userId, name, studentId, personId, schoolId });
     } catch (err) {
       skipped++;
       zkLog('warn', 'USERINFO_UPSERT_SKIP', { userId, error: String(err) });
@@ -1132,6 +953,7 @@ async function processUserInfo(
          JOIN zk_user_mapping m
            ON m.device_user_id = al.device_user_id
           AND (m.device_sn = al.device_sn OR m.device_sn IS NULL)
+          AND m.school_id = al.school_id
          SET al.student_id = m.student_id,
              al.staff_id  = m.staff_id,
              al.matched    = 1
@@ -1166,16 +988,58 @@ async function processFingerprint(
   templateData: string,
   schoolId: number,
 ): Promise<void> {
-  // Look up who this PIN belongs to
-  const mapping = await query(
-    `SELECT student_id, staff_id FROM zk_user_mapping
-     WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
-     LIMIT 1`,
-    [pin, deviceSn],
-  );
+  // PHASE 1B — canonical-first identity for the arriving template.
+  // lookupEnrollmentForCapture also matches 'pending_capture' rows so
+  // a template arriving after a DRAIS-initiated enrollment completes
+  // that enrollment instead of orphaning.
+  const enrollment = await lookupEnrollmentForCapture(schoolId, parseInt(pin, 10) || 0);
 
-  const studentId = mapping?.[0]?.student_id || null;
-  const staffId = mapping?.[0]?.staff_id || null;
+  // Legacy fallback for PINs that predate canonical enrollments.
+  // School-scoped (Phase 1F) — no cross-school template attribution.
+  let studentId: number | null =
+    enrollment?.roleType === 'student' ? enrollment.roleRefId : null;
+  let staffId: number | null =
+    enrollment?.roleType === 'staff' ? enrollment.roleRefId : null;
+  if (!enrollment) {
+    const mapping = await query(
+      `SELECT student_id, staff_id FROM zk_user_mapping
+       WHERE device_user_id = ? AND (device_sn = ? OR device_sn IS NULL)
+         AND school_id = ?
+       LIMIT 1`,
+      [pin, deviceSn, schoolId],
+    );
+    studentId = mapping?.[0]?.student_id || null;
+    staffId = mapping?.[0]?.staff_id || null;
+  }
+
+  // Canonical template store + lifecycle completion — runs for BOTH
+  // students and staff (legacy student_fingerprints below remains
+  // student-only for its existing readers).
+  if (enrollment) {
+    try {
+      const t = await recordTemplate({
+        enrollmentId: enrollment.enrollmentId,
+        fingerIndex: parseInt(fid, 10) || 0,
+        templateBytes: templateData,
+        templateSize: parseInt(size, 10) || null,
+        capturedDeviceSn: deviceSn,
+      });
+      if (t.templateId) {
+        const queued = await queueDistributionsForSchool(t.templateId, schoolId, deviceSn);
+        const activated = await completeEnrollmentCapture(enrollment.enrollmentId);
+        zkLog('info', 'PHASE4_TEMPLATE_RECORDED', {
+          enrollmentId: enrollment.enrollmentId,
+          templateId: t.templateId,
+          distributionsQueued: queued,
+          enrollmentActivated: activated,
+        });
+      }
+    } catch (err) {
+      zkLog('warn', 'PHASE4_TEMPLATE_RECORD_FAILED', {
+        deviceSn, pin, error: String(err),
+      });
+    }
+  }
 
   if (studentId) {
     // Map ZK FID (0-9) to finger_position enum
@@ -1212,41 +1076,13 @@ async function processFingerprint(
       ],
     );
     zkLog('info', 'FP_CAPTURED', { deviceSn, pin, fid, size, studentId, fingerPosition, hand, valid });
-
-    // PHASE 4 — canonical template store + multi-device distribution.
-    // The student_fingerprints UPSERT above remains the legacy reader
-    // contract. We additionally record the template in
-    // biometric_templates keyed by the Phase 1 enrollment row, then
-    // fan-out queue rows to every sibling device of the school. The
-    // firmware-capable drainer (Phase 4.5) executes the actual
-    // commands; until then the queue rows ARE the operational record
-    // of "this device should have this template".
-    try {
-      const enrollment = await lookupActiveEnrollment(schoolId, parseInt(pin, 10) || 0);
-      if (enrollment) {
-        const t = await recordTemplate({
-          enrollmentId: enrollment.enrollmentId,
-          fingerIndex: parseInt(fid, 10) || 0,
-          templateBytes: templateData,
-          templateSize: parseInt(size, 10) || null,
-          capturedDeviceSn: deviceSn,
-        });
-        if (t.templateId) {
-          const queued = await queueDistributionsForSchool(t.templateId, schoolId, deviceSn);
-          zkLog('info', 'PHASE4_TEMPLATE_RECORDED', {
-            enrollmentId: enrollment.enrollmentId,
-            templateId: t.templateId,
-            distributionsQueued: queued,
-          });
-        }
-      }
-    } catch (err) {
-      // Best-effort; the legacy student_fingerprints write already
-      // succeeded so the ingest path is complete.
-      zkLog('warn', 'PHASE4_TEMPLATE_RECORD_FAILED', {
-        deviceSn, pin, error: String(err),
-      });
-    }
+    // (Canonical biometric_templates write + distribution queueing +
+    // pending_capture completion happen above, before this legacy
+    // student_fingerprints block — they run for staff templates too.)
+  } else if (staffId && enrollment) {
+    // Staff template: canonical biometric_templates (written above) is
+    // the storage — there is no legacy staff_fingerprints table.
+    zkLog('info', 'FP_CAPTURED_STAFF', { deviceSn, pin, fid, size, staffId, valid });
   } else {
     // PHASE BIO-4: store the orphan template so an admin can claim it
     // later. The previous behaviour was to log FP_CAPTURED_UNMAPPED
@@ -1334,6 +1170,17 @@ export async function GET(req: NextRequest) {
 
   try {
     zkLog('info', 'HEARTBEAT', { sn, ip, qs });
+
+    // Phase 0 — heartbeat-driven outbox pump. The Vercel hobby plan
+    // cannot schedule a drain cron, so device heartbeats (every
+    // ~30-60s per device) act as the scheduler. Throttled per-process
+    // inside the helper; fire-and-forget; never blocks the response.
+    drainOutboxOpportunistically();
+
+    // Phase 1A — make the ADMS devices shape reproducible (the audit
+    // found the sn-keyed table existed only as runtime drift). Gated
+    // per-process; a no-op after the first call.
+    ensureDevicesCanonicalSchema().catch(() => {});
 
     if (!sn) {
       zkLog('warn', 'NO_SERIAL_NUMBER', { ip, qs });
@@ -1709,6 +1556,10 @@ export async function POST(req: NextRequest) {
             // links when the top match is unambiguous.
             await autoLinkPinFromName(sn, userPin, userName, schoolId);
           }
+          // Phase 2I — the device just confirmed it knows this PIN.
+          if (schoolId) {
+            touchEnrollmentSeen(schoolId, parseInt(userPin, 10) || 0).catch(() => {});
+          }
           await saveParsedLog({
             rawLogId: rawLogId!, deviceSn: sn, schoolId,
             tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),
@@ -1775,8 +1626,15 @@ export async function POST(req: NextRequest) {
           const ioMode    = record.INOUTMODE  ? parseInt(record.INOUTMODE, 10)  || null : null;
 
           // Save to zk_attendance_logs (existing system).
+          // PHASE 0 — INSERT IGNORE + UNIQUE uk_punch (sn, pin,
+          // check_time): ZKTeco devices re-send ATTLOG batches when an
+          // ACK is missed. A re-sent punch must not duplicate the log
+          // row, the canonical raw event, the popup event, the daily
+          // count, or any downstream notification. Duplicate →
+          // affectedRows 0 → everything below is skipped except the
+          // forensic parsed-log row.
           const insLegacy = (await query(
-            `INSERT INTO zk_attendance_logs
+            `INSERT IGNORE INTO zk_attendance_logs
                (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
                 verify_type, io_mode, log_id, work_code, matched, raw_log_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1789,50 +1647,63 @@ export async function POST(req: NextRequest) {
               matched ? 1 : 0,
               rawLogId,
             ],
-          )) as { insertId?: number };
+          )) as { insertId?: number; affectedRows?: number };
+          const isDuplicatePunch =
+            !insLegacy?.insertId || (insLegacy.affectedRows ?? 0) === 0;
 
-          // PHASE 3 — dual-write to attendance_raw_events + engine.
-          // See processAttendanceRecord for the rationale; this is
-          // the parallel call site that handles inline batch ATTLOG
-          // processing in the POST route.
-          let rawEventIdPublished: number | null = null;
-          try {
-            const punchAt = new Date(checkTime);
-            const rawEventId = await recordRawEvent({
-              schoolId,
-              deviceSn: sn,
-              deviceUserId: Number(userId),
-              punchAt,
-              verifyType,
-              ioMode,
-              source: 'zkteco_push',
-              enrollmentId: resolution.enrollmentId ?? null,
-              personId:     resolution.personId ?? null,
-              roleType:     resolution.roleType ?? null,
-              roleRefId:    studentId ?? staffId ?? null,
-              matched,
-              resolutionPath:  resolution.resolutionPath ?? null,
-              resolutionScore: resolution.resolutionScore ?? null,
-              legacyTable: 'zk_attendance_logs',
-              legacyId:    insLegacy?.insertId ?? null,
-            });
-            rawEventIdPublished = rawEventId;
-            if (rawEventId && matched && resolution.personId) {
-              evaluatePunch(rawEventId).catch(err =>
-                zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
-                  rawEventId, error: String(err),
-                }),
-              );
-            }
-          } catch (err) {
-            zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
-              deviceUserId: userId, error: String(err),
+          if (isDuplicatePunch) {
+            zkLog('info', 'PUNCH_DUPLICATE_IGNORED', {
+              deviceSn: sn, userId, checkTime, schoolId,
             });
           }
 
-          // PHASE 7 — sub-second SSE push via the bus. See the
-          // matching call in processAttendanceRecord for rationale.
-          if (insLegacy?.insertId) {
+          // PHASE 3 — dual-write to attendance_raw_events + engine.
+          // recordRawEvent is itself INSERT IGNORE (uk_raw_punch), so
+          // even if the legacy key is missing the canonical journal
+          // stays duplicate-free.
+          let rawEventIdPublished: number | null = null;
+          if (!isDuplicatePunch) {
+            try {
+              const punchAt = new Date(checkTime);
+              const rawEventId = await recordRawEvent({
+                schoolId,
+                deviceSn: sn,
+                deviceUserId: Number(userId),
+                punchAt,
+                verifyType,
+                ioMode,
+                source: 'zkteco_push',
+                enrollmentId: resolution.enrollmentId ?? null,
+                personId:     resolution.personId ?? null,
+                roleType:     resolution.roleType ?? null,
+                roleRefId:    studentId ?? staffId ?? null,
+                matched,
+                resolutionPath:  resolution.resolutionPath ?? null,
+                resolutionScore: resolution.resolutionScore ?? null,
+                legacyTable: 'zk_attendance_logs',
+                legacyId:    insLegacy?.insertId ?? null,
+              });
+              rawEventIdPublished = rawEventId;
+              // PHASE 1D — resolution.personId is now hydrated for
+              // legacy-path resolutions too (resolve.ts), so EVERY
+              // matched punch reaches the classification engine.
+              if (rawEventId && matched && resolution.personId) {
+                evaluatePunch(rawEventId).catch(err =>
+                  zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
+                    rawEventId, error: String(err),
+                  }),
+                );
+              }
+            } catch (err) {
+              zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
+                deviceUserId: userId, error: String(err),
+              });
+            }
+          }
+
+          // PHASE 7 — sub-second SSE push via the bus. Skipped for
+          // re-sent duplicates so the popup doesn't double-fire.
+          if (!isDuplicatePunch && insLegacy?.insertId) {
             try {
               publishEvent('attendance.event.recorded', {
                 schoolId,

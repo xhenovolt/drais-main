@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import DeviceReconciliationModal from '@/components/attendance/DeviceReconciliationModal';
 
 function formatTimeAgo(seconds: number): string {
   if (seconds <= 0) return 'just now';
@@ -294,6 +295,8 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const isOnline = device.connection_status === 'online';
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Phase 3 — Reconciliation Center modal.
+  const [showReconcile, setShowReconcile] = useState(false);
   const [editForm, setEditForm] = useState({
     device_name: device.device_name || '',
     location: device.location || '',
@@ -619,6 +622,21 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
             <SyncStatusBadge status={syncStatus} />
           </div>
         </div>
+
+        {/* Phase 3 — Reconciliation Center entry */}
+        <button
+          onClick={() => setShowReconcile(true)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+        >
+          <ClipboardList className="w-4 h-4" /> Reconciliation Center
+        </button>
+        {showReconcile && (
+          <DeviceReconciliationModal
+            sn={device.serial_number}
+            deviceName={device.device_name}
+            onClose={() => { setShowReconcile(false); onMutate(); }}
+          />
+        )}
 
         {editing ? (
           <div className="space-y-2">

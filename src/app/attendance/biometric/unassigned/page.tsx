@@ -12,9 +12,12 @@ import { apiFetch } from '@/lib/apiClient';
 /* ── Types ─────────────────────────────────────────────────────── */
 
 interface UnassignedEntry {
+  /** 'orphan' = unclaimed fingerprint template; 'pending' = device user awaiting triage */
+  kind: 'orphan' | 'pending';
   id: number;
   device_sn: string;
-  device_slot: number;
+  device_slot: number | string;
+  device_name: string | null;
   status: string;
   source: string;
   finger_index: number | null;
@@ -22,7 +25,11 @@ interface UnassignedEntry {
   captured_at: string | null;
   updated_at: string;
   initiated_by_name: string | null;
+  candidates: Array<{ type: string; id: number; name: string; score: number }> | null;
 }
+
+/** Rows from the two sources can share numeric ids — key by kind+id. */
+const rowKey = (e: UnassignedEntry) => `${e.kind}:${e.id}`;
 
 interface Student {
   id: number;
@@ -38,6 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
   ASSIGNED:   'bg-green-100 text-green-800',
   VERIFIED:   'bg-emerald-100 text-emerald-800',
   ORPHANED:   'bg-red-100 text-red-800',
+  AMBIGUOUS:  'bg-purple-100 text-purple-800',
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -57,9 +65,9 @@ function fmt(iso: string | null) {
 /* ── Component ─────────────────────────────────────────────────── */
 
 export default function BiometricUnassignedPage() {
-  const [assigning, setAssigning] = useState<number | null>(null);
+  const [assigning, setAssigning] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<Record<number, number>>({});
+  const [selectedStudent, setSelectedStudent] = useState<Record<string, number>>({});
 
   const { data, isLoading, mutate } = useSWR<{ enrollments: UnassignedEntry[]; total: number }>(
     '/api/biometric/unassigned?limit=100',
@@ -74,27 +82,37 @@ export default function BiometricUnassignedPage() {
   const students: Student[] = studData?.students ?? [];
   const enrollments: UnassignedEntry[] = data?.enrollments ?? [];
 
-  async function handleAssign(enrollmentId: number) {
-    const studentId = selectedStudent[enrollmentId];
+  async function handleAssign(entry: UnassignedEntry) {
+    const key = rowKey(entry);
+    const studentId = selectedStudent[key];
     if (!studentId) {
       showToast('warning', 'Select a student first');
       return;
     }
-    setAssigning(enrollmentId);
+    setAssigning(key);
     try {
-      const res = await apiFetch('/api/biometric/assign', {
-        method: 'POST',
-        body: JSON.stringify({ enrollment_id: enrollmentId, student_id: studentId }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(err.error ?? `HTTP ${res.status}`);
+      // Phase 2M — orphan templates go through the claim flow (binds
+      // identity + promotes the template); pending device users go
+      // through the triage resolution (canonical enrollment + legacy
+      // mirror + punch re-matching).
+      if (entry.kind === 'orphan') {
+        await apiFetch('/api/biometric/orphans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orphan_id: entry.id, student_id: studentId }),
+          successMessage: 'Template claimed and identity mapped',
+        });
+      } else {
+        await apiFetch('/api/biometric/pending-device-users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: entry.id, action: 'map', user_type: 'student', student_id: studentId }),
+          successMessage: 'Device user mapped',
+        });
       }
-      const data = await res.json();
-      showToast('success', `Assigned to ${data.student_name}`);
       mutate();
     } catch (e: any) {
-      showToast('error', e.message ?? 'Assignment failed');
+      showToast('error', e?.message ?? 'Assignment failed');
     } finally {
       setAssigning(null);
     }
@@ -159,9 +177,9 @@ export default function BiometricUnassignedPage() {
                 className="px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 flex items-center justify-between"
                 onClick={() => {
                   // Apply this student to the first unconfigured enrollment row
-                  const firstUnconfigured = enrollments.find(e => !selectedStudent[e.id]);
+                  const firstUnconfigured = enrollments.find(e => !selectedStudent[rowKey(e)]);
                   if (firstUnconfigured) {
-                    setSelectedStudent(prev => ({ ...prev, [firstUnconfigured.id]: s.id }));
+                    setSelectedStudent(prev => ({ ...prev, [rowKey(firstUnconfigured)]: s.id }));
                     setSearchQuery('');
                     showToast('info', `Selected "${s.first_name} ${s.last_name}" for slot ${firstUnconfigured.device_slot}`);
                   }
@@ -205,13 +223,18 @@ export default function BiometricUnassignedPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {enrollments.map(enr => {
-                const picked = selectedStudent[enr.id];
+                const picked = selectedStudent[rowKey(enr)];
                 const pickedStudent = students.find(s => s.id === picked);
                 return (
-                  <tr key={enr.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={rowKey(enr)} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="font-mono text-xs text-gray-700">{enr.device_sn}</div>
-                      <div className="text-gray-400 text-xs">slot {enr.device_slot}</div>
+                      <div className="text-gray-400 text-xs">PIN {enr.device_slot}{enr.device_name ? ` · ${enr.device_name}` : ''}</div>
+                      {enr.candidates && enr.candidates.length > 0 && (
+                        <div className="text-[10px] text-purple-500 mt-0.5">
+                          suggests: {enr.candidates.slice(0, 2).map(c => c.name).join(', ')}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={enr.status} />
@@ -235,7 +258,7 @@ export default function BiometricUnassignedPage() {
                             {pickedStudent ? `${pickedStudent.first_name} ${pickedStudent.last_name}` : `ID ${picked}`}
                           </span>
                           <button
-                            onClick={() => setSelectedStudent(prev => { const n = { ...prev }; delete n[enr.id]; return n; })}
+                            onClick={() => setSelectedStudent(prev => { const n = { ...prev }; delete n[rowKey(enr)]; return n; })}
                             className="text-gray-300 hover:text-red-400 text-xs ml-1"
                           >✕</button>
                         </div>
@@ -245,11 +268,11 @@ export default function BiometricUnassignedPage() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        disabled={!picked || assigning === enr.id}
-                        onClick={() => handleAssign(enr.id)}
+                        disabled={!picked || assigning === rowKey(enr)}
+                        onClick={() => handleAssign(enr)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
-                        {assigning === enr.id
+                        {assigning === rowKey(enr)
                           ? <Loader className="w-3 h-3 animate-spin" />
                           : <UserCheck className="w-3 h-3" />
                         }

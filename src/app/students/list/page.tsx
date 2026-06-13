@@ -185,10 +185,11 @@ export default function StudentsListPage() {
 
   // Fingerprint Quick-Capture State
   const [fingerprintEnrolledIds, setFingerprintEnrolledIds] = useState<Set<number>>(new Set());
+  const [fingerprintStatuses, setFingerprintStatuses] = useState<Record<number, { label?: string; capture_status?: string; pin?: number; device_name?: string; device_sn?: string }>>({});
   const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [captureStudentId, setCaptureStudentId] = useState<number | null>(null);
   // Enrollment lifecycle: studentId → { step, commandId, deviceName }
-  type EnrollStep = 'waking' | 'sent' | 'success' | 'failed';
+  type EnrollStep = 'waking' | 'sent' | 'waiting' | 'success' | 'failed';
   const [enrollProgress, setEnrollProgress] = useState<Map<number, { step: EnrollStep; commandId?: number; deviceName?: string; message?: string }>>(new Map());
   const pollTimers = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
   // Synchronous in-flight guard — prevents double-click race before React re-renders
@@ -306,12 +307,15 @@ export default function StudentsListPage() {
     }
   };
 
-  // Fingerprint status fetch
+  // Fingerprint status fetch — Phase 2K: the API now also returns a
+  // rich per-student lifecycle map (label, capture_status, pin, device)
+  // alongside the legacy boolean id list.
   const fetchFingerprintStatus = async () => {
     try {
       const data = await apiFetch('/api/students/fingerprint-status', { silent: true });
       const ids: number[] = data?.data || [];
       setFingerprintEnrolledIds(new Set(ids));
+      setFingerprintStatuses(data?.statuses || {});
     } catch {
       // Non-critical, leave empty
     }
@@ -329,16 +333,59 @@ export default function StudentsListPage() {
         silent: true,
       });
       if (res?.success) {
+        // Phase 2L — do NOT declare success yet: the device is merely
+        // ready. Poll the truth-based status endpoint until the
+        // fingerprint template actually reaches DRAIS (or timeout).
         setStudentEnrollStep(studentId, {
-          step: 'success',
+          step: 'waiting',
           deviceName: label,
-          message: `Identity Synchronized. K40 ready — scan finger now.`,
+          message: `Scan finger now — waiting for capture confirmation…`,
         });
-        setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
         setLastEnrolled({ name: res.student_name || 'Student', studentId, uid: res.uid, device: label, ts: new Date() });
-        enrollInFlight.current.delete(studentId);
-        // Auto-clear after 30s (enough time for 3-finger scan)
-        setTimeout(() => clearStudentEnroll(studentId), 30000);
+
+        const enrollmentId = res.enrollment_id;
+        const startedAt = Date.now();
+        const poll = async () => {
+          if (Date.now() - startedAt > 90_000) {
+            enrollInFlight.current.delete(studentId);
+            setStudentEnrollStep(studentId, {
+              step: 'failed',
+              deviceName: label,
+              message: 'Captured on device not yet confirmed by DRAIS — check device connectivity (ADMS) and the enrollment page.',
+            });
+            setTimeout(() => clearStudentEnroll(studentId), 10000);
+            return;
+          }
+          try {
+            const st = enrollmentId
+              ? await apiFetch(`/api/device/local-enroll/status?enrollment_id=${enrollmentId}`, { silent: true })
+              : null;
+            if (st?.captured) {
+              enrollInFlight.current.delete(studentId);
+              setStudentEnrollStep(studentId, {
+                step: 'success',
+                deviceName: label,
+                message: `Fingerprint captured and confirmed by DRAIS (${st.label || 'Active'}).`,
+              });
+              setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
+              fetchFingerprintStatus();
+              setTimeout(() => clearStudentEnroll(studentId), 8000);
+              return;
+            }
+            if (st?.capture_status === 'failed') {
+              enrollInFlight.current.delete(studentId);
+              setStudentEnrollStep(studentId, {
+                step: 'failed',
+                deviceName: label,
+                message: st.note || 'Enrollment failed on device.',
+              });
+              setTimeout(() => clearStudentEnroll(studentId), 8000);
+              return;
+            }
+          } catch { /* transient — keep polling */ }
+          setTimeout(poll, 3000);
+        };
+        setTimeout(poll, 3000);
       } else {
         throw new Error(res?.error || 'Local enrollment failed');
       }
@@ -1655,7 +1702,7 @@ export default function StudentsListPage() {
                                 </div>
                               );
                             }
-                            if (progress.step === 'sent') {
+                            if (progress.step === 'sent' || progress.step === 'waiting') {
                               return (
                                 <div className="flex items-center justify-center" title={progress.message}>
                                   <Fingerprint className="w-4 h-4 text-blue-500 animate-pulse mx-auto" />
@@ -1677,16 +1724,27 @@ export default function StudentsListPage() {
                               );
                             }
                           }
-                          // Default: idle fingerprint button
+                          // Default: idle fingerprint button. Phase 2K —
+                          // the title and color reflect the REAL
+                          // lifecycle state, not a fake boolean.
+                          const fpStatus = fingerprintStatuses[student.id];
+                          const fpLabel = fpStatus?.label
+                            ?? (fingerprintEnrolledIds.has(student.id) ? 'Active' : 'Not enrolled');
+                          const fpTitle = fpStatus
+                            ? `${fpLabel}${fpStatus.pin ? ` · PIN ${fpStatus.pin}` : ''}${fpStatus.device_name || fpStatus.device_sn ? ` · ${fpStatus.device_name || fpStatus.device_sn}` : ''}`
+                            : 'Enroll fingerprint';
+                          const fpColor = fpLabel === 'Active'
+                            ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                            : fpLabel === 'Failed' || fpLabel === 'Expired' || fpLabel === 'Revoked'
+                              ? 'text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                              : fpLabel === 'Not enrolled'
+                                ? 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                : 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20';
                           return (
                             <button
                               onClick={() => handleQuickCapture(student.id)}
-                              title={fingerprintEnrolledIds.has(student.id) ? 'Re-enroll fingerprint' : 'Enroll fingerprint'}
-                              className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors mx-auto ${
-                                fingerprintEnrolledIds.has(student.id)
-                                  ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                                  : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-                              }`}
+                              title={fpTitle}
+                              className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors mx-auto ${fpColor}`}
                             >
                               <Fingerprint className="w-4 h-4" />
                             </button>

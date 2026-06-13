@@ -40,6 +40,7 @@
  */
 import { query } from '@/lib/db';
 import { ensureBiometricEnrollmentsSchema } from '@/lib/biometric/migrations/biometric-enrollments-schema';
+import { upsertEnrollment } from '@/lib/biometric/enrollment-service';
 
 export interface ResolveInput {
   schoolId: number;
@@ -175,9 +176,25 @@ export async function resolveIdentity(
 
 /**
  * Legacy three-table chain — kept here so the new resolver is the
- * single entry point. The original implementation lived inline in
- * zk-handler. Behaviour is unchanged from BIO-1..BIO-5: school-scope
- * guard, staff>student precedence at the table-aggregation step.
+ * single entry point. Phase 1D/1F changes vs the BIO-1..BIO-5 era:
+ *
+ *   - PERSON HYDRATION (1D): a legacy hit now resolves person_id from
+ *     the students/staff row (school-scoped). This is what lets the
+ *     attendance engine's `matched && personId` gate pass for punches
+ *     resolved via zk_user_mapping et al — previously those punches
+ *     never produced attendance_records.
+ *   - STRICT SCHOOL SCOPE (1F): zk_user_mapping rows are only accepted
+ *     when their school_id matches the device's school. Global
+ *     (school_id IS NULL) rows are no longer used for attribution —
+ *     migration 020 backfills school_id where it is safely inferable;
+ *     anything left NULL stays unmatched and surfaces in the pending
+ *     reconciliation queue instead of being guessed.
+ *   - The hydration query itself is school-scoped, so a mapping that
+ *     points at a student/staff row in a DIFFERENT school resolves to
+ *     nothing rather than cross-attributing.
+ *   - AUTO-PROMOTION: a hydrated legacy hit is promoted into canonical
+ *     biometric_enrollments (best-effort, fire-and-forget) so the
+ *     legacy path drains itself with use.
  */
 async function legacyResolve(
   schoolId: number,
@@ -187,13 +204,13 @@ async function legacyResolve(
   type Hit = { source: ResolutionPath; studentId: number | null; staffId: number | null };
   const hits: Hit[] = [];
 
-  // 1. zk_user_mapping
+  // 1. zk_user_mapping — strict school scope (Phase 1F).
   try {
     const rows = (await query(
       `SELECT student_id, staff_id FROM zk_user_mapping
         WHERE device_user_id = ?
           AND (device_sn = ? OR device_sn IS NULL)
-          AND (school_id  = ? OR school_id  IS NULL)
+          AND school_id = ?
         LIMIT 1`,
       [deviceUserId, deviceSn, schoolId],
     )) as Array<{ student_id: number | null; staff_id: number | null }>;
@@ -202,13 +219,14 @@ async function legacyResolve(
     }
   } catch { /* table missing or query failed — keep going */ }
 
-  // 2. device_user_mappings
+  // 2. device_user_mappings — scoped via its own school_id column.
   try {
     const rows = (await query(
       `SELECT student_id, staff_id FROM device_user_mappings
         WHERE device_user_id = ? AND device_sn = ?
+          AND (school_id = ? OR school_id IS NULL)
         LIMIT 1`,
-      [deviceUserId, deviceSn],
+      [deviceUserId, deviceSn, schoolId],
     )) as Array<{ student_id: number | null; staff_id: number | null }>;
     if (rows.length > 0) {
       hits.push({ source: 'legacy_dum', studentId: rows[0].student_id, staffId: rows[0].staff_id });
@@ -220,8 +238,9 @@ async function legacyResolve(
     const rows = (await query(
       `SELECT person_type, person_id FROM device_users
         WHERE device_user_id = ? AND device_sn = ?
+          AND (school_id = ? OR school_id IS NULL)
         LIMIT 1`,
-      [deviceUserId, deviceSn],
+      [deviceUserId, deviceSn, schoolId],
     )) as Array<{ person_type: string; person_id: number }>;
     if (rows.length > 0) {
       const t = (rows[0].person_type || '').toLowerCase();
@@ -234,26 +253,39 @@ async function legacyResolve(
     }
   } catch { /* ignore */ }
 
-  // Staff > Student precedence (BIO-2).
+  // Staff > Student precedence (BIO-2), then hydrate person_id (1D).
   const staffHit = hits.find(h => h.staffId !== null);
   const studentHit = hits.find(h => h.studentId !== null);
-  if (staffHit) {
-    return {
-      resolved: true,
-      studentId: null,
-      staffId: staffHit.staffId,
-      roleType: 'staff',
-      path: staffHit.source,
-    };
+
+  if (staffHit && staffHit.staffId !== null) {
+    const personId = await hydratePersonId('staff', staffHit.staffId, schoolId);
+    if (personId) {
+      promoteLegacyHitToCanonical(schoolId, deviceSn, deviceUserId, 'staff', staffHit.staffId, staffHit.source);
+      return {
+        resolved: true,
+        studentId: null,
+        staffId: staffHit.staffId,
+        personId,
+        roleType: 'staff',
+        path: staffHit.source,
+      };
+    }
+    // Mapping points at a staff row outside this school (or deleted) —
+    // cross-school guard: do NOT attribute.
   }
-  if (studentHit) {
-    return {
-      resolved: true,
-      studentId: studentHit.studentId,
-      staffId: null,
-      roleType: 'student',
-      path: studentHit.source,
-    };
+  if (studentHit && studentHit.studentId !== null) {
+    const personId = await hydratePersonId('student', studentHit.studentId, schoolId);
+    if (personId) {
+      promoteLegacyHitToCanonical(schoolId, deviceSn, deviceUserId, 'student', studentHit.studentId, studentHit.source);
+      return {
+        resolved: true,
+        studentId: studentHit.studentId,
+        staffId: null,
+        personId,
+        roleType: 'student',
+        path: studentHit.source,
+      };
+    }
   }
   return {
     resolved: false,
@@ -261,4 +293,50 @@ async function legacyResolve(
     staffId: null,
     path: 'unresolved',
   };
+}
+
+/** Resolve people.id for a role row, school-scoped (cross-school
+ *  mappings hydrate to nothing and are treated as unresolved). */
+async function hydratePersonId(
+  role: 'student' | 'staff',
+  refId: number,
+  schoolId: number,
+): Promise<number | null> {
+  const table = role === 'student' ? 'students' : 'staff';
+  try {
+    const rows = (await query(
+      `SELECT person_id FROM ${table} WHERE id = ? AND school_id = ? LIMIT 1`,
+      [refId, schoolId],
+    )) as Array<{ person_id: number | null }>;
+    return rows[0]?.person_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Best-effort, fire-and-forget promotion of a legacy mapping hit into
+ * canonical biometric_enrollments. Each promoted PIN stops hitting the
+ * legacy chain on subsequent punches, so production converges on the
+ * canonical path through normal use. PIN conflicts are logged by the
+ * service and left for the operator — never forced.
+ */
+function promoteLegacyHitToCanonical(
+  schoolId: number,
+  deviceSn: string,
+  deviceUserId: string,
+  roleType: 'student' | 'staff',
+  roleRefId: number,
+  source: ResolutionPath,
+): void {
+  const pin = Number(deviceUserId);
+  if (!Number.isFinite(pin) || pin <= 0 || pin > 65535) return;
+  upsertEnrollment({
+    schoolId,
+    roleType,
+    roleRefId,
+    pin,
+    deviceSn,
+    source: `auto_promote:${source}`,
+  }).catch(() => { /* logged inside the service */ });
 }

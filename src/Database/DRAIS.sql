@@ -1338,7 +1338,7 @@ CREATE TABLE IF NOT EXISTS biometric_enrollments (
   role_ref_id     BIGINT NOT NULL,
   pin_value       INT NOT NULL,
   card_number     VARCHAR(32) DEFAULT NULL,
-  status          ENUM('active','suspended','revoked','transferred') NOT NULL DEFAULT 'active',
+  status          ENUM('active','pending_capture','suspended','revoked','transferred') NOT NULL DEFAULT 'active',
   -- The device on which the enrollment was first captured (for forensic
   -- trail and Phase-2 transfer ceremony). NULL until a USERINFO/template
   -- arrives. Distribution to other devices is tracked separately in
@@ -1761,3 +1761,79 @@ CREATE TABLE IF NOT EXISTS attendance_daily_aggregates (
   KEY idx_school_day  (school_id, attendance_date),
   KEY idx_school_class_day (school_id, class_id, attendance_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- ATTENDANCE TRUST REFACTOR — PHASE 0 + PHASE 1 (2026-06)
+-- ----------------------------------------------------------------------------
+-- 1. Canonical `devices` (ADMS shape). The forensic audit found the
+--    sn-keyed devices table the entire ZKTeco pipeline depends on was
+--    defined in NO schema file (runtime drift only). This is the
+--    reproducible definition; ensureDevicesCanonicalSchema() applies
+--    missing columns additively to pre-existing tables.
+--    `sn` is the REAL device serial number (ADMS ?SN=) — NEVER an IP.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS devices (
+  id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id        BIGINT DEFAULT NULL,
+  sn               VARCHAR(100) DEFAULT NULL,
+  device_name      VARCHAR(100) DEFAULT NULL,
+  device_type      VARCHAR(50)  DEFAULT NULL,
+  model_name       VARCHAR(100) DEFAULT NULL,
+  firmware_version VARCHAR(100) DEFAULT NULL,
+  ip_address       VARCHAR(50)  DEFAULT NULL,
+  location         VARCHAR(255) DEFAULT NULL,
+  options          TEXT         DEFAULT NULL,
+  push_version     VARCHAR(50)  DEFAULT NULL,
+  status           VARCHAR(20)  NOT NULL DEFAULT 'active',
+  is_online        TINYINT(1)   NOT NULL DEFAULT 0,
+  last_seen        DATETIME     DEFAULT NULL,
+  last_activity    DATETIME     DEFAULT NULL,
+  deleted_at       DATETIME     DEFAULT NULL,
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_devices_sn (sn),
+  KEY idx_devices_school (school_id),
+  KEY idx_devices_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- 2. pending_device_users — Phase 1E triage queue. Device users that
+--    cannot be DETERMINISTICALLY mapped to a person are parked here
+--    for operator resolution (map / ignore / quarantine). Replaces the
+--    old phantom-creation path that invented people/students rows from
+--    device-supplied names.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS pending_device_users (
+  id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id        BIGINT DEFAULT NULL,
+  device_sn        VARCHAR(100) NOT NULL,
+  device_user_pin  VARCHAR(100) NOT NULL,
+  device_name      VARCHAR(255) DEFAULT NULL,
+  device_card      VARCHAR(64)  DEFAULT NULL,
+  status           ENUM('pending','ambiguous','mapped','ignored','quarantined') NOT NULL DEFAULT 'pending',
+  reason           VARCHAR(255) DEFAULT NULL,
+  candidates_json  TEXT DEFAULT NULL,
+  resolved_by      BIGINT DEFAULT NULL,
+  resolved_at      DATETIME DEFAULT NULL,
+  resolved_enrollment_id BIGINT DEFAULT NULL,
+  first_seen       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_pdu (school_id, device_sn, device_user_pin),
+  KEY idx_pdu_status (school_id, status, last_seen)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- 3. Dedup keys (Phase 0). For databases created BEFORE this refactor,
+--    apply database/migrations/020_attendance_trust_phase0_phase1.sql
+--    (it dedupes existing rows first, keeping the oldest id).
+--      zk_attendance_logs:    UNIQUE uk_punch     (device_sn, device_user_id, check_time)
+--      attendance_raw_events: UNIQUE uk_raw_punch (school_id, device_sn, device_user_id, punch_at, source)
+--
+-- 4. biometric_enrollments.status now includes 'pending_capture'
+--    (identity committed, fingerprint template not yet received). The
+--    resolver only matches 'active'; the zk-handler template path
+--    flips pending_capture → active when the template arrives.
+--    Existing installs: ALTER in migration 020 / runtime ensure.
+-- ============================================================================

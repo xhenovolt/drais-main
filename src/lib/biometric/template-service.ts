@@ -189,3 +189,98 @@ export async function lookupActiveEnrollment(
     return null;
   }
 }
+
+/**
+ * Phase 1B — capture-time lookup. Unlike lookupActiveEnrollment, this
+ * also matches 'pending_capture' enrollments (created by the local TCP
+ * enroller BEFORE the finger is scanned) so the arriving template can
+ * complete the enrollment lifecycle. The zk-handler template path
+ * calls completeEnrollmentCapture() after a successful recordTemplate
+ * to flip pending_capture → active.
+ */
+export async function lookupEnrollmentForCapture(
+  schoolId: number,
+  pinValue: number,
+): Promise<{
+  enrollmentId: number;
+  personId: number;
+  roleType: string;
+  roleRefId: number;
+  status: 'active' | 'pending_capture';
+} | null> {
+  if (!schoolId || !pinValue) return null;
+  try {
+    const rows = (await query(
+      `SELECT id, person_id, role_type, role_ref_id, status
+         FROM biometric_enrollments
+        WHERE school_id = ?
+          AND pin_value = ?
+          AND status IN ('active','pending_capture')
+        LIMIT 1`,
+      [schoolId, pinValue],
+    )) as Array<{
+      id: number; person_id: number; role_type: string;
+      role_ref_id: number; status: 'active' | 'pending_capture';
+    }>;
+    if (rows.length === 0) return null;
+    return {
+      enrollmentId: rows[0].id,
+      personId: rows[0].person_id,
+      roleType: rows[0].role_type,
+      roleRefId: rows[0].role_ref_id,
+      status: rows[0].status,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mark a pending_capture enrollment as active once its first template
+ * has arrived from the device. Idempotent; no-op for already-active
+ * enrollments. This is the ONLY transition that confirms an enrollment
+ * actually captured a fingerprint — the enroll endpoints never mark
+ * completion themselves (audit: local-enroll used to flip COMPLETED
+ * before the finger ever touched the sensor).
+ */
+export async function completeEnrollmentCapture(enrollmentId: number): Promise<boolean> {
+  try {
+    // Phase 2G/2J — the template's arrival is the ONLY proof of
+    // capture: identity flips pending_capture → active AND the capture
+    // pipeline lands on 'captured' with timestamps. Also runs for
+    // already-active enrollments (re-capture refreshes the stamps).
+    const res = (await query(
+      `UPDATE biometric_enrollments
+          SET status = IF(status = 'pending_capture', 'active', status),
+              capture_status = 'captured',
+              captured_at = COALESCE(captured_at, NOW()),
+              last_seen_on_device_at = NOW(),
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status IN ('pending_capture','active')`,
+      [enrollmentId],
+    )) as { affectedRows?: number };
+    return (res.affectedRows ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Phase 2I — stamp last_seen_on_device_at when a device echoes a USER
+ * record for a PIN (USERINFO/OPERLOG). Best-effort, never throws.
+ */
+export async function touchEnrollmentSeen(
+  schoolId: number,
+  pinValue: number,
+): Promise<void> {
+  if (!schoolId || !pinValue) return;
+  try {
+    await query(
+      `UPDATE biometric_enrollments
+          SET last_seen_on_device_at = NOW()
+        WHERE school_id = ? AND pin_value = ?
+          AND status IN ('active','pending_capture')`,
+      [schoolId, pinValue],
+    );
+  } catch { /* best-effort */ }
+}
