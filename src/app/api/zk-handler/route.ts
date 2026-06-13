@@ -551,24 +551,32 @@ async function getDeviceSchoolId(sn: string): Promise<number | null> {
  */
 async function updateDeviceSyncState(sn: string, schoolId: number | null): Promise<void> {
   try {
-    // Expected = users mapped to this device in DB
-    const expectedRow = await query(
-      `SELECT COUNT(*) AS cnt FROM zk_user_mapping WHERE device_sn = ? OR device_sn IS NULL`,
-      [sn],
-    );
-    const expectedCount = Number(expectedRow?.[0]?.cnt ?? 0);
+    // EXPECTED = active canonical enrollments for THIS device's school.
+    // School-scoped (no `device_sn IS NULL` bleed — that bug counted
+    // ~1230 legacy/global rows for a device that holds 45). Falls back
+    // to nothing when school is unknown.
+    let expectedCount = 0;
+    if (schoolId) {
+      const expectedRow = await query(
+        `SELECT COUNT(*) AS cnt FROM biometric_enrollments
+          WHERE school_id = ? AND status IN ('active','pending_capture')`,
+        [schoolId],
+      );
+      expectedCount = Number(expectedRow?.[0]?.cnt ?? 0);
+    }
 
-    // Known = how many DATA UPDATE USERINFO commands were acknowledged (proxy for "on device")
-    const ackedRow = await query(
-      `SELECT COUNT(*) AS cnt FROM zk_device_commands
-       WHERE device_sn = ? AND status = 'acknowledged' AND command LIKE 'DATA UPDATE USERINFO%'`,
+    // ACTUAL = the REAL on-device user count from the last probe/sync
+    // (devices.device_user_count). The old command-ack proxy was
+    // meaningless; we never overwrite the probed truth here.
+    const realRow = await query(
+      `SELECT device_user_count FROM devices WHERE sn = ? LIMIT 1`,
       [sn],
     );
-    const ackedCount = Number(ackedRow?.[0]?.cnt ?? 0);
+    const realCount: number | null = realRow?.[0]?.device_user_count ?? null;
 
     const syncStatus =
-      expectedCount === 0 ? 'unknown'
-      : ackedCount === expectedCount ? 'synced'
+      realCount == null ? 'unknown'
+      : realCount === expectedCount ? 'synced'
       : 'out_of_sync';
 
     await query(
@@ -577,10 +585,10 @@ async function updateDeviceSyncState(sn: string, schoolId: number | null): Promi
        VALUES (?, ?, ?, ?, ?, ?, NOW())
        ON DUPLICATE KEY UPDATE
          expected_user_count = VALUES(expected_user_count),
-         last_known_device_user_count = VALUES(last_known_device_user_count),
+         last_known_device_user_count = COALESCE(VALUES(last_known_device_user_count), last_known_device_user_count),
          sync_status = VALUES(sync_status),
          updated_at = NOW()`,
-      [sn, sn, schoolId, expectedCount, ackedCount, syncStatus],
+      [sn, sn, schoolId, expectedCount, realCount, syncStatus],
     );
   } catch (err) {
     zkLog('warn', 'SYNC_STATE_UPDATE_FAILED', { sn, error: String(err) });

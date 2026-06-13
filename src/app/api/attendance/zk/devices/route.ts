@@ -30,8 +30,16 @@ export async function GET(req: NextRequest) {
           WHERE al.device_sn = d.sn AND DATE(al.check_time) = CURDATE()) AS today_punches,
          (SELECT COUNT(*) FROM zk_device_commands c
           WHERE c.device_sn = d.sn AND c.status = 'pending') AS pending_commands,
-         (SELECT COUNT(*) FROM zk_user_mapping m
-          WHERE m.device_sn = d.sn OR m.device_sn IS NULL) AS mapped_users,
+         -- REAL on-device user count (TCP probe / ADMS) — source of truth.
+         d.device_user_count        AS device_user_count,
+         d.device_user_count_at     AS device_user_count_at,
+         d.device_user_count_source AS device_user_count_source,
+         -- DRAIS-side: active canonical enrollments for THIS device school.
+         -- School-scoped to avoid the legacy NULL-device mapping bleed
+         -- that previously counted ~1230 for a device holding 45.
+         (SELECT COUNT(*) FROM biometric_enrollments be
+           WHERE be.school_id = d.school_id
+             AND be.status IN ('active','pending_capture')) AS mapped_users,
          ss.sync_status,
          ss.expected_user_count,
          ss.last_known_device_user_count,

@@ -297,6 +297,20 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [editing, setEditing] = useState(false);
   // Phase 3 — Reconciliation Center modal.
   const [showReconcile, setShowReconcile] = useState(false);
+  // Real on-device user count probe (TCP getInfo).
+  const [probing, setProbing] = useState(false);
+  const handleProbe = useCallback(async () => {
+    setProbing(true);
+    try {
+      const r = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(device.serial_number)}/probe`, {
+        method: 'POST',
+      });
+      showToast('success', r?.message ?? `Device reports ${r?.device_user_count} users`);
+      onMutate();
+    } catch { /* apiFetch shows error toast (e.g. cloud cannot reach LAN) */ } finally {
+      setProbing(false);
+    }
+  }, [device.serial_number, onMutate]);
   const [editForm, setEditForm] = useState({
     device_name: device.device_name || '',
     location: device.location || '',
@@ -683,24 +697,36 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 </div>
               )}
 
-              {/* Sync state stats */}
+              {/* Sync state stats — REAL on-device count vs DRAIS-mapped */}
               <div className="flex items-center gap-3 pt-1 flex-wrap">
                 <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Database className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Expected: <strong className="text-gray-800 dark:text-gray-200">{device.expected_user_count ?? '—'}</strong></span>
+                  <Users className="w-3.5 h-3.5 text-green-500" />
+                  <span>On device: <strong className="text-gray-800 dark:text-gray-200">
+                    {device.device_user_count ?? device.last_known_device_user_count ?? '—'}
+                  </strong></span>
+                  <button
+                    onClick={handleProbe}
+                    disabled={probing}
+                    title="Read the real user count from the device (TCP)"
+                    className="ml-1 inline-flex items-center text-indigo-500 hover:text-indigo-700 disabled:opacity-40"
+                  >
+                    {probing ? <Loader className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                  </button>
+                  {device.device_user_count_at && (
+                    <span className="text-[10px] text-gray-400">
+                      ({formatTimeAgo(Math.floor((Date.now() - new Date(device.device_user_count_at).getTime()) / 1000))})
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Users className="w-3.5 h-3.5 text-green-400" />
-                  <span>On device: <strong className={`${isOutOfSync ? 'text-red-600' : 'text-gray-800 dark:text-gray-200'}`}>
-                    {device.last_known_device_user_count ?? '—'}
-                  </strong></span>
+                  <Database className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Enrolled in DRAIS: <strong className="text-gray-800 dark:text-gray-200">{device.mapped_users ?? 0}</strong></span>
                 </div>
               </div>
 
               <div className="flex items-center gap-4 text-xs text-gray-500 pt-1">
                 <span>Today: <strong>{device.today_punches || 0}</strong> punches</span>
                 <span>Pending: <strong>{device.pending_commands || 0}</strong> cmds</span>
-                <span>Mapped: <strong>{device.mapped_users || 0}</strong></span>
               </div>
             </div>
 
