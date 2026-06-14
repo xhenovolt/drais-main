@@ -30,26 +30,45 @@ export async function GET(req: NextRequest) {
           WHERE al.device_sn = d.sn AND DATE(al.check_time) = CURDATE()) AS today_punches,
          (SELECT COUNT(*) FROM zk_device_commands c
           WHERE c.device_sn = d.sn AND c.status = 'pending') AS pending_commands,
-         -- REAL on-device user count (TCP probe / ADMS) — source of truth.
          d.device_user_count        AS device_user_count,
          d.device_user_count_at     AS device_user_count_at,
          d.device_user_count_source AS device_user_count_source,
-         -- DRAIS-side: active canonical enrollments for THIS device school.
-         -- School-scoped to avoid the legacy NULL-device mapping bleed
-         -- that previously counted ~1230 for a device holding 45.
+         -- DEVICE-CONFIRMED count: from the latest COMPLETED inventory
+         -- poll (the device's own answer), NOT any DRAIS-side table.
+         (SELECT r.users_returned_count FROM device_inventory_runs r
+           WHERE r.device_sn = d.sn AND r.status = 'completed'
+           ORDER BY r.id DESC LIMIT 1) AS device_confirmed_users,
+         (SELECT r.completed_at FROM device_inventory_runs r
+           WHERE r.device_sn = d.sn AND r.status = 'completed'
+           ORDER BY r.id DESC LIMIT 1) AS inventory_synced_at,
+         -- Latest run status (any) drives the inventory badge.
+         (SELECT r.status FROM device_inventory_runs r
+           WHERE r.device_sn = d.sn ORDER BY r.id DESC LIMIT 1) AS inventory_status,
+         (SELECT r.method FROM device_inventory_runs r
+           WHERE r.device_sn = d.sn ORDER BY r.id DESC LIMIT 1) AS inventory_method,
+         -- DRAIS-side expectation: active canonical enrollments for THIS
+         -- device school (school-scoped — no legacy NULL-mapping bleed).
          (SELECT COUNT(*) FROM biometric_enrollments be
            WHERE be.school_id = d.school_id
              AND be.status IN ('active','pending_capture')) AS mapped_users,
-         ss.sync_status,
-         ss.expected_user_count,
-         ss.last_known_device_user_count,
-         ss.last_sync_at
+         ss.sync_status
        FROM devices d
        LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
        WHERE d.deleted_at IS NULL
        ORDER BY d.last_seen DESC`,
       [],
     );
+
+    // Staleness flag (default 24h) computed in JS so the UI gets a clear
+    // boolean without trusting a possibly-old count.
+    const STALE_MS = 24 * 60 * 60 * 1000;
+    for (const dv of devices as any[]) {
+      dv.inventory_is_stale = dv.inventory_synced_at
+        ? (Date.now() - new Date(dv.inventory_synced_at).getTime()) > STALE_MS
+        : null;
+      // never_synced when no run exists at all.
+      if (!dv.inventory_status) dv.inventory_status = 'never_synced';
+    }
 
     // Fallback: if no registered devices, discover from recent ADMS traffic (any school)
     let discovered: any[] = [];

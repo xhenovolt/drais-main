@@ -74,11 +74,18 @@ export async function computeReconciliation(
   deviceSn: string,
 ): Promise<ReconReport> {
   // ── 1. Device side: directory rows for this device ──────────────────
+  // When a completed inventory poll exists, trust ONLY the rows it
+  // confirmed (has_recent_echo = 1) — that is the device's current
+  // truth. Rows from older snapshots (has_recent_echo = 0) are excluded
+  // so a fresh poll doesn't leave stale "device-only" ghosts. Devices
+  // never polled keep the default has_recent_echo = 1, so they still
+  // surface everything captured to date.
   const directory = (await query(
     `SELECT device_user_id AS pin, device_name, device_card,
             last_seen, has_recent_echo, directory_status
        FROM device_user_directory
-      WHERE device_sn = ? AND (school_id = ? OR school_id IS NULL)`,
+      WHERE device_sn = ? AND (school_id = ? OR school_id IS NULL)
+        AND has_recent_echo = 1`,
     [deviceSn, schoolId],
   )) as Array<{
     pin: string; device_name: string | null; device_card: string | null;

@@ -57,6 +57,24 @@ function SyncStatusBadge({ status }: { status: string | null }) {
   );
 }
 
+function InventoryBadge({ status, stale, method }: { status: string | null; stale: boolean | null; method?: string | null }) {
+  const m = method ? ` (${method.toUpperCase()})` : '';
+  const map: Record<string, { label: string; cls: string }> = {
+    never_synced: { label: 'Never synced', cls: 'bg-gray-100 text-gray-500' },
+    pending:      { label: 'Sync queued',  cls: 'bg-amber-100 text-amber-800' },
+    running:      { label: 'Syncing…',     cls: 'bg-blue-100 text-blue-700' },
+    completed:    { label: stale ? 'Stale inventory' : 'Synced', cls: stale ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700' },
+    failed:       { label: 'Sync failed',  cls: 'bg-red-100 text-red-700' },
+    timeout:      { label: 'Sync timeout', cls: 'bg-red-100 text-red-700' },
+  };
+  const e = map[status ?? 'never_synced'] ?? map.never_synced;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-semibold ${e.cls}`}>
+      {e.label}{status === 'completed' ? m : ''}
+    </span>
+  );
+}
+
 export default function DevicesPage() {
   const { data, isLoading, error, mutate } = useSWR<any>('/api/attendance/zk/devices', {
     refreshInterval: 30000,
@@ -297,36 +315,37 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [editing, setEditing] = useState(false);
   // Phase 3 — Reconciliation Center modal.
   const [showReconcile, setShowReconcile] = useState(false);
-  // Real on-device user count probe (TCP getInfo). The stored device IP
-  // is the public/WAN address (from ADMS) and isn't reachable over TCP,
-  // so we use the device's LAN IP — remembered per serial in
-  // localStorage, prompted once. Only works when DRAIS runs on the same
-  // LAN as the device (offline/relay build); the cloud build can't reach
-  // the LAN and will surface a clear message.
+  // Inventory poll — ask the device for its CURRENT user list (the
+  // device's own truth). Prefers a LAN TCP pull (full list, immediate);
+  // remembers the device LAN IP per serial. If the operator has no LAN
+  // IP, offers the over-the-air ADMS sync (queued, firmware-dependent).
+  // The stored device IP is the public/WAN address and isn't probeable.
   const [probing, setProbing] = useState(false);
-  const handleProbe = useCallback(async () => {
+  const handleSyncUsers = useCallback(async () => {
     const key = `drais.lanip.${device.serial_number}`;
     let lanIp = typeof window !== 'undefined' ? window.localStorage.getItem(key) || '' : '';
     const stored = device.ip_address && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(device.ip_address) ? device.ip_address : '';
     if (!lanIp) {
       lanIp = window.prompt(
-        `Enter the device LAN IP (e.g. 192.168.1.17) for "${device.device_name || device.serial_number}".\nThis is the local address used for fingerprint enrollment — the stored IP (${device.ip_address || 'unknown'}) is its public address and can't be probed.`,
+        `Enter the device LAN IP (e.g. 192.168.1.17) for "${device.device_name || device.serial_number}" to pull its user list directly.\n\nLeave blank to queue an over-the-air sync instead (device returns its list on its next heartbeat; K40 support varies).`,
         stored || '192.168.1.',
-      ) || '';
-      if (!lanIp) return;
-      window.localStorage.setItem(key, lanIp);
+      ) ?? '';
+      // null = cancel; empty string = use ADMS
+      if (lanIp === null) return;
+      if (lanIp) window.localStorage.setItem(key, lanIp);
     }
     setProbing(true);
     try {
-      const r = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(device.serial_number)}/probe`, {
+      const body = lanIp ? { device_ip: lanIp } : { method: 'adms' };
+      const r = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(device.serial_number)}/inventory`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_ip: lanIp }),
+        body: JSON.stringify(body),
       });
-      showToast('success', r?.message ?? `Device reports ${r?.device_user_count} users`);
+      showToast(r?.method === 'adms' ? 'info' : 'success', r?.message ?? 'Inventory sync done');
       onMutate();
-    } catch (e: any) {
+    } catch {
       // Wrong/changed LAN IP → forget it so the next click re-prompts.
-      if (typeof window !== 'undefined') window.localStorage.removeItem(key);
+      if (lanIp && typeof window !== 'undefined') window.localStorage.removeItem(key);
     } finally {
       setProbing(false);
     }
@@ -717,31 +736,51 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 </div>
               )}
 
-              {/* Sync state stats — REAL on-device count vs DRAIS-mapped */}
+              {/* Inventory truth — device-confirmed users vs DRAIS-expected.
+                  The count comes ONLY from the device's latest inventory
+                  response; never a DB guess. */}
               <div className="flex items-center gap-3 pt-1 flex-wrap">
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Users className="w-3.5 h-3.5 text-green-500" />
-                  <span>On device: <strong className="text-gray-800 dark:text-gray-200">
-                    {device.device_user_count ?? device.last_known_device_user_count ?? '—'}
-                  </strong></span>
+                  <span>On device: {device.device_confirmed_users != null ? (
+                    <strong className="text-gray-800 dark:text-gray-200">{device.device_confirmed_users}</strong>
+                  ) : (
+                    <strong className="text-amber-600" title="No inventory poll has completed for this device">unknown</strong>
+                  )}</span>
                   <button
-                    onClick={handleProbe}
+                    onClick={handleSyncUsers}
                     disabled={probing}
-                    title="Read the real user count from the device (TCP)"
-                    className="ml-1 inline-flex items-center text-indigo-500 hover:text-indigo-700 disabled:opacity-40"
+                    title="Sync Users From Device — ask the device for its current user list"
+                    className="ml-1 inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
                   >
                     {probing ? <Loader className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    <span className="text-[11px] font-medium">Sync users</span>
                   </button>
-                  {device.device_user_count_at && (
-                    <span className="text-[10px] text-gray-400">
-                      ({formatTimeAgo(Math.floor((Date.now() - new Date(device.device_user_count_at).getTime()) / 1000))})
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Database className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Enrolled in DRAIS: <strong className="text-gray-800 dark:text-gray-200">{device.mapped_users ?? 0}</strong></span>
+                  <span>Expected in DRAIS: <strong className="text-gray-800 dark:text-gray-200">{device.mapped_users ?? 0}</strong></span>
                 </div>
+              </div>
+
+              {/* Inventory status line */}
+              <div className="flex items-center gap-2 text-[11px] pt-0.5">
+                <InventoryBadge
+                  status={device.inventory_status}
+                  stale={device.inventory_is_stale}
+                  method={device.inventory_method}
+                />
+                {device.inventory_synced_at && (
+                  <span className="text-gray-400">
+                    synced {formatTimeAgo(Math.floor((Date.now() - new Date(device.inventory_synced_at).getTime()) / 1000))}
+                  </span>
+                )}
+                {device.device_confirmed_users != null && device.mapped_users != null &&
+                  device.device_confirmed_users !== device.mapped_users && (
+                  <span className="text-amber-600 font-medium">
+                    ⚠ device {device.device_confirmed_users} vs DRAIS {device.mapped_users}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-4 text-xs text-gray-500 pt-1">

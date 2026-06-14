@@ -21,6 +21,7 @@ import {
 import { publishEvent } from '@/lib/events/eventbus';
 import { upsertEnrollment, decideNameMatchAction } from '@/lib/biometric/enrollment-service';
 import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
+import { completeAdmsInventoryRun } from '@/lib/biometric/inventory-service';
 import { drainOutboxOpportunistically } from '@/lib/notifications/drain';
 import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
 
@@ -950,6 +951,27 @@ async function processUserInfo(
       [deviceSn],
     );
   } catch { /* non-critical */ }
+
+  // Complete any operator-requested ADMS inventory run with the device's
+  // actual response — this is what makes the over-the-air "Sync Users
+  // From Device" produce a real, device-sourced count. Best-effort.
+  if (schoolId) {
+    try {
+      const invUsers = records
+        .map(r => ({
+          pin: String(r.USERID || r.PIN || '').trim(),
+          name: (r.NAME || r.USERNAME || '').trim(),
+          card: r.CARDNO || r.CARD || null,
+          privilege: r.PRI != null ? Number(r.PRI) : (r.PRIV != null ? Number(r.PRIV) : null),
+        }))
+        .filter(u => u.pin);
+      if (invUsers.length > 0) {
+        await completeAdmsInventoryRun(schoolId, deviceSn, invUsers);
+      }
+    } catch (err) {
+      zkLog('warn', 'INVENTORY_RUN_COMPLETE_FAILED', { deviceSn, error: String(err) });
+    }
+  }
 
   zkLog('info', 'USERINFO_PROCESSED', { deviceSn, created, skipped, learnersCreated, total: records.length });
 

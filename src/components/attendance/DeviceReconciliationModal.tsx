@@ -132,11 +132,29 @@ export default function DeviceReconciliationModal({
   }, [sn, mutate]);
 
   const syncDirectory = useCallback(async () => {
+    // Pull the device's CURRENT user list. Prefer a LAN TCP pull
+    // (remembered IP); blank → over-the-air ADMS sync.
+    const key = `drais.lanip.${sn}`;
+    let lanIp = typeof window !== 'undefined' ? window.localStorage.getItem(key) || '' : '';
+    if (!lanIp) {
+      lanIp = window.prompt(
+        `Enter the device LAN IP (e.g. 192.168.1.17) to pull its user list directly.\nLeave blank to queue an over-the-air sync (device responds on next heartbeat).`,
+        '192.168.1.',
+      ) ?? '';
+      if (lanIp === null as any) return;
+      if (lanIp) window.localStorage.setItem(key, lanIp);
+    }
     try {
-      const r = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(sn)}/sync-directory`, { method: 'POST' });
-      showToast('info', r?.message ?? 'Inventory sync queued');
-    } catch { /* toast shown */ }
-  }, [sn]);
+      const r = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(sn)}/inventory`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lanIp ? { device_ip: lanIp } : { method: 'adms' }),
+      });
+      showToast(r?.method === 'adms' ? 'info' : 'success', r?.message ?? 'Inventory sync done');
+      await mutate();
+    } catch {
+      if (lanIp && typeof window !== 'undefined') window.localStorage.removeItem(key);
+    }
+  }, [sn, mutate]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2">
