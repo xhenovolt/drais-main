@@ -90,22 +90,43 @@ export function localWallString(epochMs: number, offsetMin = schoolUtcOffsetMinu
 }
 
 export interface ClockDecision {
-  /** Wall-clock string to actually store as the punch time. */
-  authoritativeCheckTime: string;
-  /** Raw value the device reported (always preserved for audit). */
+  /**
+   * The ACTUAL instant the punch happened, as a real UTC Date. Store this
+   * in punch_at / check_time (real timestamp → the browser renders the
+   * correct local time, with no phantom +offset).
+   */
+  punchInstant: Date;
+  /**
+   * The device's raw reported wall-clock string. This is the punch's
+   * IDENTITY — store it in device_reported_time and dedup on it (ZKTeco
+   * re-sends the same value on a missed ACK).
+   */
   deviceReportedTime: string;
-  /** device_wall − expected_wall, seconds. + = device ahead/future. */
+  /** device clock − true time, seconds. + = device ahead/future. */
   skewSeconds: number;
-  /** true when we overrode the device time. */
+  /** true when we could not trust the device clock and overrode it. */
   corrected: boolean;
-  /** 'device' or 'server' — which clock the punch_at came from. */
+  /** 'device' = punch_at came from the device's (accurate) clock;
+   *  'server' = punch_at is the server instant / offset-recovered. */
   timeSource: 'device' | 'server';
   /** true when the skew warrants pushing a time-sync command. */
   needsResync: boolean;
 }
 
 /**
- * Decide the authoritative punch time for one device punch.
+ * Decide the ACTUAL punch instant for one device punch.
+ *
+ * The device clock is only trusted when it is accurate (small skew); in
+ * that case the device-reported instant IS the real punch time and is
+ * used verbatim (this also handles legitimate backlog uploads from a
+ * device that was offline but keeping correct time). When the clock is
+ * wrong we recover the real instant by subtracting the device's learned
+ * offset, or — on the very first faulty punch before an offset is known —
+ * fall back to the server receive instant.
+ *
+ * Dedup is keyed on deviceReportedTime (the punch identity), so the
+ * computed instant may safely differ between re-sends without
+ * double-counting.
  *
  * @param deviceCheckTime     normalized device wall-clock "YYYY-MM-DD HH:mm:ss"
  * @param storedOffsetSeconds devices.clock_offset_seconds (null if unknown)
@@ -117,38 +138,53 @@ export function decidePunchTime(
   nowMs = Date.now(),
 ): ClockDecision {
   const offsetMin = schoolUtcOffsetMinutes();
-  // Treat the naive device string as UTC to get a pure wall-clock epoch,
-  // comparable to the wall-clock the device *should* be showing now.
+  // The naive device string is the device's LOCAL wall clock. Parse it as
+  // an absolute UTC instant: read the digits as UTC, then remove the
+  // school's UTC offset → the instant the device thinks the punch occurred.
   const deviceWallMs = Date.parse(`${deviceCheckTime.replace(' ', 'T')}Z`);
-  const expectedWallMs = nowMs + offsetMin * 60_000;
 
-  // Unparseable → trust the device value, do nothing clever.
+  // Unparseable → fall back to the server instant; nothing else we can do.
   if (!Number.isFinite(deviceWallMs)) {
     return {
-      authoritativeCheckTime: deviceCheckTime,
+      punchInstant: new Date(nowMs),
       deviceReportedTime: deviceCheckTime,
       skewSeconds: 0,
-      corrected: false,
-      timeSource: 'device',
+      corrected: true,
+      timeSource: 'server',
       needsResync: false,
     };
   }
 
-  const skewMs = deviceWallMs - expectedWallMs;
+  const deviceInstantMs = deviceWallMs - offsetMin * 60_000;
+  const skewMs = deviceInstantMs - nowMs; // + = device clock ahead of real time
   const skewSeconds = Math.round(skewMs / 1000);
   const needsResync = Math.abs(skewMs) > RESYNC_THRESHOLD_MS;
 
-  // Correct only when the device is CURRENTLY ahead (future punch) AND we
-  // already know its offset — so the correction is stable across re-sends
-  // and is never applied to a device that has since been fixed.
-  const storedOffsetMs = (storedOffsetSeconds ?? 0) * 1000;
-  if (
-    skewMs > AHEAD_OVERRIDE_MS &&
-    storedOffsetSeconds != null &&
-    Math.abs(storedOffsetMs) > AHEAD_OVERRIDE_MS
-  ) {
+  // Trust the device instant UNLESS the punch is clearly in the FUTURE.
+  // A future punch is physically impossible → the clock is fast → override.
+  // Everything else (small drift, or a punch in the PAST) is trusted: a
+  // past timestamp is ambiguous between a slow clock and a legitimate
+  // backlog upload from an offline-but-on-time device, and trusting the
+  // device value is the only choice that preserves real backlog times. A
+  // genuinely slow clock is still flagged (needsResync) and healed by the
+  // device resync, never by inventing a time here.
+  if (skewMs <= AHEAD_OVERRIDE_MS) {
     return {
-      authoritativeCheckTime: formatWallEpoch(deviceWallMs - storedOffsetMs),
+      punchInstant: new Date(deviceInstantMs),
+      deviceReportedTime: deviceCheckTime,
+      skewSeconds,
+      corrected: false,
+      timeSource: 'device',
+      needsResync,
+    };
+  }
+
+  // Future punch → fast clock. If we know the persistent offset, recover the
+  // real instant stably (handles backlog from a fast device too).
+  const storedOffsetMs = (storedOffsetSeconds ?? 0) * 1000;
+  if (storedOffsetSeconds != null && storedOffsetMs > AHEAD_OVERRIDE_MS) {
+    return {
+      punchInstant: new Date(deviceInstantMs - storedOffsetMs),
       deviceReportedTime: deviceCheckTime,
       skewSeconds,
       corrected: true,
@@ -157,15 +193,16 @@ export function decidePunchTime(
     };
   }
 
-  // Bootstrap (offset not learned yet) or device behind / within tolerance:
-  // keep the device time; a large skew still triggers a resync + offset save.
+  // Bootstrap: device clock wrong, offset not learned yet. Use the server
+  // receive instant (accurate for a realtime push) and learn the offset
+  // (queueDeviceTimeSync) so subsequent punches are recovered precisely.
   return {
-    authoritativeCheckTime: deviceCheckTime,
+    punchInstant: new Date(nowMs),
     deviceReportedTime: deviceCheckTime,
     skewSeconds,
-    corrected: false,
-    timeSource: 'device',
-    needsResync,
+    corrected: true,
+    timeSource: 'server',
+    needsResync: true,
   };
 }
 

@@ -1667,21 +1667,24 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // ── Device clock authority (Layer A + B) ─────────────────────────
-        // The device RTC can drift (a live K40 was ~8h fast). A punch
-        // stamped in the future is impossible, so when the device clock
-        // is ahead beyond tolerance we use server time as the authoritative
-        // punch and queue a resync so the device self-heals. The device
-        // value + skew are always preserved for audit.
+        // ── Device clock authority (actual-time, see device-clock.ts) ────
+        // punch_at / check_time = the ACTUAL instant the punch happened (a
+        // real UTC Date → the browser renders correct local time). The
+        // device clock is trusted only when accurate; otherwise the real
+        // instant is recovered from the learned offset (or the server
+        // receive instant on the first faulty punch). Dedup keys on
+        // device_reported_time (the punch identity), so a corrected instant
+        // can differ between ACK re-sends without double-counting.
         const clock = decidePunchTime(checkTime, deviceClockOffset);
-        const punchTime = clock.authoritativeCheckTime;
+        const punchInstant = clock.punchInstant;          // Date (actual time)
+        const deviceReportedTime = clock.deviceReportedTime; // identity / dedup
         if (clock.needsResync) {
           queueDeviceTimeSync(schoolId, sn, clock.skewSeconds).catch(() => {});
         }
         if (clock.corrected) {
           zkLog('warn', 'DEVICE_CLOCK_CORRECTED', {
-            deviceSn: sn, userId, deviceReported: clock.deviceReportedTime,
-            serverTime: punchTime, skewSeconds: clock.skewSeconds,
+            deviceSn: sn, userId, deviceReported: deviceReportedTime,
+            actualInstant: punchInstant.toISOString(), skewSeconds: clock.skewSeconds,
           });
         }
 
@@ -1707,14 +1710,14 @@ export async function POST(req: NextRequest) {
                 device_reported_time, clock_skew_seconds, time_source)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-              schoolId, sn, userId, studentId, staffId, punchTime,
+              schoolId, sn, userId, studentId, staffId, punchInstant,
               verifyType,
               ioMode,
               record.LOGID || null,
               record.WORKCODE || null,
               matched ? 1 : 0,
               rawLogId,
-              clock.deviceReportedTime,
+              deviceReportedTime,
               clock.skewSeconds,
               clock.timeSource,
             ],
@@ -1735,12 +1738,15 @@ export async function POST(req: NextRequest) {
           let rawEventIdPublished: number | null = null;
           if (!isDuplicatePunch) {
             try {
-              const punchAt = new Date(punchTime);
+              const punchAt = punchInstant;
               const rawEventId = await recordRawEvent({
                 schoolId,
                 deviceSn: sn,
                 deviceUserId: Number(userId),
                 punchAt,
+                deviceReportedTime,
+                clockSkewSeconds: clock.skewSeconds,
+                timeSource: clock.timeSource,
                 verifyType,
                 ioMode,
                 source: 'zkteco_push',

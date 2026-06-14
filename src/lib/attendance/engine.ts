@@ -59,6 +59,12 @@ export interface RecordRawEventInput {
   deviceUserId: number;
   displayName?: string | null;
   punchAt: Date;
+  /** Device's raw reported wall-clock string — the punch IDENTITY / dedup key. */
+  deviceReportedTime?: string | null;
+  /** device clock − true time, seconds (+ = device ahead). Audit only. */
+  clockSkewSeconds?: number | null;
+  /** 'device' = punch_at from the device clock; 'server' = corrected. */
+  timeSource?: 'device' | 'server' | null;
   verifyType?: number | null;
   ioMode?: number | null;
   source: AttendanceSource;
@@ -94,10 +100,11 @@ export async function recordRawEvent(
     const result = (await query(
       `INSERT IGNORE INTO attendance_raw_events
          (school_id, device_sn, device_user_id, display_name, enrollment_id, person_id,
-          role_type, role_ref_id, punch_at, verify_type, io_mode, source,
+          role_type, role_ref_id, punch_at, device_reported_time, clock_skew_seconds,
+          time_source, verify_type, io_mode, source,
           matched, resolution_path, resolution_score,
           legacy_table, legacy_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.schoolId,
         input.deviceSn,
@@ -108,6 +115,9 @@ export async function recordRawEvent(
         input.roleType ?? null,
         input.roleRefId ?? null,
         input.punchAt,
+        input.deviceReportedTime ?? null,
+        input.clockSkewSeconds ?? null,
+        input.timeSource ?? 'device',
         input.verifyType ?? null,
         input.ioMode ?? null,
         input.source,
