@@ -139,6 +139,7 @@ export async function GET(req: NextRequest) {
          d.device_name,
          d.location AS device_location,
          dud.device_name AS device_known_name,
+         ob.status AS sms_status,
          p.first_name,
          p.last_name,
          p.photo_url,
@@ -155,6 +156,10 @@ export async function GET(req: NextRequest) {
          ON dud.school_id = ar.school_id
         AND dud.device_sn = ar.device_sn
         AND dud.device_user_id = CAST(ar.device_user_id AS CHAR)
+       LEFT JOIN notification_outbox ob
+         ON ob.school_id = ar.school_id
+        AND ob.subject_person_id = ar.person_id
+        AND DATE(ob.created_at) = DATE(ar.punch_at)
        WHERE ${where}
        ORDER BY ar.punch_at DESC
        LIMIT ${limit} OFFSET ${offset}`,

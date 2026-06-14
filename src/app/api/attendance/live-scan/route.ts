@@ -302,12 +302,50 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
     }
   }
 
+  // DERIVED attendance meaning (state engine) + SMS notification state.
+  // Both lightweight, both optional — never block the popup if missing.
+  let derivedEvent: string | null = null;
+  let derivedDetail: string | null = null;
+  let smsStatus: string | null = null;
+  try {
+    const re = await query(
+      `SELECT derived_event, derived_detail FROM attendance_raw_events
+        WHERE legacy_table = 'zk_attendance_logs' AND legacy_id = ? LIMIT 1`,
+      [r.id],
+    );
+    if (Array.isArray(re) && (re as any[])[0]) {
+      derivedEvent = (re as any[])[0].derived_event ?? null;
+      derivedDetail = (re as any[])[0].derived_detail ?? null;
+    }
+  } catch { /* raw_events optional */ }
+  // SMS state: did attendance fanout produce/queue an outbox row for
+  // this person today? (queued|sending|delivered|failed) → else null.
+  const personId = studentId
+    ? (await query('SELECT person_id FROM students WHERE id = ? LIMIT 1', [studentId]).then((x:any)=>x[0]?.person_id).catch(()=>null))
+    : staffId
+      ? (await query('SELECT person_id FROM staff WHERE id = ? LIMIT 1', [staffId]).then((x:any)=>x[0]?.person_id).catch(()=>null))
+      : null;
+  if (personId) {
+    try {
+      const ob = await query(
+        `SELECT status FROM notification_outbox
+          WHERE school_id = ? AND subject_person_id = ? AND DATE(created_at) = CURDATE()
+          ORDER BY id DESC LIMIT 1`,
+        [schoolId, personId],
+      );
+      if (Array.isArray(ob) && (ob as any[])[0]) smsStatus = (ob as any[])[0].status;
+    } catch { /* outbox optional */ }
+  }
+
   return {
     scan_id: r.id,
     device_user_id: r.device_user_id,
     check_time: r.check_time,
     verify_type: r.verify_type,
     io_mode: r.io_mode,
+    derived_event: derivedEvent,
+    derived_detail: derivedDetail,
+    sms_status: smsStatus,
     matched,
     person_type: personType,
     device_name: r.device_name,

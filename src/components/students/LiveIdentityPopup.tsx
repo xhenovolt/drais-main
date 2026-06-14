@@ -37,6 +37,11 @@ interface ScanEvent {
   check_time: string;
   verify_type: number | null;
   io_mode: number | null;
+  /** DERIVED attendance meaning from the state engine (Arrived/Late/…). */
+  derived_event?: string | null;
+  derived_detail?: string | null;
+  /** Notification outbox state for this person today, or null. */
+  sms_status?: string | null;
   matched: boolean;
   person_type: 'student' | 'staff' | 'unmatched';
   device_name: string | null;
@@ -248,16 +253,47 @@ function buildLearnerCard(
     </div>`;
 }
 
-function buildSwalHtml(scan: ScanEvent): string {
+// DERIVED attendance meaning (state engine) — never the device IN/OUT.
+const DERIVED_LABEL: Record<string, string> = {
+  ARRIVED: 'Arrived', ARRIVED_LATE: 'Late arrival', ARRIVED_EARLY: 'Arrived early',
+  TEMP_EXIT: 'Stepped out', RETURNED: 'Returned', CHECKED_OUT: 'Checked out',
+  EARLY_DEPARTURE: 'Left early', OVERTIME_EXIT: 'Overtime exit', DUPLICATE: 'Duplicate',
+};
+/** SMS state line for the popup (only when show_sms_status). */
+function smsLineHtml(scan: ScanEvent, showSms: boolean): string {
+  if (!showSms) return '';
+  const s = scan.sms_status;
+  let txt: string, color: string;
+  if (!scan.matched) { txt = 'SMS: not sent — identity unresolved'; color = '#9ca3af'; }
+  else if (s === 'queued' || s === 'sending') { txt = 'SMS: queued to guardian'; color = '#2563eb'; }
+  else if (s === 'delivered') { txt = 'SMS: sent'; color = '#059669'; }
+  else if (s === 'failed') { txt = 'SMS: failed (will retry)'; color = '#dc2626'; }
+  else { txt = 'SMS: none for this scan'; color = '#9ca3af'; }
+  return `<div style="margin-top:6px;font-size:11px;font-weight:600;color:${color}">${escHtml(txt)}</div>`;
+}
+function derivedLineHtml(scan: ScanEvent): string {
+  if (!scan.derived_event) return '';
+  const label = DERIVED_LABEL[scan.derived_event] ?? scan.derived_event;
+  return `<div style="margin-top:4px;font-size:12px;font-weight:700;color:#1e293b">${escHtml(label)}${scan.derived_detail ? ` <span style="font-weight:400;color:#6b7280">· ${escHtml(scan.derived_detail)}</span>` : ''}</div>`;
+}
+
+function buildSwalHtml(scan: ScanEvent, showSms = true): string {
   const learner = scan.learner;
 
   let headerBg = '#10b981'; // emerald
   let headerLabel = 'Check-in Successful';
+  // Prefer the DERIVED meaning for the header when known.
+  if (scan.derived_event && DERIVED_LABEL[scan.derived_event]) {
+    headerLabel = DERIVED_LABEL[scan.derived_event];
+    if (scan.derived_event === 'ARRIVED_LATE') headerBg = '#f59e0b';
+    else if (scan.derived_event === 'EARLY_DEPARTURE') headerBg = '#f97316';
+    else if (scan.derived_event === 'CHECKED_OUT' || scan.derived_event === 'OVERTIME_EXIT') headerBg = '#6366f1';
+  }
   if (!scan.matched) {
     headerBg = '#ef4444'; headerLabel = 'Unrecognized ID';
   } else if (learner && learner.fee_balance > 0) {
-    headerBg = '#f59e0b'; headerLabel = 'Low Fee Balance';
-  } else if (scan.person_type === 'staff') {
+    headerBg = '#f59e0b'; headerLabel = headerLabel + ' · Low Balance';
+  } else if (scan.person_type === 'staff' && !scan.derived_event) {
     headerBg = '#6366f1'; headerLabel = 'Staff Check-in';
   }
 
@@ -268,7 +304,7 @@ function buildSwalHtml(scan: ScanEvent): string {
 
   // ── Student ──
   if (scan.person_type === 'student' && learner) {
-    return headerHtml + buildLearnerCard(scan, learner);
+    return headerHtml + buildLearnerCard(scan, learner) + derivedLineHtml(scan) + smsLineHtml(scan, showSms);
   }
 
   // ── Staff ──
@@ -278,7 +314,9 @@ function buildSwalHtml(scan: ScanEvent): string {
       <div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;text-align:left">
         <div style="font-size:16px;font-weight:700">${escHtml(scan.staff.first_name)} ${escHtml(scan.staff.last_name)}</div>
         <div style="color:#6366f1;font-weight:600;margin:2px 0 6px">Staff Member</div>
-        <div style="color:#6b7280;font-size:11px">${escHtml(ioLabel(scan.io_mode))} · ${escHtml(formatTime(scan.check_time))}</div>
+        <div style="color:#6b7280;font-size:11px">${escHtml(formatTime(scan.check_time))}</div>
+        ${derivedLineHtml(scan)}
+        ${smsLineHtml(scan, showSms)}
       </div>`;
   }
 
@@ -355,11 +393,34 @@ function readDisabled(): boolean {
   }
 }
 
+interface LiveUiSettings {
+  live_popup_enabled: number;
+  show_for_students: number;
+  show_for_staff: number;
+  show_for_unknown: number;
+  show_for_late_only: number;
+  show_sms_status: number;
+  sound_enabled: number;
+  popup_duration_ms: number;
+  mount_scope: string;
+}
+
 export function LiveIdentityPopup() {
   const [connected, setConnected] = useState(false);
-  const [disabled, setDisabled] = useState(readDisabled);
+  const [disabled, setDisabled] = useState(readDisabled);    // per-browser mute
+  const [settings, setSettings] = useState<LiveUiSettings | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const seenIds = useRef(new Set<number>());
+
+  // Load per-school popup settings once.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/attendance/live-settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive && d?.settings) setSettings(d.settings); })
+      .catch(() => { /* defaults apply (treat as enabled) */ });
+    return () => { alive = false; };
+  }, []);
 
   // Watch for cross-tab preference flips.
   useEffect(() => {
@@ -370,9 +431,12 @@ export function LiveIdentityPopup() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // SSE connection (gated on the localStorage preference).
+  // School-level enable flag (defaults to enabled until settings load).
+  const schoolEnabled = settings ? settings.live_popup_enabled === 1 : true;
+
+  // SSE connection (gated on per-browser mute AND per-school enable).
   useEffect(() => {
-    if (disabled) {
+    if (disabled || !schoolEnabled) {
       setConnected(false);
       return;
     }
@@ -388,33 +452,42 @@ export function LiveIdentityPopup() {
         // Deduplicate
         if (seenIds.current.has(scan.scan_id)) return;
         seenIds.current.add(scan.scan_id);
-
-        // Keep set small
         if (seenIds.current.size > 200) {
           const arr = Array.from(seenIds.current);
           seenIds.current = new Set(arr.slice(-100));
         }
 
-        // Determine sound type
-        let soundType: 'success' | 'warning' | 'alert' = 'success';
-        if (!scan.matched) {
-          soundType = 'alert';
-        } else if (scan.learner && scan.learner.fee_balance > 0) {
-          soundType = 'warning';
+        // ── Scope filter (per-school settings) ──
+        const s = settings;
+        if (s) {
+          const isStudent = scan.person_type === 'student';
+          const isStaff = scan.person_type === 'staff';
+          const isUnknown = !scan.matched;
+          if (isStudent && !s.show_for_students) return;
+          if (isStaff && !s.show_for_staff) return;
+          if (isUnknown && !s.show_for_unknown) return;
+          if (s.show_for_late_only && scan.matched && scan.derived_event !== 'ARRIVED_LATE') return;
+        }
+        const showSms = s ? s.show_sms_status === 1 : true;
+        const soundOn = s ? s.sound_enabled === 1 : true;
+        const durationMs = s ? s.popup_duration_ms : 4000;
+
+        if (soundOn) {
+          let soundType: 'success' | 'warning' | 'alert' = 'success';
+          if (!scan.matched) soundType = 'alert';
+          else if (scan.learner && scan.learner.fee_balance > 0) soundType = 'warning';
+          playChime(soundType);
         }
 
-        playChime(soundType);
-
-        // Close any previous popup and show new one
         Swal.close();
         Swal.fire({
-          html: buildSwalHtml(scan),
-          timer: 4000,
-          timerProgressBar: true,
-          showConfirmButton: false,
-          showCloseButton: false,
-          allowOutsideClick: false,
-          allowEscapeKey: false,
+          html: buildSwalHtml(scan, showSms),
+          timer: durationMs && durationMs > 0 ? durationMs : undefined,
+          timerProgressBar: durationMs > 0,
+          showConfirmButton: durationMs === 0,
+          showCloseButton: durationMs === 0,
+          allowOutsideClick: durationMs === 0,
+          allowEscapeKey: durationMs === 0,
           width: 380,
           padding: '20px',
           backdrop: false,
@@ -426,24 +499,48 @@ export function LiveIdentityPopup() {
       }
     };
 
-    es.onerror = () => {
-      setConnected(false);
-      // EventSource auto-reconnects
-    };
+    es.onerror = () => { setConnected(false); };
 
-    return () => {
-      es.close();
-      Swal.close();
-    };
-  }, [disabled]);
+    return () => { es.close(); Swal.close(); };
+  }, [disabled, schoolEnabled, settings]);
 
-  // When disabled, render nothing — no indicator, no SSE, no popup.
-  if (disabled) return null;
+  // School turned it off → render nothing at all.
+  if (!schoolEnabled) return null;
+
+  // Per-browser muted → show a small "OFF" pill so the user can re-enable.
+  if (disabled) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          try { window.localStorage.removeItem(LIVE_SCAN_DISABLED_KEY); } catch { /* ignore */ }
+          setDisabled(false);
+        }}
+        title="Live attendance popup is muted on this device — click to enable"
+        className="fixed bottom-3 left-3 z-40"
+      >
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md border bg-slate-100/80 dark:bg-slate-800/30 text-slate-500 border-slate-200 dark:border-slate-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <Fingerprint className="w-3 h-3" />
+          Live Attendance: OFF
+        </div>
+      </button>
+    );
+  }
 
   return (
     <>
-      {/* SSE connection indicator */}
-      <div className="fixed bottom-3 left-3 z-40">
+      {/* Live indicator — click to mute/unmute this browser (per-browser
+          override on top of the school setting). */}
+      <button
+        type="button"
+        onClick={() => {
+          try { window.localStorage.setItem(LIVE_SCAN_DISABLED_KEY, '1'); } catch { /* ignore */ }
+          setDisabled(true);
+        }}
+        title="Live attendance popup is ON — click to mute on this device"
+        className="fixed bottom-3 left-3 z-40"
+      >
         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md border transition-colors ${
           connected
             ? 'bg-emerald-50/80 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
@@ -451,9 +548,9 @@ export function LiveIdentityPopup() {
         }`}>
           <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
           <Fingerprint className="w-3 h-3" />
-          {connected ? 'Live Scan' : 'Reconnecting…'}
+          {connected ? 'Live Attendance: ON' : 'Reconnecting…'}
         </div>
-      </div>
+      </button>
     </>
   );
 }

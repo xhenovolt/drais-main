@@ -38,6 +38,22 @@ const DERIVED_CLASS: Record<string, string> = {
 };
 const derivedLabel = (e: string | null) => (e ? (DERIVED_LABEL[e] ?? e) : null);
 
+// SMS notification outbox status for the row.
+const SMS_LABEL: Record<string, string> = {
+  queued: 'SMS queued', sending: 'SMS sending', delivered: 'SMS sent',
+  failed: 'SMS failed', expired: 'SMS expired',
+};
+const SMS_CLASS: Record<string, string> = {
+  queued: 'bg-blue-100 text-blue-700', sending: 'bg-blue-100 text-blue-700',
+  delivered: 'bg-emerald-100 text-emerald-700', failed: 'bg-red-100 text-red-700',
+  expired: 'bg-gray-100 text-gray-500',
+};
+function SmsPill({ status, matched }: { status: string | null; matched: number | boolean }) {
+  if (!matched) return <span className="text-[10px] text-gray-400">SMS: n/a</span>;
+  if (!status) return <span className="text-[10px] text-gray-400">SMS: none</span>;
+  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SMS_CLASS[status] ?? 'bg-gray-100 text-gray-500'}`}>{SMS_LABEL[status] ?? `SMS ${status}`}</span>;
+}
+
 const TABS = [
   { key: 'all',       label: 'All Logs',   icon: Activity },
   { key: 'learners',  label: 'Learners',   icon: Users },
@@ -746,6 +762,7 @@ export default function UnifiedAttendancePage() {
                             {derivedLabel(log.derived_event)}
                           </span>
                           {log.derived_detail && <span className="text-[11px] text-gray-400">{log.derived_detail}</span>}
+                          <SmsPill status={log.sms_status} matched={log.matched} />
                         </div>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500" title="Awaiting day evaluation">Scan</span>
