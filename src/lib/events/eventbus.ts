@@ -74,6 +74,14 @@ export interface AttendanceEventRecordedEvent {
   deviceSn: string;
   deviceUserId: string;
   matched: boolean;
+  // Resolved identity, already known at publish time (the ingest runs
+  // resolveUser before the INSERT). Carrying it lets the lightweight
+  // /live-identity SSE forward "which person" with NO database lookup,
+  // so a client that already holds the roster (e.g. /students/list) can
+  // render the popup instantly from in-memory data.
+  studentId?: number | null;
+  staffId?: number | null;
+  checkTime?: string | null;         // actual instant (ISO) for display
 }
 
 export interface EventMap {

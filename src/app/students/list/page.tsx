@@ -54,6 +54,7 @@ import { toast } from 'react-hot-toast';
 import { apiFetch } from '@/lib/apiClient';
 import DeviceSelector, { getPreferredDevice } from '@/components/modals/DeviceSelector';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
+import { StudentsListLivePopup } from '@/components/students/StudentsListLivePopup';
 import {
   safeArray,
   safeString,
@@ -1291,6 +1292,22 @@ export default function StudentsListPage() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+
+      {/* Fast live-scan popup: renders from the already-loaded roster (no
+          per-scan server lookup). Active only when mount_scope='students'. */}
+      <StudentsListLivePopup
+        students={[
+          ...enrolledStudents.map((s) => ({
+            id: s.id, first_name: s.first_name, last_name: s.last_name,
+            admission_no: s.admission_no, photo_url: s.photo_url,
+            class_name: s.class_name, gender: s.gender,
+          })),
+          ...admittedStudents.map((s) => ({
+            id: s.id, first_name: s.first_name, last_name: s.last_name,
+            admission_no: s.admission_no, photo_url: s.photo_url, gender: s.gender,
+          })),
+        ]}
+      />
 
       {/* ── HEADER BAND (Row 1) ─────────────────────────────────────────── */}
       {/* Page identity + primary navigation (tabs) + primary CTA. */}

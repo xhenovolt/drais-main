@@ -1744,6 +1744,11 @@ export async function POST(req: NextRequest) {
                 deviceSn:     sn,
                 deviceUserId: String(userId),
                 matched,
+                // Identity is already resolved here — forward it so the
+                // lightweight /live-identity SSE needs no DB lookup.
+                studentId:    studentId ?? null,
+                staffId:      staffId ?? null,
+                checkTime:    punchInstant.toISOString(),
               });
             } catch { /* isolated by bus */ }
           }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { Fingerprint } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -406,6 +407,7 @@ interface LiveUiSettings {
 }
 
 export function LiveIdentityPopup() {
+  const pathname = usePathname();
   const [connected, setConnected] = useState(false);
   const [disabled, setDisabled] = useState(readDisabled);    // per-browser mute
   const [settings, setSettings] = useState<LiveUiSettings | null>(null);
@@ -434,9 +436,23 @@ export function LiveIdentityPopup() {
   // School-level enable flag (defaults to enabled until settings load).
   const schoolEnabled = settings ? settings.live_popup_enabled === 1 : true;
 
-  // SSE connection (gated on per-browser mute AND per-school enable).
+  // mount_scope decides WHERE this global, server-enriched popup runs:
+  //   'global'     → everywhere
+  //   'attendance' → only on /attendance/* routes
+  //   'students'   → nowhere (the fast StudentsListLivePopup owns
+  //                  /students/list; this popup stays off to avoid a
+  //                  double-fire and the slower enriched lookup)
+  // Until settings load we behave as 'global' (current behaviour, no flash).
+  const scope = settings?.mount_scope ?? 'global';
+  const scopeAllowsHere =
+    scope === 'global' ? true
+    : scope === 'attendance' ? Boolean(pathname?.startsWith('/attendance'))
+    : scope === 'students' ? false
+    : true;
+
+  // SSE connection (gated on per-browser mute, per-school enable, scope).
   useEffect(() => {
-    if (disabled || !schoolEnabled) {
+    if (disabled || !schoolEnabled || !scopeAllowsHere) {
       setConnected(false);
       return;
     }
@@ -502,7 +518,7 @@ export function LiveIdentityPopup() {
     es.onerror = () => { setConnected(false); };
 
     return () => { es.close(); Swal.close(); };
-  }, [disabled, schoolEnabled, settings]);
+  }, [disabled, schoolEnabled, scopeAllowsHere, settings]);
 
   // School turned it off → render nothing at all.
   if (!schoolEnabled) return null;
