@@ -232,7 +232,7 @@ export default function StudentsListPage() {
   const [terms, setTerms] = useState<SelectOption[]>([]);
 
   // Fees column toggle — fetches balances for visible students on demand
-  const [showFees, setShowFees] = useState(false);
+  const [showFees, setShowFees] = useState(true);
   const [feesLoading, setFeesLoading] = useState(false);
   const [studentBalances, setStudentBalances] = useState<Map<number, { balance: number; total_charged: number; total_paid: number }>>(new Map());
 
@@ -1679,8 +1679,8 @@ export default function StudentsListPage() {
                 )}
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">Gender</th>
-                {activeTab === 'enrolled' && (
-                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden xl:table-cell whitespace-nowrap">Balance</th>
+                {activeTab === 'enrolled' && showFees && (
+                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell whitespace-nowrap">Balance</th>
                 )}
                 <th className="w-9 px-3 py-2.5" />
               </tr>
@@ -1847,9 +1847,9 @@ export default function StudentsListPage() {
                         <GenderCell student={student} />
                       </td>
 
-                      {/* Balance (enrolled only) */}
-                      {activeTab === 'enrolled' && (
-                      <td className="px-3 py-2.5 hidden xl:table-cell text-right whitespace-nowrap">
+                      {/* Balance (enrolled only, gated by the Fees toggle) */}
+                      {activeTab === 'enrolled' && showFees && (
+                      <td className="px-3 py-2.5 hidden sm:table-cell text-right whitespace-nowrap">
                         {(
                           feesLoading ? (
                             <span className="inline-block w-12 h-3 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
