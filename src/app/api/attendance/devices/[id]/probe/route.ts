@@ -52,12 +52,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (typeof b?.device_ip === 'string' && /^\d{1,3}(\.\d{1,3}){3}$/.test(b.device_ip.trim())) bodyIp = b.device_ip.trim();
   } catch { /* no body */ }
 
-  const ip = bodyIp || (isPrivateLan(access.device!.ipAddress) ? access.device!.ipAddress : null);
+  // Resolve LAN IP: body → persisted devices.lan_ip → private stored IP.
+  let storedLan: string | null = null;
+  try {
+    const r = (await query(`SELECT lan_ip FROM devices WHERE sn = ? LIMIT 1`, [sn])) as Array<{ lan_ip: string | null }>;
+    storedLan = r[0]?.lan_ip ?? null;
+  } catch { /* column ensured by migration 012 */ }
+  const ip = bodyIp || storedLan || (isPrivateLan(access.device!.ipAddress) ? access.device!.ipAddress : null);
   if (!ip) {
     return NextResponse.json({
       error: 'No LAN IP available to probe. The stored device IP is its public/WAN address (not reachable over TCP). Provide the device LAN IP (e.g. 192.168.1.x) — the same one used for local fingerprint enrollment.',
       need_lan_ip: true,
     }, { status: 422 });
+  }
+  // Persist a freshly-supplied LAN IP so future polls are automatic.
+  if (bodyIp && bodyIp !== storedLan) {
+    await query(`UPDATE devices SET lan_ip = ? WHERE sn = ?`, [bodyIp, sn]).catch(() => {});
   }
 
   // Hard timeout wrapper — node-zklib can hang indefinitely if the

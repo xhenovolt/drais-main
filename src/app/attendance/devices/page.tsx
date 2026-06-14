@@ -315,6 +315,37 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [editing, setEditing] = useState(false);
   // Phase 3 — Reconciliation Center modal.
   const [showReconcile, setShowReconcile] = useState(false);
+  // ── Automatic count polling ──────────────────────────────────────
+  // Each machine's user count refreshes on its own while this page is
+  // open: a fast count read (getInfo, ~2s) on mount and every 60s,
+  // using the device's LAN IP (persisted server-side from the first
+  // sync, or remembered in this browser). No clicking required. Devices
+  // with no known LAN IP yet are skipped until set once via "Sync users".
+  useEffect(() => {
+    const lsKey = `drais.lanip.${device.serial_number}`;
+    const lanIp = device.lan_ip
+      || (typeof window !== 'undefined' ? window.localStorage.getItem(lsKey) : '')
+      || '';
+    if (!lanIp) return;
+    let cancelled = false;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        await apiFetch(`/api/attendance/devices/${encodeURIComponent(device.serial_number)}/probe`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_ip: lanIp }), silent: true,
+        });
+        if (!cancelled) onMutate();
+      } catch { /* device may be busy/unreachable; next tick retries */ }
+      finally { inFlight = false; }
+    };
+    poll();
+    const t = setInterval(poll, 60000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [device.serial_number, device.lan_ip, onMutate]);
+
   // Inventory poll — ask the device for its CURRENT user list (the
   // device's own truth). Prefers a LAN TCP pull (full list, immediate);
   // remembers the device LAN IP per serial. If the operator has no LAN

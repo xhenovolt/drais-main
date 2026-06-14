@@ -13,6 +13,7 @@
  * run here — never from DRAIS-side tables.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { resolveDeviceForSession } from '@/lib/biometric/device-access';
 import {
@@ -41,6 +42,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (body?.port) port = Math.max(1, Math.min(65535, Number(body.port)));
   let lanIp: string | null = null;
   if (typeof body?.device_ip === 'string' && /^\d{1,3}(\.\d{1,3}){3}$/.test(body.device_ip.trim())) lanIp = body.device_ip.trim();
+  // Persist a supplied LAN IP so future auto-polls don't need re-entry.
+  if (lanIp) { await query(`UPDATE devices SET lan_ip = ? WHERE sn = ?`, [lanIp, sn]).catch(() => {}); }
+  // Fall back to the persisted LAN IP, then a private stored IP.
+  if (!lanIp) {
+    try { const r = (await query(`SELECT lan_ip FROM devices WHERE sn = ? LIMIT 1`, [sn])) as Array<{ lan_ip: string | null }>; lanIp = r[0]?.lan_ip ?? null; } catch { /* ignore */ }
+  }
   if (!lanIp && isPrivateLan(access.device!.ipAddress)) lanIp = access.device!.ipAddress!;
 
   // Choose path: explicit method wins; else TCP if we have a LAN IP, else ADMS.

@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
          d.device_user_count        AS device_user_count,
          d.device_user_count_at     AS device_user_count_at,
          d.device_user_count_source AS device_user_count_source,
+         d.lan_ip                   AS lan_ip,
          -- DEVICE-CONFIRMED count: from the latest COMPLETED inventory
          -- poll (the device's own answer), NOT any DRAIS-side table.
          (SELECT r.users_returned_count FROM device_inventory_runs r
