@@ -81,19 +81,25 @@ async function snapshotDirectory(
          last_sync_run_id = VALUES(last_sync_run_id),
          has_recent_echo = 1,
          directory_status = 'active',
-         school_id = COALESCE(school_id, VALUES(school_id)),
+         -- Re-home the PIN to the device's CURRENT school. A physical
+         -- device belongs to one school; if it moved, its live users
+         -- move with it (no stale cross-school tag).
+         school_id = VALUES(school_id),
          last_seen = NOW()`,
       [schoolId, sn, pin, name || `PIN ${pin}`, u.card ?? null,
        u.privilege != null ? String(u.privilege) : null, runId],
     );
   }
-  // Anything for this device NOT in this run is stale on the device.
+  // A physical device holds ONE set of users. Anything for this SERIAL
+  // not in this run is not on the device — mark stale across ALL schools
+  // (the directory accumulated historical rows from prior owners/pushes;
+  // those were showing as 600+ phantom "device users").
   await query(
     `UPDATE device_user_directory
-        SET has_recent_echo = 0
-      WHERE device_sn = ? AND (school_id = ? OR school_id IS NULL)
+        SET has_recent_echo = 0, directory_status = 'stale'
+      WHERE device_sn = ?
         AND (last_sync_run_id IS NULL OR last_sync_run_id <> ?)`,
-    [sn, schoolId, runId],
+    [sn, runId],
   );
 }
 
