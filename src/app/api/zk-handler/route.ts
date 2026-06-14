@@ -10,6 +10,7 @@ import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent, evaluatePunch, evaluateDay } from '@/lib/attendance/engine';
+import { decidePunchTime, queueDeviceTimeSync, getDeviceClockOffset } from '@/lib/attendance/device-clock';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import {
   recordTemplate,
@@ -1624,6 +1625,10 @@ export async function POST(req: NextRequest) {
       await logSystemEvent(sn, 'PUNCH', 'INCOMING',
         JSON.stringify({ recordCount: records.length, first: records[0] || null }), ip, ua);
 
+      // Device clock authority: read the device's last-measured offset once
+      // for the whole batch so per-punch correction is stable + cheap.
+      const deviceClockOffset = await getDeviceClockOffset(sn);
+
       for (let i = 0; i < records.length; i++) {
         const record = records[i];
         const rawLine = lines[i] || '';
@@ -1662,6 +1667,24 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
+        // ── Device clock authority (Layer A + B) ─────────────────────────
+        // The device RTC can drift (a live K40 was ~8h fast). A punch
+        // stamped in the future is impossible, so when the device clock
+        // is ahead beyond tolerance we use server time as the authoritative
+        // punch and queue a resync so the device self-heals. The device
+        // value + skew are always preserved for audit.
+        const clock = decidePunchTime(checkTime, deviceClockOffset);
+        const punchTime = clock.authoritativeCheckTime;
+        if (clock.needsResync) {
+          queueDeviceTimeSync(schoolId, sn, clock.skewSeconds).catch(() => {});
+        }
+        if (clock.corrected) {
+          zkLog('warn', 'DEVICE_CLOCK_CORRECTED', {
+            deviceSn: sn, userId, deviceReported: clock.deviceReportedTime,
+            serverTime: punchTime, skewSeconds: clock.skewSeconds,
+          });
+        }
+
         // ── Match + Save attendance ──────────────────────────────────────
         try {
           const resolution = await resolveUser(userId, sn, schoolId);
@@ -1680,16 +1703,20 @@ export async function POST(req: NextRequest) {
           const insLegacy = (await query(
             `INSERT IGNORE INTO zk_attendance_logs
                (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
-                verify_type, io_mode, log_id, work_code, matched, raw_log_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                verify_type, io_mode, log_id, work_code, matched, raw_log_id,
+                device_reported_time, clock_skew_seconds, time_source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-              schoolId, sn, userId, studentId, staffId, checkTime,
+              schoolId, sn, userId, studentId, staffId, punchTime,
               verifyType,
               ioMode,
               record.LOGID || null,
               record.WORKCODE || null,
               matched ? 1 : 0,
               rawLogId,
+              clock.deviceReportedTime,
+              clock.skewSeconds,
+              clock.timeSource,
             ],
           )) as { insertId?: number; affectedRows?: number };
           const isDuplicatePunch =
@@ -1708,7 +1735,7 @@ export async function POST(req: NextRequest) {
           let rawEventIdPublished: number | null = null;
           if (!isDuplicatePunch) {
             try {
-              const punchAt = new Date(checkTime);
+              const punchAt = new Date(punchTime);
               const rawEventId = await recordRawEvent({
                 schoolId,
                 deviceSn: sn,

@@ -74,6 +74,26 @@ Ledger 14/14 success; settings table exists; live queries run school-scoped agai
 2. Build the **attendance SMS policy editor** under `/admin/communications` (triggers, recipients, dry-run, per-learner/staff opt-out) so SMS is configurable without code.
 3. Add the **live-popup settings panel** to `/attendance/settings` (wire the existing `live-settings` API) and enforce `mount_scope`.
 
+---
+
+## 15. Device clock authority (follow-up — shipped)
+Addresses the §1.4 / §13.1 finding that the K40 was ~8h fast. Fixed in two layers so it **cannot silently corrupt attendance again**, not just hand-set once.
+
+**Layer B — server-side time authority (integrity guarantee).** On ingest ([device-clock.ts](src/lib/attendance/device-clock.ts) → [zk-handler/route.ts](src/app/api/zk-handler/route.ts)) every punch's device wall-clock is compared to the wall-clock the device *should* show (server time + school UTC offset, default +180 / EAT). A punch stamped in the **future** is physically impossible, so when the device is currently ahead beyond a 2-min tolerance the punch is corrected. Key design choices:
+- The correction subtracts the device's **stored offset** (`devices.clock_offset_seconds`), **not** server-now — so it's a pure function of (device time, offset) and is **stable across ZKTeco ACK re-sends**, preserving `uk_punch` dedup (server-now would have double-counted).
+- Correction is **gated on the live skew**, so once the device is resynced and reports correct time, a stale stored offset is **never** applied (verified: a fixed device with a stale +8h offset gets no correction).
+- The device-reported time + measured skew are **always** preserved (`zk_attendance_logs.device_reported_time`, `clock_skew_seconds`, `time_source`).
+
+**Layer A — device resync (self-healing).** A real clock fault queues a ZKTeco `SET OPTIONS DateTime=…` command (`encodeZkDateTime`), throttled to once/hour per device (`devices.clock_last_synced_at`). The device applies it on its next heartbeat and re-corrects after every power cycle — so even a **dead RTC battery** self-heals (though the battery should still be replaced).
+
+**Schema:** migration 015 (applied + verified on TiDB) — `zk_attendance_logs.{device_reported_time, clock_skew_seconds, time_source}` + `devices.{clock_offset_seconds, clock_last_synced_at}`.
+
+**Verified (logic):** fast-clock bootstrap keeps device time + queues resync + learns offset; next fast punch corrects to real EAT time (stable); a since-fixed device is not over-corrected; a backlog past-punch keeps its real time (not slammed to now) and only flags a resync.
+
+**Answer to "won't it go wrong again?"** The device clock can still drift (battery/manual), but attendance no longer depends on it: future punches are corrected server-side, and the device is auto-resynced. Remaining hardware to-do: replace the K40 RTC coin-cell if the fault is a dead battery. Per-school UTC offset is still a single default (`SCHOOL_UTC_OFFSET_MINUTES`, EAT) — multi-zone support is a future enhancement. Layer A's `SET OPTIONS DateTime` command should be confirmed against the live K40 firmware on next physical access.
+
+---
+
 ## Manual verification checklist (browser + K40)
 - Toggle the bottom-left "Live Attendance" pill → popup mutes/un-mutes on this device.
 - `PUT /api/attendance/live-settings {live_popup_enabled:0}` → popup stops school-wide.
