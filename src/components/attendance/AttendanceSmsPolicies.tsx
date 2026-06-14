@@ -23,7 +23,15 @@ const TARGETS = [
 ] as const;
 const CHANNELS = [{ v: 'sms', label: 'SMS' }, { v: 'email', label: 'Email' }, { v: 'push', label: 'Push' }] as const;
 
-const TEMPLATE_VARS = '{status} {date} {first_in} {last_out} {late_minutes} {early_minutes}';
+const TEMPLATE_VARS = '{name} {first_name} {school} {date} {time} {late_minutes} {early_minutes} {status}';
+
+// Professional, parent-facing example templates the admin can insert.
+const EXAMPLES: { label: string; body: string }[] = [
+  { label: 'Late arrival', body: 'Dear Parent/Guardian, this is to notify you that {name} arrived late to {school} on {date} at {time} ({late_minutes} min late). Thank you.' },
+  { label: 'Absent', body: 'Dear Parent/Guardian, our records show that {name} was absent from {school} on {date}. Please contact the school if this is unexpected. Thank you.' },
+  { label: 'Arrived safely', body: 'Dear Parent/Guardian, {name} arrived safely at {school} on {date} at {time}. Thank you.' },
+  { label: 'Early leave', body: 'Dear Parent/Guardian, {name} left {school} early on {date} ({early_minutes} min early). Thank you.' },
+];
 
 interface Policy {
   id: number;
@@ -205,10 +213,19 @@ export default function AttendanceSmsPolicies() {
 
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Message template</label>
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              <span className="text-[11px] text-gray-400 self-center">Insert example:</span>
+              {EXAMPLES.map((ex) => (
+                <button key={ex.label} type="button" onClick={() => setDraft({ ...draft, template_body: ex.body })}
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
+                  {ex.label}
+                </button>
+              ))}
+            </div>
             <textarea className={`${fieldCls} resize-none`} rows={3} value={draft.template_body}
               onChange={(e) => setDraft({ ...draft, template_body: e.target.value })}
-              placeholder="Leave blank to use the built-in default for each status" />
-            <p className="text-[11px] text-gray-400 mt-1">Variables: <code>{TEMPLATE_VARS}</code></p>
+              placeholder="Leave blank to use the professional built-in default for each status, or insert an example above and edit it." />
+            <p className="text-[11px] text-gray-400 mt-1">Variables: <code>{TEMPLATE_VARS}</code> — <code>{'{name}'}</code> is the learner, <code>{'{school}'}</code> your school, <code>{'{time}'}</code> the arrival time.</p>
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">

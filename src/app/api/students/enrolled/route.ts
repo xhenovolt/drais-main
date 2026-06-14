@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getCurrentTerm } from '@/lib/terms';
+import { getBalancesForStudents } from '@/lib/services/FinanceLedger';
 
 /**
  * GET /api/students/enrolled
@@ -167,6 +168,25 @@ export async function GET(req: NextRequest) {
 
       for (const row of rows) {
         row.programs = programMap[row.enrollment_id] || [];
+      }
+    }
+
+    // Attach fee balance to every row so the list (and the live-scan popup)
+    // has it without a second request. Canonical source: student_ledger.
+    if (rows.length > 0) {
+      try {
+        const balances = await getBalancesForStudents(
+          rows.map((r: any) => Number(r.id)),
+          schoolId,
+        );
+        for (const row of rows) {
+          const b = balances.get(Number(row.id));
+          row.balance = b?.balance ?? 0;
+          row.total_charged = b?.total_charged ?? 0;
+          row.total_paid = b?.total_paid ?? 0;
+        }
+      } catch (err) {
+        console.warn('[ENROLLED STUDENTS] balance attach failed:', err);
       }
     }
 

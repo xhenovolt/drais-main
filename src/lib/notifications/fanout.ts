@@ -98,12 +98,18 @@ async function fanoutAttendanceRecord(
     [event.schoolId],
   )) as PolicyRow[];
 
+  if (policies.length === 0) return;
+
+  // Resolve the subject's name + school name ONCE for this event so
+  // templates can address parents properly ("your child {name}…").
+  const meta = await fetchSubjectMeta(event.personId, event.schoolId);
+
   for (const policy of policies) {
     if (!matchesConditions(policy, event)) continue;
     if (await dailyCapReached(policy)) continue;
     const recipients = await resolveRecipients(policy, event);
     if (recipients.length === 0) continue;
-    const body = renderTemplate(policy.template_body, event);
+    const body = renderTemplate(policy.template_body, event, meta);
     for (const r of recipients) {
       if (policy.channel === 'sms' && !r.phone) continue;
       if (policy.channel === 'email' && !r.email) continue;
@@ -227,35 +233,72 @@ async function resolveSchoolBroadcast(
   return [];
 }
 
+interface SubjectMeta { name: string; firstName: string; school: string; }
+
+async function fetchSubjectMeta(personId: number, schoolId: number): Promise<SubjectMeta> {
+  let name = '', firstName = '', school = '';
+  try {
+    const r = (await query('SELECT first_name, last_name FROM people WHERE id = ? LIMIT 1', [personId])) as Array<{ first_name: string; last_name: string }>;
+    if (r[0]) { firstName = (r[0].first_name ?? '').trim(); name = `${r[0].first_name ?? ''} ${r[0].last_name ?? ''}`.trim(); }
+  } catch { /* name optional */ }
+  try {
+    const r = (await query('SELECT name FROM schools WHERE id = ? LIMIT 1', [schoolId])) as Array<{ name: string }>;
+    if (r[0]) school = (r[0].name ?? '').trim();
+  } catch { /* school optional */ }
+  return { name, firstName, school };
+}
+
+/** Friendly local HH:MM from an ISO instant (school UTC offset, default EAT +180). */
+function friendlyTime(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const off = Number(process.env.SCHOOL_UTC_OFFSET_MINUTES ?? 180);
+  const l = new Date(d.getTime() + off * 60_000);
+  return `${String(l.getUTCHours()).padStart(2, '0')}:${String(l.getUTCMinutes()).padStart(2, '0')}`;
+}
+
 function renderTemplate(
   template: string | null,
   event: AttendanceRecordUpsertedEvent,
+  meta: SubjectMeta,
 ): string {
-  const body = template ?? defaultTemplate(event);
+  const body = template ?? defaultTemplate(event, meta);
   return body
-    .replace(/\{status\}/g, event.status)
+    .replace(/\{name\}/g, meta.name || 'your child')
+    .replace(/\{first_name\}/g, meta.firstName || meta.name || 'your child')
+    .replace(/\{school\}/g, meta.school || 'the school')
+    .replace(/\{time\}/g, friendlyTime(event.firstInAt))
+    .replace(/\{status\}/g, event.status.replace('_', ' '))
     .replace(/\{date\}/g, event.attendanceDate)
-    .replace(/\{first_in\}/g, event.firstInAt ?? '')
-    .replace(/\{last_out\}/g, event.lastOutAt ?? '')
+    .replace(/\{first_in\}/g, friendlyTime(event.firstInAt))
+    .replace(/\{last_out\}/g, friendlyTime(event.lastOutAt))
     .replace(/\{late_minutes\}/g, String(event.lateMinutes))
     .replace(/\{early_minutes\}/g, String(event.earlyMinutes));
 }
 
-function defaultTemplate(event: AttendanceRecordUpsertedEvent): string {
+/**
+ * Professional, parent-facing default messages. Used when a policy has no
+ * custom template_body. Kept warm and courteous; the school can override
+ * per policy in /attendance/settings.
+ */
+function defaultTemplate(event: AttendanceRecordUpsertedEvent, meta: SubjectMeta): string {
+  const child = meta.name ? meta.name : 'your child';
+  const school = meta.school ? meta.school : 'school';
   switch (event.status) {
     case 'late':
-      return `Attendance: marked LATE on {date}. First scan at {first_in}. ({late_minutes} min late.)`;
+      return `Dear Parent/Guardian, this is to notify you that ${child} arrived late to ${school} on {date} at {time} ({late_minutes} min late). Thank you.`;
     case 'absent':
-      return `Attendance: marked ABSENT on {date}.`;
+      return `Dear Parent/Guardian, our records show that ${child} was absent from ${school} on {date}. Please contact the school if this is unexpected. Thank you.`;
     case 'half_day':
-      return `Attendance: HALF-DAY recorded for {date}.`;
+      return `Dear Parent/Guardian, ${child} was present for a half-day at ${school} on {date}. Thank you.`;
     case 'early_leave':
-      return `Attendance: EARLY LEAVE recorded for {date}. ({early_minutes} min early.)`;
+      return `Dear Parent/Guardian, ${child} left ${school} early on {date} ({early_minutes} min early). Thank you.`;
     case 'present':
-      return `Attendance: marked PRESENT on {date}.`;
+      return `Dear Parent/Guardian, ${child} arrived safely at ${school} on {date} at {time}. Thank you.`;
     case 'holiday':
     case 'weekend':
-      return `Attendance: {status} on {date}.`;
+      return `Dear Parent/Guardian, no school session for ${child} on {date}. Thank you.`;
   }
 }
 

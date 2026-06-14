@@ -663,9 +663,21 @@ export default function StudentsListPage() {
       setEnrolledStudents(safeEnrolled);
       logger.debug('[Enrolled Students]', safeEnrolled.length, 'students,', rawEnrolled.length, 'enrollment rows');
 
-      // Preload fee balances WITH the roster so the live-scan popup can show
-      // a full card (balance, class, …) from memory — no per-scan DB lookup.
-      fetchFeesForVisible(safeEnrolled);
+      // Fee balance now arrives WITH the roster (the enrolled API attaches
+      // it), so build the balances map straight from the rows — no second
+      // request. This powers both the Fees column and the live-scan popup
+      // card from already-loaded data.
+      const balMap = new Map<number, { balance: number; total_charged: number; total_paid: number }>();
+      for (const s of safeEnrolled) {
+        if (typeof s.balance === 'number') {
+          balMap.set(s.id, {
+            balance: s.balance,
+            total_charged: s.total_charged ?? 0,
+            total_paid: s.total_paid ?? 0,
+          });
+        }
+      }
+      setStudentBalances(balMap);
 
       const normalizedAdmitted = standardizeResponse<Student>(admittedData);
       const safeAdmitted = assertArray(normalizedAdmitted.data, 'Admitted students', logger)
@@ -708,12 +720,10 @@ export default function StudentsListPage() {
   };
 
   const handleToggleFees = () => {
-    if (!showFees) {
-      // Turning on — fetch balances for visible enrolled students
-      fetchFeesForVisible(enrolledStudents);
-    } else {
-      setStudentBalances(new Map());
-    }
+    // Balances are loaded with the roster, so the toggle just shows/hides
+    // the column. On turning on we refresh in the background to pick up any
+    // payments made since the page loaded.
+    if (!showFees) fetchFeesForVisible(enrolledStudents);
     setShowFees(v => !v);
   };
 
