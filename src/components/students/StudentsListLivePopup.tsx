@@ -4,17 +4,21 @@
  * StudentsListLivePopup — the FAST popup path.
  * ───────────────────────────────────────────
  * Mounted on /students/list, where the page already holds the full
- * roster in memory. It listens to the lightweight /live-identity SSE
- * (identity only — no server enrichment) and, when a scan resolves to a
- * student already in the roster, renders the popup from that in-memory
- * record. Result: the popup appears with effectively zero per-scan
- * server work (no getLearnerDeepInfo, no resolve, no fee/guardian reads).
+ * roster in memory (including class, stream, program and — preloaded
+ * with the list — fee balance). It listens to the lightweight
+ * /live-identity SSE (identity only, no server enrichment) and, when a
+ * scan resolves to a student already in the roster, renders the FULL
+ * SweetAlert card from that in-memory record. Zero per-scan server work
+ * (no getLearnerDeepInfo, no resolve, no fee/guardian reads).
+ *
+ * Anything the card shows must therefore be loaded WITH the roster on
+ * page load (see fetchFeesForVisible in /students/list). That is the
+ * whole point of the fast path: fetch once on load, render instantly.
  *
  * Gating: only active when the school's live-popup setting is enabled,
  * mount_scope === 'students', and the browser hasn't muted it. The
  * server-enriched global popup (LiveIdentityPopup) handles the
- * 'attendance' / 'global' scopes; the two never both fire (see
- * LiveIdentityPopup's mount_scope check).
+ * 'attendance' / 'global' scopes.
  */
 
 import { useEffect, useRef } from 'react';
@@ -29,7 +33,10 @@ export interface RosterStudent {
   admission_no?: string;
   photo_url?: string;
   class_name?: string;
+  stream_name?: string;
+  program_name?: string;
   gender?: string;
+  balance?: number;
 }
 
 interface LiveSettings {
@@ -37,7 +44,7 @@ interface LiveSettings {
   mount_scope: string;
   sound_enabled: number;
   popup_duration_ms: number;
-  show_for_late_only: number;
+  show_fee_balance: number;
 }
 
 interface IdentityEvent {
@@ -72,9 +79,41 @@ function beep() {
   } catch { /* audio optional */ }
 }
 
+function row(label: string, value: string, valueColor = '#111827'): string {
+  return `<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px solid #f1f5f9">
+    <span style="font-size:12px;color:#6b7280">${escHtml(label)}</span>
+    <span style="font-size:13px;font-weight:600;color:${valueColor};text-align:right">${escHtml(value)}</span>
+  </div>`;
+}
+
+function buildCard(student: RosterStudent, when: string, showFee: boolean): string {
+  const name = `${student.first_name ?? ''} ${student.last_name ?? ''}`.trim() || 'Student';
+  const photo = student.photo_url
+    ? `<img src="${escHtml(student.photo_url)}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:4px solid #4f46e5" />`
+    : `<div style="width:96px;height:96px;border-radius:50%;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700">${escHtml((student.first_name?.[0] || '?').toUpperCase())}</div>`;
+
+  const classLine = [student.class_name, student.stream_name].filter(Boolean).join(' · ');
+  const rows: string[] = [];
+  if (student.admission_no) rows.push(row('Admission No', student.admission_no));
+  if (student.program_name) rows.push(row('Program', student.program_name));
+  if (student.gender) rows.push(row('Gender', student.gender.charAt(0).toUpperCase() + student.gender.slice(1)));
+  if (showFee && typeof student.balance === 'number') {
+    const bal = student.balance;
+    const txt = `UGX ${Math.abs(bal).toLocaleString()}${bal < 0 ? ' (credit)' : ''}`;
+    rows.push(row('Fee Balance', txt, bal > 0 ? '#dc2626' : '#059669'));
+  }
+
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      ${photo}
+      <div style="font-size:20px;font-weight:800;color:#111827;line-height:1.2">${escHtml(name)}</div>
+      ${classLine ? `<div style="font-size:13px;color:#4f46e5;font-weight:600">${escHtml(classLine)}</div>` : ''}
+      <div style="margin:4px 0;padding:7px 16px;background:#ecfdf5;color:#047857;border-radius:999px;font-size:13px;font-weight:700">✓ Arrived ${escHtml(when)}</div>
+      ${rows.length ? `<div style="width:100%;margin-top:4px">${rows.join('')}</div>` : ''}
+    </div>`;
+}
+
 export function StudentsListLivePopup({ students }: { students: RosterStudent[] }) {
-  // Keep the latest roster in a ref so the SSE handler always sees current
-  // data without re-subscribing on every roster change.
   const rosterRef = useRef<Map<number, RosterStudent>>(new Map());
   useEffect(() => {
     const m = new Map<number, RosterStudent>();
@@ -93,11 +132,8 @@ export function StudentsListLivePopup({ students }: { students: RosterStudent[] 
         const r = await fetch('/api/attendance/live-settings');
         const j = await r.json();
         settings = j?.settings ?? null;
-      } catch { /* use null → bail */ }
+      } catch { /* bail */ }
       if (cancelled || !settings) return;
-
-      // Fast path is for the 'students' scope only. Other scopes are
-      // served by the global server-enriched popup.
       if (!settings.live_popup_enabled || settings.mount_scope !== 'students') return;
 
       const muted = () => {
@@ -114,44 +150,32 @@ export function StudentsListLivePopup({ students }: { students: RosterStudent[] 
         seen.add(data.scan_id);
 
         const student = rosterRef.current.get(data.student_id);
-        if (!student) return; // not in this roster view — let global popup (if any) handle
+        if (!student) return; // not in this roster view
 
-        // Lateness can't be computed from the roster alone, so 'late only'
-        // filtering isn't enforced in the fast path — that's a server-side
-        // detail handled by the enriched popup. Show all student scans.
-
-        const name = `${student.first_name ?? ''} ${student.last_name ?? ''}`.trim() || 'Student';
-        const when = data.check_time ? new Date(data.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
-        const photo = student.photo_url
-          ? `<img src="${escHtml(student.photo_url)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5" />`
-          : `<div style="width:84px;height:84px;border-radius:50%;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700">${escHtml((student.first_name?.[0] || '?').toUpperCase())}</div>`;
-
-        const html = `
-          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-            ${photo}
-            <div style="font-size:18px;font-weight:700;color:#111827">${escHtml(name)}</div>
-            ${student.class_name ? `<div style="font-size:13px;color:#4f46e5;font-weight:600">${escHtml(student.class_name)}</div>` : ''}
-            ${student.admission_no ? `<div style="font-size:12px;color:#6b7280">Adm: ${escHtml(student.admission_no)}</div>` : ''}
-            <div style="margin-top:4px;padding:6px 14px;background:#ecfdf5;color:#047857;border-radius:999px;font-size:13px;font-weight:700">✓ Arrived ${escHtml(when)}</div>
-          </div>`;
-
+        const when = data.check_time
+          ? new Date(data.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          : '';
         const duration = settings!.popup_duration_ms;
         if (settings!.sound_enabled) beep();
+
+        Swal.close();
         Swal.fire({
-          html,
-          showConfirmButton: false,
+          html: buildCard(student, when, settings!.show_fee_balance === 1),
+          showConfirmButton: duration === 0,
+          showCloseButton: duration === 0,
           timer: duration && duration > 0 ? duration : undefined,
           timerProgressBar: !!(duration && duration > 0),
-          position: 'top-end',
-          width: 300,
-          backdrop: false,
-          showClass: { popup: 'animate__animated animate__fadeInRight animate__faster' },
+          allowOutsideClick: duration === 0,
+          width: 380,
+          padding: '22px',
+          position: 'center',
+          backdrop: 'rgba(0,0,0,0.35)',
         });
       };
       es.onerror = () => { /* EventSource auto-reconnects */ };
     })();
 
-    return () => { cancelled = true; if (es) es.close(); };
+    return () => { cancelled = true; if (es) es.close(); Swal.close(); };
   }, []);
 
   return null;

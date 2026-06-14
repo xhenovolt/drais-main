@@ -663,6 +663,10 @@ export default function StudentsListPage() {
       setEnrolledStudents(safeEnrolled);
       logger.debug('[Enrolled Students]', safeEnrolled.length, 'students,', rawEnrolled.length, 'enrollment rows');
 
+      // Preload fee balances WITH the roster so the live-scan popup can show
+      // a full card (balance, class, …) from memory — no per-scan DB lookup.
+      fetchFeesForVisible(safeEnrolled);
+
       const normalizedAdmitted = standardizeResponse<Student>(admittedData);
       const safeAdmitted = assertArray(normalizedAdmitted.data, 'Admitted students', logger)
         ? normalizedAdmitted.data
@@ -1300,7 +1304,9 @@ export default function StudentsListPage() {
           ...enrolledStudents.map((s) => ({
             id: s.id, first_name: s.first_name, last_name: s.last_name,
             admission_no: s.admission_no, photo_url: s.photo_url,
-            class_name: s.class_name, gender: s.gender,
+            class_name: s.class_name, stream_name: s.stream_name,
+            program_name: s.program_name, gender: s.gender,
+            balance: studentBalances.get(s.id)?.balance ?? s.balance,
           })),
           ...admittedStudents.map((s) => ({
             id: s.id, first_name: s.first_name, last_name: s.last_name,
