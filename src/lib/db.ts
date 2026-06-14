@@ -93,7 +93,13 @@ export async function getPool(): Promise<mysql.Pool> {
   pool = mysql.createPool({
     ...TIDB_CONFIG,
     waitForConnections: true,
-    connectionLimit: 10,
+    // A single device punch fans out to ~15 DB calls in the ingest path,
+    // and the live-popup SSE enrichment runs concurrently. At limit 10 the
+    // ingest burst starved the popup queries (they queued behind it),
+    // pushing popup latency past the ingest time itself. 25 keeps the
+    // popup's parallel reads from waiting on the ingest. TiDB Cloud
+    // comfortably handles this.
+    connectionLimit: 25,
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 30000,
