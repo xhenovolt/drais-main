@@ -97,8 +97,10 @@ function buildCard(student: RosterStudent, when: string, showFee: boolean): stri
   if (student.admission_no) rows.push(row('Admission No', student.admission_no));
   if (student.program_name) rows.push(row('Program', student.program_name));
   if (student.gender) rows.push(row('Gender', student.gender.charAt(0).toUpperCase() + student.gender.slice(1)));
-  if (showFee && typeof student.balance === 'number') {
-    const bal = student.balance;
+  if (showFee) {
+    // Always show the fee line when the toggle is on — default to 0 so it
+    // appears even when the balance hasn't been computed for this learner.
+    const bal = Number(student.balance ?? 0);
     const txt = `UGX ${Math.abs(bal).toLocaleString()}${bal < 0 ? ' (credit)' : ''}`;
     rows.push(row('Fee Balance', txt, bal > 0 ? '#dc2626' : '#059669'));
   }
@@ -121,20 +123,34 @@ export function StudentsListLivePopup({ students }: { students: RosterStudent[] 
     rosterRef.current = m;
   }, [students]);
 
+  // Settings live in a ref and are refreshed on focus, so toggling a popup
+  // option (e.g. Fee balance) in /attendance/settings takes effect when the
+  // operator returns to this tab — no full reload needed.
+  const settingsRef = useRef<LiveSettings | null>(null);
+
   useEffect(() => {
     let es: EventSource | null = null;
     let cancelled = false;
     const seen = new Set<number>();
 
-    (async () => {
-      let settings: LiveSettings | null = null;
+    const fetchSettings = async (): Promise<LiveSettings | null> => {
       try {
         const r = await fetch('/api/attendance/live-settings');
         const j = await r.json();
-        settings = j?.settings ?? null;
-      } catch { /* bail */ }
+        if (j?.settings) settingsRef.current = j.settings;
+      } catch { /* keep prior settings */ }
+      return settingsRef.current;
+    };
+    const onFocus = () => { fetchSettings(); };
+
+    (async () => {
+      const settings = await fetchSettings();
       if (cancelled || !settings) return;
+      // Connection gating (scope/enable) is fixed at connect time; changing
+      // those is rare and a reload applies it. Display toggles are live.
       if (!settings.live_popup_enabled || settings.mount_scope !== 'students') return;
+
+      window.addEventListener('focus', onFocus);
 
       const muted = () => {
         try { return window.localStorage.getItem(LIVE_SCAN_DISABLED_KEY) === '1'; } catch { return false; }
@@ -152,15 +168,16 @@ export function StudentsListLivePopup({ students }: { students: RosterStudent[] 
         const student = rosterRef.current.get(data.student_id);
         if (!student) return; // not in this roster view
 
+        const cur = settingsRef.current ?? settings;
         const when = data.check_time
           ? new Date(data.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
           : '';
-        const duration = settings!.popup_duration_ms;
-        if (settings!.sound_enabled) beep();
+        const duration = cur.popup_duration_ms;
+        if (cur.sound_enabled) beep();
 
         Swal.close();
         Swal.fire({
-          html: buildCard(student, when, settings!.show_fee_balance === 1),
+          html: buildCard(student, when, cur.show_fee_balance === 1),
           showConfirmButton: duration === 0,
           showCloseButton: duration === 0,
           timer: duration && duration > 0 ? duration : undefined,
@@ -175,7 +192,7 @@ export function StudentsListLivePopup({ students }: { students: RosterStudent[] 
       es.onerror = () => { /* EventSource auto-reconnects */ };
     })();
 
-    return () => { cancelled = true; if (es) es.close(); Swal.close(); };
+    return () => { cancelled = true; window.removeEventListener('focus', onFocus); if (es) es.close(); Swal.close(); };
   }, []);
 
   return null;
