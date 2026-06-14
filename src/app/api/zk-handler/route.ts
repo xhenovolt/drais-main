@@ -21,7 +21,7 @@ import {
 import { publishEvent } from '@/lib/events/eventbus';
 import { upsertEnrollment, decideNameMatchAction } from '@/lib/biometric/enrollment-service';
 import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
-import { completeAdmsInventoryRun } from '@/lib/biometric/inventory-service';
+import { completeAdmsInventoryRun, refreshLiveCountFromDirectory } from '@/lib/biometric/inventory-service';
 import { drainOutboxOpportunistically } from '@/lib/notifications/drain';
 import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
 
@@ -968,6 +968,9 @@ async function processUserInfo(
       if (invUsers.length > 0) {
         await completeAdmsInventoryRun(schoolId, deviceSn, invUsers);
       }
+      // Realtime count refresh from the directory (covers unsolicited
+      // USERINFO pushes that aren't part of an operator-requested run).
+      await refreshLiveCountFromDirectory(deviceSn);
     } catch (err) {
       zkLog('warn', 'INVENTORY_RUN_COMPLETE_FAILED', { deviceSn, error: String(err) });
     }
@@ -1589,6 +1592,10 @@ export async function POST(req: NextRequest) {
           // Phase 2I — the device just confirmed it knows this PIN.
           if (schoolId) {
             touchEnrollmentSeen(schoolId, parseInt(userPin, 10) || 0).catch(() => {});
+            // REALTIME COUNT: a keypad enrollment pushes this USER record
+            // on the next heartbeat. Refresh the live on-device count from
+            // the directory so the UI reflects it without a manual sync.
+            refreshLiveCountFromDirectory(sn).catch(() => {});
           }
           await saveParsedLog({
             rawLogId: rawLogId!, deviceSn: sn, schoolId,

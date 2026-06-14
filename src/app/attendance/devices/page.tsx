@@ -742,11 +742,19 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               <div className="flex items-center gap-3 pt-1 flex-wrap">
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Users className="w-3.5 h-3.5 text-green-500" />
-                  <span>On device: {device.device_confirmed_users != null ? (
-                    <strong className="text-gray-800 dark:text-gray-200">{device.device_confirmed_users}</strong>
-                  ) : (
-                    <strong className="text-amber-600" title="No inventory poll has completed for this device">unknown</strong>
-                  )}</span>
+                  {(() => {
+                    // Live count: device_user_count is updated by polls AND
+                    // by realtime keypad-enrollment pushes (OPERLOG). Fall
+                    // back to the last completed run; "unknown" if neither.
+                    const onDevice = device.device_user_count ?? device.device_confirmed_users ?? null;
+                    return (
+                      <span>On device: {onDevice != null ? (
+                        <strong className="text-gray-800 dark:text-gray-200">{onDevice}</strong>
+                      ) : (
+                        <strong className="text-amber-600" title="No inventory poll has completed for this device">unknown</strong>
+                      )}</span>
+                    );
+                  })()}
                   <button
                     onClick={handleSyncUsers}
                     disabled={probing}
@@ -775,12 +783,12 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                     synced {formatTimeAgo(Math.floor((Date.now() - new Date(device.inventory_synced_at).getTime()) / 1000))}
                   </span>
                 )}
-                {device.device_confirmed_users != null && device.mapped_users != null &&
-                  device.device_confirmed_users !== device.mapped_users && (
-                  <span className="text-amber-600 font-medium">
-                    ⚠ device {device.device_confirmed_users} vs DRAIS {device.mapped_users}
-                  </span>
-                )}
+                {(() => {
+                  const onDevice = device.device_user_count ?? device.device_confirmed_users ?? null;
+                  return onDevice != null && device.mapped_users != null && onDevice !== device.mapped_users ? (
+                    <span className="text-amber-600 font-medium">⚠ device {onDevice} vs DRAIS {device.mapped_users}</span>
+                  ) : null;
+                })()}
               </div>
 
               <div className="flex items-center gap-4 text-xs text-gray-500 pt-1">

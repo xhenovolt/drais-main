@@ -246,3 +246,44 @@ export async function getLatestInventoryRun(sn: string): Promise<any | null> {
   )) as any[];
   return rows[0] ?? null;
 }
+
+/**
+ * Realtime count refresh from the directory. ZKTeco devices push a
+ * "USER PIN=…" OPERLOG record (and the fingerprint template) the moment
+ * someone enrols on the keypad — DRAIS receives it on the next heartbeat
+ * without any poll. This keeps the displayed on-device count current
+ * from those pushes: it recomputes devices.device_user_count from the
+ * directory's fresh rows.
+ *
+ * Only runs once a baseline full inventory exists (a completed run) —
+ * before that the directory may hold historical/inflated rows, so we
+ * leave the count "unknown" until the first real sync establishes truth.
+ * Best-effort; never throws into the ingest path.
+ */
+export async function refreshLiveCountFromDirectory(sn: string): Promise<void> {
+  try {
+    const baseline = (await query(
+      `SELECT 1 FROM device_inventory_runs
+        WHERE device_sn = ? AND status = 'completed' LIMIT 1`,
+      [sn],
+    )) as unknown[];
+    if (baseline.length === 0) return; // no truth baseline yet
+
+    const cnt = (await query(
+      `SELECT COUNT(*) AS n FROM device_user_directory
+        WHERE device_sn = ? AND has_recent_echo = 1`,
+      [sn],
+    )) as Array<{ n: number }>;
+    const count = Number(cnt[0]?.n ?? 0);
+
+    await query(
+      `UPDATE devices
+          SET device_user_count = ?, device_user_count_at = NOW(),
+              device_user_count_source = 'adms_push', updated_at = CURRENT_TIMESTAMP
+        WHERE sn = ?`,
+      [count, sn],
+    );
+  } catch (err) {
+    console.warn('[inventory] refreshLiveCountFromDirectory failed:', err);
+  }
+}
