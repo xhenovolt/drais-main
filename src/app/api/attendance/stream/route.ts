@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
                al.check_time,
                al.verify_type,
                al.io_mode,
+               re.derived_event,
+               re.derived_detail,
                al.matched,
                sp.first_name  AS student_first_name,
                sp.last_name   AS student_last_name,
@@ -64,6 +66,8 @@ export async function GET(req: NextRequest) {
                dud.device_name AS device_known_name,
                d.device_name
              FROM zk_attendance_logs al
+             LEFT JOIN attendance_raw_events re
+               ON re.legacy_table = 'zk_attendance_logs' AND re.legacy_id = al.id
              LEFT JOIN devices d      ON al.device_sn = d.sn
              LEFT JOIN students st    ON al.student_id = st.id
              LEFT JOIN people sp      ON st.person_id = sp.id
@@ -104,6 +108,8 @@ export async function GET(req: NextRequest) {
                 matched: Boolean(r.matched),
                 verify_type: r.verify_type,
                 io_mode: r.io_mode,
+                derived_event: r.derived_event ?? null,
+                derived_detail: r.derived_detail ?? null,
                 device_name: r.device_name,
                 device_known_name: r.device_known_name || null,
                 photo_url: r.student_photo || null,

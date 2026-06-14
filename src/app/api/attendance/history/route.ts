@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
   const { schoolId } = session;
   const url = new URL(req.url);
   const tab = url.searchParams.get('tab') || 'all';
-  const page = Math.max(1, parseInt(url.searchParams.get('page', 10) || '1', 10));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit', 10) || '50', 10)));
+  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
   const offset = (page - 1) * limit;
   const dateFrom = url.searchParams.get('date_from');
   const dateTo = url.searchParams.get('date_to');
@@ -126,6 +126,8 @@ export async function GET(req: NextRequest) {
          ar.punch_at AS check_time,
          ar.verify_type,
          ar.io_mode,
+         ar.derived_event,
+         ar.derived_detail,
          ar.matched,
          ar.role_type,
          ar.display_name,

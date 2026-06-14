@@ -95,14 +95,21 @@ function parseZKBody(raw: string, tableName: string): { records: Record<string, 
       }
       if (Object.keys(record).length > 0) records.push(record);
     } else {
-      // Positional format: userid \t timestamp \t status \t verify \t workcode \t ...
+      // Positional ZK ATTLOG: PIN \t time \t STATUS \t VERIFY \t workcode …
+      //   col2 = STATUS  (device IN/OUT state: 0=in,1=out,2..5=break/OT)
+      //   col3 = VERIFY  (method: 0=pwd,1=fingerprint,2=card,15=face)
+      // The previous code had these SWAPPED, so every fingerprint punch
+      // (verify=1) was stored as io_mode=1 → shown as "Check-out". We map
+      // them correctly now. NOTE: io_mode (device status) is kept only as
+      // a hint — attendance state is DERIVED by the engine, never taken
+      // from this field (deriveEvents in rule-evaluator).
       const cols = trimmed.split('\t');
       if (cols.length >= 2) {
         records.push({
           USERID: cols[0]?.trim() || '',
           CHECKTIME: cols[1]?.trim() || '',
-          VERIFYTYPE: cols[2]?.trim() || '',
-          INOUTMODE: cols[3]?.trim() || '',
+          INOUTMODE: cols[2]?.trim() || '',
+          VERIFYTYPE: cols[3]?.trim() || '',
           WORKCODE: cols[4]?.trim() || '',
           LOGID: cols[5]?.trim() || '',
         });

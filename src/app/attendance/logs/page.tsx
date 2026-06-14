@@ -21,6 +21,23 @@ const ioLabel = (m: number | null) => {
   return m != null ? map[m] ?? `Mode ${m}` : '—';
 };
 
+// DERIVED attendance meaning (from the state engine), NOT the device's
+// raw IN/OUT field. This is what operators should trust.
+const DERIVED_LABEL: Record<string, string> = {
+  ARRIVED: 'Arrived', ARRIVED_LATE: 'Late arrival', ARRIVED_EARLY: 'Arrived early',
+  TEMP_EXIT: 'Stepped out', RETURNED: 'Returned',
+  CHECKED_OUT: 'Checked out', EARLY_DEPARTURE: 'Left early', OVERTIME_EXIT: 'Overtime exit',
+  DUPLICATE: 'Duplicate',
+};
+const DERIVED_CLASS: Record<string, string> = {
+  ARRIVED: 'bg-emerald-100 text-emerald-700', ARRIVED_EARLY: 'bg-emerald-100 text-emerald-700',
+  ARRIVED_LATE: 'bg-amber-100 text-amber-800',
+  TEMP_EXIT: 'bg-slate-100 text-slate-600', RETURNED: 'bg-sky-100 text-sky-700',
+  CHECKED_OUT: 'bg-indigo-100 text-indigo-700', OVERTIME_EXIT: 'bg-purple-100 text-purple-800',
+  EARLY_DEPARTURE: 'bg-orange-100 text-orange-800', DUPLICATE: 'bg-gray-100 text-gray-400',
+};
+const derivedLabel = (e: string | null) => (e ? (DERIVED_LABEL[e] ?? e) : null);
+
 const TABS = [
   { key: 'all',       label: 'All Logs',   icon: Activity },
   { key: 'learners',  label: 'Learners',   icon: Users },
@@ -557,11 +574,20 @@ export default function UnifiedAttendancePage() {
                   <span className="text-xs text-gray-500 whitespace-nowrap">
                     {log.check_time ? new Date(log.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                   </span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    log.io_mode === 0
-                      ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                      : 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                  }`}>{ioLabel(log.io_mode)}</span>
+                  {/* DERIVED meaning from the state engine (falls back to
+                      "Scan" when a day hasn't been evaluated yet) — never
+                      the device's raw IN/OUT field. */}
+                  {derivedLabel(log.derived_event) ? (
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}
+                          title={log.derived_detail || ''}>
+                      {derivedLabel(log.derived_event)}
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500" title="Awaiting evaluation">Scan</span>
+                  )}
+                  {log.derived_detail && (
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap">{log.derived_detail}</span>
+                  )}
                 </div>
               </div>
               <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -713,12 +739,17 @@ export default function UnifiedAttendancePage() {
                       {verifyLabel(log.verify_type)}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-0.5 rounded text-xs
-                        ${log.io_mode === 0
-                          ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
-                        {ioLabel(log.io_mode)}
-                      </span>
+                      {/* DERIVED attendance meaning from the state engine */}
+                      {derivedLabel(log.derived_event) ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`inline-block w-fit px-2 py-0.5 rounded text-xs font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}>
+                            {derivedLabel(log.derived_event)}
+                          </span>
+                          {log.derived_detail && <span className="text-[11px] text-gray-400">{log.derived_detail}</span>}
+                        </div>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500" title="Awaiting day evaluation">Scan</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {log.matched ? (

@@ -36,6 +36,7 @@
 import { query } from '@/lib/db';
 import {
   evaluate,
+  deriveEvents,
   type AttendanceRule,
   type AttendanceVerdict,
   type RawPunch,
@@ -230,13 +231,13 @@ export async function evaluateDay(
   const dayStart = startOfDay(attendanceDate);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const punchRows = (await query(
-    `SELECT punch_at, device_sn, io_mode
+    `SELECT id, punch_at, device_sn, io_mode
        FROM attendance_raw_events
       WHERE person_id = ?
         AND punch_at >= ? AND punch_at < ?
       ORDER BY punch_at ASC`,
     [personId, dayStart, dayEnd],
-  )) as Array<{ punch_at: Date | string; device_sn: string | null; io_mode: number | null }>;
+  )) as Array<{ id: number; punch_at: Date | string; device_sn: string | null; io_mode: number | null }>;
 
   const rawPunches: RawPunch[] = punchRows.map(p => ({
     punch_at: p.punch_at instanceof Date ? p.punch_at : new Date(p.punch_at),
@@ -268,8 +269,28 @@ export async function evaluateDay(
     },
   );
 
-  // 6. UPSERT.
+  // 6. UPSERT the day verdict.
   await persistVerdict(schoolId, personId, roleType, dayStart, rule.id ?? null, verdict);
+
+  // 6b. Stamp the DERIVED per-punch lifecycle onto each raw event so
+  //     logs/popup show "ARRIVED / LATE / CHECKED OUT" — not the device
+  //     IN/OUT field. Matched back to rows by punch time (stable within
+  //     a day). Best-effort; never blocks the verdict.
+  try {
+    const events = deriveEvents(rule, rawPunches, {
+      attendanceDate: dayStart, isHoliday, personRole: roleType, personIsBoarding: undefined,
+    });
+    for (let i = 0; i < events.length && i < punchRows.length; i++) {
+      const ev = events[i];
+      const row = punchRows[i]; // events are in the same sorted order as punchRows
+      await query(
+        `UPDATE attendance_raw_events SET derived_event = ?, derived_detail = ? WHERE id = ?`,
+        [ev.type, ev.detail.slice(0, 120), row.id],
+      );
+    }
+  } catch (err) {
+    console.warn('[attendance-engine] derived-event stamp failed', err);
+  }
 
   // 7. PHASE 5 — emit attendance.record.upserted onto the event bus.
   //    The fanout subscriber matches policies and enqueues outbox

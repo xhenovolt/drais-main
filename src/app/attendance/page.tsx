@@ -15,6 +15,19 @@ const verifyLabel = (v: number | null) => {
   const map: Record<number, string> = { 0: 'Password', 1: 'Fingerprint', 2: 'Card', 15: 'Face' };
   return v != null ? map[v] ?? `Type ${v}` : '—';
 };
+const DERIVED_LABEL: Record<string, string> = {
+  ARRIVED: 'Arrived', ARRIVED_LATE: 'Late arrival', ARRIVED_EARLY: 'Arrived early',
+  TEMP_EXIT: 'Stepped out', RETURNED: 'Returned',
+  CHECKED_OUT: 'Checked out', EARLY_DEPARTURE: 'Left early', OVERTIME_EXIT: 'Overtime exit',
+  DUPLICATE: 'Duplicate',
+};
+const DERIVED_CLASS: Record<string, string> = {
+  ARRIVED: 'bg-emerald-100 text-emerald-700', ARRIVED_EARLY: 'bg-emerald-100 text-emerald-700',
+  ARRIVED_LATE: 'bg-amber-100 text-amber-800', TEMP_EXIT: 'bg-slate-100 text-slate-600',
+  RETURNED: 'bg-sky-100 text-sky-700', CHECKED_OUT: 'bg-indigo-100 text-indigo-700',
+  OVERTIME_EXIT: 'bg-purple-100 text-purple-800', EARLY_DEPARTURE: 'bg-orange-100 text-orange-800',
+  DUPLICATE: 'bg-gray-100 text-gray-400',
+};
 const ioLabel = (m: number | null) => {
   const map: Record<number, string> = { 0: 'Check-in', 1: 'Check-out', 2: 'Break Out', 3: 'Break In' };
   return m != null ? map[m] ?? `Mode ${m}` : '—';
@@ -361,13 +374,17 @@ export default function AttendanceDashboard() {
                       <td className="px-4 py-2 text-sm font-mono text-gray-500">{p.device_user_id}</td>
                       <td className="px-4 py-2 text-sm text-gray-500">{verifyLabel(p.verify_type)}</td>
                       <td className="px-4 py-2 text-sm">
-                        <span className={`px-2 py-0.5 rounded text-xs ${
-                          p.io_mode === 0
-                            ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                        }`}>
-                          {ioLabel(p.io_mode)}
-                        </span>
+                        {/* DERIVED meaning from the state engine, not the
+                            device IN/OUT field. NULL right after a scan
+                            until the day is evaluated (~1-2s). */}
+                        {p.derived_event ? (
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${DERIVED_CLASS[p.derived_event] ?? 'bg-slate-100 text-slate-600'}`}
+                                title={p.derived_detail || ''}>
+                            {DERIVED_LABEL[p.derived_event] ?? p.derived_event}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500">Scan</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-sm">
                         {p.matched ? (

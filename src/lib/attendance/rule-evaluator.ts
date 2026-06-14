@@ -157,51 +157,62 @@ export function evaluate(
   }
 
   const firstIn = punches[0];
-  const lastOut = punches[punches.length - 1];
   const firstInAt = firstIn.punch_at;
-  const lastOutAt = lastOut.punch_at;
 
-  const totalMinutes = Math.max(
-    0,
-    Math.round((lastOutAt.getTime() - firstInAt.getTime()) / MS_PER_MIN),
-  );
+  // 6. Walk the day as a lifecycle to find whether the person actually
+  //    LEFT (a closing departure) vs is only known to have arrived.
+  //    A single morning fingerprint = ARRIVED, departure unknown — it
+  //    must NOT be scored half_day (the old bug: firstIn==lastOut →
+  //    total 0 → half_day for everyone).
+  const departureStart = rule.departure_start_time
+    ? timeOn(ctx.attendanceDate, rule.departure_start_time) : null;
+  // Lifecycle parity: punches alternate arrival/exit/return/exit…
+  // The person "departed" only if the day ENDED outside — an even
+  // number of kept punches. An odd count means the last action was an
+  // entry (still on site), so departure is UNKNOWN and the day must not
+  // be scored half_day (the old bug: single morning punch → half_day).
+  const lastPunch = punches[punches.length - 1];
+  const endedOutside = punches.length % 2 === 0;
+  const hasDeparture = endedOutside;
+  const lastOut = hasDeparture ? lastPunch : null;
+  const lastOutAt = lastOut ? lastOut.punch_at : null;
+
+  const totalMinutes = lastOutAt
+    ? Math.max(0, Math.round((lastOutAt.getTime() - firstInAt.getTime()) / MS_PER_MIN))
+    : 0;
 
   let lateMinutes = 0;
   let earlyMinutes = 0;
 
-  // 6. Late check — only when arrival_end_time is configured.
+  // Late check — only when arrival_end_time is configured.
   if (rule.arrival_end_time) {
     const arrivalEnd = timeOn(ctx.attendanceDate, rule.arrival_end_time);
     if (firstInAt.getTime() > arrivalEnd.getTime()) {
-      lateMinutes = Math.round(
-        (firstInAt.getTime() - arrivalEnd.getTime()) / MS_PER_MIN,
-      );
+      lateMinutes = Math.round((firstInAt.getTime() - arrivalEnd.getTime()) / MS_PER_MIN);
     }
   }
 
-  // 7. Early-leave check — when departure_start_time is configured.
-  if (rule.departure_start_time) {
-    const departureStart = timeOn(ctx.attendanceDate, rule.departure_start_time);
-    if (lastOutAt.getTime() < departureStart.getTime()) {
-      earlyMinutes = Math.round(
-        (departureStart.getTime() - lastOutAt.getTime()) / MS_PER_MIN,
-      );
-    }
+  // Early-leave check — only when we KNOW they departed.
+  if (lastOutAt && departureStart && lastOutAt.getTime() < departureStart.getTime()) {
+    earlyMinutes = Math.round((departureStart.getTime() - lastOutAt.getTime()) / MS_PER_MIN);
   }
 
-  // 8. Status precedence: half_day > early_leave > late > present.
+  // 7. Status precedence. half_day / early_leave only apply when a
+  //    departure is known; otherwise late (vs arrival) or present.
   let status: AttendanceStatus = 'present';
   let trace = 'present';
 
-  if (totalMinutes < rule.half_day_threshold_minutes) {
+  if (hasDeparture && totalMinutes < rule.half_day_threshold_minutes) {
     status = 'half_day';
     trace = `half_day (total ${totalMinutes}min < threshold ${rule.half_day_threshold_minutes}min)`;
-  } else if (earlyMinutes > rule.early_leave_threshold_minutes) {
+  } else if (hasDeparture && earlyMinutes > rule.early_leave_threshold_minutes) {
     status = 'early_leave';
     trace = `early_leave (${earlyMinutes}min before ${rule.departure_start_time})`;
   } else if (lateMinutes > rule.late_threshold_minutes) {
     status = 'late';
     trace = `late (${lateMinutes}min after ${rule.arrival_end_time} + ${rule.late_threshold_minutes}min grace)`;
+  } else if (!hasDeparture) {
+    trace = 'present (arrived; departure not yet recorded)';
   }
 
   return {
@@ -209,13 +220,119 @@ export function evaluate(
     firstInAt,
     lastOutAt,
     firstInDevice: firstIn.device_sn ?? null,
-    lastOutDevice: lastOut.device_sn ?? null,
+    lastOutDevice: lastOut ? (lastOut.device_sn ?? null) : null,
     lateMinutes,
     earlyMinutes,
     totalMinutes,
     rawEventCount: rawPunches.length,
     trace,
   };
+}
+
+// ── Per-punch lifecycle derivation (Phase 1-3 of the state-engine) ────
+
+export type DerivedEventType =
+  | 'ARRIVED'          // first punch, within arrival window
+  | 'ARRIVED_LATE'     // first punch, after arrival_end + late_threshold
+  | 'ARRIVED_EARLY'    // first punch, before arrival_start
+  | 'TEMP_EXIT'        // an exit before the checkout window (e.g. lunch)
+  | 'RETURNED'         // re-entry after a temp exit
+  | 'CHECKED_OUT'      // an exit within the checkout window
+  | 'EARLY_DEPARTURE'  // final exit before the checkout window (left for good)
+  | 'OVERTIME_EXIT'    // an exit at/after closing_time
+  | 'DUPLICATE';       // suppressed repeat scan
+
+export interface DerivedEvent {
+  punchAt: Date;
+  deviceSn: string | null;
+  type: DerivedEventType;
+  detail: string;
+  /** minutes late (ARRIVED_LATE) / early (EARLY_DEPARTURE) / worked (CHECKED_OUT) */
+  minutes?: number;
+}
+
+/**
+ * Derive the meaning of EVERY punch in a day from the punch sequence +
+ * rule windows — never from the device's IN/OUT field. Deterministic.
+ * The first valid punch is ALWAYS an arrival; subsequent punches
+ * alternate exit/return; exits in the checkout window are checkouts,
+ * exits before it are temp-exits (or an early departure if it's the
+ * final one). Duplicates within the dedup window are flagged, not
+ * dropped, so every raw row can be labelled.
+ */
+export function deriveEvents(
+  rule: AttendanceRule,
+  rawPunches: RawPunch[],
+  ctx: DayContext,
+): DerivedEvent[] {
+  const sorted = [...rawPunches].sort((a, b) => a.punch_at.getTime() - b.punch_at.getTime());
+  const dedupWindowMs = rule.ignore_duplicate_scans_within_minutes * MS_PER_MIN;
+  const arrivalStart = rule.arrival_start_time ? timeOn(ctx.attendanceDate, rule.arrival_start_time) : null;
+  const arrivalEnd = rule.arrival_end_time ? timeOn(ctx.attendanceDate, rule.arrival_end_time) : null;
+  const departureStart = rule.departure_start_time ? timeOn(ctx.attendanceDate, rule.departure_start_time) : null;
+  const closing = rule.closing_time ? timeOn(ctx.attendanceDate, rule.closing_time) : null;
+
+  const out: DerivedEvent[] = [];
+  let lastKept: Date | null = null;
+  let arrivalSeen = false;
+  let inside = false;
+  let arrivalAt: Date | null = null;
+
+  for (const p of sorted) {
+    if (lastKept && p.punch_at.getTime() - lastKept.getTime() < dedupWindowMs) {
+      out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'DUPLICATE', detail: 'Duplicate scan (ignored)' });
+      continue;
+    }
+    lastKept = p.punch_at;
+
+    if (!arrivalSeen) {
+      arrivalSeen = true; inside = true; arrivalAt = p.punch_at;
+      if (arrivalEnd && p.punch_at.getTime() > arrivalEnd.getTime() + rule.late_threshold_minutes * MS_PER_MIN) {
+        const m = Math.round((p.punch_at.getTime() - arrivalEnd.getTime()) / MS_PER_MIN);
+        out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'ARRIVED_LATE', detail: `Late by ${fmtDur(m)}`, minutes: m });
+      } else if (arrivalStart && p.punch_at.getTime() < arrivalStart.getTime()) {
+        out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'ARRIVED_EARLY', detail: 'Arrived before opening' });
+      } else {
+        out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'ARRIVED', detail: 'On time' });
+      }
+    } else if (!inside) {
+      inside = true;
+      out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'RETURNED', detail: 'Returned' });
+    } else {
+      inside = false;
+      const workedM = arrivalAt ? Math.round((p.punch_at.getTime() - arrivalAt.getTime()) / MS_PER_MIN) : 0;
+      if (closing && p.punch_at.getTime() >= closing.getTime()) {
+        out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'OVERTIME_EXIT', detail: `Overtime — ${fmtDur(workedM)} on site`, minutes: workedM });
+      } else if (departureStart && p.punch_at.getTime() >= departureStart.getTime()) {
+        out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'CHECKED_OUT', detail: `Checked out — ${fmtDur(workedM)} on site`, minutes: workedM });
+      } else {
+        out.push({ punchAt: p.punch_at, deviceSn: p.device_sn ?? null, type: 'TEMP_EXIT', detail: 'Stepped out' });
+      }
+    }
+  }
+
+  // Final-exit reclassification: a temp-exit that's never followed by a
+  // return AND falls before the checkout window is really an early
+  // departure (left for good).
+  for (let i = out.length - 1; i >= 0; i--) {
+    if (out[i].type === 'DUPLICATE') continue;
+    if (out[i].type === 'TEMP_EXIT') {
+      const t = out[i].punchAt;
+      if (!departureStart || t.getTime() < departureStart.getTime()) {
+        const earlyM = departureStart ? Math.round((departureStart.getTime() - t.getTime()) / MS_PER_MIN) : 0;
+        out[i] = { ...out[i], type: 'EARLY_DEPARTURE', detail: `Left early${earlyM ? ` by ${fmtDur(earlyM)}` : ''}`, minutes: earlyM };
+      }
+    }
+    break; // only inspect the last non-duplicate event
+  }
+
+  return out;
+}
+
+function fmtDur(min: number): string {
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
 }
 
 function emptyVerdict(
