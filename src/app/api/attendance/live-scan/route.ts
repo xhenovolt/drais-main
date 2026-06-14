@@ -249,13 +249,16 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
     }
   }
 
+  // Kick off the heavy deep-info read CONCURRENTLY with the derived/SMS
+  // lookups below instead of awaiting it inline — TiDB round-trips are
+  // ~200ms each, so serializing them was the popup-latency hot spot.
+  let deepInfoPromise: Promise<LearnerDeepInfo | null> | null = null;
   if (studentId) {
     personType = 'student';
-    try {
-      learner = await getLearnerDeepInfo(studentId);
-    } catch (err) {
+    deepInfoPromise = getLearnerDeepInfo(studentId).catch((err) => {
       console.error('[LiveScan] Deep info fetch failed:', err);
-    }
+      return null;
+    });
   } else if (staffId) {
     personType = 'staff';
     if (r.staff_first_name || r.staff_last_name) {
@@ -304,27 +307,31 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
 
   // DERIVED attendance meaning (state engine) + SMS notification state.
   // Both lightweight, both optional — never block the popup if missing.
+  // raw_events lookup and the person_id lookup are independent, so we run
+  // them CONCURRENTLY (and alongside the deep-info read above).
   let derivedEvent: string | null = null;
   let derivedDetail: string | null = null;
   let smsStatus: string | null = null;
-  try {
-    const re = await query(
+
+  const [reRows, personId] = await Promise.all([
+    query(
       `SELECT derived_event, derived_detail FROM attendance_raw_events
         WHERE legacy_table = 'zk_attendance_logs' AND legacy_id = ? LIMIT 1`,
       [r.id],
-    );
-    if (Array.isArray(re) && (re as any[])[0]) {
-      derivedEvent = (re as any[])[0].derived_event ?? null;
-      derivedDetail = (re as any[])[0].derived_detail ?? null;
-    }
-  } catch { /* raw_events optional */ }
+    ).catch(() => [] as any[]),
+    studentId
+      ? query('SELECT person_id FROM students WHERE id = ? LIMIT 1', [studentId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
+      : staffId
+        ? query('SELECT person_id FROM staff WHERE id = ? LIMIT 1', [staffId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
+        : Promise.resolve(null),
+  ]);
+
+  if (Array.isArray(reRows) && (reRows as any[])[0]) {
+    derivedEvent = (reRows as any[])[0].derived_event ?? null;
+    derivedDetail = (reRows as any[])[0].derived_detail ?? null;
+  }
   // SMS state: did attendance fanout produce/queue an outbox row for
   // this person today? (queued|sending|delivered|failed) → else null.
-  const personId = studentId
-    ? (await query('SELECT person_id FROM students WHERE id = ? LIMIT 1', [studentId]).then((x:any)=>x[0]?.person_id).catch(()=>null))
-    : staffId
-      ? (await query('SELECT person_id FROM staff WHERE id = ? LIMIT 1', [staffId]).then((x:any)=>x[0]?.person_id).catch(()=>null))
-      : null;
   if (personId) {
     try {
       const ob = await query(
@@ -335,6 +342,11 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
       );
       if (Array.isArray(ob) && (ob as any[])[0]) smsStatus = (ob as any[])[0].status;
     } catch { /* outbox optional */ }
+  }
+
+  // Settle the concurrent deep-info read started above.
+  if (deepInfoPromise) {
+    learner = await deepInfoPromise;
   }
 
   return {

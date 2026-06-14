@@ -59,68 +59,58 @@ function coerceAccommodation(raw: unknown): 'Boarding' | 'Day' | null {
  * Uses COALESCE to fall back to students.class_id when no active enrollment exists.
  */
 export async function getLearnerDeepInfo(studentId: number): Promise<LearnerDeepInfo | null> {
-  // Main student info + optional enrollment + guardian (single query)
-  const rows = await query(
-    `SELECT
-       s.id AS student_id,
-       s.admission_no,
-       s.status AS student_status,
-       sp.first_name,
-       sp.last_name,
-       sp.photo_url,
-       e.status AS enrollment_status,
-       COALESCE(c.name, c2.name) AS class_name,
-       str.name AS stream_name,
-       cp.first_name AS guardian_first_name,
-       cp.last_name AS guardian_last_name,
-       cp.phone AS guardian_phone,
-       sc.relationship
-     FROM students s
-     LEFT JOIN people sp ON s.person_id = sp.id
-     LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
-     LEFT JOIN classes c ON e.class_id = c.id
-     LEFT JOIN classes c2 ON s.class_id = c2.id
-     LEFT JOIN streams str ON e.stream_id = str.id
-     LEFT JOIN student_contacts sc ON sc.student_id = s.id AND sc.is_primary = 1
-     LEFT JOIN contacts con ON sc.contact_id = con.id
-     LEFT JOIN people cp ON con.person_id = cp.id
-     WHERE s.id = ?
-     LIMIT 1`,
-    [studentId],
-  );
+  // All four reads depend only on studentId, so we fire them CONCURRENTLY.
+  // TiDB Cloud round-trips are ~200ms each; running these in parallel keeps
+  // the identity popup fast (sequential awaits here were a latency hot spot).
+  const allCodes = [...ACCOMMODATION_CODES, ...SECTION_CODES];
+  const placeholders = allCodes.map(() => '?').join(',');
 
-  if (!rows || !(rows as any[]).length) return null;
-  const r = (rows as any[])[0];
-
-  // Fee balance
-  const feeRows = await query(
-    `SELECT COALESCE(SUM(amount - discount - paid), 0) AS balance
-     FROM student_fee_items
-     WHERE student_id = ?`,
-    [studentId],
-  );
-  const feeBalance = Number((feeRows as any[])[0]?.balance || 0);
-
-  // Today's attendance count
-  const attRows = await query(
-    `SELECT COUNT(*) AS cnt
-     FROM zk_attendance_logs
-     WHERE student_id = ? AND DATE(check_time) = CURDATE()`,
-    [studentId],
-  );
-  const attendanceToday = Number((attRows as any[])[0]?.cnt || 0);
-
-  // Boarding / Day + section from custom_fields.
-  // We probe by code (case-insensitive) so schools that named the
-  // field `is_boarding`, `accommodation`, `residence_type`, etc. all
-  // resolve. The query is best-effort — if the table is absent we
-  // simply return null for these fields rather than failing the popup.
-  let accommodation: 'Boarding' | 'Day' | null = null;
-  let section: string | null = null;
-  try {
-    const allCodes = [...ACCOMMODATION_CODES, ...SECTION_CODES];
-    const placeholders = allCodes.map(() => '?').join(',');
-    const cfRows = (await query(
+  const [rows, feeRows, attRows, cfRows] = await Promise.all([
+    // Main student info + optional enrollment + guardian
+    query(
+      `SELECT
+         s.id AS student_id,
+         s.admission_no,
+         s.status AS student_status,
+         sp.first_name,
+         sp.last_name,
+         sp.photo_url,
+         e.status AS enrollment_status,
+         COALESCE(c.name, c2.name) AS class_name,
+         str.name AS stream_name,
+         cp.first_name AS guardian_first_name,
+         cp.last_name AS guardian_last_name,
+         cp.phone AS guardian_phone,
+         sc.relationship
+       FROM students s
+       LEFT JOIN people sp ON s.person_id = sp.id
+       LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
+       LEFT JOIN classes c ON e.class_id = c.id
+       LEFT JOIN classes c2 ON s.class_id = c2.id
+       LEFT JOIN streams str ON e.stream_id = str.id
+       LEFT JOIN student_contacts sc ON sc.student_id = s.id AND sc.is_primary = 1
+       LEFT JOIN contacts con ON sc.contact_id = con.id
+       LEFT JOIN people cp ON con.person_id = cp.id
+       WHERE s.id = ?
+       LIMIT 1`,
+      [studentId],
+    ),
+    // Fee balance
+    query(
+      `SELECT COALESCE(SUM(amount - discount - paid), 0) AS balance
+       FROM student_fee_items
+       WHERE student_id = ?`,
+      [studentId],
+    ),
+    // Today's attendance count
+    query(
+      `SELECT COUNT(*) AS cnt
+       FROM zk_attendance_logs
+       WHERE student_id = ? AND DATE(check_time) = CURDATE()`,
+      [studentId],
+    ),
+    // Boarding / Day + section from custom_fields (best-effort).
+    query(
       `SELECT LOWER(f.code) AS code, f.data_type,
               v.value_text, v.value_number, v.value_bool, v.value_json
          FROM student_custom_values v
@@ -129,13 +119,29 @@ export async function getLearnerDeepInfo(studentId: number): Promise<LearnerDeep
           AND f.is_active = 1
           AND LOWER(f.code) IN (${placeholders})`,
       [studentId, ...allCodes],
-    )) as Array<{
+    ).catch(() => [] as any[]),
+  ]);
+
+  if (!rows || !(rows as any[]).length) return null;
+  const r = (rows as any[])[0];
+  const feeBalance = Number((feeRows as any[])[0]?.balance || 0);
+  const attendanceToday = Number((attRows as any[])[0]?.cnt || 0);
+
+  // Boarding / Day + section from custom_fields.
+  // We probe by code (case-insensitive) so schools that named the
+  // field `is_boarding`, `accommodation`, `residence_type`, etc. all
+  // resolve. Best-effort — if the table is absent the query above
+  // resolved to [] and these stay null rather than failing the popup.
+  let accommodation: 'Boarding' | 'Day' | null = null;
+  let section: string | null = null;
+  {
+    const cfRowsTyped = cfRows as Array<{
       code: string; data_type: string;
       value_text: string | null; value_number: number | null;
       value_bool: number | null; value_json: string | null;
     }>;
 
-    for (const cf of cfRows) {
+    for (const cf of cfRowsTyped) {
       const raw =
         cf.value_bool !== null ? Boolean(cf.value_bool) :
         cf.value_text          ? cf.value_text :
@@ -150,7 +156,7 @@ export async function getLearnerDeepInfo(studentId: number): Promise<LearnerDeep
         if (txt && !section) section = txt;
       }
     }
-  } catch { /* custom fields table missing — fall through with nulls */ }
+  }
 
   return {
     student_id: r.student_id,

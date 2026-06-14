@@ -94,6 +94,32 @@ Addresses the §1.4 / §13.1 finding that the K40 was ~8h fast. Fixed in two lay
 
 ---
 
+## 16. Actual-time authority (field fix — shipped)
+Field report: device displayed **20:00**, DRAIS recorded **23:00**, true time **15:00** — two stacked errors:
+1. Device RTC ~5h fast (20:00 vs 15:00).
+2. punch/check times were stored as the device's **naive wall-clock digits**; mysql2 (`timezone:'Z'`) read them back as if UTC, then the **browser** added the EAT offset (+3) → a phantom extra 3 hours (23:00).
+
+**Fix — separate IDENTITY from ACTUAL TIME** ([device-clock.ts](src/lib/attendance/device-clock.ts), [zk-handler](src/app/api/zk-handler/route.ts), [engine.ts](src/lib/attendance/engine.ts), migration 016/017):
+- `punch_at` / `check_time` now hold the **actual instant** as a real UTC `Date`, so the browser renders correct local time with no phantom offset. The device clock is trusted only when accurate; a future-stamped punch (fast clock) is corrected via the learned offset, or the server receive instant on the first faulty punch. Past/within-tolerance punches are trusted verbatim so legitimate offline **backlog** uploads keep their real time.
+- Dedup now keys on **`device_reported_time`** (the punch identity — what `uk_punch` used to be), freeing `punch_at` to be the actual time. ACK re-sends still collapse. Stale `uk_punch`/`uk_raw_punch` (on the stored time) dropped (016 + 017).
+- **Verified on TiDB + logic-tested**: fast +5h (bootstrap & known-offset) → 15:00; correct clock realtime → 15:00; correct-clock backlog → time preserved; drift → trusted.
+
+## 17. Popup latency regression (4s→8s) — analysed + resolved
+**Root cause (measured, not guessed):** TiDB Cloud is remote — **each query round-trip is ~196ms**, and the popup path is a chain of **sequential** `await query()` calls, so latency = the *sum* of round-trips. The SMS/derived-state work added 3 sequential lookups to `enrichScanRow`, and `getLearnerDeepInfo` already did **4 sequential** queries (~830ms) — together a big serial chain on top of the ingest path. (The new lookups are all indexed — `idx_legacy` — and the table is tiny, so it was *serialization*, not slow queries.)
+
+**Resolution:**
+- `getLearnerDeepInfo`: its 4 reads (all keyed by `studentId`) now run via `Promise.all` — **836ms → 228ms** (warm pool). `@/lib/db` is a 10-connection pool, so concurrent `query()` calls use separate connections and truly parallelize.
+- `enrichScanRow`: deep-info, derived-event, and person/outbox lookups now run **concurrently** — enrichment **~1.5s → ~0.4s** steady state.
+- The SSE bus event is now **published right after the legacy INSERT** (before `recordRawEvent` + engine), so the popup starts enriching ~2 round-trips (~0.4s) sooner.
+- Net: **~1.5s shaved** off the popup in steady state.
+
+**Honest caveats:**
+- Round-trip floor is ~200ms each; the parallel win requires a **warm pool** — the first punch after a cold serverless instance still pays TLS connection setup (concurrent setup can briefly be *slower* cold). For an active reception desk the pool stays warm.
+- The **dominant** remaining wall-clock variance is the **device ADMS upload cadence** (outside DRAIS) — the "4s vs 8s" the user saw is largely device-side variance; DRAIS's own server path is now ~0.8–1.2s.
+- A fast-clock device triggers the resync background path (`queueDeviceTimeSync`, fire-and-forget) on each punch until it's corrected; it's throttled hourly and self-limiting once the device clock is fixed, but it does consume pool connections in the interim.
+
+---
+
 ## Manual verification checklist (browser + K40)
 - Toggle the bottom-left "Live Attendance" pill → popup mutes/un-mutes on this device.
 - `PUT /api/attendance/live-settings {live_popup_enabled:0}` → popup stops school-wide.

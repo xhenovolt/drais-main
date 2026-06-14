@@ -1731,11 +1731,27 @@ export async function POST(req: NextRequest) {
             });
           }
 
+          // PHASE 7 — publish the SSE bus event AS EARLY AS POSSIBLE (right
+          // after the legacy INSERT) so the identity popup starts enriching
+          // without waiting for recordRawEvent + the engine below. The popup
+          // re-reads everything it needs by scanId; rawEventId is optional.
+          if (!isDuplicatePunch && insLegacy?.insertId) {
+            try {
+              publishEvent('attendance.event.recorded', {
+                schoolId,
+                scanId:       insLegacy.insertId,
+                rawEventId:   null,
+                deviceSn:     sn,
+                deviceUserId: String(userId),
+                matched,
+              });
+            } catch { /* isolated by bus */ }
+          }
+
           // PHASE 3 — dual-write to attendance_raw_events + engine.
           // recordRawEvent is itself INSERT IGNORE (uk_raw_punch), so
           // even if the legacy key is missing the canonical journal
           // stays duplicate-free.
-          let rawEventIdPublished: number | null = null;
           if (!isDuplicatePunch) {
             try {
               const punchAt = punchInstant;
@@ -1760,7 +1776,6 @@ export async function POST(req: NextRequest) {
                 legacyTable: 'zk_attendance_logs',
                 legacyId:    insLegacy?.insertId ?? null,
               });
-              rawEventIdPublished = rawEventId;
               // PHASE 1D — resolution.personId is now hydrated for
               // legacy-path resolutions too (resolve.ts), so EVERY
               // matched punch reaches the classification engine.
@@ -1778,20 +1793,8 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // PHASE 7 — sub-second SSE push via the bus. Skipped for
-          // re-sent duplicates so the popup doesn't double-fire.
-          if (!isDuplicatePunch && insLegacy?.insertId) {
-            try {
-              publishEvent('attendance.event.recorded', {
-                schoolId,
-                scanId:       insLegacy.insertId,
-                rawEventId:   rawEventIdPublished,
-                deviceSn:     sn,
-                deviceUserId: String(userId),
-                matched,
-              });
-            } catch { /* isolated by bus */ }
-          }
+          // (SSE bus event already published right after the INSERT above,
+          // so the popup is not gated on recordRawEvent / the engine.)
 
           // Save to zk_parsed_logs (per-record truth)
           await saveParsedLog({
