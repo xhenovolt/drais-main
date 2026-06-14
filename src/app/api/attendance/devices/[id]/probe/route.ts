@@ -34,38 +34,67 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const sn = access.device!.sn;
-  const ip = access.device!.ipAddress;
+
+  // IP resolution: devices.ip_address is the device's PUBLIC/WAN IP
+  // (what ADMS records as the request source) — not reachable for a
+  // direct TCP probe. The caller must supply the device's LAN IP
+  // (same value used for local enrollment). We only fall back to the
+  // stored IP when it is a private LAN address.
+  const isPrivateLan = (s: string | null | undefined) =>
+    !!s && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(s);
+
+  // Optional body: { device_ip (LAN), port }
+  let port = 4370;
+  let bodyIp: string | null = null;
+  try {
+    const b = await req.json();
+    if (b?.port) port = Math.max(1, Math.min(65535, Number(b.port)));
+    if (typeof b?.device_ip === 'string' && /^\d{1,3}(\.\d{1,3}){3}$/.test(b.device_ip.trim())) bodyIp = b.device_ip.trim();
+  } catch { /* no body */ }
+
+  const ip = bodyIp || (isPrivateLan(access.device!.ipAddress) ? access.device!.ipAddress : null);
   if (!ip) {
     return NextResponse.json({
-      error: 'Device has no IP on record — cannot probe over TCP. Wait for a heartbeat to register the IP, or run an ADMS user sync instead.',
+      error: 'No LAN IP available to probe. The stored device IP is its public/WAN address (not reachable over TCP). Provide the device LAN IP (e.g. 192.168.1.x) — the same one used for local fingerprint enrollment.',
+      need_lan_ip: true,
     }, { status: 422 });
   }
 
-  // Optional body: { port }
-  let port = 4370;
-  try { const b = await req.json(); if (b?.port) port = Math.max(1, Math.min(65535, Number(b.port))); } catch { /* no body */ }
+  // Hard timeout wrapper — node-zklib can hang indefinitely if the
+  // device's single TCP slot is busy. We never let the request hang.
+  const withTimeout = <T>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+    Promise.race([
+      p,
+      new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`${label} timed out after ${ms}ms`)), ms)),
+    ]);
 
   const zk = new ZKLib(ip, port, 8000, 5200);
-  try {
-    await zk.createSocket();
-  } catch (e: any) {
-    return NextResponse.json({
-      error: `Cannot reach device at ${ip}:${port} over TCP — ${e.message}. The server must be on the same LAN as the device to probe it directly.`,
-    }, { status: 502 });
-  }
-
   let userCount: number | null = null;
   let logCount: number | null = null;
   let capacity: number | null = null;
   try {
-    const info = await zk.getInfo();
-    userCount = Number(info?.userCounts);
-    logCount = Number(info?.logCounts);
-    capacity = Number(info?.logCapacity);
-    if (!Number.isFinite(userCount)) userCount = null;
+    await withTimeout(zk.createSocket(), 9000, 'connect');
+    // Mirror the proven local-enroll path: enable, then read. getInfo
+    // reads the device's count registers (reliable); getUsers().length
+    // is the fallback if the firmware doesn't answer getInfo.
+    try { await withTimeout(zk.zklibTcp.enableDevice(), 5000, 'enable'); } catch { /* some firmware doesn't need it */ }
+    try {
+      const info: any = await withTimeout(zk.getInfo(), 8000, 'getInfo');
+      userCount = Number(info?.userCounts);
+      logCount = Number(info?.logCounts);
+      capacity = Number(info?.logCapacity);
+      if (!Number.isFinite(userCount)) userCount = null;
+    } catch { /* fall back to getUsers */ }
+    if (userCount === null) {
+      const users: any = await withTimeout(zk.getUsers(), 12000, 'getUsers');
+      const list = (users?.data || []) as unknown[];
+      userCount = list.length;
+    }
   } catch (e: any) {
     try { await zk.disconnect(); } catch {}
-    return NextResponse.json({ error: `Device reachable but getInfo failed: ${e.message}` }, { status: 502 });
+    return NextResponse.json({
+      error: `Could not read the device over TCP at ${ip}:${port} — ${e.message}. The server must be on the same LAN as the device; if the device is busy, retry in a moment.`,
+    }, { status: 502 });
   }
   try { await zk.disconnect(); } catch {}
 

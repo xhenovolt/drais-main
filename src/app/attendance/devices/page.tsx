@@ -297,20 +297,40 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [editing, setEditing] = useState(false);
   // Phase 3 — Reconciliation Center modal.
   const [showReconcile, setShowReconcile] = useState(false);
-  // Real on-device user count probe (TCP getInfo).
+  // Real on-device user count probe (TCP getInfo). The stored device IP
+  // is the public/WAN address (from ADMS) and isn't reachable over TCP,
+  // so we use the device's LAN IP — remembered per serial in
+  // localStorage, prompted once. Only works when DRAIS runs on the same
+  // LAN as the device (offline/relay build); the cloud build can't reach
+  // the LAN and will surface a clear message.
   const [probing, setProbing] = useState(false);
   const handleProbe = useCallback(async () => {
+    const key = `drais.lanip.${device.serial_number}`;
+    let lanIp = typeof window !== 'undefined' ? window.localStorage.getItem(key) || '' : '';
+    const stored = device.ip_address && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(device.ip_address) ? device.ip_address : '';
+    if (!lanIp) {
+      lanIp = window.prompt(
+        `Enter the device LAN IP (e.g. 192.168.1.17) for "${device.device_name || device.serial_number}".\nThis is the local address used for fingerprint enrollment — the stored IP (${device.ip_address || 'unknown'}) is its public address and can't be probed.`,
+        stored || '192.168.1.',
+      ) || '';
+      if (!lanIp) return;
+      window.localStorage.setItem(key, lanIp);
+    }
     setProbing(true);
     try {
       const r = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(device.serial_number)}/probe`, {
-        method: 'POST',
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_ip: lanIp }),
       });
       showToast('success', r?.message ?? `Device reports ${r?.device_user_count} users`);
       onMutate();
-    } catch { /* apiFetch shows error toast (e.g. cloud cannot reach LAN) */ } finally {
+    } catch (e: any) {
+      // Wrong/changed LAN IP → forget it so the next click re-prompts.
+      if (typeof window !== 'undefined') window.localStorage.removeItem(key);
+    } finally {
       setProbing(false);
     }
-  }, [device.serial_number, onMutate]);
+  }, [device.serial_number, device.ip_address, device.device_name, onMutate]);
   const [editForm, setEditForm] = useState({
     device_name: device.device_name || '',
     location: device.location || '',
