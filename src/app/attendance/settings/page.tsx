@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Settings, Clock, Save, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import LivePopupSettings from '@/components/attendance/LivePopupSettings';
+import AttendanceSmsPolicies from '@/components/attendance/AttendanceSmsPolicies';
 
 interface AttendanceRule {
   id: number;
@@ -287,7 +289,7 @@ export default function AttendanceSettingsPage() {
         </div>
       </div>
 
-      {/* Save */}
+      {/* Save (time + scope rules) */}
       <div className="flex justify-end">
         <button
           onClick={handleSave}
@@ -298,6 +300,12 @@ export default function AttendanceSettingsPage() {
           {saving ? 'Saving...' : existingId ? 'Update Settings' : 'Save Settings'}
         </button>
       </div>
+
+      {/* Live popup configuration (own save) */}
+      <LivePopupSettings />
+
+      {/* Attendance SMS / notification policies (own CRUD) */}
+      <AttendanceSmsPolicies />
     </div>
   );
 }
