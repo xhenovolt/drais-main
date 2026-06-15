@@ -27,7 +27,7 @@ import Swal from 'sweetalert2';
 const LIVE_SCAN_DISABLED_KEY = 'drais.liveScan.disabled';
 
 export interface RosterStudent {
-  id: number;
+  id: number | string;
   first_name: string;
   last_name: string;
   admission_no?: string;
@@ -50,11 +50,18 @@ interface LiveSettings {
 interface IdentityEvent {
   scan_id: number;
   device_user_id: string;
-  student_id: number | null;
-  staff_id: number | null;
+  student_id: number | string | null;
+  staff_id: number | string | null;
   person_type: 'student' | 'staff' | 'unmatched';
   matched: boolean;
   check_time: string | null;
+  // Lightweight display fields from the SSE join — fallback when the
+  // in-memory roster doesn't hold this learner.
+  first_name?: string | null;
+  last_name?: string | null;
+  gender?: string | null;
+  photo_url?: string | null;
+  class_name?: string | null;
 }
 
 function escHtml(s: string): string {
@@ -116,10 +123,13 @@ function buildCard(student: RosterStudent, when: string, showFee: boolean): stri
 }
 
 export function StudentsListLivePopup({ students }: { students: RosterStudent[] }) {
-  const rosterRef = useRef<Map<number, RosterStudent>>(new Map());
+  // Key by String(id): the enrolled API returns id as a string while the
+  // SSE student_id can arrive as a number (bus path) or string (poll path),
+  // so a raw-typed Map.get would miss and the card would lose its data.
+  const rosterRef = useRef<Map<string, RosterStudent>>(new Map());
   useEffect(() => {
-    const m = new Map<number, RosterStudent>();
-    for (const s of students) m.set(s.id, s);
+    const m = new Map<string, RosterStudent>();
+    for (const s of students) m.set(String(s.id), s);
     rosterRef.current = m;
   }, [students]);
 
@@ -165,8 +175,25 @@ export function StudentsListLivePopup({ students }: { students: RosterStudent[] 
         if (seen.has(data.scan_id)) return;
         seen.add(data.scan_id);
 
-        const student = rosterRef.current.get(data.student_id);
-        if (!student) return; // not in this roster view
+        // Prefer the in-memory roster (richer: stream, program, balance) but
+        // fall back to the SSE-provided display fields so photo / class /
+        // gender still render even when this learner isn't in the loaded
+        // roster (e.g. filtered out, or a different page).
+        const key = String(data.student_id);
+        const r = rosterRef.current.get(key);
+        const student: RosterStudent = {
+          id: key,
+          first_name: r?.first_name ?? data.first_name ?? '',
+          last_name: r?.last_name ?? data.last_name ?? '',
+          admission_no: r?.admission_no,
+          photo_url: r?.photo_url ?? data.photo_url ?? undefined,
+          class_name: r?.class_name ?? data.class_name ?? undefined,
+          stream_name: r?.stream_name,
+          program_name: r?.program_name,
+          gender: r?.gender ?? data.gender ?? undefined,
+          balance: r?.balance,
+        };
+        if (!student.first_name && !student.last_name) return; // nothing to show
 
         const cur = settingsRef.current ?? settings;
         const when = data.check_time

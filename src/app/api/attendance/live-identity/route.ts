@@ -60,17 +60,21 @@ export async function GET(req: NextRequest) {
         catch { closed = true; }
       };
 
-      const shape = (r: {
-        id: number; device_user_id: unknown; student_id: number | null;
-        staff_id: number | null; matched: unknown; check_time: unknown;
-      }) => ({
+      const shape = (r: any) => ({
         scan_id: r.id,
         device_user_id: String(r.device_user_id),
-        student_id: r.student_id ?? null,
-        staff_id: r.staff_id ?? null,
+        student_id: r.student_id != null ? String(r.student_id) : null,
+        staff_id: r.staff_id != null ? String(r.staff_id) : null,
         person_type: r.student_id ? 'student' : r.staff_id ? 'staff' : 'unmatched',
         matched: Boolean(r.matched) || Boolean(r.student_id) || Boolean(r.staff_id),
         check_time: r.check_time,
+        // Cheap display fields (single indexed join) so the popup can render
+        // photo/class/gender even if the client roster doesn't hold them.
+        first_name: r.first_name ?? null,
+        last_name: r.last_name ?? null,
+        gender: r.gender ?? null,
+        photo_url: r.photo_url ?? null,
+        class_name: r.class_name ?? null,
       });
 
       // ── Bus fast path (same-instance, sub-second) ────────────────────
@@ -81,8 +85,8 @@ export async function GET(req: NextRequest) {
         send({
           scan_id: e.scanId,
           device_user_id: e.deviceUserId,
-          student_id: e.studentId ?? null,
-          staff_id: e.staffId ?? null,
+          student_id: e.studentId != null ? String(e.studentId) : null,
+          staff_id: e.staffId != null ? String(e.staffId) : null,
           person_type: e.studentId ? 'student' : e.staffId ? 'staff' : 'unmatched',
           matched: e.matched,
           check_time: e.checkTime ?? null,
@@ -95,10 +99,17 @@ export async function GET(req: NextRequest) {
         if (closed) return;
         try {
           const rows = await query(
-            `SELECT id, device_user_id, student_id, staff_id, matched, check_time
-               FROM zk_attendance_logs
-              WHERE id > ? AND school_id = ?
-              ORDER BY id ASC LIMIT 10`,
+            `SELECT al.id, al.device_user_id, al.student_id, al.staff_id,
+                    al.matched, al.check_time,
+                    p.first_name, p.last_name, p.gender, p.photo_url,
+                    c.name AS class_name
+               FROM zk_attendance_logs al
+               LEFT JOIN students s    ON al.student_id = s.id
+               LEFT JOIN people p      ON s.person_id   = p.id
+               LEFT JOIN enrollments e ON e.student_id  = s.id AND e.status = 'active'
+               LEFT JOIN classes c     ON e.class_id    = c.id
+              WHERE al.id > ? AND al.school_id = ?
+              ORDER BY al.id ASC LIMIT 10`,
             [lastId, session.schoolId],
           );
           for (const r of rows as any[]) {
