@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       JOIN people p ON s.person_id = p.id
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
-      LEFT JOIN sections st ON e.section_id = st.id OR s.section_id = st.id
+      LEFT JOIN streams st ON e.stream_id = st.id
       LEFT JOIN student_fee_items sfi ON s.id = sfi.student_id
         ${termId ? 'AND sfi.term_id = ?' : ''}
         ${academicYear ? 'AND sfi.academic_year = ?' : ''}
@@ -84,8 +84,8 @@ export async function GET(req: NextRequest) {
     }
     
     if (sectionId) {
-      sql += ' AND (e.section_id = ? OR s.section_id = ?)';
-      params.push(parseInt(sectionId, 10), parseInt(sectionId, 10));
+      sql += ' AND e.stream_id = ?';
+      params.push(parseInt(sectionId, 10));
     }
     
     if (status) {
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
       JOIN people p ON s.person_id = p.id
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
-      LEFT JOIN sections st ON e.section_id = st.id OR s.section_id = st.id
+      LEFT JOIN streams st ON e.stream_id = st.id
       LEFT JOIN student_fee_items sfi ON s.id = sfi.student_id
       WHERE s.school_id = ? AND s.deleted_at IS NULL
     `;
@@ -130,26 +130,36 @@ export async function GET(req: NextRequest) {
       countParams.push(parseInt(classId, 10));
     }
     if (sectionId) {
-      countSql += ' AND (e.section_id = ? OR s.section_id = ?)';
-      countParams.push(parseInt(sectionId, 10), parseInt(sectionId, 10));
+      countSql += ' AND e.stream_id = ?';
+      countParams.push(parseInt(sectionId, 10));
     }
     
     const [countResult] = await connection.execute(countSql, countParams);
     const total = (countResult as any)[0]?.total || 0;
     
-    // Get summary statistics
-    let statsSql = `
-      SELECT 
-        COUNT(DISTINCT s.id) as total_students,
-        COALESCE(SUM(sfi.amount), 0) as total_expected,
-        COALESCE(SUM(sfi.paid), 0) as total_collected,
-        COALESCE(SUM(sfi.balance), 0) as total_outstanding,
-        COUNT(CASE WHEN SUM(sfi.balance) = 0 THEN 1 END) as fully_paid,
-        COUNT(CASE WHEN SUM(sfi.paid) > 0 AND SUM(sfi.balance) > 0 THEN 1 END) as partially_paid,
-        COUNT(CASE WHEN SUM(sfi.paid) = 0 THEN 1 END) as not_paid
-      FROM students s
-      LEFT JOIN student_fee_items sfi ON s.id = sfi.student_id
-      WHERE s.school_id = ? AND s.deleted_at IS NULL
+    // Get summary statistics.
+    // NOTE: per-student aggregates are computed in a derived table first,
+    // then aggregated — you cannot nest SUM() inside COUNT(CASE ...) in a
+    // single ungrouped SELECT (MySQL/TiDB: "Invalid use of group function").
+    const statsSql = `
+      SELECT
+        COUNT(*) as total_students,
+        COALESCE(SUM(te), 0) as total_expected,
+        COALESCE(SUM(paid), 0) as total_collected,
+        COALESCE(SUM(bal), 0) as total_outstanding,
+        SUM(CASE WHEN bal = 0 THEN 1 ELSE 0 END) as fully_paid,
+        SUM(CASE WHEN paid > 0 AND bal > 0 THEN 1 ELSE 0 END) as partially_paid,
+        SUM(CASE WHEN paid = 0 THEN 1 ELSE 0 END) as not_paid
+      FROM (
+        SELECT s.id,
+               COALESCE(SUM(sfi.amount), 0)  as te,
+               COALESCE(SUM(sfi.paid), 0)    as paid,
+               COALESCE(SUM(sfi.balance), 0) as bal
+          FROM students s
+          LEFT JOIN student_fee_items sfi ON s.id = sfi.student_id
+         WHERE s.school_id = ? AND s.deleted_at IS NULL
+         GROUP BY s.id
+      ) t
     `;
     const [stats] = await connection.execute(statsSql, [schoolId]);
     
