@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Fingerprint, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -29,12 +29,17 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
   const [enrollmentStatus, setEnrollmentStatus] = useState<'idle' | 'queued' | 'synced' | 'captured'>('idle');
   const [fingerprints, setFingerprints] = useState<any[]>([]);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  // Local Direct Enrollment (mirrors the students list local-enroll flow).
+  const [localDeviceIp, setLocalDeviceIp] = useState('');
+  const localPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load devices when modal opens
   useEffect(() => {
     if (isOpen) {
       loadDevices();
       loadBiometricStatus();
+      const savedIp = typeof window !== 'undefined' ? localStorage.getItem('drais_local_device_ip') : null;
+      if (savedIp) setLocalDeviceIp(savedIp);
     }
   }, [isOpen, staffId]);
 
@@ -133,9 +138,73 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
     }
   };
 
+  // ── Local Direct Enrollment ────────────────────────────────────────────────
+  // Talks straight to a device on the local network via /api/device/local-enroll
+  // (which accepts staff_id), then polls the truth-based status endpoint until
+  // the fingerprint template actually reaches DRAIS. Mirrors the students list.
+  const handleLocalEnroll = async () => {
+    const ip = localDeviceIp.trim();
+    if (!ip) { toast.error('Enter the local device IP first'); return; }
+    if (typeof window !== 'undefined') localStorage.setItem('drais_local_device_ip', ip);
+    setLoading(true);
+    try {
+      const response = await fetch('/api/device/local-enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: staffId, device_ip: ip }),
+      });
+      const data = await response.json();
+      if (!data?.success) { toast.error(data?.error || 'Local enrollment failed'); return; }
+
+      // Device is ready — do NOT declare success yet; wait for the captured template.
+      setEnrollmentStatus('synced');
+      setStep(2);
+      toast.success(`Scan finger now on ${ip}…`);
+
+      const enrollmentId = data.enrollment_id;
+      const startedAt = Date.now();
+      const poll = async () => {
+        if (Date.now() - startedAt > 90_000) {
+          toast.error('Captured on device not yet confirmed by DRAIS — check device connectivity (ADMS).');
+          setEnrollmentStatus('idle');
+          setStep(1);
+          return;
+        }
+        try {
+          const st = enrollmentId
+            ? await (await fetch(`/api/device/local-enroll/status?enrollment_id=${enrollmentId}`)).json()
+            : null;
+          if (st?.captured) {
+            setEnrollmentStatus('captured');
+            loadBiometricStatus();
+            toast.success('Fingerprint captured and confirmed by DRAIS!');
+            setTimeout(() => setStep(3), 1500);
+            return;
+          }
+          if (st?.capture_status === 'failed') {
+            toast.error(st.note || 'Enrollment failed on device.');
+            setEnrollmentStatus('idle');
+            setStep(1);
+            return;
+          }
+        } catch { /* transient — keep polling */ }
+        localPollRef.current = setTimeout(poll, 3000);
+      };
+      localPollRef.current = setTimeout(poll, 3000);
+    } catch (error: any) {
+      toast.error(error?.message || 'Direct connection failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleClose = () => {
     if (pollingInterval) {
       clearInterval(pollingInterval);
+    }
+    if (localPollRef.current) {
+      clearTimeout(localPollRef.current);
+      localPollRef.current = null;
     }
     setStep(1);
     setDeviceSn('');
@@ -240,6 +309,33 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   {loading ? 'Starting...' : 'Start Enrollment'}
+                </button>
+
+                {/* Local Direct Enrollment — enroll straight to a device on the LAN */}
+                <div className="relative flex items-center gap-3 py-1">
+                  <span className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                  <span className="text-xs text-gray-400">or enroll directly on a local device</span>
+                  <span className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Local device IP
+                  </label>
+                  <input
+                    type="text"
+                    value={localDeviceIp}
+                    onChange={(e) => setLocalDeviceIp(e.target.value)}
+                    placeholder="e.g. 192.168.1.201"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <button
+                  onClick={handleLocalEnroll}
+                  disabled={loading || !localDeviceIp.trim()}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <Fingerprint className="w-4 h-4" />
+                  Local Direct Enrollment
                 </button>
               </div>
             ) : step === 2 ? (
