@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Clock, Save, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import LivePopupSettings from '@/components/attendance/LivePopupSettings';
 import AttendanceSmsPolicies from '@/components/attendance/AttendanceSmsPolicies';
+import DeviceTimePolicySettings from '@/components/attendance/DeviceTimePolicySettings';
 
 interface AttendanceRule {
   id: number;
@@ -300,6 +301,9 @@ export default function AttendanceSettingsPage() {
           {saving ? 'Saving...' : existingId ? 'Update Settings' : 'Save Settings'}
         </button>
       </div>
+
+      {/* Device time policy (own save) */}
+      <DeviceTimePolicySettings />
 
       {/* Live popup configuration (own save) */}
       <LivePopupSettings />
