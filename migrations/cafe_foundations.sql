@@ -206,3 +206,4 @@ INSERT IGNORE INTO permissions (code, module, resource, action, description, is_
 VALUES
   ('cafe.view',   'cafe', 'framework', 'view',   'View CAFE frameworks, scoring models, and class assignments', 1),
   ('cafe.manage', 'cafe', 'framework', 'manage', 'Create + edit + archive CAFE frameworks, scoring models, mode', 1);
+  ('cafe.add', 'cafe', 'framework', 'add', 'Create CAFE frameworks, scoring models mode, mean, and man more', 1)

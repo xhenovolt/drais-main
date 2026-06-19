@@ -10,7 +10,7 @@ import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent, evaluatePunch, evaluateDay } from '@/lib/attendance/engine';
-import { decidePunchTime, queueDeviceTimeSync, getDeviceClockOffset } from '@/lib/attendance/device-clock';
+import { decidePunchTime, queueDeviceTimeSync, getDeviceTimeContext, resolveTimePolicy } from '@/lib/attendance/device-clock';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import {
   recordTemplate,
@@ -1625,9 +1625,13 @@ export async function POST(req: NextRequest) {
       await logSystemEvent(sn, 'PUNCH', 'INCOMING',
         JSON.stringify({ recordCount: records.length, first: records[0] || null }), ip, ua);
 
-      // Device clock authority: read the device's last-measured offset once
-      // for the whole batch so per-punch correction is stable + cheap.
-      const deviceClockOffset = await getDeviceClockOffset(sn);
+      // Device time policy + per-device context, resolved ONCE per batch.
+      // The policy (per school) decides whether to trust device time, use
+      // server time, correct by drift, or flag for review — and whether
+      // DRAIS may push a time-sync command to the device at all.
+      const timePolicy = await resolveTimePolicy(schoolId);
+      const deviceCtx = await getDeviceTimeContext(sn);
+      const deviceClockOffset = deviceCtx.clockOffsetSeconds;
 
       for (let i = 0; i < records.length; i++) {
         const record = records[i];
@@ -1675,11 +1679,14 @@ export async function POST(req: NextRequest) {
         // receive instant on the first faulty punch). Dedup keys on
         // device_reported_time (the punch identity), so a corrected instant
         // can differ between ACK re-sends without double-counting.
-        const clock = decidePunchTime(checkTime, deviceClockOffset);
+        const clock = decidePunchTime(checkTime, deviceClockOffset, timePolicy, deviceCtx.tzOffsetMinutes);
         const punchInstant = clock.punchInstant;          // Date (actual time)
         const deviceReportedTime = clock.deviceReportedTime; // identity / dedup
-        if (clock.needsResync) {
-          queueDeviceTimeSync(schoolId, sn, clock.skewSeconds).catch(() => {});
+        // Only push a time-sync command to the device when the school has
+        // OPTED IN (auto_sync_device_time). Otherwise DRAIS never changes
+        // the device clock — it just records raw + corrected time.
+        if (clock.needsResync && timePolicy.autoSyncDeviceTime) {
+          queueDeviceTimeSync(schoolId, sn, clock.skewSeconds, deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes).catch(() => {});
         }
         if (clock.corrected) {
           zkLog('warn', 'DEVICE_CLOCK_CORRECTED', {
@@ -1707,8 +1714,8 @@ export async function POST(req: NextRequest) {
             `INSERT IGNORE INTO zk_attendance_logs
                (school_id, device_sn, device_user_id, student_id, staff_id, check_time,
                 verify_type, io_mode, log_id, work_code, matched, raw_log_id,
-                device_reported_time, clock_skew_seconds, time_source)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                device_reported_time, clock_skew_seconds, time_source, time_confidence)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               schoolId, sn, userId, studentId, staffId, punchInstant,
               verifyType,
@@ -1720,6 +1727,7 @@ export async function POST(req: NextRequest) {
               deviceReportedTime,
               clock.skewSeconds,
               clock.timeSource,
+              clock.timeConfidence,
             ],
           )) as { insertId?: number; affectedRows?: number };
           const isDuplicatePunch =
@@ -1768,6 +1776,7 @@ export async function POST(req: NextRequest) {
                 deviceReportedTime,
                 clockSkewSeconds: clock.skewSeconds,
                 timeSource: clock.timeSource,
+                timeConfidence: clock.timeConfidence,
                 verifyType,
                 ioMode,
                 source: 'zkteco_push',

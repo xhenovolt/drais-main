@@ -65,6 +65,8 @@ export interface RecordRawEventInput {
   clockSkewSeconds?: number | null;
   /** 'device' = punch_at from the device clock; 'server' = corrected. */
   timeSource?: 'device' | 'server' | null;
+  /** high | corrected | review | server — confidence in punch_at. */
+  timeConfidence?: string | null;
   verifyType?: number | null;
   ioMode?: number | null;
   source: AttendanceSource;
@@ -101,10 +103,10 @@ export async function recordRawEvent(
       `INSERT IGNORE INTO attendance_raw_events
          (school_id, device_sn, device_user_id, display_name, enrollment_id, person_id,
           role_type, role_ref_id, punch_at, device_reported_time, clock_skew_seconds,
-          time_source, verify_type, io_mode, source,
+          time_source, time_confidence, verify_type, io_mode, source,
           matched, resolution_path, resolution_score,
           legacy_table, legacy_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.schoolId,
         input.deviceSn,
@@ -118,6 +120,7 @@ export async function recordRawEvent(
         input.deviceReportedTime ?? null,
         input.clockSkewSeconds ?? null,
         input.timeSource ?? 'device',
+        input.timeConfidence ?? null,
         input.verifyType ?? null,
         input.ioMode ?? null,
         input.source,

@@ -60,10 +60,70 @@ export function schoolUtcOffsetMinutes(): number {
   return Number.isFinite(n) ? n : DEFAULT_OFFSET_MIN;
 }
 
-/** Clock is "ahead/future" beyond this → unambiguously a fault. */
-const AHEAD_OVERRIDE_MS = 120_000; // 2 min
-/** Either-direction skew beyond this → queue a device resync. */
-const RESYNC_THRESHOLD_MS = 120_000; // 2 min
+// ── Per-school time policy ─────────────────────────────────────────────
+export type DeviceTimePolicyKind =
+  | 'TRUST_DEVICE_TIME'          // store device wall-clock as-is (minus tz); never override, never auto-sync
+  | 'TRUST_SERVER_RECEIVE_TIME'  // always stamp punch_at = server receive instant
+  | 'CORRECT_BY_DRIFT'           // trust device unless future/ahead; recover real instant via learned offset
+  | 'MANUAL_REVIEW_IF_DRIFT';    // keep device time but flag for review when drift exceeds max
+
+export interface TimePolicy {
+  schoolId: number;
+  timezone: string;
+  offsetMinutes: number;
+  policy: DeviceTimePolicyKind;
+  autoSyncDeviceTime: boolean;     // may DRAIS push SET DateTime to the device?
+  maxDriftSeconds: number;
+  correctOfflineBacklog: boolean;
+  displayRawAndCorrected: boolean;
+}
+
+const DEFAULT_POLICY: Omit<TimePolicy, 'schoolId'> = {
+  timezone: 'Africa/Kampala',
+  offsetMinutes: DEFAULT_OFFSET_MIN,
+  policy: 'CORRECT_BY_DRIFT',
+  autoSyncDeviceTime: false,       // OFF by default — DRAIS won't change device clocks unless opted in
+  maxDriftSeconds: 120,
+  correctOfflineBacklog: true,
+  displayRawAndCorrected: false,
+};
+
+const policyCache = new Map<number, { p: TimePolicy; exp: number }>();
+
+/** Resolve a school's time policy (60s cache; safe defaults if unset/missing). */
+export async function resolveTimePolicy(schoolId: number): Promise<TimePolicy> {
+  const c = policyCache.get(schoolId);
+  if (c && c.exp > Date.now()) return c.p;
+  let p: TimePolicy = { schoolId, ...DEFAULT_POLICY };
+  try {
+    const rows = (await query(
+      `SELECT school_timezone, utc_offset_minutes, device_time_policy, auto_sync_device_time,
+              max_allowed_drift_seconds, correct_offline_backlog, display_raw_and_corrected_time
+         FROM attendance_time_policy WHERE school_id = ? LIMIT 1`,
+      [schoolId],
+    )) as any[];
+    if (rows[0]) {
+      const r = rows[0];
+      p = {
+        schoolId,
+        timezone: r.school_timezone ?? DEFAULT_POLICY.timezone,
+        offsetMinutes: Number(r.utc_offset_minutes ?? DEFAULT_OFFSET_MIN),
+        policy: (r.device_time_policy ?? DEFAULT_POLICY.policy) as DeviceTimePolicyKind,
+        autoSyncDeviceTime: !!r.auto_sync_device_time,
+        maxDriftSeconds: Number(r.max_allowed_drift_seconds ?? 120),
+        correctOfflineBacklog: !!r.correct_offline_backlog,
+        displayRawAndCorrected: !!r.display_raw_and_corrected_time,
+      };
+    }
+  } catch { /* table not migrated yet → defaults */ }
+  policyCache.set(schoolId, { p, exp: Date.now() + 60_000 });
+  return p;
+}
+
+export function clearTimePolicyCache(schoolId?: number): void {
+  if (schoolId != null) policyCache.delete(schoolId); else policyCache.clear();
+}
+
 /** Don't re-queue a resync for the same device more than once per hour. */
 const RESYNC_THROTTLE_MS = 60 * 60 * 1000;
 
@@ -111,6 +171,11 @@ export interface ClockDecision {
   timeSource: 'device' | 'server';
   /** true when the skew warrants pushing a time-sync command. */
   needsResync: boolean;
+  /** high = device trusted; corrected = drift-recovered; review = drift over
+   *  max, kept device time, needs a human; server = server-receive time. */
+  timeConfidence: 'high' | 'corrected' | 'review' | 'server';
+  /** which policy produced this decision (audit). */
+  policyUsed: DeviceTimePolicyKind;
 }
 
 /**
@@ -135,75 +200,68 @@ export interface ClockDecision {
 export function decidePunchTime(
   deviceCheckTime: string,
   storedOffsetSeconds: number | null,
+  policy: TimePolicy,
+  deviceOffsetMin?: number | null,
   nowMs = Date.now(),
 ): ClockDecision {
-  const offsetMin = schoolUtcOffsetMinutes();
-  // The naive device string is the device's LOCAL wall clock. Parse it as
-  // an absolute UTC instant: read the digits as UTC, then remove the
-  // school's UTC offset → the instant the device thinks the punch occurred.
-  const deviceWallMs = Date.parse(`${deviceCheckTime.replace(' ', 'T')}Z`);
+  // Per-device tz override wins over the school offset.
+  const offsetMin = deviceOffsetMin != null ? deviceOffsetMin : policy.offsetMinutes;
+  const maxDriftMs = Math.max(0, policy.maxDriftSeconds) * 1000;
+  const base = { deviceReportedTime: deviceCheckTime, policyUsed: policy.policy };
 
-  // Unparseable → fall back to the server instant; nothing else we can do.
+  // The naive device string is the device's LOCAL wall clock. Parse it as
+  // an absolute UTC instant: read the digits as UTC, then remove the offset.
+  const deviceWallMs = Date.parse(`${deviceCheckTime.replace(' ', 'T')}Z`);
   if (!Number.isFinite(deviceWallMs)) {
-    return {
-      punchInstant: new Date(nowMs),
-      deviceReportedTime: deviceCheckTime,
-      skewSeconds: 0,
-      corrected: true,
-      timeSource: 'server',
-      needsResync: false,
-    };
+    return { ...base, punchInstant: new Date(nowMs), skewSeconds: 0, corrected: true, timeSource: 'server', needsResync: false, timeConfidence: 'server' };
   }
 
   const deviceInstantMs = deviceWallMs - offsetMin * 60_000;
-  const skewMs = deviceInstantMs - nowMs; // + = device clock ahead of real time
+  const skewMs = deviceInstantMs - nowMs; // + = device ahead of real time
   const skewSeconds = Math.round(skewMs / 1000);
-  const needsResync = Math.abs(skewMs) > RESYNC_THRESHOLD_MS;
+  const driftExceeds = Math.abs(skewMs) > maxDriftMs;
 
-  // Trust the device instant UNLESS the punch is clearly in the FUTURE.
-  // A future punch is physically impossible → the clock is fast → override.
-  // Everything else (small drift, or a punch in the PAST) is trusted: a
-  // past timestamp is ambiguous between a slow clock and a legitimate
-  // backlog upload from an offline-but-on-time device, and trusting the
-  // device value is the only choice that preserves real backlog times. A
-  // genuinely slow clock is still flagged (needsResync) and healed by the
-  // device resync, never by inventing a time here.
-  if (skewMs <= AHEAD_OVERRIDE_MS) {
-    return {
-      punchInstant: new Date(deviceInstantMs),
-      deviceReportedTime: deviceCheckTime,
-      skewSeconds,
-      corrected: false,
-      timeSource: 'device',
-      needsResync,
-    };
+  const trustDevice = (confidence: ClockDecision['timeConfidence'], needsResync: boolean): ClockDecision => ({
+    ...base, punchInstant: new Date(deviceInstantMs), skewSeconds, corrected: false, timeSource: 'device', needsResync, timeConfidence: confidence,
+  });
+  const useServer = (): ClockDecision => ({
+    ...base, punchInstant: new Date(nowMs), skewSeconds, corrected: true, timeSource: 'server', needsResync: false, timeConfidence: 'server',
+  });
+
+  switch (policy.policy) {
+    case 'TRUST_DEVICE_TIME':
+      // Store exactly what the device reported (minus tz). No correction, no resync.
+      return trustDevice('high', false);
+
+    case 'TRUST_SERVER_RECEIVE_TIME':
+      // Attendance time is always the moment DRAIS received the punch.
+      return useServer();
+
+    case 'MANUAL_REVIEW_IF_DRIFT':
+      // Keep the device time but flag rows that drift beyond max for a human.
+      // Only resync if drift exceeds AND the school opted into auto-sync.
+      return trustDevice(driftExceeds ? 'review' : 'high', driftExceeds && policy.autoSyncDeviceTime);
+
+    case 'CORRECT_BY_DRIFT':
+    default: {
+      // Trust the device UNLESS the punch is in the FUTURE (impossible →
+      // fast clock). Past/within-tolerance is trusted (preserves real
+      // backlog). A behind-clock past punch beyond max is flagged 'review'
+      // unless the school allows trusting backlog.
+      if (skewMs <= maxDriftMs) {
+        const behindBeyondMax = skewMs < -maxDriftMs;
+        const confidence = behindBeyondMax ? (policy.correctOfflineBacklog ? 'high' : 'review') : 'high';
+        return trustDevice(confidence, driftExceeds);
+      }
+      // Future/ahead → recover the real instant via the learned offset (stable
+      // across re-sends), else fall back to server-now on the first faulty punch.
+      const storedOffsetMs = (storedOffsetSeconds ?? 0) * 1000;
+      if (storedOffsetSeconds != null && storedOffsetMs > maxDriftMs) {
+        return { ...base, punchInstant: new Date(deviceInstantMs - storedOffsetMs), skewSeconds, corrected: true, timeSource: 'server', needsResync: true, timeConfidence: 'corrected' };
+      }
+      return { ...base, punchInstant: new Date(nowMs), skewSeconds, corrected: true, timeSource: 'server', needsResync: true, timeConfidence: 'corrected' };
+    }
   }
-
-  // Future punch → fast clock. If we know the persistent offset, recover the
-  // real instant stably (handles backlog from a fast device too).
-  const storedOffsetMs = (storedOffsetSeconds ?? 0) * 1000;
-  if (storedOffsetSeconds != null && storedOffsetMs > AHEAD_OVERRIDE_MS) {
-    return {
-      punchInstant: new Date(deviceInstantMs - storedOffsetMs),
-      deviceReportedTime: deviceCheckTime,
-      skewSeconds,
-      corrected: true,
-      timeSource: 'server',
-      needsResync: true,
-    };
-  }
-
-  // Bootstrap: device clock wrong, offset not learned yet. Use the server
-  // receive instant (accurate for a realtime push) and learn the offset
-  // (queueDeviceTimeSync) so subsequent punches are recovered precisely.
-  return {
-    punchInstant: new Date(nowMs),
-    deviceReportedTime: deviceCheckTime,
-    skewSeconds,
-    corrected: true,
-    timeSource: 'server',
-    needsResync: true,
-  };
 }
 
 /**
@@ -225,15 +283,25 @@ export function encodeZkDateTime(epochMs = Date.now(), offsetMin = schoolUtcOffs
 
 /** Read the device's last-measured clock offset (seconds), or null. */
 export async function getDeviceClockOffset(deviceSn: string): Promise<number | null> {
+  return (await getDeviceTimeContext(deviceSn)).clockOffsetSeconds;
+}
+
+/** Read per-device time context: learned drift + optional tz override. */
+export async function getDeviceTimeContext(
+  deviceSn: string,
+): Promise<{ clockOffsetSeconds: number | null; tzOffsetMinutes: number | null }> {
   try {
     const rows = (await query(
-      `SELECT clock_offset_seconds FROM devices WHERE sn = ? LIMIT 1`,
+      `SELECT clock_offset_seconds, tz_offset_minutes FROM devices WHERE sn = ? LIMIT 1`,
       [deviceSn],
-    )) as Array<{ clock_offset_seconds: number | null }>;
-    const v = rows?.[0]?.clock_offset_seconds;
-    return v == null ? null : Number(v);
+    )) as Array<{ clock_offset_seconds: number | null; tz_offset_minutes: number | null }>;
+    const r = rows?.[0];
+    return {
+      clockOffsetSeconds: r?.clock_offset_seconds == null ? null : Number(r.clock_offset_seconds),
+      tzOffsetMinutes: r?.tz_offset_minutes == null ? null : Number(r.tz_offset_minutes),
+    };
   } catch {
-    return null;
+    return { clockOffsetSeconds: null, tzOffsetMinutes: null };
   }
 }
 
@@ -246,6 +314,7 @@ export async function queueDeviceTimeSync(
   schoolId: number,
   deviceSn: string,
   skewSeconds: number,
+  offsetMin: number = schoolUtcOffsetMinutes(),
 ): Promise<void> {
   try {
     // Persist the freshly-measured offset so the next punch can correct
@@ -277,7 +346,7 @@ export async function queueDeviceTimeSync(
     )) as Array<{ id: number }>;
     if (pending?.length) return;
 
-    const encoded = encodeZkDateTime();
+    const encoded = encodeZkDateTime(Date.now(), offsetMin);
     await query(
       `INSERT INTO zk_device_commands (school_id, device_sn, command, status, priority, expires_at)
        VALUES (?, ?, ?, 'pending', 50, DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
