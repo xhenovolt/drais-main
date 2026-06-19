@@ -345,6 +345,7 @@ export default function EnrollStudentPage() {
 
   const currentTerm: TermOption | null = termData?.data?.current ?? null;
   const allTerms: TermOption[] = termData?.data?.all ?? [];
+  const termContext: any = termData?.data?.context ?? null;
   const classes: ClassOption[] = classData?.data ?? [];
   const streams: StreamOption[] = streamData?.data ?? [];
   const studyModes: { id: number; name: string; is_default: number }[] = studyModeData?.data ?? [];
@@ -639,6 +640,41 @@ export default function EnrollStudentPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400">Informed academic placement with full context</p>
           </div>
         </div>
+
+        {/* ── Academic term context (canonical resolver) ── */}
+        {termContext && (
+          termContext.effective ? (
+            <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                    Current term: {termContext.effective.name}
+                    {termContext.effective.academic_year_name ? ` · ${termContext.effective.academic_year_name}` : ''}
+                  </p>
+                  {termContext.progress && (
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                      Day {termContext.progress.daysElapsed} of {termContext.progress.totalDays} · {termContext.progress.daysRemaining} days remaining
+                      {termContext.progress.percent >= 80 ? ' · ending soon' : ''}
+                    </p>
+                  )}
+                </div>
+                {termContext.progress && (
+                  <div className="w-24 h-1.5 rounded-full bg-emerald-200 dark:bg-emerald-800 overflow-hidden">
+                    <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, termContext.progress.percent)}%` }} />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">No current term is configured</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                Today is outside every term&apos;s dates. {termContext.upcoming ? `Next: ${termContext.upcoming.name} (starts ${String(termContext.upcoming.start_date).slice(0,10)}).` : ''}
+                {termContext.previous ? ` Last: ${termContext.previous.name}.` : ''} Set a current term before enrolling, or pick a term manually below.
+              </p>
+            </div>
+          )
+        )}
 
         {/* ── Mode toggle ── */}
         <div className="flex rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
