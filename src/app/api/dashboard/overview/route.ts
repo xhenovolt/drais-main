@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
+import { getDashboardAttendanceCounts } from '@/lib/attendance/dashboard-counts';
 
 import { getSessionSchoolId } from '@/lib/auth';
 export async function GET(req: NextRequest) {
@@ -191,16 +192,20 @@ export async function GET(req: NextRequest) {
     const deviceData = Array.isArray(activeDevices[0]) ? activeDevices[0][0] : activeDevices[0];
     const biometricData = Array.isArray(todayBiometricPunches[0]) ? todayBiometricPunches[0][0] : todayBiometricPunches[0];
 
-    // Calculate attendance percentage
-    const totalStudentsToday = attendanceData?.total_students || 0;
-    const presentToday = attendanceData?.present_count || 0;
+    // Attendance present/late/absent — derived from raw punches + the
+    // school attendance rule (the old student_attendance table is empty, so
+    // it always read 0). Reliable regardless of canonical-engine state.
+    const dashCounts = await getDashboardAttendanceCounts(schoolId);
+    const totalStudentsToday = dashCounts.students.total || (attendanceData?.total_students || 0);
+    const presentToday = dashCounts.students.present;
     const attendancePercentage = totalStudentsToday > 0 ? Math.round((presentToday / totalStudentsToday) * 100) : 0;
 
     const overview = {
       kpis: {
         totalStudents: studentCount?.total_learners || 0,
         presentToday: presentToday,
-        absentToday: attendanceData?.absent_count || 0,
+        absentToday: dashCounts.students.absent,
+        lateToday: dashCounts.students.late,
         attendancePercentage: attendancePercentage,
         enrollmentGrowth: admissionData?.last_month || 0,
         feesCollectedToday: 0, // Will be calculated from recent payments

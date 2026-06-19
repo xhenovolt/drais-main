@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDashboardAttendanceCounts } from '@/lib/attendance/dashboard-counts';
 
 export const runtime = 'nodejs';
 
@@ -127,11 +128,15 @@ export async function GET(req: NextRequest) {
       [schoolId],
     );
 
-    const totalStudents = Number(studentCount[0]?.total || 0);
-    const totalStaff = Number(staffCount[0]?.total || 0);
     const punch = punchStats[0] || {};
-    const uniqueStudentsPresent = Number(punch.unique_students_present || 0);
-    const uniqueStaffPresent = Number(punch.unique_staff_present || 0);
+
+    // Present / late / absent derived from raw punches + the school's
+    // attendance rule (reliable even when the canonical engine table is
+    // sparse). Replaces the old "distinct matched student" present count
+    // that ignored late and never produced absent.
+    const counts = await getDashboardAttendanceCounts(schoolId, date);
+    const totalStudents = counts.students.total || Number(studentCount[0]?.total || 0);
+    const totalStaff = counts.staff.total || Number(staffCount[0]?.total || 0);
 
     return NextResponse.json({
       success: true,
@@ -140,13 +145,17 @@ export async function GET(req: NextRequest) {
         devices: deviceStats[0] || {},
         students: {
           total: totalStudents,
-          present: uniqueStudentsPresent,
-          rate: totalStudents > 0 ? Math.round((uniqueStudentsPresent / totalStudents) * 100) : null,
+          present: counts.students.present,
+          late: counts.students.late,
+          absent: counts.students.absent,
+          rate: totalStudents > 0 ? Math.round((counts.students.present / totalStudents) * 100) : null,
         },
         staff: {
           total: totalStaff,
-          present: uniqueStaffPresent,
-          rate: totalStaff > 0 ? Math.round((uniqueStaffPresent / totalStaff) * 100) : null,
+          present: counts.staff.present,
+          late: counts.staff.late,
+          absent: counts.staff.absent,
+          rate: totalStaff > 0 ? Math.round((counts.staff.present / totalStaff) * 100) : null,
         },
         punches: punch,
         commands: commandStats[0] || {},

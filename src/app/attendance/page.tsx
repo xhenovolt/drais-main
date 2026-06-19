@@ -129,6 +129,21 @@ export default function AttendanceDashboard() {
             icon={<UserCheck className="w-5 h-5 text-green-600" />}
             color="green"
           />
+          {/* Learners Late */}
+          <MetricCard
+            label="Learners Late"
+            value={studentStats.late ?? 0}
+            icon={<Clock className="w-5 h-5 text-amber-600" />}
+            color="amber"
+          />
+          {/* Learners Absent */}
+          <MetricCard
+            label="Learners Absent"
+            value={studentStats.absent ?? 0}
+            sub={studentStats.total > 0 ? `of ${studentStats.total}` : null}
+            icon={<Users className="w-5 h-5 text-red-600" />}
+            color="red"
+          />
           {/* Staff Present */}
           <MetricCard
             label="Staff Present"
@@ -468,6 +483,7 @@ function MetricCard({
     purple: 'bg-purple-50 dark:bg-purple-900/20',
     indigo: 'bg-indigo-50 dark:bg-indigo-900/20',
     amber: 'bg-amber-50 dark:bg-amber-900/20',
+    red: 'bg-red-50 dark:bg-red-900/20',
   };
 
   return (
