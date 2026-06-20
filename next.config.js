@@ -19,6 +19,11 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
 
+  // Don't fail production builds on lint findings (lint runs separately).
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   // Optimize images
   images: {
     formats: ['image/avif', 'image/webp'],

@@ -224,7 +224,7 @@ export function decidePunchTime(
   const trustDevice = (confidence: ClockDecision['timeConfidence'], needsResync: boolean): ClockDecision => ({
     ...base, punchInstant: new Date(deviceInstantMs), skewSeconds, corrected: false, timeSource: 'device', needsResync, timeConfidence: confidence,
   });
-  const useServer = (): ClockDecision => ({
+  const serverTime = (): ClockDecision => ({
     ...base, punchInstant: new Date(nowMs), skewSeconds, corrected: true, timeSource: 'server', needsResync: false, timeConfidence: 'server',
   });
 
@@ -235,7 +235,7 @@ export function decidePunchTime(
 
     case 'TRUST_SERVER_RECEIVE_TIME':
       // Attendance time is always the moment DRAIS received the punch.
-      return useServer();
+      return serverTime();
 
     case 'MANUAL_REVIEW_IF_DRIFT':
       // Keep the device time but flag rows that drift beyond max for a human.
