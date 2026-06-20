@@ -54,7 +54,11 @@ export async function POST(req: NextRequest) {
       applies_to = 'students',
       applies_to_classes,
       ignore_duplicate_scans_within_minutes = 2,
+      weekday_mask = 31, // school days; bits Mon=1,Tue=2,Wed=4,Thu=8,Fri=16,Sat=32,Sun=64
     } = body;
+    const wmask = Number.isFinite(Number(weekday_mask))
+      ? Math.max(1, Math.min(127, Number(weekday_mask)))
+      : 31;
 
     // Validate time formats (HH:MM or HH:MM:SS)
     const timeRe = /^\d{2}:\d{2}(:\d{2})?$/;
@@ -82,9 +86,9 @@ export async function POST(req: NextRequest) {
       `INSERT INTO attendance_rules
          (school_id, rule_name, rule_description, arrival_start_time, arrival_end_time,
           late_threshold_minutes, absence_cutoff_time, closing_time, applies_to,
-          applies_to_classes, ignore_duplicate_scans_within_minutes, is_active,
+          applies_to_classes, ignore_duplicate_scans_within_minutes, weekday_mask, is_active,
           effective_date, priority)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURDATE(), 100)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURDATE(), 100)`,
       [
         session.schoolId,
         rule_name,
@@ -97,6 +101,7 @@ export async function POST(req: NextRequest) {
         applies_to,
         applies_to_classes || null,
         ignore_duplicate_scans_within_minutes,
+        wmask,
       ],
     );
 

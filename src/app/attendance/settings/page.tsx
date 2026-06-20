@@ -18,6 +18,7 @@ interface AttendanceRule {
   applies_to: 'students' | 'teachers' | 'all';
   applies_to_classes: string | null;
   ignore_duplicate_scans_within_minutes: number;
+  weekday_mask: number | null;
 }
 
 type AppliesTo = 'students' | 'teachers' | 'all';
@@ -33,6 +34,7 @@ interface FormState {
   applies_to: AppliesTo;
   applies_to_classes: string;
   ignore_duplicate_scans_within_minutes: number;
+  weekday_mask: number;
 }
 
 const defaultForm: FormState = {
@@ -46,6 +48,7 @@ const defaultForm: FormState = {
   applies_to: 'students' as AppliesTo,
   applies_to_classes: '',
   ignore_duplicate_scans_within_minutes: 2,
+  weekday_mask: 31, // Mon–Fri
 };
 
 function formatTimeForInput(t: string | null): string {
@@ -79,6 +82,7 @@ export default function AttendanceSettingsPage() {
             applies_to: (r.applies_to || 'students') as AppliesTo,
             applies_to_classes: r.applies_to_classes || '',
             ignore_duplicate_scans_within_minutes: r.ignore_duplicate_scans_within_minutes ?? 2,
+            weekday_mask: r.weekday_mask ?? 31,
           });
           setExistingId(r.id);
         }
@@ -241,6 +245,35 @@ export default function AttendanceSettingsPage() {
             <p className="text-xs text-gray-500 mt-1">Ignore repeated scans from the same person within this window</p>
           </div>
         </div>
+      </div>
+
+      {/* School days */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">School Days</h2>
+        <p className="text-xs text-gray-500">Days the school operates. Punches on non-school days are recorded as &quot;weekend/closed&quot; and don&apos;t count as present/late or trigger parent SMS. Schools that teach on Saturday/Sunday should enable those days.</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: 'Mon', bit: 1 }, { label: 'Tue', bit: 2 }, { label: 'Wed', bit: 4 },
+            { label: 'Thu', bit: 8 }, { label: 'Fri', bit: 16 }, { label: 'Sat', bit: 32 }, { label: 'Sun', bit: 64 },
+          ].map((d) => {
+            const on = (form.weekday_mask & d.bit) !== 0;
+            return (
+              <button
+                key={d.bit}
+                type="button"
+                onClick={() => set('weekday_mask', on ? (form.weekday_mask & ~d.bit) : (form.weekday_mask | d.bit))}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  on
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
+                }`}
+              >
+                {d.label}
+              </button>
+            );
+          })}
+        </div>
+        {form.weekday_mask === 0 && <p className="text-xs text-red-600">Select at least one school day.</p>}
       </div>
 
       {/* Scope Settings */}
