@@ -266,9 +266,11 @@ function smsLineHtml(scan: ScanEvent, showSms: boolean): string {
   const s = scan.sms_status;
   let txt: string, color: string;
   if (!scan.matched) { txt = 'SMS: not sent — identity unresolved'; color = '#9ca3af'; }
-  else if (s === 'queued' || s === 'sending') { txt = 'SMS: queued to guardian'; color = '#2563eb'; }
-  else if (s === 'delivered') { txt = 'SMS: sent'; color = '#059669'; }
-  else if (s === 'failed') { txt = 'SMS: failed (will retry)'; color = '#dc2626'; }
+  else if (s === 'queued' || s === 'sending') { txt = '📨 SMS: queued to guardian'; color = '#2563eb'; }
+  else if (s === 'delivered' || s === 'sent') { txt = '✅ SMS sent to guardian'; color = '#059669'; }
+  else if (s === 'failed') { txt = '⚠ SMS: failed (will retry)'; color = '#dc2626'; }
+  else if (s === 'disabled') { txt = '🔕 SMS service disabled — set it up in Communication settings'; color = '#d97706'; }
+  else if (s === 'no_phone') { txt = 'SMS: no guardian phone on file'; color = '#d97706'; }
   else { txt = 'SMS: none for this scan'; color = '#9ca3af'; }
   return `<div style="margin-top:6px;font-size:11px;font-weight:600;color:${color}">${escHtml(txt)}</div>`;
 }

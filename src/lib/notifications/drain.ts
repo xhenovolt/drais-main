@@ -22,6 +22,7 @@
  */
 import { query } from '@/lib/db';
 import { getProvider } from '@/lib/comm/providers';
+import { getCommSettings } from '@/lib/comm/settings';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
 
 const BATCH = 50;
@@ -76,6 +77,19 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
     [],
   )) as OutboxRow[];
 
+  // Per-school credential cache for this drain run (avoid a DB read per row).
+  const credsCache = new Map<number, { username: string | null; apiKey: string | null }>();
+  const credsFor = async (schoolId: number) => {
+    if (credsCache.has(schoolId)) return credsCache.get(schoolId)!;
+    let c = { username: null as string | null, apiKey: null as string | null };
+    try {
+      const s = await getCommSettings(schoolId);
+      c = { username: s.providerUsername ?? null, apiKey: s.providerApiKey ?? null };
+    } catch { /* fall back to env inside sendSMS */ }
+    credsCache.set(schoolId, c);
+    return c;
+  };
+
   for (const row of rows) {
     result.attempted++;
     try {
@@ -95,6 +109,7 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
         to: recipient,
         body: row.body,
         senderName: undefined,
+        creds: await credsFor(row.school_id),
       });
 
       await query(

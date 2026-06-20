@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
         to:         rec.phone,
         body:       renderedBody,
         senderName: settings.senderName,
+        creds:      { username: settings.providerUsername, apiKey: settings.providerApiKey },
       });
     } catch (e: any) {
       result = { success: false, providerMessageId: null, cost: null, error: e?.message || 'provider threw' };

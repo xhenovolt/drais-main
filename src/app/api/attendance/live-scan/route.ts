@@ -5,6 +5,34 @@ import { getLearnerDeepInfo, type LearnerDeepInfo } from '@/lib/getLearnerDeepIn
 import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { getEventBus, type AttendanceEventRecordedEvent } from '@/lib/events/eventbus';
+import { getCommSettings } from '@/lib/comm/settings';
+
+// ── SMS readiness (cached 60s/school) so the popup can show a definitive
+// "SMS disabled" instead of silence when the provider isn't configured or
+// no active attendance SMS policy exists. ─────────────────────────────────
+const _smsReady = new Map<number, { v: { configured: boolean; hasAttendancePolicy: boolean }; exp: number }>();
+async function smsReadiness(schoolId: number): Promise<{ configured: boolean; hasAttendancePolicy: boolean }> {
+  const c = _smsReady.get(schoolId);
+  if (c && c.exp > Date.now()) return c.v;
+  let configured = !!(process.env.AFRICASTALKING_API_KEY || process.env.AT_API_KEY);
+  let hasAttendancePolicy = false;
+  try {
+    const s = await getCommSettings(schoolId);
+    if (s.providerUsername && s.providerApiKey) configured = true;
+  } catch { /* env fallback */ }
+  try {
+    const pol = await query(
+      `SELECT 1 FROM notification_policies
+        WHERE school_id = ? AND event_type = 'attendance.record.upserted'
+          AND channel = 'sms' AND is_active = 1 LIMIT 1`,
+      [schoolId],
+    );
+    hasAttendancePolicy = Array.isArray(pol) && (pol as any[]).length > 0;
+  } catch { /* table optional */ }
+  const v = { configured, hasAttendancePolicy };
+  _smsReady.set(schoolId, { v, exp: Date.now() + 60_000 });
+  return v;
+}
 
 /** A fuzzy-match score this confident is treated as a "likely match"
  *  for the operator — we surface the suspected learner's rich card
@@ -342,6 +370,18 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
       );
       if (Array.isArray(ob) && (ob as any[])[0]) smsStatus = (ob as any[])[0].status;
     } catch { /* outbox optional */ }
+  }
+
+  // If no outbox row exists yet, still give the operator a DEFINITIVE SMS
+  // state instead of silence: 'disabled' (SMS off / not configured / no
+  // attendance policy), 'no_phone' (guardian phone missing), or 'pending'.
+  if (!smsStatus && matched && (studentId || staffId)) {
+    try {
+      const ready = await smsReadiness(schoolId);
+      if (!ready.configured || !ready.hasAttendancePolicy) {
+        smsStatus = 'disabled';
+      }
+    } catch { /* leave null */ }
   }
 
   // Settle the concurrent deep-info read started above.

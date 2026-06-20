@@ -16,6 +16,10 @@ export interface SendArgs {
   to:          string;
   body:        string;
   senderName?: string;
+  /** Per-school provider credentials (from comm_settings). When present
+   *  these win over env vars — this is what makes SMS work for schools
+   *  that configured AT in the settings UI but have no host env vars. */
+  creds?:      { username?: string | null; apiKey?: string | null };
 }
 
 export interface SendResult {
@@ -39,13 +43,15 @@ export interface CommProvider {
 const africasTalkingSms: CommProvider = {
   name:    'africas_talking',
   channel: 'sms',
-  async send({ to, body, senderName }) {
+  async send({ to, body, senderName, creds }) {
     const normalised = normalizePhoneNumber(to);
     if (!normalised) {
       return { success: false, providerMessageId: null, cost: null, error: 'Invalid phone number' };
     }
     const senderId = (senderName && senderName.trim()) || undefined;
-    const r = await sendSMS(normalised, body, undefined, senderId);
+    // sendSMS(phone, message, recipientName?, shortCode?, creds?) — pass
+    // per-school credentials as the 5th arg (env fallback handled inside).
+    const r = await sendSMS(normalised, body, undefined, senderId, creds ?? undefined);
     return {
       success:           r.success,
       providerMessageId: r.messageId ?? null,
