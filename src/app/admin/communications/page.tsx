@@ -282,6 +282,7 @@ function SettingsPanel() {
   const [form, setForm] = useState({
     senderName: '', prefix: '', autoMode: false, defaultProvider: 'africas_talking',
     quietHoursStart: '', quietHoursEnd: '', retryAttempts: 1, retryDelaySecs: 60,
+    providerUsername: '', providerApiKey: '',
   });
 
   React.useEffect(() => {
@@ -296,6 +297,8 @@ function SettingsPanel() {
         quietHoursEnd:   s.quietHoursEnd ?? '',
         retryAttempts:   s.retryAttempts ?? 1,
         retryDelaySecs:  s.retryDelaySecs ?? 60,
+        providerUsername: s.providerUsername ?? '',
+        providerApiKey:   s.providerApiKey ?? '', // server sends '********' if set
       });
     }
   }, [data]);
@@ -350,6 +353,24 @@ function SettingsPanel() {
             )}
           </select>
         </F>
+
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Provider Credentials (Africa&apos;s Talking)</h3>
+          <F label="Username">
+            <input value={form.providerUsername}
+              onChange={e => setForm({ ...form, providerUsername: e.target.value })}
+              className={inputCls} placeholder="e.g. albayan or sandbox" autoComplete="off" />
+          </F>
+          <F label="API Key">
+            <input type="password" value={form.providerApiKey}
+              onChange={e => setForm({ ...form, providerApiKey: e.target.value })}
+              className={inputCls} placeholder={data?.settings?.hasApiKey ? '•••••••• (saved — type to replace)' : 'atsk_...'} autoComplete="off" />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Stored per school. Without it, SMS falls back to server env vars (and fails if none are set).
+              Leave blank to keep the saved key.
+            </p>
+          </F>
+        </div>
       </div>
 
       <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">

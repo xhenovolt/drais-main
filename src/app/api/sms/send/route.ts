@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendSMS, logSMSActivity } from '@/lib/africastalking';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getCommSettings } from '@/lib/comm/settings';
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,12 +34,19 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Send SMS via AFRICASTALKING SDK
+    // Per-school provider credentials (settings → env fallback).
+    const cs = await getCommSettings(session.schoolId).catch(() => null);
+    // Sender ID is OPTIONAL and never forced: use the explicit short_code from
+    // the request, else the school's configured sender_id (only if set). If
+    // neither is present we pass nothing and Africa's Talking uses its default
+    // sender — required for accounts without a registered alphanumeric ID.
+    const effectiveSender = short_code || cs?.senderName || undefined;
     const smsResult = await sendSMS(
-      phone, 
-      message, 
+      phone,
+      message,
       recipient_name,
-      short_code
+      effectiveSender,
+      { username: cs?.providerUsername, apiKey: cs?.providerApiKey },
     );
 
     // Log activity

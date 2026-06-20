@@ -19,24 +19,30 @@ export interface SMSResponse {
 /**
  * Send SMS via AFRICASTALKING SDK
  */
+export interface SmsCredentials {
+  username?: string | null;
+  apiKey?: string | null;
+}
+
 export async function sendSMS(
   phoneNumber: string,
   message: string,
   recipientName?: string,
-  shortCode?: string
+  shortCode?: string,
+  creds?: SmsCredentials,
 ): Promise<SMSResponse> {
   try {
-    // Accept either env naming convention. Historically the codebase
-    // mixed AFRICASTALKING_* (most callers) and AT_* (legacy reminder
-    // route). Both work in production now.
-    const username = process.env.AFRICASTALKING_USERNAME || process.env.AT_USERNAME;
-    const apiKey   = process.env.AFRICASTALKING_API_KEY  || process.env.AT_API_KEY;
+    // Credentials precedence: per-school settings (passed in) → env vars.
+    // This is the fix for "SMS service not configured" when AT was set up
+    // in the settings UI but no env vars exist on the host.
+    const username = creds?.username || process.env.AFRICASTALKING_USERNAME || process.env.AT_USERNAME;
+    const apiKey   = creds?.apiKey   || process.env.AFRICASTALKING_API_KEY  || process.env.AT_API_KEY;
 
     if (!username || !apiKey) {
-      console.warn('AFRICASTALKING credentials not configured. SMS sending disabled.');
+      console.warn('AFRICASTALKING credentials not configured (neither settings nor env). SMS sending disabled.');
       return {
         success: false,
-        error: 'SMS service not configured'
+        error: 'SMS service not configured — add the provider username & API key in Communication settings.',
       };
     }
 

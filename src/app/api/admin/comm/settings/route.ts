@@ -13,7 +13,13 @@ export async function GET(req: NextRequest) {
 
   const settings  = await getCommSettings(session.schoolId);
   const providers = listProviders();
-  return NextResponse.json({ success: true, settings, providers });
+  // Never return the raw API key to the client; send a mask if one is set.
+  const masked = {
+    ...settings,
+    providerApiKey: settings.providerApiKey ? '********' : null,
+    hasApiKey: !!settings.providerApiKey,
+  };
+  return NextResponse.json({ success: true, settings: masked, providers });
 }
 
 export async function PUT(req: NextRequest) {

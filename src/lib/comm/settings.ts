@@ -15,6 +15,8 @@ export interface CommSettings {
   quietHoursEnd:    string | null;
   retryAttempts:    number;
   retryDelaySecs:   number;
+  providerUsername: string | null;
+  providerApiKey:   string | null;
 }
 
 interface Raw {
@@ -27,6 +29,8 @@ interface Raw {
   quiet_hours_end:    string | null;
   retry_attempts:     number;
   retry_delay_secs:   number;
+  provider_username?: string | null;
+  provider_api_key?:  string | null;
 }
 
 function toSettings(r: Raw): CommSettings {
@@ -40,6 +44,8 @@ function toSettings(r: Raw): CommSettings {
     quietHoursEnd:    r.quiet_hours_end,
     retryAttempts:    r.retry_attempts,
     retryDelaySecs:   r.retry_delay_secs,
+    providerUsername: r.provider_username ?? null,
+    providerApiKey:   r.provider_api_key ?? null,
   };
 }
 
@@ -79,6 +85,11 @@ export async function updateCommSettings(
   if (patch.quietHoursEnd !== undefined)   { fields.push('quiet_hours_end = ?');    params.push(patch.quietHoursEnd); }
   if (patch.retryAttempts !== undefined)   { fields.push('retry_attempts = ?');     params.push(patch.retryAttempts); }
   if (patch.retryDelaySecs !== undefined)  { fields.push('retry_delay_secs = ?');   params.push(patch.retryDelaySecs); }
+  if (patch.providerUsername !== undefined){ fields.push('provider_username = ?');   params.push(patch.providerUsername || null); }
+  // Keep an existing API key if the UI sends a blank (masked) value.
+  if (patch.providerApiKey !== undefined && patch.providerApiKey !== '' && patch.providerApiKey !== '********') {
+    fields.push('provider_api_key = ?'); params.push(patch.providerApiKey);
+  }
 
   if (fields.length === 0) return getCommSettings(schoolId);
 
