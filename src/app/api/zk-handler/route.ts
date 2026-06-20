@@ -23,7 +23,7 @@ import { publishEvent } from '@/lib/events/eventbus';
 import { upsertEnrollment, decideNameMatchAction } from '@/lib/biometric/enrollment-service';
 import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
 import { completeAdmsInventoryRun, refreshLiveCountFromDirectory } from '@/lib/biometric/inventory-service';
-import { drainOutboxOpportunistically } from '@/lib/notifications/drain';
+import { drainOutboxOpportunistically, drainNotificationOutbox } from '@/lib/notifications/drain';
 import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
 
 /**
@@ -1632,6 +1632,7 @@ export async function POST(req: NextRequest) {
       const timePolicy = await resolveTimePolicy(schoolId);
       const deviceCtx = await getDeviceTimeContext(sn);
       const deviceClockOffset = deviceCtx.clockOffsetSeconds;
+      let anyMatchedEvaluated = false; // did any matched punch reach the engine?
 
       for (let i = 0; i < records.length; i++) {
         const record = records[i];
@@ -1794,11 +1795,15 @@ export async function POST(req: NextRequest) {
               // legacy-path resolutions too (resolve.ts), so EVERY
               // matched punch reaches the classification engine.
               if (rawEventId && matched && resolution.personId) {
-                evaluatePunch(rawEventId).catch(err =>
-                  zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', {
-                    rawEventId, error: String(err),
-                  }),
-                );
+                // AWAIT so the day evaluation + notification enqueue finish
+                // within this request (serverless can freeze a detached
+                // promise before the outbox row is written → no SMS).
+                try {
+                  await evaluatePunch(rawEventId);
+                  anyMatchedEvaluated = true;
+                } catch (err) {
+                  zkLog('warn', 'PHASE3_ENGINE_EVAL_FAILED', { rawEventId, error: String(err) });
+                }
               }
             } catch (err) {
               zkLog('warn', 'PHASE3_RAW_EVENT_FAILED', {
@@ -1848,6 +1853,12 @@ export async function POST(req: NextRequest) {
 
           zkLog('error', 'PUNCH_SAVE_FAILED', { deviceSn: sn, userId, checkTime: rawCheckTime, error: String(err) });
         }
+      }
+
+      // Send queued attendance SMS immediately so the guardian is notified
+      // AS THE PUNCH HAPPENS (the heartbeat drain remains the backup).
+      if (anyMatchedEvaluated) {
+        try { await drainNotificationOutbox(); } catch { /* backup: heartbeat drain */ }
       }
     }
 

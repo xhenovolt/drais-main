@@ -83,7 +83,7 @@ interface RecipientResolution {
   name: string;
 }
 
-async function fanoutAttendanceRecord(
+export async function fanoutAttendanceRecord(
   event: AttendanceRecordUpsertedEvent,
 ): Promise<void> {
   await ensureNotificationSchema();

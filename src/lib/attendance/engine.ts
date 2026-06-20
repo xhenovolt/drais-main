@@ -48,7 +48,7 @@ import { publishEvent } from '@/lib/events/eventbus';
 // attendance.record.upserted, matches policies, and enqueues
 // notification_outbox rows. NO synchronous external calls happen on
 // the engine's emit path — the drainer cron is what actually sends.
-import { installNotificationFanout } from '@/lib/notifications/fanout';
+import { installNotificationFanout, fanoutAttendanceRecord } from '@/lib/notifications/fanout';
 installNotificationFanout();
 
 export type AttendanceSource = 'zkteco_push' | 'dahua_pull' | 'manual' | 'relay';
@@ -309,7 +309,7 @@ export async function evaluateDay(
   //    The fanout subscriber matches policies and enqueues outbox
   //    rows. publishEvent never throws — listener errors are swallowed
   //    by the bus, so the engine return is unaffected.
-  publishEvent('attendance.record.upserted', {
+  const recordEvent = {
     schoolId,
     personId,
     roleType,
@@ -322,7 +322,15 @@ export async function evaluateDay(
     earlyMinutes: verdict.earlyMinutes,
     totalMinutes: verdict.totalMinutes,
     ruleId: rule.id ?? null,
-  });
+  };
+  publishEvent('attendance.record.upserted', recordEvent);
+  // Also enqueue notifications DIRECTLY (awaited) — the bus listener is
+  // fire-and-forget and can be killed by a serverless freeze before the
+  // outbox row is written. fanoutAttendanceRecord is idempotent (INSERT
+  // IGNORE on dedup_key), so the duplicate bus call is harmless.
+  try { await fanoutAttendanceRecord(recordEvent); } catch (err) {
+    console.warn('[attendance-engine] direct fanout failed', err);
+  }
 }
 
 async function loadPreviousStatus(
