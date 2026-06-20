@@ -380,6 +380,18 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
       const ready = await smsReadiness(schoolId);
       if (!ready.configured || !ready.hasAttendancePolicy) {
         smsStatus = 'disabled';
+      } else if (studentId) {
+        // Configured + policy active: the only reason no SMS would go out is
+        // a missing guardian phone — surface that explicitly.
+        const g = await query(
+          `SELECT 1 FROM students s
+             JOIN student_contacts sc ON sc.student_id = s.id
+             JOIN contacts con ON con.id = sc.contact_id
+             JOIN people cp ON cp.id = con.person_id
+            WHERE s.id = ? AND cp.phone IS NOT NULL AND cp.phone <> '' LIMIT 1`,
+          [studentId],
+        );
+        smsStatus = (Array.isArray(g) && (g as any[]).length > 0) ? 'pending' : 'no_phone';
       }
     } catch { /* leave null */ }
   }

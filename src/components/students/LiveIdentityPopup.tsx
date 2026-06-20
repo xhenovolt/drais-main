@@ -266,7 +266,7 @@ function smsLineHtml(scan: ScanEvent, showSms: boolean): string {
   const s = scan.sms_status;
   let txt: string, color: string;
   if (!scan.matched) { txt = 'SMS: not sent — identity unresolved'; color = '#9ca3af'; }
-  else if (s === 'queued' || s === 'sending') { txt = '📨 SMS: queued to guardian'; color = '#2563eb'; }
+  else if (s === 'queued' || s === 'sending' || s === 'pending') { txt = '📨 SMS: sending to guardian'; color = '#2563eb'; }
   else if (s === 'delivered' || s === 'sent') { txt = '✅ SMS sent to guardian'; color = '#059669'; }
   else if (s === 'failed') { txt = '⚠ SMS: failed (will retry)'; color = '#dc2626'; }
   else if (s === 'disabled') { txt = '🔕 SMS service disabled — set it up in Communication settings'; color = '#d97706'; }

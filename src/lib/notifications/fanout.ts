@@ -200,7 +200,9 @@ async function resolveSelf(personId: number): Promise<RecipientResolution[]> {
 }
 
 async function resolveGuardian(studentPersonId: number): Promise<RecipientResolution[]> {
-  // students.person_id → students.id → student_contacts → contacts → people
+  // Prefer the PRIMARY contact, but fall back to ANY contact that has a
+  // phone — requiring is_primary=1 silently dropped guardians whose
+  // contact wasn't flagged primary (the common case), so no SMS was sent.
   const rows = (await query(
     `SELECT cp.first_name, cp.last_name, cp.phone, cp.email
        FROM students s
@@ -208,18 +210,27 @@ async function resolveGuardian(studentPersonId: number): Promise<RecipientResolu
        JOIN contacts con        ON con.id = sc.contact_id
        JOIN people cp           ON cp.id = con.person_id
       WHERE s.person_id = ?
-        AND sc.is_primary = 1
+        AND cp.phone IS NOT NULL AND cp.phone <> ''
+      ORDER BY sc.is_primary DESC, sc.id ASC
       LIMIT 5`,
     [studentPersonId],
-  )) as Array<{
-    first_name: string; last_name: string;
-    phone: string | null; email: string | null;
-  }>;
-  return rows.map(r => ({
-    phone: r.phone ?? null,
-    email: r.email ?? null,
-    name: `${r.first_name} ${r.last_name}`.trim(),
-  }));
+  )) as Array<{ first_name: string; last_name: string; phone: string | null; email: string | null }>;
+  if (rows.length > 0) {
+    return rows.map(r => ({ phone: r.phone ?? null, email: r.email ?? null, name: `${r.first_name} ${r.last_name}`.trim() }));
+  }
+
+  // Fallback: legacy parents table (student_parents → parents.phone).
+  const pr = (await query(
+    `SELECT pa.name, pa.phone, pa.email
+       FROM students s
+       JOIN student_parents sp ON sp.student_id = s.id
+       JOIN parents pa         ON pa.id = sp.parent_id
+      WHERE s.person_id = ?
+        AND pa.phone IS NOT NULL AND pa.phone <> ''
+      LIMIT 5`,
+    [studentPersonId],
+  ).catch(() => [] as any[])) as Array<{ name: string; phone: string | null; email: string | null }>;
+  return pr.map(r => ({ phone: r.phone ?? null, email: r.email ?? null, name: r.name ?? 'Guardian' }));
 }
 
 async function resolveSchoolBroadcast(
