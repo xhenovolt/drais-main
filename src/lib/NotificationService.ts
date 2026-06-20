@@ -260,8 +260,8 @@ export class NotificationService {
         FROM user_notifications un
         WHERE un.user_id = ? AND un.is_read = 0 AND un.is_archived = 0
       `;
-      const params = [userId];
-      
+      const params: any[] = [userId];
+
       if (schoolId) {
         sql += ' AND un.school_id = ?';
         params.push(schoolId);
@@ -315,8 +315,8 @@ export class NotificationService {
         WHERE un.user_id = ? AND n.deleted_at IS NULL
       `;
       
-      const params = [userId];
-      
+      const params: any[] = [userId];
+
       if (schoolId) {
         sql += ' AND un.school_id = ?';
         params.push(schoolId);
@@ -335,9 +335,12 @@ export class NotificationService {
         params.push(cursor);
       }
       
-      sql += ' ORDER BY n.created_at DESC LIMIT ?';
-      params.push(limit + 1); // Get one extra to determine if there are more
-      
+      // Inline a clamped integer LIMIT. mysql2 prepared statements (.execute)
+      // reject `LIMIT ?` with "Incorrect arguments to LIMIT", so we never bind
+      // it. Value is a sanitized Number → no injection risk.
+      const safeLimit = Math.max(1, Math.min(200, Number(limit) || 25)) + 1; // +1 to detect "hasMore"
+      sql += ` ORDER BY n.created_at DESC LIMIT ${safeLimit}`;
+
       const [rows] = await connection.execute(sql, params);
       const notifications = Array.isArray(rows) ? rows : [];
       
@@ -417,15 +420,16 @@ export class NotificationService {
       connection = await getConnection();
       
       // Get pending notifications
+      const safeBatch = Math.max(1, Math.min(500, Number(batchSize) || 50));
       const [pending] = await connection.execute(`
         SELECT id, notification_id, recipient_user_id, channel, attempts, payload
         FROM notification_queue
-        WHERE status = 'pending' 
+        WHERE status = 'pending'
           AND (next_attempt_at IS NULL OR next_attempt_at <= CURRENT_TIMESTAMP)
           AND attempts < max_attempts
         ORDER BY created_at ASC
-        LIMIT ?
-      `, [batchSize]);
+        LIMIT ${safeBatch}
+      `, []);
 
       let processed = 0;
       let failed = 0;

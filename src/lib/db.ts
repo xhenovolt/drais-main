@@ -127,15 +127,29 @@ function sanitizeParams(params: any[]): any[] {
   return params.map(p => (p === undefined ? null : p));
 }
 
+/**
+ * TiDB (and MySQL) reject `LIMIT ?` / `OFFSET ?` under the prepared-statement
+ * protocol (.execute) with "Incorrect arguments to LIMIT" — the bound value
+ * is treated as a string. The text protocol (.query) handles them fine and
+ * still escapes parameters safely. So route only those queries to .query().
+ */
+const LIMIT_OFFSET_PLACEHOLDER = /\b(LIMIT|OFFSET)\s+\?/i;
+export function usesLimitPlaceholder(sql: string): boolean {
+  return LIMIT_OFFSET_PLACEHOLDER.test(sql);
+}
+
 export async function query(sql: string, params: any[] = []): Promise<any[]> {
   const MAX_RETRIES = 3;
   let lastError: unknown;
   const safeParams = sanitizeParams(params);
+  const useTextProtocol = usesLimitPlaceholder(sql);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const p = await getPool();
-      const [rows] = await p.execute(sql, safeParams);
+      const [rows] = useTextProtocol
+        ? await p.query(sql, safeParams)
+        : await p.execute(sql, safeParams);
       return rows as any[];
     } catch (err: any) {
       lastError = err;
@@ -161,10 +175,14 @@ export async function getConnection(): Promise<mysql.Connection> {
     // Alias end() → release() so callers don't destroy the socket
     (conn as any).end = (): Promise<void> =>
       new Promise<void>((resolve) => { conn.release(); resolve(); });
-    // Wrap execute to sanitize params (undefined → null)
+    // Wrap execute to sanitize params (undefined → null) and route
+    // LIMIT ?/OFFSET ? to the text protocol (.query), which TiDB accepts.
     const origExecute = conn.execute.bind(conn);
-    (conn as any).execute = (sql: string, params?: any[]) =>
-      origExecute(sql, params ? sanitizeParams(params) : params);
+    const origQuery = conn.query.bind(conn);
+    (conn as any).execute = (sql: string, params?: any[]) => {
+      const safe = params ? sanitizeParams(params) : params;
+      return usesLimitPlaceholder(sql) ? origQuery(sql, safe) : origExecute(sql, safe);
+    };
     return conn as unknown as mysql.Connection;
   } catch (error) {
     console.error('[Database] getConnection error:', error);
