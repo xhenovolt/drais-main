@@ -3,13 +3,14 @@ import { requirePlatformAuth, finalizeAudit, ok, fail, Errors, rateLimitHeaders 
 import { runMutation } from '@/lib/platform/withMutation';
 import { query } from '@/lib/db';
 import { emitPlatformEvent } from '@/lib/platform/events';
+import { classifyPlan } from '@/lib/subscription';
 
 const ALLOWED_STATUS = ['active', 'inactive', 'trial', 'expired'];
 const ALLOWED_PLANS  = ['none', 'trial', 'monthly', 'yearly'];
 
 async function loadSchool(externalId: string) {
   const rows = (await query(
-    `SELECT id, external_id, subscription_status, subscription_plan,
+    `SELECT id, external_id, subscription_status, subscription_plan, subscription_type,
             trial_start_date, trial_end_date, subscription_start_date, subscription_end_date
        FROM schools
       WHERE external_id = ? AND deleted_at IS NULL LIMIT 1`,
@@ -27,6 +28,8 @@ function shape(r: any) {
     trial_end_date:          r.trial_end_date,
     subscription_start_date: r.subscription_start_date,
     subscription_end_date:   r.subscription_end_date,
+    // Explicit trial-vs-paid classification for Jeton.
+    plan: classifyPlan(r),
   };
 }
 

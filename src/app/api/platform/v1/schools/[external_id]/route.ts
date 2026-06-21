@@ -3,12 +3,13 @@ import { requirePlatformAuth, finalizeAudit, ok, fail, Errors, rateLimitHeaders 
 import { runMutation } from '@/lib/platform/withMutation';
 import { query } from '@/lib/db';
 import { emitPlatformEvent } from '@/lib/platform/events';
+import { classifyPlan } from '@/lib/subscription';
 
 async function loadSchool(externalId: string) {
   const rows = (await query(
     `SELECT id, external_id, name, email, phone, status, subscription_status, subscription_plan,
-            trial_start_date, trial_end_date, subscription_start_date, subscription_end_date,
-            created_at, updated_at
+            subscription_type, trial_start_date, trial_end_date, subscription_start_date,
+            subscription_end_date, created_at, updated_at
        FROM schools
       WHERE external_id = ? AND deleted_at IS NULL
       LIMIT 1`,
@@ -30,6 +31,7 @@ function publicShape(r: any) {
     trial_end_date:          r.trial_end_date,
     subscription_start_date: r.subscription_start_date,
     subscription_end_date:   r.subscription_end_date,
+    plan:                    classifyPlan(r),
     created_at:              r.created_at,
     updated_at:              r.updated_at,
   };

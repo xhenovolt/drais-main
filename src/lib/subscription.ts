@@ -39,6 +39,66 @@ export interface SubscriptionInfo {
 /** Warn "out loud" once a subscription/trial is this close to ending. */
 export const EXPIRING_SOON_DAYS = 14;
 
+/** How a school is paying: free trial vs a real paid plan. */
+export type PlanKind = 'trial' | 'paid' | 'none';
+
+export interface PlanClassification {
+  plan_kind:      PlanKind;     // trial | paid | none
+  is_trial:       boolean;      // convenience flag
+  label:          string;       // human label e.g. "Free trial", "Paid (yearly)"
+  status:         string;       // raw subscription_status
+  expires_at:     string | null;// ISO date access ends (trial_end or subscription_end)
+  days_remaining: number | null;// null = open-ended or already expired
+  expiring_soon:  boolean;
+  expired:        boolean;
+}
+
+/**
+ * THE canonical trial-vs-paid classifier. Pure (no DB) so the platform API can
+ * reuse it on an already-fetched school row. Business rule (per Xhenvolt):
+ * a free trial is a one-month grant — so `trial` status OR a monthly/trial
+ * plan-type is treated as FREE TRIAL; yearly (or any longer paid term) is PAID.
+ */
+export function classifyPlan(row: {
+  subscription_status?: string | null;
+  subscription_type?:   string | null;
+  subscription_plan?:   string | null;
+  trial_end_date?:      string | Date | null;
+  subscription_end_date?: string | Date | null;
+}, now: Date = new Date()): PlanClassification {
+  const status = String(row.subscription_status || '').toLowerCase();
+  const type   = String(row.subscription_type || row.subscription_plan || '').toLowerCase();
+  const trialEnd = row.trial_end_date ? new Date(row.trial_end_date) : null;
+  const subEnd   = row.subscription_end_date ? new Date(row.subscription_end_date) : null;
+
+  // One-month / trial-type / trial-status ⇒ free trial. Yearly (or paid term) ⇒ paid.
+  const is_trial = status === 'trial' || type === 'trial' || type === 'monthly';
+  let plan_kind: PlanKind = 'none';
+  if (is_trial) plan_kind = 'trial';
+  else if (type === 'yearly' || (subEnd && (status === 'active' || status === 'expired'))) plan_kind = 'paid';
+
+  const endDate = is_trial ? (trialEnd || subEnd) : (subEnd || trialEnd);
+  const expired =
+    status === 'expired' || status === 'inactive' ||
+    (endDate != null && endDate.getTime() < now.getTime());
+
+  const days_remaining =
+    endDate && !expired ? Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / 86_400_000)) : null;
+
+  const label =
+    plan_kind === 'trial' ? 'Free trial'
+    : plan_kind === 'paid' ? `Paid${type ? ` (${type})` : ''}`
+    : 'No plan';
+
+  return {
+    plan_kind, is_trial, label, status,
+    expires_at: endDate ? endDate.toISOString() : null,
+    days_remaining,
+    expiring_soon: !expired && days_remaining != null && days_remaining <= EXPIRING_SOON_DAYS,
+    expired,
+  };
+}
+
 export interface SubscriptionCheckResult {
   allowed: boolean;
   info: SubscriptionInfo | null;

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { requirePlatformAuth, finalizeAudit, ok, fail, Errors, rateLimitHeaders } from '@/lib/platform/auth';
 import { query } from '@/lib/db';
+import { classifyPlan } from '@/lib/subscription';
 
 const MAX_PAGE = 100;
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const rows = (await query(
     `SELECT id, external_id, name, email, phone, status, subscription_status, subscription_plan,
-            created_at, updated_at
+            subscription_type, trial_end_date, subscription_end_date, created_at, updated_at
        FROM schools
       WHERE ${where.join(' AND ')}
       ORDER BY id DESC
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
       status:              r.status,
       subscription_status: r.subscription_status,
       subscription_plan:   r.subscription_plan,
+      plan:                classifyPlan(r),
       created_at:          r.created_at,
       updated_at:          r.updated_at,
     })),
