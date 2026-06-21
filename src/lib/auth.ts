@@ -46,6 +46,9 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
         stf.id            AS staff_id,
         u.must_change_password,
         sc.status         AS school_status,
+        sc.subscription_status   AS subscription_status,
+        sc.subscription_end_date AS subscription_end_date,
+        sc.trial_end_date        AS trial_end_date,
         EXISTS(
           /* Defense in depth: a user is super-admin if ANY role they hold
              has is_super_admin=TRUE, slug='super_admin', or name matches
@@ -87,6 +90,25 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
     if (s.school_status === 'suspended') {
       console.warn(`[Auth] SCHOOL_SUSPENDED: school_id=${s.school_id} blocked — all requests rejected until reactivated`);
       return null;
+    }
+
+    // Block expired subscriptions on every protected request. Open-ended
+    // active accounts (no end date) are never blocked here. Treating a blocked
+    // session like an invalid one sends the user to /login, which states why.
+    {
+      const now = Date.now();
+      const subEnd   = s.subscription_end_date ? new Date(s.subscription_end_date).getTime() : null;
+      const trialEnd = s.trial_end_date ? new Date(s.trial_end_date).getTime() : null;
+      const ss = s.subscription_status;
+      const expired =
+        ss === 'expired' ||
+        ss === 'inactive' ||
+        (ss === 'active' && subEnd != null && subEnd < now) ||
+        (ss === 'trial'  && trialEnd != null && trialEnd < now);
+      if (expired) {
+        console.warn(`[Auth] SUBSCRIPTION_EXPIRED: school_id=${s.school_id} blocked — renew to restore access`);
+        return null;
+      }
     }
 
     // Update last_activity_at in the background — non-blocking, never throws

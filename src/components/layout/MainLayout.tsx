@@ -5,6 +5,7 @@ import { Topbar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { MobileDrawer } from './MobileDrawer';
+import { SubscriptionBanner } from './SubscriptionBanner';
 import { useRouteValidator } from '@/hooks/useRouteValidator';
 
 interface MainLayoutProps {
@@ -52,6 +53,7 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
 
         {/* CONTENT — Scrollable, padded bottom on mobile for BottomNav */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 lg:pt-16">
+          <SubscriptionBanner />
           {children}
         </main>
       </div>

@@ -216,6 +216,8 @@ export async function GET(request: NextRequest) {
         subscriptionEndDate: subscriptionInfo.subscriptionEndDate,
         subscriptionDaysRemaining: subscriptionInfo.subscriptionDaysRemaining,
         hasAccess: subscriptionInfo.hasAccess,
+        daysUntilExpiry: subscriptionInfo.daysUntilExpiry,
+        expiringSoon: subscriptionInfo.expiringSoon,
       } : null,
       setupComplete,
       roles: roles.map((r: any) => ({

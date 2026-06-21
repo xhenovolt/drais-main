@@ -170,6 +170,31 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        // Block expired subscriptions at login — clear, specific message.
+        const sub = await getSubscriptionInfo(Number(school.id));
+        if (sub && !sub.hasAccess) {
+          console.warn(`[Auth/Login] Blocked login for expired subscription — school #${school.id}, user ${user.email}`);
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                message: 'Your DRAIS subscription has expired. Please renew to regain access — contact Xhenvolt or your administrator.',
+                code: 'SUBSCRIPTION_EXPIRED',
+              },
+              subscription: {
+                status: sub.subscriptionStatus,
+                subscriptionEndDate: sub.subscriptionEndDate,
+                trialEndDate: sub.trialEndDate,
+              },
+            },
+            { status: 402 }
+          );
+        }
+        // Stash an "expiring soon" warning to surface after login.
+        if (sub?.expiringSoon) {
+          (school as any).__expiringSoon = { daysUntilExpiry: sub.daysUntilExpiry, endDate: sub.subscriptionEndDate || sub.trialEndDate };
+        }
+
         setupComplete = true;
       }
     }
@@ -250,11 +275,19 @@ export async function POST(request: NextRequest) {
     };
 
     // Create response with session cookie
+    const expiringSoon = (school as any)?.__expiringSoon || null;
     const response = NextResponse.json({
       success: true,
       user: userData,
       setupComplete,
       mustChangePassword,
+      ...(expiringSoon ? {
+        warning: {
+          code: 'SUBSCRIPTION_EXPIRING',
+          days: expiringSoon.daysUntilExpiry,
+          message: `Your DRAIS subscription expires in ${expiringSoon.daysUntilExpiry} day(s). Please renew to avoid interruption.`,
+        },
+      } : {}),
     });
 
     // Set HTTP-only secure session cookie

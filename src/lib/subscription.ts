@@ -30,7 +30,14 @@ export interface SubscriptionInfo {
   isTrialExpired: boolean;
   isSubscriptionExpired: boolean;
   hasAccess: boolean;
+  /** Days until access ends (trial or paid, whichever applies); null if open-ended/expired. */
+  daysUntilExpiry: number | null;
+  /** True when access is still valid but ends within EXPIRING_SOON_DAYS. */
+  expiringSoon: boolean;
 }
+
+/** Warn "out loud" once a subscription/trial is this close to ending. */
+export const EXPIRING_SOON_DAYS = 14;
 
 export interface SubscriptionCheckResult {
   allowed: boolean;
@@ -59,17 +66,25 @@ export async function getSubscriptionInfo(schoolId: number): Promise<Subscriptio
   // Select only core columns that exist in the current schema.
   // Extended columns (trial/subscription dates, subscription_type) are optional
   // — they may not yet exist in older deployments so we handle their absence gracefully.
-  const rows = await query(
-    `SELECT
-       id,
-       name,
-       subscription_status,
-       subscription_plan
-     FROM schools
-     WHERE id = ? AND deleted_at IS NULL
-     LIMIT 1`,
-    [schoolId]
-  );
+  // Read the date columns too — without them expiry can NEVER be detected.
+  // Fall back to the minimal select on older schemas that lack these columns.
+  let rows: any;
+  try {
+    rows = await query(
+      `SELECT id, name, subscription_status, subscription_plan, subscription_type,
+              trial_start_date, trial_end_date, subscription_start_date, subscription_end_date
+         FROM schools
+        WHERE id = ? AND deleted_at IS NULL
+        LIMIT 1`,
+      [schoolId]
+    );
+  } catch {
+    rows = await query(
+      `SELECT id, name, subscription_status, subscription_plan
+         FROM schools WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+      [schoolId]
+    );
+  }
 
   if (!rows || rows.length === 0) return null;
   const row = rows[0] as any;
@@ -121,6 +136,13 @@ export async function getSubscriptionInfo(schoolId: number): Promise<Subscriptio
 
   const hasAccess = status === 'active' || status === 'trial';
 
+  // Whichever clock applies (trial vs paid). Null = open-ended or already gone.
+  const daysUntilExpiry =
+    trialDaysRemaining != null ? trialDaysRemaining
+    : subscriptionDaysRemaining != null ? subscriptionDaysRemaining
+    : null;
+  const expiringSoon = hasAccess && daysUntilExpiry != null && daysUntilExpiry <= EXPIRING_SOON_DAYS;
+
   return {
     schoolId:                   Number(row.id),
     schoolName:                 row.name,
@@ -135,6 +157,8 @@ export async function getSubscriptionInfo(schoolId: number): Promise<Subscriptio
     isTrialExpired,
     isSubscriptionExpired,
     hasAccess,
+    daysUntilExpiry,
+    expiringSoon,
   };
 }
 
