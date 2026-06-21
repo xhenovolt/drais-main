@@ -11,42 +11,38 @@
  *
  * Bumping a higher segment resets the lower ones (1.4.7 --feat--> 1.5.0).
  *
- * Type resolution order:
- *   1. BUMP_TYPE env  (major|minor|patch)  — explicit override
- *   2. the commit message (BUMP_MSG env, else $GIT_DIR/COMMIT_EDITMSG)
+ * Type resolution:
+ *   1. BUMP_TYPE env  (major|minor|patch)  — explicit, reliable
+ *   2. BUMP_MSG  env  (a conventional-commit subject) — parsed
  *   3. default → patch
+ *
+ * NOTE: we deliberately do NOT read $GIT_DIR/COMMIT_EDITMSG in pre-commit.
+ * For `git commit -m`, that file still holds the PREVIOUS commit's message
+ * at pre-commit time, so parsing it misclassifies by one commit. Pass
+ * BUMP_TYPE (e.g. `BUMP_TYPE=minor git commit …`) for feat/major; the safe
+ * default is patch.
  *
  * Migration: the old odometer format "0.0.0101" is detected and reset to
  * the clean semver baseline "1.0.0" on the first run (no bump that run).
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const pkgPath = path.join(root, 'package.json');
 const original = readFileSync(pkgPath, 'utf8');
 
-function commitMessage() {
-  if (process.env.BUMP_MSG) return process.env.BUMP_MSG;
-  try {
-    const gitDir = execSync('git rev-parse --git-dir', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-    const p = path.isAbsolute(gitDir) ? path.join(gitDir, 'COMMIT_EDITMSG') : path.join(root, gitDir, 'COMMIT_EDITMSG');
-    if (existsSync(p)) return readFileSync(p, 'utf8');
-  } catch { /* no message available */ }
-  return '';
-}
-
 function resolveType() {
   const env = (process.env.BUMP_TYPE || '').toLowerCase();
   if (['major', 'minor', 'patch'].includes(env)) return env;
-  const msg = commitMessage();
-  const subject = msg.split('\n')[0].trim();
-  if (/^\w+(\([^)]*\))?!:/.test(subject) || /BREAKING CHANGE/.test(msg)) return 'major';
-  if (/^feat(\([^)]*\))?:/i.test(subject)) return 'minor';
-  return 'patch'; // fix:, perf:, chore:, docs:, refactor:, or untyped
+  const subject = (process.env.BUMP_MSG || '').split('\n')[0].trim();
+  if (subject) {
+    if (/^\w+(\([^)]*\))?!:/.test(subject) || /BREAKING CHANGE/.test(process.env.BUMP_MSG || '')) return 'major';
+    if (/^feat(\([^)]*\))?:/i.test(subject)) return 'minor';
+  }
+  return 'patch'; // safe default
 }
 
 const re = /"version"\s*:\s*"([^"]+)"/;
