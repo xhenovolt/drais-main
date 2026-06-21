@@ -27,10 +27,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stud
       [schoolId, studentId],
     ) as Promise<any[]>, [{ avg_score: null, graded: 0 }]),
     safe(query(
-      `SELECT COUNT(*) AS total, SUM(status IN ('present','late')) AS present
-         FROM daily_attendance
-        WHERE school_id = ? AND person_type = 'student' AND person_id = ?
-          AND attendance_date >= DATE_SUB(CURDATE(), INTERVAL 120 DAY)`,
+      `SELECT COUNT(*) AS total, SUM(ar.status IN ('present','late')) AS present
+         FROM attendance_records ar
+         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id
+        WHERE ar.school_id = ? AND ar.role_type = 'student' AND s.id = ?
+          AND ar.status NOT IN ('weekend','holiday')
+          AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL 120 DAY)`,
       [schoolId, studentId],
     ) as Promise<any[]>, [{ total: 0, present: 0 }]),
     safe(query(
