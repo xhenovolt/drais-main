@@ -95,13 +95,18 @@ export async function findMatchableLearners(rawPhone: string): Promise<Matchable
   return out;
 }
 
-/** Whether a school auto-approves OTP-matched links (else they wait for staff). */
+/**
+ * Whether a school auto-approves OTP-matched links. Default ON: if the parent's
+ * OTP-verified phone is on the learner's on-file contact record, that IS the
+ * credential — they get instant, school-scoped access with no staff step. A
+ * school can opt INTO manual approval by setting parent_link_auto_approve=false.
+ */
 async function schoolAutoApproves(schoolId: number): Promise<boolean> {
   const rows = (await query(
     `SELECT value_text FROM school_settings WHERE school_id = ? AND key_name = 'parent_link_auto_approve' LIMIT 1`,
     [schoolId],
   )) as any[];
-  return rows.length ? String(rows[0].value_text).toLowerCase() === 'true' : false;
+  return rows.length ? String(rows[0].value_text).toLowerCase() !== 'false' : true;
 }
 
 export interface ClaimResult {
