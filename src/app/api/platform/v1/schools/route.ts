@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   if (search) { where.push('(name LIKE ? OR email LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
 
   const rows = (await query(
-    `SELECT id AS external_id, name, email, phone, status, subscription_status, subscription_plan,
+    `SELECT id, external_id, name, email, phone, status, subscription_status, subscription_plan,
             created_at, updated_at
        FROM schools
       WHERE ${where.join(' AND ')}

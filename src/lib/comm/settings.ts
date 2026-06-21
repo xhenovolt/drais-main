@@ -17,6 +17,8 @@ export interface CommSettings {
   retryDelaySecs:   number;
   providerUsername: string | null;
   providerApiKey:   string | null;
+  /** Hard per-school SMS kill-switch (platform/Jeton controlled). Default on. */
+  smsEnabled:       boolean;
 }
 
 interface Raw {
@@ -31,6 +33,7 @@ interface Raw {
   retry_delay_secs:   number;
   provider_username?: string | null;
   provider_api_key?:  string | null;
+  sms_enabled?:       number;
 }
 
 function toSettings(r: Raw): CommSettings {
@@ -46,6 +49,7 @@ function toSettings(r: Raw): CommSettings {
     retryDelaySecs:   r.retry_delay_secs,
     providerUsername: r.provider_username ?? null,
     providerApiKey:   r.provider_api_key ?? null,
+    smsEnabled:       r.sms_enabled === undefined || r.sms_enabled === null ? true : r.sms_enabled === 1,
   };
 }
 
@@ -80,6 +84,7 @@ export async function updateCommSettings(
   if (patch.senderName !== undefined)      { fields.push('sender_name = ?');        params.push(patch.senderName); }
   if (patch.prefix !== undefined)          { fields.push('prefix = ?');             params.push(patch.prefix); }
   if (patch.autoMode !== undefined)        { fields.push('auto_mode = ?');          params.push(patch.autoMode ? 1 : 0); }
+  if (patch.smsEnabled !== undefined)      { fields.push('sms_enabled = ?');        params.push(patch.smsEnabled ? 1 : 0); }
   if (patch.defaultProvider !== undefined) { fields.push('default_provider = ?');   params.push(patch.defaultProvider); }
   if (patch.quietHoursStart !== undefined) { fields.push('quiet_hours_start = ?');  params.push(patch.quietHoursStart); }
   if (patch.quietHoursEnd !== undefined)   { fields.push('quiet_hours_end = ?');    params.push(patch.quietHoursEnd); }

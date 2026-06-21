@@ -9,6 +9,10 @@ export const PLATFORM_SCOPES = [
   'webhooks:manage',
   'audit:read',
   'health:read',
+  // Additive post-freeze (v1, non-breaking): staff directory + feature control.
+  'staff:read',
+  'features:read',
+  'features:write',
 ] as const;
 
 export type PlatformScope = (typeof PLATFORM_SCOPES)[number];

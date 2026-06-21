@@ -78,13 +78,13 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
   )) as OutboxRow[];
 
   // Per-school credential cache for this drain run (avoid a DB read per row).
-  const credsCache = new Map<number, { username: string | null; apiKey: string | null }>();
+  const credsCache = new Map<number, { username: string | null; apiKey: string | null; smsEnabled: boolean }>();
   const credsFor = async (schoolId: number) => {
     if (credsCache.has(schoolId)) return credsCache.get(schoolId)!;
-    let c = { username: null as string | null, apiKey: null as string | null };
+    let c = { username: null as string | null, apiKey: null as string | null, smsEnabled: true };
     try {
       const s = await getCommSettings(schoolId);
-      c = { username: s.providerUsername ?? null, apiKey: s.providerApiKey ?? null };
+      c = { username: s.providerUsername ?? null, apiKey: s.providerApiKey ?? null, smsEnabled: s.smsEnabled };
     } catch { /* fall back to env inside sendSMS */ }
     credsCache.set(schoolId, c);
     return c;
@@ -104,12 +104,18 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
         result.failed++;
         continue;
       }
+      const creds = await credsFor(row.school_id);
+      if (!creds.smsEnabled) {
+        await markFailed(row.id, 'SMS disabled for this school');
+        result.failed++;
+        continue;
+      }
       const provider = getProvider('africas_talking', 'sms');
       const sendResult = await provider.send({
         to: recipient,
         body: row.body,
         senderName: undefined,
-        creds: await credsFor(row.school_id),
+        creds: { username: creds.username, apiKey: creds.apiKey },
       });
 
       await query(

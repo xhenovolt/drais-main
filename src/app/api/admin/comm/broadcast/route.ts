@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
   }
 
   const settings = await getCommSettings(session.schoolId);
+  if (!settings.smsEnabled) {
+    return NextResponse.json({ error: 'SMS is disabled for this school by the platform administrator.' }, { status: 403 });
+  }
   const renderedBody = applyPrefix(message, settings.prefix);
 
   let recipients;

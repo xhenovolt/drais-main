@@ -222,12 +222,15 @@ export async function emit<T extends CommEventType>(
       //   - rule.auto_send=0 (manual approval required)
       //   - settings.auto_mode=false AND rule.auto_send=1 (master off)
       //   - quiet hours active
-      const willSend =
-        rule.auto_send === 1 &&
-        settings.autoMode &&
-        !quiet &&
-        (payload.source ?? 'auto') === 'auto'
-        || payload.source === 'manual';
+      // The per-school SMS kill-switch (platform/Jeton controlled) overrides
+      // everything — neither auto nor manual sends go out when it's off.
+      const willSend = settings.smsEnabled && (
+        (rule.auto_send === 1 &&
+         settings.autoMode &&
+         !quiet &&
+         (payload.source ?? 'auto') === 'auto')
+        || payload.source === 'manual'
+      );
 
       for (const rec of recipients) {
         if (!willSend) {
@@ -246,7 +249,7 @@ export async function emit<T extends CommEventType>(
             provider:           null,
             providerMessageId:  null,
             providerCost:       null,
-            error:              quiet ? 'quiet hours' : (settings.autoMode ? null : 'auto_mode off'),
+            error:              !settings.smsEnabled ? 'sms disabled' : quiet ? 'quiet hours' : (settings.autoMode ? null : 'auto_mode off'),
             triggeredByUserId:  payload.triggeredBy ?? null,
             source:             payload.source ?? 'auto',
             contextJson:        payload,
@@ -346,6 +349,7 @@ export async function manualSendFromLog(args: {
   if (!log.recipient_phone) return { success: false, error: 'No phone on file' };
 
   const settings = await getCommSettings(args.schoolId);
+  if (!settings.smsEnabled) return { success: false, error: 'SMS is disabled for this school' };
   const provider = getProvider(settings.defaultProvider, log.channel);
 
   let result;

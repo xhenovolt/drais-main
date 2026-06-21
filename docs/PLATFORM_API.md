@@ -324,3 +324,46 @@ These are descriptive only — DRAIS does not implement orchestrator UI.
   motivates request signing).
 - OAuth/service accounts (single-secret bearer is sufficient for the current
   internal-trust model).
+
+---
+
+## Appendix B — Additive endpoints (post-freeze, v1 non-breaking)
+
+These were added after the freeze for the Jeton master-control use cases. They
+are additive (new scopes, new endpoints, new response fields only) and do not
+change any frozen path/shape.
+
+### New scopes
+| Scope | Capability |
+|---|---|
+| `staff:read`      | `GET /schools/{external_id}/staff` |
+| `features:read`   | `GET /schools/{external_id}/features` |
+| `features:write`  | `PUT /schools/{external_id}/features` |
+
+### `GET /schools/{external_id}/staff`  (scope `staff:read`)
+Staff directory: `{ name, staff_no, role, department, status }` per member.
+Sensitive employment PII (salary, bank, NSSF, TIN) is never returned.
+
+### `GET|PUT /schools/{external_id}/features`  (scopes `features:read` / `features:write`)
+Read or remotely toggle per-school controls:
+- `sms_enabled` — hard SMS kill-switch, enforced in the comm dispatcher, the
+  notification drain, broadcast, and `/api/sms/send` (disabled ⇒ no SMS leaves).
+- `modules` — `school_modules` flags (academics, finance, payroll, tahfiz,
+  attendance, inventory, examinations, analytics, fingerprint_auth,
+  intelligence, work_plans).
+
+PUT body: `{ "sms_enabled"?: boolean, "modules"?: { "<code>": boolean } }`.
+Emits a `school.updated` platform event with the applied changes.
+
+### `GET /usage` — additive fields
+- `storage`: `{ file_bytes, file_mb, file_count }` (Cloudinary/file storage from
+  `documents.file_size`).
+- `db_footprint`: `{ total_rows, by_table }` over curated high-volume,
+  school-scoped tables.
+
+### Fix: `GET /schools` now returns the real `external_id`
+Previously returned `id AS external_id` (the internal numeric id), which both
+violated the "never expose the internal numeric id" rule and broke list→detail
+round-trips (detail routes filter the real `external_id`). Now returns the
+stable `external_id`; the pagination cursor (internal `id`) was fixed alongside.
+Suspending / acting on a school by the id from `GET /schools` now works.

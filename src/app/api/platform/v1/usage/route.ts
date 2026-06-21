@@ -33,7 +33,23 @@ export async function GET(req: NextRequest) {
   const scopeClause = schoolId ? `AND school_id = ?` : '';
   const baseParams  = schoolId ? [schoolId] : [];
 
-  const [learnerCount, staffCount, smsSent, smsLastDay, activeSessions, storageRow] = await Promise.all([
+  // DB footprint — row counts across curated high-volume, school-scoped tables.
+  // Each query is wrapped in safe() so a table lacking school_id contributes 0.
+  const FOOTPRINT_TABLES = [
+    'students', 'staff', 'enrollments', 'attendance_records', 'attendance_raw_events',
+    'comm_dispatch_log', 'notification_outbox', 'fee_payments', 'documents', 'results',
+  ];
+  const footprintCounts = await Promise.all(FOOTPRINT_TABLES.map(t =>
+    safe(query(`SELECT COUNT(*) AS c FROM ${t} WHERE 1=1 ${scopeClause}`, baseParams) as Promise<any[]>, [{ c: -1 }])
+      .then(r => ({ table: t, rows: Number(r[0]?.c ?? -1) })),
+  ));
+  const dbFootprint: Record<string, number> = {};
+  let dbRowsTotal = 0;
+  for (const f of footprintCounts) {
+    if (f.rows >= 0) { dbFootprint[f.table] = f.rows; dbRowsTotal += f.rows; }
+  }
+
+  const [learnerCount, staffCount, smsSent, smsLastDay, activeSessions, storageRow, docStorage] = await Promise.all([
     safe(query(
       `SELECT COUNT(*) AS c FROM students WHERE deleted_at IS NULL ${scopeClause}`,
       baseParams,
@@ -63,8 +79,15 @@ export async function GET(req: NextRequest) {
         : `SELECT COALESCE(SUM(payload_bytes),0) AS bytes FROM platform_api_audit WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
       schoolId ? [schoolId, sinceDays] : [sinceDays],
     ) as Promise<any[]>, [{ bytes: 0 }]),
+    // Cloudinary/file storage: documents carry file_size + school_id.
+    safe(query(
+      `SELECT COALESCE(SUM(file_size),0) AS bytes, COUNT(*) AS files
+         FROM documents WHERE deleted_at IS NULL ${scopeClause}`,
+      baseParams,
+    ) as Promise<any[]>, [{ bytes: 0, files: 0 }]),
   ]);
 
+  const storageBytes = Number(docStorage[0]?.bytes ?? 0);
   const data = {
     school:           externalId ?? 'platform',
     window_days:      sinceDays,
@@ -74,6 +97,15 @@ export async function GET(req: NextRequest) {
     sms_sent_24h:     Number(smsLastDay[0]?.c ?? 0),
     active_sessions:  Number(activeSessions[0]?.c ?? 0),
     api_payload_bytes: Number(storageRow[0]?.bytes ?? 0),
+    storage: {
+      file_bytes: storageBytes,
+      file_mb:    Math.round((storageBytes / (1024 * 1024)) * 100) / 100,
+      file_count: Number(docStorage[0]?.files ?? 0),
+    },
+    db_footprint: {
+      total_rows: dbRowsTotal,
+      by_table:   dbFootprint,
+    },
   };
   await finalizeAudit(ctx, req, 200, { schoolId });
   return ok(data, ctx.requestId, rateLimitHeaders(ctx));

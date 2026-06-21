@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
 
     // Per-school provider credentials (settings → env fallback).
     const cs = await getCommSettings(session.schoolId).catch(() => null);
+    if (cs && !cs.smsEnabled) {
+      return NextResponse.json({ success: false, error: 'SMS is disabled for this school by the platform administrator.' }, { status: 403 });
+    }
     // Sender ID is OPTIONAL and never forced: use the explicit short_code from
     // the request, else the school's configured sender_id (only if set). If
     // neither is present we pass nothing and Africa's Talking uses its default
