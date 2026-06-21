@@ -93,8 +93,8 @@ export default function PortalLearnerPage() {
               sub={o.performance.graded_count ? `${o.performance.graded_count} graded` : 'No marks'} tone="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40" />
             <Stat icon={CalendarCheck} label="Attendance" value={fmt(o.attendance.rate, '%')}
               sub={o.attendance.total_days ? `${o.attendance.present}/${o.attendance.total_days} days` : 'No records'} tone="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40" />
-            <Stat icon={Wallet} label="Fee Balance" value={money(o.fees.balance)}
-              sub={o.fees.paid != null ? `Paid ${money(o.fees.paid)}` : 'n/a'}
+            <Stat icon={Wallet} label="Fee Balance" value={o.fees.visible === false ? '—' : money(o.fees.balance)}
+              sub={o.fees.visible === false ? 'Hidden by school' : (o.fees.paid != null ? `Paid ${money(o.fees.paid)}` : 'n/a')}
               tone={o.fees.balance && o.fees.balance > 0 ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/40' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40'} />
             <Stat icon={BookOpen} label="Subjects" value={fmt(o.subjects.active)} tone="bg-amber-100 text-amber-600 dark:bg-amber-900/40" />
           </div>
@@ -185,7 +185,9 @@ export default function PortalLearnerPage() {
       )}
 
       {tab === 'fees' && (
-        !fees ? <Loading /> : (
+        !fees ? <Loading /> : fees.visible === false ? (
+          <Empty text="Fee information is not shared with parents by this school." />
+        ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
               <MiniStat label="Expected" value={money(fees.fees?.expected)} />

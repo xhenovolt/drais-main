@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireLinkedLearner } from '@/lib/portal/context';
+import { financeVisibleToParents } from '@/lib/portal/visibility';
 import { query } from '@/lib/db';
 
 async function safe<T>(p: Promise<T>, fb: T): Promise<T> { try { return await p; } catch { return fb; } }
@@ -53,8 +54,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stud
 
   const total = Number(attendance[0]?.total ?? 0);
   const present = Number(attendance[0]?.present ?? 0);
-  const expected = num(fees[0]?.expected);
-  const paid = num(fees[0]?.paid);
+  const financeVisible = await financeVisibleToParents(schoolId);
+  const expected = financeVisible ? num(fees[0]?.expected) : null;
+  const paid = financeVisible ? num(fees[0]?.paid) : null;
 
   return NextResponse.json({
     success: true,
@@ -64,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stud
         graded_count: Number(perf[0]?.graded ?? 0),
       },
       attendance: { rate: total > 0 ? Math.round((present / total) * 1000) / 10 : null, total_days: total, present },
-      fees: { expected, paid, balance: expected != null && paid != null ? expected - paid : null },
+      fees: { visible: financeVisible, expected, paid, balance: expected != null && paid != null ? expected - paid : null },
       subjects: { active: Number(subjects[0]?.subject_count ?? 0) },
     },
   });

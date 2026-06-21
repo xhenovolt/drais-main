@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireLinkedLearner } from '@/lib/portal/context';
+import { financeVisibleToParents } from '@/lib/portal/visibility';
 import { query } from '@/lib/db';
 
 async function safe<T>(p: Promise<T>, fb: T): Promise<T> { try { return await p; } catch { return fb; } }
@@ -17,6 +18,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stud
 
   const res = await requireLinkedLearner(req, studentId);
   if ('error' in res) return res.error;
+
+  // Per-school privacy control: a school can hide finances from parents.
+  if (!(await financeVisibleToParents(res.ctx.schoolId))) {
+    return NextResponse.json({ success: true, visible: false, fees: null, payments: [] });
+  }
 
   const [totals, payments] = await Promise.all([
     safe(query(
@@ -41,6 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stud
 
   return NextResponse.json({
     success: true,
+    visible: true,
     fees: {
       expected, paid,
       balance: expected != null && paid != null ? expected - paid : null,
