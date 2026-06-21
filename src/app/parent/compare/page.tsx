@@ -26,7 +26,7 @@ export default function ComparePage() {
   ];
 
   return (
-    <div className="px-4 py-4 pb-16">
+    <div className="mx-auto w-full max-w-4xl px-4 py-4 pb-16 md:px-6 md:py-8">
       <header className="flex items-center gap-2 mb-4">
         <Link href="/parent" className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><ArrowLeft className="w-5 h-5" /></Link>
         <div>

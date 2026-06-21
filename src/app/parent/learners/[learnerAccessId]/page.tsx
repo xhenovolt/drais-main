@@ -29,7 +29,7 @@ export default function LearnerDetail({ params }: { params: Promise<{ learnerAcc
   const { data } = useSWR(`${base}/${tab}`, fetcher);
 
   return (
-    <div className="px-4 py-4 pb-16">
+    <div className="mx-auto w-full max-w-3xl px-4 py-4 pb-16 md:px-6 md:py-8">
       <header className="flex items-center gap-2 mb-4">
         <Link href="/parent" className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><ArrowLeft className="w-5 h-5" /></Link>
         <div>
@@ -93,6 +93,7 @@ function Academics({ data }: { data: any }) {
   return (
     <div className="space-y-3">
       <p className="text-[10px] text-slate-400 flex items-center gap-1"><FileText className="w-3 h-3" /> Released results only</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {(data.subjects ?? []).length === 0 ? <Empty text="No released results yet." /> : data.subjects.map((s: any) => (
         <div key={s.subject} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
           <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">{s.subject}</p>
@@ -106,6 +107,7 @@ function Academics({ data }: { data: any }) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export default function ParentDashboard() {
   }
 
   return (
-    <div className="px-4 py-5 pb-16">
+    <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-16 md:px-6 md:py-8">
       <header className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
@@ -91,10 +91,10 @@ export default function ParentDashboard() {
               <School className="w-3.5 h-3.5 text-slate-400" />
               <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{g.school}</h2>
             </div>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {g.learners.map((c) => (
                 <Link key={c.learner_access_id} href={`/parent/learners/${c.learner_access_id}`}
-                  className="block rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 active:scale-[.99] transition">
+                  className="block rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 active:scale-[.99] hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm transition">
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="font-bold text-slate-800 dark:text-white">{c.learner_name}</p>
