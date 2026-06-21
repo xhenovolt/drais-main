@@ -150,7 +150,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     pathname === '/forbidden' ||                 // Forbidden page
     pathname === '/server-error' ||              // Error pages
     pathname === '/academics/reports' ||          // Report printing layout
-    pathname.startsWith('/portal') ||            // Parent portal — own shell, no staff nav
+    pathname.startsWith('/portal') ||            // Parent portal (legacy) — own shell, no staff nav
+    pathname.startsWith('/parent') ||            // Parent portal (Track A) — own shell, no staff nav
     pathname.startsWith('/rpt') ||               // Standalone rpt.html clone
     pathname.startsWith('/print-snapshot') ||    // Naked DRCE snapshot print/PDF target
     pathname.startsWith('/print-transcript') ||  // Naked cumulative transcript print/PDF target
