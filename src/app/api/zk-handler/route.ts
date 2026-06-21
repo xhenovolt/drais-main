@@ -1855,10 +1855,12 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Send queued attendance SMS immediately so the guardian is notified
-      // AS THE PUNCH HAPPENS (the heartbeat drain remains the backup).
+      // Kick the outbox drain so the guardian SMS goes out right after the
+      // punch — but DON'T await it (awaiting the SMS HTTP call blocked the
+      // device response for tens of seconds). The enqueue above is already
+      // awaited (row exists); the heartbeat drain is the serverless backup.
       if (anyMatchedEvaluated) {
-        try { await drainNotificationOutbox(); } catch { /* backup: heartbeat drain */ }
+        drainNotificationOutbox().catch(() => { /* backup: heartbeat drain */ });
       }
     }
 

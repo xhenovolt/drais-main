@@ -211,7 +211,7 @@ async function resolveGuardian(studentPersonId: number): Promise<RecipientResolu
        JOIN people cp           ON cp.id = con.person_id
       WHERE s.person_id = ?
         AND cp.phone IS NOT NULL AND cp.phone <> ''
-      ORDER BY sc.is_primary DESC, sc.id ASC
+      ORDER BY sc.is_primary DESC
       LIMIT 5`,
     [studentPersonId],
   )) as Array<{ first_name: string; last_name: string; phone: string | null; email: string | null }>;
