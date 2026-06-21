@@ -12,6 +12,7 @@ import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import useSWR from 'swr';
 import BellClient from '@/components/notifications/BellClient';
+import LiveScanSmsIndicator from '@/components/notifications/LiveScanSmsIndicator';
 import CommandPalette from '@/components/search/CommandPalette';
 import CommandSearchTrigger from '@/components/search/CommandSearchTrigger';
 
@@ -284,8 +285,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
               )}
             </button>
 
+            {/* Live attendance-scan SMS status (navbar, not popup) */}
+            <LiveScanSmsIndicator />
+
             {/* Notifications - Replace the old bell with BellClient */}
-            <BellClient 
+            <BellClient
               userId={user?.id || 0}
               schoolId={user?.schoolId || 0}
               className="relative"
