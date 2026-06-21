@@ -1,64 +1,76 @@
 #!/usr/bin/env node
 /**
- * Bumps DRAIS's patch version by 1 in package.json.
+ * Semantic version bump for DRAIS (MAJOR.MINOR.PATCH).
  *
- * Fires from `.githooks/pre-commit` on every commit so the version
- * number is a monotonically-increasing counter of git commits. There
- * is intentionally no semver bump for features/breaking changes — the
- * version is a commit odometer, nothing more. If a commit later turns
- * out to be a milestone, tag it in git; the version field stays the
- * commit count.
+ * Fires from `.githooks/pre-commit`. The segment bumped depends on the
+ * change type (conventional-commit style) — no more flat odometer:
  *
- * Format quirks:
- *   - The patch is zero-padded to at least 4 digits to preserve the
- *     existing "0.0.0036" aesthetic. Once the patch crosses 9999 the
- *     padding naturally drops away (10000, 10001, …) — no overflow.
- *   - Major and minor are left untouched here. Use `npm version major`
- *     or hand-edit when you actually want to roll them.
- *   - The script only rewrites the `"version": "..."` line, not the
- *     whole file — preserves all original key ordering, indentation,
- *     trailing newline, etc.
+ *   MAJOR  ← breaking change   (`feat!:`, `fix!:`, or "BREAKING CHANGE")
+ *   MINOR  ← new feature       (`feat:`)
+ *   PATCH  ← fix / everything else (`fix:`, `perf:`, `chore:`, `docs:`, …)
  *
- * Idempotency: re-running on the same commit (e.g. amend) bumps a
- * second time. The hook expects that.
+ * Bumping a higher segment resets the lower ones (1.4.7 --feat--> 1.5.0).
+ *
+ * Type resolution order:
+ *   1. BUMP_TYPE env  (major|minor|patch)  — explicit override
+ *   2. the commit message (BUMP_MSG env, else $GIT_DIR/COMMIT_EDITMSG)
+ *   3. default → patch
+ *
+ * Migration: the old odometer format "0.0.0101" is detected and reset to
+ * the clean semver baseline "1.0.0" on the first run (no bump that run).
  */
-import { readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const pkgPath = path.resolve(here, '..', 'package.json');
-
+const here = dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, '..');
+const pkgPath = path.join(root, 'package.json');
 const original = readFileSync(pkgPath, 'utf8');
 
-// Surgical edit: match `"version": "x.y.z"` (with z possibly
-// zero-padded) and bump z. Avoids JSON.parse → JSON.stringify so we
-// don't reformat the file.
-const re = /"version"\s*:\s*"(\d+)\.(\d+)\.(\d+)"/;
+function commitMessage() {
+  if (process.env.BUMP_MSG) return process.env.BUMP_MSG;
+  try {
+    const gitDir = execSync('git rev-parse --git-dir', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    const p = path.isAbsolute(gitDir) ? path.join(gitDir, 'COMMIT_EDITMSG') : path.join(root, gitDir, 'COMMIT_EDITMSG');
+    if (existsSync(p)) return readFileSync(p, 'utf8');
+  } catch { /* no message available */ }
+  return '';
+}
+
+function resolveType() {
+  const env = (process.env.BUMP_TYPE || '').toLowerCase();
+  if (['major', 'minor', 'patch'].includes(env)) return env;
+  const msg = commitMessage();
+  const subject = msg.split('\n')[0].trim();
+  if (/^\w+(\([^)]*\))?!:/.test(subject) || /BREAKING CHANGE/.test(msg)) return 'major';
+  if (/^feat(\([^)]*\))?:/i.test(subject)) return 'minor';
+  return 'patch'; // fix:, perf:, chore:, docs:, refactor:, or untyped
+}
+
+const re = /"version"\s*:\s*"([^"]+)"/;
 const match = original.match(re);
-if (!match) {
-  console.error('[bump-version] No "version" field found in package.json');
-  process.exit(1);
+if (!match) { console.error('[bump-version] No "version" field'); process.exit(1); }
+
+const cur = match[1];
+const parts = cur.split('.').map((x) => parseInt(x, 10) || 0);
+let [major, minor, patch] = [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+
+let nextVer;
+let label;
+const isOldOdometer = major === 0 && minor === 0; // e.g. 0.0.0101
+if (isOldOdometer) {
+  nextVer = '1.0.0'; label = 'semver baseline'; // establish baseline; no bump this run
+} else {
+  const type = resolveType();
+  if (type === 'major') { major += 1; minor = 0; patch = 0; }
+  else if (type === 'minor') { minor += 1; patch = 0; }
+  else { patch += 1; }
+  nextVer = `${major}.${minor}.${patch}`; label = type;
 }
 
-const [whole, major, minor, patchStr] = match;
-const patchNum = Number(patchStr);
-if (!Number.isInteger(patchNum)) {
-  console.error(`[bump-version] Unparsable patch: ${patchStr}`);
-  process.exit(1);
-}
-const nextPatch = patchNum + 1;
-const padWidth = Math.max(patchStr.length, String(nextPatch).length);
-const nextPatchStr = String(nextPatch).padStart(padWidth, '0');
-const replacement = `"version": "${major}.${minor}.${nextPatchStr}"`;
-
-const next = original.replace(whole, replacement);
-if (next === original) {
-  console.error('[bump-version] Replace did not change the file — aborting');
-  process.exit(1);
-}
-
+const next = original.replace(match[0], `"version": "${nextVer}"`);
+if (next === original) { console.error('[bump-version] no change'); process.exit(1); }
 writeFileSync(pkgPath, next);
-console.log(
-  `[bump-version] ${major}.${minor}.${patchStr} → ${major}.${minor}.${nextPatchStr}`,
-);
+console.log(`[bump-version] ${cur} → ${nextVer} (${label})`);

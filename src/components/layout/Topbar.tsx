@@ -8,6 +8,7 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { ProfileDropdown } from '@/components/ui/ProfileDropdown';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import LiveScanSmsIndicator from '@/components/notifications/LiveScanSmsIndicator';
+import WhatsNew from '@/components/notifications/WhatsNew';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -370,6 +371,9 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
 
           {/* Relay queue drain — desktop only, appears only when queue is non-empty */}
           <RelayQueueDrainBadge />
+
+          {/* What's new — New/Improved/Fixed feature flags */}
+          <WhatsNew />
 
           {/* Live attendance-scan SMS status (navbar) */}
           <LiveScanSmsIndicator />
