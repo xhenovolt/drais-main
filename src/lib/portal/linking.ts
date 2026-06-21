@@ -139,8 +139,8 @@ export async function claimLearners(parentAccountId: number, phone: string): Pro
     const status = autoApprove ? 'active' : 'pending';
     await query(
       `INSERT INTO parent_student_links
-         (parent_account_id, school_id, student_id, relationship, status, verified_via, approved_at)
-       VALUES (?, ?, ?, ?, ?, 'otp_contact_match', ${autoApprove ? 'NOW()' : 'NULL'})`,
+         (parent_account_id, school_id, student_id, relationship, status, verified_via, approved_at, access_uuid)
+       VALUES (?, ?, ?, ?, ?, 'otp_contact_match', ${autoApprove ? 'NOW()' : 'NULL'}, UUID())`,
       [parentAccountId, m.school_id, m.student_id, m.relationship ?? 'guardian', status],
     );
     created.push({
