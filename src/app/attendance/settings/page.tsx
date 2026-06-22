@@ -57,39 +57,69 @@ function formatTimeForInput(t: string | null): string {
   return t.substring(0, 5);
 }
 
+const SCOPE_LABEL: Record<AppliesTo, string> = {
+  students: 'Learners',
+  teachers: 'Staff',
+  all: 'Everyone',
+};
+
+/** Build a form state from a saved rule (or the defaults for a given scope). */
+function formFromRule(rule: AttendanceRule | null, scope: AppliesTo): FormState {
+  if (!rule) {
+    return {
+      ...defaultForm,
+      applies_to: scope,
+      rule_name: scope === 'students' ? 'Learners' : scope === 'teachers' ? 'Staff' : 'Everyone',
+    };
+  }
+  return {
+    rule_name: rule.rule_name || SCOPE_LABEL[scope],
+    rule_description: rule.rule_description || '',
+    arrival_start_time: formatTimeForInput(rule.arrival_start_time),
+    arrival_end_time: formatTimeForInput(rule.arrival_end_time),
+    late_threshold_minutes: rule.late_threshold_minutes ?? 15,
+    absence_cutoff_time: formatTimeForInput(rule.absence_cutoff_time),
+    closing_time: formatTimeForInput(rule.closing_time),
+    applies_to: scope,
+    applies_to_classes: rule.applies_to_classes || '',
+    ignore_duplicate_scans_within_minutes: rule.ignore_duplicate_scans_within_minutes ?? 2,
+    weekday_mask: rule.weekday_mask ?? 31,
+  };
+}
+
 export default function AttendanceSettingsPage() {
-  const [form, setForm] = useState(defaultForm);
+  const [scope, setScope] = useState<AppliesTo>('students');
+  const [rulesByScope, setRulesByScope] = useState<Partial<Record<AppliesTo, AttendanceRule>>>({});
+  const [form, setForm] = useState<FormState>(() => formFromRule(null, 'students'));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [existingId, setExistingId] = useState<number | null>(null);
 
-  // Load existing settings
+  // Load existing settings (all scopes)
   useEffect(() => {
     fetch('/api/attendance/settings')
       .then((r) => r.json())
       .then((data) => {
-        if (data.rule) {
-          const r: AttendanceRule = data.rule;
-          setForm({
-            rule_name: r.rule_name || 'Default',
-            rule_description: r.rule_description || '',
-            arrival_start_time: formatTimeForInput(r.arrival_start_time),
-            arrival_end_time: formatTimeForInput(r.arrival_end_time),
-            late_threshold_minutes: r.late_threshold_minutes ?? 15,
-            absence_cutoff_time: formatTimeForInput(r.absence_cutoff_time),
-            closing_time: formatTimeForInput(r.closing_time),
-            applies_to: (r.applies_to || 'students') as AppliesTo,
-            applies_to_classes: r.applies_to_classes || '',
-            ignore_duplicate_scans_within_minutes: r.ignore_duplicate_scans_within_minutes ?? 2,
-            weekday_mask: r.weekday_mask ?? 31,
-          });
-          setExistingId(r.id);
-        }
+        const rules: Partial<Record<AppliesTo, AttendanceRule>> = data.rules || {};
+        setRulesByScope(rules);
+        // Default to the first configured scope, else learners.
+        const initial: AppliesTo = rules.students ? 'students' : rules.teachers ? 'teachers' : rules.all ? 'all' : 'students';
+        setScope(initial);
+        setForm(formFromRule(rules[initial] || null, initial));
+        setExistingId(rules[initial]?.id ?? null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Switch which person-group's window is being edited.
+  const switchScope = (next: AppliesTo) => {
+    setScope(next);
+    setForm(formFromRule(rulesByScope[next] || null, next));
+    setExistingId(rulesByScope[next]?.id ?? null);
+    setToast(null);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -99,12 +129,17 @@ export default function AttendanceSettingsPage() {
       const res = await fetch('/api/attendance/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, applies_to: scope }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
       setExistingId(data.rule_id);
-      setToast({ type: 'success', msg: 'Settings saved successfully' });
+      // Remember this scope as configured so the badge + switching reflect it.
+      setRulesByScope((prev) => ({
+        ...prev,
+        [scope]: { ...(prev[scope] || {}), id: data.rule_id, ...form, applies_to: scope } as AttendanceRule,
+      }));
+      setToast({ type: 'success', msg: `${SCOPE_LABEL[scope]} window saved` });
     } catch (err: any) {
       setToast({ type: 'error', msg: err.message || 'Failed to save' });
     } finally {
@@ -151,11 +186,47 @@ export default function AttendanceSettingsPage() {
         </div>
       )}
 
+      {/* Scope selector — configure each person group separately */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">Who are you configuring?</h2>
+        <p className="text-xs text-gray-500">
+          Each group has its own arrival/presence window. Configure <strong>Learners</strong> and <strong>Staff</strong> separately,
+          or set an <strong>Everyone</strong> default. A group-specific window always overrides the Everyone default.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {(['students', 'teachers', 'all'] as const).map((opt) => {
+            const configured = !!rulesByScope[opt];
+            const active = scope === opt;
+            return (
+              <button
+                key={opt}
+                onClick={() => switchScope(opt)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
+                  active
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
+                }`}
+              >
+                {SCOPE_LABEL[opt]}
+                {configured && (
+                  <CheckCircle className={`w-3.5 h-3.5 ${active ? 'text-white' : 'text-green-500'}`} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-gray-500">
+          {rulesByScope[scope]
+            ? `Editing the saved ${SCOPE_LABEL[scope]} window.`
+            : `No ${SCOPE_LABEL[scope]} window yet — fill the fields below and save to create one.`}
+        </p>
+      </div>
+
       {/* Time Settings */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Clock className="w-4 h-4 text-indigo-500" />
-          Time Configuration
+          Time Configuration — {SCOPE_LABEL[scope]}
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -276,25 +347,9 @@ export default function AttendanceSettingsPage() {
         {form.weekday_mask === 0 && <p className="text-xs text-red-600">Select at least one school day.</p>}
       </div>
 
-      {/* Scope Settings */}
+      {/* Rule label (this scope) */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">Applies To</h2>
-
-        <div className="flex gap-3">
-          {(['students', 'teachers', 'all'] as const).map((opt) => (
-            <button
-              key={opt}
-              onClick={() => set('applies_to', opt)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                form.applies_to === opt
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
-              }`}
-            >
-              {opt === 'all' ? 'Everyone' : opt === 'students' ? 'Students Only' : 'Teachers Only'}
-            </button>
-          ))}
-        </div>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{SCOPE_LABEL[scope]} Rule Details</h2>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -331,7 +386,7 @@ export default function AttendanceSettingsPage() {
           className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm disabled:opacity-50 transition-colors"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saving ? 'Saving...' : existingId ? 'Update Settings' : 'Save Settings'}
+          {saving ? 'Saving...' : existingId ? `Update ${SCOPE_LABEL[scope]} Window` : `Save ${SCOPE_LABEL[scope]} Window`}
         </button>
       </div>
 

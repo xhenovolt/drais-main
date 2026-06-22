@@ -15,16 +15,27 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const rows = await query(
+    // Return ALL active scope rules so the UI can configure learners and staff
+    // (and an "everyone" default) separately. `rule` is kept for back-compat.
+    const rows = (await query(
       `SELECT * FROM attendance_rules
        WHERE school_id = ? AND is_active = 1
-       ORDER BY priority ASC
-       LIMIT 1`,
+       ORDER BY priority ASC`,
       [session.schoolId],
-    );
+    )) as any[];
 
-    const rule = (rows as any[])?.[0] || null;
-    return NextResponse.json({ success: true, rule });
+    // One rule per applies_to scope (first by priority wins if duplicates exist).
+    const byScope: Record<string, any> = {};
+    for (const r of rows) {
+      const k = r.applies_to || 'students';
+      if (!byScope[k]) byScope[k] = r;
+    }
+
+    return NextResponse.json({
+      success: true,
+      rule: rows[0] || null,
+      rules: byScope, // { students?, teachers?, all? }
+    });
   } catch (err: any) {
     console.error('[attendance/settings GET]', err);
     return NextResponse.json({ error: err.message || 'Failed to fetch settings' }, { status: 500 });
@@ -75,11 +86,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid closing_time format' }, { status: 400 });
     }
 
-    // Deactivate existing rules for this school
+    const scope = (['students', 'teachers', 'all'] as const).includes(applies_to)
+      ? applies_to
+      : 'students';
+
+    // Replace ONLY the rule for this scope, so saving the learner window does not
+    // wipe the staff window (and vice-versa). Role-specific rules (students /
+    // teachers) get a lower priority number than 'all' so they override the
+    // "everyone" default — matching how engine.loadActiveRule() resolves.
     await query(
-      `UPDATE attendance_rules SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE school_id = ? AND is_active = 1`,
-      [session.schoolId],
+      `UPDATE attendance_rules SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+        WHERE school_id = ? AND is_active = 1 AND applies_to = ?`,
+      [session.schoolId, scope],
     );
+
+    const priority = scope === 'all' ? 100 : 50;
 
     // Insert new rule
     const result: any = await query(
@@ -87,8 +108,8 @@ export async function POST(req: NextRequest) {
          (school_id, rule_name, rule_description, arrival_start_time, arrival_end_time,
           late_threshold_minutes, absence_cutoff_time, closing_time, applies_to,
           applies_to_classes, ignore_duplicate_scans_within_minutes, weekday_mask, is_active,
-          effective_date, priority)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURDATE(), 100)`,
+          effective_date, priority, scope_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURDATE(), ?, 'role')`,
       [
         session.schoolId,
         rule_name,
@@ -98,10 +119,11 @@ export async function POST(req: NextRequest) {
         late_threshold_minutes,
         absence_cutoff_time || null,
         closing_time || null,
-        applies_to,
+        scope,
         applies_to_classes || null,
         ignore_duplicate_scans_within_minutes,
         wmask,
+        priority,
       ],
     );
 
