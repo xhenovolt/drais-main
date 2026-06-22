@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "status": "PREVIEW — NOT INSERTED. Awaiting approval.",
+    "book": "Yassarnā al-Qurʾān (Qāʿidah / reading primer)",
+    "critical_caveat": "Yassarnā is EDITION-SPECIFIC. Lesson count, pages, and per-page line layout differ between publishers/printings. There is no single global canonical pagination like the Madinah muṣḥaf. DO NOT seed fixed numbers — capture the structure from the SCHOOL'S actual copy, or let the school enter it.",
+    "recommendation": "Model Yassarnā as a GENERIC ordered-lesson book (structure_type='ordered_lessons'), seeded per-school (or per-edition) rather than as a single global book. Provide a school-editable lesson list."
+  },
+  "proposed_structure_type": "ordered_lessons",
+  "unit_hierarchy": ["lesson", "page", "line"],
+  "addressing_fields": ["lesson", "page", "line_from", "line_to", "section"],
+  "template_example_DO_NOT_SEED_AS_FACT": {
+    "note": "Illustrative shape only — real values must come from the school's edition.",
+    "lessons": [
+      {"order": 1, "title": "الحروف المفردة (single letters)", "pages": "1-?"},
+      {"order": 2, "title": "الحركات (vowels: fatḥah/ḍammah/kasrah)", "pages": "?-?"},
+      {"order": 3, "title": "التنوين (tanwīn)", "pages": "?-?"},
+      {"order": 4, "title": "المد (elongation)", "pages": "?-?"},
+      {"order": 5, "title": "السكون والشدة (sukūn & shaddah)", "pages": "?-?"}
+    ]
+  },
+  "requires_human_input": [
+    "Which edition/publisher does the school use?",
+    "Exact number of lessons and their titles",
+    "Pages per lesson and lines per page (if line-level tracking is wanted)"
+  ]
+}

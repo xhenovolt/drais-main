@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "status": "PREVIEW — NOT INSERTED. Awaiting approval.",
+    "book": "Ḥirz al-Amānī wa Wajh at-Tahānī (ash-Shāṭibiyyah) — didactic poem on the seven qirāʾāt by Imām al-Qāsim ash-Shāṭibī",
+    "total_abyat_commonly_cited": 1173,
+    "critical_caveat": "The total bayt count is most commonly cited as 1173, but printed editions/manuscripts differ slightly (≈1171–1173) and bāb boundaries/āyāt-per-bāb vary by edition. The chapter (bāb) LIST below is the well-known structure; per-bāb bayt ranges MUST be verified against the chosen printed edition before insert.",
+    "recommendation": "Seed as a GLOBAL book (structure_type='versed_poem') with abwāb + total abyāt, but mark per-bāb bayt ranges as edition-sourced. Addressing is by bayt number range (1..1173) and optionally bāb."
+  },
+  "proposed_structure_type": "versed_poem",
+  "unit_hierarchy": ["bab", "bayt"],
+  "addressing_fields": ["bab", "bayt_from", "bayt_to"],
+  "abwab_outline_VERIFY_RANGES": [
+    {"order": 1, "ar": "مقدمة", "translit": "Muqaddimah", "topic": "Author's introduction / khutbah"},
+    {"order": 2, "ar": "باب الاستعاذة", "translit": "Al-Istiʿādhah"},
+    {"order": 3, "ar": "باب البسملة", "translit": "Al-Basmalah"},
+    {"order": 4, "ar": "سورة أم القرآن", "translit": "Sūrat Umm al-Qurʾān"},
+    {"order": 5, "ar": "باب الإدغام الكبير", "translit": "Al-Idghām al-Kabīr"},
+    {"order": 6, "ar": "باب هاء الكناية", "translit": "Hāʾ al-Kināyah"},
+    {"order": 7, "ar": "باب المد والقصر", "translit": "Al-Madd wa al-Qaṣr"},
+    {"order": 8, "ar": "باب الهمزتين من كلمة", "translit": "Al-Hamzatān min Kalimah"},
+    {"order": 9, "ar": "باب الهمزتين من كلمتين", "translit": "Al-Hamzatān min Kalimatayn"},
+    {"order": 10, "ar": "باب الهمز المفرد", "translit": "Al-Hamz al-Mufrad"},
+    {"order": 11, "ar": "أبواب الفرش (سورة بسورة)", "translit": "Furūsh al-Ḥurūf (surah by surah)", "note": "the large section covering differences sūrah by sūrah"},
+    {"order": 12, "ar": "باب التكبير والخاتمة", "translit": "At-Takbīr wa al-Khātimah"}
+  ],
+  "requires_human_input": [
+    "Which printed edition (e.g., Dār al-Hudā, KFGQPC) defines the bayt numbering you will use?",
+    "Confirm total bayt count for that edition (1173?)",
+    "Per-bāb bayt ranges from that edition (if bāb-level addressing is wanted)"
+  ]
+}
