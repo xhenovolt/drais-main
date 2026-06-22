@@ -24,6 +24,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { acquireDevice, TransferStateError } from '@/lib/devices/transfer-service';
+import { assertClaimSecret, ClaimSecretError } from '@/lib/devices/claim-secret';
 
 export const runtime = 'nodejs';
 
@@ -40,8 +41,18 @@ export async function POST(
     return NextResponse.json({ error: 'Missing device sn' }, { status: 400 });
   }
 
-  let body: { reason?: string; schoolId?: number } = {};
+  let body: { reason?: string; schoolId?: number; secret?: string } = {};
   try { body = await req.json(); } catch { /* empty body ok */ }
+
+  // Ownership-ceremony secret gate (DEVICE_CLAIM_SECRET).
+  try {
+    assertClaimSecret(body.secret);
+  } catch (err) {
+    if (err instanceof ClaimSecretError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    throw err;
+  }
 
   // Cross-school acquire requires super-admin.
   const toSchoolId = body.schoolId ?? session.schoolId;

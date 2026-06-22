@@ -551,12 +551,22 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 
   const runTransferAction = useCallback(
     async (action: 'release' | 'acquire' | 'decommission', label: string, body: { reason?: string } = {}) => {
+      // Ownership-ceremony secret gate. The operator must enter the shared
+      // DEVICE_CLAIM_SECRET before a device can change hands or be retired.
+      const secret = window.prompt(
+        `Enter the device transfer secret to ${action} "${device.device_name || device.serial_number}".\n\nThis confirms you are authorised to ${action} this device.`,
+      );
+      if (secret === null) return; // cancelled
+      if (!secret.trim()) {
+        showToast('error', 'Device transfer secret is required.');
+        return;
+      }
       setTransferLoading(action);
       try {
-        const r = await fetch(`/api/admin/devices/${device.serial_number}/${action}`, {
+        const r = await fetch(`/api/admin/devices/${encodeURIComponent(device.serial_number)}/${action}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ ...body, secret: secret.trim() }),
         });
         const j = await r.json();
         if (!r.ok) {
@@ -569,6 +579,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
           const parts: string[] = [];
           if (impact.enrollmentsArchived) parts.push(`${impact.enrollmentsArchived} enrollments archived`);
           if (impact.orphansArchived)     parts.push(`${impact.orphansArchived} orphans cleared`);
+          if (impact.directoryCleared)    parts.push(`${impact.directoryCleared} stale directory entries cleared`);
           if (impact.rawEventsPreserved)  parts.push(`${impact.rawEventsPreserved} raw events preserved`);
           if (parts.length) msg = `${label}: ${parts.join(', ')}`;
         }

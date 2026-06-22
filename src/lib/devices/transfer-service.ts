@@ -71,6 +71,7 @@ export interface TransferImpact {
   enrollmentsArchived: number;
   orphansArchived: number;
   rawEventsPreserved: number;
+  directoryCleared?: number;
 }
 
 export class TransferStateError extends Error {
@@ -246,6 +247,24 @@ async function finishAcquire(
     orphansArchived = Number(r?.affectedRows ?? 0);
   } catch { /* orphans table is lazily created — fine if absent */ }
 
+  // 1b. Wipe the previous owner's synced user directory + pending +
+  //     reconciliation snapshots for this SN. Without this the new owner
+  //     sees the OLD school's names in the reconciliation modal (the cause
+  //     of the "device shows different names / untrusted" report). The new
+  //     owner's first device sync repopulates the directory cleanly.
+  let directoryCleared = 0;
+  for (const sql of [
+    `DELETE FROM device_user_directory WHERE device_sn = ?`,
+    `DELETE FROM pending_device_users WHERE device_sn = ?`,
+    `DELETE FROM device_reconciliation_items WHERE device_sn = ?`,
+    `DELETE FROM device_reconciliation_runs WHERE device_sn = ?`,
+  ]) {
+    try {
+      const r = (await query(sql, [deviceSn])) as { affectedRows?: number };
+      if (sql.includes('device_user_directory')) directoryCleared = Number(r?.affectedRows ?? 0);
+    } catch { /* table may be absent on older deploys — best effort */ }
+  }
+
   // 2. Move device ownership.
   await query(
     `UPDATE devices
@@ -272,12 +291,12 @@ async function finishAcquire(
     action: AuditAction.DEVICE_ACQUIRED,
     entityType: 'device',
     entityId: deviceSn,
-    details: { transferId, deviceSn, fromSchoolId, toSchoolId, orphansArchived, reason },
+    details: { transferId, deviceSn, fromSchoolId, toSchoolId, orphansArchived, directoryCleared, reason },
     ip: actor.ip ?? null,
     userAgent: actor.userAgent ?? null,
   });
 
-  return { transferId, enrollmentsArchived: 0, orphansArchived, rawEventsPreserved: 0 };
+  return { transferId, enrollmentsArchived: 0, orphansArchived, rawEventsPreserved: 0, directoryCleared };
 }
 
 /**
