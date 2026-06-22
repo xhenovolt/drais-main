@@ -69,9 +69,9 @@ export interface TransferActor {
 export interface TransferImpact {
   transferId: number;
   enrollmentsArchived: number;
-  orphansArchived: number;
+  orphansArchived: number;       // on acquire: orphan templates reassigned (not deleted)
   rawEventsPreserved: number;
-  directoryCleared?: number;
+  directoryReassigned?: number;  // directory rows moved to the new owner (not deleted)
 }
 
 export class TransferStateError extends Error {
@@ -235,33 +235,26 @@ async function finishAcquire(
   actor: TransferActor,
   reason: string | null,
 ): Promise<TransferImpact> {
-  // 1. Wipe any fingerprint_orphans for this SN — they belonged to
-  //    the old school and would otherwise misattribute on claim.
-  let orphansArchived = 0;
-  try {
-    const r = (await query(
-      `DELETE FROM fingerprint_orphans
-        WHERE device_sn = ? AND claimed_at IS NULL`,
-      [deviceSn],
-    )) as { affectedRows?: number };
-    orphansArchived = Number(r?.affectedRows ?? 0);
-  } catch { /* orphans table is lazily created — fine if absent */ }
-
-  // 1b. Wipe the previous owner's synced user directory + pending +
-  //     reconciliation snapshots for this SN. Without this the new owner
-  //     sees the OLD school's names in the reconciliation modal (the cause
-  //     of the "device shows different names / untrusted" report). The new
-  //     owner's first device sync repopulates the directory cleanly.
-  let directoryCleared = 0;
-  for (const sql of [
-    `DELETE FROM device_user_directory WHERE device_sn = ?`,
-    `DELETE FROM pending_device_users WHERE device_sn = ?`,
-    `DELETE FROM device_reconciliation_items WHERE device_sn = ?`,
-    `DELETE FROM device_reconciliation_runs WHERE device_sn = ?`,
-  ]) {
+  // 1. Re-attribute the device's data to the new owner. NON-DESTRUCTIVE —
+  //    nothing is deleted. The fingerprint templates, synced user directory,
+  //    pending users and reconciliation snapshots all FOLLOW the physical
+  //    device to the acquiring school by moving their school_id. This keeps
+  //    the names (and history) intact and reversible, while making the
+  //    reconciliation modal show the device under its new owner.
+  let orphansArchived = 0;     // kept name for impact compat; = orphans reassigned
+  let directoryCleared = 0;    // kept name for impact compat; = directory rows reassigned
+  const reattribute: Array<[string, string]> = [
+    ['fingerprint_orphans',          `UPDATE fingerprint_orphans          SET school_id = ? WHERE device_sn = ?`],
+    ['device_user_directory',        `UPDATE device_user_directory        SET school_id = ? WHERE device_sn = ?`],
+    ['pending_device_users',         `UPDATE pending_device_users         SET school_id = ? WHERE device_sn = ?`],
+    ['device_reconciliation_items',  `UPDATE device_reconciliation_items  SET school_id = ? WHERE device_sn = ?`],
+    ['device_reconciliation_runs',   `UPDATE device_reconciliation_runs   SET school_id = ? WHERE device_sn = ?`],
+  ];
+  for (const [name, sql] of reattribute) {
     try {
-      const r = (await query(sql, [deviceSn])) as { affectedRows?: number };
-      if (sql.includes('device_user_directory')) directoryCleared = Number(r?.affectedRows ?? 0);
+      const r = (await query(sql, [toSchoolId, deviceSn])) as { affectedRows?: number };
+      if (name === 'fingerprint_orphans')   orphansArchived = Number(r?.affectedRows ?? 0);
+      if (name === 'device_user_directory') directoryCleared = Number(r?.affectedRows ?? 0);
     } catch { /* table may be absent on older deploys — best effort */ }
   }
 
@@ -291,12 +284,12 @@ async function finishAcquire(
     action: AuditAction.DEVICE_ACQUIRED,
     entityType: 'device',
     entityId: deviceSn,
-    details: { transferId, deviceSn, fromSchoolId, toSchoolId, orphansArchived, directoryCleared, reason },
+    details: { transferId, deviceSn, fromSchoolId, toSchoolId, orphansReassigned: orphansArchived, directoryReassigned: directoryCleared, reason },
     ip: actor.ip ?? null,
     userAgent: actor.userAgent ?? null,
   });
 
-  return { transferId, enrollmentsArchived: 0, orphansArchived, rawEventsPreserved: 0, directoryCleared };
+  return { transferId, enrollmentsArchived: 0, orphansArchived, rawEventsPreserved: 0, directoryReassigned: directoryCleared };
 }
 
 /**

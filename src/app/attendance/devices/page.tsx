@@ -578,8 +578,8 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         if (impact) {
           const parts: string[] = [];
           if (impact.enrollmentsArchived) parts.push(`${impact.enrollmentsArchived} enrollments archived`);
-          if (impact.orphansArchived)     parts.push(`${impact.orphansArchived} orphans cleared`);
-          if (impact.directoryCleared)    parts.push(`${impact.directoryCleared} stale directory entries cleared`);
+          if (impact.orphansArchived)     parts.push(`${impact.orphansArchived} fingerprints reassigned`);
+          if (impact.directoryReassigned) parts.push(`${impact.directoryReassigned} directory entries reassigned`);
           if (impact.rawEventsPreserved)  parts.push(`${impact.rawEventsPreserved} raw events preserved`);
           if (parts.length) msg = `${label}: ${parts.join(', ')}`;
         }
