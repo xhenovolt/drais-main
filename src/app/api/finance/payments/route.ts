@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
 
       // 2. Generate receipt number
       const [receiptCount] = await connection.execute(
-        'SELECT COUNT(*) as count FROM receipts WHERE school_id = ? AND DATE(generated_at) = CURDATE()',
+        'SELECT COUNT(*) as count FROM receipts WHERE school_id = ? AND DATE(created_at) = CURDATE()',
         [schoolId]
       );
       
@@ -260,17 +260,21 @@ export async function POST(req: NextRequest) {
         student_id, session.userId // from authenticated session
       ]);
 
-      // 6. Create receipt record
+      // 6. Create receipt record (columns match the receipts schema; actor is
+      //    stored in metadata since there is no generated_by column).
       await connection.execute(`
-        INSERT INTO receipts (school_id, payment_id, receipt_no, generated_by, metadata)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO receipts (school_id, student_id, payment_id, receipt_no, amount,
+          payment_method, reference, payer_name, payer_contact, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        schoolId, paymentId, receiptNo, session.userId,
+        schoolId, student_id, paymentId, receiptNo, amount,
+        method || null, reference || receiptNo, paid_by || null, payer_contact || null,
         JSON.stringify({
           items: feeItems.map((f: any) => ({ item: f.item, amount: f.amount })),
           payment_method: method,
           paid_by,
-          payer_contact
+          payer_contact,
+          generated_by: session.userId,
         })
       ]);
 
