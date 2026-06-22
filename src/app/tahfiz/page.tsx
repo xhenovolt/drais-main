@@ -11,12 +11,21 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 
 export default function TahfizOverview() {
   const { t } = useI18n();
-  const [stats] = useState([
-    { label: t('people.students'),         value: '0', icon: Users,    color: 'emerald' },
-    { label: t('orgUnits.groups'),         value: '0', icon: Users,    color: 'blue' },
-    { label: t('tahfiz.memorisation'),     value: '0', icon: BookOpen, color: 'purple' },
-    { label: t('common.completed'),        value: '0', icon: Award,    color: 'amber' }
-  ]);
+  const [summary, setSummary] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/tahfiz/enrollments?summary=1')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setSummary(d?.summary ?? null))
+      .catch(() => {});
+  }, []);
+
+  const stats = [
+    { label: 'Participants',     value: String(summary?.total ?? 0),      icon: Users,    color: 'emerald' },
+    { label: 'Active',           value: String(summary?.active ?? 0),     icon: UserCheck, color: 'blue' },
+    { label: 'Tahfiz only',      value: String(summary?.tahfiz_only ?? 0), icon: BookOpen, color: 'purple' },
+    { label: t('common.completed'), value: String(summary?.completed ?? 0), icon: Award,  color: 'amber' }
+  ];
   const [quickActions] = useState([
     { title: t('people.learners'),         href: '/tahfiz/portions',   icon: Users,     description: t('tahfiz.memorisation') },
     { title: t('orgUnits.groups'),         href: '/tahfiz/groups',     icon: Users,     description: t('tahfiz.halaqat') },

@@ -470,7 +470,7 @@ export function getNavigationItems(
       requiredModules: ['tahfiz'],
       children: [
         { key: 'tahfiz-overview',   label: 'Overview',    icon: <BarChart3 className="w-4 h-4" />,   href: '/tahfiz' },
-        { key: 'tahfiz-learners',   label: 'Learners',    icon: <Users className="w-4 h-4" />,       href: '/tahfiz/students' },
+        { key: 'tahfiz-learners',   label: 'Participants', icon: <Users className="w-4 h-4" />,       href: '/tahfiz/participants' },
         { key: 'tahfiz-records',    label: 'Records',     icon: <FileText className="w-4 h-4" />,    href: '/tahfiz/records' },
         { key: 'tahfiz-books',      label: 'Books',       icon: <Book className="w-4 h-4" />,        href: '/tahfiz/books' },
         { key: 'tahfiz-portions',   label: 'Portions',    icon: <BookMarked className="w-4 h-4" />,  href: '/tahfiz/portions' },
