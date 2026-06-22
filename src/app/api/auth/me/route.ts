@@ -104,8 +104,8 @@ export async function GET(request: NextRequest) {
 
     if (session.schoolId) {
       const schools = await query(
-        `SELECT id, name, status, setup_complete, email, phone, address, school_type, logo_url
-         FROM schools 
+        `SELECT id, name, status, setup_complete, email, phone, address, school_type, logo_url, currency
+         FROM schools
          WHERE id = ? AND deleted_at IS NULL`,
         [session.schoolId]
       );
@@ -206,6 +206,7 @@ export async function GET(request: NextRequest) {
         address: school.address,
         schoolType: school.school_type,
         logoUrl: school.logo_url,
+        currency: school.currency || 'UGX',
         setupComplete,
       } : null,
       subscription: subscriptionInfo ? {

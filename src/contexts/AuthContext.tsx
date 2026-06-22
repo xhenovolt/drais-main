@@ -22,6 +22,7 @@ interface School {
   address?: string;
   schoolType?: string;
   logoUrl?: string;
+  currency?: string;
   setupComplete: boolean;
 }
 

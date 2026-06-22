@@ -10,6 +10,8 @@ import {
 import { apiFetch } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency } from '@/lib/currency';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Summary {
@@ -46,7 +48,7 @@ interface Account {
 }
 
 function fmt(n: number) {
-  return Number(n || 0).toLocaleString('en-TZ', { minimumFractionDigits: 0 });
+  return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
 }
 
 function StatCard({ label, value, icon: Icon, color }: {
@@ -65,6 +67,9 @@ function StatCard({ label, value, icon: Icon, color }: {
 
 export default function FinanceLedgerPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const currency = user?.school?.currency || 'UGX';
+  const money = (n: number) => formatCurrency(n, currency);
   const [tab, setTab] = useState<'overview' | 'fee-items' | 'accounts' | 'bulk-import'>('overview');
   const [summary, setSummary]   = useState<Summary | null>(null);
   const [debtors, setDebtors]   = useState<Debtor[]>([]);
@@ -195,9 +200,9 @@ export default function FinanceLedgerPage() {
         <div className="space-y-6">
           {summary && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Total Charged" value={`TZS ${fmt(summary.total_charged)}`} icon={TrendingUp} color="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300" />
-              <StatCard label="Collected" value={`TZS ${fmt(summary.total_paid)}`} icon={CheckCircle2} color="border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300" />
-              <StatCard label="Outstanding" value={`TZS ${fmt(summary.total_outstanding)}`} icon={AlertCircle} color="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300" />
+              <StatCard label="Total Charged" value={money(summary.total_charged)} icon={TrendingUp} color="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300" />
+              <StatCard label="Collected" value={money(summary.total_paid)} icon={CheckCircle2} color="border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300" />
+              <StatCard label="Outstanding" value={money(summary.total_outstanding)} icon={AlertCircle} color="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300" />
               <StatCard label="Students" value={String(summary.students_with_entries)} icon={Users} color="border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300" />
             </div>
           )}
@@ -256,7 +261,7 @@ export default function FinanceLedgerPage() {
               <form onSubmit={createFeeItem} className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs font-semibold text-slate-500 mb-1">Name *</label>
                   <input type="text" value={feeName} onChange={e => setFeeName(e.target.value)} placeholder="Tuition, Boarding…" className={inputCls} required /></div>
-                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Amount (TZS) *</label>
+                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Amount ({currency}) *</label>
                   <input type="number" min="1" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} placeholder="150000" className={inputCls} required /></div>
                 <div><label className="block text-xs font-semibold text-slate-500 mb-1">Class (blank = all)</label>
                   <select value={feeClass} onChange={e => setFeeClass(e.target.value)} className={inputCls}>
@@ -287,7 +292,7 @@ export default function FinanceLedgerPage() {
                   {feeItems.map(fi => (
                     <tr key={fi.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">{fi.name}</td>
-                      <td className="px-4 py-3 font-mono text-indigo-600 dark:text-indigo-400">TZS {fmt(fi.amount)}</td>
+                      <td className="px-4 py-3 font-mono text-indigo-600 dark:text-indigo-400">{money(fi.amount)}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{fi.class_name || 'All Classes'}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{fi.account_name || '—'}</td>
                       <td className="px-4 py-3">

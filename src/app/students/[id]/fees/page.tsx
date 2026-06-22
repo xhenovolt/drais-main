@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency } from '@/lib/currency';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +61,7 @@ function StatCard({
 }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString('en-TZ', { minimumFractionDigits: 0 });
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 0 });
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -67,6 +69,9 @@ function fmt(n: number) {
 export default function StudentFeesPage() {
   const { id } = useParams<{ id: string }>();
   const studentId = parseInt(id);
+  const { user } = useAuth();
+  const currency = user?.school?.currency || 'UGX';
+  const money = (n: number) => formatCurrency(n, currency);
 
   const [balance, setBalance]   = useState<Balance | null>(null);
   const [ledger, setLedger]     = useState<LedgerEntry[]>([]);
@@ -235,20 +240,20 @@ export default function StudentFeesPage() {
         <div className="grid grid-cols-3 gap-3">
           <StatCard
             label="Total Charged"
-            value={`TZS ${fmt(balance.total_charged)}`}
+            value={money(balance.total_charged)}
             sub={`${balance.entry_count} entries`}
             icon={TrendingUp}
             color="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
           />
           <StatCard
             label="Total Paid"
-            value={`TZS ${fmt(balance.total_paid)}`}
+            value={money(balance.total_paid)}
             icon={CreditCard}
             color="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
           />
           <StatCard
             label={isOverdue ? 'Balance Due' : 'Credit Balance'}
-            value={`TZS ${fmt(Math.abs(balance.balance))}`}
+            value={money(Math.abs(balance.balance))}
             sub={isOverdue ? '⚠ Outstanding' : '✓ Overpaid / Clear'}
             icon={isOverdue ? AlertCircle : CheckCircle2}
             color={
@@ -293,7 +298,7 @@ export default function StudentFeesPage() {
           </h3>
           <form onSubmit={handlePayment} className="grid grid-cols-2 gap-3">
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Amount (TZS) *</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Amount ({currency}) *</label>
               <input
                 type="number" min="1" step="0.01"
                 value={payAmount} onChange={e => setPayAmount(e.target.value)}
@@ -364,7 +369,7 @@ export default function StudentFeesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Amount (TZS) *</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Amount ({currency}) *</label>
               <input type="number" min="1" step="0.01"
                 value={adjAmount} onChange={e => setAdjAmount(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-amber-500 outline-none"
@@ -475,7 +480,7 @@ export default function StudentFeesPage() {
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-emerald-600 dark:text-emerald-400'
                     }`}>
-                      {balance.balance > 0 ? `TZS ${fmt(balance.balance)}` : 'CLEAR'}
+                      {balance.balance > 0 ? money(balance.balance) : 'CLEAR'}
                     </td>
                   </tr>
                 </tfoot>

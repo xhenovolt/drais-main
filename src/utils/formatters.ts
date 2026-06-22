@@ -1,34 +1,17 @@
 /**
- * Format currency with proper thousand separators and decimal places
+ * Format currency. Delegates to the canonical helper in src/lib/currency.ts
+ * (default UGX, per-currency symbol/decimals). Kept for back-compat with
+ * existing imports. `locale` is ignored (formatting is currency-config driven).
  */
-export const formatCurrency = (
-  amount: number | string, 
-  currency: string = 'UGX', 
-  locale: string = 'en-UG'
-): string => {
-  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
-  if (isNaN(numericAmount)) {
-    return `${currency} 0.00`;
-  }
+import { formatCurrency as formatCurrencyCanonical } from '@/lib/currency';
 
-  // For UGX, typically no decimal places are shown
-  const decimals = currency === 'UGX' ? 0 : 2;
-  
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency === 'UGX' ? 'USD' : currency, // Fallback since UGX might not be supported
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    }).format(numericAmount).replace('$', currency);
-  } catch {
-    // Fallback formatting
-    return `${currency} ${numericAmount.toLocaleString('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    })}`;
-  }
+export const formatCurrency = (
+  amount: number | string,
+  currency: string = 'UGX',
+  _locale?: string,
+): string => {
+  void _locale;
+  return formatCurrencyCanonical(amount, currency);
 };
 
 /**
