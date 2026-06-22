@@ -29,6 +29,7 @@ workers/drais-relay.config.json
 !/build/.gitkeep
 !/build/license.txt
 !/build/icon.ico
+!/build/.env.production.example
 
 # electron-builder output
 /dist/

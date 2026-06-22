@@ -43,6 +43,15 @@ extraResources:
     to: .
     filter:
       - "icon.ico"
+  # Optional bundled default config. If build/.env.production exists on the
+  # build machine (gitignored — never commit real secrets), it ships to
+  # resources/.env.production and electron/config.cjs loads it at startup.
+  # If absent, nothing is copied and the app falls back to userData/drais.env
+  # or system env, showing the diagnostic screen until configured.
+  - from: build
+    to: .
+    filter:
+      - ".env.production"
 
 # Native deps: DRAIS uses bcryptjs (pure JS), mysql2 (pure JS),
 # formidable (pure JS). No native rebuild needed. If a native dep is
@@ -61,6 +70,26 @@ win:
   artifactName: ${productName}-${version}-${arch}-${os}.${ext}
   # Add an icon at build/icon.ico (256x256) for branded shortcuts.
   # If absent, electron-builder falls back to the default Electron icon.
+  icon: build/icon.ico
+
+# Linux: AppImage (portable, runs anywhere) + deb. Build on Linux:
+#   npm run build:electron && npx electron-builder --linux
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Education
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  icon: build/icon.ico
+
+# macOS: dmg + zip. Build on macOS (codesigning/notarization separate):
+#   npm run build:electron && npx electron-builder --mac
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.education
+  artifactName: ${productName}-${version}-${arch}.${ext}
   icon: build/icon.ico
 
 nsis:

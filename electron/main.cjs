@@ -2,54 +2,32 @@
 /**
  * DRAIS — Electron main process.
  *
- * Boots the Next.js standalone server in-process (same Node event
- * loop as Electron's main process — no child fork, no ELECTRON_RUN_AS_NODE
- * dance) and opens a kiosk-style BrowserWindow at http://localhost:<port>.
+ * Boots the Next.js standalone server in-process and opens a kiosk-style
+ * BrowserWindow at http://127.0.0.1:<port>. The server binds 0.0.0.0 so ZKTeco
+ * devices + other LAN operators can reach it.
  *
- * Topology: kiosk window + LAN server. The Next.js server binds to
- * 0.0.0.0 so:
- *   - the local BrowserWindow can hit it on 127.0.0.1
- *   - ZKTeco devices on the same LAN can POST to /iclock/cdata at
- *     http://<this-pc-ip>:<port>/iclock/cdata
- *   - other operators on the LAN can open the UI in their browsers
+ * Boot model (Model A): load config → start server → wait reachable →
+ * check /api/health (DB) → open app, or a DIAGNOSTIC screen if the DB is down.
+ * Never a blank white window.
  *
- * Database: TiDB cloud — internet required. Credentials come from
- * .env.production (or system env vars) the same way they would on a
- * Linux deploy.
- *
- * Port selection: defaults to 3210 to avoid the common 3000 conflict
- * (CRA, other Next dev servers). Override with DRAIS_PORT.
+ * Config: loaded by electron/config.cjs from system env / userData/drais.env /
+ * bundled .env.production — the installed app never needs a developer .env.
+ * Database: TiDB cloud (internet required).
  */
-
 const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const { loadConfig } = require('./config.cjs');
 
-// Groups all DRAIS windows under one Windows taskbar slot and ensures
-// our installer's icon (NSIS) matches what shows on the taskbar.
-// Must match electron-builder.yml's `appId`.
 app.setAppUserModelId('ug.drais.desktop');
 
 const isDev = !app.isPackaged;
 const PORT = Number(process.env.DRAIS_PORT) || 3210;
 
-// In packaged mode resources live under process.resourcesPath; in dev
-// the project root is the repo. We point at the Next standalone build
-// either way — `npm run build` puts it in .next/standalone.
 const standaloneDir = isDev
   ? path.join(__dirname, '..', '.next', 'standalone')
   : path.join(process.resourcesPath, 'standalone');
-
-// Single canonical icon location. Drop your `icon.ico` (256×256
-// recommended, multi-resolution preferred) at `build/icon.ico` in the
-// project root. The same file feeds:
-//   - the BrowserWindow + taskbar icon (loaded below)
-//   - the NSIS installer + uninstaller icon (electron-builder.yml → win.icon)
-//   - the installed Start-Menu / Desktop shortcut (NSIS picks it up from
-//     the bundled .exe metadata)
-// If the file is missing, electron-builder falls back to its default
-// Electron icon and we silently omit the BrowserWindow icon.
 const iconPath = isDev
   ? path.join(__dirname, '..', 'build', 'icon.ico')
   : path.join(process.resourcesPath, 'icon.ico');
@@ -57,166 +35,172 @@ const windowIcon = fs.existsSync(iconPath) ? iconPath : undefined;
 
 let mainWindow = null;
 let serverReady = false;
+let cfg = null;
 
+function logDir() { return app.getPath('userData'); }
+function logPath() { return path.join(logDir(), 'drais.log'); }
 function logToFile(line) {
   try {
-    const logDir = app.getPath('userData');
-    fs.mkdirSync(logDir, { recursive: true });
-    fs.appendFileSync(
-      path.join(logDir, 'drais.log'),
-      `[${new Date().toISOString()}] ${line}\n`,
-    );
-  } catch {
-    /* best-effort logging */
+    fs.mkdirSync(logDir(), { recursive: true });
+    fs.appendFileSync(logPath(), `[${new Date().toISOString()}] ${line}\n`);
+  } catch { /* best-effort */ }
+}
+
+/** Mirror the in-process Next server's console output into drais.log. */
+function captureConsole() {
+  for (const level of ['log', 'info', 'warn', 'error']) {
+    const orig = console[level].bind(console);
+    console[level] = (...args) => {
+      try { logToFile(`[server:${level}] ` + args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')); } catch { /* ignore */ }
+      orig(...args);
+    };
   }
 }
 
-/**
- * Start the embedded Next.js server. We require() the standalone
- * server.js after setting PORT + HOSTNAME so it picks them up.
- * Standalone's server.js calls http.createServer + listen synchronously
- * during require, so by the time the require returns the listener is
- * registered (though the socket may need a tick to bind).
- */
 function startNextServer() {
   const serverEntry = path.join(standaloneDir, 'server.js');
   if (!fs.existsSync(serverEntry)) {
-    const msg =
-      `DRAIS server bundle not found at:\n  ${serverEntry}\n\n` +
-      `Run "npm run build" before launching Electron (or "npm run dist:win" ` +
-      `to produce the installer).`;
+    const msg = `DRAIS server bundle not found at:\n  ${serverEntry}\n\nRun "npm run build:electron" before launching, or "npm run dist:win".`;
     logToFile('FATAL: ' + msg.replace(/\n/g, ' '));
-    dialog.showErrorBox('DRAIS — Missing server bundle', msg);
-    app.quit();
-    return;
+    showFatal('Missing server bundle', msg);
+    return false;
   }
-
   process.env.PORT = String(PORT);
-  // Bind to all interfaces so ZK devices and other LAN clients can
-  // reach this PC. The BrowserWindow itself uses 127.0.0.1.
   process.env.HOSTNAME = '0.0.0.0';
   process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-
-  // The standalone bundle expects to run from its own directory
-  // (relative require paths inside its included node_modules).
   process.chdir(standaloneDir);
-
   try {
-    logToFile(`Starting Next standalone server on 0.0.0.0:${PORT}`);
+    logToFile(`Starting Next standalone server on 0.0.0.0:${PORT} (config: ${cfg ? cfg.source : 'n/a'})`);
+    captureConsole();
     require(serverEntry);
+    return true;
   } catch (err) {
     const msg = `Failed to start Next.js server:\n${err && err.stack ? err.stack : err}`;
     logToFile('FATAL: ' + msg.replace(/\n/g, ' '));
-    dialog.showErrorBox('DRAIS — Server crashed on startup', msg);
-    app.quit();
+    showFatal('Server crashed on startup', msg);
+    return false;
   }
 }
 
-/** Poll the local server until it answers 2xx/3xx. Then load it. */
+/** Poll until the server answers on /api/health (any HTTP response = up). */
 function waitForServer(cb, attempts = 0) {
-  const req = http.get(
-    { hostname: '127.0.0.1', port: PORT, path: '/', timeout: 1500 },
-    (res) => {
-      res.resume();
-      if (res.statusCode && res.statusCode < 500) {
-        serverReady = true;
-        cb();
-      } else {
-        retry();
-      }
-    },
-  );
+  const req = http.get({ hostname: '127.0.0.1', port: PORT, path: '/api/health', timeout: 1500 }, (res) => {
+    res.resume();
+    serverReady = true; cb();
+  });
   req.on('error', retry);
   req.on('timeout', () => { req.destroy(); retry(); });
-
   function retry() {
-    if (attempts >= 40) {
-      const msg =
-        `DRAIS server did not become reachable on http://127.0.0.1:${PORT} ` +
-        `within 60 seconds. Check ${path.join(app.getPath('userData'), 'drais.log')} ` +
-        `for details.`;
+    if (attempts >= 60) {
       logToFile('FATAL: server never reachable');
-      dialog.showErrorBox('DRAIS — Server timeout', msg);
-      app.quit();
+      showDiagnostic({ ok: false, server: false, db: { connected: false, error: 'Server did not start within ~90s.' } });
       return;
     }
     setTimeout(() => waitForServer(cb, attempts + 1), 500);
   }
 }
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1024,
-    minHeight: 640,
-    backgroundColor: '#0f172a',
-    title: 'DRAIS',
-    icon: windowIcon,
-    show: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      preload: path.join(__dirname, 'preload.cjs'),
-    },
+/** GET /api/health → parsed JSON (or a server-down shape). */
+function checkHealth() {
+  return new Promise((resolve) => {
+    const req = http.get({ hostname: '127.0.0.1', port: PORT, path: '/api/health', timeout: 4000 }, (res) => {
+      let body = '';
+      res.on('data', (d) => (body += d));
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve({ ok: false, server: true, db: { connected: false, error: 'health endpoint returned non-JSON' } }); } });
+    });
+    req.on('error', (e) => resolve({ ok: false, server: false, db: { connected: false, error: String(e) } }));
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, server: true, db: { connected: false, error: 'health check timed out' } }); });
   });
+}
 
+function ensureWindow() {
+  if (mainWindow) return mainWindow;
+  mainWindow = new BrowserWindow({
+    width: 1400, height: 900, minWidth: 1024, minHeight: 640,
+    backgroundColor: '#0f172a', title: 'DRAIS', icon: windowIcon, show: false,
+    autoHideMenuBar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
+  });
   mainWindow.once('ready-to-show', () => mainWindow.show());
-
-  // Open external links in the user's browser, not in the Electron window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(`http://127.0.0.1:${PORT}`) && !url.startsWith(`http://localhost:${PORT}`)) {
-      shell.openExternal(url);
-      return { action: 'deny' };
-    }
+    if (!url.startsWith(`http://127.0.0.1:${PORT}`) && !url.startsWith(`http://localhost:${PORT}`)) { shell.openExternal(url); return { action: 'deny' }; }
     return { action: 'allow' };
   });
-
-  mainWindow.loadURL(`http://127.0.0.1:${PORT}/`);
-
   mainWindow.on('closed', () => { mainWindow = null; });
+  return mainWindow;
 }
 
-// Hide the default menu in production; keep DevTools accessible in dev.
-if (!isDev) Menu.setApplicationMenu(null);
+function openApp() { ensureWindow().loadURL(`http://127.0.0.1:${PORT}/`); }
 
-// Single-instance: a second launch should focus the existing window
-// instead of spinning up a second Next server (which would fail to
-// bind the port anyway).
+function esc(s) { return String(s).replace(/[<>]/g, ''); }
+
+function showDiagnostic(health) {
+  const w = ensureWindow();
+  const dbErr = health?.db?.error ? esc(health.db.error) : 'unknown';
+  const html = `<!doctype html><meta charset="utf-8"><title>DRAIS — Diagnostics</title>
+  <style>body{font:14px/1.6 system-ui,Segoe UI,Arial;background:#0f172a;color:#e2e8f0;margin:0;padding:40px}
+  .card{max-width:680px;margin:auto;background:#111827;border:1px solid #1f2937;border-radius:16px;padding:28px}
+  h1{font-size:20px;margin:0 0 4px}.sub{color:#94a3b8;margin:0 0 20px}
+  .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1f2937}
+  .ok{color:#34d399}.bad{color:#f87171}.k{color:#94a3b8}code{background:#0b1220;padding:2px 6px;border-radius:6px;color:#fca5a5;word-break:break-all}
+  .hint{margin-top:18px;color:#94a3b8;font-size:13px}a.btn{display:inline-block;margin-top:18px;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px}</style>
+  <div class="card">
+    <h1>DRAIS can't reach its database</h1>
+    <p class="sub">The app started, but the database connection failed. Your data is safe — this is a configuration/connectivity issue.</p>
+    <div class="row"><span class="k">Local server</span><span class="${health?.server?'ok':'bad'}">${health?.server?'running':'not running'}</span></div>
+    <div class="row"><span class="k">Database</span><span class="bad">not connected</span></div>
+    <div class="row"><span class="k">Config source</span><span>${esc((health?.env?.config_source)||'none')}</span></div>
+    <div class="row"><span class="k">TiDB host set</span><span class="${health?.env?.tidb_host_set?'ok':'bad'}">${health?.env?.tidb_host_set?'yes':'no'}</span></div>
+    <div class="row"><span class="k">TiDB user set</span><span class="${health?.env?.tidb_user_set?'ok':'bad'}">${health?.env?.tidb_user_set?'yes':'no'}</span></div>
+    <div class="row"><span class="k">TiDB password set</span><span class="${health?.env?.tidb_password_set?'ok':'bad'}">${health?.env?.tidb_password_set?'yes':'no'}</span></div>
+    <div class="row"><span class="k">Error</span><span><code>${dbErr}</code></span></div>
+    <p class="hint">Fix: put DB settings in <code>${esc(path.join(logDir(),'drais.env'))}</code> (TIDB_HOST, TIDB_USER, TIDB_PASSWORD, TIDB_DB), check internet, then <b>Help → Retry connection</b>. Logs: <code>${esc(logPath())}</code></p>
+    <a class="btn" href="http://127.0.0.1:${PORT}/">Retry (reload app)</a>
+  </div>`;
+  w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+}
+
+function showFatal(title, msg) {
+  try { dialog.showErrorBox('DRAIS — ' + title, msg); } catch { /* ignore */ }
+  showDiagnostic({ ok: false, server: false, db: { connected: false, error: msg } });
+}
+
+async function boot() {
+  const health = await checkHealth();
+  logToFile(`health: ok=${health.ok} server=${health.server} db=${health.db && health.db.connected} ${health.db && health.db.error ? '("' + health.db.error + '")' : ''}`);
+  if (health.ok) openApp(); else showDiagnostic(health);
+}
+
+function buildMenu() {
+  const template = [
+    { label: 'File', submenu: [{ role: 'quit' }] },
+    { label: 'View', submenu: [{ role: 'reload' }, { role: 'forcereload' }, { type: 'separator' }, { role: 'togglefullscreen' }, ...(isDev ? [{ role: 'toggledevtools' }] : [])] },
+    { label: 'Help', submenu: [
+      { label: 'Open DRAIS', click: openApp },
+      { label: 'Retry connection', click: () => boot() },
+      { type: 'separator' },
+      { label: 'Open Logs Folder', click: () => shell.openPath(logDir()) },
+      { label: 'View Diagnostics', click: () => checkHealth().then(showDiagnostic) },
+    ] },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
-
+if (!gotLock) { app.quit(); }
+else {
+  app.on('second-instance', () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } });
   app.whenReady().then(() => {
-    startNextServer();
-    waitForServer(() => createWindow());
-
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0 && serverReady) {
-        createWindow();
-      }
-    });
+    cfg = loadConfig({ userDataDir: app.getPath('userData'), resourcesPath: app.isPackaged ? process.resourcesPath : null, isPackaged: app.isPackaged });
+    logToFile(`config source: ${cfg.source}; ${cfg.summary.join('; ')}`);
+    if (!cfg.hasDbCreds) logToFile('WARN: no DB credentials resolved — diagnostic screen will show until configured.');
+    buildMenu();
+    if (!startNextServer()) return;
+    waitForServer(() => boot());
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && serverReady) boot(); });
   });
 }
 
-app.on('window-all-closed', () => {
-  // Standard Electron pattern: keep running on macOS, quit elsewhere.
-  // The Next server lives in this process, so quitting also shuts it down.
-  if (process.platform !== 'darwin') app.quit();
-});
-
-process.on('uncaughtException', (err) => {
-  logToFile('UNCAUGHT: ' + (err && err.stack ? err.stack : String(err)));
-});
-process.on('unhandledRejection', (reason) => {
-  logToFile('UNHANDLED_REJECTION: ' + String(reason));
-});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+process.on('uncaughtException', (err) => logToFile('UNCAUGHT: ' + (err && err.stack ? err.stack : String(err))));
+process.on('unhandledRejection', (reason) => logToFile('UNHANDLED_REJECTION: ' + String(reason)));
