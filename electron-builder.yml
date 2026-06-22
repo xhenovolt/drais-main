@@ -54,8 +54,14 @@ extraResources:
       - ".env.production"
 
 # Native deps: DRAIS uses bcryptjs (pure JS), mysql2 (pure JS),
-# formidable (pure JS). No native rebuild needed. If a native dep is
-# ever added, set asarUnpack and enable nodeGypRebuild.
+# formidable (pure JS), node-zklib (pure JS). There are NO native modules,
+# so skip the @electron/rebuild / node-gyp step entirely — this means the
+# Windows/macOS/Linux build machine does NOT need Python or Visual Studio
+# build tools. If a native dep is ever added, set npmRebuild: true +
+# asarUnpack for it and install the platform toolchain.
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
 asar: true
 asarUnpack: []
 
