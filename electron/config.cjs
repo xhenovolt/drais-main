@@ -83,6 +83,13 @@ function loadConfig(ctx) {
   // changes to the same file the loader reads at next boot.
   process.env.DRAIS_CONFIG_FILE = userEnvPath;
 
+  // Desktop app = single machine → Local mode is allowed BY DEFAULT (this loader
+  // only runs in Electron; hosted/Vercel never calls it, so it stays online-only).
+  // A drais.env can still explicitly force it off with DRAIS_ALLOW_LOCAL=false.
+  if (process.env.DRAIS_ALLOW_LOCAL == null || process.env.DRAIS_ALLOW_LOCAL === '') {
+    process.env.DRAIS_ALLOW_LOCAL = 'true';
+  }
+
   const summary = KNOWN_KEYS
     .filter(k => applied[k] !== undefined)
     .map(k => `${k}=${mask(k, applied[k])}`);
