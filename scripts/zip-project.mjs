@@ -59,8 +59,16 @@ if (dirty) {
 fs.mkdirSync(outDir, { recursive: true });
 if (fs.existsSync(outFile)) fs.rmSync(outFile);
 
+// `git archive` aborts if a positive pathspec matches no tracked file (e.g.
+// next-env.d.ts is gitignored). Keep only include paths that are actually
+// tracked; exclude pathspecs (filters) are safe to pass as-is.
+const tracked = INCLUDE.filter((p) => {
+  try { return sh(`git ls-files -- "${p}"`).trim().length > 0; } catch { return false; }
+});
+if (!tracked.length) { console.error('FATAL: no tracked essential paths found.'); process.exit(1); }
+
 // Quote pathspecs (the :(exclude) ones contain parens).
-const specs = [...INCLUDE, ...EXCLUDE].map((s) => `"${s}"`).join(' ');
+const specs = [...tracked, ...EXCLUDE].map((s) => `"${s}"`).join(' ');
 const cmd = `git archive --format=zip --prefix=drais-${version}/ -o "${outFile}" HEAD -- ${specs}`;
 sh(cmd);
 
