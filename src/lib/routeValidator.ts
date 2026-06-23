@@ -114,6 +114,7 @@ export const KNOWN_ROUTES = new Set<string>([
   '/finance/locations',
   '/finance/fees',
   '/finance/budgets',
+  '/finance/pocket-money',
   '/finance/import',
   '/finance/learners-fees',
   '/finance/expenditures',
