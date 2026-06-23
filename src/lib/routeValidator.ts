@@ -112,6 +112,7 @@ export const KNOWN_ROUTES = new Set<string>([
   '/finance/ledger/fees',
   '/finance/wallets',
   '/finance/fees',
+  '/finance/import',
   '/finance/learners-fees',
   '/finance/expenditures',
   
