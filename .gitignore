@@ -103,3 +103,6 @@ exports/
 # Platform-API local artifacts
 .secrets/
 .dev.log
+
+# DB schema exports (generated; may contain seed data)
+database/exports/
