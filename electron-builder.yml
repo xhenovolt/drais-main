@@ -109,9 +109,19 @@ linux:
     StartupWMClass: DRAIS
 
 # Snap: opt-in (needs snapcraft on the build machine) — see `npm run dist:snap`.
+# STRICT confinement → the Snap Store publishes WITHOUT a manual review, so
+# `sudo snap install drais` goes live worldwide immediately. Audit confirmed
+# everything DRAIS needs is covered by electron-builder's default plugs:
+#   - network    → online TiDB, local MySQL (localhost), ZK devices (TCP/relay),
+#                  Africa's Talking, Cloudinary
+#   - home       → Excel import / photo upload / receipt + PDF downloads
+#   - desktop/x11/wayland/opengl/audio → the Electron window itself
+# Not needed: raw USB/serial (device access is over the network/relay) or
+# child_process (none). Server-side Puppeteer PDFs don't run in any packaged
+# build anyway (Chromium isn't bundled) — unaffected by this choice.
 snap:
   grade: stable
-  confinement: classic
+  confinement: strict
 
 # macOS: dmg + zip. Build on macOS (codesigning/notarization separate):
 #   npm run build:electron && npx electron-builder --mac

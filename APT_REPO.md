@@ -63,10 +63,10 @@ snapcraft register drais              # claims the name (once; must be free)
 snapcraft upload --release=stable dist/drais_*.snap
 ```
 Users: `sudo snap install drais` · update: automatic · remove: `sudo snap remove drais`.
-Note: we set `confinement: classic` (full system access — simplest for an app that
-reads local files / talks to USB biometric devices). Classic snaps need a one-time
-**manual review request** on the Snapcraft forum (free) before public release; until
-then test with `sudo snap install dist/drais_*.snap --dangerous --classic`.
+Note: we use `confinement: strict` (audited — DRAIS only needs network + home,
+both default plugs), so the store publishes WITHOUT a manual review and
+`sudo snap install drais` goes live worldwide immediately. Test locally first
+with `sudo snap install dist/drais_*.snap --dangerous` (no `--classic`).
 
 ## Notes
 - `apt upgrade` only sees a new version if the .deb's version increased — our commit hook bumps `package.json`, and electron-builder uses it, so each `dist:linux` is a higher version automatically.
