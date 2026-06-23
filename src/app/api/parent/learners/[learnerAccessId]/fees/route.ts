@@ -14,24 +14,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ lear
   const { learnerAccessId } = await params;
   const res = await requireLearnerAccess(req, learnerAccessId);
   if ('error' in res) return res.error;
-  const { student_id, finance_visible } = res.access;
+  const { student_id, school_id, finance_visible } = res.access;
 
   if (!finance_visible) {
     return NextResponse.json({ success: true, visible: false, fees: null, payments: [] });
   }
 
+  // Canonical sources: expected = net charges (student_fee_items); paid =
+  // canonical finance_payments. (Previously read the retired fee_payments table,
+  // so parents saw nothing.) school_id enforced for defense-in-depth.
   const [totals, payments] = await Promise.all([
     safe(query(
       `SELECT
-         (SELECT COALESCE(SUM(fs.amount),0) FROM student_fee_items sfi
-            JOIN fee_structures fs ON fs.id = sfi.fee_structure_id WHERE sfi.student_id = ?) AS expected,
-         (SELECT COALESCE(SUM(amount),0) FROM fee_payments WHERE student_id = ?) AS paid`,
-      [student_id, student_id],
+         (SELECT COALESCE(SUM(sfi.amount - sfi.discount - sfi.waived),0)
+            FROM student_fee_items sfi WHERE sfi.student_id = ?) AS expected,
+         (SELECT COALESCE(SUM(amount),0)
+            FROM finance_payments WHERE student_id = ? AND school_id = ?) AS paid`,
+      [student_id, student_id, school_id],
     ) as Promise<any[]>, [{ expected: null, paid: null }]),
     safe(query(
       `SELECT amount, method, receipt_no, reference, created_at
-         FROM fee_payments WHERE student_id = ? ORDER BY created_at DESC LIMIT 50`,
-      [student_id],
+         FROM finance_payments WHERE student_id = ? AND school_id = ?
+        ORDER BY created_at DESC LIMIT 50`,
+      [student_id, school_id],
     ) as Promise<any[]>, []),
   ]);
 

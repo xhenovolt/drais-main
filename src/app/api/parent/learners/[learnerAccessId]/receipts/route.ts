@@ -13,14 +13,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ lear
   const { learnerAccessId } = await params;
   const res = await requireLearnerAccess(req, learnerAccessId);
   if ('error' in res) return res.error;
-  const { student_id, finance_visible } = res.access;
+  const { student_id, school_id, finance_visible } = res.access;
 
   if (!finance_visible) return NextResponse.json({ success: true, visible: false, receipts: [] });
 
+  // Canonical receipts table (written by recordPayment). school_id enforced.
   const rows = await safe(query(
-    `SELECT id, amount, method, receipt_no, reference, created_at
-       FROM fee_payments WHERE student_id = ? ORDER BY created_at DESC LIMIT 100`,
-    [student_id],
+    `SELECT id, amount, payment_method, receipt_no, reference, created_at
+       FROM receipts WHERE student_id = ? AND school_id = ? ORDER BY id DESC LIMIT 100`,
+    [student_id, school_id],
   ) as Promise<any[]>, []);
 
   return NextResponse.json({
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ lear
       id: r.id,
       receipt_no: r.receipt_no ?? r.reference ?? `PAY-${r.id}`,
       amount: Number(r.amount),
-      method: r.method ?? null,
+      method: r.payment_method ?? null,
       at: r.created_at,
     })),
   });

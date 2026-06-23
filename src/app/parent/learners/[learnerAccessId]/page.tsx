@@ -6,16 +6,17 @@
 import React, { use, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { ArrowLeft, CalendarCheck, TrendingUp, Wallet, Receipt, FileText } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, TrendingUp, Wallet, Receipt, FileText, PiggyBank } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 const money = (n: number | null | undefined) => n == null ? '—' : `UGX ${Number(n).toLocaleString()}`;
-type Tab = 'attendance' | 'academics' | 'fees' | 'receipts' | 'reports';
+type Tab = 'attendance' | 'academics' | 'fees' | 'receipts' | 'pocket-money' | 'reports';
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'attendance', label: 'Attendance', icon: CalendarCheck },
   { key: 'academics',  label: 'Academics',  icon: TrendingUp },
   { key: 'fees',       label: 'Fees',        icon: Wallet },
   { key: 'receipts',   label: 'Receipts',    icon: Receipt },
+  { key: 'pocket-money', label: 'Pocket Money', icon: PiggyBank },
   { key: 'reports',    label: 'Reports',     icon: FileText },
 ];
 
@@ -53,6 +54,7 @@ export default function LearnerDetail({ params }: { params: Promise<{ learnerAcc
           {tab === 'academics'  && <Academics data={data} />}
           {tab === 'fees'       && <Fees data={data} />}
           {tab === 'receipts'   && <Receipts data={data} />}
+          {tab === 'pocket-money' && <PocketMoney data={data} />}
           {tab === 'reports'    && <Reports data={data} />}
         </>
       )}
@@ -146,6 +148,28 @@ function Receipts({ data }: { data: any }) {
       ))}
       {(!data.receipts || data.receipts.length === 0) && <Empty text="No receipts yet." />}
     </Card>
+  );
+}
+
+function PocketMoney({ data }: { data: any }) {
+  if (data.visible === false) return <Empty text="Fee information is not shared with parents by this school." />;
+  if (data.enabled === false) return <Empty text="Pocket money is not set up for this learner." />;
+  return (
+    <div className="space-y-3">
+      <MiniStat label="Pocket money balance" value={money(data.balance)} />
+      <Card>
+        {(data.transactions ?? []).map((t: any, i: number) => (
+          <div key={i} className="flex items-center justify-between px-3 py-2 text-xs">
+            <div>
+              <p className={`font-medium capitalize ${t.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>{t.type} · {money(t.amount)}</p>
+              <p className="text-[10px] text-slate-400">{t.note || '—'}</p>
+            </div>
+            <span className="text-[10px] text-slate-400">{t.at ? new Date(t.at).toLocaleDateString() : ''}</span>
+          </div>
+        ))}
+        {(!data.transactions || data.transactions.length === 0) && <Empty text="No pocket money transactions yet." />}
+      </Card>
+    </div>
   );
 }
 
