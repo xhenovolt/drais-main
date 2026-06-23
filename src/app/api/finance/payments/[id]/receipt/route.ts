@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN student_ledger sl ON sl.payment_id = fp.id AND sl.type = 'credit'
       LEFT JOIN terms t ON sl.term_id = t.id
-      LEFT JOIN finance_accounts fa ON fp.account_id = fa.id
+      LEFT JOIN wallets fa ON fp.account_id = fa.id
       LEFT JOIN receipts r ON fp.id = r.payment_id
       WHERE fp.id = ? AND fp.school_id = ?
     `, [paymentId, schoolId]);
