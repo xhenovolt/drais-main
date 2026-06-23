@@ -44,11 +44,16 @@ export async function issueOtp(rawPhone: string, purpose: OtpPurpose): Promise<{
     [phone, codeHash, purpose, expiresAt],
   );
 
-  const label = purpose === 'reset' ? 'password reset'
-              : purpose === 'link'  ? 'linking your child'
-              : 'verification';
-  await sendSMS(phone, `Your DRAIS ${label} code is ${code}. It expires in ${TTL_MINUTES} minutes. Do not share it.`);
-  return { sent: true };
+  // Plain, conversational wording — Africa's Talking content filters/sender-ID
+  // rules tend to block the standard "Your code is X / OTP / do not share" form,
+  // so messages silently never arrive. This phrasing delivers reliably.
+  const sms = await sendSMS(phone, `Please use ${code} as your DRAIS code.`);
+  if (!sms?.success) {
+    // Surface in server logs so an admin can tell SMS failed (the API still
+    // returns the generic privacy-preserving response to the caller).
+    console.error('[otp] SMS not delivered:', sms?.error || 'unknown', '→', phone);
+  }
+  return { sent: !!sms?.success };
 }
 
 /**

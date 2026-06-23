@@ -9,7 +9,10 @@ import { randomBytes } from 'crypto';
 import { query } from '@/lib/db';
 
 export const PARENT_COOKIE_NAME = 'drais_parent_session';
-const EXPIRY_DAYS = 14;
+// Long-lived so a parent who has verified a device via OTP stays signed in and
+// isn't repeatedly bounced to the login screen. A brand-new device still needs
+// one OTP; after that it's remembered for ~3 months.
+const EXPIRY_DAYS = 90;
 
 export interface ParentSession {
   parentAccountId: number;
