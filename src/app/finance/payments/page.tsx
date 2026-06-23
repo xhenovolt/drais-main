@@ -53,6 +53,7 @@ const PaymentsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [detail, setDetail] = useState<Payment | null>(null);
 
   // Fetch payments
   const { data: paymentsData, isLoading, mutate } = useSWR(
@@ -389,6 +390,7 @@ const PaymentsPage: React.FC = () => {
                             <Download className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => setDetail(payment)}
                             className="p-1 rounded text-gray-600 hover:bg-gray-50 transition-colors"
                             title="View Details"
                           >
@@ -404,6 +406,42 @@ const PaymentsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {detail && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDetail(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">Payment details</h2>
+              <button onClick={() => setDetail(null)} className="text-gray-400">✕</button>
+            </div>
+            <div className="text-center py-2">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{format(detail.amount, detail.currency)}</p>
+              <p className="text-xs text-gray-500 font-mono">{detail.receipt_no || detail.reference}</p>
+            </div>
+            <dl className="text-sm divide-y divide-gray-100 dark:divide-gray-700/50">
+              {[
+                ['Learner', `${detail.student_name || ''} ${detail.admission_no ? `(${detail.admission_no})` : ''}`],
+                ['Class', detail.class_name],
+                ['Term', detail.term_name],
+                ['Method', detail.method],
+                ['Money location', detail.wallet_name],
+                ['Paid by', detail.paid_by],
+                ['Reference', detail.reference],
+                ['Reconciliation', detail.reconciliation_status],
+                ['Date', detail.created_at ? new Date(detail.created_at).toLocaleString() : ''],
+              ].map(([k, v]) => (
+                <div key={k as string} className="flex justify-between py-1.5">
+                  <dt className="text-gray-500">{k}</dt>
+                  <dd className="text-gray-900 dark:text-white text-right">{v || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => handleDownloadReceipt(detail)} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium">Download receipt</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
