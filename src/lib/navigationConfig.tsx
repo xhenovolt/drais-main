@@ -442,6 +442,7 @@ export function getNavigationItems(
         { key: 'fees',               label: 'Fees',              icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fees' },
         { key: 'fee-items',          label: 'Fee Items',         icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fee-items' },
         { key: 'fee-rules',          label: 'Fee Rules',         icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fee-rules' },
+        { key: 'bills',              label: 'Bills (generate)',  icon: <CreditCard className="w-4 h-4" />,   href: '/finance/bills' },
         { key: 'learners-fees',      label: 'Learner Fees',      icon: <Users className="w-4 h-4" />,        href: '/finance/learners-fees' },
         { key: 'payments',           label: 'Payments',          icon: <Receipt className="w-4 h-4" />,      href: '/finance/payments' },
         { key: 'wallets',            label: 'Wallets',           icon: <Wallet className="w-4 h-4" />,       href: '/finance/wallets' },
