@@ -1,0 +1,32 @@
+/**
+ * PATCH  /api/finance/fee-rules/adjustments/[id] — approve/reject/pending.
+ * DELETE /api/finance/fee-rules/adjustments/[id] — remove.
+ */
+import { NextRequest, NextResponse } from 'next/server';
+import { getSessionSchoolId } from '@/lib/auth';
+import { requirePermission } from '@/lib/rbac';
+import { setAdjustmentStatus, deleteAdjustment } from '@/lib/finance/feeRules';
+
+export const runtime = 'nodejs';
+
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  try { await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin); }
+  catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
+  const { id } = await ctx.params;
+  const status = (await req.json().catch(() => ({})))?.status;
+  if (!['approved', 'rejected', 'pending'].includes(status)) return NextResponse.json({ error: 'invalid status' }, { status: 400 });
+  await setAdjustmentStatus(session.schoolId, Number(id), status, session.userId);
+  return NextResponse.json({ success: true });
+}
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  try { await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin); }
+  catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
+  const { id } = await ctx.params;
+  await deleteAdjustment(session.schoolId, Number(id));
+  return NextResponse.json({ success: true });
+}

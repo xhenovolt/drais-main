@@ -191,11 +191,46 @@ export async function loadLearnerContext(schoolId: number, studentId: number, te
 
 export interface BillLine {
   fee_item_id: number; name: string; category: string;
-  amount: number; rule_id: number | null; reason: string;
+  base_amount: number;    // rule/segment amount before adjustments
+  discount: number;       // to store in student_fee_items.discount
+  waived: number;         // to store in student_fee_items.waived
+  amount: number;         // to store in student_fee_items.amount (override replaces base)
+  final: number;          // net payable = amount - discount - waived
+  rule_id: number | null;
+  reason: string;
+  adjustments: string[];  // human-readable adjustment notes
 }
 
-/** PURE: given items + rules + learner, produce the applicable bill lines. */
-export function evaluateBill(items: any[], rulesByItem: Map<number, any[]>, ctx: LearnerCtx): { lines: BillLine[]; total: number } {
+/** PURE: collapse approved adjustments for one line. override > waiver > discounts. */
+export function applyAdjustments(base: number, adjs: any[]): { amount: number; discount: number; waived: number; final: number; notes: string[] } {
+  const notes: string[] = [];
+  const override = adjs.find((a) => a.adjustment_type === 'override');
+  if (override) {
+    const v = Number(override.value) || 0;
+    notes.push(`override → ${v}${override.tag ? ` (${override.tag})` : ''}`);
+    return { amount: v, discount: 0, waived: 0, final: Math.max(0, v), notes };
+  }
+  if (adjs.some((a) => a.adjustment_type === 'waiver')) {
+    const w = adjs.find((a) => a.adjustment_type === 'waiver');
+    notes.push(`waiver${w?.tag ? ` (${w.tag})` : ''}`);
+    return { amount: base, discount: 0, waived: base, final: 0, notes };
+  }
+  let discount = 0;
+  for (const a of adjs) {
+    if (a.adjustment_type === 'fixed_discount') { discount += Number(a.value) || 0; notes.push(`-${Number(a.value) || 0}${a.tag ? ` (${a.tag})` : ''}`); }
+    else if (a.adjustment_type === 'percent_discount') { const d = base * (Number(a.value) || 0) / 100; discount += d; notes.push(`-${a.value}%${a.tag ? ` (${a.tag})` : ''}`); }
+  }
+  discount = Math.min(discount, base);
+  return { amount: base, discount, waived: 0, final: Math.max(0, base - discount), notes };
+}
+
+/** PURE: given items + rules + learner (+ optional approved adjustments by item),
+ *  produce the applicable, adjusted bill lines. `adjustmentsByItem` key: fee_item_id
+ *  or 0 for learner-wide (fee_item_id NULL) adjustments. */
+export function evaluateBill(
+  items: any[], rulesByItem: Map<number, any[]>, ctx: LearnerCtx,
+  adjustmentsByItem?: Map<number, any[]>,
+): { lines: BillLine[]; total: number } {
   const lines: BillLine[] = [];
   for (const item of items) {
     const rules = (rulesByItem.get(item.id) || []).filter((r) => Number(r.is_active) !== 0);
@@ -203,7 +238,6 @@ export function evaluateBill(items: any[], rulesByItem: Map<number, any[]>, ctx:
     for (const rule of rules) {
       const m = ruleMatchesLearner(rule, ctx);
       if (m.match) {
-        // Lower priority number wins; tie → a rule that sets an explicit amount.
         if (!chosen
           || Number(rule.priority ?? 100) < Number(chosen.priority ?? 100)
           || (Number(rule.priority ?? 100) === Number(chosen.priority ?? 100) && rule.amount != null && chosen.amount == null)) {
@@ -211,12 +245,17 @@ export function evaluateBill(items: any[], rulesByItem: Map<number, any[]>, ctx:
         }
       }
     }
-    if (chosen) {
-      const amount = chosen.amount != null ? Number(chosen.amount) : Number(item.default_amount) || 0;
-      lines.push({ fee_item_id: item.id, name: item.name, category: item.category, amount, rule_id: chosen.id, reason: `${item.name}: ${chosenReason}` });
-    }
+    if (!chosen) continue;
+    const base = chosen.amount != null ? Number(chosen.amount) : Number(item.default_amount) || 0;
+    const adjs = [...(adjustmentsByItem?.get(item.id) || []), ...(adjustmentsByItem?.get(0) || [])];
+    const adj = applyAdjustments(base, adjs);
+    lines.push({
+      fee_item_id: item.id, name: item.name, category: item.category,
+      base_amount: base, discount: adj.discount, waived: adj.waived, amount: adj.amount, final: adj.final,
+      rule_id: chosen.id, reason: `${item.name}: ${chosenReason}`, adjustments: adj.notes,
+    });
   }
-  return { lines, total: lines.reduce((s, l) => s + l.amount, 0) };
+  return { lines, total: lines.reduce((s, l) => s + l.final, 0) };
 }
 
 /** Evaluate one learner's applicable fees for a term (preview, no write). */
@@ -227,7 +266,8 @@ export async function evaluateLearnerFees(schoolId: number, studentId: number, t
   const rules = (await query(`SELECT * FROM fee_eligibility_rules WHERE school_id = ? AND is_active = 1`, [schoolId])) as any[];
   const byItem = new Map<number, any[]>();
   for (const r of rules) { const a = byItem.get(r.fee_item_id) || []; a.push(r); byItem.set(r.fee_item_id, a); }
-  return { ctx, ...evaluateBill(items, byItem, ctx) };
+  const adjByStudent = await loadAdjustmentsByStudent(schoolId, [studentId], termId);
+  return { ctx, ...evaluateBill(items, byItem, ctx, adjByStudent.get(studentId)) };
 }
 
 /**
@@ -265,16 +305,20 @@ export async function generateBills(
     for (const r of rows) existing.add(`${r.student_id}__${r.item}`);
   }
 
+  // Approved per-learner adjustments (waiver/discount/override), batched.
+  const adjByStudent = await loadAdjustmentsByStudent(schoolId, contexts.map((c) => c.studentId), termId);
+
   let learnersAffected = 0, linesTotal = 0, amountTotal = 0, inserted = 0, skipped = 0;
   const toInsert: any[][] = [];
   for (const ctx of contexts) {
-    const { lines, total } = evaluateBill(items, byItem, ctx);
+    const { lines, total } = evaluateBill(items, byItem, ctx, adjByStudent.get(ctx.studentId));
     if (!lines.length) continue;
     learnersAffected++; linesTotal += lines.length; amountTotal += total;
     if (opts.commit) {
       for (const line of lines) {
         if (existing.has(`${ctx.studentId}__${line.name}`)) { skipped++; continue; }
-        toInsert.push([ctx.studentId, termId, line.name, line.amount]);
+        // Snapshot the adjusted breakdown: balance (generated) = amount - discount - waived.
+        toInsert.push([ctx.studentId, termId, line.name, line.amount, line.discount, line.waived]);
       }
     }
   }
@@ -283,9 +327,9 @@ export async function generateBills(
   if (opts.commit && toInsert.length) {
     for (let i = 0; i < toInsert.length; i += 500) {
       const slice = toInsert.slice(i, i + 500);
-      const ph = slice.map(() => '(?, ?, ?, ?, 0, 0)').join(', ');
+      const ph = slice.map(() => '(?, ?, ?, ?, ?, ?, 0)').join(', ');
       await query(
-        `INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, paid) VALUES ${ph}`,
+        `INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, waived, paid) VALUES ${ph}`,
         slice.flat(),
       );
     }
@@ -293,4 +337,70 @@ export async function generateBills(
   }
 
   return { learners: contexts.length, learnersAffected, linesTotal, amountTotal, inserted, skipped, committed: !!opts.commit };
+}
+
+// ── Per-learner adjustments (Batch C) ──
+
+export type AdjustmentType = 'waiver' | 'percent_discount' | 'fixed_discount' | 'override';
+
+/** Approved, in-window adjustments grouped: studentId → (fee_item_id|0) → rows. */
+export async function loadAdjustmentsByStudent(
+  schoolId: number, studentIds: number[], termId?: number | null,
+): Promise<Map<number, Map<number, any[]>>> {
+  const out = new Map<number, Map<number, any[]>>();
+  if (!studentIds.length) return out;
+  const rows = (await query(
+    `SELECT * FROM learner_fee_adjustments
+      WHERE school_id = ? AND status = 'approved'
+        AND student_id IN (${studentIds.map(() => '?').join(',')})
+        AND (term_id IS NULL ${termId ? 'OR term_id = ?' : ''})
+        AND (effective_from IS NULL OR effective_from <= CURDATE())
+        AND (effective_to   IS NULL OR effective_to   >= CURDATE())`,
+    termId ? [schoolId, ...studentIds, termId] : [schoolId, ...studentIds],
+  )) as any[];
+  for (const r of rows) {
+    const byItem = out.get(r.student_id) || new Map<number, any[]>();
+    const key = r.fee_item_id == null ? 0 : Number(r.fee_item_id);
+    const arr = byItem.get(key) || []; arr.push(r); byItem.set(key, arr);
+    out.set(r.student_id, byItem);
+  }
+  return out;
+}
+
+export async function listAdjustments(schoolId: number, studentId?: number) {
+  const sql = `SELECT a.*, fi.name AS fee_item_name
+                 FROM learner_fee_adjustments a
+                 LEFT JOIN fee_items fi ON fi.id = a.fee_item_id
+                WHERE a.school_id = ?${studentId ? ' AND a.student_id = ?' : ''}
+                ORDER BY a.created_at DESC`;
+  return query(sql, studentId ? [schoolId, studentId] : [schoolId]) as Promise<any[]>;
+}
+
+export async function createAdjustment(schoolId: number, b: any, userId?: number | null): Promise<number> {
+  const res = (await query(
+    `INSERT INTO learner_fee_adjustments
+       (school_id, student_id, fee_item_id, term_id, academic_year_id, adjustment_type,
+        value, tag, reason, status, effective_from, effective_to, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+    [schoolId, b.student_id, b.fee_item_id ?? null, b.term_id ?? null, b.academic_year_id ?? null,
+     b.adjustment_type, Number(b.value) || 0, b.tag ?? null, b.reason ?? null,
+     b.effective_from ?? null, b.effective_to ?? null, userId ?? null],
+  )) as unknown as { insertId: number };
+  return res.insertId;
+}
+
+export async function setAdjustmentStatus(
+  schoolId: number, id: number, status: 'approved' | 'rejected' | 'pending', userId?: number | null,
+): Promise<void> {
+  if (status === 'approved') {
+    await query(
+      `UPDATE learner_fee_adjustments SET status='approved', approved_by=?, approved_at=CURRENT_TIMESTAMP
+        WHERE id=? AND school_id=?`, [userId ?? null, id, schoolId]);
+  } else {
+    await query(`UPDATE learner_fee_adjustments SET status=? WHERE id=? AND school_id=?`, [status, id, schoolId]);
+  }
+}
+
+export async function deleteAdjustment(schoolId: number, id: number): Promise<void> {
+  await query(`DELETE FROM learner_fee_adjustments WHERE id=? AND school_id=?`, [id, schoolId]);
 }
