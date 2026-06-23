@@ -10,6 +10,7 @@
  *  4. Fee assignment is idempotent (fee_assignment_log prevents duplicates)
  */
 import { query, withTransaction } from '@/lib/db';
+import { emit } from '@/lib/comm';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -310,12 +311,19 @@ export async function recordPayment(params: {
   termId?: number;
   notes?: string;
   createdBy?: number;
-}): Promise<{ paymentId: number; ledgerId: number; receiptNo: string }> {
+  /** Optional per-item allocation — updates student_fee_items.paid/balance. */
+  items?: Array<{ student_fee_item_id: number; amount: number }>;
+  discountApplied?: number;
+  taxAmount?: number;
+}): Promise<{ paymentId: number; ledgerId: number; receiptNo: string; receiptUrl: string }> {
   const receiptNo = params.receiptNo ?? generateReceiptNo();
 
   let paymentId = 0;
   let ledgerId = 0;
 
+  // CANONICAL payment writer (ledger-based). One transaction:
+  //   finance_payments → student_ledger credit → receipts → reconciliation
+  //   → optional per-item allocation → finance_actions audit.
   await withTransaction(async (conn: any) => {
     const [payResult]: any = await conn.execute(
       `INSERT INTO finance_payments
@@ -343,9 +351,80 @@ export async function recordPayment(params: {
       ]
     );
     ledgerId = ledResult.insertId;
+
+    // Receipt (with QR verify payload). receipts.payment_id references the
+    // canonical finance_payments row.
+    await conn.execute(
+      `INSERT INTO receipts
+         (school_id, student_id, payment_id, receipt_no, amount, payment_method,
+          reference, payer_name, payer_contact, notes, qr_code_data, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.schoolId, params.studentId, paymentId, receiptNo, params.amount,
+        params.method ?? 'cash', params.reference ?? null,
+        params.paidBy ?? null, params.payerContact ?? null, params.notes ?? null,
+        `/finance/receipts/${receiptNo}`,
+        JSON.stringify({
+          discount_applied: params.discountApplied ?? 0,
+          tax_amount: params.taxAmount ?? 0,
+          term_id: params.termId ?? null,
+          items: params.items ?? [],
+          generated_by: params.createdBy ?? null,
+        }),
+      ]
+    );
+
+    // Reconciliation row (pending until matched against a statement).
+    await conn.execute(
+      `INSERT INTO payment_reconciliations (school_id, payment_id, status) VALUES (?, ?, 'pending')`,
+      [params.schoolId, paymentId]
+    );
+
+    // Optional per-item allocation — keeps the per-item ledger pages in sync.
+    if (params.items?.length) {
+      for (const it of params.items) {
+        // NOTE: student_fee_items.balance is a STORED GENERATED column — it
+        // recomputes from `paid` automatically, so we must NOT write it.
+        await conn.execute(
+          `UPDATE student_fee_items
+              SET paid = paid + ?, last_payment_date = CURDATE()
+            WHERE id = ? AND student_id = ?`,
+          [it.amount, it.student_fee_item_id, params.studentId]
+        );
+      }
+    }
+
+    // Audit.
+    await conn.execute(
+      `INSERT INTO finance_actions (school_id, actor_user_id, action, entity_type, entity_id, metadata)
+       VALUES (?, ?, 'create_payment', 'payment', ?, ?)`,
+      [params.schoolId, params.createdBy ?? null, paymentId,
+       JSON.stringify({ amount: params.amount, method: params.method ?? 'cash', receiptNo })]
+    );
   });
 
-  return { paymentId, ledgerId, receiptNo };
+  // Notify (fire-and-forget — never delay/abort the payment on a slow provider).
+  try {
+    const rows = (await query(
+      `SELECT TRIM(CONCAT_WS(' ', pe.first_name, pe.last_name)) AS name
+         FROM students s LEFT JOIN people pe ON pe.id = s.person_id
+        WHERE s.id = ? AND s.school_id = ?`,
+      [params.studentId, params.schoolId],
+    )) as Array<{ name: string }>;
+    void emit('finance.payment.received', {
+      schoolId: params.schoolId,
+      studentId: params.studentId,
+      studentName: rows?.[0]?.name || `Student #${params.studentId}`,
+      amount: Number(params.amount),
+      receiptNo,
+      source: 'auto',
+      triggeredBy: params.createdBy ?? null,
+    }).catch((err) => console.error('[recordPayment] comm emit failed:', err));
+  } catch (err) {
+    console.error('[recordPayment] comm emit setup failed:', err);
+  }
+
+  return { paymentId, ledgerId, receiptNo, receiptUrl: `/finance/receipts/${receiptNo}` };
 }
 
 // ─── Bulk Import (Opening Balances) ──────────────────────────────────────────

@@ -18,16 +18,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     connection = await getConnection();
 
-    // Fetch payment details
+    // Fetch payment details from the CANONICAL finance_payments table.
     const [payments] = await connection.execute(`
-      SELECT 
+      SELECT
         fp.*,
         CONCAT(p.first_name, ' ', p.last_name) as student_name,
         s.admission_no,
         c.name as class_name,
         t.name as term_name,
-        w.name as wallet_name,
-        w.currency,
+        fa.name as wallet_name,
+        COALESCE(sch.currency, 'UGX') as currency,
         sch.name as school_name,
         sch.legal_name,
         sch.address as school_address,
@@ -36,17 +36,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         sch.logo_url,
         r.file_url,
         r.metadata as receipt_metadata
-      FROM fee_payments fp
+      FROM finance_payments fp
       JOIN students s ON fp.student_id = s.id
       JOIN people p ON s.person_id = p.id
       JOIN schools sch ON s.school_id = sch.id
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
-      LEFT JOIN terms t ON fp.term_id = t.id
-      LEFT JOIN wallets w ON fp.wallet_id = w.id
+      LEFT JOIN student_ledger sl ON sl.payment_id = fp.id AND sl.type = 'credit'
+      LEFT JOIN terms t ON sl.term_id = t.id
+      LEFT JOIN finance_accounts fa ON fp.account_id = fa.id
       LEFT JOIN receipts r ON fp.id = r.payment_id
-      WHERE fp.id = ?
-    `, [paymentId]);
+      WHERE fp.id = ? AND fp.school_id = ?
+    `, [paymentId, schoolId]);
 
     if (!payments.length) {
       return NextResponse.json({

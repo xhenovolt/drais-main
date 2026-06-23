@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
-import { updateFeeItemStatus, batchUpdateFeeItemStatuses } from '@/lib/services/FeeService';
-
+import { batchUpdateFeeItemStatuses } from '@/lib/services/FeeService';
+import { recordPayment } from '@/lib/services/FinanceLedger';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
-import { emit } from '@/lib/comm';
+
 export async function GET(req: NextRequest) {
   let connection;
-  
+
   try {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
@@ -18,77 +18,55 @@ export async function GET(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
-    // school_id derived from session below
     const studentId = searchParams.get('student_id');
-    const termId = searchParams.get('term_id');
-    const status = searchParams.get('status');
-    const walletId = searchParams.get('wallet_id');
+    const walletId = searchParams.get('wallet_id'); // maps to finance_payments.account_id
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     connection = await getConnection();
 
+    // CANONICAL source: finance_payments (+ student_ledger for term, receipts for
+    // the receipt, payment_reconciliations for status). The legacy fee_payments
+    // table is no longer written; all payments flow through recordPayment().
     let sql = `
-      SELECT 
+      SELECT
         fp.id,
         fp.student_id,
-        fp.term_id,
-        fp.wallet_id,
         fp.amount,
-        fp.discount_applied,
-        fp.tax_amount,
+        fp.account_id AS wallet_id,
         fp.method,
         fp.paid_by,
         fp.payer_contact,
         fp.reference,
-        fp.gateway_reference,
         fp.receipt_no,
-        fp.payment_status as status,
+        'completed' AS status,
         fp.created_at,
-        CONCAT(p.first_name, ' ', p.last_name) as student_name,
+        CONCAT(p.first_name, ' ', p.last_name) AS student_name,
         s.admission_no,
-        c.name as class_name,
-        t.name as term_name,
-        w.name as wallet_name,
-        COALESCE(w.currency, 'UGX') as currency,
-        r.receipt_no as receipt_number,
-        r.file_url as receipt_url,
-        pr.status as reconciliation_status
-      FROM fee_payments fp
+        c.name AS class_name,
+        t.name AS term_name,
+        fa.name AS wallet_name,
+        COALESCE(sch.currency, 'UGX') AS currency,
+        r.receipt_no AS receipt_number,
+        r.file_url AS receipt_url,
+        pr.status AS reconciliation_status
+      FROM finance_payments fp
       JOIN students s ON fp.student_id = s.id
       JOIN people p ON s.person_id = p.id
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
-      LEFT JOIN terms t ON fp.term_id = t.id
-      LEFT JOIN wallets w ON fp.wallet_id = w.id
+      LEFT JOIN student_ledger sl ON sl.payment_id = fp.id AND sl.type = 'credit'
+      LEFT JOIN terms t ON sl.term_id = t.id
+      LEFT JOIN finance_accounts fa ON fp.account_id = fa.id
+      LEFT JOIN schools sch ON fp.school_id = sch.id
       LEFT JOIN receipts r ON fp.id = r.payment_id
       LEFT JOIN payment_reconciliations pr ON fp.id = pr.payment_id
-      WHERE fp.student_id IN (
-        SELECT s2.id FROM students s2 WHERE s2.school_id = ?
-      )
+      WHERE fp.school_id = ?
     `;
 
     const params: any[] = [schoolId];
-
-    if (studentId) {
-      sql += ' AND fp.student_id = ?';
-      params.push(parseInt(studentId, 10));
-    }
-
-    if (termId) {
-      sql += ' AND fp.term_id = ?';
-      params.push(parseInt(termId, 10));
-    }
-
-    if (status) {
-      sql += ' AND fp.payment_status = ?';
-      params.push(status);
-    }
-
-    if (walletId) {
-      sql += ' AND fp.wallet_id = ?';
-      params.push(parseInt(walletId, 10));
-    }
+    if (studentId) { sql += ' AND fp.student_id = ?'; params.push(parseInt(studentId, 10)); }
+    if (walletId) { sql += ' AND fp.account_id = ?'; params.push(parseInt(walletId, 10)); }
 
     const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 50));
     const safeOffset = Math.max(0, Number(offset) || 0);
@@ -96,31 +74,10 @@ export async function GET(req: NextRequest) {
 
     const [payments] = await connection.execute(sql, params);
 
-    // Get total count for pagination
-    let countSql = `
-      SELECT COUNT(*) as total
-      FROM fee_payments fp
-      JOIN students s ON fp.student_id = s.id
-      WHERE s.school_id = ?
-    `;
-    
+    let countSql = `SELECT COUNT(*) AS total FROM finance_payments fp WHERE fp.school_id = ?`;
     const countParams: any[] = [schoolId];
-    if (studentId) {
-      countSql += ' AND fp.student_id = ?';
-      countParams.push(parseInt(studentId, 10));
-    }
-    if (termId) {
-      countSql += ' AND fp.term_id = ?';
-      countParams.push(parseInt(termId, 10));
-    }
-    if (status) {
-      countSql += ' AND fp.payment_status = ?';
-      countParams.push(status);
-    }
-    if (walletId) {
-      countSql += ' AND fp.wallet_id = ?';
-      countParams.push(parseInt(walletId, 10));
-    }
+    if (studentId) { countSql += ' AND fp.student_id = ?'; countParams.push(parseInt(studentId, 10)); }
+    if (walletId) { countSql += ' AND fp.account_id = ?'; countParams.push(parseInt(walletId, 10)); }
 
     const [countResult] = await connection.execute(countSql, countParams);
 
@@ -131,25 +88,18 @@ export async function GET(req: NextRequest) {
         total: countResult[0].total,
         limit,
         offset,
-        hasMore: offset + limit < countResult[0].total
-      }
+        hasMore: offset + limit < countResult[0].total,
+      },
     });
-
   } catch (error: any) {
     console.error('Payments fetch error:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to fetch payments',
-      data: []
-    }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Failed to fetch payments', data: [] }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }
 }
 
 export async function POST(req: NextRequest) {
-  let connection;
-  
   try {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
@@ -160,11 +110,11 @@ export async function POST(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const body = await req.json();
-    const { 
+    const {
       student_id,
       term_id,
       wallet_id,
-      items, // Array of { student_fee_item_id, amount }
+      items, // optional Array of { student_fee_item_id, amount }
       amount,
       discount_applied = 0,
       tax_amount = 0,
@@ -172,195 +122,67 @@ export async function POST(req: NextRequest) {
       paid_by,
       payer_contact,
       reference,
-      gateway_reference
     } = body;
 
-    if (!student_id || !term_id || !wallet_id || !amount || !method || !items?.length) {
+    if (!student_id || !amount || !method) {
       return NextResponse.json({
         success: false,
-        message: 'Missing required payment fields'
+        message: 'Missing required payment fields (student_id, amount, method)',
       }, { status: 400 });
     }
 
-    // Trust guard: the payment total must equal the sum of its item allocations,
-    // otherwise the ledger credit and the per-item paid amounts diverge.
-    const itemsSum = items.reduce((s: number, i: any) => s + Number(i.amount || 0), 0);
-    if (Math.abs(itemsSum - Number(amount)) > 0.01) {
-      return NextResponse.json({
-        success: false,
-        message: `Payment amount (${amount}) must equal the sum of item allocations (${itemsSum})`,
-      }, { status: 400 });
+    // Trust guard: when item allocations are supplied they must sum to the amount.
+    if (items?.length) {
+      const itemsSum = items.reduce((s: number, i: any) => s + Number(i.amount || 0), 0);
+      if (Math.abs(itemsSum - Number(amount)) > 0.01) {
+        return NextResponse.json({
+          success: false,
+          message: `Payment amount (${amount}) must equal the sum of item allocations (${itemsSum})`,
+        }, { status: 400 });
+      }
     }
 
-    connection = await getConnection();
-    await connection.beginTransaction();
+    // finance_payments.method is an enum — clamp anything unexpected to 'other'.
+    const VALID_METHODS = ['cash', 'bank_transfer', 'mpesa', 'airtel', 'card', 'cheque', 'other'];
+    const normMethod = VALID_METHODS.includes(method) ? method : 'other';
 
-    try {
-      // 1. Validate student fee items and calculate expected amount
-      const feeItemIds = items.map((item: any) => item.student_fee_item_id);
-      const [feeItems] = await connection.execute(`
-        SELECT 
-          sfi.id,
-          sfi.student_id,
-          sfi.term_id,
-          sfi.item,
-          sfi.amount,
-          sfi.discount,
-          sfi.waived,
-          sfi.paid,
-          sfi.balance
-        FROM student_fee_items sfi
-        WHERE sfi.id IN (${feeItemIds.map(() => '?').join(',')}) 
-          AND sfi.student_id = ? 
-          AND sfi.term_id = ?
-      `, [...feeItemIds, student_id, term_id]);
+    // Delegate to the single canonical (ledger-based) payment writer:
+    // finance_payments + student_ledger credit + receipt + reconciliation
+    // + optional per-item allocation + audit, all transactional, then SMS.
+    const result = await recordPayment({
+      studentId: Number(student_id),
+      schoolId,
+      amount: Number(amount),
+      method: normMethod,
+      accountId: wallet_id ? Number(wallet_id) : undefined,
+      reference,
+      paidBy: paid_by,
+      payerContact: payer_contact,
+      termId: term_id ? Number(term_id) : undefined,
+      items: items?.length ? items : undefined,
+      discountApplied: Number(discount_applied) || 0,
+      taxAmount: Number(tax_amount) || 0,
+      createdBy: session.userId,
+    });
 
-      if (feeItems.length !== items.length) {
-        throw new Error('Invalid fee items provided');
-      }
-
-      // 2. Generate receipt number
-      const [receiptCount] = await connection.execute(
-        'SELECT COUNT(*) as count FROM receipts WHERE school_id = ? AND DATE(created_at) = CURDATE()',
-        [schoolId]
-      );
-      
-      const receiptNo = `R-${new Date().getFullYear()}-${String(receiptCount[0].count + 1).padStart(6, '0')}`;
-
-      // 3. Create payment record
-      const [paymentResult] = await connection.execute(`
-        INSERT INTO fee_payments (
-          student_id, term_id, wallet_id, amount, discount_applied, tax_amount,
-          method, paid_by, payer_contact, reference, gateway_reference, receipt_no, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
-      `, [
-        student_id, term_id, wallet_id, amount, discount_applied, tax_amount,
-        method, paid_by, payer_contact, reference, gateway_reference, receiptNo
-      ]);
-
-      const paymentId = paymentResult.insertId;
-
-      // 4. Update student fee items and their statuses
-      const updatedFeeItemIds: number[] = [];
-      for (const item of items) {
-        // Recompute balance in the same write — previously only `paid` was
-        // updated, leaving `balance` stale (the headline trust bug: a paid
-        // learner still showed the full outstanding amount on the ledger pages).
-        await connection.execute(`
-          UPDATE student_fee_items
-          SET paid = paid + ?,
-              balance = GREATEST(amount - discount - waived - (paid + ?), 0),
-              last_payment_date = CURDATE()
-          WHERE id = ?
-        `, [item.amount, item.amount, item.student_fee_item_id]);
-
-        updatedFeeItemIds.push(item.student_fee_item_id);
-      }
-
-      // 5. Create ledger entry
-      const [incomeCategory] = await connection.execute(`
-        SELECT id FROM finance_categories 
-        WHERE (school_id = ? OR school_id IS NULL) AND type = 'income' AND name = 'Tuition Fees'
-        LIMIT 1
-      `, [schoolId]);
-
-      await connection.execute(`
-        INSERT INTO ledger (
-          school_id, wallet_id, category_id, tx_type, amount,
-          reference, description, student_id, created_by
-        ) VALUES (?, ?, ?, 'credit', ?, ?, ?, ?, ?)
-      `, [
-        schoolId, wallet_id, incomeCategory[0]?.id || 1, amount,
-        reference || receiptNo, `Payment from ${paid_by} for ${feeItems.map((f: any) => f.item).join(', ')}`,
-        student_id, session.userId // from authenticated session
-      ]);
-
-      // 6. Create receipt record (columns match the receipts schema; actor is
-      //    stored in metadata since there is no generated_by column).
-      await connection.execute(`
-        INSERT INTO receipts (school_id, student_id, payment_id, receipt_no, amount,
-          payment_method, reference, payer_name, payer_contact, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        schoolId, student_id, paymentId, receiptNo, amount,
-        method || null, reference || receiptNo, paid_by || null, payer_contact || null,
-        JSON.stringify({
-          items: feeItems.map((f: any) => ({ item: f.item, amount: f.amount })),
-          payment_method: method,
-          paid_by,
-          payer_contact,
-          generated_by: session.userId,
-        })
-      ]);
-
-      // 7. Create reconciliation record
-      await connection.execute(`
-        INSERT INTO payment_reconciliations (school_id, payment_id, status)
-        VALUES (?, ?, 'pending')
-      `, [schoolId, paymentId]);
-
-      // 8. Log finance action
-      await connection.execute(`
-        INSERT INTO finance_actions (school_id, actor_user_id, action, entity_type, entity_id, metadata)
-        VALUES (?, ?, 'create_payment', 'payment', ?, ?)
-      `, [
-        schoolId, session.userId, paymentId,
-        JSON.stringify({ amount, method, student_id, items_count: items.length })
-      ]);
-
-      await connection.commit();
-
-      // Update fee item statuses after transaction commits
-      await batchUpdateFeeItemStatuses(updatedFeeItemIds);
-
-      // Notify via the communication engine — fire-and-forget so a slow
-      // SMS provider can never delay the payment response. The engine
-      // consults the school's rules (audience, auto vs manual, quiet
-      // hours) and writes its own audit row.
-      try {
-        const [studentRows]: any = await connection.execute(
-          `SELECT TRIM(CONCAT_WS(' ', pe.first_name, pe.last_name)) AS name
-             FROM students s
-             LEFT JOIN people pe ON pe.id = s.person_id
-            WHERE s.id = ? AND s.school_id = ?`,
-          [student_id, schoolId],
-        );
-        const studentName = studentRows?.[0]?.name || `Student #${student_id}`;
-        void emit('finance.payment.received', {
-          schoolId,
-          studentId:  Number(student_id),
-          studentName,
-          amount:     Number(amount),
-          receiptNo,
-          source:     'auto',
-          triggeredBy: session.userId,
-        }).catch(err => console.error('[payments] comm emit failed:', err));
-      } catch (err) {
-        console.error('[payments] comm emit setup failed:', err);
-      }
-
-      return NextResponse.json({
-        success: true,
-        payment_id: paymentId,
-        receipt: {
-          receipt_no: receiptNo,
-          download_url: `/api/finance/payments/${paymentId}/receipt`
-        },
-        message: 'Payment processed successfully'
-      });
-
-    } catch (error) {
-      await connection.rollback();
-      throw error;
+    if (items?.length) {
+      await batchUpdateFeeItemStatuses(items.map((i: any) => i.student_fee_item_id));
     }
 
+    return NextResponse.json({
+      success: true,
+      payment_id: result.paymentId,
+      receipt: {
+        receipt_no: result.receiptNo,
+        download_url: `/api/finance/payments/${result.paymentId}/receipt`,
+      },
+      message: 'Payment processed successfully',
+    });
   } catch (error: any) {
     console.error('Payment creation error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || 'Failed to process payment'
+      error: error.message || 'Failed to process payment',
     }, { status: 500 });
-  } finally {
-    if (connection) await connection.end();
   }
 }
