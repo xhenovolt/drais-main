@@ -22,6 +22,7 @@ import { swrFetcher } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import Pagination from '@/components/ui/Pagination';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface LearnerFees {
   student_id: number;
@@ -54,6 +55,7 @@ interface Meta {
 
 const LearnersFeesPage: React.FC = () => {
   const { t } = useI18n();
+  const { format } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -182,9 +184,9 @@ const LearnersFeesPage: React.FC = () => {
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               {meta?.total_learners || 0} learners • 
-              <span className="text-green-600 ml-2">UGX {(meta?.total_paid || 0).toLocaleString()} collected</span>
+              <span className="text-green-600 ml-2">{format((meta?.total_paid || 0))} collected</span>
               <span className="mx-2">•</span>
-              <span className="text-red-600">UGX {(meta?.total_balance || 0).toLocaleString()} outstanding</span>
+              <span className="text-red-600">{format((meta?.total_balance || 0))} outstanding</span>
             </p>
           </div>
 
@@ -497,14 +499,14 @@ const LearnersFeesPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {learner.total_expected 
-                              ? `UGX ${learner.total_expected.toLocaleString()}` 
+                              ? `${format(learner.total_expected)}` 
                               : <span className="text-gray-400 italic">Undefined</span>
                             }
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                            UGX {learner.total_paid.toLocaleString()}
+                            {format(learner.total_paid)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -513,7 +515,7 @@ const LearnersFeesPage: React.FC = () => {
                               ? 'text-red-600 dark:text-red-400' 
                               : 'text-green-600 dark:text-green-400'
                           }`}>
-                            UGX {learner.balance.toLocaleString()}
+                            {format(learner.balance)}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -598,25 +600,25 @@ const LearnersFeesPage: React.FC = () => {
                   <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
                     <p className="text-xs text-gray-500 dark:text-gray-400">Expected Amount</p>
                     <p className="text-xl font-bold text-gray-900 dark:text-white">
-                      {selectedLearner.total_expected ? `UGX ${selectedLearner.total_expected.toLocaleString()}` : 'Undefined'}
+                      {selectedLearner.total_expected ? `${format(selectedLearner.total_expected)}` : 'Undefined'}
                     </p>
                   </div>
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                     <p className="text-xs text-green-600 dark:text-green-400">Amount Paid</p>
                     <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                      UGX {selectedLearner.total_paid.toLocaleString()}
+                      {format(selectedLearner.total_paid)}
                     </p>
                   </div>
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
                     <p className="text-xs text-yellow-600 dark:text-yellow-400">Waived/Discount</p>
                     <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
-                      UGX {(selectedLearner.total_waived + selectedLearner.total_discount).toLocaleString()}
+                      {format((selectedLearner.total_waived + selectedLearner.total_discount))}
                     </p>
                   </div>
                   <div className={`rounded-lg p-4 ${selectedLearner.balance > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
                     <p className={`text-xs ${selectedLearner.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>Balance</p>
                     <p className={`text-xl font-bold ${selectedLearner.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      UGX {selectedLearner.balance.toLocaleString()}
+                      {format(selectedLearner.balance)}
                     </p>
                   </div>
                 </div>

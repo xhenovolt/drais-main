@@ -21,6 +21,7 @@ import { apiFetch, swrFetcher } from '@/lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
 import NewBadge from '@/components/ui/NewBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface Payment {
   id: number;
@@ -47,6 +48,7 @@ interface Payment {
 
 const PaymentsPage: React.FC = () => {
   const { t } = useI18n();
+  const { format } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
@@ -140,7 +142,7 @@ const PaymentsPage: React.FC = () => {
               <NewBadge size="sm" animated />
             </div>
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredPayments.length} payments • UGX {totalAmount.toLocaleString()} total
+              {filteredPayments.length} payments • {format(totalAmount)} total
             </p>
           </div>
 
@@ -166,7 +168,7 @@ const PaymentsPage: React.FC = () => {
                   Total Payments
                 </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  UGX {totalAmount.toLocaleString()}
+                  {format(totalAmount)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
@@ -190,7 +192,7 @@ const PaymentsPage: React.FC = () => {
                   {todayPayments.length}
                 </p>
                 <p className="text-sm text-gray-500">
-                  UGX {todayAmount.toLocaleString()}
+                  {format(todayAmount)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
@@ -211,7 +213,7 @@ const PaymentsPage: React.FC = () => {
                   Avg Payment
                 </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  UGX {filteredPayments.length ? Math.round(totalAmount / filteredPayments.length).toLocaleString() : '0'}
+                  {format(filteredPayments.length ? Math.round(totalAmount / filteredPayments.length) : 0)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">

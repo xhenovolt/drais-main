@@ -9,6 +9,7 @@ import {
 import { apiFetch } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import NewBadge from '@/components/ui/NewBadge';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface FeeLedgerEntry {
   student_id: number;
@@ -32,6 +33,7 @@ interface FeeLedgerEntry {
 }
 
 export default function FeesLedgerPage() {
+  const { format } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -112,7 +114,7 @@ export default function FeesLedgerPage() {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">📊 Fees Ledger</h1>
               <NewBadge size="sm" animated />
             </div>
-            <p className="text-gray-600 dark:text-gray-400">{entries.length} students • UGX {Number(summary.total_outstanding || 0).toLocaleString()} outstanding</p>
+            <p className="text-gray-600 dark:text-gray-400">{entries.length} students • {format(Number(summary.total_outstanding || 0))} outstanding</p>
           </div>
           <div className="flex gap-3">
             <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
@@ -130,19 +132,19 @@ export default function FeesLedgerPage() {
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Expected</p><p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">UGX {Number(summary.total_expected || 0).toLocaleString()}</p></div>
+              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Expected</p><p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{format(Number(summary.total_expected || 0))}</p></div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center"><DollarSign className="w-6 h-6 text-white" /></div>
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Collected</p><p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">UGX {Number(summary.total_collected || 0).toLocaleString()}</p></div>
+              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Collected</p><p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{format(Number(summary.total_collected || 0))}</p></div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center"><CheckCircle className="w-6 h-6 text-white" /></div>
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Outstanding</p><p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">UGX {Number(summary.total_outstanding || 0).toLocaleString()}</p></div>
+              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Outstanding</p><p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{format(Number(summary.total_outstanding || 0))}</p></div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center"><TrendingUp className="w-6 h-6 text-white" /></div>
             </div>
           </motion.div>
@@ -192,9 +194,9 @@ export default function FeesLedgerPage() {
                   <motion.tr key={entry.student_id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.02 }} className="hover:bg-gray-50 dark:hover:bg-slate-700">
                     <td className="px-6 py-4"><div className="text-sm font-medium text-gray-900 dark:text-white">{entry.first_name} {entry.last_name}</div><div className="text-xs text-gray-500">{entry.admission_no}</div></td>
                     <td className="px-6 py-4"><div className="text-sm text-gray-900 dark:text-white">{entry.class_name}</div><div className="text-xs text-gray-500">{entry.section_name}</div></td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white text-right">UGX {Number(entry.total_expected).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400 text-right">UGX {Number(entry.total_paid).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-red-600 dark:text-red-400 text-right">UGX {Number(entry.total_balance).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white text-right">{format(Number(entry.total_expected))}</td>
+                    <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400 text-right">{format(Number(entry.total_paid))}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-red-600 dark:text-red-400 text-right">{format(Number(entry.total_balance))}</td>
                     <td className="px-6 py-4 text-center"><span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(entry.overall_status)}`}>{getStatusIcon(entry.overall_status)}{entry.overall_status}</span></td>
                     <td className="px-6 py-4"><div className="flex items-center justify-center gap-2">
                       <button className="p-2 rounded text-blue-600 hover:bg-blue-50"><Eye className="w-4 h-4" /></button>

@@ -23,6 +23,7 @@ import { swrFetcher } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import NewBadge from '@/components/ui/NewBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface FeeItem {
   id: number;
@@ -44,6 +45,7 @@ interface FeeItem {
 
 const FeesPage: React.FC = () => {
   const { t } = useI18n();
+  const { format } = useCurrency();
   const [activeTab, setActiveTab] = useState<'structure' | 'students' | 'templates'>('students');
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
@@ -107,7 +109,7 @@ const FeesPage: React.FC = () => {
               <NewBadge size="sm" animated />
             </div>
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredItems.length} fee items • UGX {totalBalance.toLocaleString()} outstanding
+              {filteredItems.length} fee items • {format(totalBalance)} outstanding
             </p>
           </div>
 
@@ -136,7 +138,7 @@ const FeesPage: React.FC = () => {
                   Total Fees
                 </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  UGX {totalAmount.toLocaleString()}
+                  {format(totalAmount)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
@@ -157,7 +159,7 @@ const FeesPage: React.FC = () => {
                   Paid
                 </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  UGX {totalPaid.toLocaleString()}
+                  {format(totalPaid)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
@@ -178,7 +180,7 @@ const FeesPage: React.FC = () => {
                   Outstanding
                 </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  UGX {totalBalance.toLocaleString()}
+                  {format(totalBalance)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
@@ -348,13 +350,13 @@ const FeesPage: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                              UGX {item.amount.toLocaleString()}
+                              {format(item.amount)}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                              UGX {item.paid.toLocaleString()}
+                              {format(item.paid)}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                              UGX {item.balance.toLocaleString()}
+                              {format(item.balance)}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>

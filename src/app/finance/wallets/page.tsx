@@ -22,6 +22,7 @@ import { apiFetch, swrFetcher } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
 import WalletModal from '@/components/finance/WalletModal';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface WalletData {
   id: number;
@@ -42,6 +43,7 @@ interface WalletData {
 
 const WalletsPage: React.FC = () => {
   const { t } = useI18n();
+  const { format } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWallet, setSelectedWallet] = useState<WalletData | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -154,7 +156,7 @@ const WalletsPage: React.FC = () => {
                   Total Balance
                 </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  UGX {totalBalance.toLocaleString()}
+                  {format(totalBalance)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">

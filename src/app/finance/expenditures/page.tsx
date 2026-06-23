@@ -6,6 +6,7 @@ import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import NewBadge from '@/components/ui/NewBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface Expenditure {
   id: number;
@@ -27,6 +28,7 @@ interface Expenditure {
 
 export default function ExpendituresPage() {
   const { t } = useI18n();
+  const { format, code } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -104,7 +106,7 @@ export default function ExpendituresPage() {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">💰 {t('finance.expenses')}</h1>
               <NewBadge size="sm" animated />
             </div>
-            <p className="text-gray-600 dark:text-gray-400">{entries.length} transactions • UGX {Number(summary.total_amount || 0).toLocaleString()} total</p>
+            <p className="text-gray-600 dark:text-gray-400">{entries.length} transactions • {format(Number(summary.total_amount || 0))} total</p>
           </div>
           <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
             <Plus className="w-4 h-4" />Add Expenditure
@@ -114,19 +116,19 @@ export default function ExpendituresPage() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expenditure</p><p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">UGX {Number(summary.total_amount || 0).toLocaleString()}</p></div>
+              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expenditure</p><p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{format(Number(summary.total_amount || 0))}</p></div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center"><DollarSign className="w-6 h-6 text-white" /></div>
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Approved</p><p className="text-2xl font-bold text-green-600 mt-1">UGX {Number(summary.approved_amount || 0).toLocaleString()}</p></div>
+              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Approved</p><p className="text-2xl font-bold text-green-600 mt-1">{format(Number(summary.approved_amount || 0))}</p></div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center"><CheckCircle className="w-6 h-6 text-white" /></div>
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p><p className="text-2xl font-bold text-yellow-600 mt-1">UGX {Number(summary.pending_amount || 0).toLocaleString()}</p></div>
+              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p><p className="text-2xl font-bold text-yellow-600 mt-1">{format(Number(summary.pending_amount || 0))}</p></div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center"><Clock className="w-6 h-6 text-white" /></div>
             </div>
           </motion.div>
@@ -172,7 +174,7 @@ export default function ExpendituresPage() {
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{item.category_name}</td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{item.description}</td>
                   <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{item.vendor_name || '-'}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">UGX {Number(item.amount).toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">{format(Number(item.amount))}</td>
                   <td className="px-6 py-4 text-center"><span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>{item.status}</span></td>
                   <td className="px-6 py-4"><div className="flex items-center justify-center gap-2">
                     <button className="p-2 rounded text-blue-600 hover:bg-blue-50"><Edit className="w-4 h-4" /></button>
@@ -191,7 +193,7 @@ export default function ExpendituresPage() {
             <h2 className="text-xl font-bold mb-4">Add Expenditure</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div><label className="block text-sm font-medium mb-1">Category</label><select required value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-4 py-2 border rounded-lg"><option value="">Select Category</option></select></div>
-              <div><label className="block text-sm font-medium mb-1">Amount (UGX)</label><input type="number" required value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
+              <div><label className="block text-sm font-medium mb-1">Amount ({code})</label><input type="number" required value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
               <div><label className="block text-sm font-medium mb-1">Description</label><textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
               <div><label className="block text-sm font-medium mb-1">Vendor Name</label><input type="text" value={formData.vendor_name} onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
               <div className="flex gap-3 pt-4">
