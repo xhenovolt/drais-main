@@ -101,7 +101,17 @@ linux:
     - deb
   category: Education
   artifactName: ${productName}-${version}-${arch}.${ext}
-  icon: build/icon.ico
+  # Linux uses a PNG (>=512x512); .ico is ignored. maintainer is required by .deb.
+  icon: build/icon.png
+  maintainer: DRAIS <ops@drais.ug>
+  synopsis: Academic, attendance & biometric platform for schools
+  desktop:
+    StartupWMClass: DRAIS
+
+# Snap: opt-in (needs snapcraft on the build machine) — see `npm run dist:snap`.
+snap:
+  grade: stable
+  confinement: classic
 
 # macOS: dmg + zip. Build on macOS (codesigning/notarization separate):
 #   npm run build:electron && npx electron-builder --mac
