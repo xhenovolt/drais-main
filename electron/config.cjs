@@ -19,6 +19,11 @@ const path = require('path');
 // Keys DRAIS actually reads at runtime (online/TiDB build).
 const KNOWN_KEYS = [
   'TIDB_HOST', 'TIDB_PORT', 'TIDB_USER', 'TIDB_PASSWORD', 'TIDB_DB',
+  // Hybrid online/local DB mode (Track A) — required for the desktop app to
+  // offer + connect to a local MySQL (XAMPP) database.
+  'DRAIS_ALLOW_LOCAL', 'DRAIS_DB_MODE',
+  'LOCAL_MYSQL_HOST', 'LOCAL_MYSQL_PORT', 'LOCAL_MYSQL_USER', 'LOCAL_MYSQL_PASSWORD', 'LOCAL_MYSQL_DATABASE',
+  'DEVICE_CLAIM_SECRET',
   'DATABASE_MODE', 'APP_MODE', 'DRAIS_PORT', 'NODE_ENV',
   // tolerated extras some routes read:
   'AFRICASTALKING_USERNAME', 'AFRICASTALKING_API_KEY',

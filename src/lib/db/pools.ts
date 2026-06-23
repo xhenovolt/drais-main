@@ -38,7 +38,7 @@ export function localConfig(): PoolConfig {
     port: parseInt(process.env.LOCAL_MYSQL_PORT || '3306', 10),
     user: process.env.LOCAL_MYSQL_USER || 'root',
     password: process.env.LOCAL_MYSQL_PASSWORD || '',
-    database: process.env.LOCAL_MYSQL_DATABASE || 'drais_local',
+    database: process.env.LOCAL_MYSQL_DATABASE || 'drais',
   };
 }
 

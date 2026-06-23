@@ -14,7 +14,7 @@ loadEnv();
 const CORE_TABLES = ['schools', 'users', 'students', 'roles', 'permissions', 'schema_migrations'];
 
 async function main() {
-  const dbName = process.env.LOCAL_MYSQL_DATABASE || 'drais_local';
+  const dbName = process.env.LOCAL_MYSQL_DATABASE || 'drais';
   let conn;
   try {
     conn = await mysql.createConnection({ ...localConfig(true), database: dbName });

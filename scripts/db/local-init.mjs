@@ -32,7 +32,7 @@ async function main() {
     console.error('FATAL: no schema export found. Run: npm run db:export:schema');
     process.exit(1);
   }
-  const dbName = process.env.LOCAL_MYSQL_DATABASE || 'drais_local';
+  const dbName = process.env.LOCAL_MYSQL_DATABASE || 'drais';
   const server = localConfig(false);
   console.log(`[local-init] Server ${server.host}:${server.port} as ${server.user}`);
 

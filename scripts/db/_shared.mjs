@@ -40,7 +40,7 @@ export function localConfig(withDb = true) {
     password: process.env.LOCAL_MYSQL_PASSWORD || '',
     multipleStatements: true,
   };
-  if (withDb) cfg.database = process.env.LOCAL_MYSQL_DATABASE || 'drais_local';
+  if (withDb) cfg.database = process.env.LOCAL_MYSQL_DATABASE || 'drais';
   return cfg;
 }
 
