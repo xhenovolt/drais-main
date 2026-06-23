@@ -39,6 +39,35 @@ sudo apt update && sudo apt install drais
 - **Update:** you publish a new version → users `sudo apt update && sudo apt upgrade`.
 - **Remove:** `sudo apt remove drais` (config left) or `sudo apt purge drais` (everything). electron-builder's .deb ships proper install/remove scripts, so this is clean.
 
+## Where do I host the 200 MB files? (decision)
+| Host | `snap install drais` | `apt install drais` | Direct download | Cost |
+|---|---|---|---|---|
+| **Snap Store (snapcraft.io)** | ✅ best, no server | — | — | free |
+| **Cheap VPS** (DigitalOcean/Hetzner) | — | ✅ | ✅ | ~$4–6/mo |
+| **Cloudflare R2** (static apt repo) | — | ✅ | ✅ | free tier (10 GB, free egress) |
+| **GitHub Releases** | — | ❌ (not a repo) | ✅ up to 2 GB/file | free |
+| **GitHub Pages** | — | ⚠️ files >100 MB blocked → no | small files only | free |
+| **Google Drive** | ❌ | ❌ | ⚠️ link only | free |
+
+Recommendation:
+- **Want the easiest "install by name", free, no server → use SNAP** (below). `sudo snap install drais`, auto-updates, hosted by Canonical.
+- **Want `apt install drais` specifically →** host the apt repo (this file) on a **cheap VPS** or **Cloudflare R2**. Not Drive, not GitHub Pages (too big).
+- **Just want people to download & install →** **GitHub Releases**: upload the `.deb`/AppImage/`.exe`; users run `sudo apt install ./DRAIS-*.deb` or run the AppImage. Free, instant, no repo.
+
+## Snap Store — `sudo snap install drais` (free, no server)
+```
+sudo snap install snapcraft --classic
+npm run dist:snap                     # builds dist/drais_<version>_amd64.snap
+snapcraft login
+snapcraft register drais              # claims the name (once; must be free)
+snapcraft upload --release=stable dist/drais_*.snap
+```
+Users: `sudo snap install drais` · update: automatic · remove: `sudo snap remove drais`.
+Note: we set `confinement: classic` (full system access — simplest for an app that
+reads local files / talks to USB biometric devices). Classic snaps need a one-time
+**manual review request** on the Snapcraft forum (free) before public release; until
+then test with `sudo snap install dist/drais_*.snap --dangerous --classic`.
+
 ## Notes
 - `apt upgrade` only sees a new version if the .deb's version increased — our commit hook bumps `package.json`, and electron-builder uses it, so each `dist:linux` is a higher version automatically.
 - The repo only distributes the same `app.asar` bundle as the raw .deb — it does **not** expose source any more than handing someone the file (asar is packed, not encrypted; secrets live in `drais.env`, never bundled).
