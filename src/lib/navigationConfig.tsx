@@ -437,6 +437,7 @@ export function getNavigationItems(
       icon:  <Wallet className="w-5 h-5" />,
       children: [
         { key: 'finance-dashboard',  label: 'Overview',          icon: <DollarSign className="w-4 h-4" />,   href: '/finance' },
+        { key: 'finance-dash',       label: 'Dashboard',         icon: <BarChart3 className="w-4 h-4" />,    href: '/finance/dashboard' },
         { key: 'fees',               label: 'Fees',              icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fees' },
         { key: 'learners-fees',      label: 'Learner Fees',      icon: <Users className="w-4 h-4" />,        href: '/finance/learners-fees' },
         { key: 'payments',           label: 'Payments',          icon: <Receipt className="w-4 h-4" />,      href: '/finance/payments' },
