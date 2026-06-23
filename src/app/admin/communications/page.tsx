@@ -279,6 +279,23 @@ function AudienceBtn({
 function SettingsPanel() {
   const { data, mutate, isLoading, error } = useSWR<any>('/api/admin/comm/settings', fetcher);
   const [saving, setSaving] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testing, setTesting] = useState(false);
+
+  async function sendTest() {
+    if (!testPhone.trim()) { toast.error('Enter a phone number'); return; }
+    setTesting(true);
+    try {
+      const res = await fetch('/api/admin/comm/test-sms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: testPhone.trim() }),
+      });
+      const j = await res.json();
+      if (j.success) toast.success(j.message || 'Test SMS sent');
+      else toast.error(j.error || 'Test SMS failed');
+    } catch (e: any) { toast.error(e?.message || 'Test SMS failed'); }
+    finally { setTesting(false); }
+  }
   const [form, setForm] = useState({
     senderName: '', prefix: '', autoMode: false, defaultProvider: 'africas_talking',
     quietHoursStart: '', quietHoursEnd: '', retryAttempts: 1, retryDelaySecs: 60,
@@ -370,6 +387,18 @@ function SettingsPanel() {
               Leave blank to keep the saved key.
             </p>
           </F>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Test delivery</h3>
+            <p className="text-[10px] text-slate-400 mb-2">Save your credentials first, then send a real test SMS to confirm Africa&apos;s Talking delivers (uses the saved key + sender ID).</p>
+            <div className="flex gap-2">
+              <input value={testPhone} onChange={e => setTestPhone(e.target.value)} className={inputCls} placeholder="e.g. +2567..." autoComplete="off" />
+              <button onClick={sendTest} disabled={testing}
+                className="shrink-0 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium disabled:opacity-50">
+                {testing ? 'Sending…' : 'Send test SMS'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
