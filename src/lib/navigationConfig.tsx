@@ -445,6 +445,7 @@ export function getNavigationItems(
         { key: 'ledger',             label: 'Ledger',            icon: <FileText className="w-4 h-4" />,     href: '/finance/ledger-v2' },
         { key: 'waivers',            label: 'Waivers',           icon: <Percent className="w-4 h-4" />,      href: '/finance/waivers' },
         { key: 'expenditures',       label: 'Expenditures',      icon: <TrendingDown className="w-4 h-4" />, href: '/finance/expenditures' },
+        { key: 'budgets',            label: 'Budgets',           icon: <TrendingDown className="w-4 h-4" />, href: '/finance/budgets' },
         { key: 'finance-import',     label: 'Import',            icon: <Upload className="w-4 h-4" />,       href: '/finance/import' },
         { key: 'payroll-salaries', label: 'Payroll',  icon: <Coins className="w-4 h-4" />,          href: '/payroll/salaries',  requiredModules: ['payroll'] },
         { key: 'payroll-payments', label: 'Pay Runs', icon: <BadgeDollarSign className="w-4 h-4" />, href: '/payroll/payments', requiredModules: ['payroll'] },

@@ -158,6 +158,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { category_id,
       wallet_id,
+      budget_id,
       amount,
       description,
       vendor_name,
@@ -181,12 +182,12 @@ export async function POST(req: NextRequest) {
     // Insert expenditure
     const [result] = await connection.execute(`
       INSERT INTO expenditures (
-        school_id, category_id, wallet_id, amount, description,
+        school_id, category_id, wallet_id, budget_id, amount, description,
         vendor_name, vendor_contact, invoice_number, expense_date,
         status, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      schoolId, category_id, wallet_id || null, amount, description,
+      schoolId, category_id, wallet_id || null, budget_id || null, amount, description,
       vendor_name || null, vendor_contact || null, invoice_number || null,
       expense_date || new Date().toISOString().split('T')[0],
       status, created_by
