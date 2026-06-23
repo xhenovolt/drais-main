@@ -132,6 +132,22 @@ function ensureWindow() {
 
 function openApp() { ensureWindow().loadURL(`http://127.0.0.1:${PORT}/`); }
 
+/** Instant local splash so the window paints immediately while the server boots
+ *  and the DB is probed — removes the perceived multi-second blank start. */
+function showSplash() {
+  const html = `<!doctype html><meta charset="utf-8"><title>DRAIS</title>
+  <style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;
+  background:#0f172a;color:#e2e8f0;font:15px/1.5 system-ui,Segoe UI,Arial}
+  .box{text-align:center}.logo{width:56px;height:56px;border-radius:14px;margin:0 auto 16px;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:24px;color:#fff}.s{margin-top:14px;width:26px;height:26px;border:3px solid #1f2937;
+  border-top-color:#6366f1;border-radius:50%;animation:r .8s linear infinite;display:inline-block}
+  @keyframes r{to{transform:rotate(360deg)}}.t{color:#94a3b8;font-size:13px;margin-top:10px}</style>
+  <div class="box"><div class="logo">D</div><div>Starting DRAIS…</div><div class="s"></div>
+  <div class="t">Connecting to the database</div></div>`;
+  ensureWindow().loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+}
+
 function esc(s) { return String(s).replace(/[<>]/g, ''); }
 
 function showDiagnostic(health) {
@@ -195,6 +211,7 @@ else {
     logToFile(`config source: ${cfg.source}; ${cfg.summary.join('; ')}`);
     if (!cfg.hasDbCreds) logToFile('WARN: no DB credentials resolved — diagnostic screen will show until configured.');
     buildMenu();
+    showSplash();              // paint a window instantly (perceived startup)
     if (!startNextServer()) return;
     waitForServer(() => boot());
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && serverReady) boot(); });
