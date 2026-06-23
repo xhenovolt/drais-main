@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       )
     `;
 
-    const params = [schoolId];
+    const params: any[] = [schoolId];
 
     if (studentId) {
       sql += ' AND fp.student_id = ?';
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
       WHERE s.school_id = ?
     `;
     
-    const countParams = [schoolId];
+    const countParams: any[] = [schoolId];
     if (studentId) {
       countSql += ' AND fp.student_id = ?';
       countParams.push(parseInt(studentId, 10));
@@ -182,6 +182,16 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // Trust guard: the payment total must equal the sum of its item allocations,
+    // otherwise the ledger credit and the per-item paid amounts diverge.
+    const itemsSum = items.reduce((s: number, i: any) => s + Number(i.amount || 0), 0);
+    if (Math.abs(itemsSum - Number(amount)) > 0.01) {
+      return NextResponse.json({
+        success: false,
+        message: `Payment amount (${amount}) must equal the sum of item allocations (${itemsSum})`,
+      }, { status: 400 });
+    }
+
     connection = await getConnection();
     await connection.beginTransaction();
 
@@ -233,12 +243,17 @@ export async function POST(req: NextRequest) {
       // 4. Update student fee items and their statuses
       const updatedFeeItemIds: number[] = [];
       for (const item of items) {
+        // Recompute balance in the same write — previously only `paid` was
+        // updated, leaving `balance` stale (the headline trust bug: a paid
+        // learner still showed the full outstanding amount on the ledger pages).
         await connection.execute(`
-          UPDATE student_fee_items 
-          SET paid = paid + ?
+          UPDATE student_fee_items
+          SET paid = paid + ?,
+              balance = GREATEST(amount - discount - waived - (paid + ?), 0),
+              last_payment_date = CURDATE()
           WHERE id = ?
-        `, [item.amount, item.student_fee_item_id]);
-        
+        `, [item.amount, item.amount, item.student_fee_item_id]);
+
         updatedFeeItemIds.push(item.student_fee_item_id);
       }
 

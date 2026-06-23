@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
     const studentId = searchParams.get('student_id');
     const termId = searchParams.get('term_id');
     const status = searchParams.get('status'); // pending, approved, rejected
-    const page = parseInt(searchParams.get('page', 10) || '1');
-    const limit = parseInt(searchParams.get('limit', 10) || '50');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
     
     connection = await getConnection();
     

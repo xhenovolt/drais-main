@@ -67,8 +67,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const pdfBuffer = await generateReceiptPDF(payment);
     
     // TODO: Save to file storage and update receipts table
-    // For now, return PDF directly
-    return new NextResponse(pdfBuffer, {
+    // For now, return PDF directly (Uint8Array satisfies BodyInit).
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="Receipt-${payment.receipt_no}.pdf"`

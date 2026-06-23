@@ -30,11 +30,11 @@ export async function POST(req: NextRequest) {
     await withTransaction(async (conn) => {
       for (const student of missingStudents) {
         // Get fee structure for student's class
-        const structures = await conn.query(`
-          SELECT item, amount 
-          FROM fee_structures 
+        const [structures] = (await conn.query(`
+          SELECT item, amount
+          FROM fee_structures
           WHERE school_id = ? AND class_id = ? AND term_id = ?
-        `, [schoolId, student.class_id, student.term_id]);
+        `, [schoolId, student.class_id, student.term_id])) as [Array<{ item: string; amount: number }>, unknown];
 
         // If no structure exists, create default structure
         if (!structures.length) {

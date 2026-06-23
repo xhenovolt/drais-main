@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       WHERE (fc.school_id = ? OR fc.school_id IS NULL)
     `;
 
-    const params = [schoolId];
+    const params: any[] = [schoolId];
 
     if (type) {
       sql += ' AND fc.type = ?';

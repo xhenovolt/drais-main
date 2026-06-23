@@ -86,7 +86,7 @@ export async function PATCH(req: NextRequest) {
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   const { searchParams } = new URL(req.url);
-  const id = parseInt(searchParams.get('id', 10) ?? '0');
+  const id = parseInt(searchParams.get('id') ?? '0');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const body = await req.json();
@@ -122,7 +122,7 @@ export async function DELETE(req: NextRequest) {
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   const { searchParams } = new URL(req.url);
-  const id = parseInt(searchParams.get('id', 10) ?? '0');
+  const id = parseInt(searchParams.get('id') ?? '0');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const conn = await getConnection();

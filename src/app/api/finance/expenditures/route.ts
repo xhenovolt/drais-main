@@ -25,8 +25,8 @@ export async function GET(req: NextRequest) {
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
     const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page', 10) || '1');
-    const limit = parseInt(searchParams.get('limit', 10) || '50');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
     
     connection = await getConnection();
     
@@ -99,8 +99,8 @@ export async function GET(req: NextRequest) {
       FROM expenditures e
       WHERE e.school_id = ? AND (e.deleted_at IS NULL OR e.deleted_at = '')
     `;
-    const countParams = [schoolId];
-    
+    const countParams: any[] = [schoolId];
+
     if (categoryId) countParams.push(parseInt(categoryId, 10));
     if (status) countParams.push(status as string);
     
