@@ -79,6 +79,9 @@ function loadConfig(ctx) {
   const hasDbCreds = !!(process.env.TIDB_USER && process.env.TIDB_PASSWORD);
   const source = sources.length ? sources.join(' + ') : (hasDbCreds ? 'system env' : 'none');
   process.env.DRAIS_CONFIG_SOURCE = source;
+  // Expose the writable config file so the in-app DB-credentials UI can persist
+  // changes to the same file the loader reads at next boot.
+  process.env.DRAIS_CONFIG_FILE = userEnvPath;
 
   const summary = KNOWN_KEYS
     .filter(k => applied[k] !== undefined)

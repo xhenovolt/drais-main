@@ -81,6 +81,7 @@ import {
   AlertTriangle,
   Trash2,
   Upload,
+  Database,
 } from 'lucide-react';
 
 // Alias so callers don't have to worry about icon substitution
@@ -512,6 +513,7 @@ export function getNavigationItems(
       icon:  <Settings className="w-5 h-5" />,
       children: [
         { key: 'school-settings', label: 'School',         icon: <School className="w-4 h-4" />,   href: '/settings/school' },
+        { key: 'database-settings', label: 'Database',     icon: <Database className="w-4 h-4" />, href: '/settings/database', roles: ['super_admin'] },
         { key: 'school-hours',    label: 'School Hours',   icon: <Clock className="w-4 h-4" />,    href: '/settings/hours' },
         { key: 'appearance',      label: 'Appearance',     icon: <Palette className="w-4 h-4" />,  href: '/settings/appearance' },
         { key: 'profile',         label: 'My Profile',     icon: <UserCog className="w-4 h-4" />,  href: '/settings/profile' },
