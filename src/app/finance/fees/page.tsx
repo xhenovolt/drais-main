@@ -19,11 +19,13 @@ import {
   Clock
 } from 'lucide-react';
 import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
 import { swrFetcher } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import NewBadge from '@/components/ui/NewBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { useCurrency } from '@/hooks/useCurrency';
+import FeeItemModal from '@/components/finance/FeeItemModal';
 
 interface FeeItem {
   id: number;
@@ -46,11 +48,26 @@ interface FeeItem {
 const FeesPage: React.FC = () => {
   const { t } = useI18n();
   const { format } = useCurrency();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'structure' | 'students' | 'templates'>('students');
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [termFilter, setTermFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [modalItem, setModalItem] = useState<FeeItem | null | undefined>(undefined); // undefined=closed, null=new, item=edit
+
+  const clearFilters = () => { setSearchQuery(''); setClassFilter(''); setTermFilter(''); setStatusFilter(''); };
+
+  const handleDelete = async (item: FeeItem) => {
+    if (!confirm(`Delete fee item "${item.item}" for ${item.student_name}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/finance/student_fee_items?id=${item.id}`, { method: 'DELETE' });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || 'Delete failed'); return; }
+      toast.success('Fee item deleted');
+      mutate();
+    } catch { toast.error('Delete failed'); }
+  };
 
   // Fetch fee items
   const { data: feesData, isLoading, mutate } = useSWR(
@@ -114,11 +131,11 @@ const FeesPage: React.FC = () => {
           </div>
 
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            <button onClick={() => router.push('/finance/import')} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
               <Upload className="w-4 h-4" />
               Import Fees
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <button onClick={() => setModalItem(null)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               <Plus className="w-4 h-4" />
               Add Fee Item
             </button>
@@ -274,7 +291,7 @@ const FeesPage: React.FC = () => {
                     <option value="">All Terms</option>
                   </select>
 
-                  <button className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                  <button onClick={clearFilters} className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
                     Clear Filters
                   </button>
                 </div>
@@ -366,10 +383,10 @@ const FeesPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
-                                <button className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors">
+                                <button onClick={() => setModalItem(item)} className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
                                   <Edit className="w-4 h-4" />
                                 </button>
-                                <button className="p-1 rounded text-red-600 hover:bg-red-50 transition-colors">
+                                <button onClick={() => handleDelete(item)} className="p-1 rounded text-red-600 hover:bg-red-50 transition-colors" title="Delete">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
@@ -399,6 +416,14 @@ const FeesPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {modalItem !== undefined && (
+        <FeeItemModal
+          item={modalItem}
+          onClose={() => setModalItem(undefined)}
+          onSaved={() => { setModalItem(undefined); mutate(); }}
+        />
+      )}
     </div>
   );
 };

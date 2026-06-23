@@ -183,25 +183,28 @@ export async function PATCH(req: NextRequest){
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
   
   const body = await req.json();
-  const { id, discount, paid } = body||{};
+  const { id, discount, paid, item, amount } = body||{};
   if(!id) return NextResponse.json({ error:'Missing id' },{ status:400 });
-  
+
   const conn = await getConnection();
   try {
     const schoolId = session.schoolId;
-    const sets:string[]=[]; 
+    const sets:string[]=[];
     const params:any[]=[];
-    
+
     if(discount!==undefined){ sets.push('discount=?'); params.push(discount); }
     if(paid!==undefined){ sets.push('paid=?'); params.push(paid); }
+    if(item!==undefined){ sets.push('item=?'); params.push(item); }
+    if(amount!==undefined){ sets.push('amount=?'); params.push(amount); }
     if(!sets.length) return NextResponse.json({ error:'Nothing to update' },{ status:400 });
-    
-    params.push(id);
-    
+
+    params.push(id, schoolId);
+
+    // Scope by school via the student (student_fee_items has no school_id column).
     await conn.execute(`
-      UPDATE student_fee_items 
-      SET ${sets.join(', ')} 
-      WHERE id=?
+      UPDATE student_fee_items
+      SET ${sets.join(', ')}
+      WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=?)
     `,params);
     
     const [[row]]:any = await conn.execute(`
@@ -220,5 +223,38 @@ export async function PATCH(req: NextRequest){
     if (conn) {
       try { await conn.end(); } catch {}
     }
+  }
+}
+
+export async function DELETE(req: NextRequest){
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
+
+  const id = Number(new URL(req.url).searchParams.get('id'));
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+
+  const conn = await getConnection();
+  try {
+    const [[row]]: any = await conn.execute(
+      `SELECT paid FROM student_fee_items
+        WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=?)`,
+      [id, session.schoolId],
+    );
+    if (!row) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    if (Number(row.paid) > 0) {
+      return NextResponse.json({ error: 'Cannot delete a fee item that already has payments' }, { status: 400 });
+    }
+    await conn.execute(
+      `DELETE FROM student_fee_items
+        WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=?)`,
+      [id, session.schoolId],
+    );
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('[student_fee_items] DELETE error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  } finally {
+    if (conn) { try { await conn.end(); } catch {} }
   }
 }
