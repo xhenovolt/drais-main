@@ -1,107 +1,43 @@
-import mysql from 'mysql2/promise';
-
-// Database configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'drais_school',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
-};
-
-// Create connection pool
-let pool: mysql.Pool;
-
-const getPool = () => {
-  if (!pool) {
-    pool = mysql.createPool(dbConfig);
-  }
-  return pool;
-};
-
 /**
- * Execute a database query with parameters
- * @param query SQL query string
- * @param params Query parameters array
- * @returns Promise with query results
+ * Legacy DB helper — now a thin shim over the central mode-aware pool
+ * (`@/lib/db`). It previously held its OWN mysql2 pool defaulting to
+ * localhost:3306/drais_school, which broke on hosted deploys and bypassed the
+ * online/local mode resolver. Delegating here fixes both: every caller of
+ * executeQuery/executeTransaction now uses the same resolved pool as the rest
+ * of the app. Prefer importing from '@/lib/db' directly in new code.
  */
-export async function executeQuery(query: string, params: unknown[] = []): Promise<unknown> {
-  try {
-    const connection = getPool();
-    const [results] = await connection.execute(query, params);
-    return results;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
-  }
+import { query, getConnection, withTransaction } from '@/lib/db';
+
+export async function executeQuery(sql: string, params: unknown[] = []): Promise<unknown> {
+  return query(sql, params as any[]);
 }
 
-/**
- * Execute a database query and return the first row
- * @param query SQL query string
- * @param params Query parameters array
- * @returns Promise with first row or null
- */
-export async function executeQuerySingle(query: string, params: any[] = []): Promise<any> {
-  try {
-    const results = await executeQuery(query, params);
-    return Array.isArray(results) && results.length > 0 ? results[0] : null;
-  } catch (error) {
-    console.error('Database query single error:', error);
-    throw error;
-  }
+export async function executeQuerySingle(sql: string, params: any[] = []): Promise<any> {
+  const results = await query(sql, params);
+  return Array.isArray(results) && results.length > 0 ? results[0] : null;
 }
 
-/**
- * Execute a transaction with multiple queries
- * @param queries Array of {query, params} objects
- * @returns Promise with transaction results
- */
-export async function executeTransaction(queries: { query: string; params?: unknown[] }[]): Promise<unknown[]> {
-  const connection = await getPool().getConnection();
-  
-  try {
-    await connection.beginTransaction();
-    
-    const results = [];
-    for (const { query, params = [] } of queries) {
-      const [result] = await connection.execute(query, params);
+export async function executeTransaction(
+  queries: { query: string; params?: unknown[] }[],
+): Promise<unknown[]> {
+  return withTransaction(async (conn) => {
+    const results: unknown[] = [];
+    for (const { query: sql, params = [] } of queries) {
+      const [result] = await conn.execute(sql, params as any[]);
       results.push(result);
     }
-    
-    await connection.commit();
     return results;
-  } catch (error) {
-    await connection.rollback();
-    console.error('Database transaction error:', error);
-    throw error;
-  } finally {
-    connection.release();
-  }
+  });
 }
 
-/**
- * Close the database connection pool
- */
+/** No-op: the central pool is process-managed and must not be closed per-call. */
 export async function closeConnection(): Promise<void> {
-  if (pool) {
-    await pool.end();
-  }
+  /* intentionally empty — pool lifecycle is owned by @/lib/db */
 }
 
-/**
- * Test database connection
- */
 export async function testConnection(): Promise<boolean> {
   try {
-    const connection = getPool();
-    await connection.execute('SELECT 1');
+    await query('SELECT 1');
     return true;
   } catch (error) {
     console.error('Database connection test failed:', error);
@@ -109,13 +45,15 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
-// Default export for backward compatibility
+// Re-export for callers that want a single connection (mode-aware).
+export { getConnection };
+
 const DatabaseService = {
   executeQuery,
   executeQuerySingle,
   executeTransaction,
   closeConnection,
-  testConnection
+  testConnection,
 };
 
 export default DatabaseService;

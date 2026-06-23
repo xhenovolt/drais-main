@@ -6,6 +6,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { ProfileDropdown } from '@/components/ui/ProfileDropdown';
+import DbModeBadge from '@/components/db/DbModeBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import LiveScanSmsIndicator from '@/components/notifications/LiveScanSmsIndicator';
 import WhatsNew from '@/components/notifications/WhatsNew';
@@ -377,6 +378,9 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
 
           {/* Live attendance-scan SMS status (navbar) */}
           <LiveScanSmsIndicator />
+
+          {/* DB mode badge (online/local) + health — desktop navbar */}
+          <DbModeBadge variant="badge" />
 
           {/* Notification Bell */}
           <NotificationBell />

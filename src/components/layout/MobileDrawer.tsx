@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import BellClient from '@/components/notifications/BellClient';
+import DbModeBadge from '@/components/db/DbModeBadge';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -187,6 +188,11 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
               </span>
             </div>
           )}
+
+          {/* DB mode (online/local) + health + switch */}
+          <div className="mt-2 -mx-1">
+            <DbModeBadge variant="drawer" />
+          </div>
 
           {/* Quick action row: search, notifications, theme, language */}
           <div className="flex items-center gap-1 mt-3">

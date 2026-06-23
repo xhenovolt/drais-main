@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import SystemThemeWrapper from '@/components/auth/SystemThemeWrapper';
+import DbModeBadge from '@/components/db/DbModeBadge';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -164,6 +165,11 @@ export default function LoginPage() {
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          {/* DB connection mode (online cloud / local server) + health */}
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <DbModeBadge variant="login" />
+          </div>
 
           {/* Signup Link */}
           <div className="mt-6 text-center">

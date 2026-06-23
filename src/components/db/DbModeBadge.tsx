@@ -1,0 +1,168 @@
+'use client';
+
+/**
+ * DB mode indicator + switcher.
+ *
+ * variant:
+ *   'badge'  — compact pill for the desktop Topbar (navbar)
+ *   'drawer' — row for the mobile drawer / sidebar
+ *   'login'  — two-choice selector shown on the login screen before auth
+ *
+ * Reads GET /api/db-mode for the current mode + health; POSTs to switch (only
+ * offered when the server reports allowLocal). After a successful switch the
+ * session may be DB-bound, so we reload to /login.
+ */
+import React, { useCallback, useEffect, useState } from 'react';
+import { Cloud, HardDrive, Loader2 } from 'lucide-react';
+
+type DbMode = 'online' | 'local';
+interface Health { ok: boolean; mode: DbMode; database: string; host: string; error?: string }
+interface ModeInfo {
+  mode: DbMode;
+  label: string;
+  short: string;
+  allowLocal: boolean;
+  health: Health;
+  otherHealth: Health | null;
+}
+
+function useDbMode() {
+  const [info, setInfo] = useState<ModeInfo | null>(null);
+  const [switching, setSwitching] = useState<DbMode | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch('/api/db-mode', { cache: 'no-store' });
+      setInfo(await r.json());
+    } catch { /* offline — leave null */ }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const switchTo = useCallback(async (mode: DbMode) => {
+    setError(null);
+    setSwitching(mode);
+    try {
+      const r = await fetch('/api/db-mode', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setError(j.error || 'Switch failed'); return; }
+      // Session may be tied to the previous DB — reload into the chosen mode.
+      window.location.href = '/login';
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Switch failed');
+    } finally {
+      setSwitching(null);
+    }
+  }, []);
+
+  return { info, switching, error, switchTo };
+}
+
+function Dot({ ok }: { ok: boolean }) {
+  return <span className={`inline-block w-2 h-2 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}`} />;
+}
+
+export default function DbModeBadge({ variant = 'badge' }: { variant?: 'badge' | 'drawer' | 'login' }) {
+  const { info, switching, error, switchTo } = useDbMode();
+  if (!info) return null;
+
+  const isLocal = info.mode === 'local';
+  const Icon = isLocal ? HardDrive : Cloud;
+  const tone = isLocal
+    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+    : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300';
+
+  // ── Login: two-choice selector ──
+  if (variant === 'login') {
+    const choose = (m: DbMode) => {
+      if (m === info.mode) return;
+      if (m === 'local' && !info.allowLocal) return;
+      switchTo(m);
+    };
+    return (
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Connection</p>
+        <div className="grid grid-cols-2 gap-2">
+          {(['online', 'local'] as DbMode[]).map((m) => {
+            const active = info.mode === m;
+            const disabled = m === 'local' && !info.allowLocal;
+            const h = m === info.mode ? info.health : info.otherHealth;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => choose(m)}
+                disabled={disabled || switching !== null}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                  active
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-gray-900 dark:text-white'
+                    : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-400'
+                } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+              >
+                {m === 'local' ? <HardDrive className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
+                <span className="flex-1 text-left">{m === 'local' ? 'Local Server' : 'Online Cloud'}</span>
+                {switching === m ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : h ? <Dot ok={h.ok} /> : null}
+              </button>
+            );
+          })}
+        </div>
+        {!info.allowLocal && (
+          <p className="text-[11px] text-gray-400">Local mode is available in the desktop app.</p>
+        )}
+        {error && <p className="text-[11px] text-red-600">{error}</p>}
+      </div>
+    );
+  }
+
+  const canSwitch = info.allowLocal;
+  const target: DbMode = isLocal ? 'online' : 'local';
+
+  // ── Drawer row ──
+  if (variant === 'drawer') {
+    return (
+      <div className="px-3 py-2">
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${tone}`}>
+          <Icon className="w-4 h-4" />
+          <span className="text-xs font-semibold flex-1">{info.label}</span>
+          <Dot ok={info.health.ok} />
+        </div>
+        {canSwitch && (
+          <button
+            onClick={() => switchTo(target)}
+            disabled={switching !== null}
+            className="mt-1 w-full text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+          >
+            {switching ? 'Switching…' : `Switch to ${target === 'local' ? 'Local Server' : 'Online Cloud'}`}
+          </button>
+        )}
+        {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
+      </div>
+    );
+  }
+
+  // ── Topbar badge (default) ──
+  return (
+    <div className="relative group">
+      <button
+        onClick={() => canSwitch && switchTo(target)}
+        disabled={!canSwitch || switching !== null}
+        title={canSwitch ? `Switch to ${target}` : `${info.label} — ${info.health.database}`}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${tone} ${
+          canSwitch ? 'cursor-pointer hover:opacity-90' : 'cursor-default'
+        }`}
+      >
+        {switching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Icon className="w-3.5 h-3.5" />}
+        {info.short}
+        <Dot ok={info.health.ok} />
+      </button>
+      {error && (
+        <span className="absolute right-0 top-full mt-1 text-[11px] text-red-600 whitespace-nowrap">{error}</span>
+      )}
+    </div>
+  );
+}
