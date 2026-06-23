@@ -34,15 +34,11 @@ extraResources:
     to: standalone
     filter:
       - "**/*"
-      # Never ship stray binaries/archives. They bloat the bundle and make
-      # electron-builder attempt code-signing, which pulls winCodeSign whose
-      # macOS symlinks fail to extract on Windows → the build aborts. The app
-      # runs none of these at runtime.
-      - "!**/*.exe"
-      - "!**/*.dll"
-      - "!**/*.dylib"
-      - "!**/*.7z"
-      - "!**/*.apk"
+      # Drop only the non-runtime relay/backup directories. (Do NOT blanket-
+      # exclude *.dll/*.dylib/*.node — those can be legitimate native files
+      # inside node_modules; stripping them breaks the bundle. Code-signing is
+      # already disabled via win.signAndEditExecutable=false, so stray .exe no
+      # longer trigger the winCodeSign download.)
       - "!**/backup/**"
       - "!**/BACKUP/**"
       - "!**/RELAY-INSTALLERS/**"
