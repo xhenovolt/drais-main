@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "ops@drais.ug"
   },
-  "version": "1.35.0",
+  "version": "1.35.1",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
