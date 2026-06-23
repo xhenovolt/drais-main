@@ -34,6 +34,19 @@ extraResources:
     to: standalone
     filter:
       - "**/*"
+      # Never ship stray binaries/archives. They bloat the bundle and make
+      # electron-builder attempt code-signing, which pulls winCodeSign whose
+      # macOS symlinks fail to extract on Windows → the build aborts. The app
+      # runs none of these at runtime.
+      - "!**/*.exe"
+      - "!**/*.dll"
+      - "!**/*.dylib"
+      - "!**/*.7z"
+      - "!**/*.apk"
+      - "!**/backup/**"
+      - "!**/BACKUP/**"
+      - "!**/RELAY-INSTALLERS/**"
+      - "!**/workers/dist/**"
   # Ship the runtime icon next to standalone/ so the BrowserWindow can
   # set its taskbar icon without depending on the asar layout. The
   # installer/shortcut icon is wired separately via `win.icon` below.
@@ -66,6 +79,12 @@ asar: true
 asarUnpack: []
 
 win:
+  # DRAIS ships unsigned (no code-signing certificate). Disabling sign+edit
+  # stops electron-builder from downloading/extracting winCodeSign — whose
+  # bundled macOS symlinks cannot be created on Windows without Developer Mode
+  # or admin, which previously aborted the build. The installer/shortcut icon
+  # still comes from `win.icon` below.
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch:

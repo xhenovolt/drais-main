@@ -70,7 +70,18 @@ const nextConfig = {
 
   // Enable static optimization
   output: 'standalone',
-  
+
+  // Keep heavy, non-runtime artefacts OUT of the standalone trace so the
+  // desktop bundle stays small and fast to boot (and never re-bundles the
+  // relay binaries / backups that broke the Windows packaging).
+  outputFileTracingExcludes: {
+    '*': [
+      'BACKUP/**', 'backup/**', 'workers/**',
+      'android/**', 'mobile/**', 'dist/**', 'dist-gui/**',
+      '**/*.exe', '**/*.apk', '**/*.dmg', '**/*.7z', '**/*.dylib',
+    ],
+  },
+
   // Optimize headers for static assets
   async headers() {
     return [
