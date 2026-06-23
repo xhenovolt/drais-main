@@ -71,16 +71,11 @@ const nextConfig = {
   // Enable static optimization
   output: 'standalone',
 
-  // Keep heavy, non-runtime artefacts OUT of the standalone trace so the
-  // desktop bundle stays small and fast to boot (and never re-bundles the
-  // relay binaries / backups that broke the Windows packaging).
-  outputFileTracingExcludes: {
-    '*': [
-      'BACKUP/**', 'backup/**', 'workers/**',
-      'android/**', 'mobile/**', 'dist/**', 'dist-gui/**',
-      '**/*.exe', '**/*.apk', '**/*.dmg', '**/*.7z', '**/*.dylib',
-    ],
-  },
+  // NOTE: outputFileTracingExcludes was removed — it applied to the Vercel
+  // serverless trace too and stripped a module Next needs at runtime
+  // ("Cannot find module 'next/dist/compiled/source-map'"). The desktop bundle
+  // is slimmed by electron-builder's `files`/extraResources filters instead, so
+  // a global trace exclude is unnecessary here and unsafe on Vercel.
 
   // Optimize headers for static assets
   async headers() {
