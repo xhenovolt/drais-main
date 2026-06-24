@@ -21,9 +21,26 @@ const S = 8002;                                   // Albayan Quran Memorization 
 const TARGET_DB = process.env.LOCAL_MYSQL_DATABASE || 'drais';
 const BATCH = 500;
 
-// Curated, Albayan-scoped tables (order: parents before children).
+// Functional Albayan-only set: the requested entities PLUS the RBAC + academic
+// reference rows needed for the user accounts to log in with permissions and for
+// learners/classes to resolve. Global tables (permissions/role_permissions) are
+// included whole; everything else is scoped to school 8002.
 const TABLES = [
   { t: 'schools',               where: 'id = ?',                                                                p: [S] },
+  // RBAC — so the 2 user accounts actually have permissions on login.
+  { t: 'permissions',           where: '1 = 1',                                                                 p: [] },
+  { t: 'roles',                 where: 'school_id = ?',                                                         p: [S] },
+  { t: 'role_permissions',      where: '1 = 1',                                                                 p: [] },
+  { t: 'user_roles',            where: 'school_id = ?',                                                         p: [S] },
+  // Academic structure + settings the app reads.
+  { t: 'academic_years',        where: 'school_id = ?',                                                         p: [S] },
+  { t: 'terms',                 where: 'school_id = ?',                                                         p: [S] },
+  { t: 'programs',              where: 'school_id = ?',                                                         p: [S] },
+  { t: 'study_modes',           where: 'school_id = ? OR school_id IS NULL',                                    p: [S] },
+  { t: 'departments',           where: 'school_id = ?',                                                         p: [S] },
+  { t: 'school_settings',       where: 'school_id = ?',                                                         p: [S] },
+  { t: 'comm_settings',         where: 'school_id = ?',                                                         p: [S] },
+  // The requested entities.
   { t: 'people',                where: 'school_id = ?',                                                         p: [S] },
   { t: 'classes',               where: 'school_id = ?',                                                         p: [S] },
   { t: 'students',              where: 'school_id = ?',                                                         p: [S] },
@@ -89,9 +106,9 @@ async function main() {
 
   const mb = (fs.statSync(outFile).size / 1048576).toFixed(2);
   console.log(`\n✅ Wrote ${outFile} (${mb} MB, ${totalRows} rows)`);
-  console.log('   Note: roles/permissions/settings were NOT included (per request). User');
-  console.log('   accounts exist but may need roles seeded to have permissions — say the word');
-  console.log('   to include them.');
+  console.log('   Functional Albayan-only DB: learners+classes, staff, users WITH working');
+  console.log('   RBAC (roles/permissions/user_roles) + academic structure + settings.');
+  console.log('   Import: phpMyAdmin, or  mysql -u root < ' + path.basename(outFile));
 }
 
 main().catch((e) => { console.error('[albayan] FAILED:', e.message); process.exit(1); });
