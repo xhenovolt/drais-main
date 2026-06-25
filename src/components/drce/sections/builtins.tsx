@@ -311,7 +311,7 @@ registerSection({
   description: 'Date the next term starts (prefers inferred calendar; falls back to manual override).',
   defaultProps: () => ({
     type: 'next_term_begins', visible: true,
-    content: { text: 'Next term begins', customDate: '' },
+    content: { text: 'Next term begins', customDate: '', source: 'auto_from_terms' },
     style: { background: '#e0f2fe', color: '#0c4a6e', fontSize: 14, fontWeight: '600',
       textAlign: 'center', padding: '10px 12px', borderRadius: 6, borderColor: '#06b6d4',
       borderWidth: 1, icon: '📅' },

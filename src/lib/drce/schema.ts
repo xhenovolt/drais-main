@@ -678,7 +678,13 @@ export interface DRCESignatureSection extends DRCESectionBase {
 
 export interface DRCENextTermBeginsSection extends DRCESectionBase {
   type: 'next_term_begins';
-  content: { text: string; customDate?: string };
+  content: {
+    text: string;
+    customDate?: string;
+    /** Where the date comes from. Missing = inferred (manual if customDate set,
+     *  else auto). 'hidden' renders nothing. */
+    source?: 'auto_from_terms' | 'manual' | 'hidden';
+  };
   style: DRCENextTermBeginsStyle;
 }
 

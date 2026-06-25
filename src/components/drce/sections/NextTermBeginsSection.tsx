@@ -13,35 +13,23 @@ export function NextTermBeginsSection({
 }) {
   if (!section.visible) return null;
 
-  const style = section.style;
+  const style = section.style ?? ({} as DRCENextTermBeginsSection['style']);
+  const content = section.content ?? ({ text: 'Next term begins' } as DRCENextTermBeginsSection['content']);
 
-  // Use custom date, then context-provided date, then fallback
-  const fallbackDate = section.content.customDate || nextTermBegins || (() => {
-    // This will be set by the report context, but provide defaults for DRCE editor
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    // Default to May 25th of current year or next year if past May
-    const may25 = new Date(currentYear, 4, 25); // May is month 4 (0-indexed)
-    return may25 < today ? `${currentYear + 1}-05-25` : `${currentYear}-05-25`;
-  })();
+  // Source: explicit, else inferred (manual when a custom date exists, else auto).
+  const source = content.source ?? (content.customDate ? 'manual' : 'auto_from_terms');
+  if (source === 'hidden') return null;
+
+  // Resolve the raw date string safely per source. Never throws.
+  const rawDate =
+    source === 'manual' ? (content.customDate || '')
+    : (nextTermBegins || '');   // auto: from the term resolver (blank in the editor)
 
   const dateText = (() => {
-    try {
-      // Parse YYYY-MM-DD format from date input
-      const date = new Date(fallbackDate);
-      if (isNaN(date.getTime())) {
-        // Fallback if date parsing fails
-        return fallbackDate;
-      }
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch (error) {
-      console.warn('Failed to parse custom date:', fallbackDate);
-      return fallbackDate; // Return as-is if parsing fails
-    }
+    if (!rawDate) return '';     // blank is valid — just show the label
+    const date = new Date(rawDate);
+    if (isNaN(date.getTime())) return rawDate; // unparseable → show as-is, no crash
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   })();
      
   const containerStyle: React.CSSProperties = {
@@ -62,7 +50,7 @@ export function NextTermBeginsSection({
     <div style={containerStyle}>
       {style.icon && <span style={{ marginRight: '8px' }}>{style.icon}</span>}
       <span>
-        {section.content.text}
+        {content.text}
         {dateText && <> • {dateText}</>}
       </span>
     </div>

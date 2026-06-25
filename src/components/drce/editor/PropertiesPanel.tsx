@@ -1829,24 +1829,36 @@ function ShapePanel({ section, onMutate }: { section: DRCESection & { type: 'sha
 
 function NextTermBeginsPanel({ section, onMutate }: { section: DRCESection & { type: 'next_term_begins' }; onMutate: (m: DRCEMutation) => void }) {
   const set = (path: string, value: unknown) => onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
-  const setContent = (key: string, value: string) => onMutate({ type: 'SET_SECTION_CONTENT', sectionId: section.id, key, value });
+  const setContent = (path: string, value: string) => onMutate({ type: 'SET_SECTION_CONTENT', sectionId: section.id, path, value });
   const { style, content } = section;
   return (
     <div className="p-3 space-y-4">
       <PanelSection title="Content">
         <Row label="Text"><TextInput value={content.text} onChange={v => setContent('text', v)} placeholder="Next term begins" /></Row>
-        <Row label="Custom Date">
-          <input
-            type="date"
-            value={content.customDate || ''}
-            onChange={e => {
-              const value = e.target.value || undefined; // Convert empty string to undefined
-              setContent('customDate', value);
-            }}
-            className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-800"
-            placeholder="Leave blank for school-specific default date"
+        <Row label="Date source">
+          <SelectInput
+            value={content.source ?? (content.customDate ? 'manual' : 'auto_from_terms')}
+            onChange={v => setContent('source', v)}
+            options={[
+              { label: 'Auto from term calendar', value: 'auto_from_terms' },
+              { label: 'Manual date', value: 'manual' },
+              { label: 'Hidden (don’t show)', value: 'hidden' },
+            ]}
           />
         </Row>
+        {(content.source ?? (content.customDate ? 'manual' : 'auto_from_terms')) === 'manual' && (
+          <Row label="Custom Date">
+            <input
+              type="date"
+              value={content.customDate || ''}
+              onChange={e => setContent('customDate', e.target.value)}
+              className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-800"
+            />
+          </Row>
+        )}
+        {(content.source ?? 'auto_from_terms') === 'auto_from_terms' && (
+          <p className="text-[11px] text-gray-400 px-1">Uses the next term's start date from the term calendar; blank if none is set.</p>
+        )}
       </PanelSection>
       <PanelSection title="Style">
         <Row label="Background"><ColorInput value={style.background || '#e0f2fe'} onChange={v => set('background', v)} /></Row>
