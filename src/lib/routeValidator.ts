@@ -149,6 +149,7 @@ export const KNOWN_ROUTES = new Set<string>([
   '/settings',
   '/settings/school',
   '/settings/database',
+  '/settings/academic-programs',
   '/settings/study-modes',
   
   // Other

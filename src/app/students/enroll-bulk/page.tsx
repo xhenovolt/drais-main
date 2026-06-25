@@ -829,7 +829,7 @@ export default function BulkEnrollPage() {
                             {active && <Check className="w-3 h-3 text-white" />}
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-white">{prog.name}</p>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white">{(prog as any).display_name || prog.name}</p>
                             {prog.description && <p className="text-xs text-slate-400 mt-0.5">{prog.description}</p>}
                           </div>
                         </button>

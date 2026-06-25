@@ -235,7 +235,7 @@ function PreviousContextBanner({ prev, loading }: { prev: PreviousEnrollment | n
               : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400')}>{prev.status}</span>
         } />
         {prev.programs.length > 0 && (
-          <CItem label="Programs" value={prev.programs.map(p => p.name).join(', ')} />
+          <CItem label="Programs" value={prev.programs.map(p => (p as any).display_name || p.name).join(', ')} />
         )}
       </div>
       {prev.results_summary && (prev.results_summary.result_count ?? 0) > 0 && (
@@ -1110,7 +1110,7 @@ export default function EnrollStudentPage() {
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-slate-800 dark:text-white">{prog.name}</p>
+                              <p className="text-sm font-semibold text-slate-800 dark:text-white">{(prog as any).display_name || prog.name}</p>
                               {wasPrevious && (
                                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300">Previous</span>
                               )}

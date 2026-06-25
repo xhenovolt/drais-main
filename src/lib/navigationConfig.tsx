@@ -514,6 +514,7 @@ export function getNavigationItems(
       icon:  <Settings className="w-5 h-5" />,
       children: [
         { key: 'school-settings', label: 'School',         icon: <School className="w-4 h-4" />,   href: '/settings/school' },
+        { key: 'academic-programs', label: 'Programs',     icon: <GraduationCap className="w-4 h-4" />, href: '/settings/academic-programs' },
         { key: 'database-settings', label: 'Database',     icon: <Database className="w-4 h-4" />, href: '/settings/database', roles: ['super_admin'] },
         { key: 'school-hours',    label: 'School Hours',   icon: <Clock className="w-4 h-4" />,    href: '/settings/hours' },
         { key: 'appearance',      label: 'Appearance',     icon: <Palette className="w-4 h-4" />,  href: '/settings/appearance' },
