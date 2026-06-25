@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import useSWR from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
-import { FileText, Plus, Copy, Star, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { FileText, Plus, Copy, Star, Pencil, Trash2, Loader2, Archive, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
@@ -13,15 +13,43 @@ interface Template {
   description: string;
   is_default: boolean;
   school_id: number | null;
+  is_archived?: boolean;
+  is_builtin?: boolean;
 }
 
 export default function TemplatesPage() {
   const { t } = useI18n();
-  const { data, isLoading, mutate } = useSWR<{ success: boolean; templates: Template[] }>('/api/report-templates', swrFetcher);
+  const [showArchived, setShowArchived] = useState(false);
+  const { data, isLoading, mutate } = useSWR<{ success: boolean; templates: Template[] }>(`/api/report-templates${showArchived ? '?include_archived=1' : ''}`, swrFetcher);
   const templates = data?.templates || [];
   const [activating, setActivating] = useState<number | null>(null);
   const [duplicating, setDuplicating] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const isBuiltin = (tpl: Template) => tpl.is_builtin ?? (tpl.school_id == null);
+
+  const handleRename = async (tpl: Template) => {
+    const name = prompt('Rename template', tpl.name);
+    if (name == null || !name.trim() || name.trim() === tpl.name) return;
+    setBusyId(tpl.id);
+    try {
+      const res = await fetch(`/api/report-templates/${tpl.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      showToast('success', 'Template renamed'); mutate();
+    } catch (e: any) { showToast('error', e.message || 'Rename failed'); }
+    finally { setBusyId(null); }
+  };
+
+  const handleArchive = async (tpl: Template, archived: boolean) => {
+    setBusyId(tpl.id);
+    try {
+      const res = await fetch(`/api/report-templates/${tpl.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_archived: archived }) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      showToast('success', archived ? 'Template archived' : 'Template restored'); mutate();
+    } catch (e: any) { showToast('error', e.message || 'Failed'); }
+    finally { setBusyId(null); }
+  };
 
   const handleSetActive = async (id: number) => {
     setActivating(id);
@@ -87,12 +115,15 @@ export default function TemplatesPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{`${t('snapshot.reportCards')} — ${t('drce.templates')}`}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Design and manage report card layouts</p>
         </div>
-        <Link
-          href="/settings/templates/new"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-semibold"
-        >
-          <Plus className="w-4 h-4" /> New Template
-        </Link>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1 text-xs text-gray-500"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived</label>
+          <Link
+            href="/settings/templates/new"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-semibold"
+          >
+            <Plus className="w-4 h-4" /> New Template
+          </Link>
+        </div>
       </div>
 
       {/* Templates Grid */}
@@ -121,7 +152,10 @@ export default function TemplatesPage() {
                   </span>
                 )}
                 {!t.school_id && (
-                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] font-semibold">Global</span>
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] font-semibold">Built-in</span>
+                )}
+                {t.is_archived && (
+                  <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 text-[10px] font-semibold">Archived</span>
                 )}
               </div>
 
@@ -152,14 +186,28 @@ export default function TemplatesPage() {
                   >
                     {activating === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />} Activate
                   </button>
-                  {t.school_id && (
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      disabled={deleting === t.id}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 ml-auto"
-                    >
-                      {deleting === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                    </button>
+                  {!isBuiltin(t) && (
+                    <span className="flex items-center gap-1.5 ml-auto">
+                      <button onClick={() => handleRename(t)} disabled={busyId === t.id} title="Rename"
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      {t.is_archived ? (
+                        <button onClick={() => handleArchive(t, false)} disabled={busyId === t.id} title="Restore"
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100 disabled:opacity-50">
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      ) : (
+                        <button onClick={() => handleArchive(t, true)} disabled={busyId === t.id} title="Archive"
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50">
+                          <Archive className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button onClick={() => handleDelete(t.id)} disabled={deleting === t.id} title="Delete"
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50">
+                        {deleting === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                      </button>
+                    </span>
                   )}
                 </div>
               </div>

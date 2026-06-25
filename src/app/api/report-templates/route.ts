@@ -16,18 +16,26 @@ export async function GET(request: NextRequest) {
     }
     const schoolId = session.schoolId;
 
+    const includeArchived = new URL(request.url).searchParams.get('include_archived') === '1';
+
     const conn = await getConnection();
     try {
-      // Get global templates (school_id IS NULL) + school-specific templates
+      // Get global templates (school_id IS NULL) + school-specific templates.
       const [rows] = await conn.execute(
-        `SELECT id, name, description, layout_json, is_default, school_id, template_key, created_at, updated_at
+        `SELECT id, name, description, layout_json, is_default, school_id, template_key,
+                COALESCE(is_archived, 0) AS is_archived, created_at, updated_at
          FROM report_templates
-         WHERE school_id IS NULL OR school_id = ?
+         WHERE (school_id IS NULL OR school_id = ?)
+           ${includeArchived ? '' : 'AND COALESCE(is_archived, 0) = 0'}
          ORDER BY is_default DESC, id ASC`,
         [schoolId]
       );
 
-      const templates = (rows as any[]).map(parseTemplateRow);
+      const templates = (rows as any[]).map((r) => ({
+        ...parseTemplateRow(r),
+        is_archived: !!r.is_archived,
+        is_builtin: r.school_id == null,   // global/built-in: not deletable/renamable
+      }));
       return NextResponse.json({ success: true, templates });
     } finally {
       await conn.end();

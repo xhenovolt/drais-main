@@ -91,6 +91,41 @@ export async function PUT(
   }
 }
 
+// PATCH /api/report-templates/[id] — light rename / archive / restore.
+// School-owned only (built-ins, school_id IS NULL, are not editable here).
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const { id } = await params;
+    const b = await request.json();
+
+    const sets: string[] = []; const vals: any[] = [];
+    if (b.name !== undefined) { sets.push('name = ?'); vals.push(String(b.name).trim()); }
+    if (b.description !== undefined) { sets.push('description = ?'); vals.push(String(b.description ?? '')); }
+    if (b.is_archived !== undefined) { sets.push('is_archived = ?'); vals.push(b.is_archived ? 1 : 0); }
+    if (!sets.length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+
+    const conn = await getConnection();
+    try {
+      const [result] = await conn.execute(
+        `UPDATE report_templates SET ${sets.join(', ')}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND school_id = ?`,
+        [...vals, id, session.schoolId],
+      );
+      if ((result as any).affectedRows === 0) {
+        return NextResponse.json({ error: 'Built-in templates can’t be renamed or archived. Duplicate it first.' }, { status: 403 });
+      }
+      return NextResponse.json({ success: true });
+    } finally { await conn.end(); }
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Failed to update template', details: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -102,15 +137,23 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Cannot delete global templates (school_id IS NULL) — only school-specific
+    // Cannot delete global/built-in templates (school_id IS NULL) — only school-own.
     const conn = await getConnection();
     try {
+      // Block deleting the in-use (active) template — must switch/archive first.
+      const [active] = await conn.execute(
+        `SELECT value_text FROM school_settings WHERE school_id = ? AND key_name = 'active_report_template_id' LIMIT 1`,
+        [schoolId],
+      );
+      if (String((active as any[])[0]?.value_text ?? '') === String(id)) {
+        return NextResponse.json({ error: 'This is the active template. Set another active, or archive it instead.' }, { status: 409 });
+      }
       const [result] = await conn.execute(
         `DELETE FROM report_templates WHERE id = ? AND school_id = ?`,
         [id, schoolId]
       );
       if ((result as any).affectedRows === 0) {
-        return NextResponse.json({ error: 'Cannot delete this template (global or not found)' }, { status: 403 });
+        return NextResponse.json({ error: 'Built-in templates can’t be deleted — archive instead, or duplicate to customise.' }, { status: 403 });
       }
       return NextResponse.json({ success: true, message: 'Template deleted' });
     } finally {
