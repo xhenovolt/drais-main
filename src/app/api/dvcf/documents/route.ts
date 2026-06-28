@@ -45,9 +45,10 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    // P4 — drce.edit gates create. Super-admin bypasses.
+    // drce.templates.create gates create (the real catalog code; `drce.*`
+    // covers it for admins). Super-admin bypasses.
     try {
-      await requirePermission(session.userId, session.schoolId, 'drce.edit', session.isSuperAdmin);
+      await requirePermission(session.userId, session.schoolId, 'drce.templates.create', session.isSuperAdmin);
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 403 });
     }

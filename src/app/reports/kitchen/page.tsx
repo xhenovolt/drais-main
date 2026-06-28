@@ -129,6 +129,7 @@ export default function ReportsKitchen() {
   const [previewDoc, setPreviewDoc]   = useState<DRCEDocument | null>(null);
   const [loading, setLoading]         = useState(true);
   const [deletingId, setDeletingId]   = useState<number | null>(null);
+  const [renamingId, setRenamingId]   = useState<number | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [activatingId, setActivatingId]   = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -221,6 +222,37 @@ export default function ReportsKitchen() {
       showMsg('error', 'Network error');
     } finally {
       setDuplicatingId(null);
+    }
+  };
+
+  const handleRename = async (doc: DRCEDocument) => {
+    const current = doc.meta.name ?? '';
+    const next = window.prompt('Rename template', current);
+    if (next === null) return;                 // cancelled
+    const name = next.trim();
+    if (!name || name === current) return;     // unchanged / empty
+    const id = docNumId(doc);
+    setRenamingId(id);
+    try {
+      const res = await fetch(`/api/dvcf/documents/${id}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMsg('success', `Renamed to "${name}"`);
+        if (previewDoc && docNumId(previewDoc) === id) {
+          setPreviewDoc({ ...previewDoc, meta: { ...previewDoc.meta, name } });
+        }
+        fetchData();
+      } else {
+        showMsg('error', data.error || 'Cannot rename this template');
+      }
+    } catch {
+      showMsg('error', 'Network error');
+    } finally {
+      setRenamingId(null);
     }
   };
 
@@ -481,10 +513,40 @@ export default function ReportsKitchen() {
                         Copy
                       </button>
 
-                      {!isGlobal && id !== activeDocId && (
+                      {!isGlobal && (
+                        <button
+                          onClick={() => handleRename(doc)}
+                          disabled={renamingId === id}
+                          title="Rename this template"
+                          className="flex items-center gap-1 text-xs border dark:border-slate-600 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-gray-300"
+                        >
+                          {renamingId === id ? <Loader2 size={11} className="animate-spin" /> : <Pencil size={11} />}
+                          Rename
+                        </button>
+                      )}
+
+                      {/* Delete — only school-owned, non-active templates can be
+                          removed. Built-in and active templates show a disabled
+                          control with the reason so it's never a mystery. */}
+                      {isGlobal ? (
+                        <span
+                          title="Built-in templates can't be deleted. Use Copy to make your own editable version."
+                          className="flex items-center gap-1 text-xs border border-gray-200 dark:border-slate-700 text-gray-300 dark:text-slate-600 rounded px-2 py-1 ml-auto cursor-not-allowed"
+                        >
+                          <Trash2 size={11} />
+                        </span>
+                      ) : id === activeDocId ? (
+                        <span
+                          title="This is the active template. Set another template as active before deleting it."
+                          className="flex items-center gap-1 text-xs border border-gray-200 dark:border-slate-700 text-gray-300 dark:text-slate-600 rounded px-2 py-1 ml-auto cursor-not-allowed"
+                        >
+                          <Trash2 size={11} />
+                        </span>
+                      ) : (
                         <button
                           onClick={() => handleDelete(doc)}
                           disabled={deletingId === id}
+                          title="Delete this template"
                           className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded px-2 py-1 hover:bg-red-50 ml-auto"
                         >
                           {deletingId === id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}

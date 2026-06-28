@@ -90,9 +90,10 @@ export async function PUT(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    // P4 — drce.edit gates updates. Super-admin bypasses.
+    // drce.templates.edit gates updates (the real catalog code; `drce.*`
+    // covers it for admins). Super-admin bypasses.
     try {
-      await requirePermission(session.userId, session.schoolId, 'drce.edit', session.isSuperAdmin);
+      await requirePermission(session.userId, session.schoolId, 'drce.templates.edit', session.isSuperAdmin);
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 403 });
     }
@@ -199,7 +200,8 @@ export async function PUT(
   }
 }
 
-/* P4 — drce.admin gates delete. Falls through to existing 403 on missing perm. */
+/* drce.templates.delete gates delete (the real catalog code; `drce.*` covers
+   it for admins). Falls through to existing 403 on missing perm. */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -208,7 +210,7 @@ export async function DELETE(
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     try {
-      await requirePermission(session.userId, session.schoolId, 'drce.admin', session.isSuperAdmin);
+      await requirePermission(session.userId, session.schoolId, 'drce.templates.delete', session.isSuperAdmin);
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 403 });
     }
