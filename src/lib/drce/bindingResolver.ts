@@ -28,6 +28,7 @@ export function resolveBinding(
     ...(row ? { result: row } : {}),
   };
 
+  if (!binding || typeof binding !== 'string') return '';
   const parts = binding.split('.');
   let current: unknown = root;
 
@@ -46,6 +47,7 @@ export function resolveBinding(
  * Returns undefined if the path does not exist.
  */
 export function getByPath(obj: unknown, path: string): unknown {
+  if (!path || typeof path !== 'string') return undefined;
   const parts = path.split('.');
   let current = obj;
   for (const part of parts) {
@@ -61,6 +63,9 @@ export function getByPath(obj: unknown, path: string): unknown {
  * Returns a new object (immutable update).
  */
 export function setByPath<T>(obj: T, path: string, value: unknown): T {
+  // Guard: a missing/non-string path must never crash the editor (previously
+  // `undefined.split('.')` threw and blocked the whole DRCE UI).
+  if (!path || typeof path !== 'string') return obj;
   const parts = path.split('.');
   if (parts.length === 0) return obj;
 
