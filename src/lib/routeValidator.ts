@@ -150,6 +150,7 @@ export const KNOWN_ROUTES = new Set<string>([
   '/settings/school',
   '/settings/database',
   '/settings/academic-programs',
+  '/settings/report-comments',
   '/settings/study-modes',
   
   // Other
