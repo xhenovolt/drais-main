@@ -45,6 +45,11 @@ import {
 import { rankStudents } from './ranker';
 import { infer as inferCalendar } from '@/lib/calendar';
 import {
+  resolveComment,
+  listCommentRules,
+  type CommentRule,
+} from '@/lib/drce/reportComments';
+import {
   applyGradingScale,
   buildDefaultConfig,
   defaultComments,
@@ -176,7 +181,26 @@ export async function generateSnapshot(
     const language = input.type === 'theology' ? 'ar' : 'en';
     const numerals = input.type === 'theology' ? 'arabic' : 'western';
 
-    const classes = buildClasses(rows, numerals, language);
+    // Phase 4b — load the school's result-table comment rules so each subject
+    // row's comment can auto-fill from them. Best-effort: any failure (table
+    // missing, query error) leaves rules empty and the report falls back to the
+    // grading-scale remark exactly as before, so old behaviour is preserved.
+    let commentRules: CommentRule[] = [];
+    try {
+      const raw = await listCommentRules(ctx.schoolId);
+      commentRules = (raw || []).map((r) => ({
+        ...r,
+        min_score: r.min_score == null ? null : Number(r.min_score),
+        max_score: r.max_score == null ? null : Number(r.max_score),
+        subject_id: r.subject_id == null ? null : Number(r.subject_id),
+        class_id: r.class_id == null ? null : Number(r.class_id),
+        program_id: r.program_id == null ? null : Number(r.program_id),
+      }));
+    } catch {
+      commentRules = [];
+    }
+
+    const classes = buildClasses(rows, numerals, language, commentRules);
 
     // Phase E — enrich each class with its class teacher (if assigned).
     // The lookup uses the snapshot's termId + each classId; failures
@@ -488,6 +512,7 @@ function buildClasses(
   rows: RawResultRow[],
   numerals: 'arabic' | 'western',
   language: 'en' | 'ar',
+  commentRules: CommentRule[] = [],
 ): SnapshotClass[] {
   // Classes -> Students -> Results, all keyed by id for deterministic iteration.
   const classMap = new Map<number, {
@@ -566,9 +591,27 @@ function buildClasses(
       const grade = (r.grade && r.grade.trim() !== '')
         ? r.grade
         : (applyGradingScale(score, DEFAULT_GRADING_SCALE)?.grade ?? '');
+      // Comment precedence: an explicit teacher remark always wins; otherwise a
+      // matching school comment rule fills it; otherwise the grading-scale
+      // default remark (unchanged legacy behaviour). Best-effort so comment
+      // resolution can never break report generation.
+      let ruleComment = '';
+      if (commentRules.length) {
+        try {
+          ruleComment = resolveComment(commentRules, {
+            subjectId: r.subject_id,
+            classId:   r.class_id,
+            grade:     grade || null,
+            score:     Number.isFinite(score) ? score : null,
+            language,
+          }).text || '';
+        } catch {
+          ruleComment = '';
+        }
+      }
       const remarks = (r.remarks && r.remarks.trim() !== '')
         ? r.remarks
-        : (applyGradingScale(score, DEFAULT_GRADING_SCALE)?.remark ?? '');
+        : (ruleComment || (applyGradingScale(score, DEFAULT_GRADING_SCALE)?.remark ?? ''));
       const subj = cls.subjects.get(r.subject_id)!;
       stuEntry.results.set(r.subject_id, {
         subjectId:      r.subject_id,
