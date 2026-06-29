@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
-import { updateCommentRule, deleteCommentRule } from '@/lib/drce/reportComments';
+import { updateCommentRule, deleteCommentRule } from '@/lib/drce/reportComments.server';
 
 export const runtime = 'nodejs';
 

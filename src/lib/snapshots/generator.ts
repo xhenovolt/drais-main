@@ -46,9 +46,9 @@ import { rankStudents } from './ranker';
 import { infer as inferCalendar } from '@/lib/calendar';
 import {
   resolveComment,
-  listCommentRules,
   type CommentRule,
 } from '@/lib/drce/reportComments';
+import { listCommentRules } from '@/lib/drce/reportComments.server';
 import {
   applyGradingScale,
   buildDefaultConfig,
