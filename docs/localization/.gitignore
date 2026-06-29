@@ -1,0 +1,4 @@
+# Never commit generated translation previews — they contain real learner PII.
+arabic-db-translation-preview.*
+*-preview.json
+*-preview.csv

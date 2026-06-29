@@ -59,9 +59,12 @@ Per the epic, **AI-generated Arabic learner-name transliterations must be previe
 
 ## 9. Recommended batch order (status)
 
-1. **Batch 1 — audit + navbar/topbar/sidebar dictionary fix** ✅ _done (this commit)_
-2. Batch 2 — DB Arabic fields (additive migrations) + API `display_name` localization
-3. Batch 3 — students list/profile Arabic names + RTL table
-4. Batch 4 — bulk Arabic name import/export + **preview/approval gate**
+1. **Batch 1 — audit + navbar/topbar/sidebar dictionary fix** ✅ done
+2. **Batch 2 — DB Arabic fields (migration 029) + API `display_name` localization** ✅ done
+3. **Batch 3 — students list/profile Arabic names + RTL table** ✅ done
+4. **Batch 4 — bulk Arabic name import/export + AI-draft preview/approval gate** ✅ done
+   - `/settings/localization`: export (all/missing), AI draft → review/edit → **Apply** (nothing is written until Apply), CSV/Excel import with a dry-run preview.
+   - APIs: `GET/POST /api/students/arabic-names` (export + draft + dry_run/apply, never overwrites without `overwrite:true`), `PATCH /api/students/[id]/arabic-name`.
+   - Transliteration draft engine: `src/lib/i18n/translit.ts` (dictionary of common Islamic names + `Abd al-` compound handling + letter fallback; confidence + needsReview).
 5. Batch 5 — DRCE/reports Arabic bindings (`*.name_ar`) + RTL print
 6. Batch 6 — full-route localization sweep + `/settings/localization` coverage dashboard

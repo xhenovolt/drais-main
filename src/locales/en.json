@@ -625,6 +625,27 @@
     "createdBy": "Created by",
     "updatedBy": "Updated by"
   },
+  "localization": {
+    "title": "Localization — Arabic Names",
+    "subtitle": "Export, draft, review and apply Arabic learner names. Nothing is saved until you click Apply.",
+    "export": "Export for review",
+    "exportAll": "Export all learners",
+    "exportMissing": "Export missing only",
+    "aiDraft": "AI draft & apply",
+    "generate": "Generate drafts for missing names",
+    "draftWarning": "Drafts are machine transliterations — review each one (especially amber/red confidence) before applying. High-confidence rows are pre-selected.",
+    "overwrite": "Overwrite existing Arabic names",
+    "selected": "selected",
+    "previewApply": "Preview",
+    "applySelected": "Apply selected",
+    "english": "English name",
+    "arabicFull": "Arabic full name",
+    "confidence": "Confidence",
+    "import": "Import from CSV / Excel",
+    "importHint": "Columns: admission_no + full_name_ar (or first_name_ar / last_name_ar). Matched by admission number; existing names are kept unless Overwrite is on.",
+    "preview": "Preview",
+    "applyImport": "Apply import"
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "students": "Students",
