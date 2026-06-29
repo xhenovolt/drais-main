@@ -89,9 +89,10 @@ win:
       arch:
         - x64
   artifactName: ${productName}-${version}-${arch}-${os}.${ext}
-  # Add an icon at build/icon.ico (256x256) for branded shortcuts.
-  # If absent, electron-builder falls back to the default Electron icon.
-  icon: build/icon.ico
+  # Use the tracked 512x512 build/icon.png — electron-builder generates the
+  # installer/shortcut .ico from it automatically. (Pointing win.icon at a
+  # missing build/icon.ico aborts the build in CI.)
+  icon: build/icon.png
 
 # Linux: AppImage (portable, runs anywhere) + deb. Build on Linux:
 #   npm run build:electron && npx electron-builder --linux
@@ -131,7 +132,9 @@ mac:
     - zip
   category: public.app-category.education
   artifactName: ${productName}-${version}-${arch}.${ext}
-  icon: build/icon.ico
+  # macOS needs an .icns; electron-builder generates it from the 512x512
+  # build/icon.png. (A .ico is not a valid macOS icon.)
+  icon: build/icon.png
 
 nsis:
   oneClick: false
