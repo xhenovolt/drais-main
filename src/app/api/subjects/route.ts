@@ -4,6 +4,7 @@ import { getConnection, getActiveDatabase } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getAllocationsBySubject } from '@/lib/academic-allocation';
+import { langFromRequest, pickName } from '@/lib/i18n/localize';
 
 /**
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
@@ -94,12 +95,13 @@ export async function GET(req: NextRequest) {
 
     connection = await getConnection();
     const [subjectRows]: any = await connection.execute(
-      `SELECT id, name, code, subject_type, academic_type
+      `SELECT id, name, name_ar, code, subject_type, academic_type
        FROM subjects
        WHERE school_id = ? AND deleted_at IS NULL
        ORDER BY name ASC`,
       [schoolId]
     );
+    const lang = langFromRequest(req);
 
     const allocationSummaries = await getAllocationsBySubject(schoolId);
     const allocationsBySubjectId = new Map(
@@ -134,6 +136,8 @@ export async function GET(req: NextRequest) {
       return {
         id: subject.id,
         name: subject.name,
+        name_ar: subject.name_ar ?? null,
+        display_name: pickName(lang, subject.name, subject.name_ar),
         code: subject.code,
         subject_type: subject.subject_type,
         academic_type: subject.academic_type,

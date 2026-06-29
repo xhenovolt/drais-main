@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { langFromRequest, pickName } from '@/lib/i18n/localize';
 
 /**
  * Programs API — clear, school-configurable enrollment programs.
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     const includeArchived = req.nextUrl.searchParams.get('include_archived') === '1';
 
     const [rows]: any = await conn.execute(
-      `SELECT id, school_id, name,
+      `SELECT id, school_id, name, name_ar,
               COALESCE(NULLIF(display_name, ''), name) AS display_name,
               code, curriculum_body, eligibility, is_default, is_active, description, created_at
          FROM programs
@@ -25,7 +26,14 @@ export async function GET(req: NextRequest) {
         ORDER BY is_default DESC, is_active DESC, display_name ASC`,
       [session.schoolId],
     );
-    return NextResponse.json({ success: true, data: rows });
+    // Arabic display: prefer name_ar, else the English display_name. English
+    // mode is unchanged (name_ar simply ignored), so existing consumers are safe.
+    const lang = langFromRequest(req);
+    const data = (rows as Record<string, unknown>[]).map(r => ({
+      ...r,
+      display_name: pickName(lang, r.display_name as string, r.name_ar as string | null),
+    }));
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching programs:', error);
     return NextResponse.json({ error: 'Failed to fetch programs' }, { status: 500 });

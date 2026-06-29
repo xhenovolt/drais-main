@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
 export async function GET(req: NextRequest) {
   let connection;
 
@@ -20,9 +21,10 @@ export async function GET(req: NextRequest) {
 
     const [terms] = await connection.execute(
       `
-      SELECT 
+      SELECT
         t.id,
         t.name,
+        t.name_ar,
         COALESCE(t.term_number,
           CASE
             WHEN LOWER(TRIM(t.name)) IN ('term 1','t1','first term') THEN 1
@@ -45,9 +47,11 @@ export async function GET(req: NextRequest) {
       [schoolId]
     );
 
+    const lang = langFromRequest(req);
+    const data = (terms as Record<string, unknown>[]).map(r => withDisplayName(r, lang));
     return NextResponse.json({
       success: true,
-      data: terms,
+      data,
     });
   } catch (error: any) {
     console.error('Terms fetch error:', error);

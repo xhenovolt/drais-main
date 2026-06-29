@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
+import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
 
 export async function GET(req: NextRequest) {
   let connection;
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
     // previous behaviour produced visually empty "teacher_name" entries.
     let sql = `
       SELECT
-        c.id, c.name, c.class_level, c.head_teacher_id,
+        c.id, c.name, c.name_ar, c.class_level, c.head_teacher_id,
         c.curriculum_id,
         cu.name AS curriculum_name, cu.code AS curriculum_code,
         NULLIF(TRIM(
@@ -68,7 +69,9 @@ export async function GET(req: NextRequest) {
     sql += ` ORDER BY c.class_level, c.name`;
 
     const [classes] = await connection.execute(sql, params);
-    return NextResponse.json({ success: true, data: classes });
+    const lang = langFromRequest(req);
+    const data = (classes as Record<string, unknown>[]).map(r => withDisplayName(r, lang));
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('Classes fetch error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch classes' }, { status: 500 });

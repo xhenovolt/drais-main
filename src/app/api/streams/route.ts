@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getConnection, getActiveDatabase } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
+import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
 
 /**
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
     const classId = searchParams.get('class_id');
 
     connection = await getConnection();
-    let sql = 'SELECT id, name, class_id FROM streams WHERE school_id = ?';
+    let sql = 'SELECT id, name, name_ar, class_id FROM streams WHERE school_id = ?';
     const params: any[] = [schoolId];
 
     if (classId) {
@@ -83,7 +84,9 @@ export async function GET(req: NextRequest) {
 
     sql += ' ORDER BY name ASC';
     const [rows] = await connection.execute(sql, params);
-    return NextResponse.json({ data: rows });
+    const lang = langFromRequest(req);
+    const data = (rows as Record<string, unknown>[]).map(r => withDisplayName(r, lang));
+    return NextResponse.json({ data });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   } finally {

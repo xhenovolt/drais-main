@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
+import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -19,9 +20,10 @@ export async function GET(req: NextRequest) {
     connection = await getConnection();
 
     const [departments] = await connection.execute(`
-      SELECT 
+      SELECT
         d.id,
         d.name,
+        d.name_ar,
         d.description,
         d.head_staff_id,
         p.first_name as head_first_name,
@@ -33,13 +35,15 @@ export async function GET(req: NextRequest) {
       LEFT JOIN people p ON s.person_id = p.id
       LEFT JOIN staff s2 ON s2.department_id = d.id AND s2.status = 'active' AND s2.deleted_at IS NULL
       WHERE d.school_id = ?
-      GROUP BY d.id, d.name, d.description, d.head_staff_id, p.first_name, p.last_name, s.staff_no
+      GROUP BY d.id, d.name, d.name_ar, d.description, d.head_staff_id, p.first_name, p.last_name, s.staff_no
       ORDER BY d.name
     `, [schoolId]);
 
+    const lang = langFromRequest(req);
+    const data = (departments as Record<string, unknown>[]).map(r => withDisplayName(r, lang));
     return NextResponse.json({
       success: true,
-      data: departments
+      data
     });
 
   } catch (error: any) {
