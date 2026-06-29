@@ -770,6 +770,19 @@
     "card3Title": "Inline Editing",
     "card3Desc": "Click any score to edit directly with auto-grading"
   },
+  "tahfizRecords": {
+    "title": "Tahfiz Records",
+    "subtitle": "Track student presentations and progress records",
+    "portions": "Portions",
+    "learners": "Learners",
+    "addRecord": "Add Record",
+    "searchPlaceholder": "Search records...",
+    "allStudents": "All Students",
+    "colStudent": "Student",
+    "colPortion": "Portion",
+    "colDate": "Date",
+    "colStatus": "Status"
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "students": "Students",

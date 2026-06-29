@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Plus, Search, Filter, Calendar, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Record {
   id: number;
@@ -14,6 +15,7 @@ interface Record {
 }
 
 export default function TahfizRecords() {
+  const { t } = useI18n();
   const [records, setRecords] = useState<Record[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,18 +45,18 @@ export default function TahfizRecords() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Tahfiz Records</h1>
-            <p className="text-slate-600 mt-1">Track student presentations and progress records</p>
+            <h1 className="text-3xl font-bold text-slate-800">{t('tahfizRecords.title', 'Tahfiz Records')}</h1>
+            <p className="text-slate-600 mt-1">{t('tahfizRecords.subtitle', 'Track student presentations and progress records')}</p>
           </div>
-          <Link href="/tahfiz/portions" className="btn btn-outline">Portions</Link>
-          <Link href="/tahfiz/learners" className="btn btn-primary">Learners</Link>
+          <Link href="/tahfiz/portions" className="btn btn-outline">{t('tahfizRecords.portions', 'Portions')}</Link>
+          <Link href="/tahfiz/learners" className="btn btn-primary">{t('tahfizRecords.learners', 'Learners')}</Link>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2"
           >
             <Plus className="w-5 h-5" />
-            <span>Add Record</span>
+            <span>{t('tahfizRecords.addRecord', 'Add Record')}</span>
           </motion.button>
         </div>
 
@@ -65,14 +67,14 @@ export default function TahfizRecords() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search records..."
+                placeholder={t('tahfizRecords.searchPlaceholder', 'Search records...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
               />
             </div>
             <select className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200">
-              <option value="">All Students</option>
+              <option value="">{t('tahfizRecords.allStudents', 'All Students')}</option>
             </select>
             <input
               type="date"
@@ -86,10 +88,10 @@ export default function TahfizRecords() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th className="py-2 px-4 text-slate-600 font-medium">Student</th>
-                <th className="py-2 px-4 text-slate-600 font-medium">Portion</th>
-                <th className="py-2 px-4 text-slate-600 font-medium">Date</th>
-                <th className="py-2 px-4 text-slate-600 font-medium">Status</th>
+                <th className="py-2 px-4 text-slate-600 font-medium">{t('tahfizRecords.colStudent', 'Student')}</th>
+                <th className="py-2 px-4 text-slate-600 font-medium">{t('tahfizRecords.colPortion', 'Portion')}</th>
+                <th className="py-2 px-4 text-slate-600 font-medium">{t('tahfizRecords.colDate', 'Date')}</th>
+                <th className="py-2 px-4 text-slate-600 font-medium">{t('tahfizRecords.colStatus', 'Status')}</th>
                 <th className="py-2 px-4"></th>
               </tr>
             </thead>

@@ -972,6 +972,19 @@
     "card3Title": "تحرير مباشر",
     "card3Desc": "انقر أي درجة لتحريرها مباشرة مع التقدير التلقائي"
   },
+  "tahfizRecords": {
+    "title": "سجلات التحفيظ",
+    "subtitle": "تتبّع عروض الطلاب وسجلات التقدّم",
+    "portions": "المقاطع",
+    "learners": "المتعلمون",
+    "addRecord": "إضافة سجل",
+    "searchPlaceholder": "البحث في السجلات...",
+    "allStudents": "كل الطلاب",
+    "colStudent": "الطالب",
+    "colPortion": "المقطع",
+    "colDate": "التاريخ",
+    "colStatus": "الحالة"
+  },
   "navigation": {
     "dashboard": "لوحة التحكم",
     "students": "الطلاب",
