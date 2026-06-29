@@ -37,7 +37,7 @@ report only.
 | OS | Targets | Example artifact (v1.48.0) |
 |----|---------|----------------------------|
 | Windows | NSIS installer + portable | `DRAIS-1.48.0-x64-win.exe`, `DRAIS-1.48.0-portable.exe` |
-| Linux | AppImage + deb | `DRAIS-1.48.0-x64.AppImage`, `DRAIS-1.48.0-amd64.deb` |
+| Linux | AppImage + deb (+ snap, best-effort) | `DRAIS-1.48.0-x64.AppImage`, `DRAIS-1.48.0-amd64.deb`, `DRAIS-1.48.0-amd64.snap` |
 | macOS | dmg + zip | `DRAIS-1.48.0-arm64.dmg` (+ x64 on Intel runners), `…-arm64.zip` |
 
 (Artifact names come from `electron-builder.yml` `artifactName` and already include product name, version and arch.)

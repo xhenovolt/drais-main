@@ -64,6 +64,21 @@ jobs:
           # have. Remove this once signing secrets are configured.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      # Snap (Linux only) — built as a SEPARATE, best-effort step so a snapcraft
+      # hiccup can never sink the AppImage/deb produced above. SNAPCRAFT_BUILD_
+      # ENVIRONMENT=host builds in destructive mode on the runner (no LXD/
+      # multipass, which is what makes snap flaky in CI).
+      - name: Install snapcraft (Linux)
+        if: matrix.platform == 'linux'
+        run: sudo snap install snapcraft --classic
+
+      - name: Package snap (Linux, best-effort)
+        if: matrix.platform == 'linux'
+        continue-on-error: true
+        run: npx electron-builder --linux snap --publish never
+        env:
+          SNAPCRAFT_BUILD_ENVIRONMENT: host
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
