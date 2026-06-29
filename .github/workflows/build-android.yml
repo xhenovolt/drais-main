@@ -6,14 +6,20 @@ name: Build Android (debug APK)
 # this is a genuine build — but the nodejs-mobile + Gradle chain is heavy and the
 # first CI runs may need tuning (SDK levels, NDK, gradle memory).
 #
-# Manual trigger ONLY, so it never gates the desktop release pipeline.
-# Produces an UNSIGNED debug APK (no Play Store signing required).
+# Runs automatically on v* tags (alongside the desktop pipeline) AND on demand.
+# It is its OWN workflow, so if this experimental build hiccups it shows a red
+# mark on this run only — it never blocks or fails the desktop release.
+# Produces an UNSIGNED debug APK (no Play Store signing required); on a tag the
+# APK is attached to the same draft GitHub Release as the desktop installers.
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write          # attach the APK to the release on tag builds
 
 jobs:
   apk:
@@ -63,3 +69,14 @@ jobs:
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Attach APK to the draft release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: android/app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
