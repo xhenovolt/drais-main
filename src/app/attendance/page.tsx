@@ -116,37 +116,37 @@ export default function AttendanceDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Total Students */}
           <MetricCard
-            label="Total Learners"
+            label={t('attendanceDash.totalLearners', 'Total Learners')}
             value={studentStats.total ?? '—'}
             icon={<Users className="w-5 h-5 text-blue-600" />}
             color="blue"
           />
           {/* Present Today */}
           <MetricCard
-            label="Learners Present"
+            label={t('attendanceDash.learnersPresent', 'Learners Present')}
             value={studentStats.present ?? 0}
-            sub={studentStats.rate != null ? `${studentStats.rate}%` : totalPunches === 0 ? 'No data yet' : null}
+            sub={studentStats.rate != null ? `${studentStats.rate}%` : totalPunches === 0 ? t('attendanceDash.noDataYet', 'No data yet') : null}
             icon={<UserCheck className="w-5 h-5 text-green-600" />}
             color="green"
           />
           {/* Learners Late */}
           <MetricCard
-            label="Learners Late"
+            label={t('attendanceDash.learnersLate', 'Learners Late')}
             value={studentStats.late ?? 0}
             icon={<Clock className="w-5 h-5 text-amber-600" />}
             color="amber"
           />
           {/* Learners Absent */}
           <MetricCard
-            label="Learners Absent"
+            label={t('attendanceDash.learnersAbsent', 'Learners Absent')}
             value={studentStats.absent ?? 0}
-            sub={studentStats.total > 0 ? `of ${studentStats.total}` : null}
+            sub={studentStats.total > 0 ? `${t('attendanceDash.of', 'of')} ${studentStats.total}` : null}
             icon={<Users className="w-5 h-5 text-red-600" />}
             color="red"
           />
           {/* Staff Present */}
           <MetricCard
-            label="Staff Present"
+            label={t('attendanceDash.staffPresent', 'Staff Present')}
             value={staffStats.present ?? 0}
             sub={staffStats.rate != null ? `${staffStats.rate}%` : null}
             icon={<Briefcase className="w-5 h-5 text-purple-600" />}
@@ -154,17 +154,17 @@ export default function AttendanceDashboard() {
           />
           {/* Total Punches */}
           <MetricCard
-            label="Total Punches"
+            label={t('attendanceDash.totalPunches', 'Total Punches')}
             value={totalPunches}
-            sub={`${matchedPunches} matched`}
+            sub={`${matchedPunches} ${t('attendanceDash.matchedLabel', 'matched')}`}
             icon={<Activity className="w-5 h-5 text-indigo-600" />}
             color="indigo"
           />
           {/* Unmatched */}
           <MetricCard
-            label="Unmatched"
+            label={t('attendanceDash.unmatched', 'Unmatched')}
             value={unmatchedPunches}
-            sub={unmatchedPunches > 0 ? 'Needs mapping' : null}
+            sub={unmatchedPunches > 0 ? t('attendanceDash.needsMapping', 'Needs mapping') : null}
             icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
             color="amber"
             alert={unmatchedPunches > 0}
@@ -176,9 +176,9 @@ export default function AttendanceDashboard() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
             dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Devices</h3>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('attendanceDash.devices', 'Devices')}</h3>
               <Link href="/attendance/devices" className="text-xs text-blue-600 hover:underline">
-                Manage &rarr;
+                {t('attendanceDash.manage', 'Manage')} &rarr;
               </Link>
             </div>
             <div className="flex items-center gap-6">
@@ -187,21 +187,21 @@ export default function AttendanceDashboard() {
                 <span className="text-lg font-bold text-green-600">
                   {Number(deviceStats.online_devices || 0)}
                 </span>
-                <span className="text-xs text-gray-400">Online</span>
+                <span className="text-xs text-gray-400">{t('attendanceDash.online', 'Online')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <WifiOff className="w-4 h-4 text-red-400" />
                 <span className="text-lg font-bold text-red-500">
                   {Number(deviceStats.offline_devices || 0)}
                 </span>
-                <span className="text-xs text-gray-400">Offline</span>
+                <span className="text-xs text-gray-400">{t('attendanceDash.offline', 'Offline')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Server className="w-4 h-4 text-gray-400" />
                 <span className="text-lg font-bold text-gray-600 dark:text-gray-300">
                   {Number(deviceStats.total_devices || 0)}
                 </span>
-                <span className="text-xs text-gray-400">Total</span>
+                <span className="text-xs text-gray-400">{t('attendanceDash.total', 'Total')}</span>
               </div>
             </div>
           </div>
@@ -210,9 +210,9 @@ export default function AttendanceDashboard() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
             dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Commands</h3>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('attendanceDash.commands', 'Commands')}</h3>
               <Link href="/attendance/commands" className="text-xs text-blue-600 hover:underline">
-                View &rarr;
+                {t('attendanceDash.view', 'View')} &rarr;
               </Link>
             </div>
             <div className="flex items-center gap-6">
@@ -220,13 +220,13 @@ export default function AttendanceDashboard() {
                 <span className="text-lg font-bold text-yellow-600">
                   {Number(commandStats.total_pending || 0)}
                 </span>
-                <span className="text-xs text-gray-400 ml-1">Pending</span>
+                <span className="text-xs text-gray-400 ml-1">{t('attendanceDash.pending', 'Pending')}</span>
               </div>
               <div>
                 <span className="text-lg font-bold text-red-500">
                   {Number(commandStats.failed || 0)}
                 </span>
-                <span className="text-xs text-gray-400 ml-1">Failed</span>
+                <span className="text-xs text-gray-400 ml-1">{t('attendanceDash.failed', 'Failed')}</span>
               </div>
             </div>
           </div>
@@ -234,19 +234,19 @@ export default function AttendanceDashboard() {
           {/* Quick Actions */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200
             dark:border-gray-700 p-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Links</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('attendanceDash.quickLinks', 'Quick Links')}</h3>
             <div className="flex flex-wrap gap-2">
               <Link href="/attendance/logs" className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700
                 dark:text-blue-300 rounded-lg text-xs font-medium hover:bg-blue-100">
-                Attendance Logs
+                {t('attendanceDash.attendanceLogs', 'Attendance Logs')}
               </Link>
               <Link href="/attendance/mapping" className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700
                 dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-100">
-                User Mapping
+                {t('attendanceDash.userMapping', 'User Mapping')}
               </Link>
               <Link href="/attendance/device-logs" className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-700
                 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-100">
-                Raw Pipeline
+                {t('attendanceDash.rawPipeline', 'Raw Pipeline')}
               </Link>
             </div>
           </div>
@@ -258,7 +258,7 @@ export default function AttendanceDashboard() {
             dark:border-gray-700 p-4">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
-              Hourly Breakdown
+              {t('attendanceDash.hourlyBreakdown', 'Hourly Breakdown')}
             </h3>
             <div className="flex items-end gap-1 h-32">
               {Array.from({ length: 24 }, (_, h) => {
@@ -297,9 +297,9 @@ export default function AttendanceDashboard() {
           >
             <div className="flex items-center gap-2">
               <Radio className={`w-4 h-4 ${sseConnected ? 'text-green-500 animate-pulse' : 'text-red-400'}`} />
-              <span className="text-sm font-medium">Live Feed</span>
+              <span className="text-sm font-medium">{t('attendanceDash.liveFeed', 'Live Feed')}</span>
               <span className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-400'}`} />
-              <span className="text-xs text-gray-400">{sseConnected ? 'Connected' : 'Reconnecting...'}</span>
+              <span className="text-xs text-gray-400">{sseConnected ? t('attendanceDash.connected', 'Connected') : t('attendanceDash.reconnecting', 'Reconnecting...')}</span>
             </div>
             {liveFeedOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
@@ -308,7 +308,7 @@ export default function AttendanceDashboard() {
               divide-y divide-gray-100 dark:divide-gray-700">
               {liveEvents.length === 0 && (
                 <p className="px-4 py-6 text-center text-sm text-gray-400">
-                  Waiting for new attendance events...
+                  {t('attendanceDash.waitingEvents', 'Waiting for new attendance events...')}
                 </p>
               )}
               {liveEvents.map((ev, i) => (
@@ -326,7 +326,7 @@ export default function AttendanceDashboard() {
                     ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
                       : ev.person_type === 'staff' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                         : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                    {ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched'}
+                    {ev.person_type === 'student' ? t('attendanceDash.learner', 'Learner') : ev.person_type === 'staff' ? t('attendanceDash.staff', 'Staff') : t('attendanceDash.unmatched', 'Unmatched')}
                   </span>
                   {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
                 </div>
@@ -341,31 +341,31 @@ export default function AttendanceDashboard() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200
             dark:border-gray-700">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              Recent Punches (Last 20)
+              {t('attendanceDash.recentPunches', 'Recent Punches (Last 20)')}
             </h3>
             <Link href="/attendance/logs" className="text-xs text-blue-600 hover:underline">
-              View all &rarr;
+              {t('attendanceDash.viewAll', 'View all')} &rarr;
             </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-900/50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Person</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Device UID</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Verify</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">IO</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colTime', 'Time')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colPerson', 'Person')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colDeviceUid', 'Device UID')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colVerify', 'Verify')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colIo', 'IO')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colStatus', 'Status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {isLoading && recentPunches.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">Loading...</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">{t('attendanceDash.loading', 'Loading...')}</td></tr>
                 )}
                 {!isLoading && recentPunches.length === 0 && (
                   <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
-                    No attendance data yet. Punches will appear here when the device sends them.
+                    {t('attendanceDash.noAttendanceData', 'No attendance data yet. Punches will appear here when the device sends them.')}
                   </td></tr>
                 )}
               {recentPunches.map((p: any) => {
@@ -395,20 +395,20 @@ export default function AttendanceDashboard() {
                         {p.derived_event ? (
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${DERIVED_CLASS[p.derived_event] ?? 'bg-slate-100 text-slate-600'}`}
                                 title={p.derived_detail || ''}>
-                            {DERIVED_LABEL[p.derived_event] ?? p.derived_event}
+                            {p.derived_event ? t(`attendanceDash.derived.${p.derived_event}`, DERIVED_LABEL[p.derived_event] ?? p.derived_event) : p.derived_event}
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500">Scan</span>
+                          <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500">{t('attendanceDash.scan', 'Scan')}</span>
                         )}
                       </td>
                       <td className="px-4 py-2 text-sm">
                         {p.matched ? (
                           <span className="text-green-600 text-xs font-medium flex items-center gap-1">
-                            <UserCheck className="w-3.5 h-3.5" /> Matched
+                            <UserCheck className="w-3.5 h-3.5" /> {t('attendanceDash.matched', 'Matched')}
                           </span>
                         ) : (
                           <span className="text-red-500 text-xs font-medium flex items-center gap-1">
-                            <AlertTriangle className="w-3.5 h-3.5" /> Unmatched
+                            <AlertTriangle className="w-3.5 h-3.5" /> {t('attendanceDash.unmatched', 'Unmatched')}
                           </span>
                         )}
                       </td>
