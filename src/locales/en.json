@@ -644,7 +644,21 @@
     "import": "Import from CSV / Excel",
     "importHint": "Columns: admission_no + full_name_ar (or first_name_ar / last_name_ar). Matched by admission number; existing names are kept unless Overwrite is on.",
     "preview": "Preview",
-    "applyImport": "Apply import"
+    "applyImport": "Apply import",
+    "coverage": "Coverage",
+    "learnerNames": "Learner names",
+    "uiStrings": "UI strings",
+    "missing": "missing",
+    "referenceLabels": "Arabic labels (classes, subjects…)",
+    "arabic": "Arabic",
+    "types": {
+      "classes": "Classes",
+      "subjects": "Subjects",
+      "streams": "Streams",
+      "departments": "Departments",
+      "terms": "Terms",
+      "programs": "Programs"
+    }
   },
   "navigation": {
     "dashboard": "Dashboard",

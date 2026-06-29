@@ -846,7 +846,21 @@
     "import": "استيراد من CSV / Excel",
     "importHint": "الأعمدة: admission_no + full_name_ar (أو first_name_ar / last_name_ar). تتم المطابقة برقم القبول؛ تبقى الأسماء الموجودة ما لم يُفعّل الاستبدال.",
     "preview": "معاينة",
-    "applyImport": "تطبيق الاستيراد"
+    "applyImport": "تطبيق الاستيراد",
+    "coverage": "نسبة التغطية",
+    "learnerNames": "أسماء الطلاب",
+    "uiStrings": "نصوص الواجهة",
+    "missing": "ناقص",
+    "referenceLabels": "التسميات العربية (الصفوف، المواد…)",
+    "arabic": "العربية",
+    "types": {
+      "classes": "الصفوف",
+      "subjects": "المواد",
+      "streams": "الشعب",
+      "departments": "الأقسام",
+      "terms": "الفصول الدراسية",
+      "programs": "البرامج"
+    }
   },
   "navigation": {
     "dashboard": "لوحة التحكم",

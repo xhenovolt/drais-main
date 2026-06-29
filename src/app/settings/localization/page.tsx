@@ -6,11 +6,14 @@
  * for review, edit, then APPLY (the approval gate — nothing is written until the
  * school clicks Apply), plus CSV/Excel import with a dry-run preview.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-hot-toast';
-import { Languages, Download, Sparkles, Upload, Loader2, Check } from 'lucide-react';
+import { Languages, Download, Sparkles, Upload, Loader2, Check, BarChart3, ListTree } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+
+const REF_TYPES = ['classes', 'subjects', 'streams', 'departments', 'terms', 'programs'] as const;
+type RefType = typeof REF_TYPES[number];
 
 interface DraftRow {
   student_id: number;
@@ -42,6 +45,36 @@ export default function LocalizationPage() {
   const [overwrite, setOverwrite] = useState(false);
   const [importReport, setImportReport] = useState<any | null>(null);
   const [pendingImport, setPendingImport] = useState<any[] | null>(null);
+  const [coverage, setCoverage] = useState<any | null>(null);
+  const [refType, setRefType] = useState<RefType>('classes');
+  const [refRows, setRefRows] = useState<{ id: number; name: string; name_ar: string | null; _val?: string }[]>([]);
+  const [refLoading, setRefLoading] = useState(false);
+
+  // ── Coverage ────────────────────────────────────────────────────────────────
+  const loadCoverage = useCallback(async () => {
+    const r = await fetch('/api/localization/coverage', { cache: 'no-store' });
+    const j = await r.json();
+    if (j.success) setCoverage(j);
+  }, []);
+  useEffect(() => { loadCoverage(); }, [loadCoverage]);
+
+  // ── Reference-data Arabic labels ────────────────────────────────────────────
+  const loadRef = useCallback(async (type: RefType) => {
+    setRefLoading(true);
+    try {
+      const r = await fetch(`/api/localization/reference?type=${type}`, { cache: 'no-store' });
+      const j = await r.json();
+      if (j.success) setRefRows((j.rows as any[]).map(x => ({ ...x, _val: x.name_ar ?? '' })));
+    } finally { setRefLoading(false); }
+  }, []);
+  useEffect(() => { loadRef(refType); }, [refType, loadRef]);
+
+  const saveRef = useCallback(async (row: { id: number; _val?: string }) => {
+    const r = await fetch('/api/localization/reference', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: refType, id: row.id, name_ar: row._val ?? '' }) });
+    const j = await r.json();
+    if (j.success) { toast.success('Saved'); setRefRows(p => p.map(x => x.id === row.id ? { ...x, name_ar: row._val ?? '' } : x)); loadCoverage(); }
+    else toast.error(j.error || 'Failed');
+  }, [refType, loadCoverage]);
 
   // ── Export ────────────────────────────────────────────────────────────────
   const exportCsv = useCallback(async (missing: boolean) => {
@@ -158,6 +191,19 @@ export default function LocalizationPage() {
         </div>
       </div>
 
+      {/* Coverage */}
+      {coverage && (
+        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> {t('localization.coverage', 'Coverage')}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <CoverageCard label={t('localization.learnerNames', 'Learner names')} percent={coverage.learners.percent} detail={`${coverage.learners.withArabic}/${coverage.learners.total} · ${coverage.learners.missing} ${t('localization.missing', 'missing')}`} />
+            <CoverageCard label={t('localization.uiStrings', 'UI strings')} percent={coverage.ui.percent} detail={`${coverage.ui.missing} ${t('localization.missing', 'missing')}`} />
+            <CoverageCard label={t('localization.types.classes', 'Classes')} percent={pct(coverage.reference.classes)} detail={refDetail(coverage.reference.classes, t)} />
+            <CoverageCard label={t('localization.types.subjects', 'Subjects')} percent={pct(coverage.reference.subjects)} detail={refDetail(coverage.reference.subjects, t)} />
+          </div>
+        </section>
+      )}
+
       {/* Export */}
       <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
         <h2 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Download className="w-4 h-4" /> {t('localization.export', 'Export for review')}</h2>
@@ -218,6 +264,35 @@ export default function LocalizationPage() {
         )}
       </section>
 
+      {/* Reference-data Arabic labels */}
+      <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2"><ListTree className="w-4 h-4" /> {t('localization.referenceLabels', 'Arabic labels (classes, subjects…)')}</h2>
+          <select value={refType} onChange={e => setRefType(e.target.value as RefType)} className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm capitalize">
+            {REF_TYPES.map(rt => <option key={rt} value={rt}>{t(`localization.types.${rt}`, rt)}</option>)}
+          </select>
+        </div>
+        {refLoading ? <div className="py-6 text-center text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline" /></div> : (
+          <div className="overflow-x-auto border border-gray-100 dark:border-gray-700 rounded-lg max-h-[50vh]">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-500 sticky top-0">
+                <tr><th className="px-3 py-2 text-left">{t('localization.english', 'English')}</th><th className="px-3 py-2 text-left">{t('localization.arabic', 'Arabic')}</th><th className="px-2 py-2"></th></tr>
+              </thead>
+              <tbody>
+                {refRows.length === 0 && <tr><td colSpan={3} className="px-3 py-6 text-center text-gray-400">—</td></tr>}
+                {refRows.map((row, i) => (
+                  <tr key={row.id} className="border-t border-gray-100 dark:border-gray-700/50">
+                    <td className="px-3 py-1.5">{row.name}</td>
+                    <td className="px-3 py-1.5"><input dir="rtl" value={row._val ?? ''} onChange={e => setRefRows(p => p.map((x, j) => j === i ? { ...x, _val: e.target.value } : x))} className="w-full min-w-[160px] px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" /></td>
+                    <td className="px-2 py-1.5">{(row._val ?? '') !== (row.name_ar ?? '') && <button onClick={() => saveRef(row)} className="text-xs px-2 py-1 rounded bg-emerald-600 text-white">{t('actions.save', 'Save')}</button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {/* Import */}
       <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
         <h2 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Upload className="w-4 h-4" /> {t('localization.import', 'Import from CSV / Excel')}</h2>
@@ -231,6 +306,27 @@ export default function LocalizationPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function pct(ref?: { total: number; withArabic: number }): number {
+  if (!ref || !ref.total) return 100;
+  return Math.round((ref.withArabic / ref.total) * 100);
+}
+
+function refDetail(ref: { total: number; withArabic: number; missing: number } | undefined, t: (k: string, f?: string) => string): string {
+  if (!ref) return '—';
+  return `${ref.withArabic}/${ref.total} · ${ref.missing} ${t('localization.missing', 'missing')}`;
+}
+
+function CoverageCard({ label, percent, detail }: { label: string; percent: number; detail: string }) {
+  const color = percent >= 90 ? 'text-emerald-600' : percent >= 50 ? 'text-amber-600' : 'text-rose-600';
+  return (
+    <div className="rounded-lg border border-gray-100 dark:border-gray-700 p-3">
+      <div className="text-xs text-gray-500 truncate">{label}</div>
+      <div className={`text-2xl font-bold ${color}`}>{percent}%</div>
+      <div className="text-[11px] text-gray-400 truncate">{detail}</div>
     </div>
   );
 }

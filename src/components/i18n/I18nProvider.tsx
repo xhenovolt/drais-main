@@ -54,6 +54,17 @@ function resolveKey(dict: Dictionary, path: string | null): string | undefined {
   return path.split('.').reduce<any>((acc, part) => (acc && (acc as any)[part]) ?? undefined, dict);
 }
 
+// Dev-only: warn once per missing key so untranslated strings are easy to find
+// during the route-localization sweep. Silent in production.
+const warnedKeys = new Set<string>();
+function warnMissingKey(key: string, lang: string) {
+  if (process.env.NODE_ENV === 'production') return;
+  const id = `${lang}:${key}`;
+  if (warnedKeys.has(id)) return;
+  warnedKeys.add(id);
+  console.warn(`[i18n] missing key "${key}" for lang "${lang}"`);
+}
+
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const lang = useThemeStore(s=>s.language);
   const setLanguage = useThemeStore(s=>s.setLanguage);
@@ -154,6 +165,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Miss → use English fallback (if any) BEFORE giving up to the raw
     // key path. Prevents leaks like "nav.students.admit" appearing in
     // the UI when a dictionary entry has not been authored yet.
+    if (typeof resolved !== 'string' && ready) warnMissingKey(key, lang);
     let value: string =
       typeof resolved === 'string' ? resolved : (fb ?? key);
 
@@ -163,7 +175,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
     return value;
-  }, [dict]);
+  }, [dict, lang, ready]);
 
   const value: I18nContextValue = { 
     lang, 

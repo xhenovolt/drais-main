@@ -70,4 +70,8 @@ Per the epic, **AI-generated Arabic learner-name transliterations must be previe
    - Snapshot generation now captures Arabic learner name (`nameAr`) + class/stream Arabic; `RawResultRow`/`SnapshotStudent`/`SnapshotClass` extended (optional — old snapshots fall back to English).
    - DRCE data context: in Arabic reports `student.fullName`/`className`/`streamName` resolve to Arabic (English fallback) so existing templates flip automatically; explicit `student.fullNameAr`/`fullNameEn`/`classNameAr` exposed + added to the binding picker. Emergency render path localized too.
    - RTL print already wired in both print paths (numerals==='arabic'). Determinism preserved (hash-invariant tests pass).
-6. Batch 6 — full-route localization sweep + `/settings/localization` coverage dashboard
+6. **Batch 6 — coverage dashboard + reference-data Arabic editor + sweep tooling** ✅ done
+   - `/settings/localization` now opens with a **Coverage** panel (learner-name %, UI-string %, classes/subjects %) and a **reference-data Arabic editor** (classes/subjects/streams/departments/terms/programs — inline edit + save).
+   - APIs: `GET /api/localization/coverage` (learner + reference + UI dictionary coverage), `GET/PATCH /api/localization/reference` (table-allow-listed).
+   - `I18nProvider.t()` now logs a **dev-only "missing key" warning** (once per key) so the remaining route-text sweep is measurable.
+   - **Remaining (ongoing):** ~73% of `page.tsx` still contain hardcoded English UI text. This is a long incremental tail rather than one change; the dev warnings + the UI-string coverage % are the tools to drive it route-by-route (priority: attendance, finance, Tahfiz, parent portal, settings sub-pages).
