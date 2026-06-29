@@ -66,5 +66,8 @@ Per the epic, **AI-generated Arabic learner-name transliterations must be previe
    - `/settings/localization`: export (all/missing), AI draft → review/edit → **Apply** (nothing is written until Apply), CSV/Excel import with a dry-run preview.
    - APIs: `GET/POST /api/students/arabic-names` (export + draft + dry_run/apply, never overwrites without `overwrite:true`), `PATCH /api/students/[id]/arabic-name`.
    - Transliteration draft engine: `src/lib/i18n/translit.ts` (dictionary of common Islamic names + `Abd al-` compound handling + letter fallback; confidence + needsReview).
-5. Batch 5 — DRCE/reports Arabic bindings (`*.name_ar`) + RTL print
+5. **Batch 5 — DRCE/reports Arabic names + bindings + RTL print** ✅ done
+   - Snapshot generation now captures Arabic learner name (`nameAr`) + class/stream Arabic; `RawResultRow`/`SnapshotStudent`/`SnapshotClass` extended (optional — old snapshots fall back to English).
+   - DRCE data context: in Arabic reports `student.fullName`/`className`/`streamName` resolve to Arabic (English fallback) so existing templates flip automatically; explicit `student.fullNameAr`/`fullNameEn`/`classNameAr` exposed + added to the binding picker. Emergency render path localized too.
+   - RTL print already wired in both print paths (numerals==='arabic'). Determinism preserved (hash-invariant tests pass).
 6. Batch 6 — full-route localization sweep + `/settings/localization` coverage dashboard

@@ -153,6 +153,11 @@ export interface SnapshotStudent {
   name:             string;
   firstName:        string;
   lastName:         string;
+  /** Arabic name (Batch 5). Optional — absent on snapshots generated before
+   *  Arabic columns existed; render paths fall back to the English name. */
+  nameAr?:          string;
+  firstNameAr?:     string;
+  lastNameAr?:      string;
   gender:           string;
   admissionNumber:  string;
   photoUrl:         string | null;
@@ -177,7 +182,10 @@ export interface SnapshotStudent {
 export interface SnapshotClass {
   classId:   number;
   className: string;
+  /** Arabic class name (Batch 5). Optional for older snapshots. */
+  classNameAr?: string;
   stream:    string;
+  streamAr?: string;
   subjects:  SnapshotSubject[];
   students:  SnapshotStudent[];
   /**

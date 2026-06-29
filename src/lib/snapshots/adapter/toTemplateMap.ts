@@ -109,12 +109,18 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
   const dosComment = escapeHtml(stu.comments?.dos || '');
   const headTeacherComment = escapeHtml(stu.comments?.headTeacher || '');
 
+  // Batch 5 — Arabic reports show Arabic name/class (English fallback). The
+  // language is the snapshot's own, so legacy English reports are unaffected.
+  const studentName = isArabic ? (stu.nameAr || stu.name) : stu.name;
+  const className   = isArabic ? (cls.classNameAr || cls.className) : cls.className;
+  const streamName  = isArabic ? (cls.streamAr || cls.stream) : cls.stream;
+
   const placeholders: Record<string, string> = {
     student_no:               escapeHtml(stu.id || ''),
-    student_name:             escapeHtml(stu.name || ''),
+    student_name:             escapeHtml(studentName || ''),
     gender:                   escapeHtml(stu.gender || 'N/A'),
-    class_name:               escapeHtml(cls.className || ''),
-    stream_name:              escapeHtml(cls.stream || ''),
+    class_name:               escapeHtml(className || ''),
+    stream_name:              escapeHtml(streamName || ''),
     school_name:              escapeHtml(brand.schoolName),
     school_legal_name:        escapeHtml(brand.legalName || brand.schoolName),
     school_motto:             escapeHtml(brand.motto),

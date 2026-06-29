@@ -62,6 +62,7 @@ export interface RawResultRow {
   student_id:       number;
   class_id:         number;
   class_name:       string;
+  class_name_ar:    string | null;
   subject_id:       number;
   subject_name:     string;
   subject_name_ar:  string | null;
@@ -76,9 +77,15 @@ export interface RawResultRow {
   admission_no:     string | null;
   first_name:       string | null;
   last_name:        string | null;
+  other_name:       string | null;
+  first_name_ar:    string | null;
+  last_name_ar:     string | null;
+  other_name_ar:    string | null;
+  full_name_ar:     string | null;
   gender:           string | null;
   photo_url:        string | null;
   stream_name:      string | null;
+  stream_name_ar:   string | null;
 }
 
 /**
@@ -204,6 +211,7 @@ export async function fetchResultsForGeneration(args: {
         cr.student_id      AS student_id,
         cr.class_id        AS class_id,
         c.name             AS class_name,
+        c.name_ar          AS class_name_ar,
         sub.id             AS subject_id,
         sub.name           AS subject_name,
         COALESCE(sub.name_ar, '') AS subject_name_ar,
@@ -215,9 +223,15 @@ export async function fetchResultsForGeneration(args: {
         s.admission_no     AS admission_no,
         p.first_name       AS first_name,
         p.last_name        AS last_name,
+        p.other_name       AS other_name,
+        p.first_name_ar    AS first_name_ar,
+        p.last_name_ar     AS last_name_ar,
+        p.other_name_ar    AS other_name_ar,
+        p.full_name_ar     AS full_name_ar,
         p.gender           AS gender,
         p.photo_url        AS photo_url,
         st.name            AS stream_name,
+        st.name_ar         AS stream_name_ar,
         -- Phase D: time-filter allocation by term start_date so past
         -- snapshots pick the teacher who was allocated at that time.
         (

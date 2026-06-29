@@ -99,10 +99,13 @@ export const AVAILABLE_BINDINGS: Array<{ group: string; binding: string; label: 
   { group: 'Subject Result', binding: 'result.teacherName',   label: 'Teacher Name' },
   // Student bindings
   { group: 'Student',        binding: 'student.fullName',     label: 'Full Name' },
+  { group: 'Student',        binding: 'student.fullNameAr',   label: 'Full Name (Arabic)' },
+  { group: 'Student',        binding: 'student.fullNameEn',   label: 'Full Name (English)' },
   { group: 'Student',        binding: 'student.firstName',    label: 'First Name' },
   { group: 'Student',        binding: 'student.lastName',     label: 'Last Name' },
   { group: 'Student',        binding: 'student.gender',       label: 'Gender / Sex' },
   { group: 'Student',        binding: 'student.className',    label: 'Class Name' },
+  { group: 'Student',        binding: 'student.classNameAr',  label: 'Class Name (Arabic)' },
   { group: 'Student',        binding: 'student.streamName',   label: 'Stream Name' },
   { group: 'Student',        binding: 'student.admissionNo',  label: 'Admission Number' },
   // Assessment bindings

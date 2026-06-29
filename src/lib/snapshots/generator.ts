@@ -519,7 +519,9 @@ function buildClasses(
   const classMap = new Map<number, {
     classId:   number;
     className: string;
+    classNameAr?: string;
     stream:    string;
+    streamAr?: string;
     subjects:  Map<number, SnapshotSubject>;
     students:  Map<number, {
       info:    SnapshotStudent;
@@ -533,7 +535,9 @@ function buildClasses(
       cls = {
         classId:   r.class_id,
         className: r.class_name,
+        classNameAr: (r.class_name_ar ?? '').trim() || undefined,
         stream:    r.stream_name ?? '',
+        streamAr:  (r.stream_name_ar ?? '').trim() || undefined,
         subjects:  new Map(),
         students:  new Map(),
       };
@@ -561,6 +565,13 @@ function buildClasses(
       const firstName = r.first_name ?? '';
       const lastName  = r.last_name  ?? '';
       const fullName  = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Unknown';
+      // Arabic name (Batch 5): explicit full_name_ar wins, else compose from
+      // parts, each falling back to its English counterpart. Empty when none.
+      const firstNameAr = (r.first_name_ar ?? '').trim();
+      const lastNameAr  = (r.last_name_ar ?? '').trim();
+      const otherNameAr = (r.other_name_ar ?? '').trim();
+      const nameAr = (r.full_name_ar ?? '').trim()
+        || [firstNameAr || firstName, otherNameAr, lastNameAr || lastName].filter(Boolean).join(' ').trim();
       stuEntry = {
         info: {
           id:              r.admission_no || String(r.student_id),
@@ -568,6 +579,9 @@ function buildClasses(
           name:            fullName,
           firstName,
           lastName,
+          nameAr:          nameAr || undefined,
+          firstNameAr:     firstNameAr || undefined,
+          lastNameAr:      lastNameAr || undefined,
           gender:          r.gender ?? '',
           admissionNumber: r.admission_no ?? '',
           photoUrl:        r.photo_url ?? null,
@@ -657,7 +671,9 @@ function buildClasses(
     out.push({
       classId:   cls.classId,
       className: cls.className,
+      classNameAr: cls.classNameAr,
       stream:    cls.stream,
+      streamAr:  cls.streamAr,
       subjects,
       students,
     });

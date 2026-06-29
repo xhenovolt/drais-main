@@ -173,18 +173,32 @@ export function snapshotToDRCEDataContext(
   const genericSkills = snapshot.genericSkills?.[stu.studentDbId] ?? [];
   const projects      = snapshot.projects?.[stu.studentDbId]      ?? [];
 
+  // Batch 5 — when the report language is Arabic, the default name/class
+  // bindings resolve to Arabic (English fallback) so existing templates render
+  // Arabic without rebinding. Explicit *Ar / *En fields are also exposed for
+  // templates that want a specific language regardless of report language.
+  const isAr = snapshot.meta.language === 'ar';
+  const fullNameAr = stu.nameAr || stu.name;
+  const classNameAr = cls.classNameAr || cls.className;
+  const streamNameAr = cls.streamAr || cls.stream;
   const student: DRCEStudentData & {
     cafe?:          { frameworkName: string; frameworkMode: string };
     genericSkills?: typeof genericSkills;
     projects?:      typeof projects;
     verificationUrl?: string;
+    fullNameAr?:    string;
+    fullNameEn?:    string;
+    classNameAr?:   string;
   } = {
-    fullName:    stu.name,
-    firstName:   stu.firstName,
-    lastName:    stu.lastName,
+    fullName:    isAr ? fullNameAr : stu.name,
+    fullNameAr,
+    fullNameEn:  stu.name,
+    firstName:   isAr ? (stu.firstNameAr || stu.firstName) : stu.firstName,
+    lastName:    isAr ? (stu.lastNameAr || stu.lastName) : stu.lastName,
     gender:      stu.gender,
-    className:   cls.className,
-    streamName:  cls.stream,
+    className:   isAr ? classNameAr : cls.className,
+    classNameAr,
+    streamName:  isAr ? streamNameAr : cls.stream,
     admissionNo: stu.admissionNumber || stu.id,
     photoUrl:    stu.photoUrl,
     dateOfBirth: null,
