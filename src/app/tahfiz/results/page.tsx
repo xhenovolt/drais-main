@@ -4,8 +4,10 @@ import React, { Fragment, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, GraduationCap, Medal, Shield, Loader2 } from 'lucide-react';
 import TahfizResultsManager from '@/components/tahfiz/TahfizResultsManager';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export default function TahfizResultsPage() {
+  const { t } = useI18n();
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -37,10 +39,10 @@ export default function TahfizResultsPage() {
             </div>
             <div className="flex-1">
               <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                Tahfiz Results Management
+                {t('tahfizResults.title', 'Tahfiz Results Management')}
               </h1>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 max-w-3xl">
-                Manage and track Tahfiz program results for memorization, recitation, and performance metrics
+                {t('tahfizResults.subtitle', 'Manage and track Tahfiz program results for memorization, recitation, and performance metrics')}
               </p>
             </div>
           </div>
@@ -64,10 +66,10 @@ export default function TahfizResultsPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
-                  7 Core Metrics
+                  {t('tahfizResults.card1Title', '7 Core Metrics')}
                 </h3>
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  Retention, Tajweed, Voice, Discipline, Portions, Attendance, Overall
+                  {t('tahfizResults.card1Desc', 'Retention, Tajweed, Voice, Discipline, Portions, Attendance, Overall')}
                 </p>
               </div>
             </div>
@@ -84,10 +86,10 @@ export default function TahfizResultsPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
-                  Bulk Entry
+                  {t('tahfizResults.card2Title', 'Bulk Entry')}
                 </h3>
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  Add results for all learners at once with optimistic updates
+                  {t('tahfizResults.card2Desc', 'Add results for all learners at once with optimistic updates')}
                 </p>
               </div>
             </div>
@@ -104,10 +106,10 @@ export default function TahfizResultsPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
-                  Inline Editing
+                  {t('tahfizResults.card3Title', 'Inline Editing')}
                 </h3>
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  Click any score to edit directly with auto-grading
+                  {t('tahfizResults.card3Desc', 'Click any score to edit directly with auto-grading')}
                 </p>
               </div>
             </div>

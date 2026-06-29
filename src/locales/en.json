@@ -760,6 +760,16 @@
       "other": "Other"
     }
   },
+  "tahfizResults": {
+    "title": "Tahfiz Results Management",
+    "subtitle": "Manage and track Tahfiz program results for memorization, recitation, and performance metrics",
+    "card1Title": "7 Core Metrics",
+    "card1Desc": "Retention, Tajweed, Voice, Discipline, Portions, Attendance, Overall",
+    "card2Title": "Bulk Entry",
+    "card2Desc": "Add results for all learners at once with optimistic updates",
+    "card3Title": "Inline Editing",
+    "card3Desc": "Click any score to edit directly with auto-grading"
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "students": "Students",
