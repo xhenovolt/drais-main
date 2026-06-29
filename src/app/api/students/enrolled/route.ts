@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getCurrentTerm } from '@/lib/terms';
 import { getBalancesForStudents } from '@/lib/services/FinanceLedger';
+import { langFromRequest, personDisplayName, pickName } from '@/lib/i18n/localize';
 
 /**
  * GET /api/students/enrolled
@@ -122,18 +123,26 @@ export async function GET(req: NextRequest) {
          p.first_name,
          p.last_name,
          p.other_name,
+         p.first_name_ar,
+         p.last_name_ar,
+         p.other_name_ar,
+         p.full_name_ar,
          p.gender,
          p.date_of_birth,
          p.photo_url,
          p.phone,
          p.email,
          c.name            AS class_name,
+         c.name_ar         AS class_name_ar,
          c.level           AS class_level,
          st.name           AS stream_name,
+         st.name_ar        AS stream_name_ar,
          ay.name           AS academic_year_name,
          t.name            AS term_name,
+         t.name_ar         AS term_name_ar,
          sm.name           AS study_mode_name,
-         pr.name           AS program_name
+         pr.name           AS program_name,
+         pr.name_ar        AS program_name_ar
        FROM enrollments e
        JOIN students s      ON e.student_id   = s.id
        LEFT JOIN people p   ON s.person_id    = p.id
@@ -188,6 +197,22 @@ export async function GET(req: NextRequest) {
       } catch (err) {
         console.warn('[ENROLLED STUDENTS] balance attach failed:', err);
       }
+    }
+
+    // Localize display fields (Arabic with English fallback). English mode is
+    // unchanged. arabic_name_missing flags learners that still need a name.
+    const lang = langFromRequest(req);
+    for (const row of rows as Record<string, any>[]) {
+      row.display_name = personDisplayName(lang, row);
+      row.class_name_display   = pickName(lang, row.class_name, row.class_name_ar);
+      row.stream_name_display  = pickName(lang, row.stream_name, row.stream_name_ar);
+      row.term_name_display    = pickName(lang, row.term_name, row.term_name_ar);
+      row.program_name_display = pickName(lang, row.program_name, row.program_name_ar);
+      row.arabic_name_missing = !(
+        (row.full_name_ar && String(row.full_name_ar).trim()) ||
+        (row.first_name_ar && String(row.first_name_ar).trim()) ||
+        (row.last_name_ar && String(row.last_name_ar).trim())
+      );
     }
 
     console.log(`[ENROLLED STUDENTS] school=${schoolId}, class=${classId}, returned=${rows.length}, term=${termId}, historical=${historical}`);

@@ -846,6 +846,8 @@
     "restartTour": "إعادة الجولة الإرشادية"
   },
   "students": {
+    "arabicNameMissing": "الاسم بالعربية غير متوفر",
+    "arabicNameMissingShort": "؟ع",
     "title": "إدارة الطلاب",
     "add": "إضافة طالب",
     "edit": "تعديل طالب",

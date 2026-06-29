@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getCurrentTerm } from '@/lib/terms';
+import { langFromRequest, personDisplayName } from '@/lib/i18n/localize';
 
 /**
  * GET /api/students/admitted
@@ -68,6 +69,10 @@ export async function GET(req: NextRequest) {
          p.first_name,
          p.last_name,
          p.other_name,
+         p.first_name_ar,
+         p.last_name_ar,
+         p.other_name_ar,
+         p.full_name_ar,
          p.gender,
          p.date_of_birth,
          p.photo_url,
@@ -79,6 +84,16 @@ export async function GET(req: NextRequest) {
        ORDER BY p.first_name ASC, p.last_name ASC`,
       [...params]
     );
+
+    const lang = langFromRequest(req);
+    for (const row of rows as Record<string, any>[]) {
+      row.display_name = personDisplayName(lang, row);
+      row.arabic_name_missing = !(
+        (row.full_name_ar && String(row.full_name_ar).trim()) ||
+        (row.first_name_ar && String(row.first_name_ar).trim()) ||
+        (row.last_name_ar && String(row.last_name_ar).trim())
+      );
+    }
 
     console.log(`[ADMITTED STUDENTS] school=${schoolId}, returned=${rows.length}, term=${currentTermId}`);
 

@@ -75,6 +75,15 @@ interface Student {
   admission_no: string;
   first_name: string;
   last_name: string;
+  other_name?: string;
+  // Localization (Batch 3) — populated by the API; display_name is the
+  // language-appropriate name (Arabic with English fallback).
+  display_name?: string;
+  first_name_ar?: string | null;
+  last_name_ar?: string | null;
+  other_name_ar?: string | null;
+  full_name_ar?: string | null;
+  arabic_name_missing?: boolean;
   gender: string;
   photo_url?: string;
   admission_date?: string;
@@ -84,8 +93,10 @@ interface EnrolledStudent extends Student {
   enrollment_id: number;
   class_id: number;
   class_name: string;
+  class_name_display?: string;
   stream_id?: number;
   stream_name?: string;
+  stream_name_display?: string;
   academic_year_id: number;
   academic_year_name: string;
   term_id?: number;
@@ -125,7 +136,7 @@ interface SelectOption {
 
 export default function StudentsListPage() {
   const { exportAsCSV, exportAsExcel, exporting } = useExport();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   
   // State Management
   const [activeTab, setActiveTab] = useState<'enrolled' | 'admitted'>('enrolled');
@@ -627,12 +638,13 @@ export default function StudentsListPage() {
   // Main data fetching
   useEffect(() => {
     fetchStudents();
-  }, [search, filterClassId, filterYearId]);
+  }, [search, filterClassId, filterYearId, lang]);
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ search });
+      params.set('lang', lang);
       if (filterClassId)  params.set('class_id',          String(filterClassId));
       if (filterYearId)  {
         params.set('academic_year_id', String(filterYearId));
@@ -1227,6 +1239,40 @@ export default function StudentsListPage() {
       );
     };
 
+    // Arabic mode: show the Arabic name as the primary label (read-only — the
+    // English inline-edit cells stay the canonical editor and appear as a small
+    // subtitle). A badge flags learners with no Arabic name yet so they're easy
+    // to find and fix. English mode keeps the original editable cells verbatim.
+    const enr = student as EnrolledStudent;
+    const className = enr.class_name_display || enr.class_name;
+    if (lang === 'ar') {
+      const arabicName = student.display_name
+        || [student.first_name, student.last_name].filter(Boolean).join(' ');
+      return (
+        <div className="flex items-center gap-2 min-w-0">
+          <AvatarCell student={student} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold text-slate-800 dark:text-white truncate">{arabicName}</span>
+              {student.arabic_name_missing && (
+                <span
+                  title={t('students.arabicNameMissing', 'Arabic name missing')}
+                  className="inline-flex items-center text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 flex-shrink-0"
+                >
+                  {t('students.arabicNameMissingShort', 'AR?')}
+                </span>
+              )}
+              {isUpdating && <Loader className="w-3 h-3 text-indigo-400 animate-spin flex-shrink-0" />}
+            </div>
+            <p className="text-[11px] text-slate-400 truncate">
+              {[student.first_name, student.last_name].filter(Boolean).join(' ')}
+              {className ? ` · ${className}` : ''}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center gap-2 min-w-0">
         <AvatarCell student={student} />
@@ -1236,8 +1282,8 @@ export default function StudentsListPage() {
             {renderField('last_name', isEditingLast, 'flex-1 min-w-0')}
             {isUpdating && <Loader className="w-3 h-3 text-indigo-400 animate-spin flex-shrink-0" />}
           </div>
-          {(student as EnrolledStudent).class_name && (
-            <p className="text-[11px] text-slate-400 truncate">{(student as EnrolledStudent).class_name}</p>
+          {className && (
+            <p className="text-[11px] text-slate-400 truncate">{className}</p>
           )}
         </div>
       </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { langFromRequest, personDisplayName } from '@/lib/i18n/localize';
 
 /**
  * GET /api/students/[id]/profile
@@ -34,6 +35,10 @@ export async function GET(
          p.first_name,
          p.last_name,
          p.other_name,
+         p.first_name_ar,
+         p.last_name_ar,
+         p.other_name_ar,
+         p.full_name_ar,
          p.gender,
          p.date_of_birth,
          p.phone,
@@ -47,6 +52,18 @@ export async function GET(
 
     if (!students.length) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+
+    // Localized display name + missing flag (Arabic with English fallback).
+    {
+      const lang = langFromRequest(req);
+      const stu = students[0];
+      stu.display_name = personDisplayName(lang, stu);
+      stu.arabic_name_missing = !(
+        (stu.full_name_ar && String(stu.full_name_ar).trim()) ||
+        (stu.first_name_ar && String(stu.first_name_ar).trim()) ||
+        (stu.last_name_ar && String(stu.last_name_ar).trim())
+      );
     }
     const student = students[0];
 

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { langFromRequest, personDisplayName } from '@/lib/i18n/localize';
 
 /**
  * GET /api/students/list
@@ -84,6 +85,11 @@ export async function GET(req: NextRequest) {
         s.admission_date,
         p.first_name,
         p.last_name,
+        p.other_name,
+        p.first_name_ar,
+        p.last_name_ar,
+        p.other_name_ar,
+        p.full_name_ar,
         p.gender,
         p.date_of_birth,
         p.photo_url,
@@ -103,6 +109,23 @@ export async function GET(req: NextRequest) {
 
     const [rows]: any = await conn.execute(selectQuery, params);
 
+    // Localize: add a language-aware display_name (Arabic full name with EN
+    // fallback) plus arabic_name_missing so the UI can flag learners that still
+    // need an Arabic name. English mode leaves display_name == the English name.
+    const lang = langFromRequest(req);
+    const data = (rows as Record<string, any>[]).map(r => {
+      const hasArabic = !!(
+        (r.full_name_ar && String(r.full_name_ar).trim()) ||
+        (r.first_name_ar && String(r.first_name_ar).trim()) ||
+        (r.last_name_ar && String(r.last_name_ar).trim())
+      );
+      return {
+        ...r,
+        display_name: personDisplayName(lang, r),
+        arabic_name_missing: !hasArabic,
+      };
+    });
+
     // Validation: log counts for debugging
     console.log(`[STUDENTS LIST] school_id=${schoolId}, view=${view}, search='${search}', status='${status}', returned=${rows.length}, total=${total}`);
 
@@ -112,7 +135,7 @@ export async function GET(req: NextRequest) {
       total,
       returned: rows.length,
       school_id: schoolId,
-      data: rows
+      data
     });
   } catch (error: any) {
     console.error('Error fetching students:', error);

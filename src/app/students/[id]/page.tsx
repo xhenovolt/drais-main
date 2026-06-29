@@ -73,11 +73,12 @@ function Section({ title, icon: Icon, children }: { title: string; icon: React.E
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t, lang } = useI18n();
 
   console.log('[StudentProfile] Fetching student:', id);
 
   const { data, error, isLoading, mutate } = useSWR(
-    id && /^\d+$/.test(id) ? `/api/students/${id}/profile` : null,
+    id && /^\d+$/.test(id) ? `/api/students/${id}/profile?lang=${lang}` : null,
     fetcher,
     { revalidateOnFocus: false }
   );
@@ -119,7 +120,9 @@ export default function StudentDetailPage() {
   }
 
   const s = data.data;
-  const fullName = [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ');
+  const englishName = [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ');
+  // In Arabic mode prefer the localized display_name (Arabic with EN fallback).
+  const fullName = (lang === 'ar' && s.display_name) ? s.display_name : englishName;
   const activeEnrollment = s.enrollments?.find((e: any) => e.status === 'active') ?? s.enrollments?.[0] ?? null;
 
   return (
@@ -142,7 +145,17 @@ export default function StudentDetailPage() {
           </span>
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-slate-800 dark:text-white truncate">{fullName}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white truncate">{fullName}</h1>
+            {lang === 'ar' && s.arabic_name_missing && (
+              <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                {t('students.arabicNameMissing', 'Arabic name missing')}
+              </span>
+            )}
+          </div>
+          {lang === 'ar' && fullName !== englishName && (
+            <p className="text-xs text-slate-400 truncate">{englishName}</p>
+          )}
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
             <span className="text-xs text-slate-400">#{s.admission_no ?? '—'}</span>
             {activeEnrollment && (
