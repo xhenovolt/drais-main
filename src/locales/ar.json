@@ -841,7 +841,9 @@
     "settings": "الإعدادات",
     "logout": "تسجيل الخروج",
     "profile": "الملف الشخصي",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "helpCenter": "مركز المساعدة",
+    "restartTour": "إعادة الجولة الإرشادية"
   },
   "students": {
     "title": "إدارة الطلاب",

@@ -637,7 +637,9 @@
     "settings": "Settings",
     "logout": "Logout",
     "profile": "Profile",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "helpCenter": "Help Center",
+    "restartTour": "Restart Guided Tour"
   },
   "status": {
     "active": "Active",

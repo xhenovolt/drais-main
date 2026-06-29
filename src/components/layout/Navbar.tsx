@@ -407,14 +407,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
                         className="flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200"
                       >
                         <HelpCircle className="w-4 h-4" />
-                        <span className="text-sm">Help Center</span>
+                        <span className="text-sm">{t('navigation.helpCenter', 'Help Center')}</span>
                       </a>
                       <button
                         onClick={() => { setProfileOpen(false); startTour(); }}
                         className="w-full flex items-center space-x-3 rtl:space-x-reverse px-3 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 transition-colors"
                       >
                         <span className="text-sm">🚀</span>
-                        <span className="text-sm">Restart Guided Tour</span>
+                        <span className="text-sm">{t('navigation.restartTour', 'Restart Guided Tour')}</span>
                       </button>
                       <hr className="my-2 border-gray-200 dark:border-gray-600" />
                       <button
