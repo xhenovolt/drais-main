@@ -985,6 +985,35 @@
     "colDate": "التاريخ",
     "colStatus": "الحالة"
   },
+  "topbar": {
+    "cloudOk": "السحابة ✓",
+    "cloudFail": "السحابة ✗",
+    "cloudConnected": "كلاوديناري متصل",
+    "cloudNotConnected": "كلاوديناري غير متصل",
+    "noDevices": "لا أجهزة",
+    "noDevicesTitle": "لا توجد أجهزة مسجلة",
+    "live": "مباشر",
+    "offline": "غير متصل",
+    "clearQueue": "مسح الطابور",
+    "notifications": "الإشعارات",
+    "allRead": "تحديد الكل كمقروء",
+    "viewAll": "عرض الكل",
+    "loading": "جارٍ التحميل…",
+    "noNotifications": "لا توجد إشعارات بعد"
+  },
+  "studentsList": {
+    "addStudent": "إضافة طالب",
+    "searchPlaceholder": "البحث بالاسم أو رقم التسجيل…",
+    "colStudent": "الطالب",
+    "colRegNo": "رقم التسجيل",
+    "colClass": "الصف",
+    "colStream": "الشعبة",
+    "colType": "النوع",
+    "colAdmitted": "تاريخ القبول",
+    "colStatus": "الحالة",
+    "colGender": "الجنس",
+    "colBalance": "الرصيد"
+  },
   "navigation": {
     "dashboard": "لوحة التحكم",
     "students": "الطلاب",

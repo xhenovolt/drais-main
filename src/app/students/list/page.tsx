@@ -1418,7 +1418,7 @@ export default function StudentsListPage() {
         {/* Primary CTA */}
         <Link href="/students/admit"
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-colors">
-          <Plus className="w-3.5 h-3.5" /> Add student
+          <Plus className="w-3.5 h-3.5" /> {t('studentsList.addStudent', 'Add student')}
         </Link>
       </div>
 
@@ -1430,7 +1430,7 @@ export default function StudentsListPage() {
           <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder={t('nav.students.list')}
+            placeholder={t('studentsList.searchPlaceholder', 'Search by name or reg no…')}
             value={search}
             onChange={e => { setSearch(e.target.value); resetPage(); }}
             className="h-8 pl-8 pr-14 w-48 sm:w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all focus:w-72"
@@ -1711,22 +1711,22 @@ export default function StudentsListPage() {
                 <th className="w-9 px-2 py-2.5 text-center" title="Fingerprint Enrollment">
                   <Fingerprint className="w-3.5 h-3.5 text-slate-400 mx-auto" />
                 </th>
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Student</th>
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Reg No</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('studentsList.colStudent', 'Student')}</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('studentsList.colRegNo', 'Reg No')}</th>
                 {activeTab === 'enrolled' && (
                   <>
-                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">Class</th>
-                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">Stream</th>
-                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">Type</th>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">{t('studentsList.colClass', 'Class')}</th>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">{t('studentsList.colStream', 'Stream')}</th>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden md:table-cell">{t('studentsList.colType', 'Type')}</th>
                   </>
                 )}
                 {activeTab === 'admitted' && (
-                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">Admitted</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">{t('studentsList.colAdmitted', 'Admitted')}</th>
                 )}
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">Gender</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('studentsList.colStatus', 'Status')}</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">{t('studentsList.colGender', 'Gender')}</th>
                 {activeTab === 'enrolled' && showFees && (
-                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell whitespace-nowrap">Balance</th>
+                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell whitespace-nowrap">{t('studentsList.colBalance', 'Balance')}</th>
                 )}
                 <th className="w-9 px-3 py-2.5" />
               </tr>

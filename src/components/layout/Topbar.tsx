@@ -37,6 +37,7 @@ function LanguageToggle() {
 
 /** Small badge shown in the navbar indicating Cloudinary connection status. */
 function CloudinaryBadge() {
+  const { t } = useI18n();
   const { data } = useSWR('/api/cloudinary/status', fetcher, {
     refreshInterval: 5 * 60 * 1000, // re-check every 5 min
     revalidateOnFocus: false,
@@ -49,7 +50,7 @@ function CloudinaryBadge() {
 
   return (
     <div
-      title={data?.message || (connected ? 'Cloudinary connected' : 'Cloudinary not connected')}
+      title={data?.message || (connected ? t('topbar.cloudConnected', 'Cloudinary connected') : t('topbar.cloudNotConnected', 'Cloudinary not connected'))}
       className={`hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
         connected
           ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-400'
@@ -57,13 +58,14 @@ function CloudinaryBadge() {
       }`}
     >
       {connected ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
-      <span>{connected ? 'Cloud ✓' : 'Cloud ✗'}</span>
+      <span>{connected ? t('topbar.cloudOk', 'Cloud ✓') : t('topbar.cloudFail', 'Cloud ✗')}</span>
     </div>
   );
 }
 
 /** Global badge showing device status — RED if no devices or all offline. */
 function DeviceStatusBadge() {
+  const { t } = useI18n();
   const { data } = useSWR('/api/devices/summary', fetcher, {
     refreshInterval: 30000,
     revalidateOnFocus: false,
@@ -80,11 +82,11 @@ function DeviceStatusBadge() {
     return (
       <Link
         href="/attendance/devices/monitor"
-        title="No devices registered"
+        title={t('topbar.noDevicesTitle', 'No devices registered')}
         className="hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
       >
         <WifiOff className="w-3 h-3" />
-        <span>No Devices</span>
+        <span>{t('topbar.noDevices', 'No Devices')}</span>
       </Link>
     );
   }
@@ -102,12 +104,13 @@ function DeviceStatusBadge() {
       }`}
     >
       {anyOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-      <span>{anyOnline ? `${online} Live` : 'Offline'}</span>
+      <span>{anyOnline ? `${online} ${t('topbar.live', 'Live')}` : t('topbar.offline', 'Offline')}</span>
     </Link>
   );
 }
 /** Global badge to cancel stale relay commands — only visible when queue has pending/sent rows. */
 function RelayQueueDrainBadge() {
+  const { t } = useI18n();
   const [count, setCount] = useState(0);
   const [draining, setDraining] = useState(false);
 
@@ -149,7 +152,7 @@ function RelayQueueDrainBadge() {
                  hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-60 transition-colors"
     >
       {draining ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-      <span>Clear queue ({count})</span>
+      <span>{t('topbar.clearQueue', 'Clear queue')} ({count})</span>
     </button>
   );
 }
@@ -167,6 +170,7 @@ function timeAgo(dateStr: string): string {
 }
 
 function NotificationBell() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -240,7 +244,7 @@ function NotificationBell() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <p className="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
               <Bell className="w-4 h-4 text-indigo-500" />
-              Notifications
+              {t('topbar.notifications', 'Notifications')}
               {unread > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold">{unread}</span>
               )}
@@ -252,7 +256,7 @@ function NotificationBell() {
                   title="Mark all as read"
                   className="flex items-center gap-1 text-[10px] text-indigo-600 hover:underline font-semibold"
                 >
-                  <CheckCheck className="w-3 h-3" /> All read
+                  <CheckCheck className="w-3 h-3" /> {t('topbar.allRead', 'All read')}
                 </button>
               )}
               <Link
@@ -260,7 +264,7 @@ function NotificationBell() {
                 onClick={() => setOpen(false)}
                 className="text-[10px] text-gray-400 hover:text-indigo-600 transition-colors"
               >
-                View all →
+                {t('topbar.viewAll', 'View all')} →
               </Link>
             </div>
           </div>
@@ -270,12 +274,12 @@ function NotificationBell() {
             {listLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-400">
                 <Loader className="w-4 h-4 animate-spin text-indigo-500" />
-                Loading…
+                {t('topbar.loading', 'Loading…')}
               </div>
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <Bell className="w-8 h-8 text-gray-300" />
-                <p className="text-sm text-gray-400">No notifications yet</p>
+                <p className="text-sm text-gray-400">{t('topbar.noNotifications', 'No notifications yet')}</p>
               </div>
             ) : (
               notifications.map(n => (
