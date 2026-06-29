@@ -54,6 +54,7 @@ import {
   buildDefaultConfig,
   defaultComments,
   deriveOverallRemark,
+  subjectComment,
   DEFAULT_GRADING_SCALE,
 } from './grader';
 import type {
@@ -611,7 +612,7 @@ function buildClasses(
       }
       const remarks = (r.remarks && r.remarks.trim() !== '')
         ? r.remarks
-        : (ruleComment || (applyGradingScale(score, DEFAULT_GRADING_SCALE)?.remark ?? ''));
+        : (ruleComment || subjectComment(score, language));
       const subj = cls.subjects.get(r.subject_id)!;
       stuEntry.results.set(r.subject_id, {
         subjectId:      r.subject_id,

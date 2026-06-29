@@ -22,6 +22,7 @@ import type {
   Language,
 } from '@/lib/drce/schema';
 import type { ReportSnapshot } from '../types';
+import { displaySubjectComment } from '../grader';
 
 export interface SchoolMetaForRender {
   schoolName:       string;
@@ -119,7 +120,7 @@ export function snapshotToDRCEDataContext(
       endTermScore: r.score,
       total:        r.score,
       grade:        r.grade,
-      comment:      r.remarks,
+      comment:      displaySubjectComment(r.remarks, r.score, snapshot.meta.language),
       initials:     r.initials,
       teacherName:  r.teacherName ?? '',
       subjectType:  subj?.subjectType ?? 'primary',

@@ -10,6 +10,7 @@
  */
 import type { ReportSnapshot } from '../types';
 import { toArabicNumerals } from '../normalizers';
+import { displaySubjectComment } from '../grader';
 
 export interface TemplateRenderInput {
   snapshot:   ReportSnapshot;
@@ -51,9 +52,10 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
     const grade = r.grade || '';
     const initials = r.initials || (isArabic ? 'ب.ج.م' : 'BJM');
     const editableComments = input.editMode === true;
+    const commentText = displaySubjectComment(r.remarks, r.score, snapshot.meta.language);
     const remarksCell = editableComments
-      ? `<td class="comment-cell" data-editable-field="remarks" data-row-index="${rowIndex}" contenteditable="true">${escapeHtml(r.remarks || '')}</td>`
-      : `<td class="comment-cell">${escapeHtml(r.remarks || '')}</td>`;
+      ? `<td class="comment-cell" data-editable-field="remarks" data-row-index="${rowIndex}" contenteditable="true">${escapeHtml(commentText)}</td>`
+      : `<td class="comment-cell">${escapeHtml(commentText)}</td>`;
     const initialsCell = editableComments
       ? `<td class="initials initials-subject-${r.subjectId}" data-editable-field="initials" data-row-index="${rowIndex}" data-subject-id="${r.subjectId}" contenteditable="true">${escapeHtml(initials)}</td>`
       : `<td class="initials initials-subject-${r.subjectId}" data-subject-id="${r.subjectId}">${escapeHtml(initials)}</td>`;

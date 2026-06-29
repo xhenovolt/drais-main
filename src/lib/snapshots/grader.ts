@@ -59,6 +59,55 @@ export function deriveOverallRemark(average: number, language: SnapshotLanguage)
 }
 
 /**
+ * The grade-label "remarks" the auto-grader emits (e.g. "Distinction 1",
+ * "Credit 3"). These are NOT real subject comments — they just spell out the
+ * grade. When one of them is the stored per-subject remark we upgrade it to a
+ * meaningful phrase at render time. Lower-cased for case-insensitive matching.
+ */
+const GRADE_LABEL_REMARKS: ReadonlySet<string> = new Set(
+  DEFAULT_GRADE_ROWS.map(g => g.remark.trim().toLowerCase()),
+);
+
+/**
+ * A meaningful, concise per-subject comment derived from the score — wiser than
+ * echoing the grade label. Language-aware (Arabic for theology / Albayan).
+ */
+export function subjectComment(score: number | null, language: SnapshotLanguage): string {
+  if (score === null || !Number.isFinite(score)) return '';
+  if (language === 'ar') {
+    if (score >= 80) return 'ممتاز، أداء رائع';
+    if (score >= 70) return 'جيد جداً';
+    if (score >= 60) return 'جيد';
+    if (score >= 50) return 'مقبول، يمكن تحسينه';
+    if (score >= 40) return 'يحتاج إلى مزيد من الجهد';
+    return 'ضعيف، اجتهد أكثر';
+  }
+  if (score >= 80) return 'Excellent performance';
+  if (score >= 70) return 'Very good';
+  if (score >= 60) return 'Good';
+  if (score >= 50) return 'Fair, can do better';
+  if (score >= 40) return 'Needs more effort';
+  return 'Work harder';
+}
+
+/**
+ * Upgrade a stored per-subject remark for DISPLAY: keep genuine comments
+ * (teacher-written or rule-based), but replace empty or bare grade-label
+ * remarks ("Distinction 1") with a meaningful phrase. Used by both render
+ * adapters so new AND existing snapshots show wise comments without touching
+ * stored data (so dataHash / determinism is unaffected).
+ */
+export function displaySubjectComment(
+  remarks: string | null | undefined,
+  score: number | null,
+  language: SnapshotLanguage,
+): string {
+  const r = (remarks ?? '').trim();
+  if (r && !GRADE_LABEL_REMARKS.has(r.toLowerCase())) return r; // genuine comment — keep it
+  return subjectComment(score, language) || r;
+}
+
+/**
  * Comments block matching the three emergency routes verbatim. Stored on
  * each student so the snapshot is self-contained and language-stable.
  */

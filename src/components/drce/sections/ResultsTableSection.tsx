@@ -227,7 +227,11 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
                 }
               }
               
-              const isEditable = col.contentEditable === true;
+              // Editable when a column opts in (contentEditable: true) OR when
+              // the preview is in edit mode — onCellChange is only wired up by
+              // the snapshot previewer's Edit button, so in normal/print render
+              // it is undefined and cells stay read-only.
+              const isEditable = col.contentEditable === true || !!onCellChange;
               
               return (
                 <td

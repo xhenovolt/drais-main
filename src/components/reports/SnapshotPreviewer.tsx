@@ -487,9 +487,9 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
       {(mode === 'drce' || mode === 'emergency') && (
         <div className="px-4 pb-4 text-xs text-slate-600 dark:text-slate-400">
           {isEditMode ? (
-            'Editable fields are active in this preview. In emergency mode, comments and initials can be changed in-place and saved back to the snapshot.'
+            'Edit mode is on. Click any result cell — subject comments, initials, scores or grades — to type a correction in place; it saves back to this snapshot on blur. Initials/teacher columns sync across the whole class.'
           ) : (
-            'Inline editing is available in both DRCE and emergency preview modes. Use the Edit button to activate it, and mark DRCE columns with contentEditable: true if you want additional fields editable in DRCE.'
+            'Inline editing is available in both DRCE and emergency preview modes. Click Edit, then click any result cell to change it in place.'
           )}
         </div>
       )}
