@@ -35,35 +35,42 @@ function band(name) {
   return 'OTHER';
 }
 
-// Fee catalogue → engine rows. `bands` selects classes; `newEntrant`/`gender`
-// add conditions. channel: any|school_code|cash. clearance: optional|before_entry|partial_allowed|bursar_approval.
-const NAT = ['NUR', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'SEC']; // all national-curriculum bands
+// Fee catalogue → engine rows.
+//   bands: null  → applies to EVERY learner (secular, theology AND tahfiz)
+//   bands: [...] → only those class bands. `newEntrant`/`gender` add conditions.
+// channel: any|school_code|cash. clearance: optional|before_entry|partial_allowed|bursar_approval.
+// active 0 = defined but not billed yet (e.g. Tahfiz tuition awaiting a price).
 const FEES = [
-  // Tuition
-  { code: 'TUITION_P67',    name: 'Tuition / School Fees (P6 & P7 candidates, boarding)', category: 'tuition',     amount: 700000, frequency: 'termly', mandatory: 1, channel: 'school_code', clearance: 'partial_allowed', bands: ['P6', 'P7'] },
-  { code: 'TUITION_NUR_P5', name: 'Tuition / School Fees (Nursery–P5)',                    category: 'tuition',     amount: 300000, frequency: 'termly', mandatory: 1, channel: 'school_code', clearance: 'partial_allowed', bands: ['NUR', 'P1', 'P2', 'P3', 'P4', 'P5'] },
-  // One-time / annual / termly
-  { code: 'ADMISSION',      name: 'Admission Fee',          category: 'other',       amount: 30000, frequency: 'once',      mandatory: 1, channel: 'any', clearance: 'optional', bands: NAT, newEntrant: 1 },
-  { code: 'DEVELOPMENT',    name: 'Development Fee',        category: 'development', amount: 30000, frequency: 'annually',  mandatory: 1, channel: 'any', clearance: 'optional', bands: NAT },
-  { code: 'SCHOOL_BUS',     name: 'School Bus',             category: 'transport',   amount: 30000, frequency: 'annually',  mandatory: 0, optional: 1, channel: 'any', clearance: 'optional', bands: NAT },
-  { code: 'DAAWA',          name: 'Daawa Fee',             category: 'activity',    amount: 10000, frequency: 'termly',    mandatory: 1, channel: 'any', clearance: 'optional', bands: NAT },
-  { code: 'VISITATION',     name: 'Visitation Card',       category: 'other',       amount: 5000,  frequency: 'once',      mandatory: 1, channel: 'any', clearance: 'optional', bands: NAT },
-  { code: 'MEDICAL',        name: 'Medical Fee',           category: 'medical',     amount: 10000, frequency: 'termly',    mandatory: 1, channel: 'any', clearance: 'optional', bands: NAT },
-  { code: 'TEXTBOOKS',      name: 'School Text Books',     category: 'library',     amount: 30000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
-  { code: 'COMPUTER',       name: 'Computer Fee (P3–P6)',  category: 'activity',    amount: 30000, frequency: 'termly',    mandatory: 1, channel: 'any', clearance: 'optional', bands: ['P3', 'P4', 'P5', 'P6'] },
-  { code: 'YASSARNA',       name: 'Yassarnā (3 pieces)',   category: 'other',       amount: 10000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
-  { code: 'QURAN',          name: "Qur'an",                category: 'other',       amount: 10000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
-  { code: 'QURAN_SEATER',   name: "Qur'an Seater",         category: 'other',       amount: 10000, frequency: 'annually',  mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
-  { code: 'REAM',           name: 'Ream',                  category: 'other',       amount: 25000, frequency: 'termly',    mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
-  { code: 'CUPS_PLATES',    name: 'Cups and Plates',       category: 'feeding',     amount: 5000,  frequency: 'termly',    mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
-  { code: 'SPORTS',         name: 'Sports Fee',            category: 'activity',    amount: 5000,  frequency: 'termly',    mandatory: 1, channel: 'any', clearance: 'optional', bands: NAT },
-  { code: 'BOOK_COVERS',    name: 'Book Covers',           category: 'other',       amount: 10000, frequency: 'termly',    mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
+  // ── Tuition (program/class specific) ──
+  { code: 'TUITION_P67',    name: 'Tuition / School Fees (P6 & P7 candidates, boarding)', category: 'tuition', amount: 700000, frequency: 'termly', mandatory: 1, channel: 'school_code', clearance: 'partial_allowed', bands: ['P6', 'P7'] },
+  { code: 'TUITION_NUR_P5', name: 'Tuition / School Fees (Nursery–P5)',                    category: 'tuition', amount: 300000, frequency: 'termly', mandatory: 1, channel: 'school_code', clearance: 'partial_allowed', bands: ['NUR', 'P1', 'P2', 'P3', 'P4', 'P5'] },
+  // Tahfiz / Theology programme — structure created; school sets the amount in
+  // Finance → Fee Items, then activates (is_active). Targets the tahfiz/theology
+  // (Arabic / صف / TAHFIZ) classes.
+  { code: 'TUITION_TAHFIZ', name: 'Tuition / School Fees (Tahfiz & Theology)', category: 'tuition',     amount: 0, frequency: 'termly', mandatory: 1, channel: 'school_code', clearance: 'partial_allowed', bands: ['OTHER'], active: 0, notes: 'Set the Tahfiz/Theology tuition amount, then activate.' },
+  { code: 'ASSESS_TAHFIZ',  name: 'Assessment Fee (Tahfiz & Theology)',       category: 'examination', amount: 0, frequency: 'termly', mandatory: 1, channel: 'any',         clearance: 'optional',        bands: ['OTHER'], active: 0, notes: 'Set the Tahfiz/Theology assessment amount, then activate.' },
+  // ── Common fees — every learner (incl. tahfiz/theology) ──
+  { code: 'ADMISSION',      name: 'Admission Fee',          category: 'other',       amount: 30000, frequency: 'once',      mandatory: 1, channel: 'any',  clearance: 'optional', bands: null, newEntrant: 1 },
+  { code: 'DEVELOPMENT',    name: 'Development Fee',        category: 'development', amount: 30000, frequency: 'annually',  mandatory: 1, channel: 'any',  clearance: 'optional', bands: null },
+  { code: 'SCHOOL_BUS',     name: 'School Bus',             category: 'transport',   amount: 30000, frequency: 'annually',  mandatory: 0, optional: 1, channel: 'any', clearance: 'optional', bands: null },
+  { code: 'DAAWA',          name: 'Daawa Fee',             category: 'activity',    amount: 10000, frequency: 'termly',    mandatory: 1, channel: 'any',  clearance: 'optional', bands: null },
+  { code: 'VISITATION',     name: 'Visitation Card',       category: 'other',       amount: 5000,  frequency: 'once',      mandatory: 1, channel: 'any',  clearance: 'optional', bands: null },
+  { code: 'MEDICAL',        name: 'Medical Fee',           category: 'medical',     amount: 10000, frequency: 'termly',    mandatory: 1, channel: 'any',  clearance: 'optional', bands: null },
+  { code: 'TEXTBOOKS',      name: 'School Text Books',     category: 'library',     amount: 30000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
+  { code: 'COMPUTER',       name: 'Computer Fee (P3–P6)',  category: 'activity',    amount: 30000, frequency: 'termly',    mandatory: 1, channel: 'any',  clearance: 'optional', bands: ['P3', 'P4', 'P5', 'P6'] },
+  { code: 'YASSARNA',       name: 'Yassarnā (3 pieces)',   category: 'other',       amount: 10000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
+  { code: 'QURAN',          name: "Qur'an",                category: 'other',       amount: 10000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
+  { code: 'QURAN_SEATER',   name: "Qur'an Seater",         category: 'other',       amount: 10000, frequency: 'annually',  mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
+  { code: 'REAM',           name: 'Ream',                  category: 'other',       amount: 25000, frequency: 'termly',    mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
+  { code: 'CUPS_PLATES',    name: 'Cups and Plates',       category: 'feeding',     amount: 5000,  frequency: 'termly',    mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
+  { code: 'SPORTS',         name: 'Sports Fee',            category: 'activity',    amount: 5000,  frequency: 'termly',    mandatory: 1, channel: 'any',  clearance: 'optional', bands: null },
+  { code: 'BOOK_COVERS',    name: 'Book Covers',           category: 'other',       amount: 10000, frequency: 'termly',    mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
   // Uniform / requirements (bought at school, mandatory — Albayan accepts no other wear)
-  { code: 'UNIFORM',        name: 'School Uniform Package (uniform + sweater + sports wear + labelling)', category: 'uniform', amount: 167000, frequency: 'once', mandatory: 1, channel: 'cash', clearance: 'before_entry', bands: NAT },
-  { code: 'SOCKS',          name: 'Two Pairs of Socks',    category: 'uniform',     amount: 20000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT },
-  { code: 'VEIL',           name: 'Veil (girls)',          category: 'uniform',     amount: 20000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT, gender: 'female' },
-  { code: 'CAP',            name: 'Cap (boys)',            category: 'uniform',     amount: 20000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: NAT, gender: 'male' },
-  // Assessment (termly)
+  { code: 'UNIFORM',        name: 'School Uniform Package (uniform + sweater + sports wear + labelling)', category: 'uniform', amount: 167000, frequency: 'once', mandatory: 1, channel: 'cash', clearance: 'before_entry', bands: null },
+  { code: 'SOCKS',          name: 'Two Pairs of Socks',    category: 'uniform',     amount: 20000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: null },
+  { code: 'VEIL',           name: 'Veil (girls)',          category: 'uniform',     amount: 20000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: null, gender: 'female' },
+  { code: 'CAP',            name: 'Cap (boys)',            category: 'uniform',     amount: 20000, frequency: 'once',      mandatory: 1, channel: 'cash', clearance: 'optional', bands: null, gender: 'male' },
+  // ── Assessment (termly, national-curriculum class bands) ──
   { code: 'ASSESS_P67',     name: 'Assessment Fee (P6 & P7)',  category: 'examination', amount: 40000, frequency: 'termly', mandatory: 1, channel: 'any', clearance: 'optional', bands: ['P6', 'P7'] },
   { code: 'ASSESS_P35',     name: 'Assessment Fee (P3–P5)',    category: 'examination', amount: 30000, frequency: 'termly', mandatory: 1, channel: 'any', clearance: 'optional', bands: ['P3', 'P4', 'P5'] },
   { code: 'ASSESS_P12',     name: 'Assessment Fee (P1 & P2)',  category: 'examination', amount: 20000, frequency: 'termly', mandatory: 1, channel: 'any', clearance: 'optional', bands: ['P1', 'P2'] },
@@ -87,17 +94,18 @@ async function main() {
     // Upsert fee_item by (school_id, code).
     const [ex] = await conn.query('SELECT id FROM fee_items WHERE school_id = ? AND code = ? LIMIT 1', [S, f.code]);
     let itemId;
+    const active = f.active == null ? 1 : f.active;
     if (ex.length) {
       itemId = ex[0].id;
       await conn.query(
-        `UPDATE fee_items SET name=?, category=?, default_amount=?, currency='UGX', frequency=?, mandatory=?, optional=?, is_active=1, payment_channel=?, clearance=? WHERE id=? AND school_id=?`,
-        [f.name, f.category, f.amount, f.frequency, f.mandatory ?? 1, f.optional ?? 0, f.channel, f.clearance, itemId, S],
+        `UPDATE fee_items SET name=?, category=?, default_amount=?, currency='UGX', frequency=?, mandatory=?, optional=?, is_active=?, payment_channel=?, clearance=?, notes=? WHERE id=? AND school_id=?`,
+        [f.name, f.category, f.amount, f.frequency, f.mandatory ?? 1, f.optional ?? 0, active, f.channel, f.clearance, f.notes ?? null, itemId, S],
       );
     } else {
       const [r] = await conn.query(
-        `INSERT INTO fee_items (school_id, name, code, category, default_amount, currency, frequency, mandatory, optional, is_active, payment_channel, clearance)
-         VALUES (?, ?, ?, ?, ?, 'UGX', ?, ?, ?, 1, ?, ?)`,
-        [S, f.name, f.code, f.category, f.amount, f.frequency, f.mandatory ?? 1, f.optional ?? 0, f.channel, f.clearance],
+        `INSERT INTO fee_items (school_id, name, code, category, default_amount, currency, frequency, mandatory, optional, is_active, payment_channel, clearance, notes)
+         VALUES (?, ?, ?, ?, ?, 'UGX', ?, ?, ?, ?, ?, ?, ?)`,
+        [S, f.name, f.code, f.category, f.amount, f.frequency, f.mandatory ?? 1, f.optional ?? 0, active, f.channel, f.clearance, f.notes ?? null],
       );
       itemId = r.insertId;
     }

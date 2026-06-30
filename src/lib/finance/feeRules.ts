@@ -330,13 +330,21 @@ export async function generateBills(
   let learnersAffected = 0, linesTotal = 0, amountTotal = 0, inserted = 0, skipped = 0;
   const toInsert: any[][] = [];
   const ledgerInsert: any[][] = [];   // debit (charge) per new line → keeps balances correct
+  // A learner can have several active enrollments (e.g. secular + theology), so
+  // the same fee can be evaluated more than once in a single run. Dedup per
+  // (student, item) ACROSS contexts so an all-learners fee is charged once.
+  const billedThisRun = new Set<string>();
+  const countedStudents = new Set<number>();
   for (const ctx of contexts) {
     const { lines, total } = evaluateBill(items, byItem, ctx, adjByStudent.get(ctx.studentId));
     if (!lines.length) continue;
-    learnersAffected++; linesTotal += lines.length; amountTotal += total;
+    if (!countedStudents.has(ctx.studentId)) { learnersAffected++; countedStudents.add(ctx.studentId); }
+    linesTotal += lines.length; amountTotal += total;
     if (opts.commit) {
       for (const line of lines) {
-        if (existing.has(`${ctx.studentId}__${line.name}`)) { skipped++; continue; }
+        const key = `${ctx.studentId}__${line.name}`;
+        if (existing.has(key) || billedThisRun.has(key)) { skipped++; continue; }
+        billedThisRun.add(key);
         // Snapshot the adjusted breakdown: balance (generated) = amount - discount - waived.
         toInsert.push([ctx.studentId, termId, line.name, line.amount, line.discount, line.waived]);
         // Mirror the net charge into the ledger so balance (SUM debit-credit) is
