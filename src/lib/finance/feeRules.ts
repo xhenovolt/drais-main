@@ -312,17 +312,39 @@ export async function generateBills(
   const byItem = new Map<number, any[]>();
   for (const r of rules) { const a = byItem.get(r.fee_item_id) || []; a.push(r); byItem.set(r.fee_item_id, a); }
 
-  // For commit: one query to know which (student,item) already exist this term.
-  const existing = new Set<string>();
+  // Frequency-aware idempotency. Load each learner's existing fee lines across
+  // ALL terms, then skip a candidate by the item's frequency:
+  //   once      → already billed in ANY term
+  //   annually  → already billed in a term of the SAME academic year
+  //   else      → already billed in THIS term (termly/monthly/custom)
+  const freqByName = new Map<string, string>(items.map((i) => [i.name, String(i.frequency || 'termly')]));
+  const yearByTerm = new Map<number, number | null>();
+  if (opts.commit) {
+    const termRows = (await query(`SELECT id, academic_year_id FROM terms WHERE school_id = ?`, [schoolId])) as any[];
+    for (const t of termRows) yearByTerm.set(Number(t.id), t.academic_year_id == null ? null : Number(t.academic_year_id));
+  }
+  const currentYear = yearByTerm.get(Number(termId)) ?? null;
+  const existingTerms = new Map<string, Set<number>>();   // `${student}__${item}` → term_ids billed
   if (opts.commit && contexts.length) {
     const ids = contexts.map((c) => c.studentId);
     const rows = (await query(
-      `SELECT student_id, item FROM student_fee_items
-        WHERE term_id = ? AND student_id IN (${ids.map(() => '?').join(',')})`,
-      [termId, ...ids],
+      `SELECT student_id, item, term_id FROM student_fee_items
+        WHERE student_id IN (${ids.map(() => '?').join(',')})`,
+      [...ids],
     )) as any[];
-    for (const r of rows) existing.add(`${r.student_id}__${r.item}`);
+    for (const r of rows) {
+      const k = `${r.student_id}__${r.item}`;
+      (existingTerms.get(k) ?? existingTerms.set(k, new Set()).get(k)!).add(Number(r.term_id));
+    }
   }
+  const alreadyBilled = (studentId: number, name: string): boolean => {
+    const terms = existingTerms.get(`${studentId}__${name}`);
+    if (!terms || !terms.size) return false;
+    const freq = freqByName.get(name) || 'termly';
+    if (freq === 'once') return true;
+    if (freq === 'annually') return [...terms].some((t) => yearByTerm.get(t) === currentYear);
+    return terms.has(Number(termId));
+  };
 
   // Approved per-learner adjustments (waiver/discount/override), batched.
   const adjByStudent = await loadAdjustmentsByStudent(schoolId, contexts.map((c) => c.studentId), termId);
@@ -343,7 +365,7 @@ export async function generateBills(
     if (opts.commit) {
       for (const line of lines) {
         const key = `${ctx.studentId}__${line.name}`;
-        if (existing.has(key) || billedThisRun.has(key)) { skipped++; continue; }
+        if (billedThisRun.has(key) || alreadyBilled(ctx.studentId, line.name)) { skipped++; continue; }
         billedThisRun.add(key);
         // Snapshot the adjusted breakdown: balance (generated) = amount - discount - waived.
         toInsert.push([ctx.studentId, termId, line.name, line.amount, line.discount, line.waived]);
@@ -491,4 +513,126 @@ export function computeClearance(
   else status = 'blocked';
 
   return { requiredBeforeEntry, paid: Math.max(0, paid), missing, missingItems, status };
+}
+
+export interface ClearanceRow {
+  studentId: number; name: string; admissionNo: string | null; className: string | null;
+  requiredBeforeEntry: number; paid: number; missing: number; status: ClearanceStatus; missingItems: string[];
+  exceptionId: number | null;
+}
+
+const CLEARANCE_SELECT = `
+  SELECT s.id, e.class_id, e.stream_id, e.program_id, e.term_id, e.academic_year_id, e.enrollment_type,
+         c.class_level, p.gender, sm.name AS study_mode,
+         s.admission_no, CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,'')) AS full_name, c.name AS class_name
+    FROM students s
+    JOIN enrollments e ON e.student_id = s.id AND e.status = 'active' AND e.school_id = s.school_id
+    LEFT JOIN classes c ON c.id = e.class_id
+    LEFT JOIN people p ON p.id = s.person_id
+    LEFT JOIN study_modes sm ON sm.id = e.study_mode_id`;
+
+/** Entry-clearance status for every active learner (optionally one class). */
+export async function loadClearance(schoolId: number, termId: number, classId?: number | null): Promise<ClearanceRow[]> {
+  const { getBalancesForStudents } = await import('@/lib/services/FinanceLedger');
+  const rows = (await query(
+    `${CLEARANCE_SELECT} WHERE s.school_id = ? AND s.status = 'active' ${classId ? 'AND e.class_id = ?' : ''}`,
+    classId ? [schoolId, classId] : [schoolId],
+  )) as any[];
+  const items = (await query(`SELECT * FROM fee_items WHERE school_id = ? AND is_active = 1`, [schoolId])) as any[];
+  const rules = (await query(`SELECT * FROM fee_eligibility_rules WHERE school_id = ? AND is_active = 1`, [schoolId])) as any[];
+  const byItem = new Map<number, any[]>();
+  for (const r of rules) { const a = byItem.get(r.fee_item_id) || []; a.push(r); byItem.set(r.fee_item_id, a); }
+
+  const studentIds = [...new Set(rows.map((r) => Number(r.id)))];
+  const balances = studentIds.length ? await getBalancesForStudents(studentIds, schoolId) : new Map();
+  const adj = await loadAdjustmentsByStudent(schoolId, studentIds, termId);
+  const exByStudent = new Map<number, any>();
+  if (studentIds.length) {
+    const exRows = (await query(
+      `SELECT * FROM fee_clearance_exceptions WHERE school_id = ? AND (term_id = ? OR term_id IS NULL)
+         AND student_id IN (${studentIds.map(() => '?').join(',')}) ORDER BY id DESC`,
+      [schoolId, termId, ...studentIds],
+    )) as any[];
+    for (const e of exRows) if (!exByStudent.has(Number(e.student_id))) exByStudent.set(Number(e.student_id), e);
+  }
+
+  // Merge each learner's lines across their active enrollments (dedup by name).
+  const byStudent = new Map<number, { row: any; lines: BillLine[]; names: Set<string> }>();
+  for (const r of rows) {
+    const ctx = rowToCtx(r, termId);
+    const { lines } = evaluateBill(items, byItem, ctx, adj.get(ctx.studentId));
+    const cur = byStudent.get(ctx.studentId) || { row: r, lines: [], names: new Set<string>() };
+    for (const l of lines) if (!cur.names.has(l.name)) { cur.names.add(l.name); cur.lines.push(l); }
+    byStudent.set(ctx.studentId, cur);
+  }
+
+  const out: ClearanceRow[] = [];
+  for (const [sid, v] of byStudent) {
+    if (!v.lines.length) continue;
+    const paid = Number((balances.get(sid) as any)?.total_paid || 0);
+    const ex = exByStudent.get(sid);
+    const cl = computeClearance(v.lines, paid, ex);
+    out.push({ studentId: sid, name: (v.row.full_name || '').trim() || String(sid), admissionNo: v.row.admission_no, className: v.row.class_name, exceptionId: ex ? Number(ex.id) : null, ...cl });
+  }
+  return out;
+}
+
+export async function requestClearanceException(schoolId: number, b: any, userId?: number | null): Promise<number> {
+  const res = (await query(
+    `INSERT INTO fee_clearance_exceptions (school_id, student_id, term_id, academic_year_id, status, reason, requested_by)
+     VALUES (?, ?, ?, ?, 'requested', ?, ?)`,
+    [schoolId, b.student_id, b.term_id ?? null, b.academic_year_id ?? null, b.reason ?? null, userId ?? null],
+  )) as unknown as { insertId: number };
+  return res.insertId;
+}
+
+export async function setClearanceExceptionStatus(
+  schoolId: number, id: number, status: 'approved' | 'rejected' | 'blocked', userId?: number | null,
+): Promise<void> {
+  if (status === 'approved') {
+    await query(`UPDATE fee_clearance_exceptions SET status='approved', approved_by=?, approved_at=CURRENT_TIMESTAMP WHERE id=? AND school_id=?`, [userId ?? null, id, schoolId]);
+  } else {
+    await query(`UPDATE fee_clearance_exceptions SET status=? WHERE id=? AND school_id=?`, [status, id, schoolId]);
+  }
+}
+
+// ── Payment-channel enforcement (Phase 6) ──
+
+/** Map a payment method (cash/bank_transfer/mpesa/…) to a fee_items channel. */
+export function methodToChannel(method?: string | null): string {
+  switch ((method || '').toLowerCase()) {
+    case 'cash': return 'cash';
+    case 'bank_transfer': case 'cheque': case 'card': return 'bank';
+    case 'mpesa': case 'airtel': return 'mobile_money';
+    case 'school_code': return 'school_code';
+    default: return 'any';
+  }
+}
+
+/**
+ * PURE: is a payment method allowed for a fee item's required channel?
+ *   item channel 'any'         → any method
+ *   item channel 'school_code' → only the school-code channel
+ *   item channel 'cash'        → cash
+ *   item channel 'bank'        → bank-type methods (transfer/cheque/card/school_code)
+ *   item channel 'mobile_money'→ mpesa/airtel
+ * Returns { ok, reason }.
+ */
+export function isChannelAllowed(itemChannel: string | null | undefined, method: string | null | undefined): { ok: boolean; reason?: string } {
+  const want = (itemChannel || 'any').toLowerCase();
+  if (want === 'any') return { ok: true };
+  const ch = methodToChannel(method);
+  if (want === 'bank' && ch === 'school_code') return { ok: true }; // school code is a bank channel
+  if (ch === want) return { ok: true };
+  return { ok: false, reason: `This fee must be paid via ${want.replace('_', ' ')}` };
+}
+
+export async function listClearanceExceptions(schoolId: number, status?: string) {
+  const sql = `SELECT e.*, CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,'')) AS student_name
+                 FROM fee_clearance_exceptions e
+                 JOIN students s ON s.id = e.student_id
+                 LEFT JOIN people p ON p.id = s.person_id
+                WHERE e.school_id = ?${status ? ' AND e.status = ?' : ''}
+                ORDER BY e.id DESC`;
+  return query(sql, status ? [schoolId, status] : [schoolId]) as Promise<any[]>;
 }

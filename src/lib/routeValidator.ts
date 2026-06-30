@@ -117,6 +117,8 @@ export const KNOWN_ROUTES = new Set<string>([
   '/finance/fee-items',
   '/finance/fee-rules',
   '/finance/bills',
+  '/finance/clearance',
+  '/finance/waivers',
   '/finance/budgets',
   '/finance/pocket-money',
   '/finance/import',
