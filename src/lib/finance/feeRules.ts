@@ -78,16 +78,17 @@ export async function listFeeItems(schoolId: number) {
 export async function createFeeItem(schoolId: number, b: any, userId?: number | null): Promise<number> {
   const res = (await query(
     `INSERT INTO fee_items (school_id, name, code, category, default_amount, currency, frequency,
-        mandatory, optional, is_active, effective_from, effective_to, notes, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        mandatory, optional, is_active, payment_channel, clearance, effective_from, effective_to, notes, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [schoolId, b.name, b.code ?? null, b.category ?? 'other', Number(b.default_amount) || 0,
      b.currency ?? 'UGX', b.frequency ?? 'termly', b.mandatory ? 1 : 0, b.optional ? 1 : 0,
-     b.is_active === false ? 0 : 1, b.effective_from ?? null, b.effective_to ?? null, b.notes ?? null, userId ?? null],
+     b.is_active === false ? 0 : 1, b.payment_channel ?? 'any', b.clearance ?? 'optional',
+     b.effective_from ?? null, b.effective_to ?? null, b.notes ?? null, userId ?? null],
   )) as unknown as { insertId: number };
   return res.insertId;
 }
 export async function updateFeeItem(schoolId: number, id: number, b: any): Promise<void> {
-  const cols = ['name', 'code', 'category', 'default_amount', 'currency', 'frequency', 'mandatory', 'optional', 'is_active', 'effective_from', 'effective_to', 'notes'];
+  const cols = ['name', 'code', 'category', 'default_amount', 'currency', 'frequency', 'mandatory', 'optional', 'is_active', 'payment_channel', 'clearance', 'effective_from', 'effective_to', 'notes'];
   const sets: string[] = []; const params: any[] = [];
   for (const c of cols) if (b[c] !== undefined) {
     sets.push(`${c} = ?`);
@@ -106,12 +107,14 @@ export async function listRules(schoolId: number, feeItemId?: number) {
 export async function createRule(schoolId: number, b: any, userId?: number | null): Promise<number> {
   const res = (await query(
     `INSERT INTO fee_eligibility_rules (school_id, fee_item_id, name, applies_to, class_ids, level_min, level_max,
-        gender, boarding, stream_id, program_id, is_candidate, term_id, academic_year_id, amount, priority, is_active, notes, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        gender, boarding, stream_id, program_id, is_candidate, is_new_entrant, term_id, academic_year_id, amount, priority, is_active, notes, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [schoolId, b.fee_item_id, b.name ?? null, b.applies_to ?? 'segment',
      b.class_ids ? JSON.stringify(b.class_ids) : null, b.level_min ?? null, b.level_max ?? null,
      b.gender ?? null, b.boarding ?? null, b.stream_id ?? null, b.program_id ?? null,
-     b.is_candidate ? 1 : null, b.term_id ?? null, b.academic_year_id ?? null,
+     b.is_candidate ? 1 : null,
+     b.is_new_entrant == null ? null : (b.is_new_entrant ? 1 : 0),
+     b.term_id ?? null, b.academic_year_id ?? null,
      b.amount != null && b.amount !== '' ? Number(b.amount) : null, b.priority ?? 100,
      b.is_active === false ? 0 : 1, b.notes ?? null, userId ?? null],
   )) as unknown as { insertId: number };
@@ -131,6 +134,7 @@ export interface LearnerCtx {
   programId: number | null;
   gender: string | null;
   boarding: 'boarding' | 'day' | null;
+  isNewEntrant: boolean | null;   // enrollment_type = 'new'
   termId: number | null;
   academicYearId: number | null;
 }
@@ -146,13 +150,20 @@ export function ruleMatchesLearner(rule: any, ctx: LearnerCtx): { match: boolean
   const why: string[] = [];
   const classIds = parseClassIds(rule.class_ids);
   if (classIds.length) {
-    if (ctx.classId == null || !classIds.includes(ctx.classId)) return { match: false, reason: 'class not in rule set' };
+    // class_id arrives as a string under bigNumberStrings; class_ids JSON holds
+    // numbers — coerce both sides so the membership test is type-safe.
+    if (ctx.classId == null || !classIds.includes(Number(ctx.classId))) return { match: false, reason: 'class not in rule set' };
     why.push('class matches');
   }
   if (rule.level_min != null) { if (ctx.classLevel == null || ctx.classLevel < rule.level_min) return { match: false, reason: 'below class-level range' }; why.push(`level ≥ ${rule.level_min}`); }
   if (rule.level_max != null) { if (ctx.classLevel == null || ctx.classLevel > rule.level_max) return { match: false, reason: 'above class-level range' }; why.push(`level ≤ ${rule.level_max}`); }
   if (rule.gender) { if ((ctx.gender || '').toLowerCase() !== String(rule.gender).toLowerCase()) return { match: false, reason: 'gender mismatch' }; why.push(`gender ${rule.gender}`); }
   if (rule.boarding) { if (ctx.boarding !== rule.boarding) return { match: false, reason: 'residence mismatch' }; why.push(rule.boarding); }
+  if (rule.is_new_entrant != null) {
+    const wantNew = Number(rule.is_new_entrant) === 1;
+    if (!!ctx.isNewEntrant !== wantNew) return { match: false, reason: wantNew ? 'not a new entrant' : 'not a continuing learner' };
+    why.push(wantNew ? 'new entrant' : 'continuing learner');
+  }
   if (rule.stream_id) { if (ctx.streamId !== rule.stream_id) return { match: false, reason: 'stream mismatch' }; why.push('stream matches'); }
   if (rule.program_id) { if (ctx.programId !== rule.program_id) return { match: false, reason: 'program mismatch' }; why.push('program matches'); }
   if (rule.term_id) { if (ctx.termId !== rule.term_id) return { match: false, reason: 'different term' }; why.push('term matches'); }
@@ -170,6 +181,7 @@ function rowToCtx(r: any, termId?: number | null): LearnerCtx {
     programId: r.program_id ?? null,
     gender: r.gender ?? null,
     boarding: sm.startsWith('board') ? 'boarding' : (sm.startsWith('day') ? 'day' : null),
+    isNewEntrant: r.enrollment_type == null ? null : String(r.enrollment_type).toLowerCase() === 'new',
     termId: termId ?? r.term_id ?? null,
     academicYearId: r.academic_year_id ?? null,
   };
@@ -177,6 +189,7 @@ function rowToCtx(r: any, termId?: number | null): LearnerCtx {
 
 const CTX_SELECT = `
   SELECT s.id, e.class_id, e.stream_id, e.program_id, e.term_id, e.academic_year_id,
+         e.enrollment_type,
          c.class_level, p.gender, sm.name AS study_mode
     FROM students s
     JOIN enrollments e ON e.student_id = s.id AND e.status = 'active' AND e.school_id = s.school_id
@@ -196,6 +209,9 @@ export interface BillLine {
   waived: number;         // to store in student_fee_items.waived
   amount: number;         // to store in student_fee_items.amount (override replaces base)
   final: number;          // net payable = amount - discount - waived
+  mandatory: boolean;
+  payment_channel: string; // any | school_code | bank | mobile_money | cash | bursar_cash
+  clearance: string;       // optional | before_entry | partial_allowed | bursar_approval
   rule_id: number | null;
   reason: string;
   adjustments: string[];  // human-readable adjustment notes
@@ -252,6 +268,9 @@ export function evaluateBill(
     lines.push({
       fee_item_id: item.id, name: item.name, category: item.category,
       base_amount: base, discount: adj.discount, waived: adj.waived, amount: adj.amount, final: adj.final,
+      mandatory: Number(item.mandatory) !== 0,
+      payment_channel: item.payment_channel || 'any',
+      clearance: item.clearance || 'optional',
       rule_id: chosen.id, reason: `${item.name}: ${chosenReason}`, adjustments: adj.notes,
     });
   }
@@ -403,4 +422,47 @@ export async function setAdjustmentStatus(
 
 export async function deleteAdjustment(schoolId: number, id: number): Promise<void> {
   await query(`DELETE FROM learner_fee_adjustments WHERE id=? AND school_id=?`, [id, schoolId]);
+}
+
+// ── Entry-clearance engine (Phase 5) ──
+
+export type ClearanceStatus =
+  | 'cleared' | 'partially_cleared' | 'not_cleared' | 'blocked'
+  | 'exception_requested' | 'exception_approved';
+
+export interface ClearanceResult {
+  requiredBeforeEntry: number;  // amount that must be paid before a learner may enter
+  paid: number;                 // amount paid by the learner this term
+  missing: number;              // shortfall against the entry requirement
+  missingItems: string[];       // mandatory before-entry items not yet covered
+  status: ClearanceStatus;
+}
+
+/**
+ * PURE: decide a learner's entry-clearance from their bill lines + amount paid.
+ * Per-item clearance semantics:
+ *   before_entry    → 100% of the line must be paid before entry
+ *   partial_allowed → at least half the line must be paid before entry
+ *   bursar_approval → not required up-front, but a bursar exception clears it
+ *   optional        → no entry requirement
+ * `exception` is the learner's latest fee_clearance_exception row (or null).
+ */
+export function computeClearance(
+  lines: BillLine[], paid: number, exception?: { status?: string } | null,
+): ClearanceResult {
+  const reqLines = lines.filter((l) => l.clearance === 'before_entry' || l.clearance === 'partial_allowed');
+  const requiredBeforeEntry = reqLines.reduce(
+    (s, l) => s + (l.clearance === 'partial_allowed' ? l.final / 2 : l.final), 0,
+  );
+  const missing = Math.max(0, requiredBeforeEntry - Math.max(0, paid));
+  const missingItems = missing > 0 ? reqLines.map((l) => l.name) : [];
+
+  let status: ClearanceStatus;
+  if (exception?.status === 'approved') status = 'exception_approved';
+  else if (exception?.status === 'requested') status = 'exception_requested';
+  else if (requiredBeforeEntry === 0 || missing <= 0) status = 'cleared';
+  else if (paid > 0) status = 'partially_cleared';
+  else status = 'blocked';
+
+  return { requiredBeforeEntry, paid: Math.max(0, paid), missing, missingItems, status };
 }
