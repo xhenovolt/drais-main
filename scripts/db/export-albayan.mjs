@@ -20,6 +20,10 @@ loadEnv();
 const S = 8002;                                   // Albayan Quran Memorization Centre
 const TARGET_DB = process.env.LOCAL_MYSQL_DATABASE || 'drais';
 const BATCH = 500;
+// --data-only: emit INSERTs only (no DROP/CREATE). Use when the local schema is
+// already applied (npm run db:local:init) — avoids re-creating tables from
+// TiDB's DDL, which carries FK constraints MySQL 8 rejects on type mismatch.
+const dataOnly = process.argv.includes('--data-only');
 
 // Functional Albayan-only set: the requested entities PLUS the RBAC + academic
 // reference rows needed for the user accounts to log in with permissions and for
@@ -36,16 +40,24 @@ const TABLES = [
   { t: 'academic_years',        where: 'school_id = ?',                                                         p: [S] },
   { t: 'terms',                 where: 'school_id = ?',                                                         p: [S] },
   { t: 'programs',              where: 'school_id = ?',                                                         p: [S] },
+  { t: 'academic_programs',     where: 'school_id = ?',                                                         p: [S] },
+  { t: 'curriculums',           where: '1 = 1',                                                                 p: [] },
   { t: 'study_modes',           where: 'school_id = ? OR school_id IS NULL',                                    p: [S] },
   { t: 'departments',           where: 'school_id = ?',                                                         p: [S] },
+  { t: 'subjects',              where: 'school_id = ?',                                                         p: [S] },
   { t: 'school_settings',       where: 'school_id = ?',                                                         p: [S] },
   { t: 'comm_settings',         where: 'school_id = ?',                                                         p: [S] },
-  // The requested entities.
+  // The requested entities: learners + their classes/streams, teachers, presets.
+  { t: 'villages',              where: 'id IN (SELECT village_id FROM students WHERE school_id = ? AND village_id IS NOT NULL)', p: [S] },
   { t: 'people',                where: 'school_id = ?',                                                         p: [S] },
   { t: 'classes',               where: 'school_id = ?',                                                         p: [S] },
+  { t: 'streams',               where: 'school_id = ?',                                                         p: [S] },
   { t: 'students',              where: 'school_id = ?',                                                         p: [S] },
   { t: 'enrollments',           where: "school_id = ? AND (status = 'active' OR status IS NULL)",               p: [S] },
+  { t: 'enrollment_programs',   where: 'enrollment_id IN (SELECT id FROM enrollments WHERE school_id = ?)',     p: [S] },
   { t: 'staff',                 where: 'school_id = ?',                                                         p: [S] },
+  { t: 'class_subjects',        where: 'class_id IN (SELECT id FROM classes WHERE school_id = ?)',              p: [S] },
+  { t: 'class_teachers',        where: 'school_id = ?',                                                         p: [S] },
   { t: 'users',                 where: 'school_id = ?',                                                         p: [S] },
   { t: 'fingerprints',          where: 'school_id = ?',                                                         p: [S] },
   { t: 'student_fingerprints',  where: 'school_id = ?',                                                         p: [S] },
@@ -80,12 +92,21 @@ async function main() {
 
   let totalRows = 0;
   for (const { t, where, p } of TABLES) {
-    let cr;
-    try { [cr] = await conn.query(`SHOW CREATE TABLE \`${t}\``); }
-    catch { console.log(`  ${t.padEnd(22)} (absent, skipped)`); continue; }
-    await write(`-- ---------- ${t} ----------\nDROP TABLE IF EXISTS \`${t}\`;\n${cr[0]['Create Table']};\n`);
+    // Existence check (also detects absent tables in either DDL/data mode).
+    let n;
+    try {
+      const [cnt] = await conn.query(`SELECT COUNT(*) AS n FROM \`${t}\` WHERE ${where}`, p);
+      n = cnt[0].n;
+    } catch { console.log(`  ${t.padEnd(22)} (absent, skipped)`); continue; }
 
-    const [[{ n }]] = await conn.query(`SELECT COUNT(*) AS n FROM \`${t}\` WHERE ${where}`, p);
+    if (dataOnly) {
+      // Schema already applied locally — just clear + refill this table's rows.
+      await write(`-- ---------- ${t} ----------\nDELETE FROM \`${t}\`;\n`);
+    } else {
+      const [cr] = await conn.query(`SHOW CREATE TABLE \`${t}\``);
+      await write(`-- ---------- ${t} ----------\nDROP TABLE IF EXISTS \`${t}\`;\n${cr[0]['Create Table']};\n`);
+    }
+
     let off = 0;
     while (off < n) {
       const [rows] = await conn.query(`SELECT * FROM \`${t}\` WHERE ${where} LIMIT ${BATCH} OFFSET ${off}`, p);
