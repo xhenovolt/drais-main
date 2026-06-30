@@ -329,6 +329,7 @@ export async function generateBills(
 
   let learnersAffected = 0, linesTotal = 0, amountTotal = 0, inserted = 0, skipped = 0;
   const toInsert: any[][] = [];
+  const ledgerInsert: any[][] = [];   // debit (charge) per new line → keeps balances correct
   for (const ctx of contexts) {
     const { lines, total } = evaluateBill(items, byItem, ctx, adjByStudent.get(ctx.studentId));
     if (!lines.length) continue;
@@ -338,6 +339,12 @@ export async function generateBills(
         if (existing.has(`${ctx.studentId}__${line.name}`)) { skipped++; continue; }
         // Snapshot the adjusted breakdown: balance (generated) = amount - discount - waived.
         toInsert.push([ctx.studentId, termId, line.name, line.amount, line.discount, line.waived]);
+        // Mirror the net charge into the ledger so balance (SUM debit-credit) is
+        // correct. Only newly-inserted lines get a debit → no double-charging on
+        // re-run (student_fee_items de-dup above gates this).
+        if (line.final > 0) {
+          ledgerInsert.push([ctx.studentId, schoolId, line.final, `BILL-${termId}`, line.fee_item_id, termId, line.name]);
+        }
       }
     }
   }
@@ -353,6 +360,17 @@ export async function generateBills(
       );
     }
     inserted = toInsert.length;
+  }
+  // Batched ledger debits (charges) for the same new lines.
+  if (opts.commit && ledgerInsert.length) {
+    for (let i = 0; i < ledgerInsert.length; i += 500) {
+      const slice = ledgerInsert.slice(i, i + 500);
+      const ph = slice.map(() => "(?, ?, 'debit', ?, ?, ?, ?, ?)").join(', ');
+      await query(
+        `INSERT INTO student_ledger (student_id, school_id, type, amount, reference, fee_item_id, term_id, notes) VALUES ${ph}`,
+        slice.flat(),
+      );
+    }
   }
 
   return { learners: contexts.length, learnersAffected, linesTotal, amountTotal, inserted, skipped, committed: !!opts.commit };
