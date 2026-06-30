@@ -140,6 +140,29 @@ export async function POST(req: NextRequest) {
           message: `Payment amount (${amount}) must equal the sum of item allocations (${itemsSum})`,
         }, { status: 400 });
       }
+
+      // Payment-channel enforcement: a fee item that requires a specific channel
+      // (e.g. tuition via school code) rejects a mismatched method. student_fee_items
+      // stores the item NAME, matched to fee_items.payment_channel for this school.
+      const { query } = await import('@/lib/db');
+      const { isChannelAllowed } = await import('@/lib/finance/feeRules');
+      const ids = items.map((i: any) => Number(i.student_fee_item_id)).filter(Boolean);
+      if (ids.length) {
+        const chRows = (await query(
+          `SELECT sfi.id, fi.payment_channel
+             FROM student_fee_items sfi
+             JOIN fee_items fi ON fi.name = sfi.item AND fi.school_id = ?
+            WHERE sfi.id IN (${ids.map(() => '?').join(',')})`,
+          [session.schoolId, ...ids],
+        )) as any[];
+        const chById = new Map(chRows.map((r) => [Number(r.id), r.payment_channel]));
+        for (const it of items) {
+          const verdict = isChannelAllowed(chById.get(Number(it.student_fee_item_id)), method);
+          if (!verdict.ok) {
+            return NextResponse.json({ success: false, message: verdict.reason }, { status: 400 });
+          }
+        }
+      }
     }
 
     // finance_payments.method is an enum — clamp anything unexpected to 'other'.

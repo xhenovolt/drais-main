@@ -1,10 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ruleMatchesLearner, evaluateBill } from '../feeRules.ts';
+import { ruleMatchesLearner, evaluateBill, computeClearance, isChannelAllowed } from '../feeRules.ts';
 
 const ctx = (over) => ({
   studentId: 1, classId: 1, classLevel: null, streamId: null, programId: null,
-  gender: 'female', boarding: 'boarding', termId: 10, academicYearId: 5, ...over,
+  gender: 'female', boarding: 'boarding', isNewEntrant: null, termId: 10, academicYearId: 5, ...over,
+});
+
+const line = (over) => ({ fee_item_id: 1, name: 'X', category: 'other', base_amount: 0, discount: 0, waived: 0, amount: 0, final: 0, mandatory: true, payment_channel: 'any', clearance: 'optional', rule_id: 1, reason: '', adjustments: [], ...over });
+
+test('new-entrant rule: matches new, rejects continuing', () => {
+  assert.equal(ruleMatchesLearner({ is_new_entrant: 1 }, ctx({ isNewEntrant: true })).match, true);
+  assert.equal(ruleMatchesLearner({ is_new_entrant: 1 }, ctx({ isNewEntrant: false })).match, false);
+  assert.equal(ruleMatchesLearner({ is_new_entrant: 0 }, ctx({ isNewEntrant: false })).match, true);
+});
+
+test('clearance: before_entry 100%, partial_allowed 50%, exception overrides', () => {
+  const lines = [line({ name: 'Uniform', final: 167000, clearance: 'before_entry' }), line({ name: 'Tuition', final: 700000, clearance: 'partial_allowed' })];
+  assert.equal(computeClearance(lines, 0).status, 'blocked');
+  assert.equal(computeClearance(lines, 100000).status, 'partially_cleared');
+  assert.equal(computeClearance(lines, 517000).status, 'cleared'); // 167000 + 350000
+  assert.equal(computeClearance(lines, 0, { status: 'approved' }).status, 'exception_approved');
+});
+
+test('channel: school_code-only fee rejects cash, allows bank/school code', () => {
+  assert.equal(isChannelAllowed('any', 'cash').ok, true);
+  assert.equal(isChannelAllowed('school_code', 'cash').ok, false);
+  assert.equal(isChannelAllowed('school_code', 'school_code').ok, true);
+  assert.equal(isChannelAllowed('bank', 'bank_transfer').ok, true);
+  assert.equal(isChannelAllowed('cash', 'cash').ok, true);
 });
 
 test('class-set rule: applies to a class in the set', () => {
