@@ -157,6 +157,10 @@ export const KNOWN_ROUTES = new Set<string>([
   '/settings/localization',
   '/settings/study-modes',
   
+  // Pass-outs / permission slips
+  '/passouts',
+  '/passouts/gate',
+
   // Other
   '/events',
   '/documents',
