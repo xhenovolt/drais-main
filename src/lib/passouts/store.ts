@@ -66,6 +66,40 @@ export async function sweepPassouts(schoolId: number): Promise<void> {
   await query(`UPDATE passout_requests SET status='overdue' WHERE school_id=? AND status='used' AND expected_return_at IS NOT NULL AND expected_return_at < NOW()`, [schoolId]);
 }
 
+export type ReportType = 'out_today' | 'overdue' | 'by_reason' | 'by_officer' | 'denied' | 'visitation' | 'unknown_cards';
+
+/** Report datasets (Phase 10). Each returns { columns, rows } for table + export. */
+export async function passoutReport(schoolId: number, type: ReportType): Promise<{ columns: string[]; rows: any[] }> {
+  const nameJoin = `JOIN students s ON s.id = pr.student_id LEFT JOIN people p ON p.id = s.person_id
+    LEFT JOIN enrollments e ON e.student_id = s.id AND e.status='active' LEFT JOIN classes c ON c.id = e.class_id`;
+  const learner = `TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) AS learner, s.admission_no, c.name AS class`;
+  switch (type) {
+    case 'out_today':
+      return { columns: ['learner', 'admission_no', 'class', 'reason', 'destination', 'actual_exit_at', 'expected_return_at'],
+        rows: (await query(`SELECT ${learner}, pr.reason, pr.destination, pr.actual_exit_at, pr.expected_return_at FROM passout_requests pr ${nameJoin} WHERE pr.school_id=? AND pr.status='used' ORDER BY pr.actual_exit_at DESC`, [schoolId])) as any[] };
+    case 'overdue':
+      return { columns: ['learner', 'admission_no', 'class', 'reason', 'actual_exit_at', 'expected_return_at'],
+        rows: (await query(`SELECT ${learner}, pr.reason, pr.actual_exit_at, pr.expected_return_at FROM passout_requests pr ${nameJoin} WHERE pr.school_id=? AND pr.status='overdue' ORDER BY pr.expected_return_at ASC`, [schoolId])) as any[] };
+    case 'by_reason':
+      return { columns: ['reason', 'count'],
+        rows: (await query(`SELECT COALESCE(NULLIF(reason,''),'(none)') AS reason, COUNT(*) AS count FROM passout_requests WHERE school_id=? AND deleted_at IS NULL GROUP BY reason ORDER BY count DESC`, [schoolId])) as any[] };
+    case 'by_officer':
+      return { columns: ['officer', 'approved'],
+        rows: (await query(`SELECT COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))),''), u.username, u.email, CONCAT('#',pr.approved_by)) AS officer, COUNT(*) AS approved FROM passout_requests pr LEFT JOIN users u ON u.id=pr.approved_by WHERE pr.school_id=? AND pr.approved_by IS NOT NULL GROUP BY pr.approved_by, officer ORDER BY approved DESC`, [schoolId])) as any[] };
+    case 'denied':
+      return { columns: ['learner', 'admission_no', 'reason', 'device_sn', 'created_at'],
+        rows: (await query(`SELECT TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) AS learner, s.admission_no, pe.reason, pe.device_sn, pe.created_at FROM passout_events pe LEFT JOIN students s ON s.id=pe.student_id LEFT JOIN people p ON p.id=s.person_id WHERE pe.school_id=? AND pe.decision='denied' ORDER BY pe.id DESC LIMIT 500`, [schoolId])) as any[] };
+    case 'visitation':
+      return { columns: ['card_uid', 'event_type', 'decision', 'reason', 'device_sn', 'created_at'],
+        rows: (await query(`SELECT card_uid, event_type, decision, reason, device_sn, created_at FROM visitation_events WHERE school_id=? ORDER BY id DESC LIMIT 500`, [schoolId])) as any[] };
+    case 'unknown_cards':
+      return { columns: ['card_uid', 'device_sn', 'created_at'],
+        rows: (await query(`SELECT card_uid, device_sn, created_at FROM visitation_events WHERE school_id=? AND card_id IS NULL ORDER BY id DESC LIMIT 500`, [schoolId])) as any[] };
+    default:
+      return { columns: [], rows: [] };
+  }
+}
+
 export async function passoutDashboard(schoolId: number) {
   await sweepPassouts(schoolId);
   const rows = (await query(

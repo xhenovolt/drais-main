@@ -51,14 +51,10 @@ function shape(po: any): GateResult['passout'] {
   } : null;
 }
 
-/** PURE-ish READ: what should the gate show for this learner right now? */
-export async function decideGate(schoolId: number, studentId: number): Promise<GateResult> {
-  const po = await latestPassout(schoolId, studentId);
+/** PURE: given a learner's latest pass-out row (or null) + now, the gate verdict. */
+export function decidePassout(po: any | null, nowMs: number = Date.now()): GateResult {
   if (!po) return { decision: 'denied', outcome: 'no_active_pass', title: TITLES.no_active_pass, reason: 'No active approved pass-out', passout: null };
-
-  const now = Date.now();
   const until = po.approved_until ? new Date(po.approved_until).getTime() : null;
-
   // Already out → this scan is a return.
   if (po.status === 'used' || po.status === 'overdue') {
     return { decision: 'allowed', outcome: 'return_recorded', title: TITLES.return_recorded, reason: 'Learner returning', passout: shape(po) };
@@ -67,10 +63,15 @@ export async function decideGate(schoolId: number, studentId: number): Promise<G
     return { decision: 'denied', outcome: 'already_returned', title: TITLES.already_returned, reason: 'Pass-out already used and returned', passout: shape(po) };
   }
   // status 'approved' → exit attempt.
-  if (until != null && until < now) {
-    return { decision: 'denied', outcome: 'pass_expired', title: TITLES.pass_expired, reason: `Pass-out expired`, passout: shape(po) };
+  if (until != null && until < nowMs) {
+    return { decision: 'denied', outcome: 'pass_expired', title: TITLES.pass_expired, reason: 'Pass-out expired', passout: shape(po) };
   }
   return { decision: 'allowed', outcome: 'exit_allowed', title: TITLES.exit_allowed, reason: po.reason || 'Approved pass-out', passout: shape(po) };
+}
+
+/** READ: what should the gate show for this learner right now? */
+export async function decideGate(schoolId: number, studentId: number): Promise<GateResult> {
+  return decidePassout(await latestPassout(schoolId, studentId));
 }
 
 /** READ+WRITE: decide + record the exit/return + event. */

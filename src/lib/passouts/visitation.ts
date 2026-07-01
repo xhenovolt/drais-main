@@ -43,20 +43,18 @@ function shape(v: any): VisitResult['card'] {
   };
 }
 
+/** PURE: given a card row (or null) + now, the visitation verdict. */
+export function decideVisit(card: any | null, nowMs: number = Date.now()): VisitResult {
+  if (!card) return { decision: 'review', title: 'UNKNOWN VISITATION CARD', reason: 'Card is not registered', card: null, unknown: true };
+  if (card.status !== 'active') return { decision: 'denied', title: 'VISIT DENIED', reason: `Card ${card.status}`, card: shape(card) };
+  if (card.expires_at && new Date(card.expires_at).getTime() < nowMs) return { decision: 'denied', title: 'VISIT DENIED', reason: 'Card expired', card: shape(card) };
+  return { decision: 'allowed', title: 'VISIT ALLOWED', reason: card.student_name ? `Visiting ${card.student_name}` : 'Verified guardian', card: shape(card) };
+}
+
 /** Decide + record a visitation card scan. */
 export async function verifyCard(schoolId: number, cardUid: string, deviceSn?: string | null, eventType = 'visit'): Promise<VisitResult> {
   const card = await findCard(schoolId, cardUid);
-  let result: VisitResult;
-
-  if (!card) {
-    result = { decision: 'review', title: 'UNKNOWN VISITATION CARD', reason: 'Card is not registered', card: null, unknown: true };
-  } else if (card.status !== 'active') {
-    result = { decision: 'denied', title: 'VISIT DENIED', reason: `Card ${card.status}`, card: shape(card) };
-  } else if (card.expires_at && new Date(card.expires_at).getTime() < Date.now()) {
-    result = { decision: 'denied', title: 'VISIT DENIED', reason: 'Card expired', card: shape(card) };
-  } else {
-    result = { decision: 'allowed', title: 'VISIT ALLOWED', reason: card.student_name ? `Visiting ${card.student_name}` : 'Verified guardian', card: shape(card) };
-  }
+  const result = decideVisit(card);
 
   const et = result.decision === 'allowed' ? `${eventType}_allowed` : result.decision === 'denied' ? `${eventType}_denied` : `${eventType}_attempt`;
   await query(
