@@ -160,6 +160,7 @@ export const KNOWN_ROUTES = new Set<string>([
   // Pass-outs / permission slips
   '/passouts',
   '/passouts/gate',
+  '/visitation',
 
   // Other
   '/events',
