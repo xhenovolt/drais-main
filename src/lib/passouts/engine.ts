@@ -87,6 +87,8 @@ export async function applyGate(
         WHERE id=? AND school_id=? AND status='approved'`,
       [deviceSn, rawEventId ?? null, po.id, schoolId],
     );
+    // Notify the guardian — fire-and-forget, never blocks the gate.
+    import('./notify').then((n) => n.notifyExit(schoolId, { id: po.id, guardian_phone_snapshot: po.guardian_phone, reason: po.reason, expected_return_at: po.expected_return_at }, studentId)).catch(() => {});
   } else if (result.outcome === 'return_recorded' && po) {
     const late = po.expected_return_at && Date.now() > new Date(po.expected_return_at).getTime();
     await query(
