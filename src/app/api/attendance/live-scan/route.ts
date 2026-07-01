@@ -154,6 +154,8 @@ export async function GET(req: NextRequest) {
                al.staff_id,
                al.device_sn,
                d.device_name,
+               d.passout_enabled,
+               d.device_type,
                stf.first_name AS staff_first_name,
                stf.last_name AS staff_last_name
              FROM zk_attendance_logs al
@@ -224,6 +226,8 @@ interface ScanRow {
   staff_id: number | null;
   device_sn: string;
   device_name: string | null;
+  passout_enabled: number | null;
+  device_type: string | null;
   staff_first_name: string | null;
   staff_last_name: string | null;
 }
@@ -233,7 +237,7 @@ async function fetchScanRow(scanId: number): Promise<ScanRow | null> {
     `SELECT
        al.id, al.device_user_id, al.check_time, al.verify_type, al.io_mode,
        al.matched, al.student_id, al.staff_id, al.device_sn,
-       d.device_name,
+       d.device_name, d.passout_enabled, d.device_type,
        stf.first_name AS staff_first_name,
        stf.last_name  AS staff_last_name
      FROM zk_attendance_logs al
@@ -401,8 +405,23 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
     learner = await deepInfoPromise;
   }
 
+  // Pass-out gate decision — ONLY on gate-tagged devices (in-memory check from
+  // the device JOIN, no extra round-trip on normal attendance scans). Additive
+  // and fully guarded: it can never break or block a normal attendance popup.
+  let passout: Record<string, unknown> | null = null;
+  const isGate = Number(r.passout_enabled) === 1 || r.device_type === 'gate';
+  if (studentId && isGate) {
+    try {
+      const { decideGate, applyGate } = await import('@/lib/passouts/engine');
+      passout = await decideGate(schoolId, studentId) as unknown as Record<string, unknown>;
+      // Record the exit/return in the background — never block the popup on it.
+      applyGate(schoolId, studentId, r.device_sn, r.id, null).catch(() => {});
+    } catch { /* pass-out module optional — leave attendance popup unaffected */ }
+  }
+
   return {
     scan_id: r.id,
+    passout,
     device_user_id: r.device_user_id,
     check_time: r.check_time,
     verify_type: r.verify_type,

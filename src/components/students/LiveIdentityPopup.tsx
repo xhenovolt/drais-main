@@ -43,6 +43,14 @@ interface ScanEvent {
   derived_detail?: string | null;
   /** Notification outbox state for this person today, or null. */
   sms_status?: string | null;
+  /** Pass-out gate decision (present only on gate-tagged devices). */
+  passout?: {
+    decision: 'allowed' | 'denied' | 'review';
+    outcome: string;
+    title: string;
+    reason: string;
+    passout?: { destination?: string | null; approved_until?: string | null; expected_return_at?: string | null; guardian_phone?: string | null } | null;
+  } | null;
   matched: boolean;
   person_type: 'student' | 'staff' | 'unmatched';
   device_name: string | null;
@@ -280,8 +288,33 @@ function derivedLineHtml(scan: ScanEvent): string {
   return `<div style="margin-top:4px;font-size:12px;font-weight:700;color:#1e293b">${escHtml(label)}${scan.derived_detail ? ` <span style="font-weight:400;color:#6b7280">· ${escHtml(scan.derived_detail)}</span>` : ''}</div>`;
 }
 
+/** Big pass-out verdict banner shown on gate devices (ALLOWED / NOT ALLOWED / …). */
+function passoutBannerHtml(scan: ScanEvent): string {
+  const po = scan.passout;
+  if (!po) return '';
+  const bg = po.decision === 'allowed' ? '#059669' : po.decision === 'review' ? '#f59e0b' : '#dc2626';
+  const p = po.passout || {};
+  const detail = (label: string, v?: string | null) => (v ? `<div style="font-size:12px;margin-top:2px"><span style="opacity:.8">${label}:</span> ${escHtml(String(v))}</div>` : '');
+  return `
+    <div style="background:${bg};color:#fff;padding:14px 16px;margin:-20px -20px 12px;border-radius:12px 12px 0 0;text-align:center">
+      <div style="font-size:20px;font-weight:800;letter-spacing:.5px">${escHtml(po.title)}</div>
+      <div style="font-size:12px;opacity:.9;margin-top:2px">${escHtml(po.reason)}</div>
+      <div style="text-align:left;margin-top:8px">
+        ${detail('Destination', p.destination)}
+        ${detail('Valid until', p.approved_until ? formatTime(p.approved_until) : null)}
+        ${detail('Expected return', p.expected_return_at ? formatTime(p.expected_return_at) : null)}
+        ${po.decision === 'allowed' ? detail('Guardian', p.guardian_phone) : ''}
+      </div>
+    </div>`;
+}
+
 function buildSwalHtml(scan: ScanEvent, showSms = true): string {
   const learner = scan.learner;
+
+  // On a gate device, the pass-out verdict leads; the learner card follows.
+  if (scan.passout && scan.person_type === 'student' && learner) {
+    return passoutBannerHtml(scan) + buildLearnerCard(scan, learner) + smsLineHtml(scan, showSms);
+  }
 
   let headerBg = '#10b981'; // emerald
   let headerLabel = 'Check-in Successful';
