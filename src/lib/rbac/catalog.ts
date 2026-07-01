@@ -170,6 +170,23 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   p('finance', 'reports',      'view',     'View financial reports'),
   p('finance', 'reports',      'export',   'Export financial reports'),
 
+  // ─── Pass-outs (permission slips) ───────────────────────────────────────────
+  p('passouts', 'slip',    'view',    'View pass-out requests'),
+  p('passouts', 'slip',    'create',  'Create pass-out requests'),
+  p('passouts', 'slip',    'approve', 'Approve pass-out requests'),
+  p('passouts', 'slip',    'reject',  'Reject pass-out requests'),
+  p('passouts', 'slip',    'cancel',  'Cancel pass-out requests'),
+  p('passouts', 'slip',    'return',  'Record a learner return'),
+  p('passouts', 'gate',    'verify',  'Verify pass-outs at the gate'),
+  p('passouts', 'reports', 'view',    'View pass-out reports'),
+
+  // ─── Visitation cards ───────────────────────────────────────────────────────
+  p('visitation', 'card',    'view',    'View visitation cards'),
+  p('visitation', 'card',    'issue',   'Issue visitation cards'),
+  p('visitation', 'card',    'suspend', 'Suspend / revoke visitation cards'),
+  p('visitation', 'gate',    'verify',  'Verify visitation cards at the gate'),
+  p('visitation', 'reports', 'view',    'View visitation reports'),
+
   // ─── Payroll ──────────────────────────────────────────────────────────────
   p('payroll', 'overview',  'view',     'View payroll dashboard'),
   p('payroll', 'salaries',  'view',     'View salary definitions'),

@@ -49,6 +49,8 @@ export const ROLE_DEFAULTS: Record<RoleSlug, readonly string[]> = {
     'finance.*',
     'tahfiz.*',
     'drce.*',
+    'passouts.*',
+    'visitation.*',
     'trash.*',
     'system.audit.view',
     'system.sessions.view', 'system.sessions.terminate',
