@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { userCan } from '@/lib/rbac';
 import { isSubjectAllocatedToClass } from '@/lib/subject-allocation-validation';
+import { canEnterSubject, denyReason } from '@/lib/academics/comment-gating';
 
 export async function POST(req: NextRequest) {
   let connection;
@@ -47,6 +49,26 @@ export async function POST(req: NextRequest) {
         error: `Subject Allocation Violation: "${subjName}" is not allocated to this class. Results cannot be entered for subjects not in the class allocation.`,
         code: 'SUBJECT_NOT_ALLOCATED'
       }, { status: 400 });
+    }
+
+    // Phase 6 — teacher-level gate: an ordinary teacher may only enter results
+    // for subjects they are actively allocated to teach. Privileged callers
+    // (super-admin or academics.allocations.manage holders — admins/HODs) bypass.
+    const isPrivileged = session.isSuperAdmin
+      || (await userCan(session.userId, schoolId, 'academics.allocations.manage'));
+    if (!isPrivileged) {
+      const [myAlloc]: any = await connection.execute(
+        `SELECT DISTINCT subject_id FROM class_subjects
+          WHERE class_id = ? AND teacher_id = ?
+            AND (valid_to IS NULL OR valid_to > CURDATE())
+            AND (status IS NULL OR status = 'active')`,
+        [class_id, session.staffId ?? -1],
+      );
+      const allocatedSubjectIds = (myAlloc || []).map((r: any) => Number(r.subject_id));
+      const ctx = { isPrivileged, allocatedSubjectIds, subjectId: Number(subject_id) };
+      if (!canEnterSubject(ctx)) {
+        return NextResponse.json({ error: denyReason(ctx), code: 'TEACHER_NOT_ALLOCATED' }, { status: 403 });
+      }
     }
 
     let success = 0;

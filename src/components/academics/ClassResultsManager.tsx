@@ -1501,6 +1501,19 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                                 {typeof r.score === 'number' && r.score >= 0 && r.score <= 100 ? `${r.score}%` : 'Invalid'}
                               </div>
                             )}
+                            {/* Manual subject comment (Phase 6) — teacher's own
+                                words; blank falls back to the auto/rule comment
+                                at report time. */}
+                            <input
+                              type="text"
+                              className="mt-2 w-full px-3 py-1.5 rounded-md bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                              value={r.remarks ?? ''}
+                              onChange={e=>updateRow(r.student_id,'remarks', e.target.value===''? null : e.target.value)}
+                              onFocus={() => setEditingCell({ id: r.student_id, field: 'remarks' })}
+                              onBlur={() => setEditingCell(null)}
+                              placeholder={t('subject_comment', 'Comment (optional)')}
+                              aria-label={`Comment for ${r.first_name} ${r.last_name}`}
+                            />
                           </div>
                         ))}
                       </div>
