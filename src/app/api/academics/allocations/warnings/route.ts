@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
+import { classifyWarnings, type AllocRow, type WarningItem } from '@/lib/academics/allocation-logic';
 
 export const runtime = 'nodejs';
 
@@ -29,21 +30,15 @@ export async function GET(req: NextRequest) {
                    WHERE (cs.valid_to IS NULL OR cs.valid_to > CURDATE()) AND (cs.status IS NULL OR cs.status='active')`;
   const rows = (await query(active, [S])) as any[];
 
-  const byCS = new Map<string, any[]>();
-  for (const r of rows) { const k = `${r.class_id}__${r.subject_id}`; (byCS.get(k) ?? byCS.set(k, []).get(k)!).push(r); }
+  // Pure classification (unit-tested in lib/academics); re-attach display names.
+  const names = new Map<string, { class_name: string; subject_name: string }>();
+  for (const r of rows) names.set(`${r.class_id}__${r.subject_id}`, { class_name: r.class_name, subject_name: r.subject_name });
+  const named = (w: WarningItem) => ({ ...w, ...(names.get(`${w.class_id}__${w.subject_id}`) ?? {}) });
 
-  const no_primary: any[] = [], multiple_primary: any[] = [], missing_initials: any[] = [];
-  for (const [, list] of byCS) {
-    const primaries = list.filter((r) => r.allocation_role === 'primary_teacher');
-    const one = list[0];
-    if (primaries.length === 0) no_primary.push({ class_id: one.class_id, class_name: one.class_name, subject_id: one.subject_id, subject_name: one.subject_name, teachers: list.length });
-    if (primaries.length > 1) multiple_primary.push({ class_id: one.class_id, class_name: one.class_name, subject_id: one.subject_id, subject_name: one.subject_name, count: primaries.length });
-    for (const r of list) {
-      if (Number(r.display_on_report) === 1 && !r.custom_initials && !(r.teacher_name || '').trim()) {
-        missing_initials.push({ class_name: r.class_name, subject_name: r.subject_name });
-      }
-    }
-  }
+  const w = classifyWarnings(rows as AllocRow[]);
+  const no_primary = w.no_primary.map(named);
+  const multiple_primary = w.multiple_primary.map(named);
+  const missing_initials = w.missing_initials.map(named);
 
   // Subjects being graded (class_results) with NO active teacher allocation.
   const unallocated_graded = (await query(
