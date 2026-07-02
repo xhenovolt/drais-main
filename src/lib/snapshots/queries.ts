@@ -246,21 +246,26 @@ export async function fetchResultsForGeneration(args: {
            ORDER BY cs2.valid_from DESC, cs2.id DESC LIMIT 1
         )                  AS teacher_name,
         (
-          SELECT COALESCE(
-            cs2.custom_initials,
-            NULLIF(CONCAT(
-              COALESCE(LEFT(tp.first_name, 1), ''),
-              COALESCE(LEFT(tp.last_name, 1), '')
-            ), '')
-          )
+          -- All report-visible teachers for this subject/class at the snapshot's
+          -- term, primary first, joined by ' / ' (e.g. "A.N / S.K"). Deterministic
+          -- ordering keeps re-generated snapshots byte-identical.
+          SELECT GROUP_CONCAT(
+                   COALESCE(
+                     cs2.custom_initials,
+                     NULLIF(CONCAT(COALESCE(LEFT(tp.first_name, 1), ''), COALESCE(LEFT(tp.last_name, 1), '')), '')
+                   )
+                   ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
+                   SEPARATOR ' / '
+                 )
             FROM class_subjects cs2
             LEFT JOIN staff ts ON ts.id = cs2.teacher_id
             LEFT JOIN people tp ON tp.id = ts.person_id
            WHERE cs2.class_id  = cr.class_id
              AND cs2.subject_id = cr.subject_id
+             AND COALESCE(cs2.display_on_report, 1) = 1
+             AND (cs2.status IS NULL OR cs2.status = 'active')
              AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
              AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
-           ORDER BY cs2.valid_from DESC, cs2.id DESC LIMIT 1
         )                  AS teacher_initials
        FROM class_results cr
        JOIN students s ON s.id = cr.student_id
