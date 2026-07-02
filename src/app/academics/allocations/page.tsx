@@ -1,16 +1,17 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { History, Grid3x3, Users, ShieldAlert } from 'lucide-react';
+import { History, Grid3x3, Users, ShieldAlert, Layers } from 'lucide-react';
 import { SubjectAllocationsManager } from '@/components/academics/SubjectAllocationsManager';
 import { MultiTeacherPanel } from '@/components/academics/MultiTeacherPanel';
 import { AllocationWarnings } from '@/components/academics/AllocationWarnings';
+import { SubjectGroupsPanel } from '@/components/academics/SubjectGroupsPanel';
 import { Tabs } from '@/components/ui';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
 export default function SubjectAllocationsPage() {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'matrix' | 'teachers' | 'warnings'>('matrix');
+  const [tab, setTab] = useState<'matrix' | 'teachers' | 'groups' | 'warnings'>('matrix');
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -34,12 +35,14 @@ export default function SubjectAllocationsPage() {
         tabs={[
           { id: 'matrix', label: 'Class matrix', icon: Grid3x3 },
           { id: 'teachers', label: 'Multiple teachers', icon: Users },
+          { id: 'groups', label: 'Departments & groups', icon: Layers },
           { id: 'warnings', label: 'Warnings', icon: ShieldAlert },
         ]}
       />
 
       {tab === 'matrix' && <SubjectAllocationsManager />}
       {tab === 'teachers' && <MultiTeacherPanel />}
+      {tab === 'groups' && <SubjectGroupsPanel />}
       {tab === 'warnings' && <AllocationWarnings />}
     </div>
   );
