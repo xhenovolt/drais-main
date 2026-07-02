@@ -1258,6 +1258,9 @@ export interface DRCESubject {
   totalMarks: number;
   /** 'primary' = core subject, 'secondary' = non-core/elective */
   subjectType?: 'primary' | 'secondary';
+  /** Phase 7 — allocation classification frozen at snapshot generation. */
+  department?: string;
+  subjectGroup?: string;
 }
 
 export interface DRCEResultRow {
@@ -1269,6 +1272,15 @@ export interface DRCEResultRow {
   comment: string;
   initials: string;
   teacherName: string;
+  /** Phase 7 — allocation-derived bindings. `primaryTeacher` is the lead
+   *  teacher's name; `teachers` lists every report-visible teacher, primary
+   *  first; `department` / `subjectGroup` are the subject's classification;
+   *  `subjectComment` mirrors the resolved per-subject comment. */
+  primaryTeacher?: string;
+  teachers?: string;
+  department?: string;
+  subjectGroup?: string;
+  subjectComment?: string;
   /** 'primary' = core subject, 'secondary' = non-core/elective (default 'primary') */
   subjectType?: 'primary' | 'secondary';
   /** Subject configuration including total marks */

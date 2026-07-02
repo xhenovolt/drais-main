@@ -72,6 +72,9 @@ export interface RawResultRow {
   remarks:          string | null;
   teacher_initials: string | null;
   teacher_name:     string | null;
+  teachers_all:     string | null;
+  department_name:  string | null;
+  subject_group_name: string | null;
   created_at:       string | null;
 
   admission_no:     string | null;
@@ -266,12 +269,35 @@ export async function fetchResultsForGeneration(args: {
              AND (cs2.status IS NULL OR cs2.status = 'active')
              AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
              AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
-        )                  AS teacher_initials
+        )                  AS teacher_initials,
+        (
+          -- All report-visible teacher NAMES for this subject/class, primary
+          -- first (e.g. "Aisha Noor / Sara Kato"). Same filters/ordering as the
+          -- initials aggregate so the two stay consistent on the report card.
+          SELECT GROUP_CONCAT(
+                   NULLIF(CONCAT_WS(' ', tp.first_name, tp.last_name), '')
+                   ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
+                   SEPARATOR ' / '
+                 )
+            FROM class_subjects cs2
+            LEFT JOIN staff ts ON ts.id = cs2.teacher_id
+            LEFT JOIN people tp ON tp.id = ts.person_id
+           WHERE cs2.class_id  = cr.class_id
+             AND cs2.subject_id = cr.subject_id
+             AND COALESCE(cs2.display_on_report, 1) = 1
+             AND (cs2.status IS NULL OR cs2.status = 'active')
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
+        )                  AS teachers_all,
+        dep.name           AS department_name,
+        sg.name            AS subject_group_name
        FROM class_results cr
        JOIN students s ON s.id = cr.student_id
        JOIN people   p ON p.id = s.person_id
        JOIN classes  c ON c.id = cr.class_id
        JOIN subjects sub ON sub.id = cr.subject_id
+       LEFT JOIN departments    dep ON dep.id = sub.department_id
+       LEFT JOIN subject_groups sg  ON sg.id  = sub.subject_group_id
        LEFT JOIN terms t ON t.id = cr.term_id
        LEFT JOIN enrollments e ON e.student_id = cr.student_id AND e.class_id = cr.class_id
        LEFT JOIN streams st ON st.id = e.stream_id

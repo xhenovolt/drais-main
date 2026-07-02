@@ -557,6 +557,10 @@ function buildClasses(
         displayName,
         totalMarks:  100,
         subjectType,
+        // Phase 7 — freeze allocation context (department / subject group) so
+        // historical report cards keep the classification they had at generation.
+        department:   (r.department_name ?? '').trim() || undefined,
+        subjectGroup: (r.subject_group_name ?? '').trim() || undefined,
       });
     }
 
@@ -638,6 +642,7 @@ function buildClasses(
         remarks,
         initials:       (r.teacher_initials ?? '').trim(),
         teacherName:    (r.teacher_name ?? '').trim() || undefined,
+        teachersAll:    (r.teachers_all ?? '').trim() || undefined,
         enteredAt:      r.created_at ?? undefined,
       });
     }

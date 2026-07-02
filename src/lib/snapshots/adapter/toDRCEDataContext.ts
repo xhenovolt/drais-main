@@ -83,6 +83,8 @@ export function snapshotToDRCEDataContext(
       name:        s.displayName || s.name,
       totalMarks:  s.totalMarks,
       subjectType: s.subjectType,
+      department:   s.department ?? '',
+      subjectGroup: s.subjectGroup ?? '',
     }));
 
   const results: DRCEResultRow[] = stu.results
@@ -114,15 +116,22 @@ export function snapshotToDRCEDataContext(
       const codes = components.map(c => c.gradeCode).filter((g): g is string => !!g).sort();
       competencyLevel = codes[0] ?? null;
     }
+    const resolvedComment = displaySubjectComment(r.remarks, r.score, snapshot.meta.language);
     return {
       subjectName:  r.displaySubject || r.subjectName,
       midTermScore: null,
       endTermScore: r.score,
       total:        r.score,
       grade:        r.grade,
-      comment:      displaySubjectComment(r.remarks, r.score, snapshot.meta.language),
+      comment:      resolvedComment,
       initials:     r.initials,
       teacherName:  r.teacherName ?? '',
+      // Phase 7 — allocation-derived bindings (empty string on legacy snapshots).
+      primaryTeacher: r.teacherName ?? '',
+      teachers:       r.teachersAll ?? r.teacherName ?? '',
+      department:     subj?.department ?? '',
+      subjectGroup:   subj?.subjectGroup ?? '',
+      subjectComment: resolvedComment,
       subjectType:  subj?.subjectType ?? 'primary',
       subject: subj
         ? {
@@ -130,6 +139,8 @@ export function snapshotToDRCEDataContext(
             name:        subj.displayName || subj.name,
             totalMarks:  subj.totalMarks,
             subjectType: subj.subjectType,
+            department:   subj.department ?? '',
+            subjectGroup: subj.subjectGroup ?? '',
           }
         : undefined,
       // CAFE bindings — empty/null when no component data for this result.

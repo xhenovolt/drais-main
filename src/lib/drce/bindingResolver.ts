@@ -97,6 +97,11 @@ export const AVAILABLE_BINDINGS: Array<{ group: string; binding: string; label: 
   { group: 'Subject Result', binding: 'result.comment',       label: 'Comment' },
   { group: 'Subject Result', binding: 'result.initials',      label: 'Teacher Initials' },
   { group: 'Subject Result', binding: 'result.teacherName',   label: 'Teacher Name' },
+  { group: 'Subject Result', binding: 'result.primaryTeacher', label: 'Primary Teacher' },
+  { group: 'Subject Result', binding: 'result.teachers',      label: 'All Teachers' },
+  { group: 'Subject Result', binding: 'result.department',    label: 'Department' },
+  { group: 'Subject Result', binding: 'result.subjectGroup',  label: 'Subject Group' },
+  { group: 'Subject Result', binding: 'result.subjectComment', label: 'Subject Comment' },
   // Student bindings
   { group: 'Student',        binding: 'student.fullName',     label: 'Full Name' },
   { group: 'Student',        binding: 'student.fullNameAr',   label: 'Full Name (Arabic)' },

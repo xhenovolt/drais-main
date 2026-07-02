@@ -98,6 +98,11 @@ export interface SnapshotSubject {
   displayName: string;
   totalMarks:  number;
   subjectType: 'primary' | 'secondary';
+  /** Phase 7 — allocation context frozen at generation. Optional so snapshots
+   *  generated before departments/groups existed still parse (render falls back
+   *  to ''). */
+  department?:   string;
+  subjectGroup?: string;
 }
 
 export interface SnapshotResult {
@@ -113,7 +118,11 @@ export interface SnapshotResult {
   grade:          string;
   remarks:        string;
   initials:       string;
+  /** Primary teacher name (single). Kept for legacy bindings. */
   teacherName?:   string;
+  /** Phase 7 — all report-visible teacher names, primary first
+   *  (e.g. "Aisha Noor / Sara Kato"). Optional on pre-Phase-7 snapshots. */
+  teachersAll?:   string;
   enteredAt?:     string;          // ISO
   /**
    * CAFE Phase 2 — per-component breakdown. Present ONLY when the snapshot
