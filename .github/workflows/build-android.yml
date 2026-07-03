@@ -56,6 +56,14 @@ jobs:
       - name: Capacitor sync (android)
         run: npx cap sync android
 
+      # nodejs-mobile-cordova (a Cordova plugin) requires the node app at
+      # android/app/src/main/assets/www/nodejs-project/. Capacitor only creates
+      # assets/public, never www — so we stage it here, AFTER cap sync (which
+      # manages assets/public) and BEFORE gradle. Without this the build fails
+      # with "nodejs-mobile-cordova couldn't find the www folder".
+      - name: Stage nodejs-project into Android assets (www)
+        run: npm run mobile:stage-node
+
       - name: Gradle assembleDebug
         run: |
           cd android

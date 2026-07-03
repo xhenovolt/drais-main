@@ -95,6 +95,11 @@ capacitor-cordova-android-plugins
 # Copied web assets
 app/src/main/assets/public
 
+# Staged embedded Node runtime (nodejs-mobile-cordova) — regenerated each build
+# by scripts/stage-node-android.mjs. Large (bundles the Next standalone server +
+# node_modules); never commit it.
+app/src/main/assets/www
+
 # Generated Config files
 app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
