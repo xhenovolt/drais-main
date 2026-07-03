@@ -4,23 +4,25 @@ This directory is electron-builder's `buildResources` (see `electron-builder.yml
 
 ## Icons
 
-The desktop build uses a **single source icon**: `build/icon.png` (currently
-**512×512** RGBA). electron-builder generates the per-platform icons from it:
+Source icon: `build/icon.png` (**512×512** RGBA). Windows uses the committed
+multi-resolution `build/icon.ico`; macOS/Linux are generated from the PNG.
 
-| Platform | Generated from `icon.png` | Notes |
-|----------|---------------------------|-------|
-| Windows  | `.ico` (installer + shortcut) | auto-generated |
-| macOS    | `.icns` (app + dmg)           | auto-generated (a `.ico` is **not** valid on macOS) |
-| Linux    | `.png` used directly          | needs ≥512×512 |
+| Platform | Icon used | Notes |
+|----------|-----------|-------|
+| Windows  | `build/icon.ico` (committed) | installer + shortcut (`win.icon`) AND runtime window/taskbar (`electron/main.cjs`) |
+| macOS    | `.icns` from `icon.png`      | auto-generated (a `.ico` is **not** valid on macOS) |
+| Linux    | `build/icon.png`            | used directly, needs ≥512×512 |
 
-You do **not** need to commit `icon.ico` / `icon.icns` — they are produced at
-build time. If you want pixel-perfect platform icons, you may optionally add
-hand-tuned `build/icon.ico` and `build/icon.icns` and point `win.icon` /
-`mac.icon` at them in `electron-builder.yml`.
+**`build/icon.ico` is committed** (16/32/48/128 px). It is what fixed the
+"Windows app shows the Electron logo" bug: `electron/main.cjs` loads it for the
+window/taskbar, and `win.icon` points at it for the installer/shortcut — so the
+whole Windows experience is DRAIS-branded and consistent. Regenerate it after
+changing `icon.png`:
 
-> Runtime taskbar icon: `electron/main.cjs` optionally loads `build/icon.ico`
-> from the packaged resources. It is absent today, so the window falls back to
-> the default icon — purely cosmetic, does not affect the build.
+```
+npx png-to-ico public/icons/icon-16x16.png public/icons/icon-32x32.png \
+  public/icons/icon-48x48.png public/icons/icon-128x128.png build/icon.png > build/icon.ico
+```
 
 ## Other files
 

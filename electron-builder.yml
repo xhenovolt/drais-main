@@ -89,10 +89,12 @@ win:
       arch:
         - x64
   artifactName: ${productName}-${version}-${arch}-${os}.${ext}
-  # Use the tracked 512x512 build/icon.png — electron-builder generates the
-  # installer/shortcut .ico from it automatically. (Pointing win.icon at a
-  # missing build/icon.ico aborts the build in CI.)
-  icon: build/icon.png
+  # Use the committed multi-resolution build/icon.ico (16/32/48/128 px) for a
+  # pixel-perfect installer + Start Menu + desktop shortcut icon. This is the
+  # same file the running window/taskbar loads at runtime (extraResources
+  # ships it, electron/main.cjs picks it up), so the whole Windows experience —
+  # installer, shortcut, taskbar, window — is DRAIS-branded and consistent.
+  icon: build/icon.ico
 
 # Linux: AppImage (portable, runs anywhere) + deb. Build on Linux:
 #   npm run build:electron && npx electron-builder --linux
