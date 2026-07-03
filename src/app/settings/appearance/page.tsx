@@ -85,18 +85,12 @@ export default function AppearancePage() {
             { mode: 'dark', icon: Moon, label: 'Dark' },
             { mode: 'system', icon: Monitor, label: 'System' },
           ].map(({ mode, icon: Icon, label }) => {
-            const active = store.mode === mode || (mode === 'system' && !(store as any)._hasExplicitMode);
+            // Highlight the user's actual preference (light | dark | system).
+            const active = (store.themePreference || 'system') === mode;
             return (
               <button
                 key={mode}
-                onClick={() => {
-                  if (mode === 'system') {
-                    const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                    store.setMode(sys);
-                  } else {
-                    store.setMode(mode);
-                  }
-                }}
+                onClick={() => store.setMode(mode)}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                   active
                     ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'

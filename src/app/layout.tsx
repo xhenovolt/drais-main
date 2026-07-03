@@ -206,6 +206,21 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Anti-flicker: apply the persisted theme to <html> BEFORE first paint
+            so a dark-mode user never sees a white flash. Reads the same
+            zustand-persisted store the ThemeProvider hydrates from. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+  var raw=localStorage.getItem('drais-theme-store');
+  var pref='system';
+  if(raw){var s=(JSON.parse(raw)||{}).state||{};pref=s.themePreference||(s.mode||'system');}
+  var dark = (pref==='dark') || ((pref==='system'||!pref) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  var el=document.documentElement;
+  if(dark){el.classList.add('dark');el.dataset.themeMode='dark';}else{el.classList.remove('dark');el.dataset.themeMode='light';}
+}catch(e){}})();`,
+          }}
+        />
         <meta name="application-name" content="DRAIS" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
