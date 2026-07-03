@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { MobileDrawer } from './MobileDrawer';
 import { SubscriptionBanner } from './SubscriptionBanner';
+import { SchoolThemeApplier } from '@/components/theme/SchoolThemeApplier';
 import { useRouteValidator } from '@/hooks/useRouteValidator';
 
 interface MainLayoutProps {
@@ -33,6 +34,8 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+      {/* Apply this school's brand theme (Phase 3) as the baseline for staff UI. */}
+      <SchoolThemeApplier />
       {/* MOBILE DRAWER (full-screen, triggered by BottomNav "More") */}
       <MobileDrawer
         isOpen={mobileDrawerOpen}

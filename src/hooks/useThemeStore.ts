@@ -2,9 +2,32 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+/** Resolve the OS colour-scheme preference (SSR-safe). */
+export function resolveSystemMode(): "light" | "dark" {
+  if (typeof window === "undefined" || !window.matchMedia) return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 interface ThemeState {
+  /**
+   * RESOLVED theme actually applied to the document ("light" | "dark").
+   * Everything in the app reads this. When themePreference is "system" it
+   * tracks the OS setting live.
+   */
   mode: "light" | "dark";
+  /**
+   * The user's CHOICE: light, dark, or follow-system. Persisted. `mode` is
+   * derived from this (identity for light/dark, OS-resolved for system).
+   */
+  themePreference: "light" | "dark" | "system";
   primary: string;
+  /**
+   * Has the user explicitly picked a personal brand colour? Only then does the
+   * ThemeProvider override the token — otherwise the SCHOOL branding (or the
+   * DRAIS default) shows through. Prevents the default primary from silently
+   * clobbering a school's chosen colour for users who never customised.
+   */
+  primaryExplicit: boolean;
   gradientFrom: string;
   gradientTo: string;
   glass: boolean;
@@ -29,7 +52,12 @@ interface ThemeState {
   customizerPosX?: number;
   customizerPosY?: number;
   hydrated: boolean;
+  /** Set light|dark|system. "system" resolves `mode` from the OS now and the
+   *  provider keeps it in sync on OS changes. */
   setMode: (m: string) => void;
+  /** Re-resolve `mode` from the OS — called by the provider on matchMedia
+   *  change while themePreference === "system". */
+  syncSystemMode: () => void;
   toggleMode: () => void;
   setPrimary: (c: string) => void;
   setGradient: (f: string, t: string) => void;
@@ -60,7 +88,9 @@ interface ThemeState {
 
 const defaultState = {
   mode: "light" as const,
+  themePreference: "system" as const,
   primary: "#2563eb",
+  primaryExplicit: false,
   gradientFrom: "#2563eb",
   gradientTo: "#7c3aed",
   glass: false,
@@ -86,14 +116,28 @@ const useThemeStore = create<ThemeState>()(
     (set, get) => ({
       ...defaultState,
 
-      setMode: (m) => set({ mode: m as any }),
+      setMode: (m) => {
+        if (m === "system") {
+          set({ themePreference: "system", mode: resolveSystemMode() });
+        } else {
+          const resolved: "light" | "dark" = m === "dark" ? "dark" : "light";
+          set({ themePreference: resolved, mode: resolved });
+        }
+      },
+      syncSystemMode: () => {
+        if (get().themePreference === "system") set({ mode: resolveSystemMode() });
+      },
       toggleMode: () =>
-        set((s) => ({
-          mode: s.mode === "light" ? "dark" : "light",
-          gradientFrom: s.mode === "light" ? "#0f172a" : "#f9fafb",
-          gradientTo: s.mode === "light" ? "#172554" : "#dbeafe",
-        })),
-      setPrimary: (c) => set({ primary: c }),
+        set((s) => {
+          const next = s.mode === "light" ? "dark" : "light";
+          return {
+            mode: next,
+            themePreference: next,
+            gradientFrom: next === "dark" ? "#0f172a" : "#f9fafb",
+            gradientTo: next === "dark" ? "#172554" : "#dbeafe",
+          };
+        }),
+      setPrimary: (c) => set({ primary: c, primaryExplicit: true }),
       setGradient: (f, t) => set({ gradientFrom: f, gradientTo: t }),
       toggleGlass: () => set((s) => ({ glass: !s.glass })),
       setFontScale: (n) => set({ fontScale: n }),
@@ -140,8 +184,18 @@ const useThemeStore = create<ThemeState>()(
     }),
     {
       name: "drais-theme-store",
-      version: 2,
+      version: 3,
+      // v2 → v3: no themePreference existed. Preserve the user's current
+      // resolved theme as an explicit choice so nobody's UI flips on upgrade.
+      migrate: (persisted: any, from: number) => {
+        if (persisted && from < 3 && !persisted.themePreference) {
+          persisted.themePreference = persisted.mode === "dark" ? "dark" : "light";
+        }
+        return persisted;
+      },
       onRehydrateStorage: () => (state) => {
+        // If following the OS, resolve the concrete mode immediately on load.
+        if (state?.themePreference === "system") state.mode = resolveSystemMode();
         state?.setHydrated(true);
       },
     }
