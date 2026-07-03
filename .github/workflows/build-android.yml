@@ -44,6 +44,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # nodejs-mobile-cordova has an UNCONDITIONAL externalNativeBuild (CMake)
+      # that builds its JNI bridge to the prebuilt libnode.so, so every APK build
+      # needs the NDK + CMake. The runner image does NOT ship them, so install
+      # them explicitly (pinned to what AGP 8.13 expects) instead of relying on
+      # gradle to auto-download mid-build — which is slow and can fail on license
+      # prompts. Versions match android/app/build.gradle's ndkVersion.
+      - name: Install Android NDK + CMake
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "ndk;27.0.12077973" "cmake;3.22.1"
+
       - name: Install dependencies
         run: npm ci
 

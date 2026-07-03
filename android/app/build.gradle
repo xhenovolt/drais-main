@@ -3,6 +3,10 @@ apply plugin: 'com.android.application'
 android {
     namespace = "ug.drais.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
+    // Pin the NDK the nodejs-mobile-cordova CMake bridge needs (AGP 8.13 default).
+    // The CI workflow installs this exact version + CMake 3.22.1 so the build
+    // never depends on gradle silently auto-downloading them on the runner.
+    ndkVersion = "27.0.12077973"
     defaultConfig {
         applicationId "ug.drais.mobile"
         minSdkVersion rootProject.ext.minSdkVersion

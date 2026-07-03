@@ -4,16 +4,17 @@
  * DRAIS Android = Capacitor + nodejs-mobile-cordova. The nodejs-mobile-cordova
  * plugin is a *Cordova* plugin: its build.gradle (and its runtime asset loader)
  * require the node app at
- *     android/app/src/main/assets/www/nodejs-project/
- * i.e. the Cordova `www` convention. Capacitor, however, copies webDir into
- * `assets/public` and NEVER creates a `www` folder — so without this step gradle
- * fails at configuration time with:
+ *     android/capacitor-cordova-android-plugins/src/main/assets/www/nodejs-project/
+ * i.e. the Cordova `www` convention, resolved against the project the plugin is
+ * applied in — which is `capacitor-cordova-android-plugins`, NOT `app` (the
+ * plugin's www check uses that project's projectDir). Capacitor copies webDir
+ * into app/assets/public and NEVER creates a www folder anywhere — so without
+ * this step gradle fails at configuration time with:
  *     "nodejs-mobile-cordova couldn't find the www folder in the Android project."
  *
  * This script mirrors mobile/nodejs-project/ (produced by scripts/build-mobile.mjs)
- * into android/app/src/main/assets/www/nodejs-project/. It MUST run AFTER
- * `cap sync android` (which manages assets/public but not assets/www) and BEFORE
- * `gradlew assembleDebug`.
+ * into that www folder. It MUST run AFTER `cap sync android` (which regenerates
+ * the capacitor-cordova-android-plugins project) and BEFORE `gradlew`.
  *
  * Idempotent: the destination www/nodejs-project is removed and recopied.
  */
@@ -22,7 +23,9 @@ import path from 'node:path';
 
 const root    = process.cwd();
 const srcProj = path.join(root, 'mobile', 'nodejs-project');
-const wwwDir  = path.join(root, 'android', 'app', 'src', 'main', 'assets', 'www');
+// The plugin is applied in the capacitor-cordova-android-plugins project, so its
+// projectDir is what the www lookup resolves against.
+const wwwDir  = path.join(root, 'android', 'capacitor-cordova-android-plugins', 'src', 'main', 'assets', 'www');
 const dstProj = path.join(wwwDir, 'nodejs-project');
 
 async function copyTree(src, dst) {
