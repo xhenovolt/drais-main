@@ -42,16 +42,22 @@ export function SchoolThemeApplier() {
         if (theme.secondary_color) decls.push(`--secondary:${theme.secondary_color};`);
         if (theme.accent_color) decls.push(`--accent:${theme.accent_color};`);
         if (theme.border_radius && RADIUS[theme.border_radius]) decls.push(`--radius:${RADIUS[theme.border_radius]};`);
-        // Glass off → collapse the glass tokens to solid so surfaces stay readable.
-        if (theme.glass_enabled === 0 || theme.glass_enabled === false) {
-          decls.push('--glass-blur:0px;--glass-bg:transparent;--glass-border:none;');
-        }
 
         const css = decls.length ? `:root,html.dark{${decls.join('')}}` : '';
         let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
-        if (!css) { el?.remove(); return; }
-        if (!el) { el = document.createElement('style'); el.id = STYLE_ID; document.head.appendChild(el); }
-        el.textContent = css;
+        if (css) {
+          if (!el) { el = document.createElement('style'); el.id = STYLE_ID; document.head.appendChild(el); }
+          el.textContent = css;
+        } else {
+          el?.remove();
+        }
+        // School glass preference: only a default (Phase 6 policy keeps glass
+        // readable + reversible). Apply it as data-glass so a school that turns
+        // glass off gets solid surfaces; the personal toggle (ThemeProvider) is
+        // set after hydration and takes precedence for that user.
+        if (theme.glass_enabled === 0 || theme.glass_enabled === false) {
+          if (!document.documentElement.dataset.glass) document.documentElement.dataset.glass = 'off';
+        }
       } catch { /* network/parse — keep default theme */ }
     })();
     return () => { cancelled = true; };

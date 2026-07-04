@@ -69,9 +69,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.style.setProperty("--gradient-from", store.gradientFrom);
     root.style.setProperty("--gradient-to", store.gradientTo);
     root.style.setProperty("--font-scale", store.fontScale.toString());
-    root.style.setProperty("--glass-blur", store.glass ? "12px" : "0px");
-    root.style.setProperty("--glass-bg", store.glass ? "hsla(0,0%,100%,0.15)" : "transparent");
-    root.style.setProperty("--glass-border", store.glass ? "1px solid rgba(255,255,255,0.2)" : "none");
+    // Phase 6 — glass policy lives in globals.css (readable tint + solid
+    // fallback). Just toggle the data-glass flag; don't hardcode colours here
+    // (the old code set the surface transparent when off, making it vanish).
+    root.dataset.glass = store.glass ? 'on' : 'off';
     if (store.fontFamily) root.style.setProperty('--app-font-family', store.fontFamily);
     // Border radius from appearance settings
     const br = (store as any).borderRadius || 'lg';

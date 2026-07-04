@@ -61,10 +61,20 @@
   --gradient-to: #dbeafe;
   --font-scale: 1;
 
-  /* Glass (governed by Phase 6 policy) */
+  /* Glass — Phase 6 policy: a translucent tint over the SOLID card colour (so
+     text stays readable), a VISIBLE themed border, and a solid fallback when the
+     browser can't blur or glass is disabled. Never a bare low-alpha white. */
   --glass-blur: 12px;
-  --glass-bg: hsla(0,0%,100%,0.15);
-  --glass-border: 1px solid rgba(255,255,255,0.15);
+  --glass-opacity: 0.72;
+  --glass-bg: color-mix(in srgb, var(--card) calc(var(--glass-opacity) * 100%), transparent);
+  --glass-border: 1px solid var(--border);
+}
+
+/* Glass disabled → collapse to a solid, fully-readable card surface. Set by the
+   ThemeProvider (personal) / SchoolThemeApplier (school) via data-glass. */
+html[data-glass='off'] {
+  --glass-blur: 0px;
+  --glass-bg: var(--card);
 }
 
 /* Dark overrides — driven by the in-app `.dark` class, NOT the OS, so a user
@@ -232,7 +242,24 @@ html[dir="rtl"] [data-no-mirror] {
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }
 .custom-scroll::-webkit-scrollbar-thumb { background: linear-gradient(var(--gradient-from), var(--gradient-to)); border-radius: 999px; }
 
-.glass-panel { backdrop-filter: blur(var(--glass-blur)); background: var(--glass-bg); border: var(--glass-border); }
+/* Phase 6 — the one sanctioned glass surface. Prefer this over ad-hoc
+   `backdrop-blur + bg-white/xx` so every translucent surface stays readable and
+   degrades to a solid card where blur is unsupported or glass is off.
+   `.glass-panel` is kept as an alias for the pre-existing callers. */
+.glass-surface,
+.glass-panel {
+  background-color: var(--card);        /* solid fallback (no @supports / no blur) */
+  border: var(--glass-border);
+  border-radius: var(--radius);
+}
+@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .glass-surface,
+  .glass-panel {
+    background-color: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+  }
+}
 
 [data-sidebar][data-collapsed='true'] { --sidebar-width: 5rem; }
 
