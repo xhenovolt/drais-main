@@ -22,7 +22,7 @@ interface StudentStatsCardProps {
 export default function StudentStatsCard({ stats, loading = false }: StudentStatsCardProps) {
   if (loading) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+      <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="animate-pulse">
@@ -76,8 +76,8 @@ export default function StudentStatsCard({ stats, loading = false }: StudentStat
   ];
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
-      <h3 className="text-lg font-semibold text-slate-800 mb-6 flex items-center">
+    <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+      <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center">
         <Award className="w-5 h-5 mr-2" />
         Student Statistics
       </h3>
@@ -100,11 +100,11 @@ export default function StudentStatsCard({ stats, loading = false }: StudentStat
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: index * 0.1 + 0.2, type: "spring", stiffness: 200 }}
-                  className="text-2xl font-bold text-slate-800"
+                  className="text-2xl font-bold text-foreground"
                 >
                   {typeof item.value === 'string' ? item.value : item.value.toLocaleString()}
                 </motion.div>
-                <p className="text-sm text-slate-600">{item.label}</p>
+                <p className="text-sm text-muted-foreground">{item.label}</p>
               </div>
             </div>
             
@@ -126,23 +126,23 @@ export default function StudentStatsCard({ stats, loading = false }: StudentStat
       </div>
       
       {/* Additional details */}
-      <div className="mt-6 pt-6 border-t border-slate-200">
+      <div className="mt-6 pt-6 border-t border-border">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div className="text-center">
-            <div className="font-semibold text-slate-800">{stats.completed}</div>
-            <div className="text-slate-600">Completed</div>
+            <div className="font-semibold text-foreground">{stats.completed}</div>
+            <div className="text-muted-foreground">Completed</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-slate-800">{stats.inactive}</div>
-            <div className="text-slate-600">Inactive</div>
+            <div className="font-semibold text-foreground">{stats.inactive}</div>
+            <div className="text-muted-foreground">Inactive</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-slate-800">{stats.withoutGroups}</div>
-            <div className="text-slate-600">No Group</div>
+            <div className="font-semibold text-foreground">{stats.withoutGroups}</div>
+            <div className="text-muted-foreground">No Group</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-slate-800">{stats.deleted}</div>
-            <div className="text-slate-600">Archived</div>
+            <div className="font-semibold text-foreground">{stats.deleted}</div>
+            <div className="text-muted-foreground">Archived</div>
           </div>
         </div>
       </div>

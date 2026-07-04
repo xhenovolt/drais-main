@@ -109,22 +109,22 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+            <div className="flex items-center justify-between p-6 border-b border-border">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
                   <BookOpen className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800">Add New Book</h2>
-                  <p className="text-sm text-slate-600">Add a new book to your Tahfiz library</p>
+                  <h2 className="text-xl font-bold text-foreground">Add New Book</h2>
+                  <p className="text-sm text-muted-foreground">Add a new book to your Tahfiz library</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                className="p-2 hover:bg-muted rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -134,11 +134,11 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Cover Image Upload */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   <ImageIcon className="w-4 h-4 inline mr-1" />
                   Book Cover
                 </label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
+                <div className="border-2 border-dashed border-border rounded-xl p-6 text-center">
                   {coverPreview ? (
                     <div className="relative inline-block">
                       <img 
@@ -156,8 +156,8 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
                     </div>
                   ) : (
                     <div>
-                      <ImageIcon className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-                      <p className="text-slate-600 mb-2">Upload book cover image</p>
+                      <ImageIcon className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground mb-2">Upload book cover image</p>
                       <button
                         type="button"
                         onClick={() => imageInputRef.current?.click()}
@@ -180,7 +180,7 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
               {/* Basic Info */}
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Book Title *
                   </label>
                   <input
@@ -188,12 +188,12 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="e.g., The Holy Quran, Tuhfat Al-Atfal"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Description
                   </label>
                   <textarea
@@ -201,7 +201,7 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Brief description of the book content..."
                     rows={3}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 resize-none"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 resize-none"
                   />
                 </div>
               </div>
@@ -209,7 +209,7 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
               {/* Units Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Total Units *
                   </label>
                   <input
@@ -218,18 +218,18 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
                     onChange={(e) => setFormData({ ...formData, total_units: e.target.value })}
                     placeholder="e.g., 114, 604"
                     min="1"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Unit Type *
                   </label>
                   <select
                     value={formData.unit_type}
                     onChange={(e) => setFormData({ ...formData, unit_type: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                   >
                     <option value="verse">Verse</option>
                     <option value="page">Page</option>
@@ -241,18 +241,18 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
 
               {/* PDF Upload */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   <FileText className="w-4 h-4 inline mr-1" />
                   PDF File (Optional)
                 </label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
+                <div className="border-2 border-dashed border-border rounded-xl p-6 text-center">
                   {pdfFile ? (
                     <div className="flex items-center justify-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <FileText className="w-8 h-8 text-red-500" />
                         <div className="text-left">
-                          <p className="font-medium text-slate-800">{pdfFile.name}</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="font-medium text-foreground">{pdfFile.name}</p>
+                          <p className="text-sm text-muted-foreground">
                             {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
@@ -267,8 +267,8 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
                     </div>
                   ) : (
                     <div>
-                      <FileText className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-                      <p className="text-slate-600 mb-2">Upload PDF file for digital reference</p>
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground mb-2">Upload PDF file for digital reference</p>
                       <button
                         type="button"
                         onClick={() => pdfInputRef.current?.click()}
@@ -289,11 +289,11 @@ export default function AddBookModal({ isOpen, onClose, onSuccess, schoolId }: A
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+                  className="px-6 py-3 border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>

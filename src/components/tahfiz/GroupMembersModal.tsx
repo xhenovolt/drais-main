@@ -253,7 +253,7 @@ function GroupMembersModalContent({
       case 'assistant':
         return <Shield className="w-4 h-4 text-blue-500" />;
       default:
-        return <User className="w-4 h-4 text-slate-400" />;
+        return <User className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -283,29 +283,29 @@ function GroupMembersModalContent({
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+            <div className="flex items-center justify-between p-6 border-b border-border">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                   <Users className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800">Manage Group Members</h2>
-                  <p className="text-sm text-slate-600">{group.name} • {members.length} member{members.length !== 1 ? 's' : ''}</p>
+                  <h2 className="text-xl font-bold text-foreground">Manage Group Members</h2>
+                  <p className="text-sm text-muted-foreground">{group.name} • {members.length} member{members.length !== 1 ? 's' : ''}</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                className="p-2 hover:bg-muted rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-slate-200">
+            <div className="flex border-b border-border">
               {
               [{
                 id: 'members',
@@ -329,7 +329,7 @@ function GroupMembersModalContent({
                   className={`flex-1 px-6 py-4 text-sm font-medium flex items-center justify-center space-x-2 transition-colors ${
                     activeTab === tab.id
                       ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50'
-                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   <tab.icon className="w-4 h-4" />
@@ -343,19 +343,19 @@ function GroupMembersModalContent({
               {/* Search - Fixed at top */}
               <div className="flex-shrink-0 p-6 pb-4 border-b border-slate-100">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <input
                     type="text"
                     placeholder={`Search ${activeTab === 'members' ? 'members' : 'students'}...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 
                 {/* Search Results Count */}
                 {searchTerm && (
-                  <div className="mt-2 text-sm text-slate-600">
+                  <div className="mt-2 text-sm text-muted-foreground">
                     {activeTab === 'members' 
                       ? `${filteredMembers.length} of ${members.length} members`
                       : `${filteredAvailableStudents.length} of ${availableStudents.length} students`
@@ -373,12 +373,12 @@ function GroupMembersModalContent({
                       {loading ? (
                         <div className="text-center py-8">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                          <p className="text-slate-500 mt-2">Loading members...</p>
+                          <p className="text-muted-foreground mt-2">Loading members...</p>
                         </div>
                       ) : filteredMembers.length === 0 ? (
                         <div className="text-center py-8">
-                          <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                          <p className="text-slate-600">
+                          <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">
                             {searchTerm ? 'No members match your search' : 'No members found'}
                           </p>
                         </div>
@@ -388,7 +388,7 @@ function GroupMembersModalContent({
                             key={member.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                            className="flex items-center justify-between p-4 border border-border rounded-xl hover:bg-muted transition-colors"
                           >
                             <div className="flex items-center space-x-3 flex-1 min-w-0">
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
@@ -400,13 +400,13 @@ function GroupMembersModalContent({
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2">
-                                  <h3 className="font-semibold text-slate-800 truncate">
+                                  <h3 className="font-semibold text-foreground truncate">
                                     {member.first_name} {member.last_name}
                                   </h3>
                                   {getRoleIcon(member.role)}
                                 </div>
-                                <p className="text-sm text-slate-500 truncate">{member.admission_no}</p>
-                                <p className="text-xs text-slate-400">
+                                <p className="text-sm text-muted-foreground truncate">{member.admission_no}</p>
+                                <p className="text-xs text-muted-foreground">
                                   Joined {new Date(member.joined_at).toLocaleDateString()}
                                 </p>
                               </div>
@@ -461,18 +461,18 @@ function GroupMembersModalContent({
                       <div className="flex-1 overflow-y-auto">
                         {filteredAvailableStudents.length === 0 ? (
                           <div className="text-center py-8">
-                            <UserPlus className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                            <p className="text-slate-600">
+                            <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground">
                               {searchTerm ? 'No students match your search' : 'No available students'}
                             </p>
-                            <p className="text-sm text-slate-500">
+                            <p className="text-sm text-muted-foreground">
                               {searchTerm ? 'Try adjusting your search terms' : 'All students are already assigned to groups'}
                             </p>
                           </div>
                         ) : (
                           <div className="space-y-2">
                             {/* Select All Checkbox */}
-                            <div className="flex items-center p-3 bg-slate-50 rounded-lg border sticky top-0 z-10">
+                            <div className="flex items-center p-3 bg-muted rounded-lg border sticky top-0 z-10">
                               <input
                                 type="checkbox"
                                 id="select-all"
@@ -484,9 +484,9 @@ function GroupMembersModalContent({
                                     setSelectedStudents([]);
                                   }
                                 }}
-                                className="w-4 h-4 text-blue-600 bg-white border-slate-300 rounded focus:ring-blue-500 focus:ring-2"
+                                className="w-4 h-4 text-blue-600 bg-card border-border rounded focus:ring-blue-500 focus:ring-2"
                               />
-                              <label htmlFor="select-all" className="ml-3 text-sm font-medium text-slate-700">
+                              <label htmlFor="select-all" className="ml-3 text-sm font-medium text-foreground">
                                 {selectedStudents.length === filteredAvailableStudents.length && filteredAvailableStudents.length > 0
                                   ? `Deselect all (${filteredAvailableStudents.length})`
                                   : `Select all (${filteredAvailableStudents.length})`
@@ -498,10 +498,10 @@ function GroupMembersModalContent({
                             {filteredAvailableStudents.map((student, index) => (
                               <div
                                 key={student.id}
-                                className={`flex items-center p-3 border rounded-lg transition-all hover:bg-slate-50 ${
+                                className={`flex items-center p-3 border rounded-lg transition-all hover:bg-muted ${
                                   selectedStudents.includes(student.id)
                                     ? 'border-blue-500 bg-blue-50'
-                                    : 'border-slate-200'
+                                    : 'border-border'
                                 }`}
                               >
                                 <input
@@ -515,7 +515,7 @@ function GroupMembersModalContent({
                                       setSelectedStudents(prev => prev.filter(id => id !== student.id));
                                     }
                                   }}
-                                  className="w-4 h-4 text-blue-600 bg-white border-slate-300 rounded focus:ring-blue-500 focus:ring-2"
+                                  className="w-4 h-4 text-blue-600 bg-card border-border rounded focus:ring-blue-500 focus:ring-2"
                                 />
                                 
                                 <label 
@@ -530,10 +530,10 @@ function GroupMembersModalContent({
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold text-slate-800 truncate">
+                                    <h3 className="font-semibold text-foreground truncate">
                                       {student.first_name} {student.last_name}
                                     </h3>
-                                    <p className="text-sm text-slate-500 truncate">{student.admission_no}</p>
+                                    <p className="text-sm text-muted-foreground truncate">{student.admission_no}</p>
                                   </div>
                                 </label>
                               </div>
@@ -549,11 +549,11 @@ function GroupMembersModalContent({
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-2">From Group</label>
+                          <label className="block text-sm font-medium text-foreground mb-2">From Group</label>
                           <select
                             value={transferFromGroup}
                             onChange={(e) => setTransferFromGroup(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             <option value="">Select source group</option>
                             {allGroups.map((g) => (
@@ -564,11 +564,11 @@ function GroupMembersModalContent({
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-2">To Group</label>
+                          <label className="block text-sm font-medium text-foreground mb-2">To Group</label>
                           <select
                             value={transferToGroup}
                             onChange={(e) => setTransferToGroup(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             <option value="">Select destination group</option>
                             {allGroups.map((g) => (
@@ -582,13 +582,13 @@ function GroupMembersModalContent({
 
                       {transferFromGroup && (
                         <div className="space-y-3">
-                          <h3 className="text-sm font-medium text-slate-700">
+                          <h3 className="text-sm font-medium text-foreground">
                             Select students to transfer:
                           </h3>
                           {/* This would show members of the selected "from" group */}
                           <div className="text-center py-8">
-                            <ArrowRightLeft className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                            <p className="text-slate-600">Select both groups to see transfer options</p>
+                            <ArrowRightLeft className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground">Select both groups to see transfer options</p>
                           </div>
                         </div>
                       )}
@@ -599,10 +599,10 @@ function GroupMembersModalContent({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-slate-200">
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-border">
               <button
                 onClick={onClose}
-                className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-6 py-2 border border-border text-foreground rounded-lg hover:bg-muted transition-colors"
               >
                 Close
               </button>

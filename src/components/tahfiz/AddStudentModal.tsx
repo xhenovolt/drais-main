@@ -149,22 +149,22 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
           >
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-800">Add New Student</h2>
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="text-2xl font-bold text-foreground">Add New Student</h2>
               <button
                 onClick={handleClose}
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
               >
-                <X className="w-5 h-5 text-slate-500" />
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     First Name *
                   </label>
                   <input
@@ -172,7 +172,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                     value={formData.first_name}
                     onChange={(e) => handleChange('first_name', e.target.value)}
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                      errors.first_name ? 'border-red-300' : 'border-slate-300'
+                      errors.first_name ? 'border-red-300' : 'border-border'
                     }`}
                     placeholder="Enter first name"
                   />
@@ -182,7 +182,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Last Name *
                   </label>
                   <input
@@ -190,7 +190,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                     value={formData.last_name}
                     onChange={(e) => handleChange('last_name', e.target.value)}
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                      errors.last_name ? 'border-red-300' : 'border-slate-300'
+                      errors.last_name ? 'border-red-300' : 'border-border'
                     }`}
                     placeholder="Enter last name"
                   />
@@ -200,7 +200,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Phone
                   </label>
                   <input
@@ -208,7 +208,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                     value={formData.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                      errors.phone ? 'border-red-300' : 'border-slate-300'
+                      errors.phone ? 'border-red-300' : 'border-border'
                     }`}
                     placeholder="Enter phone number"
                   />
@@ -218,7 +218,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Email
                   </label>
                   <input
@@ -226,7 +226,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                     value={formData.email}
                     onChange={(e) => handleChange('email', e.target.value)}
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                      errors.email ? 'border-red-300' : 'border-slate-300'
+                      errors.email ? 'border-red-300' : 'border-border'
                     }`}
                     placeholder="Enter email address"
                   />
@@ -236,26 +236,26 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Admission Number
                   </label>
                   <input
                     type="text"
                     value={formData.admission_no}
                     onChange={(e) => handleChange('admission_no', e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                     placeholder="Enter admission number"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Tahfiz Group
                   </label>
                   <select
                     value={formData.group_id}
                     onChange={(e) => handleChange('group_id', e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                     disabled={groupsLoading}
                   >
                     <option value="">Select a group (optional)</option>
@@ -266,18 +266,18 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                     ))}
                   </select>
                   {groupsLoading && (
-                    <p className="text-slate-500 text-sm mt-1">Loading groups...</p>
+                    <p className="text-muted-foreground text-sm mt-1">Loading groups...</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Status
                   </label>
                   <select
                     value={formData.status}
                     onChange={(e) => handleChange('status', e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -287,14 +287,14 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Notes
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => handleChange('notes', e.target.value)}
                   rows={4}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                   placeholder="Enter any additional notes..."
                 />
               </div>
@@ -303,7 +303,7 @@ export default function AddStudentModal({ isOpen, onClose, onSuccess, schoolId }
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+                  className="px-6 py-3 border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
                   disabled={loading}
                 >
                   Cancel

@@ -48,7 +48,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
       case 'review':
         return <BookOpen className="w-4 h-4 text-purple-600" />;
       default:
-        return <AlertCircle className="w-4 h-4 text-gray-600" />;
+        return <AlertCircle className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -63,7 +63,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
       case 'review':
         return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -138,10 +138,10 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        className="bg-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-blue-50">
+        <div className="flex items-center justify-between p-6 border-b border-border bg-gradient-to-r from-emerald-50 to-blue-50">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-xl overflow-hidden">
               {mockData.student.avatar ? (
@@ -155,16 +155,16 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
               )}
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{mockData.student.name}</h2>
-              <p className="text-gray-600">
+              <h2 className="text-2xl font-bold text-foreground">{mockData.student.name}</h2>
+              <p className="text-muted-foreground">
                 {mockData.student.admission_no} • {mockData.student.group_name}
               </p>
-              <p className="text-sm text-gray-500">Teacher: {mockData.student.teacher_name}</p>
+              <p className="text-sm text-muted-foreground">Teacher: {mockData.student.teacher_name}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
@@ -173,46 +173,46 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
         {/* Content */}
         <div className="flex h-[calc(90vh-120px)]">
           {/* Summary Sidebar */}
-          <div className="w-80 bg-gray-50 p-6 overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="w-80 bg-muted p-6 overflow-y-auto">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
               <TrendingUp className="w-5 h-5 mr-2" />
               Progress Summary
             </h3>
             
             <div className="space-y-4">
               {/* Overall Stats */}
-              <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="bg-card rounded-lg p-4 shadow-sm">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-emerald-600">
                       {mockData.summary.completed_portions}
                     </div>
-                    <div className="text-xs text-gray-500">Completed</div>
+                    <div className="text-xs text-muted-foreground">Completed</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">
                       {mockData.summary.in_progress_portions}
                     </div>
-                    <div className="text-xs text-gray-500">In Progress</div>
+                    <div className="text-xs text-muted-foreground">In Progress</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
                       {mockData.summary.total_verses}
                     </div>
-                    <div className="text-xs text-gray-500">Total Verses</div>
+                    <div className="text-xs text-muted-foreground">Total Verses</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-amber-600">
                       {mockData.summary.average_mark}%
                     </div>
-                    <div className="text-xs text-gray-500">Avg Mark</div>
+                    <div className="text-xs text-muted-foreground">Avg Mark</div>
                   </div>
                 </div>
               </div>
 
               {/* Performance Metrics */}
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <h4 className="font-medium text-gray-900 mb-3">Performance</h4>
+              <div className="bg-card rounded-lg p-4 shadow-sm">
+                <h4 className="font-medium text-foreground mb-3">Performance</h4>
                 <div className="space-y-3">
                   <div>
                     <div className="flex justify-between text-sm mb-1">
@@ -242,9 +242,9 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <h4 className="font-medium text-gray-900 mb-2">Last Activity</h4>
-                <p className="text-sm text-gray-600">
+              <div className="bg-card rounded-lg p-4 shadow-sm">
+                <h4 className="font-medium text-foreground mb-2">Last Activity</h4>
+                <p className="text-sm text-muted-foreground">
                   {formatDate(mockData.summary.last_activity)}
                 </p>
               </div>
@@ -253,7 +253,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
 
           {/* Timeline */}
           <div className="flex-1 p-6 overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+            <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center">
               <Calendar className="w-5 h-5 mr-2" />
               Portion History
             </h3>
@@ -261,7 +261,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-gray-100 rounded-lg p-4 animate-pulse">
+                  <div key={i} className="bg-muted rounded-lg p-4 animate-pulse">
                     <div className="h-4 bg-gray-200 rounded w-1/3 mb-2" />
                     <div className="h-3 bg-gray-200 rounded w-1/2 mb-2" />
                     <div className="h-3 bg-gray-200 rounded w-1/4" />
@@ -279,20 +279,20 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                     
                     <div className="flex items-start space-x-4">
                       {/* Status indicator */}
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 bg-white ${getStatusColor(portion.status)}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 bg-card ${getStatusColor(portion.status)}`}>
                         {getStatusIcon(portion.status)}
                       </div>
                       
                       {/* Content */}
-                      <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                      <div className="flex-1 bg-card rounded-lg border border-border p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-gray-900">{portion.portion_name}</h4>
+                          <h4 className="font-semibold text-foreground">{portion.portion_name}</h4>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(portion.status)}`}>
                             {portion.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
+                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-4">
                           <div>
                             <span className="font-medium">Assigned:</span> {formatDate(portion.assigned_at)}
                           </div>
@@ -321,15 +321,15 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                         {/* Records */}
                         {portion.records && portion.records.length > 0 && (
                           <div className="border-t border-gray-100 pt-4">
-                            <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                            <h5 className="font-medium text-foreground mb-3 flex items-center">
                               <Award className="w-4 h-4 mr-1" />
                               Presentation Records
                             </h5>
                             <div className="space-y-3">
                               {portion.records.map((record) => (
-                                <div key={record.id} className="bg-gray-50 rounded-lg p-3">
+                                <div key={record.id} className="bg-muted rounded-lg p-3">
                                   <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-gray-900">
+                                    <span className="text-sm font-medium text-foreground">
                                       {formatDate(record.date)}
                                     </span>
                                     <div className="flex items-center space-x-2">
@@ -345,11 +345,11 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                                       )}
                                     </div>
                                   </div>
-                                  <div className="text-sm text-gray-600 mb-2">
+                                  <div className="text-sm text-muted-foreground mb-2">
                                     Presented: {record.presented_length} verses
                                   </div>
                                   {record.notes && (
-                                    <div className="text-sm text-gray-600 italic">
+                                    <div className="text-sm text-muted-foreground italic">
                                       &ldquo;{record.notes}&rdquo;
                                     </div>
                                   )}

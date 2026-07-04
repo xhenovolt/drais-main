@@ -216,19 +216,19 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Assign Portion</h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <h2 className="text-xl font-semibold text-foreground">Assign Portion</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Step {step} of 3 - {step === 1 ? 'Select Target' : step === 2 ? 'Choose Book & Portion' : 'Confirm Details'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -240,14 +240,14 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
             <div className="space-y-6">
               {/* Target Type Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Assign to:</label>
+                <label className="block text-sm font-medium text-foreground mb-3">Assign to:</label>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => setTargetType('individual')}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       targetType === 'individual'
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                        : 'border-gray-200 hover:border-gray-300'
+                        : 'border-border hover:border-border'
                     }`}
                   >
                     <User className="w-6 h-6 mx-auto mb-2" />
@@ -258,7 +258,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
                     className={`p-4 rounded-lg border-2 transition-all ${
                       targetType === 'group'
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                        : 'border-gray-200 hover:border-gray-300'
+                        : 'border-border hover:border-border'
                     }`}
                   >
                     <Users className="w-6 h-6 mx-auto mb-2" />
@@ -270,27 +270,27 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
               {/* Individual Student Selection */}
               {targetType === 'individual' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-foreground mb-3">
                     Select Students ({selectedStudents.length} selected)
                   </label>
                   
                   {/* Search */}
                   <div className="relative mb-4">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <input
                       type="text"
                       placeholder="Search students..."
                       value={studentSearch}
                       onChange={(e) => setStudentSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
                   </div>
 
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                  <div className="max-h-64 overflow-y-auto border border-border rounded-lg">
                     {filteredStudents.map((student: any) => (
                       <div
                         key={student.id}
-                        className="flex items-center p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                        className="flex items-center p-3 hover:bg-muted border-b border-gray-100 last:border-b-0"
                       >
                         <input
                           type="checkbox"
@@ -302,11 +302,11 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
                               setSelectedStudents(selectedStudents.filter(id => id !== student.id));
                             }
                           }}
-                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          className="rounded border-border text-emerald-600 focus:ring-emerald-500"
                         />
                         <div className="ml-3 flex-1">
-                          <p className="font-medium text-gray-900">{student.name}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="font-medium text-foreground">{student.name}</p>
+                          <p className="text-sm text-muted-foreground">
                             {student.admission_no} • {student.group_name || 'No Group'}
                           </p>
                         </div>
@@ -319,11 +319,11 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
               {/* Group Selection */}
               {targetType === 'group' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Select Group</label>
+                  <label className="block text-sm font-medium text-foreground mb-3">Select Group</label>
                   <select
                     value={selectedGroup || ''}
                     onChange={(e) => setSelectedGroup(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   >
                     <option value="">Choose a group...</option>
                     {groups.map((group: any) => (
@@ -341,11 +341,11 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
             <div className="space-y-6">
               {/* Book Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Book (Optional)</label>
+                <label className="block text-sm font-medium text-foreground mb-3">Book (Optional)</label>
                 <select
                   value={selectedBook || ''}
                   onChange={(e) => setSelectedBook(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 >
                   <option value="">No specific book</option>
                   {books.map((book: any) => (
@@ -358,7 +358,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
 
               {/* Portion Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Portion Type</label>
+                <label className="block text-sm font-medium text-foreground mb-3">Portion Type</label>
                 <div className="grid grid-cols-3 gap-4">
                   {[
                     { value: 'ayah', label: 'By Ayah', icon: BookOpen },
@@ -371,7 +371,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
                       className={`p-3 rounded-lg border-2 transition-all ${
                         portionType === value
                           ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-border hover:border-border'
                       }`}
                     >
                       <Icon className="w-5 h-5 mx-auto mb-1" />
@@ -385,11 +385,11 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
               {portionType === 'ayah' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Surah</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Surah</label>
                     <select
                       value={surahName}
                       onChange={(e) => setSurahName(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     >
                       <option value="">Select Surah...</option>
                       {surahs.map((surah, index) => (
@@ -401,34 +401,34 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">From Ayah</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">From Ayah</label>
                       <input
                         type="number"
                         min="1"
                         value={ayahFrom}
                         onChange={(e) => setAyahFrom(e.target.value ? Number(e.target.value) : '')}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">To Ayah</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">To Ayah</label>
                       <input
                         type="number"
                         min="1"
                         value={ayahTo}
                         onChange={(e) => setAyahTo(e.target.value ? Number(e.target.value) : '')}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Juz (Optional)</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">Juz (Optional)</label>
                       <input
                         type="number"
                         min="1"
                         max="30"
                         value={juzNumber}
                         onChange={(e) => setJuzNumber(e.target.value ? Number(e.target.value) : '')}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -439,23 +439,23 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
               {portionType === 'page' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">From Page</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">From Page</label>
                     <input
                       type="number"
                       min="1"
                       value={pageFrom}
                       onChange={(e) => setPageFrom(e.target.value ? Number(e.target.value) : '')}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">To Page</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">To Page</label>
                     <input
                       type="number"
                       min="1"
                       value={pageTo}
                       onChange={(e) => setPageTo(e.target.value ? Number(e.target.value) : '')}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -463,13 +463,13 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
 
               {/* Custom portion name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Portion Name</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Portion Name</label>
                 <input
                   type="text"
                   value={portionName}
                   onChange={(e) => setPortionName(e.target.value)}
                   placeholder="Enter portion name..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -479,7 +479,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
             <div className="space-y-6">
               {/* Portion Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Portion Type</label>
+                <label className="block text-sm font-medium text-foreground mb-3">Portion Type</label>
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     { value: 'hifz', label: 'Hifz', color: 'emerald' },
@@ -493,7 +493,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
                       className={`p-2 rounded-lg text-sm font-medium transition-all ${
                         portionTypeCategory === value
                           ? `bg-${color}-100 text-${color}-700 border-2 border-${color}-500`
-                          : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-gray-300'
+                          : 'bg-muted text-foreground border-2 border-border hover:border-border'
                       }`}
                     >
                       {label}
@@ -504,7 +504,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
 
               {/* Difficulty Level */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Difficulty Level</label>
+                <label className="block text-sm font-medium text-foreground mb-3">Difficulty Level</label>
                 <div className="grid grid-cols-3 gap-4">
                   {[
                     { value: 'easy', label: 'Easy', color: 'green' },
@@ -517,7 +517,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
                       className={`p-3 rounded-lg border-2 transition-all ${
                         difficultyLevel === value
                           ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-border hover:border-border'
                       }`}
                     >
                       <span className="font-medium">{label}</span>
@@ -528,7 +528,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
 
               {/* Estimated Days */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Estimated Days: {estimatedDays}
                 </label>
                 <input
@@ -539,7 +539,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
                   onChange={(e) => setEstimatedDays(Number(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
                   <span>1 day</span>
                   <span>30 days</span>
                 </div>
@@ -547,20 +547,20 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Notes (Optional)</label>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add any additional notes or instructions..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
 
               {/* Summary */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-2">Assignment Summary</h4>
-                <div className="space-y-1 text-sm text-gray-600">
+              <div className="bg-muted rounded-lg p-4">
+                <h4 className="font-medium text-foreground mb-2">Assignment Summary</h4>
+                <div className="space-y-1 text-sm text-muted-foreground">
                   <p><span className="font-medium">Target:</span> {
                     targetType === 'individual' 
                       ? `${selectedStudents.length} student(s)`
@@ -577,12 +577,12 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 bg-gray-50 rounded-b-2xl">
+        <div className="flex items-center justify-between p-6 bg-muted rounded-b-2xl">
           <div>
             {step > 1 && (
               <button
                 onClick={() => setStep(step - 1)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium"
               >
                 Back
               </button>
@@ -592,7 +592,7 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
           <div className="flex items-center space-x-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+              className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium"
             >
               Cancel
             </button>

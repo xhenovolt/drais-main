@@ -66,7 +66,7 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
   const getStatusBadge = (status: string) => {
     const styles = {
       active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      inactive: 'bg-gray-100 text-gray-700 border-gray-200',
+      inactive: 'bg-muted text-foreground border-border',
       completed: 'bg-blue-100 text-blue-700 border-blue-200',
       deleted: 'bg-red-100 text-red-700 border-red-200'
     };
@@ -99,15 +99,15 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
           >
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-800">Student Details</h2>
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="text-2xl font-bold text-foreground">Student Details</h2>
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
               >
-                <X className="w-5 h-5 text-slate-500" />
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
@@ -140,8 +140,8 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
                       )}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-slate-800">{student.name}</h3>
-                      <p className="text-slate-600">{student.admission_no || 'No admission number'}</p>
+                      <h3 className="text-xl font-bold text-foreground">{student.name}</h3>
+                      <p className="text-muted-foreground">{student.admission_no || 'No admission number'}</p>
                       <div className="mt-2">
                         <span className={getStatusBadge(student.status)}>
                           {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
@@ -152,14 +152,14 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
 
                   {/* Progress Section */}
                   <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-2xl p-6">
-                    <h4 className="font-semibold text-slate-800 mb-4 flex items-center">
+                    <h4 className="font-semibold text-foreground mb-4 flex items-center">
                       <BookOpen className="w-5 h-5 mr-2" />
                       Memorization Progress
                     </h4>
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-600">Completed Verses</span>
-                        <span className="font-semibold text-slate-800">
+                        <span className="text-muted-foreground">Completed Verses</span>
+                        <span className="font-semibold text-foreground">
                           {student.completed_verses} / {student.total_verses}
                         </span>
                       </div>
@@ -173,7 +173,7 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
                       </div>
                       <div className="text-center">
                         <span className="text-2xl font-bold text-emerald-600">{calculateProgress()}%</span>
-                        <p className="text-sm text-slate-600">Progress Complete</p>
+                        <p className="text-sm text-muted-foreground">Progress Complete</p>
                       </div>
                     </div>
                   </div>
@@ -181,22 +181,22 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
                   {/* Contact Information */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                      <h4 className="font-semibold text-slate-800 flex items-center">
+                      <h4 className="font-semibold text-foreground flex items-center">
                         <User className="w-5 h-5 mr-2" />
                         Contact Information
                       </h4>
                       <div className="space-y-3">
                         <div className="flex items-center space-x-3">
-                          <Phone className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-700">{student.phone || 'No phone number'}</span>
+                          <Phone className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-foreground">{student.phone || 'No phone number'}</span>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Mail className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-700">{student.email || 'No email address'}</span>
+                          <Mail className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-foreground">{student.email || 'No email address'}</span>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Calendar className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-700">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-foreground">
                             Admitted: {formatDate(student.admission_date)}
                           </span>
                         </div>
@@ -204,26 +204,26 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
                     </div>
 
                     <div className="space-y-4">
-                      <h4 className="font-semibold text-slate-800 flex items-center">
+                      <h4 className="font-semibold text-foreground flex items-center">
                         <Activity className="w-5 h-5 mr-2" />
                         Academic Information
                       </h4>
                       <div className="space-y-3">
                         <div className="flex items-center space-x-3">
-                          <Users className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-700">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-foreground">
                             Group: {student.group_name || 'No group assigned'}
                           </span>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Clock className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-700">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-foreground">
                             Last Session: {formatDate(student.last_session)}
                           </span>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Award className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-700">
+                          <Award className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-foreground">
                             Student ID: #{student.id}
                           </span>
                         </div>
@@ -234,16 +234,16 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
                   {/* Notes Section */}
                   {student.notes && (
                     <div>
-                      <h4 className="font-semibold text-slate-800 mb-3">Notes</h4>
-                      <div className="bg-slate-50 rounded-lg p-4">
-                        <p className="text-slate-700 whitespace-pre-wrap">{student.notes}</p>
+                      <h4 className="font-semibold text-foreground mb-3">Notes</h4>
+                      <div className="bg-muted rounded-lg p-4">
+                        <p className="text-foreground whitespace-pre-wrap">{student.notes}</p>
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="flex items-center justify-center py-12">
-                  <p className="text-slate-500">No student data available</p>
+                  <p className="text-muted-foreground">No student data available</p>
                 </div>
               )}
             </div>

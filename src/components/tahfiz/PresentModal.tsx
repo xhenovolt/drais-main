@@ -92,10 +92,10 @@ const PresentModal: React.FC<PresentModalProps> = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className="bg-card rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold overflow-hidden">
               {learner.student_avatar ? (
@@ -109,15 +109,15 @@ const PresentModal: React.FC<PresentModalProps> = ({
               )}
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{learner.student_name}</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-xl font-semibold text-foreground">{learner.student_name}</h2>
+              <p className="text-sm text-muted-foreground">
                 {learner.next_portion?.portion_name || 'No portion'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -127,7 +127,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Presented Toggle */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-foreground mb-3">
               Did the student present today?
             </label>
             <div className="flex space-x-4">
@@ -137,7 +137,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
                 className={`flex-1 p-3 rounded-lg border-2 transition-all ${
                   presented
                     ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-border hover:border-border'
                 }`}
               >
                 <CheckCircle className="w-5 h-5 mx-auto mb-1" />
@@ -149,7 +149,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
                 className={`flex-1 p-3 rounded-lg border-2 transition-all ${
                   !presented
                     ? 'border-red-500 bg-red-50 text-red-700'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-border hover:border-border'
                 }`}
               >
                 <X className="w-5 h-5 mx-auto mb-1" />
@@ -163,7 +163,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
             <>
               {/* Presented Length */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Amount Presented (verses/pages) *
                 </label>
                 <input
@@ -171,7 +171,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
                   min="0"
                   value={presentedLength}
                   onChange={(e) => setPresentedLength(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Enter number of verses or pages"
                   required
                 />
@@ -179,7 +179,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
 
               {/* Mark */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Mark (0-100)
                 </label>
                 <input
@@ -188,14 +188,14 @@ const PresentModal: React.FC<PresentModalProps> = ({
                   max="100"
                   value={mark}
                   onChange={(e) => setMark(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Enter mark out of 100"
                 />
               </div>
 
               {/* Retention Score */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Retention Score (0-100)
                 </label>
                 <input
@@ -204,14 +204,14 @@ const PresentModal: React.FC<PresentModalProps> = ({
                   max="100"
                   value={retentionScore}
                   onChange={(e) => setRetentionScore(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="How well did they retain previous portions?"
                 />
               </div>
 
               {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Portion Status
                 </label>
                 <div className="grid grid-cols-3 gap-3">
@@ -227,7 +227,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
                       className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${
                         status === value
                           ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-border hover:border-border'
                       }`}
                     >
                       {label}
@@ -240,14 +240,14 @@ const PresentModal: React.FC<PresentModalProps> = ({
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Notes (Optional)
             </label>
             <textarea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               placeholder={presented 
                 ? "Add notes about the presentation quality, areas for improvement, etc."
                 : "Add notes about the absence reason, makeup plans, etc."
@@ -256,9 +256,9 @@ const PresentModal: React.FC<PresentModalProps> = ({
           </div>
 
           {/* Summary */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-2">Record Summary</h4>
-            <div className="space-y-1 text-sm text-gray-600">
+          <div className="bg-muted rounded-lg p-4">
+            <h4 className="font-medium text-foreground mb-2">Record Summary</h4>
+            <div className="space-y-1 text-sm text-muted-foreground">
               <p><span className="font-medium">Student:</span> {learner.student_name}</p>
               <p><span className="font-medium">Portion:</span> {learner.next_portion?.portion_name}</p>
               <p><span className="font-medium">Status:</span> {presented ? 'Presented' : 'Absent'}</p>
@@ -272,11 +272,11 @@ const PresentModal: React.FC<PresentModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+              className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium"
             >
               Cancel
             </button>

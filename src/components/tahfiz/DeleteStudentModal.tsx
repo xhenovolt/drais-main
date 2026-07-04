@@ -73,26 +73,26 @@ export default function DeleteStudentModal({ isOpen, onClose, onSuccess, student
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
           >
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+            <div className="flex items-center justify-between p-6 border-b border-border">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-800">Delete Student</h2>
+                <h2 className="text-xl font-bold text-foreground">Delete Student</h2>
               </div>
               <button
                 onClick={handleClose}
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
                 disabled={loading}
               >
-                <X className="w-5 h-5 text-slate-500" />
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
-              <p className="text-slate-700">
+              <p className="text-foreground">
                 Are you sure you want to delete <strong>{student.name}</strong>?
               </p>
               
@@ -125,7 +125,7 @@ export default function DeleteStudentModal({ isOpen, onClose, onSuccess, student
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+                  className="px-6 py-3 border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
                   disabled={loading}
                 >
                   Cancel
