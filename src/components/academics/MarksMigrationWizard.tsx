@@ -239,7 +239,7 @@ export function MarksMigrationWizard({
             <h3 className="font-semibold text-lg">Step 1: Select Migration Parameters</h3>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="space-y-4 rounded-lg border border-slate-200 p-4 bg-slate-50">
+              <div className="space-y-4 rounded-lg border border-border p-4 bg-muted">
                 <h4 className="font-semibold">Source</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -339,7 +339,7 @@ export function MarksMigrationWizard({
                 </div>
               </div>
 
-              <div className="space-y-4 rounded-lg border border-slate-200 p-4 bg-slate-50">
+              <div className="space-y-4 rounded-lg border border-border p-4 bg-muted">
                 <h4 className="font-semibold">Destination</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -448,15 +448,15 @@ export function MarksMigrationWizard({
             
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Total Learners</p>
+                <p className="text-sm text-muted-foreground">Total Learners</p>
                 <p className="text-2xl font-bold text-blue-600">{analysis.totalLearnersAffected}</p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">With Marks</p>
+                <p className="text-sm text-muted-foreground">With Marks</p>
                 <p className="text-2xl font-bold text-green-600">{analysis.learnersWithMarks}</p>
               </div>
               <div className="bg-orange-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Conflicts</p>
+                <p className="text-sm text-muted-foreground">Conflicts</p>
                 <p className="text-2xl font-bold text-orange-600">{analysis.conflictCount}</p>
               </div>
             </div>
@@ -466,7 +466,7 @@ export function MarksMigrationWizard({
                 <h4 className="font-medium mb-2">Preview</h4>
                 <div className="max-h-64 overflow-y-auto border rounded-lg">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-100 border-b">
+                    <thead className="sticky top-0 bg-muted border-b">
                       <tr>
                         <th className="px-4 py-2 text-left">Learner</th>
                         <th className="px-4 py-2 text-center">Source</th>
@@ -476,7 +476,7 @@ export function MarksMigrationWizard({
                     </thead>
                     <tbody>
                       {analysis.preview.slice(0, 10).map((item, idx) => (
-                        <tr key={idx} className="border-b hover:bg-gray-50">
+                        <tr key={idx} className="border-b hover:bg-muted">
                           <td className="px-4 py-2 text-sm">{item.studentName || 'N/A'}</td>
                           <td className="px-4 py-2 text-center text-sm">{item.sourceMarks !== null ? item.sourceMarks : '-'}</td>
                           <td className="px-4 py-2 text-center text-sm">{item.destinationMarks !== null ? item.destinationMarks : '-'}</td>
@@ -494,7 +494,7 @@ export function MarksMigrationWizard({
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 <p>No learners found with marks to migrate.</p>
                 <p className="text-sm mt-1">Please check your selection criteria.</p>
               </div>
@@ -507,7 +507,7 @@ export function MarksMigrationWizard({
             <h3 className="font-semibold text-lg">Step 3: Conflict Resolution</h3>
             
             <div className="space-y-3">
-              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted">
                 <input
                   type="radio"
                   name="resolution"
@@ -518,11 +518,11 @@ export function MarksMigrationWizard({
                 />
                 <div>
                   <p className="font-medium">Skip Conflicts</p>
-                  <p className="text-sm text-gray-600">Leave existing marks unchanged</p>
+                  <p className="text-sm text-muted-foreground">Leave existing marks unchanged</p>
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted">
                 <input
                   type="radio"
                   name="resolution"
@@ -533,11 +533,11 @@ export function MarksMigrationWizard({
                 />
                 <div>
                   <p className="font-medium">Overwrite</p>
-                  <p className="text-sm text-gray-600">Replace existing marks with new ones</p>
+                  <p className="text-sm text-muted-foreground">Replace existing marks with new ones</p>
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted">
                 <input
                   type="radio"
                   name="resolution"
@@ -548,7 +548,7 @@ export function MarksMigrationWizard({
                 />
                 <div>
                   <p className="font-medium">Merge (Average)</p>
-                  <p className="text-sm text-gray-600">Take average of both marks</p>
+                  <p className="text-sm text-muted-foreground">Take average of both marks</p>
                 </div>
               </label>
             </div>
@@ -571,7 +571,7 @@ export function MarksMigrationWizard({
             <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto" />
             <div>
               <h3 className="font-semibold text-lg">Migration Complete!</h3>
-              <p className="text-gray-600 text-sm mt-1">
+              <p className="text-muted-foreground text-sm mt-1">
                 Successfully migrated marks from {sourceSubjectName} to {destSubjectName}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-4 text-sm">

@@ -198,7 +198,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+          className="bg-card rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
           <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex items-center justify-between border-b">
@@ -211,7 +211,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
             </div>
             <button
               onClick={handleClose}
-              className="hover:bg-white/20 p-2 rounded-lg transition"
+              className="hover:bg-card/20 p-2 rounded-lg transition"
             >
               <X className="w-5 h-5" />
             </button>
@@ -230,7 +230,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
                   {existingFingerprints.map((fp) => (
                     <div
                       key={fp.id}
-                      className="flex items-center justify-between bg-white p-3 rounded border border-blue-100"
+                      className="flex items-center justify-between bg-card p-3 rounded border border-blue-100"
                     >
                       <div className="flex items-center gap-3">
                         <Fingerprint className="w-4 h-4 text-blue-600" />
@@ -238,7 +238,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
                           <p className="font-medium text-sm">
                             {fp.hand.charAt(0).toUpperCase() + fp.hand.slice(1)} {fp.finger_position}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Quality: {fp.quality_score}%
                             {fp.device_name && ` • Device: ${fp.device_name}`}
                           </p>
@@ -259,20 +259,20 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
             {/* Method Selection */}
             {!method ? (
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900">Add New Fingerprint</h3>
+                <h3 className="font-semibold text-foreground">Add New Fingerprint</h3>
 
                 {/* USB Option */}
                 <button
                   onClick={() => setMethod('usb')}
-                  className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition text-left"
+                  className="w-full p-4 border-2 border-border rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div className="bg-indigo-100 p-3 rounded-lg">
                       <Smartphone className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">Register via USB Scanner</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="font-semibold text-foreground">Register via USB Scanner</p>
+                      <p className="text-sm text-muted-foreground">
                         Connect USB fingerprint scanner and capture live
                       </p>
                     </div>
@@ -282,15 +282,15 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
                 {/* Link Option */}
                 <button
                   onClick={() => setMethod('link')}
-                  className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition text-left"
+                  className="w-full p-4 border-2 border-border rounded-lg hover:border-purple-500 hover:bg-purple-50 transition text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div className="bg-purple-100 p-3 rounded-lg">
                       <Link2 className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">Link Existing Fingerprint</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="font-semibold text-foreground">Link Existing Fingerprint</p>
+                      <p className="text-sm text-muted-foreground">
                         Link fingerprint already registered on a biometric machine
                       </p>
                     </div>
@@ -301,10 +301,10 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
               // USB Registration Form
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">USB Scanner Registration</h3>
+                  <h3 className="font-semibold text-foreground">USB Scanner Registration</h3>
                   <button
                     onClick={() => setMethod(null)}
-                    className="text-sm text-gray-600 hover:text-gray-900"
+                    className="text-sm text-muted-foreground hover:text-foreground"
                   >
                     ← Back
                   </button>
@@ -312,13 +312,13 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
 
                 {/* Finger Position */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Finger Position
                   </label>
                   <select
                     value={fingerPosition}
                     onChange={(e) => setFingerPosition(e.target.value as FingerPosition)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="thumb">Thumb</option>
                     <option value="index">Index Finger</option>
@@ -330,7 +330,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
 
                 {/* Hand */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Hand</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Hand</label>
                   <div className="flex gap-4">
                     {['left', 'right'].map((h) => (
                       <label key={h} className="flex items-center gap-2 cursor-pointer">
@@ -342,7 +342,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
                           onChange={(e) => setHand(e.target.value as Hand)}
                           className="w-4 h-4"
                         />
-                        <span className="capitalize text-gray-700">{h}</span>
+                        <span className="capitalize text-foreground">{h}</span>
                       </label>
                     ))}
                   </div>
@@ -366,20 +366,20 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
 
                 {/* Template Data */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Fingerprint Template Data (Base64)
                   </label>
                   <textarea
                     value={templateData}
                     onChange={(e) => setTemplateData(e.target.value)}
                     placeholder="Paste fingerprint template data here..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 font-mono text-xs"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 font-mono text-xs"
                   />
                 </div>
 
                 {/* Quality Score */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Quality Score: {qualityScore}%
                   </label>
                   <input
@@ -390,7 +390,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
                     onChange={(e) => setQualityScore(parseInt(e.target.value))}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {qualityScore < 70 && '⚠️ Low quality - may not match well'}
                     {qualityScore >= 70 && qualityScore < 85 && '⚡ Acceptable quality'}
                     {qualityScore >= 85 && '✓ Good quality'}
@@ -411,10 +411,10 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
               // Link Existing Form
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">Link Existing Fingerprint</h3>
+                  <h3 className="font-semibold text-foreground">Link Existing Fingerprint</h3>
                   <button
                     onClick={() => setMethod(null)}
-                    className="text-sm text-gray-600 hover:text-gray-900"
+                    className="text-sm text-muted-foreground hover:text-foreground"
                   >
                     ← Back
                   </button>
@@ -422,14 +422,14 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
 
                 {/* Device Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Biometric Device
                   </label>
                   {devices.length > 0 ? (
                     <select
                       value={deviceId}
                       onChange={(e) => setDeviceId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
                       <option value="">Select a device...</option>
                       {devices.map((device) => (
@@ -447,13 +447,13 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
 
                 {/* Finger Position */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Finger Position
                   </label>
                   <select
                     value={fingerPosition}
                     onChange={(e) => setFingerPosition(e.target.value as FingerPosition)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="thumb">Thumb</option>
                     <option value="index">Index Finger</option>
@@ -465,7 +465,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
 
                 {/* Hand */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Hand</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Hand</label>
                   <div className="flex gap-4">
                     {['left', 'right'].map((h) => (
                       <label key={h} className="flex items-center gap-2 cursor-pointer">
@@ -477,7 +477,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
                           onChange={(e) => setHand(e.target.value as Hand)}
                           className="w-4 h-4"
                         />
-                        <span className="capitalize text-gray-700">{h}</span>
+                        <span className="capitalize text-foreground">{h}</span>
                       </label>
                     ))}
                   </div>
@@ -485,7 +485,7 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
 
                 {/* Biometric UUID */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Biometric UUID
                   </label>
                   <input
@@ -493,9 +493,9 @@ export const FingerprintRegistrationModal: React.FC<FingerprintRegistrationModal
                     value={biometricUUID}
                     onChange={(e) => setBiometricUUID(e.target.value)}
                     placeholder="Device fingerprint ID or UUID..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     This ID should come from your biometric device administrator
                   </p>
                 </div>

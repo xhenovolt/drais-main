@@ -248,14 +248,14 @@ export default function MissionControlPage() {
       case 'error':      return <XCircle      size={15} className="text-red-500    flex-shrink-0" />;
       case 'skip':       return <SkipForward  size={15} className="text-amber-500  flex-shrink-0" />;
       case 'processing': return <RefreshCw    size={15} className="text-indigo-400 flex-shrink-0 animate-spin" />;
-      default:           return <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 flex-shrink-0" />;
+      default:           return <div className="w-3.5 h-3.5 rounded-full border-2 border-border flex-shrink-0" />;
     }
   };
 
   // ── Render ─────────────────────────────────────────────────────
   if (loadingManifest) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
       </div>
     );
@@ -263,13 +263,13 @@ export default function MissionControlPage() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl border border-red-200 shadow-lg p-8 max-w-sm text-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center p-4">
+        <div className="bg-card rounded-2xl border border-red-200 shadow-lg p-8 max-w-sm text-center">
           <AlertCircle size={40} className="text-red-400 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Manifest not found</h2>
-          <p className="text-sm text-gray-500 mb-4">{loadError}</p>
-          <p className="text-xs text-gray-400">
-            Run <code className="bg-gray-100 px-1 rounded">scripts/promote-2025-to-2026.mjs</code> first to generate it.
+          <h2 className="text-lg font-bold text-foreground mb-2">Manifest not found</h2>
+          <p className="text-sm text-muted-foreground mb-4">{loadError}</p>
+          <p className="text-xs text-muted-foreground">
+            Run <code className="bg-muted px-1 rounded">scripts/promote-2025-to-2026.mjs</code> first to generate it.
           </p>
           <Link href="/students/list" className="mt-5 inline-flex items-center gap-2 text-sm text-indigo-600 hover:underline">
             <ArrowLeft size={14} /> Back to Students
@@ -282,9 +282,9 @@ export default function MissionControlPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
       {/* Top Nav */}
-      <div className="border-b border-white/10 bg-white/5 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+      <div className="border-b border-white/10 bg-card/5 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-4">
-          <Link href="/students/list" className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white">
+          <Link href="/students/list" className="p-2 rounded-lg hover:bg-card/10 transition-colors text-white/60 hover:text-white">
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -326,11 +326,11 @@ export default function MissionControlPage() {
         )}
 
         {/* ── Main Progress Panel ── */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+        <div className="rounded-2xl border border-white/10 bg-card/5 backdrop-blur-xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${running ? 'bg-indigo-500 animate-pulse' : done ? 'bg-emerald-500' : 'bg-white/10'}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${running ? 'bg-indigo-500 animate-pulse' : done ? 'bg-emerald-500' : 'bg-card/10'}`}>
                 {done ? <CheckCircle size={16} className="text-white" /> : <Zap size={16} className="text-white" />}
               </div>
               <div>
@@ -380,7 +380,7 @@ export default function MissionControlPage() {
               </span>
               <span className="text-white/60 text-xs font-mono tabular-nums">{percent}%</span>
             </div>
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-2 rounded-full bg-card/10 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-pink-500 transition-all duration-300 ease-out"
                 style={{ width: `${percent}%` }}
@@ -470,7 +470,7 @@ export default function MissionControlPage() {
 
         {/* ── Preview table (not running) ── */}
         {!running && !done && manifest && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden">
+          <div className="rounded-2xl border border-white/10 bg-card/5 backdrop-blur overflow-hidden">
             <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
               <Users size={16} className="text-white/40" />
               <h3 className="text-sm font-semibold text-white/60">
@@ -495,7 +495,7 @@ export default function MissionControlPage() {
                     .map((s, idx) => {
                       const resolvedId = classMap[s.target_class!.toUpperCase()];
                       return (
-                        <tr key={s.student_id} className="hover:bg-white/5">
+                        <tr key={s.student_id} className="hover:bg-card/5">
                           <td className="px-4 py-1.5 text-white/20">{idx + 1}</td>
                           <td className="px-4 py-1.5 text-white/70">{s.name}</td>
                           <td className="px-4 py-1.5 text-white/40">{s.previous_class}</td>

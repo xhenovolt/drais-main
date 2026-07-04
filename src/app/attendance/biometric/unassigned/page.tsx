@@ -50,7 +50,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-700'}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${STATUS_COLORS[status] ?? 'bg-muted text-foreground'}`}>
       {status}
     </span>
   );
@@ -125,15 +125,15 @@ export default function BiometricUnassignedPage() {
         <div className="flex items-center gap-3">
           <Fingerprint className="w-7 h-7 text-indigo-600" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Unassigned Biometric Enrollments</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-foreground">Unassigned Biometric Enrollments</h1>
+            <p className="text-sm text-muted-foreground">
               Fingerprint slots captured without a confirmed identity
             </p>
           </div>
         </div>
         <button
           onClick={() => mutate()}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-card border border-border rounded-lg hover:bg-muted transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Refresh
@@ -147,26 +147,26 @@ export default function BiometricUnassignedPage() {
           { label: 'Total tracked', icon: Fingerprint, color: 'text-indigo-500', count: data?.total ?? 0 },
           { label: 'Resolved today', icon: CheckCircle, color: 'text-green-500', count: '—' },
         ].map(({ label, icon: Icon, color, count }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3">
+          <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
             <Icon className={`w-6 h-6 ${color}`} />
             <div>
-              <div className="text-xl font-bold text-gray-800">{count}</div>
-              <div className="text-xs text-gray-500">{label}</div>
+              <div className="text-xl font-bold text-foreground">{count}</div>
+              <div className="text-xs text-muted-foreground">{label}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Student search (shared for all rows) */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="bg-card border border-border rounded-xl p-4">
         <div className="flex items-center gap-2 mb-3">
-          <Search className="w-4 h-4 text-gray-400" />
+          <Search className="w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search student name to select for assignment…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="flex-1 text-sm border-none outline-none placeholder:text-gray-400"
+            className="flex-1 text-sm border-none outline-none placeholder:text-muted-foreground"
           />
         </div>
         {searchQuery && students.length > 0 && (
@@ -185,39 +185,39 @@ export default function BiometricUnassignedPage() {
                   }
                 }}
               >
-                <span className="font-medium text-gray-800">{s.first_name} {s.last_name}</span>
-                {s.admission_no && <span className="text-gray-400 text-xs">{s.admission_no}</span>}
+                <span className="font-medium text-foreground">{s.first_name} {s.last_name}</span>
+                {s.admission_no && <span className="text-muted-foreground text-xs">{s.admission_no}</span>}
               </li>
             ))}
           </ul>
         )}
         {searchQuery && students.length === 0 && (
-          <p className="text-xs text-gray-400 mt-1">No students found</p>
+          <p className="text-xs text-muted-foreground mt-1">No students found</p>
         )}
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center h-32 text-gray-400">
+          <div className="flex items-center justify-center h-32 text-muted-foreground">
             <Loader className="w-5 h-5 animate-spin mr-2" /> Loading…
           </div>
         ) : enrollments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
+          <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
             <CheckCircle className="w-8 h-8 text-green-400" />
             <p className="text-sm font-medium">No unassigned enrollments</p>
-            <p className="text-xs text-gray-400">All fingerprint slots have an identity assigned</p>
+            <p className="text-xs text-muted-foreground">All fingerprint slots have an identity assigned</p>
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-muted border-b border-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Device / Slot</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Finger</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Initiated</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">By</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Assign to</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Device / Slot</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Finger</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Initiated</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">By</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assign to</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -226,10 +226,10 @@ export default function BiometricUnassignedPage() {
                 const picked = selectedStudent[rowKey(enr)];
                 const pickedStudent = students.find(s => s.id === picked);
                 return (
-                  <tr key={rowKey(enr)} className="hover:bg-gray-50 transition-colors">
+                  <tr key={rowKey(enr)} className="hover:bg-muted transition-colors">
                     <td className="px-4 py-3">
-                      <div className="font-mono text-xs text-gray-700">{enr.device_sn}</div>
-                      <div className="text-gray-400 text-xs">PIN {enr.device_slot}{enr.device_name ? ` · ${enr.device_name}` : ''}</div>
+                      <div className="font-mono text-xs text-foreground">{enr.device_sn}</div>
+                      <div className="text-muted-foreground text-xs">PIN {enr.device_slot}{enr.device_name ? ` · ${enr.device_name}` : ''}</div>
                       {enr.candidates && enr.candidates.length > 0 && (
                         <div className="text-[10px] text-purple-500 mt-0.5">
                           suggests: {enr.candidates.slice(0, 2).map(c => c.name).join(', ')}
@@ -239,16 +239,16 @@ export default function BiometricUnassignedPage() {
                     <td className="px-4 py-3">
                       <StatusBadge status={enr.status} />
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-muted-foreground">
                       {enr.finger_index !== null ? `F${enr.finger_index}` : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 text-gray-500 text-xs">
+                      <div className="flex items-center gap-1 text-muted-foreground text-xs">
                         <Clock className="w-3 h-3" />
                         {fmt(enr.initiated_at)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">
+                    <td className="px-4 py-3 text-muted-foreground text-xs">
                       {enr.initiated_by_name ?? '—'}
                     </td>
                     <td className="px-4 py-3">

@@ -219,7 +219,7 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
       case 'error':
         return 'text-red-600 bg-red-50';
       default:
-        return 'text-gray-600 bg-gray-50';
+        return 'text-muted-foreground bg-muted';
     }
   };
 
@@ -231,7 +231,7 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
       case 'denied':
         return `${baseClass} bg-red-100 text-red-800`;
       default:
-        return `${baseClass} bg-gray-100 text-gray-800`;
+        return `${baseClass} bg-muted text-foreground`;
     }
   };
 
@@ -252,24 +252,24 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
               leave="ease-in duration-200"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-3xl transform rounded-lg bg-white shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-3xl transform rounded-lg bg-card shadow-xl transition-all">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                  <Dialog.Title className="text-xl font-bold text-gray-900">Device Connection Management</Dialog.Title>
-                  <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                  <Dialog.Title className="text-xl font-bold text-foreground">Device Connection Management</Dialog.Title>
+                  <button onClick={onClose} className="text-muted-foreground hover:text-muted-foreground">
                     <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="border-b border-gray-200">
+                <div className="border-b border-border">
                   <div className="flex space-x-8 px-6">
                     <button
                       onClick={() => setActiveTab('connection')}
                       className={`border-b-2 px-1 py-4 text-sm font-medium ${
                         activeTab === 'connection'
                           ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                          : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
                       }`}
                     >
                       Device Connection
@@ -279,7 +279,7 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
                       className={`border-b-2 px-1 py-4 text-sm font-medium ${
                         activeTab === 'logs'
                           ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                          : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
                       }`}
                     >
                       Device Logs
@@ -324,56 +324,56 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Device Name</label>
+                          <label className="block text-sm font-medium text-foreground">Device Name</label>
                           <input
                             type="text"
                             value={formData.deviceName}
                             onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                            className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-foreground placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                             placeholder="e.g., Main Gate Biometric"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Device IP Address</label>
+                          <label className="block text-sm font-medium text-foreground">Device IP Address</label>
                           <input
                             type="text"
                             value={formData.deviceIp}
                             onChange={(e) => setFormData({ ...formData, deviceIp: e.target.value })}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                            className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-foreground placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                             placeholder="e.g., 192.168.1.100"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Device Port</label>
+                          <label className="block text-sm font-medium text-foreground">Device Port</label>
                           <input
                             type="number"
                             value={formData.devicePort}
                             onChange={(e) => setFormData({ ...formData, devicePort: parseInt(e.target.value) })}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                            className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-foreground placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                             placeholder="80 or 443"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Username</label>
+                          <label className="block text-sm font-medium text-foreground">Username</label>
                           <input
                             type="text"
                             value={formData.deviceUsername}
                             onChange={(e) => setFormData({ ...formData, deviceUsername: e.target.value })}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                            className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-foreground placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                             placeholder="Device username"
                           />
                         </div>
 
                         <div className="col-span-2">
-                          <label className="block text-sm font-medium text-gray-700">Password</label>
+                          <label className="block text-sm font-medium text-foreground">Password</label>
                           <input
                             type="password"
                             value={formData.devicePassword}
                             onChange={(e) => setFormData({ ...formData, devicePassword: e.target.value })}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                            className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-foreground placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                             placeholder="Device password"
                           />
                         </div>
@@ -381,14 +381,14 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
 
                       {/* Device Info Display */}
                       {config?.deviceSerialNumber && (
-                        <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4">
+                        <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted p-4">
                           <div>
-                            <p className="text-xs text-gray-500">Device Type</p>
-                            <p className="text-sm font-medium text-gray-900">{config.deviceType || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground">Device Type</p>
+                            <p className="text-sm font-medium text-foreground">{config.deviceType || 'Unknown'}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500">Serial Number</p>
-                            <p className="text-sm font-medium text-gray-900">{config.deviceSerialNumber}</p>
+                            <p className="text-xs text-muted-foreground">Serial Number</p>
+                            <p className="text-sm font-medium text-foreground">{config.deviceSerialNumber}</p>
                           </div>
                         </div>
                       )}
@@ -399,24 +399,24 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
                   {activeTab === 'logs' && (
                     <div className="space-y-4">
                       {/* Auto-Refresh Controls */}
-                      <div className="flex items-center space-x-4 rounded-lg bg-gray-50 p-4">
+                      <div className="flex items-center space-x-4 rounded-lg bg-muted p-4">
                         <label className="flex items-center space-x-2">
                           <input
                             type="checkbox"
                             checked={autoRefresh}
                             onChange={(e) => setAutoRefresh(e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-border text-blue-600 focus:ring-blue-500"
                           />
-                          <span className="text-sm font-medium text-gray-700">Auto-refresh logs</span>
+                          <span className="text-sm font-medium text-foreground">Auto-refresh logs</span>
                         </label>
 
                         {autoRefresh && (
                           <div className="flex items-center space-x-2">
-                            <label className="text-sm text-gray-600">Every</label>
+                            <label className="text-sm text-muted-foreground">Every</label>
                             <select
                               value={refreshInterval}
                               onChange={(e) => setRefreshInterval(parseInt(e.target.value))}
-                              className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-900"
+                              className="rounded border border-border px-2 py-1 text-sm text-foreground"
                             >
                               <option value={15}>15 seconds</option>
                               <option value={30}>30 seconds</option>
@@ -435,31 +435,31 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
                       </div>
 
                       {/* Logs Table */}
-                      <div className="overflow-x-auto rounded-lg border border-gray-200">
+                      <div className="overflow-x-auto rounded-lg border border-border">
                         <table className="w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
+                          <thead className="bg-muted">
                             <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Timestamp</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Person Name</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Card Number</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">User ID</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Result</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Timestamp</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Person Name</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Card Number</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">User ID</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Result</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
                             {accessLogs.length === 0 ? (
                               <tr>
-                                <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                                <td colSpan={5} className="px-6 py-4 text-center text-sm text-muted-foreground">
                                   No access logs available
                                 </td>
                               </tr>
                             ) : (
                               accessLogs.map((log) => (
-                                <tr key={log.id} className="hover:bg-gray-50">
-                                  <td className="px-6 py-4 text-sm text-gray-900">{new Date(log.timestamp).toLocaleString()}</td>
-                                  <td className="px-6 py-4 text-sm text-gray-900">{log.personName || '-'}</td>
-                                  <td className="px-6 py-4 text-sm text-gray-900">{log.cardNumber || '-'}</td>
-                                  <td className="px-6 py-4 text-sm text-gray-900">{log.userId || '-'}</td>
+                                <tr key={log.id} className="hover:bg-muted">
+                                  <td className="px-6 py-4 text-sm text-foreground">{new Date(log.timestamp).toLocaleString()}</td>
+                                  <td className="px-6 py-4 text-sm text-foreground">{log.personName || '-'}</td>
+                                  <td className="px-6 py-4 text-sm text-foreground">{log.cardNumber || '-'}</td>
+                                  <td className="px-6 py-4 text-sm text-foreground">{log.userId || '-'}</td>
                                   <td className="px-6 py-4 text-sm">
                                     <span className={getAccessResultBadge(log.accessResult)}>{log.accessResult}</span>
                                   </td>
@@ -471,20 +471,20 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
                       </div>
 
                       {accessLogs.length > 0 && (
-                        <p className="text-xs text-gray-500">Showing {accessLogs.length} most recent logs</p>
+                        <p className="text-xs text-muted-foreground">Showing {accessLogs.length} most recent logs</p>
                       )}
                     </div>
                   )}
                 </div>
 
                 {/* Footer */}
-                <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+                <div className="border-t border-border px-6 py-4 bg-muted flex justify-end space-x-3 rounded-b-lg">
                   {activeTab === 'connection' && (
                     <>
                       <button
                         onClick={testConnection}
                         disabled={testing || !formData.deviceIp}
-                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
                       >
                         {testing ? 'Testing...' : 'Test Connection'}
                       </button>
@@ -498,7 +498,7 @@ export default function DeviceConnectionModal({ isOpen, onClose, schoolId }: Dev
                     </>
                   )}
 
-                  <button onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
                     Close
                   </button>
                 </div>
