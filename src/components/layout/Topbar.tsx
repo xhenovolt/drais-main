@@ -226,7 +226,7 @@ function NotificationBell() {
       {/* Bell button */}
       <button
         onClick={handleOpen}
-        className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 relative"
+        className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-ring relative"
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}
       >
         <Bell size={20} className="text-gray-700 dark:text-gray-300" />
@@ -289,7 +289,7 @@ function NotificationBell() {
                     !n.is_read ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''
                   }`}
                 >
-                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.is_read ? 'bg-gray-200 dark:bg-gray-600' : 'bg-indigo-500'}`} />
+                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.is_read ? 'bg-gray-200 dark:bg-gray-600' : 'bg-primary'}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800 dark:text-white truncate">{n.title}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
@@ -338,7 +338,7 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
           {/* Menu Button - Only visible on mobile, 44px touch zone */}
           <button
             onClick={onMenuClick}
-            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
             aria-label="Toggle menu"
           >
             <Menu size={24} className="text-gray-700 dark:text-gray-300" />
@@ -349,7 +349,7 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
             href="/"
             className="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
           >
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md">
               D
             </div>
             <span className="hidden sm:inline">DRAIS</span>
