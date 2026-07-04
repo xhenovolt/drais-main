@@ -21,18 +21,22 @@ const badgeVariants = cva(
         destructive:
           'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
         outline: 'text-foreground',
+        // Soft, token-driven status variants: a translucent tint of the semantic
+        // colour + the colour itself for text. Because --success/--warning/--info/
+        // --danger carry dark-mode overrides, these stay legible in both themes
+        // (the old bg-emerald-100/text-emerald-700 pastels washed out on dark).
         success:
-          'border-transparent bg-emerald-100 text-emerald-700 hover:bg-emerald-200',
+          'border-success/25 bg-success/15 text-success hover:bg-success/25',
         warning:
-          'border-transparent bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
+          'border-warning/25 bg-warning/15 text-warning hover:bg-warning/25',
         info:
-          'border-transparent bg-blue-100 text-blue-700 hover:bg-blue-200',
-        purple:
-          'border-transparent bg-purple-100 text-purple-700 hover:bg-purple-200',
-        gray:
-          'border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200',
+          'border-info/25 bg-info/15 text-info hover:bg-info/25',
         error:
-          'border-transparent bg-red-100 text-red-700 hover:bg-red-200',
+          'border-danger/25 bg-danger/15 text-danger hover:bg-danger/25',
+        gray:
+          'border-transparent bg-muted text-muted-foreground hover:bg-muted/80',
+        purple:
+          'border-transparent bg-purple-500/15 text-purple-700 hover:bg-purple-500/25 dark:text-purple-300',
       },
     },
     defaultVariants: {
