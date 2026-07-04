@@ -80,7 +80,7 @@ function TahfizStudentsContent() {
   const getStatusBadge = (status: string) => {
     const styles = {
       active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      inactive: 'bg-gray-100 text-gray-700 border-gray-200',
+      inactive: 'bg-muted text-foreground border-border',
       completed: 'bg-blue-100 text-blue-700 border-blue-200',
       deleted: 'bg-red-100 text-red-700 border-red-200'
     };
@@ -129,18 +129,18 @@ function TahfizStudentsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-full mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('people.students')}`}</h1>
-            <p className="text-slate-600 mt-1">Manage students enrolled in Tahfiz programs</p>
+            <h1 className="text-3xl font-bold text-foreground">{`${t('tahfiz.tahfiz')} — ${t('people.students')}`}</h1>
+            <p className="text-muted-foreground mt-1">Manage students enrolled in Tahfiz programs</p>
             
             {/* Summary Stats */}
             {students.length > 0 && (
               <div className="flex items-center gap-4 mt-3 text-sm">
-                <span className="text-slate-600">Total: <span className="font-semibold">{students.length}</span></span>
+                <span className="text-muted-foreground">Total: <span className="font-semibold">{students.length}</span></span>
                 <span className="text-emerald-600">Active: <span className="font-semibold">{students.filter(s => s.status === 'active').length}</span></span>
                 <span className="text-blue-600">With Groups: <span className="font-semibold">{students.filter(s => s.group_name).length}</span></span>
                 <span className="text-purple-600">Completed Portions: <span className="font-semibold">{students.reduce((sum, s) => sum + s.completed_portions, 0)}</span></span>
@@ -151,7 +151,7 @@ function TahfizStudentsContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => refetch()}
-              className="px-4 py-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
@@ -170,17 +170,17 @@ function TahfizStudentsContent() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
               />
             </div>
 
@@ -188,7 +188,7 @@ function TahfizStudentsContent() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+              className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -200,7 +200,7 @@ function TahfizStudentsContent() {
             <select
               value={filterGroup}
               onChange={(e) => setFilterGroup(e.target.value)}
-              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+              className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             >
               <option value="all">All Groups</option>
               <option value="no_group">No Group</option>
@@ -210,8 +210,8 @@ function TahfizStudentsContent() {
             </select>
 
             {/* Results Count */}
-            <div className="flex items-center justify-center bg-slate-50 rounded-xl px-4 py-3">
-              <span className="text-sm text-slate-600">
+            <div className="flex items-center justify-center bg-muted rounded-xl px-4 py-3">
+              <span className="text-sm text-muted-foreground">
                 Showing {filteredStudents.length} of {students.length}
               </span>
             </div>
@@ -235,14 +235,14 @@ function TahfizStudentsContent() {
 
         {/* Empty State */}
         {!isLoading && !error && filteredStudents.length === 0 && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-slate-400" />
+          <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">
+            <h3 className="text-xl font-semibold text-foreground mb-2">
               {students.length === 0 ? 'No Tahfiz students found' : 'No students match your filters'}
             </h3>
-            <p className="text-slate-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               {students.length === 0 
                 ? "Students enrolled in TAHFIZ classes will appear here."
                 : "Try adjusting your search criteria or filters."
@@ -261,7 +261,7 @@ function TahfizStudentsContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
+                className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
@@ -273,26 +273,26 @@ function TahfizStudentsContent() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors truncate">
+                      <h3 className="font-semibold text-foreground group-hover:text-emerald-600 transition-colors truncate">
                         {student.name}
                       </h3>
-                      <p className="text-sm text-slate-500 truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         {student.group_name || 'No Group'} • {student.class_name}
                       </p>
-                      <p className="text-xs text-slate-400">#{student.admission_no}</p>
+                      <p className="text-xs text-muted-foreground">#{student.admission_no}</p>
                     </div>
                   </div>
                   
                   <div className="relative group/menu">
-                    <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                      <MoreVertical className="w-4 h-4 text-slate-400" />
+                    <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                      <MoreVertical className="w-4 h-4 text-muted-foreground" />
                     </button>
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-10">
-                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors">
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-card rounded-xl shadow-lg border border-border py-2 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-10">
+                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-foreground hover:bg-muted transition-colors">
                         <Eye className="w-4 h-4" />
                         <span>View Details</span>
                       </button>
-                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors">
+                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-foreground hover:bg-muted transition-colors">
                         <Edit className="w-4 h-4" />
                         <span>Edit Student</span>
                       </button>
@@ -303,23 +303,23 @@ function TahfizStudentsContent() {
                 <div className="space-y-4">
                   {/* Progress Stats */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-3 bg-slate-50 rounded-xl">
-                      <div className="text-lg font-bold text-slate-800">{student.completed_portions}</div>
-                      <div className="text-xs text-slate-500">Portions</div>
+                    <div className="text-center p-3 bg-muted rounded-xl">
+                      <div className="text-lg font-bold text-foreground">{student.completed_portions}</div>
+                      <div className="text-xs text-muted-foreground">Portions</div>
                     </div>
-                    <div className="text-center p-3 bg-slate-50 rounded-xl">
-                      <div className="text-lg font-bold text-slate-800">
+                    <div className="text-center p-3 bg-muted rounded-xl">
+                      <div className="text-lg font-bold text-foreground">
                         {student.attendance_rate > 0 ? `${student.attendance_rate}%` : '0%'}
                       </div>
-                      <div className="text-xs text-slate-500">Attendance</div>
+                      <div className="text-xs text-muted-foreground">Attendance</div>
                     </div>
                   </div>
 
                   {/* Progress Bar */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">Completion</span>
-                      <span className="text-sm font-semibold text-slate-800">
+                      <span className="text-sm text-muted-foreground">Completion</span>
+                      <span className="text-sm font-semibold text-foreground">
                         {student.completed_verses}/{student.total_verses || 'N/A'}
                       </span>
                     </div>
@@ -334,7 +334,7 @@ function TahfizStudentsContent() {
                   </div>
 
                   {/* Additional Info */}
-                  <div className="space-y-2 text-xs text-slate-600">
+                  <div className="space-y-2 text-xs text-muted-foreground">
                     {student.teacher_name && (
                       <div className="flex items-center justify-between">
                         <span>Teacher:</span>
@@ -358,8 +358,8 @@ function TahfizStudentsContent() {
                   {/* Status Badge */}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <div className="flex items-center space-x-2">
-                      <BookOpen className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm text-slate-600">
+                      <BookOpen className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
                         {student.theology_class_name || student.curriculum_name || 'Tahfiz Program'}
                       </span>
                     </div>
@@ -377,7 +377,7 @@ function TahfizStudentsContent() {
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 animate-pulse">
+              <div key={i} className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 animate-pulse">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="w-12 h-12 bg-slate-200 rounded-full" />
                   <div className="space-y-2 flex-1">

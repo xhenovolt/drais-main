@@ -173,17 +173,17 @@ function TahfizPortionsContent() {
   const counts = getStatusCounts();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-full mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('people.learners')}`}</h1>
-            <p className="text-slate-600 mt-1">Monitor and manage student memorization progress</p>
+            <h1 className="text-3xl font-bold text-foreground">{`${t('tahfiz.tahfiz')} — ${t('people.learners')}`}</h1>
+            <p className="text-muted-foreground mt-1">Monitor and manage student memorization progress</p>
             
             {/* Status counts */}
             <div className="flex items-center gap-4 mt-3 text-sm">
-              <span className="text-slate-600">Total: <span className="font-semibold">{counts.total}</span></span>
+              <span className="text-muted-foreground">Total: <span className="font-semibold">{counts.total}</span></span>
               <span className="text-amber-600">No Portion: <span className="font-semibold">{counts.no_portion}</span></span>
               <span className="text-yellow-600">Pending: <span className="font-semibold">{counts.pending}</span></span>
               <span className="text-blue-600">In Progress: <span className="font-semibold">{counts.in_progress}</span></span>
@@ -194,17 +194,17 @@ function TahfizPortionsContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => refetch()}
-              className="px-4 py-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
             
-            <div className="flex items-center bg-white rounded-lg border border-slate-200 p-1">
+            <div className="flex items-center bg-card rounded-lg border border-border p-1">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-slate-600 hover:text-slate-800'
+                  viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Grid className="w-4 h-4" />
@@ -212,7 +212,7 @@ function TahfizPortionsContent() {
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-slate-600 hover:text-slate-800'
+                  viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <List className="w-4 h-4" />
@@ -232,17 +232,17 @@ function TahfizPortionsContent() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search */}
             <div className="lg:col-span-2 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search by name or admission number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
               />
             </div>
 
@@ -250,7 +250,7 @@ function TahfizPortionsContent() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+              className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             >
               <option value="all">All Status</option>
               <option value="no_portion">No Portion</option>
@@ -264,7 +264,7 @@ function TahfizPortionsContent() {
             <select
               value={groupFilter}
               onChange={(e) => setGroupFilter(e.target.value)}
-              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+              className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             >
               <option value="all">All Groups</option>
               {groups.map((group: any) => (
@@ -276,9 +276,9 @@ function TahfizPortionsContent() {
           </div>
 
           {/* Sort Options */}
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-700">Sort by:</span>
+              <span className="text-sm font-medium text-foreground">Sort by:</span>
               <div className="flex gap-2">
                 {
                 [
@@ -305,7 +305,7 @@ function TahfizPortionsContent() {
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                       sortBy === option.value
                         ? 'bg-emerald-100 text-emerald-700'
-                        : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   >
                     {option.label}
@@ -315,7 +315,7 @@ function TahfizPortionsContent() {
             </div>
 
             {sortedLearners.length !== learners.length && (
-              <div className="text-sm text-slate-600">
+              <div className="text-sm text-muted-foreground">
                 Showing {sortedLearners.length} of {learners.length} learners
               </div>
             )}
@@ -339,22 +339,22 @@ function TahfizPortionsContent() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+          <div className="bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-muted border-b border-border">
                   <tr>
-                    <th className="text-left py-4 px-6 font-semibold text-slate-700">Student</th>
-                    <th className="text-left py-4 px-6 font-semibold text-slate-700">Group</th>
-                    <th className="text-left py-4 px-6 font-semibold text-slate-700">Next Portion</th>
-                    <th className="text-left py-4 px-6 font-semibold text-slate-700">Status</th>
-                    <th className="text-left py-4 px-6 font-semibold text-slate-700">Last Presented</th>
-                    <th className="text-right py-4 px-6 font-semibold text-slate-700">Actions</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground">Student</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground">Group</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground">Next Portion</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground">Status</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground">Last Presented</th>
+                    <th className="text-right py-4 px-6 font-semibold text-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedLearners.map((learner) => (
-                    <tr key={learner.student_id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                    <tr key={learner.student_id} className="border-b border-slate-100 hover:bg-muted/50 transition-colors">
                       <td className="py-4 px-6">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
@@ -365,31 +365,31 @@ function TahfizPortionsContent() {
                             )}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-800">{learner.student_name}</div>
-                            <div className="text-sm text-slate-500">{learner.admission_no || 'No ID'}</div>
+                            <div className="font-semibold text-foreground">{learner.student_name}</div>
+                            <div className="text-sm text-muted-foreground">{learner.admission_no || 'No ID'}</div>
                           </div>
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="text-sm text-slate-700">{learner.group_name || 'No Group'}</div>
-                        <div className="text-xs text-slate-500">{learner.teacher_name || 'No Teacher'}</div>
+                        <div className="text-sm text-foreground">{learner.group_name || 'No Group'}</div>
+                        <div className="text-xs text-muted-foreground">{learner.teacher_name || 'No Teacher'}</div>
                       </td>
                       <td className="py-4 px-6">
                         {learner.next_portion?.portion_name ? (
                           <div>
-                            <div className="font-medium text-slate-800">{learner.next_portion.portion_name}</div>
-                            <div className="text-xs text-slate-500">
+                            <div className="font-medium text-foreground">{learner.next_portion.portion_name}</div>
+                            <div className="text-xs text-muted-foreground">
                               Assigned {learner.next_portion.assigned_at ? new Date(learner.next_portion.assigned_at).toLocaleDateString() : 'Unknown'}
                             </div>
                           </div>
                         ) : (
-                          <div className="text-sm text-slate-500 italic">No portion assigned</div>
+                          <div className="text-sm text-muted-foreground italic">No portion assigned</div>
                         )}
                       </td>
                       <td className="py-4 px-6">
                         {/* Status badge would go here */}
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          learner.overall_status === 'no_portion' ? 'bg-gray-100 text-gray-700' :
+                          learner.overall_status === 'no_portion' ? 'bg-muted text-foreground' :
                           learner.overall_status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                           learner.overall_status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                           learner.overall_status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -401,14 +401,14 @@ function TahfizPortionsContent() {
                       <td className="py-4 px-6">
                         {learner.last_presented ? (
                           <div>
-                            <div className="text-sm font-medium text-slate-800">{learner.last_presented.portion_name}</div>
-                            <div className="text-xs text-slate-500">
+                            <div className="text-sm font-medium text-foreground">{learner.last_presented.portion_name}</div>
+                            <div className="text-xs text-muted-foreground">
                               {learner.last_presented.completed_at ? new Date(learner.last_presented.completed_at).toLocaleDateString() : 'Unknown date'}
                               {learner.last_presented.mark && ` • ${learner.last_presented.mark}%`}
                             </div>
                           </div>
                         ) : (
-                          <div className="text-sm text-slate-500 italic">Never presented</div>
+                          <div className="text-sm text-muted-foreground italic">Never presented</div>
                         )}
                       </td>
                       <td className="py-4 px-6">
@@ -431,7 +431,7 @@ function TahfizPortionsContent() {
                           )}
                           <button
                             onClick={() => handleViewHistory(learner)}
-                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                            className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
                             title="View History"
                           >
                             <Eye className="w-4 h-4" />
@@ -448,12 +448,12 @@ function TahfizPortionsContent() {
 
         {/* Empty State */}
         {!isLoading && sortedLearners.length === 0 && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-slate-400" />
+          <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">No learners found</h3>
-            <p className="text-slate-600 mb-6">
+            <h3 className="text-xl font-semibold text-foreground mb-2">No learners found</h3>
+            <p className="text-muted-foreground mb-6">
               {learners.length === 0
                 ? "No students are enrolled in Tahfiz groups yet."
                 : "No learners match your current filters."
@@ -477,7 +477,7 @@ function TahfizPortionsContent() {
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div key={i} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 animate-pulse">
+              <div key={i} className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 animate-pulse">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="w-12 h-12 bg-slate-200 rounded-full" />
                   <div className="space-y-2 flex-1">

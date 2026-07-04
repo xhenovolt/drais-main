@@ -114,13 +114,13 @@ export default function TahfizAttendance() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-full mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('academic.attendance')}`}</h1>
-            <p className="text-slate-600 mt-1">Track daily attendance for Tahfiz sessions</p>
+            <h1 className="text-3xl font-bold text-foreground">{`${t('tahfiz.tahfiz')} — ${t('academic.attendance')}`}</h1>
+            <p className="text-muted-foreground mt-1">Track daily attendance for Tahfiz sessions</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -133,22 +133,22 @@ export default function TahfizAttendance() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
               />
             </div>
             <select
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
-              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+              className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             >
               <option value="all">All Groups</option>
               <option value="Advanced Group">Advanced Group</option>
@@ -159,26 +159,26 @@ export default function TahfizAttendance() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+              className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             />
           </div>
         </div>
 
         {/* Content */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
-          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <UserCheck className="w-10 h-10 text-slate-400" />
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+            <UserCheck className="w-10 h-10 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2">Tahfiz Attendance</h3>
-          <p className="text-slate-600 mb-6">
+          <h3 className="text-xl font-semibold text-foreground mb-2">Tahfiz Attendance</h3>
+          <p className="text-muted-foreground mb-6">
             This page will allow teachers to mark daily attendance for Tahfiz sessions and track student participation.
           </p>
         </div>
 
         {/* Attendance Table */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-lg font-bold text-slate-800">
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+          <div className="p-6 border-b border-border">
+            <h2 className="text-lg font-bold text-foreground">
               Attendance for {new Date(selectedDate).toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
@@ -190,13 +190,13 @@ export default function TahfizAttendance() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 sticky top-0">
+              <thead className="bg-muted sticky top-0">
                 <tr>
-                  <th className="text-left p-4 font-medium text-slate-700">Student</th>
-                  <th className="text-left p-4 font-medium text-slate-700">Group</th>
-                  <th className="text-left p-4 font-medium text-slate-700">Status</th>
-                  <th className="text-left p-4 font-medium text-slate-700">Time In</th>
-                  <th className="text-left p-4 font-medium text-slate-700">Actions</th>
+                  <th className="text-left p-4 font-medium text-foreground">Student</th>
+                  <th className="text-left p-4 font-medium text-foreground">Group</th>
+                  <th className="text-left p-4 font-medium text-foreground">Status</th>
+                  <th className="text-left p-4 font-medium text-foreground">Time In</th>
+                  <th className="text-left p-4 font-medium text-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,17 +208,17 @@ export default function TahfizAttendance() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20 }}
                       transition={{ delay: index * 0.1 }}
-                      className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
+                      className="border-b border-slate-100 hover:bg-muted/50 transition-colors"
                     >
                       <td className="p-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-sm font-bold">
                             {record.studentName.charAt(0)}
                           </div>
-                          <span className="font-medium text-slate-800">{record.studentName}</span>
+                          <span className="font-medium text-foreground">{record.studentName}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-slate-600">{record.group}</td>
+                      <td className="p-4 text-muted-foreground">{record.group}</td>
                       <td className="p-4">
                         <div className="flex items-center space-x-2">
                           {getStatusIcon(record.status)}
@@ -227,7 +227,7 @@ export default function TahfizAttendance() {
                           </span>
                         </div>
                       </td>
-                      <td className="p-4 text-slate-600">{record.timeIn || '-'}</td>
+                      <td className="p-4 text-muted-foreground">{record.timeIn || '-'}</td>
                       <td className="p-4">
                         <div className="flex items-center space-x-2">
                           <button
@@ -263,14 +263,14 @@ export default function TahfizAttendance() {
           {loading && (
             <div className="p-8 text-center">
               <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto" />
-              <p className="text-slate-600 mt-4">Loading attendance records...</p>
+              <p className="text-muted-foreground mt-4">Loading attendance records...</p>
             </div>
           )}
 
           {!loading && filteredRecords.length === 0 && (
             <div className="p-8 text-center">
-              <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-600">No attendance records found for the selected date and group.</p>
+              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No attendance records found for the selected date and group.</p>
             </div>
           )}
         </div>

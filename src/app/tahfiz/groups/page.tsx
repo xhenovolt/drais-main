@@ -193,7 +193,7 @@ export default function TahfizGroups() {
   const getStatusBadge = (status: string) => {
     const styles = {
       active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      inactive: 'bg-gray-100 text-gray-700 border-gray-200',
+      inactive: 'bg-muted text-foreground border-border',
       completed: 'bg-blue-100 text-blue-700 border-blue-200'
     };
     return `px-3 py-1 rounded-full text-xs font-medium border ${styles[status as keyof typeof styles]}`;
@@ -214,15 +214,15 @@ export default function TahfizGroups() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">{`${t('tahfiz.tahfiz')} — ${t('orgUnits.groups')}`}</h1>
-            <p className="text-slate-600 mt-1">Manage Tahfiz groups and track collective progress</p>
+            <h1 className="text-3xl font-bold text-foreground">{`${t('tahfiz.tahfiz')} — ${t('orgUnits.groups')}`}</h1>
+            <p className="text-muted-foreground mt-1">Manage Tahfiz groups and track collective progress</p>
             {groups.length > 0 && (
-              <div className="flex items-center space-x-4 mt-2 text-sm text-slate-500">
+              <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                 <span>Total: {groups.length}</span>
                 <span>Active: {groups.filter(g => g.status === 'active').length}</span>
                 <span>Students: {groups.reduce((sum, g) => sum + g.studentCount, 0)}</span>
@@ -241,20 +241,20 @@ export default function TahfizGroups() {
         </div>
 
         {/* Search */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
             <input
               type="text"
               placeholder="Search groups or teachers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+              className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             />
           </div>
           
           {filteredGroups.length !== groups.length && (
-            <div className="mt-4 text-sm text-slate-600">
+            <div className="mt-4 text-sm text-muted-foreground">
               Showing {filteredGroups.length} of {groups.length} groups
             </div>
           )}
@@ -278,7 +278,7 @@ export default function TahfizGroups() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
+                className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
@@ -286,32 +286,32 @@ export default function TahfizGroups() {
                       <Users className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                      <h3 className="font-bold text-foreground group-hover:text-blue-600 transition-colors">
                         {group.name}
                       </h3>
                       <div className="flex items-center space-x-1 mt-1">
-                        <User className="w-3 h-3 text-slate-400" />
-                        <span className="text-sm text-slate-500">{group.teacher}</span>
+                        <User className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">{group.teacher}</span>
                       </div>
                     </div>
                   </div>
                   <div className="relative group/menu">
-                    <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                      <MoreVertical className="w-4 h-4 text-slate-400" />
+                    <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                      <MoreVertical className="w-4 h-4 text-muted-foreground" />
                     </button>
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-10">
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-card rounded-xl shadow-lg border border-border py-2 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-10">
                       <button 
                         onClick={() => handleViewMembers(group)}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors"
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-left text-foreground hover:bg-muted transition-colors"
                       >
                         <Users className="w-4 h-4" />
                         <span>Manage Members</span>
                       </button>
-                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors">
+                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-foreground hover:bg-muted transition-colors">
                         <Eye className="w-4 h-4" />
                         <span>View Details</span>
                       </button>
-                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors">
+                      <button className="flex items-center space-x-2 w-full px-4 py-2 text-left text-foreground hover:bg-muted transition-colors">
                         <Edit className="w-4 h-4" />
                         <span>Edit Group</span>
                       </button>
@@ -328,32 +328,32 @@ export default function TahfizGroups() {
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-3 bg-slate-50 rounded-xl">
-                      <div className="text-2xl font-bold text-slate-800">{group.studentCount || 0}</div>
-                      <div className="text-xs text-slate-500">Students</div>
+                    <div className="text-center p-3 bg-muted rounded-xl">
+                      <div className="text-2xl font-bold text-foreground">{group.studentCount || 0}</div>
+                      <div className="text-xs text-muted-foreground">Students</div>
                     </div>
-                    <div className="text-center p-3 bg-slate-50 rounded-xl">
-                      <div className="text-2xl font-bold text-slate-800">{(group.progress || 0).toFixed(0)}%</div>
-                      <div className="text-xs text-slate-500">Progress</div>
+                    <div className="text-center p-3 bg-muted rounded-xl">
+                      <div className="text-2xl font-bold text-foreground">{(group.progress || 0).toFixed(0)}%</div>
+                      <div className="text-xs text-muted-foreground">Progress</div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm text-slate-600">{group.schedule || 'No Schedule'}</span>
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{group.schedule || 'No Schedule'}</span>
                     </div>
                     {group.nextSession && (
                       <div className="flex items-center space-x-2">
-                        <Clock className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm text-slate-600">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
                           Next: {new Date(group.nextSession).toLocaleDateString()}
                         </span>
                       </div>
                     )}
                     <div className="flex items-center space-x-2">
-                      <BookOpen className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm text-slate-600">
+                      <BookOpen className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
                         {group.completedSessions || 0}/{group.totalSessions || 0} sessions
                       </span>
                     </div>
@@ -363,7 +363,7 @@ export default function TahfizGroups() {
                     <span className={getStatusBadge(group.status || 'active')}>
                       {(group.status || 'active').charAt(0).toUpperCase() + (group.status || 'active').slice(1)}
                     </span>
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-muted-foreground">
                       Created {new Date(group.created_at || new Date()).toLocaleDateString()}
                     </div>
                   </div>
@@ -384,12 +384,12 @@ export default function TahfizGroups() {
 
         {/* Empty State */}
         {!loading && filteredGroups.length === 0 && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
-            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Users className="w-10 h-10 text-slate-400" />
+          <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <Users className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">No groups found</h3>
-            <p className="text-slate-600 mb-6">
+            <h3 className="text-xl font-semibold text-foreground mb-2">No groups found</h3>
+            <p className="text-muted-foreground mb-6">
               {groups.length === 0
                 ? "Start by creating your first Tahfiz group."
                 : "No groups match your current search criteria."
@@ -413,7 +413,7 @@ export default function TahfizGroups() {
         {loading && (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 shadow-lg animate-pulse">
+              <div key={i} className="bg-card rounded-2xl p-6 shadow-lg animate-pulse">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="w-12 h-12 bg-slate-200 rounded-xl" />
                   <div className="space-y-2">
@@ -447,16 +447,16 @@ export default function TahfizGroups() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                className="bg-card rounded-2xl p-6 max-w-md w-full shadow-2xl"
               >
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-bold text-slate-800">Create New Group</h2>
-                    <p className="text-sm text-slate-600">Add a new Tahfiz group</p>
+                    <h2 className="text-xl font-bold text-foreground">Create New Group</h2>
+                    <p className="text-sm text-muted-foreground">Add a new Tahfiz group</p>
                   </div>
                   <button
                     onClick={() => setShowAddModal(false)}
-                    className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                    className="p-2 hover:bg-muted rounded-full transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -464,23 +464,23 @@ export default function TahfizGroups() {
                 
                 <form onSubmit={handleCreateGroup} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Group Name *</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Group Name *</label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="e.g., Halaqah Al-Fajr"
                       required
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Teacher *</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Teacher *</label>
                     <select 
                       value={formData.teacher_id}
                       onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       required
                     >
                       <option value="">Select teacher</option>
@@ -493,23 +493,23 @@ export default function TahfizGroups() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Schedule</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Schedule</label>
                     <input
                       type="text"
                       value={formData.schedule}
                       onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="e.g., Mon, Wed, Fri - 9:00 AM"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Notes</label>
                     <textarea
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       rows={3}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
                       placeholder="Additional notes about the group..."
                     />
                   </div>
@@ -518,7 +518,7 @@ export default function TahfizGroups() {
                     <button
                       type="button"
                       onClick={() => setShowAddModal(false)}
-                      className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+                      className="flex-1 py-3 border border-border text-muted-foreground rounded-xl hover:bg-muted transition-colors"
                     >
                       Cancel
                     </button>

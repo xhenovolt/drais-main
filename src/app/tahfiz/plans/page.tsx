@@ -32,13 +32,13 @@ export default function LearningPlans() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-full mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">{`${t('nav.staff.workplans')}`}</h1>
-            <p className="text-slate-600 mt-1">Create and manage structured learning plans for students</p>
+            <h1 className="text-3xl font-bold text-foreground">{`${t('nav.staff.workplans')}`}</h1>
+            <p className="text-muted-foreground mt-1">Create and manage structured learning plans for students</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -51,22 +51,22 @@ export default function LearningPlans() {
         </div>
 
         {/* Search */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search plans..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
               />
             </div>
-            <select className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200">
+            <select className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200">
               <option value="">All Classes</option>
             </select>
-            <select className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200">
+            <select className="px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200">
               <option value="">All Types</option>
               <option value="hifz">Hifz</option>
               <option value="tilawa">Tilawa</option>
@@ -79,7 +79,7 @@ export default function LearningPlans() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading
             ? Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="bg-white rounded-2xl p-6 shadow-lg animate-pulse">
+                <div key={index} className="bg-card rounded-2xl p-6 shadow-lg animate-pulse">
                   <div className="h-6 bg-slate-200 rounded w-1/2 mb-4"></div>
                   <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
                   <div className="h-4 bg-slate-200 rounded w-1/3"></div>
@@ -94,24 +94,24 @@ export default function LearningPlans() {
                     key={plan.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300"
+                    className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-xl font-bold text-slate-800">{plan.name}</h3>
-                        <p className="text-sm text-slate-600">{plan.description}</p>
+                        <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
+                        <p className="text-sm text-muted-foreground">{plan.description}</p>
                       </div>
-                      <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                        <MoreVertical className="w-5 h-5 text-slate-400" />
+                      <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                        <MoreVertical className="w-5 h-5 text-muted-foreground" />
                       </button>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">{plan.duration}</span>
+                      <span className="text-sm text-muted-foreground">{plan.duration}</span>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
                           plan.status === 'completed'
                             ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-gray-100 text-gray-700'
+                            : 'bg-muted text-foreground'
                         }`}
                       >
                         {plan.status}
@@ -122,12 +122,12 @@ export default function LearningPlans() {
         </div>
 
         {/* Content Placeholder */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
-          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Target className="w-10 h-10 text-slate-400" />
+        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+            <Target className="w-10 h-10 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2">Learning Plans</h3>
-          <p className="text-slate-600 mb-6">
+          <h3 className="text-xl font-semibold text-foreground mb-2">Learning Plans</h3>
+          <p className="text-muted-foreground mb-6">
             This page will manage structured learning plans with goals, timelines, and progress tracking.
           </p>
         </div>
