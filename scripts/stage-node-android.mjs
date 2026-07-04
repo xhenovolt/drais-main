@@ -18,10 +18,16 @@
  *
  * Idempotent: the destination www/nodejs-project is removed and recopied.
  */
-import { promises as fs, existsSync } from 'node:fs';
+import { promises as fs, existsSync, createReadStream, createWriteStream } from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
+import { pipeline } from 'node:stream/promises';
 
 const root    = process.cwd();
+const pluginRoot = path.join(root, 'node_modules', 'nodejs-mobile-cordova');
+// The plugin gradle is applied into the :app project (via app/capacitor.build.gradle),
+// so its externalNativeBuild CMake path resolves under android/app/libs/cdvnodejsmobile.
+const nativeDst = path.join(root, 'android', 'app', 'libs', 'cdvnodejsmobile');
 const srcProj = path.join(root, 'mobile', 'nodejs-project');
 // The plugin is applied in the capacitor-cordova-android-plugins project, so its
 // projectDir is what the www lookup resolves against.
@@ -62,6 +68,55 @@ async function main() {
   console.log('✔ www/nodejs-project staged — nodejs-mobile-cordova will bundle it into the APK.');
 
   await patchBuildConfigReference();
+  await stageNativeLibs();
+}
+
+/**
+ * Replicate the plugin's Cordova native-prepare into the :app project.
+ *
+ * The plugin's externalNativeBuild (applied into :app via app/capacitor.build.gradle)
+ * compiles android/app/libs/cdvnodejsmobile/CMakeLists.txt, which needs its C++
+ * bridge sources and the prebuilt libnode alongside it. Cordova copies these via
+ * plugin.xml <source-file> entries and gunzips libnode.so.gz in a plugin-install
+ * hook; Capacitor's cap sync does neither. So we do both here (post-sync):
+ *   - copy CMakeLists.txt, native-lib.cpp, cordova-bridge.{cpp,h}
+ *   - copy libnode/ (include + bin) and gunzip each bin/<ABI>/libnode.so.gz → .so
+ * Idempotent: the libnode dir is cleaned and recopied each run.
+ */
+async function stageNativeLibs() {
+  const files = [
+    ['src/android/CMakeLists.txt', 'CMakeLists.txt'],
+    ['src/android/jni/native-lib.cpp', 'native-lib.cpp'],
+    ['src/common/cordova-bridge/cordova-bridge.cpp', 'cordova-bridge.cpp'],
+    ['src/common/cordova-bridge/cordova-bridge.h', 'cordova-bridge.h'],
+  ];
+  for (const [src] of files) {
+    if (!existsSync(path.join(pluginRoot, src))) {
+      console.error(`[stage-node-android] plugin native source missing: ${src} — is nodejs-mobile-cordova installed?`);
+      process.exit(1);
+    }
+  }
+  await fs.mkdir(nativeDst, { recursive: true });
+  for (const [src, name] of files) {
+    await fs.copyFile(path.join(pluginRoot, src), path.join(nativeDst, name));
+  }
+
+  // libnode: headers + prebuilt per-ABI libs (shipped gzipped to save space).
+  const libnodeDst = path.join(nativeDst, 'libnode');
+  await fs.rm(libnodeDst, { recursive: true, force: true });
+  await copyTree(path.join(pluginRoot, 'libs', 'android', 'libnode'), libnodeDst);
+
+  let gunzipped = 0;
+  for (const abi of ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']) {
+    const gz = path.join(libnodeDst, 'bin', abi, 'libnode.so.gz');
+    const so = path.join(libnodeDst, 'bin', abi, 'libnode.so');
+    if (existsSync(gz)) {
+      await pipeline(createReadStream(gz), zlib.createGunzip(), createWriteStream(so));
+      await fs.rm(gz); // jniLibs must see .so, not .so.gz
+      gunzipped++;
+    }
+  }
+  console.log(`✔ native libs staged into app/libs/cdvnodejsmobile (libnode gunzipped for ${gunzipped} ABIs).`);
 }
 
 /**
