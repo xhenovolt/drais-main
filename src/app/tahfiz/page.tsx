@@ -34,12 +34,12 @@ export default function TahfizOverview() {
   ]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-full mx-auto space-y-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('tahfiz.tahfiz')}</h1>
-          <p className="text-slate-600 text-lg">{t('tahfiz.memorisation')}</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">{t('tahfiz.tahfiz')}</h1>
+          <p className="text-muted-foreground text-lg">{t('tahfiz.memorisation')}</p>
         </div>
 
         {/* Stats Grid */}
@@ -50,15 +50,15 @@ export default function TahfizOverview() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20"
+              className="glass-surface rounded-2xl p-6 shadow-lg"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-600 text-sm font-medium">{stat.label}</p>
-                  <p className="text-3xl font-bold text-slate-800 mt-1">{stat.value}</p>
+                  <p className="text-muted-foreground text-sm font-medium">{stat.label}</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">{stat.value}</p>
                 </div>
-                <div className={`w-12 h-12 rounded-xl bg-${stat.color}-100 flex items-center justify-center`}>
-                  <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <stat.icon className="w-6 h-6 text-primary" />
                 </div>
               </div>
             </motion.div>
@@ -67,7 +67,7 @@ export default function TahfizOverview() {
 
         {/* Quick Actions */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">{t('common.more')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-6">{t('common.more')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {quickActions.map((action, index) => (
               <motion.div
@@ -77,16 +77,16 @@ export default function TahfizOverview() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Link href={action.href}>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group cursor-pointer">
+                  <div className="glass-surface rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer">
                     <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <action.icon className="w-5 h-5 text-emerald-600" />
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <action.icon className="w-5 h-5 text-primary" />
                       </div>
-                      <h3 className="font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">
+                      <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">
                         {action.title}
                       </h3>
                     </div>
-                    <p className="text-slate-600 text-sm">{action.description}</p>
+                    <p className="text-muted-foreground text-sm">{action.description}</p>
                   </div>
                 </Link>
               </motion.div>
@@ -95,17 +95,17 @@ export default function TahfizOverview() {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
-          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+        <div className="glass-surface rounded-2xl p-6 shadow-lg">
+          <h2 className="text-xl font-bold text-foreground mb-4 flex items-center">
             <Clock className="w-5 h-5 mr-2" />
             {t('operations.auditTrail')}
           </h2>
           <div className="text-center py-8">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock className="w-8 h-8 text-slate-400" />
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-8 h-8 text-muted-foreground" />
             </div>
-            <p className="text-slate-600">{t('common.nothingHere')}</p>
-            <p className="text-slate-500 text-sm mt-1">{t('common.empty')}</p>
+            <p className="text-muted-foreground">{t('common.nothingHere')}</p>
+            <p className="text-muted-foreground text-sm mt-1">{t('common.empty')}</p>
           </div>
         </div>
       </div>
