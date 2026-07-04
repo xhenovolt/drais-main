@@ -60,6 +60,44 @@ async function main() {
     process.exit(1);
   }
   console.log('✔ www/nodejs-project staged — nodejs-mobile-cordova will bundle it into the APK.');
+
+  await patchBuildConfigReference();
+}
+
+/**
+ * Fix the AGP-8 BuildConfig package mismatch in the regenerated plugin Java.
+ *
+ * nodejs-mobile-cordova's NodeJS.java (package com.janeasystems.cdvnodejsmobile)
+ * references a bare `BuildConfig.DEBUG`, expecting BuildConfig in its OWN package.
+ * But the capacitor-cordova-android-plugins module generates BuildConfig in the
+ * module namespace (capacitor.cordova.android.plugins), so the bare reference
+ * fails with "cannot find symbol: BuildConfig". `cap sync` regenerates this file
+ * from node_modules, so we patch it post-sync: fully-qualify the reference to the
+ * module's generated class (generation is enabled via
+ * android.defaults.buildfeatures.buildconfig=true in gradle.properties).
+ * Idempotent — only rewrites the bare reference.
+ */
+async function patchBuildConfigReference() {
+  const nodeJava = path.join(
+    root, 'android', 'capacitor-cordova-android-plugins',
+    'src', 'main', 'java', 'com', 'janeasystems', 'cdvnodejsmobile', 'NodeJS.java',
+  );
+  if (!existsSync(nodeJava)) {
+    console.warn('[stage-node-android] NodeJS.java not found — skipping BuildConfig patch (run cap sync first).');
+    return;
+  }
+  const src = await fs.readFile(nodeJava, 'utf8');
+  // Only match the bare reference (not an already-qualified one) so re-runs are no-ops.
+  const patched = src.replace(
+    /([^.\w])BuildConfig\.DEBUG/g,
+    '$1capacitor.cordova.android.plugins.BuildConfig.DEBUG',
+  );
+  if (patched !== src) {
+    await fs.writeFile(nodeJava, patched);
+    console.log('✔ patched NodeJS.java — fully-qualified BuildConfig.DEBUG (AGP 8 namespace fix).');
+  } else {
+    console.log('• NodeJS.java BuildConfig reference already qualified — no change.');
+  }
 }
 
 main().catch((e) => { console.error('[stage-node-android]', e); process.exit(1); });
