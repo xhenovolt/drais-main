@@ -57,19 +57,19 @@ export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
             >
               {/* Active pill indicator */}
               {active && (
-                <span className="absolute top-1.5 h-1 w-10 bg-blue-600 dark:bg-blue-400 rounded-full" />
+                <span className="absolute top-1.5 h-1 w-10 bg-primary rounded-full" />
               )}
               <div
                 className={`flex items-center justify-center w-10 h-8 rounded-2xl transition-all duration-200 ${
                   active
-                    ? 'bg-blue-100 dark:bg-blue-900/40'
+                    ? 'bg-primary/10'
                     : 'group-hover:bg-gray-100 dark:group-hover:bg-gray-800'
                 }`}
               >
                 <Icon
                   className={`w-5 h-5 transition-colors duration-200 ${
                     active
-                      ? 'text-blue-600 dark:text-blue-400'
+                      ? 'text-primary'
                       : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
                   }`}
                 />
@@ -77,7 +77,7 @@ export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
               <span
                 className={`text-[10px] font-semibold transition-colors duration-200 ${
                   active
-                    ? 'text-blue-600 dark:text-blue-400'
+                    ? 'text-primary'
                     : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
                 }`}
               >

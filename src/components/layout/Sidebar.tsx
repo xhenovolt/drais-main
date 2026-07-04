@@ -92,7 +92,7 @@ export const Sidebar = () => {
           href={item.href}
           className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
             active
-              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-s-2 border-blue-500'
+              ? 'bg-primary/10 text-primary font-semibold border-s-2 border-primary'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
         >
@@ -113,7 +113,7 @@ export const Sidebar = () => {
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/30 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <span className={`flex-shrink-0 w-4 h-4 flex items-center justify-center ${childActive ? 'text-blue-500' : ''}`}>
+          <span className={`flex-shrink-0 w-4 h-4 flex items-center justify-center ${childActive ? 'text-primary' : ''}`}>
             {item.icon}
           </span>
           <span className="flex-1 truncate font-medium">{item.label}</span>
@@ -132,7 +132,7 @@ export const Sidebar = () => {
                   href={child.href || '#'}
                   className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] transition-all ${
                     childIsActive
-                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold'
+                      ? 'bg-primary/10 text-primary font-semibold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
