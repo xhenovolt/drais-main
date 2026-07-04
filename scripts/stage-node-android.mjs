@@ -25,9 +25,14 @@ import { pipeline } from 'node:stream/promises';
 
 const root    = process.cwd();
 const pluginRoot = path.join(root, 'node_modules', 'nodejs-mobile-cordova');
-// The plugin gradle is applied into the :app project (via app/capacitor.build.gradle),
-// so its externalNativeBuild CMake path resolves under android/app/libs/cdvnodejsmobile.
-const nativeDst = path.join(root, 'android', 'app', 'libs', 'cdvnodejsmobile');
+// The plugin gradle is applied into BOTH the :app project (via
+// app/capacitor.build.gradle) AND the capacitor-cordova-android-plugins project
+// (via its own build.gradle), and each gets the plugin's externalNativeBuild.
+// So the CMake sources must exist under libs/cdvnodejsmobile in both projects.
+const nativeDsts = [
+  path.join(root, 'android', 'app', 'libs', 'cdvnodejsmobile'),
+  path.join(root, 'android', 'capacitor-cordova-android-plugins', 'libs', 'cdvnodejsmobile'),
+];
 const srcProj = path.join(root, 'mobile', 'nodejs-project');
 // The plugin is applied in the capacitor-cordova-android-plugins project, so its
 // projectDir is what the www lookup resolves against.
@@ -96,27 +101,30 @@ async function stageNativeLibs() {
       process.exit(1);
     }
   }
-  await fs.mkdir(nativeDst, { recursive: true });
-  for (const [src, name] of files) {
-    await fs.copyFile(path.join(pluginRoot, src), path.join(nativeDst, name));
-  }
 
-  // libnode: headers + prebuilt per-ABI libs (shipped gzipped to save space).
-  const libnodeDst = path.join(nativeDst, 'libnode');
-  await fs.rm(libnodeDst, { recursive: true, force: true });
-  await copyTree(path.join(pluginRoot, 'libs', 'android', 'libnode'), libnodeDst);
-
-  let gunzipped = 0;
-  for (const abi of ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']) {
-    const gz = path.join(libnodeDst, 'bin', abi, 'libnode.so.gz');
-    const so = path.join(libnodeDst, 'bin', abi, 'libnode.so');
-    if (existsSync(gz)) {
-      await pipeline(createReadStream(gz), zlib.createGunzip(), createWriteStream(so));
-      await fs.rm(gz); // jniLibs must see .so, not .so.gz
-      gunzipped++;
+  for (const nativeDst of nativeDsts) {
+    await fs.mkdir(nativeDst, { recursive: true });
+    for (const [src, name] of files) {
+      await fs.copyFile(path.join(pluginRoot, src), path.join(nativeDst, name));
     }
+
+    // libnode: headers + prebuilt per-ABI libs (shipped gzipped to save space).
+    const libnodeDst = path.join(nativeDst, 'libnode');
+    await fs.rm(libnodeDst, { recursive: true, force: true });
+    await copyTree(path.join(pluginRoot, 'libs', 'android', 'libnode'), libnodeDst);
+
+    let gunzipped = 0;
+    for (const abi of ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']) {
+      const gz = path.join(libnodeDst, 'bin', abi, 'libnode.so.gz');
+      const so = path.join(libnodeDst, 'bin', abi, 'libnode.so');
+      if (existsSync(gz)) {
+        await pipeline(createReadStream(gz), zlib.createGunzip(), createWriteStream(so));
+        await fs.rm(gz); // jniLibs must see .so, not .so.gz
+        gunzipped++;
+      }
+    }
+    console.log(`✔ native libs staged into ${path.relative(root, nativeDst)} (libnode gunzipped for ${gunzipped} ABIs).`);
   }
-  console.log(`✔ native libs staged into app/libs/cdvnodejsmobile (libnode gunzipped for ${gunzipped} ABIs).`);
 }
 
 /**
