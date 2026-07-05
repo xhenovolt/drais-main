@@ -110,7 +110,7 @@ export default function ResultsPage() {
 
   if (loading && !academicYears.length) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <Loader2 className="animate-spin" size={32} />
       </div>
     );
@@ -120,13 +120,13 @@ export default function ResultsPage() {
   const currentTermData = currentYearData?.terms?.find(t => t.id === selectedTerm);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-40">
+      <div className="bg-card border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-3xl font-bold">Exam Results</h1>
-            <button className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
+            <button className="px-4 py-2 border rounded-lg hover:bg-muted flex items-center gap-2">
               <Download size={18} />
               Export CSV
             </button>
@@ -135,7 +135,7 @@ export default function ResultsPage() {
           {/* Filter Dropdowns */}
           <div className="flex gap-4">
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Academic Year</label>
               <select
                 value={selectedYear || ''}
                 onChange={(e) => {
@@ -147,7 +147,7 @@ export default function ResultsPage() {
                     setSelectedTerm(year.terms[0].id);
                   }
                 }}
-                className="px-4 py-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {academicYears.map(year => (
                   <option key={year.id} value={year.id}>
@@ -158,11 +158,11 @@ export default function ResultsPage() {
             </div>
 
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Term</label>
               <select
                 value={selectedTerm || ''}
                 onChange={(e) => setSelectedTerm(parseInt(e.target.value))}
-                className="px-4 py-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {currentYearData?.terms?.map(term => (
                   <option key={term.id} value={term.id}>
@@ -195,24 +195,24 @@ export default function ResultsPage() {
         {loading ? (
           <div className="text-center py-12">
             <Loader2 className="animate-spin mx-auto mb-2" size={32} />
-            <p className="text-gray-600">Loading results...</p>
+            <p className="text-muted-foreground">Loading results...</p>
           </div>
         ) : results.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <p className="text-gray-600">No results found for the selected term</p>
+          <div className="text-center py-12 bg-card rounded-lg border">
+            <p className="text-muted-foreground">No results found for the selected term</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg border overflow-hidden">
+          <div className="bg-card rounded-lg border overflow-hidden">
             {results.map((studentResults) => (
               <div key={studentResults.student_id} className="border-b last:border-b-0">
                 {/* Student Header */}
-                <div className="bg-gray-50 px-6 py-4 border-b">
+                <div className="bg-muted px-6 py-4 border-b">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-lg">
                         {studentResults.first_name} {studentResults.last_name}
                       </h3>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {studentResults.admission_no} • {studentResults.class_name}
                       </p>
                     </div>
@@ -220,7 +220,7 @@ export default function ResultsPage() {
                       <p className="text-4xl font-bold text-blue-600">
                         {studentResults.results.length}
                       </p>
-                      <p className="text-xs text-gray-600">Results</p>
+                      <p className="text-xs text-muted-foreground">Results</p>
                     </div>
                   </div>
                 </div>
@@ -239,7 +239,7 @@ export default function ResultsPage() {
                     </thead>
                     <tbody>
                       {studentResults.results.map((result) => (
-                        <tr key={result.id} className="border-b hover:bg-gray-50">
+                        <tr key={result.id} className="border-b hover:bg-muted">
                           <td className="py-3">{result.subject_name}</td>
                           <td className="text-center py-3 font-medium">{result.score}</td>
                           <td className="text-center py-3">
@@ -247,8 +247,8 @@ export default function ResultsPage() {
                               {result.grade}
                             </span>
                           </td>
-                          <td className="py-3 text-gray-600">{result.result_type || '—'}</td>
-                          <td className="py-3 text-gray-600">
+                          <td className="py-3 text-muted-foreground">{result.result_type || '—'}</td>
+                          <td className="py-3 text-muted-foreground">
                             {result.exam_date ? new Date(result.exam_date).toLocaleDateString() : '—'}
                           </td>
                         </tr>
@@ -264,30 +264,30 @@ export default function ResultsPage() {
         {/* Stats Footer */}
         {results.length > 0 && (
           <div className="mt-6 grid grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg border p-4 text-center">
+            <div className="bg-card rounded-lg border p-4 text-center">
               <p className="text-3xl font-bold text-blue-600">{results.length}</p>
-              <p className="text-sm text-gray-600">Students with Results</p>
+              <p className="text-sm text-muted-foreground">Students with Results</p>
             </div>
-            <div className="bg-white rounded-lg border p-4 text-center">
+            <div className="bg-card rounded-lg border p-4 text-center">
               <p className="text-3xl font-bold text-green-600">
                 {results.reduce((sum, r) => sum + r.results.length, 0)}
               </p>
-              <p className="text-sm text-gray-600">Total Results</p>
+              <p className="text-sm text-muted-foreground">Total Results</p>
             </div>
-            <div className="bg-white rounded-lg border p-4 text-center">
+            <div className="bg-card rounded-lg border p-4 text-center">
               <p className="text-3xl font-bold text-purple-600">
                 {(
                   results.reduce((sum, r) => sum + r.results.reduce((s, res) => s + res.score, 0), 0) /
                   results.reduce((sum, r) => sum + r.results.length, 0)
                 ).toFixed(1)}
               </p>
-              <p className="text-sm text-gray-600">Average Score</p>
+              <p className="text-sm text-muted-foreground">Average Score</p>
             </div>
-            <div className="bg-white rounded-lg border p-4 text-center">
+            <div className="bg-card rounded-lg border p-4 text-center">
               <p className="text-3xl font-bold text-orange-600">
                 {currentTermData?.name}
               </p>
-              <p className="text-sm text-gray-600">Current Filter</p>
+              <p className="text-sm text-muted-foreground">Current Filter</p>
             </div>
           </div>
         )}

@@ -59,10 +59,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (isLoading) {
     return (
       fallback || (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="flex items-center justify-center min-h-screen bg-muted">
           <div className="text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 mx-auto mb-4" />
-            <p className="text-gray-500 text-sm">Loading...</p>
+            <p className="text-muted-foreground text-sm">Loading...</p>
           </div>
         </div>
       )
@@ -73,10 +73,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!isAuthenticated || !user) {
     return (
       fallback || (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="flex items-center justify-center min-h-screen bg-muted">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto mb-4" />
-            <p className="text-gray-500 text-sm">Redirecting to login...</p>
+            <p className="text-muted-foreground text-sm">Redirecting to login...</p>
           </div>
         </div>
       )
@@ -87,14 +87,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (onSetupIncomplete === 'block' && !setupComplete) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+        <div className="max-w-md w-full bg-card rounded-xl shadow-lg p-8 text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-amber-100 rounded-full">
               <Settings className="w-10 h-10 text-amber-600" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Setup Required</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-bold text-foreground mb-3">Setup Required</h2>
+          <p className="text-muted-foreground mb-6">
             Your school setup is not complete. Please complete the setup process to access all features.
           </p>
           <a
@@ -133,20 +133,20 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!hasRequiredPermission || !hasRequiredRole) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-red-50 to-orange-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+        <div className="max-w-md w-full bg-card rounded-xl shadow-lg p-8 text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-red-100 rounded-full">
               <Shield className="w-10 h-10 text-red-600" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Access Denied</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-bold text-foreground mb-3">Access Denied</h2>
+          <p className="text-muted-foreground mb-6">
             You do not have permission to access this resource. If you believe this is an error, please contact your administrator.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => router.back()}
-              className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3 bg-muted text-foreground rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
               Go Back
             </button>
