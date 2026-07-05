@@ -61,6 +61,41 @@ async function fitSquare(srcPath, size) {
   return sharp(trimmed).resize(size, size, { fit: 'contain', background: TRANSPARENT }).png();
 }
 
+/** A solid white circle PNG buffer of `size` (for round legacy launcher icons). */
+function whiteCircleSvg(size) {
+  return Buffer.from(`<svg width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#ffffff"/></svg>`);
+}
+
+/**
+ * Regenerate Capacitor/Android launcher icons from the mark (Phase 6).
+ * Adaptive background is the white colour resource; we supply:
+ *   - ic_launcher.png        (legacy, icon on white square)
+ *   - ic_launcher_round.png  (legacy round, icon on white circle)
+ *   - ic_launcher_foreground.png (adaptive foreground, icon in the safe zone, transparent)
+ */
+async function generateAndroid(master, w) {
+  const resRoot = 'android/app/src/main/res';
+  const legacy = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
+  const fg = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 };
+  for (const [dpi, size] of Object.entries(legacy)) {
+    const icon = await sharp(master).resize(Math.round(size * 0.84), Math.round(size * 0.84), { fit: 'contain', background: TRANSPARENT }).png().toBuffer();
+    // square on white
+    await w(`${resRoot}/mipmap-${dpi}/ic_launcher.png`,
+      sharp({ create: { width: size, height: size, channels: 4, background: WHITE } }).composite([{ input: icon, gravity: 'center' }]).png());
+    // round: icon on a white circle
+    await w(`${resRoot}/mipmap-${dpi}/ic_launcher_round.png`,
+      sharp({ create: { width: size, height: size, channels: 4, background: TRANSPARENT } })
+        .composite([{ input: whiteCircleSvg(size) }, { input: icon, gravity: 'center' }]).png());
+  }
+  for (const [dpi, size] of Object.entries(fg)) {
+    // adaptive foreground: icon at ~62% in the centre safe zone, transparent field
+    const inner = Math.round(size * 0.62);
+    const icon = await sharp(master).resize(inner, inner, { fit: 'contain', background: TRANSPARENT }).png().toBuffer();
+    await w(`${resRoot}/mipmap-${dpi}/ic_launcher_foreground.png`,
+      sharp({ create: { width: size, height: size, channels: 4, background: TRANSPARENT } }).composite([{ input: icon, gravity: 'center' }]).png());
+  }
+}
+
 async function main() {
   for (const p of [SRC_ICON, SRC_WORDMARK]) {
     try { await fs.access(p); } catch { console.error(`Missing source: ${p}`); process.exit(1); }
@@ -100,6 +135,12 @@ async function main() {
   // ── Electron (Linux png + build master; .ico handled by wrapper) ──
   await w('build/icon.png', await pngAt(master, 512));
   await w('build/brand/_icon-256.png', await pngAt(master, 256));
+
+  // ── Capacitor / Android launcher icons (only if the android project exists) ──
+  try {
+    await fs.access(path.join(root, 'android', 'app', 'src', 'main', 'res'));
+    await generateAndroid(master, w);
+  } catch { /* no android project — skip */ }
 
   console.log(`✔ generated ${written.length} brand assets`);
   for (const r of written) console.log('   ' + r);
