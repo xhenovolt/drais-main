@@ -119,9 +119,6 @@ async function main() {
   await w('public/favicon-32x32.png', await pngAt(master, 32));
   await w('public/apple-touch-icon.png', await pngAt(master, 180, WHITE));
 
-  // 48px png the wrapper converts into favicon.ico (sharp can't write .ico).
-  await w('public/brand/drais/_favicon-48.png', await pngAt(master, 48));
-
   // ── Canonical brand folder ──
   await w('public/brand/drais/icon-512.png', await pngAt(master, 512));
   await w('public/brand/drais/pwa-192.png', await pngAt(master, 192));
