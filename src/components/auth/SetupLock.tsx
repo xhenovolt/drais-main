@@ -48,20 +48,20 @@ export const SetupLock: React.FC<SetupLockProps> = ({
 
       {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all">
+        <div className="bg-card rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all">
           {/* Header */}
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-shrink-0">
               <Settings className="w-6 h-6 text-blue-600 animate-spin-slow" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-foreground">
               Complete School Setup
             </h2>
           </div>
 
           {/* Message */}
           <div className="mb-6">
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Your school is not yet set up. Please complete the initial setup to access all features.
             </p>
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -75,7 +75,7 @@ export const SetupLock: React.FC<SetupLockProps> = ({
           <div className="flex gap-3">
             <button
               onClick={handleDismiss}
-              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 px-4 py-2 text-foreground bg-muted rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
               Dismiss
             </button>
@@ -88,7 +88,7 @@ export const SetupLock: React.FC<SetupLockProps> = ({
           </div>
 
           {/* Info */}
-          <p className="text-xs text-gray-500 text-center mt-4">
+          <p className="text-xs text-muted-foreground text-center mt-4">
             You can also access setup from Settings
           </p>
         </div>

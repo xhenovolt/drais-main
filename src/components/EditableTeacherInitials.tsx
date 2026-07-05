@@ -119,7 +119,7 @@ export default function EditableTeacherInitials({
           {currentInitials || 'N/A'}
         </span>
         {teacherName && (
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-muted-foreground">
             ({teacherName})
           </span>
         )}
@@ -135,7 +135,7 @@ export default function EditableTeacherInitials({
             type="text"
             value={initials}
             onChange={(e) => setInitials(e.target.value.toUpperCase())}
-            className="px-2 py-1 border border-gray-300 rounded font-mono font-bold text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-2 py-1 border border-border rounded font-mono font-bold text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter initials"
             maxLength={10}
             autoFocus
@@ -151,7 +151,7 @@ export default function EditableTeacherInitials({
           <button
             onClick={handleCancel}
             disabled={isLoading}
-            className="p-1 text-gray-600 hover:bg-gray-50 rounded disabled:opacity-50"
+            className="p-1 text-muted-foreground hover:bg-muted rounded disabled:opacity-50"
             title="Cancel"
           >
             <X size={16} />
@@ -171,13 +171,13 @@ export default function EditableTeacherInitials({
             {currentInitials || 'N/A'}
           </span>
           {teacherName && (
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               ({teacherName})
             </span>
           )}
           <button
             onClick={() => setIsEditing(true)}
-            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded"
+            className="p-1 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded"
             title="Edit initials"
           >
             <Edit2 size={14} />
@@ -191,7 +191,7 @@ export default function EditableTeacherInitials({
         </div>
       )}
       
-      <div className="text-xs text-gray-400">
+      <div className="text-xs text-muted-foreground">
         {className} - {subjectName}
       </div>
     </div>
