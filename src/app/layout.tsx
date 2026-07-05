@@ -228,15 +228,17 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#0A2463" />
         <meta name="msapplication-TileColor" content="#0A2463" />
-        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png?v=drais2026" />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
-        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
+        {/* ?v= cache-buster forces browsers/PWAs to drop the OLD cached DRAIS
+            favicon after the 2026 logo refresh (same paths, new file bytes). */}
+        <link rel="icon" type="image/x-icon" href="/favicon.ico?v=drais2026" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png?v=drais2026" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png?v=drais2026" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=drais2026" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png?v=drais2026" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png?v=drais2026" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png?v=drais2026" />
       </head>
       <body className="font-sans antialiased selection:bg-[var(--color-primary)]/20">
         <QueryClientProvider client={queryClient}>

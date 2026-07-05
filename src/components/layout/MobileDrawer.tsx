@@ -8,6 +8,7 @@ import {
   LogOut, User, Bell, Search, Check,
 } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { BrandLockup } from '@/components/brand/Logo';
 import { getNavigationItems, MenuItem, filterMenuByRole } from '@/lib/navigationConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/components/theme/ThemeProvider';
@@ -158,6 +159,11 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
       {isOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />}
 
       <div className={`fixed start-0 top-0 h-full w-72 bg-white dark:bg-slate-900 border-e border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 lg:hidden ${isOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`}>
+
+        {/* ── DRAIS brand header ── */}
+        <div className="px-4 pt-4 pb-2">
+          <BrandLockup size={30} />
+        </div>
 
         {/* ── User Profile Header ── */}
         <div className="px-4 pt-4 pb-3 border-b border-slate-200 dark:border-slate-800">

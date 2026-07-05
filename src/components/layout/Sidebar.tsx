@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { BrandLockup } from '@/components/brand/Logo';
 import { getNavigationItems, MenuItem, filterMenuByRole } from '@/lib/navigationConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
@@ -150,16 +151,8 @@ export const Sidebar = () => {
   return (
     <aside className="hidden md:flex w-60 flex-col h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-shrink-0">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-          D
-        </div>
-        <div className="min-w-0">
-          <div className="font-bold text-slate-900 dark:text-white text-sm">DRAIS</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-            {school?.name ?? 'School OS'}
-          </div>
-        </div>
+      <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-800">
+        <BrandLockup size={34} subtitle={school?.name ?? 'School OS'} />
       </div>
 
       {/* Nav — scrollable */}

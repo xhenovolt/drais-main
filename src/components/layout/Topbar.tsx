@@ -6,6 +6,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { ProfileDropdown } from '@/components/ui/ProfileDropdown';
+import { BrandBadge } from '@/components/brand/Logo';
 import DbModeBadge from '@/components/db/DbModeBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import LiveScanSmsIndicator from '@/components/notifications/LiveScanSmsIndicator';
@@ -345,13 +346,12 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
           </button>
 
           {/* Logo */}
-          <Link 
+          <Link
             href="/"
-            className="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="flex items-center gap-2 font-bold text-lg text-foreground transition-opacity hover:opacity-80"
+            aria-label="DRAIS home"
           >
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md">
-              D
-            </div>
+            <BrandBadge size={32} />
             <span className="hidden sm:inline">DRAIS</span>
           </Link>
         </div>

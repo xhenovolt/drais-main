@@ -1,9 +1,10 @@
 "use client";
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Lock, Mail, Shield, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { BrandBadge } from '@/components/brand/Logo';
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -94,9 +95,7 @@ const LoginPage: React.FC = () => {
               }}
               transition={{ duration: 3, repeat: Infinity }}
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
+              <BrandBadge size={52} className="!rounded-xl" />
             </motion.div>
             <div className="text-left">
               <motion.h1
