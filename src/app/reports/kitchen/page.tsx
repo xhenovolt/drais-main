@@ -133,6 +133,9 @@ export default function ReportsKitchen() {
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [activatingId, setActivatingId]   = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // Phase 1 — rename modal (replaces the obsolete window.prompt).
+  const [renameTarget, setRenameTarget] = useState<DRCEDocument | null>(null);
+  const [renameValue, setRenameValue]   = useState('');
   // Canva-style kind filter — defaults to "all" so the existing kitchen
   // behaviour is unchanged for users who don't care about kinds.
   const [kindFilter, setKindFilter] = useState<string>('all');
@@ -143,6 +146,16 @@ export default function ReportsKitchen() {
   };
 
   const docNumId = (doc: DRCEDocument) => parseInt(doc.meta.id, 10);
+
+  // Phase 1 — a template is protected (can't be renamed/deleted) when it is a
+  // built-in DRAIS template: a non-numeric string id (e.g. 'drce-emergency-…')
+  // or a global row with no school_id. Mirrors the API's ownership guard so the
+  // UI can explain *why* instead of surfacing an opaque "Cannot rename".
+  const isBuiltIn = (doc: DRCEDocument) => {
+    const m = doc.meta as { id: string; school_id?: number | null };
+    return Number.isNaN(parseInt(m.id, 10)) || m.school_id == null;
+  };
+  const BUILTIN_PROTECTION = 'This is a built-in DRAIS template, so it can’t be renamed or deleted. Use “Duplicate” to make your own editable copy.';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -225,12 +238,20 @@ export default function ReportsKitchen() {
     }
   };
 
-  const handleRename = async (doc: DRCEDocument) => {
+  // Open the rename modal (or explain why a built-in can't be renamed).
+  const handleRename = (doc: DRCEDocument) => {
+    if (isBuiltIn(doc)) { showMsg('error', BUILTIN_PROTECTION); return; }
+    setRenameTarget(doc);
+    setRenameValue(doc.meta.name ?? '');
+  };
+
+  // Commit the rename from the modal.
+  const doRename = async () => {
+    const doc = renameTarget;
+    if (!doc) return;
+    const name = renameValue.trim();
     const current = doc.meta.name ?? '';
-    const next = window.prompt('Rename template', current);
-    if (next === null) return;                 // cancelled
-    const name = next.trim();
-    if (!name || name === current) return;     // unchanged / empty
+    if (!name || name === current) { setRenameTarget(null); return; }
     const id = docNumId(doc);
     setRenamingId(id);
     try {
@@ -245,6 +266,7 @@ export default function ReportsKitchen() {
         if (previewDoc && docNumId(previewDoc) === id) {
           setPreviewDoc({ ...previewDoc, meta: { ...previewDoc.meta, name } });
         }
+        setRenameTarget(null);
         fetchData();
       } else {
         showMsg('error', data.error || 'Cannot rename this template');
@@ -257,6 +279,7 @@ export default function ReportsKitchen() {
   };
 
   const handleDelete = async (doc: DRCEDocument) => {
+    if (isBuiltIn(doc)) { showMsg('error', BUILTIN_PROTECTION); return; }
     if (!confirm(`Delete template "${doc.meta.name}"? This cannot be undone.`)) return;
     const id = docNumId(doc);
     setDeletingId(id);
@@ -614,6 +637,40 @@ export default function ReportsKitchen() {
           </div>
         )}
       </div>
+
+      {/* Phase 1 — rename modal (replaces window.prompt) */}
+      {renameTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setRenameTarget(null)}>
+          <div className="w-full max-w-sm rounded-xl bg-card border border-border shadow-2xl p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Rename template</h3>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') doRename(); if (e.key === 'Escape') setRenameTarget(null); }}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Template name"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRenameTarget(null)}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={doRename}
+                disabled={!renameValue.trim() || renamingId === docNumId(renameTarget)}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-primary text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {renamingId === docNumId(renameTarget) ? 'Saving…' : 'Rename'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

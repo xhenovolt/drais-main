@@ -19,6 +19,7 @@ import { findKind } from '@/lib/drce/kinds';
 import { KindAdvisories } from './KindAdvisories';
 import { resolvePageDimensions } from '@/lib/drce/styleResolver';
 import { useDRCEEditor } from './useDRCEEditor';
+import { saveDraft, clearDraft, recoverableDraft, type DRCEDraft } from '@/lib/drce/draftStore';
 import { SectionListPanel } from './SectionListPanel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { DrawingToolbar } from './DrawingToolbar';
@@ -108,7 +109,7 @@ interface Props {
 
 export function DRCEEditor({ initial, onSave }: Props) {
   const { t } = useI18n();
-  const { document, mutate, undo, redo, markSaved, canUndo, canRedo, isDirty } = useDRCEEditor(initial);
+  const { document, mutate, undo, redo, reset, markSaved, canUndo, canRedo, isDirty } = useDRCEEditor(initial);
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const sel = useSelection();
 
@@ -133,6 +134,9 @@ export function DRCEEditor({ initial, onSave }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [currentVersionNo, setCurrentVersionNo] = useState<number | undefined>(undefined);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  // Phase 1 — crash-recovery: a draft found in localStorage that differs from
+  // the server document, offered for restore via a dismissible banner.
+  const [recoverable, setRecoverable] = useState<DRCEDraft | null>(null);
   // P4 — current workflow status. `initial.meta` may carry it; otherwise we
   // fetch it lazily so legacy callers keep working.
   const [status, setStatus] = useState<TemplateStatus>(
@@ -210,6 +214,30 @@ export function DRCEEditor({ initial, onSave }: Props) {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [undo, redo, mutate]);
+
+  // ── Phase 1: crash recovery + unsaved-work guard ──────────────────────────
+  // On mount, offer to restore a newer local draft (survives tab close/crash).
+  useEffect(() => {
+    if (!hasDbId) return;
+    const draft = recoverableDraft(documentDbId, initial);
+    if (draft) setRecoverable(draft);
+  }, [documentDbId, hasDbId, initial]);
+
+  // Autosave the working document to a local draft (debounced) while dirty, so
+  // nothing is lost between manual (versioned) saves. Cleared on save/discard.
+  useEffect(() => {
+    if (!hasDbId || !isDirty) return;
+    const h = setTimeout(() => saveDraft(documentDbId, document), 1200);
+    return () => clearTimeout(h);
+  }, [document, isDirty, hasDbId, documentDbId]);
+
+  // Warn before leaving with unsaved changes (native browser prompt).
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isDirty]);
 
   // P5 — transparently thread the active pageId into ADD_SECTION so newly
   // added sections land on the page the user is currently viewing.
@@ -307,6 +335,9 @@ export function DRCEEditor({ initial, onSave }: Props) {
       // Phase 0 fix H3 — pin savedIndex to the just-saved doc so isDirty
       // accurately reflects "differs from server" (not just "moved at all").
       markSaved();
+      // Phase 1 — the server now holds this state; drop the recovery draft.
+      if (hasDbId) clearDraft(documentDbId);
+      setRecoverable(null);
       showToast('success', 'Template saved');
       setSavedAt(new Date());
       // Refresh the version chip — read the latest version number from the API.
@@ -365,6 +396,30 @@ export function DRCEEditor({ initial, onSave }: Props) {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 overflow-hidden">
+      {/* ── Phase 1: crash-recovery banner ──────────────────────────────────────── */}
+      {recoverable && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 text-sm text-amber-800 dark:text-amber-200 flex-shrink-0">
+          <span className="flex-1">
+            Unsaved changes from your last session were recovered
+            {` (${new Date(recoverable.savedAt).toLocaleString()})`}.
+          </span>
+          <button
+            type="button"
+            onClick={() => { reset(recoverable.doc); setRecoverable(null); showToast('success', 'Draft restored'); }}
+            className="px-2.5 py-1 rounded-md bg-amber-600 text-white text-xs font-semibold hover:bg-amber-500"
+          >
+            Restore
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (hasDbId) clearDraft(documentDbId); setRecoverable(null); }}
+            className="px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40"
+          >
+            Discard
+          </button>
+        </div>
+      )}
+
       {/* ── Top bar (refreshed) ──────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex-shrink-0 shadow-sm">
         {/* Left: identity + save state pill */}
