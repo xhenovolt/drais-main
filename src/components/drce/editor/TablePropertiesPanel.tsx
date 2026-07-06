@@ -24,6 +24,7 @@ interface Props {
 }
 
 import { newColumnId } from '@/lib/drce/ids';
+import { AVAILABLE_BINDINGS } from '@/lib/drce/bindingResolver';
 import { useI18n } from '@/components/i18n/I18nProvider';
 function newColId() { return newColumnId(); }
 
@@ -87,6 +88,14 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
 
   return (
     <div className="p-3 space-y-3 text-xs">
+      {/* Phase 4 — one shared autocomplete list of every available data field,
+          so binding inputs suggest paths (e.g. student.fullName, result.score)
+          instead of forcing users to type them from memory. */}
+      <datalist id="drce-binding-list">
+        {AVAILABLE_BINDINGS.map(b => (
+          <option key={b.binding} value={b.binding}>{b.label} — {b.group}</option>
+        ))}
+      </datalist>
       <div className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Table</div>
 
       {/* dataSource vs static */}
@@ -147,6 +156,7 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
               <button onClick={() => deleteColumn(c.id)} className="p-1 text-rose-400 hover:text-rose-600" title="Delete column"><Trash2 size={12} /></button>
             </div>
             <input
+              list="drce-binding-list"
               value={c.binding ?? ''}
               onChange={e => patchColumn(c.id, { binding: e.target.value || undefined })}
               placeholder="Default binding (e.g. result.score or {avg(results,'score') | number:'#,##0'})"
@@ -245,6 +255,7 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
                           className="w-full px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 outline-none"
                         />
                         <input
+                          list="drce-binding-list"
                           value={ov?.binding ?? ''}
                           onChange={e => {
                             const cells = { ...(section.cells ?? {}) };

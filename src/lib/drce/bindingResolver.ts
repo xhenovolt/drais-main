@@ -102,6 +102,7 @@ export const AVAILABLE_BINDINGS: Array<{ group: string; binding: string; label: 
   { group: 'Subject Result', binding: 'result.department',    label: 'Department' },
   { group: 'Subject Result', binding: 'result.subjectGroup',  label: 'Subject Group' },
   { group: 'Subject Result', binding: 'result.subjectComment', label: 'Subject Comment' },
+  { group: 'Subject Result', binding: 'result.competencyLevel', label: 'Competency Level (CAFE)' },
   // Student bindings
   { group: 'Student',        binding: 'student.fullName',     label: 'Full Name' },
   { group: 'Student',        binding: 'student.fullNameAr',   label: 'Full Name (Arabic)' },
@@ -113,9 +114,11 @@ export const AVAILABLE_BINDINGS: Array<{ group: string; binding: string; label: 
   { group: 'Student',        binding: 'student.classNameAr',  label: 'Class Name (Arabic)' },
   { group: 'Student',        binding: 'student.streamName',   label: 'Stream Name' },
   { group: 'Student',        binding: 'student.admissionNo',  label: 'Admission Number' },
+  { group: 'Student',        binding: 'student.photoUrl',     label: 'Student Photo (URL)' },
   // Assessment bindings
   { group: 'Assessment',     binding: 'assessment.classPosition',  label: 'Class Position' },
   { group: 'Assessment',     binding: 'assessment.streamPosition', label: 'Stream Position' },
+  { group: 'Assessment',     binding: 'assessment.position',       label: 'Position (e.g. 3 / 45)' },
   { group: 'Assessment',     binding: 'assessment.aggregates',     label: 'Aggregates' },
   { group: 'Assessment',     binding: 'assessment.division',       label: 'Division' },
   { group: 'Assessment',     binding: 'assessment.totalStudents',  label: 'Total Students in Class' },
@@ -126,9 +129,13 @@ export const AVAILABLE_BINDINGS: Array<{ group: string; binding: string; label: 
   // Meta bindings
   { group: 'Report Meta',    binding: 'meta.term',             label: 'Term' },
   { group: 'Report Meta',    binding: 'meta.year',             label: 'Academic Year' },
+  { group: 'Report Meta',    binding: 'meta.nextTermBegins',   label: 'Next Term Begins' },
   { group: 'Report Meta',    binding: 'meta.reportTitle',      label: 'Report Title' },
   { group: 'Report Meta',    binding: 'meta.schoolName',       label: 'School Name' },
+  { group: 'Report Meta',    binding: 'meta.arabicName',       label: 'School Name (Arabic)' },
   { group: 'Report Meta',    binding: 'meta.schoolAddress',    label: 'School Address' },
+  { group: 'Report Meta',    binding: 'meta.arabicAddress',    label: 'School Address (Arabic)' },
+  { group: 'Report Meta',    binding: 'meta.logoUrl',          label: 'School Logo (URL)' },
   { group: 'Report Meta',    binding: 'meta.schoolContact',    label: 'School Contact' },
   { group: 'Report Meta',    binding: 'meta.schoolEmail',      label: 'School Email' },
   { group: 'Report Meta',    binding: 'meta.centerNo',         label: 'UNEB Center Number' },
