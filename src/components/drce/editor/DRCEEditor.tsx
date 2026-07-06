@@ -20,6 +20,7 @@ import { KindAdvisories } from './KindAdvisories';
 import { resolvePageDimensions } from '@/lib/drce/styleResolver';
 import { useDRCEEditor } from './useDRCEEditor';
 import { saveDraft, clearDraft, recoverableDraft, type DRCEDraft } from '@/lib/drce/draftStore';
+import { copySelection, pasteClipboard, duplicateSelection } from './clipboardOps';
 import { SectionListPanel } from './SectionListPanel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { DrawingToolbar } from './DrawingToolbar';
@@ -162,6 +163,10 @@ export function DRCEEditor({ initial, onSave }: Props) {
   const selectedShapeIdRef  = useRef<string | null>(selectedShapeId);
   useEffect(() => { selectedIdRef.current      = selectedId;      }, [selectedId]);
   useEffect(() => { selectedShapeIdRef.current = selectedShapeId; }, [selectedShapeId]);
+  // Phase 2 — keep the current document readable from the keydown handler
+  // (clipboard shortcuts) without re-binding the listener on every edit.
+  const documentRef = useRef(document);
+  useEffect(() => { documentRef.current = document; }, [document]);
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y / Delete keyboard shortcuts
   useEffect(() => {
@@ -169,6 +174,21 @@ export function DRCEEditor({ initial, onSave }: Props) {
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
       if (e.ctrlKey && e.key === 's') { e.preventDefault(); handleSave(); }
+      // Phase 2 — clipboard shortcuts (the toolbar buttons already advertise
+      // these; wire them here so they actually work). Skip while editing text
+      // so native copy/paste in inputs is untouched.
+      if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'd'].includes(e.key.toLowerCase())) {
+        const t = e.target as HTMLElement | null;
+        const tag = t?.tagName ?? '';
+        const inText = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+          || !!t?.isContentEditable || !!(t?.closest && t.closest('[contenteditable="true"]'));
+        if (!inText) {
+          const k = e.key.toLowerCase();
+          if (k === 'c') { if (copySelection(documentRef.current, selection.snapshot())) e.preventDefault(); }
+          else if (k === 'v') { e.preventDefault(); pasteClipboard(handleMutate); }
+          else if (k === 'd') { e.preventDefault(); duplicateSelection(documentRef.current, selection.snapshot(), handleMutate); }
+        }
+      }
       // Shortcut keys for drawing tools
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         // Phase 0 fix C2 — bail out for any field accepting text input, including:

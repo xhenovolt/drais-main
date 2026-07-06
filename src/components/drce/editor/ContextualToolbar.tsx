@@ -15,8 +15,8 @@ import {
   Copy, Clipboard, Trash2, ArrowUp, ArrowDown, MoveDiagonal2,
 } from 'lucide-react';
 import { useSelection, selection } from './selectionStore';
-import type { DRCEDocument, DRCEMutation, DRCESection, DRCEShape } from '@/lib/drce/schema';
-import { newSectionId, newShapeId, newColumnId, newFieldId, newItemId } from '@/lib/drce/ids';
+import { duplicateSelection, copySelection, pasteClipboard } from './clipboardOps';
+import type { DRCEDocument, DRCEMutation } from '@/lib/drce/schema';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Props {
@@ -81,32 +81,9 @@ export function ContextualToolbar({ document: doc, onMutate, canvasRef }: Props)
 
   if (!sel.primary || !rect) return null;
 
-  // Helpers operating on the primary selection.
-  function duplicate() {
-    if (!sel.primary) return;
-    if (sel.primary.kind === 'section') {
-      const s = findSectionDeep(doc.sections, sel.primary.id);
-      if (!s) return;
-      // Phase 0 fix H4 — collision-free IDs, deeply rewritten so cloning a
-      // container doesn't duplicate child / column / field / item IDs.
-      const clone = rewriteIdsDeep(deepClone(s));
-      onMutate({ type: 'ADD_SECTION', section: clone, afterId: s.id });
-      selection.select('section', clone.id);
-    } else {
-      const sh = doc.shapes?.find(x => x.id === sel.primary!.id);
-      if (!sh) return;
-      const clone = deepClone(sh);
-      clone.id = newShapeId();
-      // Nudge so it doesn't overlap exactly.
-      const offset = 20;
-      if ('x' in clone) (clone as { x: number }).x += offset;
-      if ('y' in clone) (clone as { y: number }).y += offset;
-      if ('x1' in clone) { (clone as { x1: number }).x1 += offset; (clone as { x2: number }).x2 += offset; }
-      if ('y1' in clone) { (clone as { y1: number }).y1 += offset; (clone as { y2: number }).y2 += offset; }
-      onMutate({ type: 'ADD_SHAPE', shape: clone });
-      selection.select('shape', clone.id);
-    }
-  }
+  // Selection ops — delegate to the shared clipboardOps so the toolbar and the
+  // editor's Ctrl+C/V/D keyboard shortcuts can never drift.
+  function duplicate() { duplicateSelection(doc, sel, onMutate); }
 
   function del() {
     if (!sel.primary) return;
@@ -118,34 +95,9 @@ export function ContextualToolbar({ document: doc, onMutate, canvasRef }: Props)
     selection.clear();
   }
 
-  function copy() {
-    const sections = [...sel.sectionIds]
-      .map(id => findSectionDeep(doc.sections, id))
-      .filter((x): x is DRCESection => !!x);
-    const shapes = [...sel.shapeIds]
-      .map(id => doc.shapes?.find(s => s.id === id))
-      .filter((x): x is DRCEShape => !!x);
-    if (sections.length || shapes.length) selection.copy(sections, shapes);
-  }
+  function copy() { copySelection(doc, sel); }
 
-  function paste() {
-    const cb = selection.getClipboard();
-    if (!cb) return;
-    let lastId: string | null = null;
-    cb.sections.forEach(s => {
-      const clone = rewriteIdsDeep(deepClone(s));
-      onMutate({ type: 'ADD_SECTION', section: clone, afterId: null });
-      lastId = clone.id;
-    });
-    cb.shapes.forEach(sh => {
-      const clone = deepClone(sh);
-      clone.id = newShapeId();
-      if ('x' in clone) (clone as { x: number }).x += 20;
-      if ('y' in clone) (clone as { y: number }).y += 20;
-      onMutate({ type: 'ADD_SHAPE', shape: clone });
-    });
-    if (lastId) selection.select('section', lastId);
-  }
+  function paste() { pasteClipboard(onMutate); }
 
   function reorder(direction: 'up' | 'down') {
     if (!sel.primary || sel.primary.kind !== 'section') return;
@@ -218,51 +170,3 @@ function ToolBtn({ icon, title, onClick, danger, disabled }: {
   );
 }
 function Divider() { return <span className="w-px h-4 bg-gray-200 dark:bg-slate-700 mx-0.5" />; }
-
-function findSectionDeep(arr: DRCESection[], id: string): DRCESection | null {
-  for (const s of arr) {
-    if (s.id === id) return s;
-    if (s.type === 'container') {
-      const hit = findSectionDeep((s as { children?: DRCESection[] }).children ?? [], id);
-      if (hit) return hit;
-    }
-  }
-  return null;
-}
-
-function deepClone<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
-
-/**
- * Phase 0 fix H4 — rewrite every id field in a cloned section subtree so a
- * duplicate/paste doesn't ship duplicate keys. Walks: section.id, container
- * children, results_table columns, student_info/assessment fields, comments
- * items, shape-section inner shape id, table-section cells.
- */
-function rewriteIdsDeep(s: DRCESection): DRCESection {
-  const out = { ...s, id: newSectionId(s.type) } as DRCESection & Record<string, unknown>;
-  if (s.type === 'container') {
-    const c = out as unknown as { children?: DRCESection[] };
-    c.children = (c.children ?? []).map(rewriteIdsDeep);
-  }
-  if ('columns' in out && Array.isArray((out as { columns?: { id: string }[] }).columns)) {
-    (out as { columns: { id: string }[] }).columns =
-      (out as { columns: { id: string }[] }).columns.map(c => ({ ...c, id: newColumnId() }));
-  }
-  if ('fields' in out && Array.isArray((out as { fields?: { id: string }[] }).fields)) {
-    (out as { fields: { id: string }[] }).fields =
-      (out as { fields: { id: string }[] }).fields.map(f => ({ ...f, id: newFieldId() }));
-  }
-  if ('items' in out && Array.isArray((out as { items?: { id: string }[] }).items)) {
-    (out as { items: { id: string }[] }).items =
-      (out as { items: { id: string }[] }).items.map(it => ({ ...it, id: newItemId() }));
-  }
-  if (s.type === 'shape') {
-    const shp = (out as unknown as { shape?: { id: string } }).shape;
-    if (shp) shp.id = newShapeId();
-  }
-  // Table cells: rewrite the rowKey:colId map. Column IDs above already changed,
-  // so the original cells map is stale anyway — safest is to drop overrides
-  // since they referenced now-defunct column IDs.
-  if (s.type === 'table') (out as { cells?: Record<string, unknown> }).cells = {};
-  return out as DRCESection;
-}

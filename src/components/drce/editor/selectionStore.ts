@@ -17,7 +17,7 @@ import type { DRCESection, DRCEShape } from '@/lib/drce/schema';
 
 export type SelectedKind = 'section' | 'shape';
 
-interface SelectionState {
+export interface SelectionState {
   sectionIds: Set<string>;
   shapeIds:   Set<string>;
   primary:    { kind: SelectedKind; id: string } | null;
@@ -112,6 +112,9 @@ export const selection = {
   hasClipboard() {
     return !!(state.clipboard && (state.clipboard.sections.length || state.clipboard.shapes.length));
   },
+  /** Current immutable selection snapshot, for imperative reads outside React
+   *  (e.g. keyboard shortcut handlers). */
+  snapshot(): SelectionState { return snapshot(); },
 };
 
 // ── React bindings ─────────────────────────────────────────────────────────
