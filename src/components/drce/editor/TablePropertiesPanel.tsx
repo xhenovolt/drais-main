@@ -13,7 +13,7 @@
  * ones (which the runtime expands at render time).
  */
 import React, { useState } from 'react';
-import { Trash2, Plus, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, ChevronUp, Calculator, Columns3 } from 'lucide-react';
 import type {
   DRCESection, DRCEMutation, DRCETableSection, DRCETableColumn,
 } from '@/lib/drce/schema';
@@ -51,6 +51,13 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
       ...section.columns,
       { id, header: `Column ${String.fromCharCode(65 + section.columns.length)}`, width: '20%', align: 'left' },
     ]);
+  }
+  // Excel-style "Distribute Columns" — give every column an equal width %.
+  function distributeColumns() {
+    const n = section.columns.length;
+    if (!n) return;
+    const w = `${+(100 / n).toFixed(2)}%`;
+    replaceColumns(section.columns.map(c => ({ ...c, width: w })));
   }
   function deleteColumn(id: string) {
     replaceColumns(section.columns.filter(c => c.id !== id));
@@ -123,9 +130,19 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">Columns ({section.columns.length})</span>
-          <button onClick={addColumn} className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-700">
-            <Plus size={11} /> Add
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={distributeColumns}
+              disabled={section.columns.length < 2}
+              className="inline-flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-40"
+              title="Give every column an equal width"
+            >
+              <Columns3 size={11} /> Even widths
+            </button>
+            <button onClick={addColumn} className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-700">
+              <Plus size={11} /> Add
+            </button>
+          </div>
         </div>
         {section.columns.map((c, i) => (
           <div key={c.id} className="rounded-md border border-gray-100 dark:border-slate-700 p-2 space-y-1.5">
