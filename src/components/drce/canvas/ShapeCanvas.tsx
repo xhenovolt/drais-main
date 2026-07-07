@@ -103,6 +103,38 @@ function getSVGPoint(e: React.MouseEvent | MouseEvent, svg: SVGSVGElement) {
   return { x: t.x, y: t.y };
 }
 
+/** Top-left-most point of a shape's geometry (used for off-page clamping). */
+function shapeMinCorner(s: DRCEShape): { x: number; y: number } {
+  if (s.type === 'line' || s.type === 'arrow') {
+    const l = s as DRCELineShape;
+    return { x: Math.min(l.x1, l.x2), y: Math.min(l.y1, l.y2) };
+  }
+  if (s.type === 'path') {
+    const p = s as DRCEPathShape;
+    let mnx = Infinity, mny = Infinity;
+    for (const n of p.nodes) { if (n.x < mnx) mnx = n.x; if (n.y < mny) mny = n.y; }
+    return { x: Number.isFinite(mnx) ? mnx : 0, y: Number.isFinite(mny) ? mny : 0 };
+  }
+  const r = s as DRCERectShape;
+  return { x: r.x, y: r.y };
+}
+
+/**
+ * Reduce a drag delta so a shape's top-left corner can't cross the page origin
+ * (0,0) — the common cause of "dragged a component off-canvas and it vanished".
+ * Unit-safe: 0 is the page origin in the SAME coordinate space as shape coords
+ * (getScreenCTM already normalised zoom/scroll), so this never mis-clamps.
+ * Only the lower bound is enforced here; the upper (page width/height) bound is
+ * intentionally left for a page-dimension-aware follow-up.
+ */
+function clampDeltaToOrigin(orig: DRCEShape, dx: number, dy: number): { dx: number; dy: number } {
+  const min = shapeMinCorner(orig);
+  return {
+    dx: min.x + dx < 0 ? -min.x : dx,
+    dy: min.y + dy < 0 ? -min.y : dy,
+  };
+}
+
 function getHandles(s: DRCEShape): { id: HandleId; cx: number; cy: number }[] {
   if (s.type === 'line' || s.type === 'arrow') {
     return [
@@ -177,23 +209,26 @@ function applyDrag(s: DRCEShape, drag: DragState): DRCEShape {
   }
 
   if (drag.kind === 'moving') {
+    // Keep the shape's top-left inside the page origin so it can't be dragged
+    // off-canvas and lost (Phase 4 drag-stability fix).
+    const { dx: mdx, dy: mdy } = clampDeltaToOrigin(drag.orig, dx, dy);
     if (s.type === 'line' || s.type === 'arrow') {
       const l = drag.orig as DRCELineShape;
-      return { ...s, x1: l.x1 + dx, y1: l.y1 + dy, x2: l.x2 + dx, y2: l.y2 + dy } as DRCEShape;
+      return { ...s, x1: l.x1 + mdx, y1: l.y1 + mdy, x2: l.x2 + mdx, y2: l.y2 + mdy } as DRCEShape;
     }
     if (s.type === 'path') {
       const p = drag.orig as DRCEPathShape;
       const nodes = p.nodes.map(n => ({
-        x: n.x + dx, y: n.y + dy,
-        cpInX:  n.cpInX  != null ? n.cpInX  + dx : undefined,
-        cpInY:  n.cpInY  != null ? n.cpInY  + dy : undefined,
-        cpOutX: n.cpOutX != null ? n.cpOutX + dx : undefined,
-        cpOutY: n.cpOutY != null ? n.cpOutY + dy : undefined,
+        x: n.x + mdx, y: n.y + mdy,
+        cpInX:  n.cpInX  != null ? n.cpInX  + mdx : undefined,
+        cpInY:  n.cpInY  != null ? n.cpInY  + mdy : undefined,
+        cpOutX: n.cpOutX != null ? n.cpOutX + mdx : undefined,
+        cpOutY: n.cpOutY != null ? n.cpOutY + mdy : undefined,
       }));
       return { ...s, nodes, d: nodesToPathD(nodes, p.closed) } as DRCEShape;
     }
     const b = drag.orig as DRCERectShape;
-    return { ...s, x: b.x + dx, y: b.y + dy } as DRCEShape;
+    return { ...s, x: b.x + mdx, y: b.y + mdy } as DRCEShape;
   }
 
   if (drag.kind === 'resizing') {
@@ -723,6 +758,9 @@ export function ShapeCanvas({
       const snap = computeSnap(drag.orig, dx, dy, shapes);
       dx += snap.adjustX; dy += snap.adjustY;
       const orig = drag.orig;
+      // Phase 4 — clamp so the committed position can't cross the page origin
+      // (prevents saving a component off-canvas where it disappears).
+      ({ dx, dy } = clampDeltaToOrigin(orig, dx, dy));
       if (orig.type === 'line' || orig.type === 'arrow') {
         const l = orig as DRCELineShape;
         onUpdateShape(orig.id, { x1: l.x1 + dx, y1: l.y1 + dy, x2: l.x2 + dx, y2: l.y2 + dy } as Partial<DRCEShape>);
