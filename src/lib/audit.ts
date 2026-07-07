@@ -113,12 +113,22 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
     strict      = false,
   } = entry;
 
+  // `audit_logs.entity_id` is a BIGINT column. Callers sometimes pass a
+  // non-numeric business key (e.g. a device serial 'GED7254601154'), which
+  // truncates and fails the whole insert — silently losing the audit trail.
+  // Coerce: numbers / all-digit strings pass through; anything else → null
+  // (the human-readable id still lives in `details`).
+  const entityIdNum: number | null =
+    typeof entityId === 'number' && Number.isFinite(entityId)
+      ? entityId
+      : (entityId != null && /^\d+$/.test(String(entityId)) ? Number(entityId) : null);
+
   try {
     await query(
       `INSERT INTO audit_logs
          (school_id, user_id, action, action_type, entity_type, entity_id, details, ip_address, user_agent, source)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [schoolId, userId, action, action, entityType, entityId, JSON.stringify(details), ip, userAgent, source],
+      [schoolId, userId, action, action, entityType, entityIdNum, JSON.stringify(details), ip, userAgent, source],
     );
   } catch (err) {
     const msg = `[Audit] Failed to write log — action=${action} school=${schoolId}`;
