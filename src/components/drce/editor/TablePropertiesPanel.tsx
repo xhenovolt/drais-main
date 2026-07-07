@@ -172,6 +172,18 @@ export function TablePropertiesPanel({ section, onMutate }: Props) {
               <button onClick={() => moveColumn(c.id,  1)} disabled={i === section.columns.length - 1} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move right"><ChevronDown size={12} /></button>
               <button onClick={() => deleteColumn(c.id)} className="p-1 text-rose-400 hover:text-rose-600" title="Delete column"><Trash2 size={12} /></button>
             </div>
+            {/* Arabic header label — shown instead of the English header when the
+                report language is Arabic (e.g. 'Subject' / 'المادة'). */}
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-gray-400 w-6 flex-shrink-0">AR</span>
+              <input
+                dir="rtl"
+                value={c.headerAr ?? ''}
+                onChange={e => patchColumn(c.id, { headerAr: e.target.value || undefined })}
+                placeholder="عنوان عربي (اختياري)"
+                className="flex-1 px-2 py-1 rounded bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+              />
+            </div>
             <input
               list="drce-binding-list"
               value={c.binding ?? ''}

@@ -810,6 +810,9 @@ export interface DRCEBlockRefSection extends DRCESectionBase {
 export interface DRCETableColumn {
   id:     string;
   header: string;
+  /** Optional Arabic header label. Rendered instead of `header` when the report
+   *  language is Arabic (e.g. header 'Subject' + headerAr 'المادة'). */
+  headerAr?: string;
   /** CSS width — '20%' or '120px'. */
   width:  string;
   align?: 'left' | 'center' | 'right';

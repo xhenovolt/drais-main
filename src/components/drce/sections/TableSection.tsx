@@ -216,7 +216,7 @@ export function TableSection({ section, theme, ctx, onCellChange }: Props) {
               fontSize:   style.headerFontSize    ?? 11,
               textTransform: style.headerTextTransform,
               fontWeight: 600,
-            }}>{col.header}</th>
+            }}>{(ctx.language ?? 'en') === 'ar' && col.headerAr ? col.headerAr : col.header}</th>
           ))}
         </tr>
       </thead>
