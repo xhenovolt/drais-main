@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import { useAuth } from '@/contexts/AuthContext';
 import DeviceReconciliationModal from '@/components/attendance/DeviceReconciliationModal';
 
 function formatTimeAgo(seconds: number): string {
@@ -310,6 +311,7 @@ export default function DevicesPage() {
 }
 
 function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void }) {
+  const isSuperAdmin = useAuth()?.isSuperAdmin ?? false;
   const isOnline = device.connection_status === 'online';
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -551,22 +553,28 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 
   const runTransferAction = useCallback(
     async (action: 'release' | 'acquire' | 'decommission', label: string, body: { reason?: string } = {}) => {
-      // Ownership-ceremony secret gate. The operator must enter the shared
-      // DEVICE_CLAIM_SECRET before a device can change hands or be retired.
-      const secret = window.prompt(
-        `Enter the device transfer secret to ${action} "${device.device_name || device.serial_number}".\n\nThis confirms you are authorised to ${action} this device.`,
-      );
-      if (secret === null) return; // cancelled
-      if (!secret.trim()) {
-        showToast('error', 'Device transfer secret is required.');
-        return;
+      // Ownership-ceremony secret gate. Regular admins must enter the shared
+      // DEVICE_CLAIM_SECRET; super-admins are founder-independent and skip it
+      // (the backend also bypasses the secret + owner check for super-admins,
+      // with device_transfers + audit_logs providing accountability).
+      let secret: string | undefined;
+      if (!isSuperAdmin) {
+        const entered = window.prompt(
+          `Enter the device transfer secret to ${action} "${device.device_name || device.serial_number}".\n\nThis confirms you are authorised to ${action} this device.`,
+        );
+        if (entered === null) return; // cancelled
+        if (!entered.trim()) {
+          showToast('error', 'Device transfer secret is required.');
+          return;
+        }
+        secret = entered.trim();
       }
       setTransferLoading(action);
       try {
         const r = await fetch(`/api/admin/devices/${encodeURIComponent(device.serial_number)}/${action}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ ...body, secret: secret.trim() }),
+          body: JSON.stringify({ ...body, ...(secret ? { secret } : {}) }),
         });
         const j = await r.json();
         if (!r.ok) {
@@ -591,7 +599,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         setTransferLoading(null);
       }
     },
-    [device.serial_number, onMutate],
+    [device.serial_number, device.device_name, onMutate, isSuperAdmin],
   );
 
   const handleRelease = useCallback(async () => {

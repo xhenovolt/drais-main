@@ -44,14 +44,18 @@ export async function POST(
   let body: { reason?: string; schoolId?: number; secret?: string } = {};
   try { body = await req.json(); } catch { /* empty body ok */ }
 
-  // Ownership-ceremony secret gate (DEVICE_CLAIM_SECRET).
-  try {
-    assertClaimSecret(body.secret);
-  } catch (err) {
-    if (err instanceof ClaimSecretError) {
-      return NextResponse.json({ error: err.message }, { status: 403 });
+  // Ownership-ceremony secret gate (DEVICE_CLAIM_SECRET). Super-admins are
+  // founder-independent: they may acquire any released device without the
+  // secret (accountability via device_transfers + audit_logs).
+  if (!session.isSuperAdmin) {
+    try {
+      assertClaimSecret(body.secret);
+    } catch (err) {
+      if (err instanceof ClaimSecretError) {
+        return NextResponse.json({ error: err.message }, { status: 403 });
+      }
+      throw err;
     }
-    throw err;
   }
 
   // Cross-school acquire requires super-admin.
@@ -69,6 +73,7 @@ export async function POST(
       schoolId: toSchoolId,
       ip: req.headers.get('x-forwarded-for') ?? null,
       userAgent: req.headers.get('user-agent') ?? null,
+      fromSuperAdmin: session.isSuperAdmin,
     }, body.reason ?? null);
     return NextResponse.json({ success: true, impact });
   } catch (err: unknown) {

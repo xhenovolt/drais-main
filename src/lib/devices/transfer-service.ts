@@ -64,6 +64,10 @@ export interface TransferActor {
   schoolId: number;
   ip?: string | null;
   userAgent?: string | null;
+  /** Super-admins may release/acquire a device owned by ANY school
+   *  (force-transfer) without the device-claim secret — founder-independence.
+   *  Accountability is preserved via device_transfers + audit_logs. */
+  fromSuperAdmin?: boolean;
 }
 
 export interface TransferImpact {
@@ -93,8 +97,10 @@ export async function releaseDevice(
 
   const device = await loadDevice(deviceSn);
   if (!device) throw new TransferStateError(`Device ${deviceSn} not found`);
-  if (device.school_id !== actor.schoolId && !device.from_super_admin) {
-    // (caller route enforces super-admin or own-school; defensive here)
+  // Owner check. Coerce both sides to Number — devices.school_id comes back as
+  // a string (bigNumberStrings) so a raw !== against a numeric actor.schoolId
+  // wrongly rejected even the legitimate owner. Super-admins bypass entirely.
+  if (Number(device.school_id) !== Number(actor.schoolId) && !actor.fromSuperAdmin) {
     throw new TransferStateError(`Device ${deviceSn} belongs to a different school`);
   }
   if (device.status === 'released') {
