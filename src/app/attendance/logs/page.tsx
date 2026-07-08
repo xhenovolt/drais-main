@@ -5,7 +5,7 @@ import {
   Users, UserCheck, Briefcase, AlertTriangle, Activity,
   Search, Filter, RefreshCw, ChevronLeft, ChevronRight,
   Fingerprint, Download, UserPlus, X, Check, Clock,
-  Radio, ChevronDown, ChevronUp,
+  Radio, ChevronDown, ChevronUp, Trash2,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
@@ -269,6 +269,9 @@ export default function UnifiedAttendancePage() {
   const [liveFeedOpen, setLiveFeedOpen] = useState(true);
   const [classId, setClassId] = useState('');
   const [gender, setGender] = useState('');
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState('');
   const { events: liveEvents, connected: sseConnected } = useLiveFeed();
 
   // Build query params
@@ -332,6 +335,25 @@ export default function UnifiedAttendancePage() {
     a.click();
     URL.revokeObjectURL(a.href);
     showToast('success', 'CSV exported');
+  };
+
+  const handleClearLogs = async () => {
+    setClearing(true);
+    try {
+      await apiFetch<any>('/api/attendance/logs/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
+      });
+      setShowClearModal(false);
+      setClearConfirmText('');
+      setPage(1);
+      mutate();
+    } catch {
+      // apiFetch surfaces the error toast (e.g. 403 for non-admins)
+    } finally {
+      setClearing(false);
+    }
   };
 
   return (
@@ -545,6 +567,16 @@ export default function UnifiedAttendancePage() {
             >
               <Download className="w-4 h-4" />
               Export CSV
+            </button>
+            <button
+              onClick={() => { setClearConfirmText(''); setShowClearModal(true); }}
+              className="flex items-center gap-1 px-3 py-2 text-sm border border-red-300
+                dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg
+                hover:bg-red-50 dark:hover:bg-red-900/30"
+              title="Permanently delete all attendance logs for this school"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear Logs
             </button>
           </div>
         </div>
@@ -834,6 +866,74 @@ export default function UnifiedAttendancePage() {
         deviceUserId={assignTarget || ''}
         onAssigned={() => mutate()}
       />
+
+      {/* Clear-Logs Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Clear all attendance logs?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  This affects this school only.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                This permanently deletes every attendance punch, the derived
+                daily records and dashboard totals. It cannot be undone.
+              </p>
+              <ul className="mt-2 text-xs text-red-700 dark:text-red-300 list-disc list-inside space-y-0.5">
+                <li>Your devices, shifts, rules and holidays are kept.</li>
+                <li>Export a CSV first if you need a copy.</li>
+                <li>{pagination.total.toLocaleString()} log{pagination.total === 1 ? '' : 's'} currently match your view.</li>
+              </ul>
+            </div>
+
+            <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
+              Type <span className="font-mono font-bold">CLEAR</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={clearConfirmText}
+              onChange={(e) => setClearConfirmText(e.target.value)}
+              placeholder="CLEAR"
+              autoFocus
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                bg-white dark:bg-slate-900 text-sm mb-4 focus:ring-2 focus:ring-red-500"
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowClearModal(false); setClearConfirmText(''); }}
+                disabled={clearing}
+                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg
+                  text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearLogs}
+                disabled={clearing || clearConfirmText.trim().toUpperCase() !== 'CLEAR'}
+                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium
+                  hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed
+                  flex items-center justify-center gap-2"
+              >
+                {clearing ? (
+                  <><RefreshCw className="w-4 h-4 animate-spin" /> Clearing…</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Clear all logs</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
