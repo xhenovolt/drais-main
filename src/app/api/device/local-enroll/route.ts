@@ -65,6 +65,38 @@ function isValidLanIP(ip: string): boolean {
  * Reply payload is "~SerialNumber=ABC1234567890\0…". Best-effort —
  * returns null on any failure so the caller can fall back.
  */
+/**
+ * Extract a human-readable message from anything node-zklib throws.
+ *
+ * The wrapper (ZKLib.functionWrapper) rejects with a `ZKError` — which is
+ * NOT an Error subclass and has NO `.message` property (only `.err`, `.ip`,
+ * `.command`, `.toast()`). Reading `e.message` on it yields `undefined`,
+ * which is why enrollment failures surfaced as "… — undefined. Retry.".
+ * Unwrap the real cause here so the operator sees the actual device error
+ * (ECONNRESET / timeout / refused).
+ */
+function zkErrorMessage(e: any): string {
+  if (!e) return 'unknown error';
+  // ZKError shape from node-zklib (zkerror.js)
+  if (typeof e === 'object' && 'err' in e && (('ip' in e) || ('command' in e))) {
+    try {
+      if (typeof e.toast === 'function') {
+        const t = e.toast();
+        if (t) return String(t);
+      }
+    } catch { /* fall through */ }
+    const inner = e.err;
+    if (inner) {
+      const parts = [inner.message, inner.code].filter(Boolean);
+      if (parts.length) return parts.join(' ');
+    }
+    return 'device connection error';
+  }
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  try { return JSON.stringify(e); } catch { return String(e); }
+}
+
 async function readDeviceSerial(zk: any): Promise<string | null> {
   try {
     const reply = await zk.zklibTcp.executeCmd(
@@ -145,7 +177,7 @@ export async function POST(req: NextRequest) {
     await zk.createSocket();
   } catch (e: any) {
     return NextResponse.json({
-      error: `Cannot reach device at ${device_ip}:${port} — ${e.message}`,
+      error: `Cannot reach device at ${device_ip}:${port} — ${zkErrorMessage(e)}`,
       hint: 'Ensure device is on same LAN as the server',
     }, { status: 502 });
   }
@@ -204,22 +236,37 @@ export async function POST(req: NextRequest) {
   //   • Overwriting a user's PIN breaks any future match by userId
   //
   // If getUsers() fails we cannot safely determine the correct slot → fatal.
-  let deviceUsers: Array<{ uid: number; name: string; userId: string }>;
-  try {
-    await zk.zklibTcp.enableDevice();
-    const result = await zk.getUsers();
-    deviceUsers = (result?.data || [])
-      .map((u: any) => ({
-        uid: parseInt(String(u.uid), 10),
-        name: String(u.name || '').trim(),
-        userId: String(u.userId ?? '').trim(),
-      }))
-      .filter(u => !isNaN(u.uid) && u.uid >= 1 && u.uid <= 65535);
-  } catch (e: any) {
+  // The getUsers() read is the flakiest part of the ZK TCP protocol: a
+  // concurrent poll from the ADMS/relay agent yields ECONNRESET ("another
+  // device is connecting"), and a large user table can time out mid-chunk.
+  // Both are far more likely on a busy site, so retry a couple of times
+  // (re-priming the buffer with freeData) before giving up.
+  let deviceUsers: Array<{ uid: number; name: string; userId: string }> | null = null;
+  let lastErr: any = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await zk.zklibTcp.enableDevice();
+      try { await zk.zklibTcp.freeData(); } catch { /* best-effort buffer reset */ }
+      const result = await zk.getUsers();
+      deviceUsers = (result?.data || [])
+        .map((u: any) => ({
+          uid: parseInt(String(u.uid), 10),
+          name: String(u.name || '').trim(),
+          userId: String(u.userId ?? '').trim(),
+        }))
+        .filter(u => !isNaN(u.uid) && u.uid >= 1 && u.uid <= 65535);
+      break;
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(`[LOCAL-ENROLL] getUsers attempt ${attempt}/3 failed: ${zkErrorMessage(e)}`);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 400 * attempt));
+    }
+  }
+  if (deviceUsers === null) {
     try { await zk.zklibTcp.enableDevice(); } catch {}
     try { await zk.disconnect(); } catch {}
     return NextResponse.json({
-      error: `Cannot read device users — ${e.message}. Retry.`,
+      error: `Cannot read device users — ${zkErrorMessage(lastErr)}. Retry.`,
     }, { status: 502 });
   }
 
@@ -368,22 +415,23 @@ export async function POST(req: NextRequest) {
     console.log(`[LOCAL-ENROLL] CMD_USER_WRQ + CMD_STARTENROLL(FormatB) → sn=${deviceSn} slot=${deviceSlot} PIN="${pinStr}" finger=${fingerIdx}`);
     await zk.zklibTcp.enableDevice();
   } catch (e: any) {
+    const msg = zkErrorMessage(e);
     try { await zk.zklibTcp.enableDevice(); } catch {}
     try { await zk.disconnect(); } catch {}
     await query(
       `INSERT INTO enrollment_log (school_id, student_id, uid, finger, device_sn, path, status, error_message, created_at)
        VALUES (?, ?, ?, ?, ?, 'local', 'failed', ?, NOW())`,
-      [schoolId, studentId, deviceSlot, fingerIdx, deviceSn, e.message],
+      [schoolId, studentId, deviceSlot, fingerIdx, deviceSn, msg],
     ).catch(() => {});
     // The enrollment stays 'pending_capture' (identity intact, retry
     // reuses the same PIN); capture_status records the failure.
     if (enrollmentId) {
       await setCaptureStatus(schoolId, enrollmentId, 'failed', {
-        reason: `start-enroll failed: ${String(e.message).slice(0, 200)}`,
+        reason: `start-enroll failed: ${msg.slice(0, 200)}`,
         updatedBy: (session as any).userId ?? null,
       });
     }
-    return NextResponse.json({ error: `Enrollment failed: ${e.message}` }, { status: 502 });
+    return NextResponse.json({ error: `Enrollment failed: ${msg}` }, { status: 502 });
   }
 
   try { await zk.disconnect(); } catch {}
