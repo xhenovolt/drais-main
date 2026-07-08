@@ -51,13 +51,16 @@ export async function GET(req: NextRequest) {
            s.status,
            p.name AS position_name,
            d.name AS department_name,
-           s.created_at
+           -- staff has no created_at column; hire_date is the "joined" date and
+           -- id is auto-increment (recency). Fixes the ER_BAD_FIELD_ERROR that
+           -- rejected the whole Promise.all → "Failed to load staff overview".
+           s.hire_date AS created_at
          FROM staff s
          LEFT JOIN people      pe ON pe.id = s.person_id
          LEFT JOIN positions   p  ON p.id  = s.position_id
          LEFT JOIN departments d  ON d.id  = s.department_id
          WHERE s.school_id = ? AND s.deleted_at IS NULL
-         ORDER BY s.created_at DESC, s.id DESC
+         ORDER BY s.id DESC
          LIMIT 8`,
         [schoolId],
       ),
