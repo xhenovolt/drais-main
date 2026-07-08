@@ -42,6 +42,8 @@ import {
   type RawPunch,
 } from '@/lib/attendance/rule-evaluator';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
+import { loadResolvedStaffShift } from './staff-shift';
+import { shiftToAttendanceRule } from './shifts';
 import { publishEvent } from '@/lib/events/eventbus';
 // Phase 5 — registers the notification fanout subscriber the first
 // time the engine module loads. The subscriber listens for
@@ -230,8 +232,11 @@ export async function evaluateDay(
 ): Promise<void> {
   await ensureAttendanceEngineSchema();
 
-  // 1. Load rule.
-  const rule = await loadActiveRule(schoolId, roleType);
+  // 1. Load rule. Staff with an assigned shift are classified against THAT
+  //    shift; everyone else uses the school's attendance_rules. Opt-in per
+  //    school — no shift assignment ⇒ identical to the pre-shift behaviour.
+  const rule = (roleType === 'staff' ? await loadStaffShiftAsRule(schoolId, personId, attendanceDate) : null)
+    ?? await loadActiveRule(schoolId, roleType);
   if (!rule) {
     // No rule configured — record a present/absent verdict based on
     // raw count only. This keeps Phase 3 useful for schools that
@@ -388,6 +393,43 @@ async function loadActiveRule(
       boarding_scope:      (r.boarding_scope as 'all' | 'boarding' | 'day') ?? 'all',
       applies_to: (r.applies_to as 'students' | 'teachers' | 'all') ?? 'students',
       ignore_duplicate_scans_within_minutes: Number(r.ignore_duplicate_scans_within_minutes ?? 2),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * If this staff member has a resolved shift for the date, express it as a full
+ * AttendanceRule so the SAME evaluator classifies late/early/half-day against
+ * the shift's windows. Fields the shift doesn't carry take the rule defaults.
+ * Returns null (→ fall back to the school rule) when no shift applies.
+ */
+async function loadStaffShiftAsRule(
+  schoolId: number,
+  personId: number,
+  date: Date,
+): Promise<(AttendanceRule & { id: number }) | null> {
+  try {
+    const shift = await loadResolvedStaffShift(schoolId, personId, date);
+    if (!shift) return null;
+    const m = shiftToAttendanceRule(shift);
+    return {
+      id: -shift.id, // synthetic negative id — never collides with a real rule
+      arrival_start_time: m.arrival_start_time,
+      arrival_end_time:   m.arrival_end_time,
+      late_threshold_minutes: m.late_threshold_minutes,
+      absence_cutoff_time: null,
+      closing_time: null,
+      departure_start_time: m.departure_start_time,
+      departure_end_time:   m.departure_end_time,
+      early_leave_threshold_minutes: m.early_leave_threshold_minutes,
+      half_day_threshold_minutes: 240,
+      weekday_mask: m.weekday_mask,
+      applies_on_holidays: false,
+      boarding_scope: 'all',
+      applies_to: 'teachers',
+      ignore_duplicate_scans_within_minutes: 2,
     };
   } catch {
     return null;

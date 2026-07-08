@@ -98,6 +98,34 @@ export function resolveShift(opts: {
   return getShift(best.shiftId) ?? null;
 }
 
+/**
+ * Map a resolved Shift onto the field shape the existing attendance rule-evaluator
+ * consumes, so a staff member's shift can drive the SAME classifier as
+ * attendance_rules (no parallel evaluator). "On time until start; late past
+ * start + threshold; early-leave before end - threshold."
+ */
+export interface ShiftAsRule {
+  arrival_start_time: string;
+  arrival_end_time: string;
+  late_threshold_minutes: number;
+  departure_start_time: string;
+  departure_end_time: string;
+  early_leave_threshold_minutes: number;
+  weekday_mask: number;
+}
+export function shiftToAttendanceRule(shift: Shift): ShiftAsRule {
+  const hhmm = (t: string) => t.slice(0, 5);
+  return {
+    arrival_start_time: hhmm(shift.startTime),
+    arrival_end_time:   hhmm(shift.startTime),
+    late_threshold_minutes: shift.lateThresholdMinutes,
+    departure_start_time: hhmm(shift.endTime),
+    departure_end_time:   hhmm(shift.endTime),
+    early_leave_threshold_minutes: shift.earlyLeaveThresholdMinutes,
+    weekday_mask: shift.weekdayMask,
+  };
+}
+
 export interface PunchClassification {
   /** Arrival within the on-time window (not late). */
   onTime: boolean;

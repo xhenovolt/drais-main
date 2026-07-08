@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   toMinutes, crossesMidnight, weekdayBit, resolveShift, classifyPunch, SHIFT_PRECEDENCE,
+  shiftToAttendanceRule,
 } from '../shifts.ts';
 
 const shift = (o) => ({
@@ -130,4 +131,16 @@ test('missing arrival → not onTime, not late', () => {
 test('missing departure → no early/overtime', () => {
   const c = classifyPunch(day, toMinutes('07:00'), null);
   assert.equal(c.earlyLeave, false); assert.equal(c.overtimeMinutes, 0);
+});
+
+// ── shiftToAttendanceRule (bridge into the existing evaluator) ────────────────
+test('shiftToAttendanceRule maps shift → rule fields', () => {
+  const r = shiftToAttendanceRule(shift({ startTime: '07:00:00', endTime: '13:00:00', lateThresholdMinutes: 15, earlyLeaveThresholdMinutes: 30, weekdayMask: 31 }));
+  assert.equal(r.arrival_start_time, '07:00');
+  assert.equal(r.arrival_end_time, '07:00');
+  assert.equal(r.late_threshold_minutes, 15);
+  assert.equal(r.departure_start_time, '13:00');
+  assert.equal(r.departure_end_time, '13:00');
+  assert.equal(r.early_leave_threshold_minutes, 30);
+  assert.equal(r.weekday_mask, 31);
 });

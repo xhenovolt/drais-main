@@ -97,3 +97,30 @@ test('ambiguous same-scope+priority -> fallback to school + warning', () => {
   const r = selectPolicy(rules, ctx());
   assert.equal(r.ambiguous, true); assert.equal(r.scope_type, 'school'); assert.equal(r.fallback_used, true);
 });
+
+// ── shift scope (staff) — integration of the shift engine ────────────────────
+test('shift rule matches staff and beats role + school', () => {
+  const rules = [
+    base({ id: 1, scope_type: 'school' }),
+    base({ id: 2, scope_type: 'role', applies_to: 'teachers' }),
+    base({ id: 3, scope_type: 'shift' }),
+  ];
+  const r = selectPolicy(rules, ctx({ roleType: 'staff' }));
+  assert.equal(r.policy_id, 3);
+  assert.equal(r.scope_type, 'shift');
+});
+
+test('shift rule does NOT apply to a student (falls back to school)', () => {
+  const rules = [base({ id: 1, scope_type: 'school' }), base({ id: 3, scope_type: 'shift' })];
+  const r = selectPolicy(rules, ctx({ roleType: 'student' }));
+  assert.equal(r.scope_type, 'school');
+});
+
+test('individual staff override (tier 1) beats shift (tier 3)', () => {
+  const rules = [
+    base({ id: 3, scope_type: 'shift' }),
+    base({ id: 4, scope_type: 'staff', scope_id: 50 }),
+  ];
+  const r = selectPolicy(rules, ctx({ roleType: 'staff', personId: 50 }));
+  assert.equal(r.policy_id, 4);
+});

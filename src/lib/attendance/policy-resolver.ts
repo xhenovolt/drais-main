@@ -20,6 +20,8 @@
  * loads the rules then delegates.
  */
 import { query } from '@/lib/db';
+import { loadResolvedStaffShift } from './staff-shift';
+import { shiftToAttendanceRule } from './shifts';
 
 export type ScopeType =
   | 'school' | 'role' | 'class' | 'stream' | 'department'
@@ -90,6 +92,11 @@ function matches(rule: PolicyRule, ctx: ResolveContext): boolean {
     case 'device':     return rule.scope_id != null && rule.scope_id === ctx.deviceId;
     case 'learner':    return ctx.roleType === 'student' && rule.scope_id != null && rule.scope_id === ctx.personId;
     case 'staff':      return ctx.roleType === 'staff'   && rule.scope_id != null && rule.scope_id === ctx.personId;
+    // A 'shift' rule is only ever produced by resolveAttendancePolicy for the
+    // exact staff+date it applies to (via shift_assignments precedence), so if
+    // one is present it applies to this staff context. Previously this case was
+    // missing → a shift-scoped rule silently never matched.
+    case 'shift':      return ctx.roleType === 'staff';
     default: return false;
   }
 }
@@ -158,5 +165,29 @@ export async function resolveAttendancePolicy(ctx: ResolveContext): Promise<Poli
       WHERE school_id = ? AND is_active = 1`,
     [ctx.schoolId],
   )) as PolicyRule[];
+
+  // Additive: a staff member's resolved shift enters as a high-precedence
+  // ('shift' tier) synthetic policy carrying its classification fields inline.
+  // Wrapped so any shift-lookup failure leaves the pre-shift behaviour intact;
+  // schools with no shift assignments are entirely unaffected.
+  if (ctx.roleType === 'staff' && ctx.personId != null) {
+    try {
+      const shift = await loadResolvedStaffShift(ctx.schoolId, ctx.personId, ctx.date);
+      if (shift) {
+        rules.push({
+          id: -shift.id,                 // synthetic negative id — never collides with real rules
+          rule_name: `Shift: ${shift.name}`,
+          scope_type: 'shift',
+          scope_id: ctx.personId,
+          priority: 0,
+          is_active: 1,
+          ...shiftToAttendanceRule(shift), // inline arrival/departure/thresholds for consumers
+        } as PolicyRule);
+      }
+    } catch (err) {
+      console.warn('[policy-resolver] staff shift resolution skipped:', (err as Error).message);
+    }
+  }
+
   return selectPolicy(rules, ctx);
 }
