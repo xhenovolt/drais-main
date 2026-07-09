@@ -36,6 +36,8 @@ export type MismatchType =
   | 'STAFF_STUDENT_AMBIGUOUS'
   | 'ORPHAN_TEMPLATE'
   | 'STALE_MAPPING'
+  | 'DELETED_PERSON_MAPPING'   // mapping points at an archived/soft-deleted learner or staff
+  | 'INACTIVE_MAPPING'         // enrollment suspended for another reason (not recognised)
   | 'IGNORED_OR_QUARANTINED';
 
 export interface ReconItem {
@@ -112,6 +114,69 @@ export async function computeReconciliation(
   const enrollByPin = new Map<number, typeof enrollments[number]>();
   for (const e of enrollments) enrollByPin.set(Number(e.pin_value), e);
 
+  // ── 2b. Identity-integrity issues (Phase 7) ────────────────────────
+  // Enrollments that point at a soft-deleted learner/staff, or that are
+  // suspended. These must surface as their own categories so a deleted
+  // person can never masquerade as a normal mapping.
+  const integrityRows = (await query(
+    `SELECT be.id, be.pin_value, be.person_id, be.role_type, be.role_ref_id,
+            be.status, be.revoked_reason, be.last_seen_on_device_at,
+            TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS person_name,
+            st.deleted_at AS student_deleted, sf.deleted_at AS staff_deleted
+       FROM biometric_enrollments be
+       LEFT JOIN people   p  ON p.id  = be.person_id
+       LEFT JOIN students st ON be.role_type = 'student' AND st.id = be.role_ref_id
+       LEFT JOIN staff    sf ON be.role_type = 'staff'   AND sf.id = be.role_ref_id
+      WHERE be.school_id = ?
+        AND (
+          be.status = 'suspended'
+          OR (be.status IN ('active','pending_capture')
+              AND (st.deleted_at IS NOT NULL OR sf.deleted_at IS NOT NULL))
+        )`,
+    [schoolId],
+  )) as Array<{
+    id: number; pin_value: number; person_id: number;
+    role_type: 'student' | 'staff'; role_ref_id: number;
+    status: string; revoked_reason: string | null; last_seen_on_device_at: string | null;
+    person_name: string | null; student_deleted: string | null; staff_deleted: string | null;
+  }>;
+  const integrityByPin = new Map<number, {
+    type: 'DELETED_PERSON_MAPPING' | 'INACTIVE_MAPPING';
+    row: typeof integrityRows[number];
+  }>();
+  const integrityEnrollmentIds = new Set<number>();
+  for (const r of integrityRows) {
+    const personDeleted = r.student_deleted != null || r.staff_deleted != null
+      || (r.status === 'suspended' && r.revoked_reason === 'person_archived');
+    integrityByPin.set(Number(r.pin_value), {
+      type: personDeleted ? 'DELETED_PERSON_MAPPING' : 'INACTIVE_MAPPING',
+      row: r,
+    });
+    integrityEnrollmentIds.add(r.id);
+  }
+
+  function integrityItem(pin: number, lastSeen: string | null): ReconItem | null {
+    const hit = integrityByPin.get(pin);
+    if (!hit) return null;
+    const r = hit.row;
+    return {
+      devicePin: String(pin),
+      deviceName: r.person_name,
+      matchedPersonId: r.person_id,
+      matchedRoleType: r.role_type,
+      matchedRoleRefId: r.role_ref_id,
+      canonicalEnrollmentId: r.id,
+      mismatchType: hit.type,
+      confidence: 1,
+      candidates: null,
+      lastSeenOnDeviceAt: lastSeen ?? r.last_seen_on_device_at,
+      hasFingerprintEvidence: false,
+      notes: hit.type === 'DELETED_PERSON_MAPPING'
+        ? `Mapped to an archived ${r.role_type} — unmap or reassign, and remove from device`
+        : `Enrollment suspended (${r.revoked_reason || 'inactive'}) — not recognised`,
+    };
+  }
+
   // ── 3. Orphan templates on this device (unclaimed) ──────────────────
   const orphans = (await query(
     `SELECT device_user_id AS pin, finger_id, captured_at
@@ -157,6 +222,15 @@ export async function computeReconciliation(
     if (triageState) {
       items.push(baseItem(d, null, 'IGNORED_OR_QUARANTINED', null, null, hasFpEvidence,
         triageState === 'quarantined' ? 'Quarantined by operator' : 'Ignored by operator'));
+      continue;
+    }
+
+    // Identity-integrity issues take precedence over MAPPED_OK so a
+    // deleted/suspended person never renders as a healthy mapping.
+    const integ = Number.isFinite(pinNum) ? integrityItem(pinNum, d.last_seen) : null;
+    if (integ) {
+      if (integ.canonicalEnrollmentId) seenEnrollmentIds.add(integ.canonicalEnrollmentId);
+      items.push(integ);
       continue;
     }
 
@@ -215,6 +289,7 @@ export async function computeReconciliation(
   // ── Pass C: DRAIS enrollments not echoed by the device ──────────────
   for (const e of enrollments) {
     if (seenEnrollmentIds.has(e.id)) continue;
+    if (integrityEnrollmentIds.has(e.id)) continue; // surfaced as an integrity item instead
     const inDirectory = directory.some(d => Number(d.pin) === Number(e.pin_value));
     if (inDirectory) continue;
     // DRAIS knows this person at this PIN, device hasn't echoed it.
@@ -240,6 +315,16 @@ export async function computeReconciliation(
         ? 'DRAIS holds a template; device has not confirmed this PIN'
         : (mismatch === 'STALE_MAPPING' ? `Not echoed by device in ${STALE_DAYS}+ days` : 'Enrolled in DRAIS, not seen on device'),
     });
+  }
+
+  // ── Pass D: integrity issues whose PIN the device didn't echo ───────
+  // A deleted/suspended person's mapping must show even when the device
+  // never echoed the PIN (e.g. K40 partial directory).
+  for (const [pin, hit] of integrityByPin) {
+    if (directoryPins.has(String(pin))) continue;   // handled in Pass A
+    if (seenEnrollmentIds.has(hit.row.id)) continue;
+    const it = integrityItem(pin, null);
+    if (it) { seenEnrollmentIds.add(hit.row.id); items.push(it); }
   }
 
   const counts = emptyCounts();
@@ -364,7 +449,8 @@ function emptyCounts(): Record<MismatchType, number> {
   return {
     MAPPED_OK: 0, DEVICE_ONLY_USER: 0, DRAIS_ONLY_PERSON: 0, DEVICE_ONLY_TEMPLATE: 0,
     DRAIS_TEMPLATE_NOT_ON_DEVICE: 0, NAME_DRIFT: 0, PIN_CONFLICT: 0, ROLE_CONFLICT: 0,
-    STAFF_STUDENT_AMBIGUOUS: 0, ORPHAN_TEMPLATE: 0, STALE_MAPPING: 0, IGNORED_OR_QUARANTINED: 0,
+    STAFF_STUDENT_AMBIGUOUS: 0, ORPHAN_TEMPLATE: 0, STALE_MAPPING: 0,
+    DELETED_PERSON_MAPPING: 0, INACTIVE_MAPPING: 0, IGNORED_OR_QUARANTINED: 0,
   };
 }
 

@@ -38,6 +38,8 @@ const MISMATCH_LABEL: Record<string, string> = {
   STAFF_STUDENT_AMBIGUOUS: 'Matches learner AND staff',
   ORPHAN_TEMPLATE: 'Orphan fingerprint',
   STALE_MAPPING: 'Stale — not echoed recently',
+  DELETED_PERSON_MAPPING: 'Mapped to a deleted person',
+  INACTIVE_MAPPING: 'Inactive mapping',
   IGNORED_OR_QUARANTINED: 'Ignored / quarantined',
 };
 const MISMATCH_COLOR: Record<string, string> = {
@@ -52,6 +54,8 @@ const MISMATCH_COLOR: Record<string, string> = {
   STAFF_STUDENT_AMBIGUOUS: 'bg-purple-100 text-purple-800',
   ORPHAN_TEMPLATE: 'bg-orange-100 text-orange-800',
   STALE_MAPPING: 'bg-slate-200 text-slate-600',
+  DELETED_PERSON_MAPPING: 'bg-red-100 text-red-700',
+  INACTIVE_MAPPING: 'bg-slate-200 text-slate-600',
   IGNORED_OR_QUARANTINED: 'bg-gray-200 text-gray-500',
 };
 
@@ -75,6 +79,7 @@ type TabKey = 'overview' | 'people' | 'missing' | 'mismatches' | 'orphans' | 'ac
 const DEVICE_SIDE = new Set([
   'DEVICE_ONLY_USER', 'DEVICE_ONLY_TEMPLATE', 'NAME_DRIFT', 'STAFF_STUDENT_AMBIGUOUS',
   'PIN_CONFLICT', 'ROLE_CONFLICT', 'MAPPED_OK', 'IGNORED_OR_QUARANTINED',
+  'DELETED_PERSON_MAPPING', 'INACTIVE_MAPPING',
 ]);
 const MISSING_SIDE = new Set(['DRAIS_ONLY_PERSON', 'STALE_MAPPING', 'DRAIS_TEMPLATE_NOT_ON_DEVICE']);
 const ORPHAN_SIDE = new Set(['ORPHAN_TEMPLATE', 'DEVICE_ONLY_TEMPLATE']);
@@ -131,6 +136,35 @@ export default function DeviceReconciliationModal({
     } catch { /* toast shown */ } finally { setRunning(false); }
   }, [sn, mutate]);
 
+  const [provisioning, setProvisioning] = useState(false);
+  const provisionStaff = useCallback(async () => {
+    setProvisioning(true);
+    try {
+      // 1. Dry-run preview.
+      const preview = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(sn)}/provision-staff`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dry_run: true }), silent: true,
+      });
+      if (!window.confirm(
+        `${preview?.message || 'Preview ready.'}\n\n` +
+        `This will:\n` +
+        `• create a staff record for each named device user\n` +
+        `• re-own their PIN (and fingerprint) from student → staff\n` +
+        `• unmap every remaining student mapping for this school\n\n` +
+        `Fingerprints are reused — nobody re-scans. Proceed?`,
+      )) { setProvisioning(false); return; }
+      // 2. Execute.
+      const res = await apiFetch<any>(`/api/attendance/devices/${encodeURIComponent(sn)}/provision-staff`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dry_run: false }),
+      });
+      showToast('success', res?.message || 'Provisioned device users as staff');
+      await mutate();
+    } catch { /* apiFetch shows the error (e.g. empty directory → Sync first) */ } finally {
+      setProvisioning(false);
+    }
+  }, [sn, mutate]);
+
   const syncDirectory = useCallback(async () => {
     // Pull the device's CURRENT user list. Prefer a LAN TCP pull
     // (remembered IP); blank → over-the-air ADMS sync.
@@ -171,6 +205,10 @@ export default function DeviceReconciliationModal({
           <div className="flex items-center gap-2">
             <button onClick={syncDirectory} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200">
               <RefreshCw className="w-3.5 h-3.5" /> Sync directory
+            </button>
+            <button onClick={provisionStaff} disabled={provisioning} title="Create staff from the device's users and re-own their PINs from student to staff"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 text-amber-800 dark:text-amber-200 disabled:opacity-50">
+              {provisioning ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />} Convert users → staff
             </button>
             <button onClick={runReconciliation} disabled={running} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
               {running ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ClipboardList className="w-3.5 h-3.5" />} Run reconciliation
@@ -271,6 +309,8 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
     if (filter === 'mapped') return r.mismatchType === 'MAPPED_OK' || r.mismatchType === 'NAME_DRIFT';
     if (filter === 'unknown') return r.mismatchType === 'DEVICE_ONLY_USER' || r.mismatchType === 'DEVICE_ONLY_TEMPLATE';
     if (filter === 'ambiguous') return r.mismatchType === 'STAFF_STUDENT_AMBIGUOUS';
+    if (filter === 'deleted') return r.mismatchType === 'DELETED_PERSON_MAPPING';
+    if (filter === 'inactive') return r.mismatchType === 'INACTIVE_MAPPING';
     if (filter === 'ignored') return r.mismatchType === 'IGNORED_OR_QUARANTINED';
     return true;
   });
@@ -278,10 +318,23 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
   return (
     <div className="space-y-3">
       <div className="flex gap-1 flex-wrap">
-        {['all', 'mapped', 'unknown', 'ambiguous', 'ignored'].map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-2.5 py-1 text-xs rounded-full ${filter === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'}`}>{f}</button>
-        ))}
+        {['all', 'mapped', 'unknown', 'ambiguous', 'deleted', 'inactive', 'ignored'].map(f => {
+          const n = f === 'all' ? rows.length : rows.filter(r => {
+            if (f === 'mapped') return r.mismatchType === 'MAPPED_OK' || r.mismatchType === 'NAME_DRIFT';
+            if (f === 'unknown') return r.mismatchType === 'DEVICE_ONLY_USER' || r.mismatchType === 'DEVICE_ONLY_TEMPLATE';
+            if (f === 'ambiguous') return r.mismatchType === 'STAFF_STUDENT_AMBIGUOUS';
+            if (f === 'deleted') return r.mismatchType === 'DELETED_PERSON_MAPPING';
+            if (f === 'inactive') return r.mismatchType === 'INACTIVE_MAPPING';
+            if (f === 'ignored') return r.mismatchType === 'IGNORED_OR_QUARANTINED';
+            return false;
+          }).length;
+          return (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-2.5 py-1 text-xs rounded-full ${filter === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'} ${f === 'deleted' && n > 0 && filter !== f ? 'ring-1 ring-red-300 text-red-600' : ''}`}>
+              {f}{f !== 'all' && n > 0 ? ` (${n})` : ''}
+            </button>
+          );
+        })}
       </div>
       <table className="w-full text-sm">
         <thead className="text-left text-[11px] uppercase text-gray-400 border-b border-gray-100">
@@ -297,7 +350,8 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
                 <td><MismatchBadge type={r.mismatchType} /></td>
                 <td>{r.hasFingerprintEvidence ? <Fingerprint className="w-4 h-4 text-emerald-500" /> : <span className="text-gray-300 text-xs">none</span>}</td>
                 <td>
-                  {r.mismatchType === 'MAPPED_OK' || r.mismatchType === 'NAME_DRIFT' ? (
+                  {r.mismatchType === 'MAPPED_OK' || r.mismatchType === 'NAME_DRIFT'
+                    || r.mismatchType === 'DELETED_PERSON_MAPPING' || r.mismatchType === 'INACTIVE_MAPPING' ? (
                     <div className="flex gap-1">
                       <ActionBtn label="Reassign" icon={Repeat} primary
                         onClick={() => { setActionPin(null); setEditPin(editPin?.pin === r.devicePin && editPin.mode === 'reassign' ? null : { pin: r.devicePin!, mode: 'reassign' }); }} />
