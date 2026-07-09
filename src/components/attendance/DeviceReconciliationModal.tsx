@@ -18,7 +18,7 @@ import useSWR from 'swr';
 import {
   X, RefreshCw, Loader, Users, UserMinus, AlertTriangle, Fingerprint,
   ClipboardList, Search, UserPlus, Check, Ban, ShieldAlert, Send,
-  Server, Wifi, WifiOff, ArrowRight, History as HistoryIcon, Repeat,
+  Server, Wifi, WifiOff, ArrowRight, History as HistoryIcon, Repeat, Trash2,
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
@@ -309,6 +309,12 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
                         }} />
                       <ActionBtn label="History" icon={HistoryIcon}
                         onClick={() => { setActionPin(null); setEditPin(editPin?.pin === r.devicePin && editPin.mode === 'history' ? null : { pin: r.devicePin!, mode: 'history' }); }} />
+                      <ActionBtn label="Remove from device" icon={Trash2}
+                        onClick={() => {
+                          if (window.confirm(`Queue removal of PIN ${r.devicePin}${r.deviceName ? ` (${r.deviceName})` : ''} from the device?\n\nThis deletes the user + fingerprint from the hardware on its next heartbeat. DRAIS mapping is unchanged — use Unmap for that. Track progress in Activity.`)) {
+                            act(sn, r.devicePin!, { action: 'remove-from-device' }, onChanged);
+                          }
+                        }} />
                     </div>
                   ) : r.mismatchType === 'IGNORED_OR_QUARANTINED' ? (
                     <ActionBtn label="Release" icon={Check} onClick={() => act(sn, r.devicePin!, { action: 'release' }, onChanged)} />
@@ -317,6 +323,12 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
                       <ActionBtn label="Resolve" icon={UserPlus} primary onClick={() => { setEditPin(null); setActionPin(actionPin === r.devicePin ? null : r.devicePin); }} />
                       <ActionBtn label="Ignore" icon={Ban} onClick={() => act(sn, r.devicePin!, { action: 'ignore' }, onChanged)} />
                       <ActionBtn label="Quarantine" icon={ShieldAlert} onClick={() => act(sn, r.devicePin!, { action: 'quarantine' }, onChanged)} />
+                      <ActionBtn label="Remove from device" icon={Trash2}
+                        onClick={() => {
+                          if (window.confirm(`Queue removal of PIN ${r.devicePin}${r.deviceName ? ` (${r.deviceName})` : ''} from the device?\n\nThis deletes the user + fingerprint from the hardware on its next heartbeat. Track progress in Activity.`)) {
+                            act(sn, r.devicePin!, { action: 'remove-from-device' }, onChanged);
+                          }
+                        }} />
                     </div>
                   )}
                 </td>

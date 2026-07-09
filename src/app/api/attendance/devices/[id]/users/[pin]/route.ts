@@ -25,6 +25,7 @@ import { resolveDeviceForSession } from '@/lib/biometric/device-access';
 import {
   upsertEnrollment, reassignEnrollment, unmapEnrollment, getMappingHistory,
 } from '@/lib/biometric/enrollment-service';
+import { queueDeviceUserDeletion } from '@/lib/biometric/device-user-commands';
 import { auditDirectoryAction } from '@/lib/biometric/reconciliation-service';
 import { markPendingResolved } from '@/lib/biometric/pending-device-users';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
@@ -174,8 +175,33 @@ export async function POST(
           WHERE device_sn = ? AND device_user_pin = ? AND action_status = 'open'`,
         [session.userId, sn, String(pin)],
       ).catch(() => {});
-      await auditDirectoryAction(schoolId, sn, String(pin), 'unmap', session.userId, { enrollment_id: enr.id, reason: body.reason ?? null });
-      return NextResponse.json({ success: true, action, pin, message: `PIN ${pin} unmapped. It is now available for mapping.` });
+      // Optionally also wipe the fingerprint off the device (Phase 5).
+      let deviceCleanup: number | null = null;
+      if (body.remove_from_device === true) {
+        deviceCleanup = await queueDeviceUserDeletion({ schoolId, deviceSn: sn, pin: pinNum, createdBy: session.userId });
+      }
+      await auditDirectoryAction(schoolId, sn, String(pin), 'unmap', session.userId,
+        { enrollment_id: enr.id, reason: body.reason ?? null, device_delete_queued: deviceCleanup != null });
+      return NextResponse.json({
+        success: true, action, pin,
+        device_cleanup_queued: deviceCleanup != null,
+        message: `PIN ${pin} unmapped. It is now available for mapping.${deviceCleanup != null ? ' Device removal queued (see Activity).' : ''}`,
+      });
+    }
+
+    // ── remove-from-device: queue physical deletion of the PIN's user +
+    //    templates from the device (Phase 5). Identity in DRAIS is left
+    //    as-is; this only cleans the device hardware. ───────────────────
+    if (action === 'remove-from-device') {
+      const cmdId = await queueDeviceUserDeletion({ schoolId, deviceSn: sn, pin: pinNum, createdBy: session.userId });
+      if (cmdId == null) {
+        return NextResponse.json({ error: 'Could not queue device removal (device serial unknown).' }, { status: 422 });
+      }
+      await auditDirectoryAction(schoolId, sn, String(pin), 'remove-from-device', session.userId, { command_id: cmdId });
+      return NextResponse.json({
+        success: true, action, pin, command_id: cmdId,
+        message: `Queued removal of PIN ${pin} from the device. It runs on the next heartbeat — track it in Activity.`,
+      });
     }
 
     let roleType: 'student' | 'staff';
