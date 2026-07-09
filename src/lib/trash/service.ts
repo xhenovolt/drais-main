@@ -14,6 +14,10 @@
 import { query } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import {
+  suspendEnrollmentsForRole,
+  reactivateEnrollmentsForRole,
+} from '@/lib/biometric/enrollment-service';
+import {
   getEntityDescriptor,
   listEntityDescriptors,
   type DependencyRule,
@@ -155,6 +159,20 @@ export async function archiveEntity(args: ArchiveArgs): Promise<{ id: number }> 
     userAgent:  args.userAgent ?? null,
   });
 
+  // Biometric identity safety: a soft-deleted learner/staff must stop
+  // being recognised on devices. Suspend (not revoke) their canonical
+  // enrollments so a later restore can cleanly reactivate. Best-effort —
+  // never let this block the archive itself.
+  if (d.code === 'student' || d.code === 'staff') {
+    try {
+      await suspendEnrollmentsForRole(
+        args.schoolId, d.code, args.id, 'person_archived', args.userId,
+      );
+    } catch (err) {
+      console.warn('[trash] biometric suspend on archive failed (non-fatal):', err);
+    }
+  }
+
   return { id: args.id };
 }
 
@@ -201,6 +219,17 @@ export async function restoreEntity(args: RestoreArgs): Promise<{ id: number }> 
     ip:         args.ip ?? null,
     userAgent:  args.userAgent ?? null,
   });
+
+  // Mirror of the archive hook: revive enrollments that were suspended
+  // purely because this person was archived. Operator revokes and
+  // reassignments are left untouched (different reason marker).
+  if (d.code === 'student' || d.code === 'staff') {
+    try {
+      await reactivateEnrollmentsForRole(args.schoolId, d.code, args.id, args.userId);
+    } catch (err) {
+      console.warn('[trash] biometric reactivate on restore failed (non-fatal):', err);
+    }
+  }
 
   return { id: args.id };
 }

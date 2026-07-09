@@ -18,7 +18,7 @@ import useSWR from 'swr';
 import {
   X, RefreshCw, Loader, Users, UserMinus, AlertTriangle, Fingerprint,
   ClipboardList, Search, UserPlus, Check, Ban, ShieldAlert, Send,
-  Server, Wifi, WifiOff, ArrowRight,
+  Server, Wifi, WifiOff, ArrowRight, History as HistoryIcon, Repeat,
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
@@ -263,9 +263,12 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
   setActionPin: (p: string | null) => void; actionPin: string | null;
 }) {
   const [filter, setFilter] = useState<string>('all');
+  // Local expansion for mapped-row edit/reassign/history (separate from
+  // the unmapped Resolve panel driven by actionPin).
+  const [editPin, setEditPin] = useState<{ pin: string; mode: 'reassign' | 'history' } | null>(null);
   const filtered = rows.filter(r => {
     if (filter === 'all') return true;
-    if (filter === 'mapped') return r.mismatchType === 'MAPPED_OK';
+    if (filter === 'mapped') return r.mismatchType === 'MAPPED_OK' || r.mismatchType === 'NAME_DRIFT';
     if (filter === 'unknown') return r.mismatchType === 'DEVICE_ONLY_USER' || r.mismatchType === 'DEVICE_ONLY_TEMPLATE';
     if (filter === 'ambiguous') return r.mismatchType === 'STAFF_STUDENT_AMBIGUOUS';
     if (filter === 'ignored') return r.mismatchType === 'IGNORED_OR_QUARANTINED';
@@ -295,12 +298,23 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
                 <td>{r.hasFingerprintEvidence ? <Fingerprint className="w-4 h-4 text-emerald-500" /> : <span className="text-gray-300 text-xs">none</span>}</td>
                 <td>
                   {r.mismatchType === 'MAPPED_OK' || r.mismatchType === 'NAME_DRIFT' ? (
-                    <span className="text-xs text-gray-400">mapped</span>
+                    <div className="flex gap-1">
+                      <ActionBtn label="Reassign" icon={Repeat} primary
+                        onClick={() => { setActionPin(null); setEditPin(editPin?.pin === r.devicePin && editPin.mode === 'reassign' ? null : { pin: r.devicePin!, mode: 'reassign' }); }} />
+                      <ActionBtn label="Unmap" icon={UserMinus}
+                        onClick={() => {
+                          if (window.confirm(`Unmap PIN ${r.devicePin}${r.deviceName ? ` (${r.deviceName})` : ''}?\n\nFuture scans on this PIN will no longer be recognised. Past attendance is kept. You can re-map it later.`)) {
+                            act(sn, r.devicePin!, { action: 'unmap' }, onChanged);
+                          }
+                        }} />
+                      <ActionBtn label="History" icon={HistoryIcon}
+                        onClick={() => { setActionPin(null); setEditPin(editPin?.pin === r.devicePin && editPin.mode === 'history' ? null : { pin: r.devicePin!, mode: 'history' }); }} />
+                    </div>
                   ) : r.mismatchType === 'IGNORED_OR_QUARANTINED' ? (
                     <ActionBtn label="Release" icon={Check} onClick={() => act(sn, r.devicePin!, { action: 'release' }, onChanged)} />
                   ) : (
                     <div className="flex gap-1">
-                      <ActionBtn label="Resolve" icon={UserPlus} primary onClick={() => setActionPin(actionPin === r.devicePin ? null : r.devicePin)} />
+                      <ActionBtn label="Resolve" icon={UserPlus} primary onClick={() => { setEditPin(null); setActionPin(actionPin === r.devicePin ? null : r.devicePin); }} />
                       <ActionBtn label="Ignore" icon={Ban} onClick={() => act(sn, r.devicePin!, { action: 'ignore' }, onChanged)} />
                       <ActionBtn label="Quarantine" icon={ShieldAlert} onClick={() => act(sn, r.devicePin!, { action: 'quarantine' }, onChanged)} />
                     </div>
@@ -310,6 +324,16 @@ function PeopleTab({ sn, rows, onChanged, setActionPin, actionPin }: {
               {actionPin === r.devicePin && (
                 <tr><td colSpan={6} className="bg-slate-50 dark:bg-slate-800/60 p-3">
                   <ResolvePanel sn={sn} item={r} onDone={() => { setActionPin(null); onChanged(); }} />
+                </td></tr>
+              )}
+              {editPin?.pin === r.devicePin && editPin.mode === 'reassign' && (
+                <tr><td colSpan={6} className="bg-amber-50/60 dark:bg-amber-900/10 p-3">
+                  <ReassignPanel sn={sn} item={r} onDone={() => { setEditPin(null); onChanged(); }} />
+                </td></tr>
+              )}
+              {editPin?.pin === r.devicePin && editPin.mode === 'history' && (
+                <tr><td colSpan={6} className="bg-slate-50 dark:bg-slate-800/60 p-3">
+                  <HistoryPanel sn={sn} pin={r.devicePin!} />
                 </td></tr>
               )}
             </React.Fragment>
@@ -420,6 +444,97 @@ function ResolvePanel({ sn, item, onDone }: { sn: string; item: ReconItem; onDon
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Reassign panel: move a mapped PIN to a different person ──────────
+function ReassignPanel({ sn, item, onDone }: { sn: string; item: ReconItem; onDone: () => void }) {
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
+  const { data: studentSearch } = useSWR<any>(q.length > 1 ? `/api/students/search?q=${encodeURIComponent(q)}&limit=10` : null, fetcher);
+  const { data: staffSearch } = useSWR<any>(q.length > 1 ? `/api/staff?search=${encodeURIComponent(q)}&limit=10` : null, fetcher);
+  const students = studentSearch?.students ?? studentSearch?.data ?? [];
+  const staff = staffSearch?.data ?? staffSearch?.staff ?? [];
+
+  const submit = async (user_type: 'student' | 'staff', id: number, name: string) => {
+    if (!window.confirm(
+      `Reassign PIN ${item.devicePin} to ${name}?\n\n` +
+      `• Future scans on this device PIN will resolve to ${name}.\n` +
+      `• Past attendance stays with the previously-mapped person.\n` +
+      `• This is recorded in mapping history.`,
+    )) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/attendance/devices/${encodeURIComponent(sn)}/users/${encodeURIComponent(item.devicePin!)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reassign', user_type, student_id: user_type === 'student' ? id : undefined, staff_id: user_type === 'staff' ? id : undefined, reason: reason || undefined }),
+      });
+      onDone();
+    } catch { /* toast shown */ } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-100/60 dark:bg-amber-900/20 rounded p-2">
+        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+        <div>
+          Reassigning <span className="font-mono">PIN {item.devicePin}</span>
+          {item.matchedRoleType ? <> (currently {item.matchedRoleType} #{item.matchedRoleRefId})</> : null}.
+          Old attendance is preserved with the current person; only future scans move to the new person.
+        </div>
+      </div>
+      <div className="flex items-center gap-2 border rounded-lg px-2 py-1.5 bg-white dark:bg-slate-700">
+        <Search className="w-4 h-4 text-gray-400" />
+        <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search the NEW learner or staff…" className="flex-1 text-sm bg-transparent outline-none" />
+      </div>
+      <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (optional, e.g. wrong mapping)" className="w-full border rounded px-2 py-1.5 text-sm bg-white dark:bg-slate-700" />
+      <div className="max-h-44 overflow-y-auto space-y-1">
+        {students.map((s: any) => (
+          <button key={`st${s.id}`} disabled={busy} onClick={() => submit('student', s.id || s.student_id, [s.first_name, s.last_name].filter(Boolean).join(' '))}
+            className="w-full flex items-center justify-between px-3 py-1.5 text-sm rounded hover:bg-amber-50 dark:hover:bg-slate-600">
+            <span>{[s.first_name, s.last_name].filter(Boolean).join(' ')}</span>
+            <span className="text-[11px] text-gray-400">learner {s.admission_no || s.id}</span>
+          </button>
+        ))}
+        {staff.map((s: any) => (
+          <button key={`sf${s.id}`} disabled={busy} onClick={() => submit('staff', s.id || s.staff_id, [s.first_name, s.last_name].filter(Boolean).join(' '))}
+            className="w-full flex items-center justify-between px-3 py-1.5 text-sm rounded hover:bg-amber-50 dark:hover:bg-slate-600">
+            <span>{[s.first_name, s.last_name].filter(Boolean).join(' ')}</span>
+            <span className="text-[11px] text-gray-400">staff {s.id}</span>
+          </button>
+        ))}
+        {q.length > 1 && students.length === 0 && staff.length === 0 && <div className="text-xs text-gray-400 px-3">No matches</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── History panel: mapping change audit for a PIN ────────────────────
+const HISTORY_LABEL: Record<string, string> = {
+  map: 'Mapped', reassign: 'Reassigned', unmap: 'Unmapped', revoke: 'Revoked',
+  suspend_person_archived: 'Suspended (person archived)', reactivate: 'Reactivated', edit: 'Edited',
+};
+function HistoryPanel({ sn, pin }: { sn: string; pin: string }) {
+  const { data, isLoading } = useSWR<any>(`/api/attendance/devices/${encodeURIComponent(sn)}/users/${encodeURIComponent(pin)}`, fetcher);
+  const history: any[] = data?.history ?? [];
+  if (isLoading) return <div className="text-xs text-gray-400 flex items-center gap-2"><Loader className="w-3.5 h-3.5 animate-spin" /> Loading history…</div>;
+  if (history.length === 0) return <div className="text-xs text-gray-400">No mapping changes recorded for PIN {pin}.</div>;
+  return (
+    <div className="space-y-1">
+      <div className="text-[11px] uppercase text-gray-400 mb-1">Mapping history · PIN {pin}</div>
+      {history.map((h) => (
+        <div key={h.id} className="flex items-center gap-2 text-xs bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded px-3 py-1.5">
+          <span className="font-semibold text-indigo-600 whitespace-nowrap">{HISTORY_LABEL[h.action] ?? h.action}</span>
+          <span className="text-gray-600 dark:text-gray-300 truncate">
+            {h.old_person_name ? h.old_person_name : (h.old_role_type ? `${h.old_role_type} #${h.old_role_ref_id}` : '')}
+            {h.new_person_name || h.new_role_type ? <> → {h.new_person_name || `${h.new_role_type} #${h.new_role_ref_id}`}</> : null}
+          </span>
+          {h.reason && <span className="text-gray-400 italic truncate">“{h.reason}”</span>}
+          <span className="text-gray-400 ml-auto whitespace-nowrap">{h.actor_name || '—'} · {fmt(h.created_at)}</span>
+        </div>
+      ))}
     </div>
   );
 }

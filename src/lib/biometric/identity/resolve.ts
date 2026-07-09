@@ -304,8 +304,12 @@ async function hydratePersonId(
 ): Promise<number | null> {
   const table = role === 'student' ? 'students' : 'staff';
   try {
+    // deleted_at IS NULL (Phase 6): a soft-deleted learner/staff must not
+    // resolve as a normal identity. Their canonical enrollment is also
+    // suspended on archive, but this guards the legacy chain too.
     const rows = (await query(
-      `SELECT person_id FROM ${table} WHERE id = ? AND school_id = ? LIMIT 1`,
+      `SELECT person_id FROM ${table}
+        WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
       [refId, schoolId],
     )) as Array<{ person_id: number | null }>;
     return rows[0]?.person_id ?? null;

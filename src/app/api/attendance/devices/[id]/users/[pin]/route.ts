@@ -22,13 +22,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { resolveDeviceForSession } from '@/lib/biometric/device-access';
-import { upsertEnrollment } from '@/lib/biometric/enrollment-service';
+import {
+  upsertEnrollment, reassignEnrollment, unmapEnrollment, getMappingHistory,
+} from '@/lib/biometric/enrollment-service';
 import { auditDirectoryAction } from '@/lib/biometric/reconciliation-service';
 import { markPendingResolved } from '@/lib/biometric/pending-device-users';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import { evaluateDay } from '@/lib/attendance/engine';
 
 export const runtime = 'nodejs';
+
+/**
+ * GET /api/attendance/devices/[sn]/users/[pin]/history — mapping change
+ * history for one PIN (who mapped/reassigned/unmapped, old→new person).
+ */
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string; pin: string }> },
+) {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const { id, pin } = await ctx.params;
+  const access = await resolveDeviceForSession(session, id);
+  const sn = access.device?.sn ?? id;
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const pinNum = Number(pin);
+  if (!Number.isFinite(pinNum)) return NextResponse.json({ error: 'invalid pin' }, { status: 422 });
+  const history = await getMappingHistory(access.schoolId, sn, pinNum);
+  return NextResponse.json({ success: true, pin, history });
+}
 
 export async function POST(
   req: NextRequest,
@@ -75,6 +97,85 @@ export async function POST(
 
     if (!validPin) {
       return NextResponse.json({ error: `device PIN '${pin}' is not a valid numeric PIN` }, { status: 422 });
+    }
+
+    // Look up the active canonical enrollment for this PIN (server-side —
+    // never trust a client-supplied enrollment id).
+    async function activeEnrollmentForPin(): Promise<{ id: number } | null> {
+      const rows = (await query(
+        `SELECT id FROM biometric_enrollments
+          WHERE school_id = ? AND pin_value = ?
+            AND status IN ('active','pending_capture','suspended')
+          ORDER BY FIELD(status,'active','pending_capture','suspended') LIMIT 1`,
+        [schoolId, pinNum],
+      )) as Array<{ id: number }>;
+      return rows[0] ?? null;
+    }
+
+    // ── reassign: move this PIN to a different learner/staff ──────────
+    if (action === 'reassign') {
+      const newRoleType: 'student' | 'staff' = body.user_type;
+      const newRoleRefId = newRoleType === 'student' ? Number(body.student_id) : Number(body.staff_id);
+      if (!['student', 'staff'].includes(newRoleType) || !newRoleRefId) {
+        return NextResponse.json({ error: 'user_type and student_id/staff_id required for reassign' }, { status: 400 });
+      }
+      const enr = await activeEnrollmentForPin();
+      if (!enr) return NextResponse.json({ error: `PIN ${pin} has no enrollment to reassign. Map it first.` }, { status: 404 });
+      const res = await reassignEnrollment({
+        schoolId, enrollmentId: enr.id, newRoleType, newRoleRefId,
+        reason: body.reason ?? null, actorUserId: session.userId,
+      });
+      if (!res.ok) {
+        const status = res.reason === 'person_not_found' ? 404 : res.reason === 'same_person' ? 409 : 400;
+        return NextResponse.json({ error: `Reassignment failed: ${res.detail || res.reason}` }, { status });
+      }
+      // Re-match ONLY still-unmatched punches for this PIN to the new
+      // person. Already-matched historical punches stay with the old
+      // person (denormalised at punch time).
+      let rematched = 0;
+      try {
+        const r = await query(
+          `UPDATE zk_attendance_logs SET student_id = ?, staff_id = ?, matched = 1
+            WHERE school_id = ? AND device_user_id = ? AND matched = 0`,
+          [newRoleType === 'student' ? newRoleRefId : null, newRoleType === 'staff' ? newRoleRefId : null, schoolId, String(pin)],
+        );
+        rematched = (r as any)?.affectedRows || 0;
+      } catch { /* non-fatal */ }
+      try {
+        const backfill = await backfillAttendanceRawEventsForMapping({
+          schoolId, deviceUserId: String(pin), deviceSn: sn,
+          studentId: newRoleType === 'student' ? newRoleRefId : null,
+          staffId: newRoleType === 'staff' ? newRoleRefId : null,
+        });
+        if (res.newPersonId && backfill.affectedDates.length > 0) {
+          for (const d of backfill.affectedDates) await evaluateDay(schoolId, Number(res.newPersonId), newRoleType, d);
+        }
+      } catch (e) { console.warn('[reassign] backfill failed:', e); }
+      await auditDirectoryAction(schoolId, sn, String(pin), 'reassign', session.userId,
+        { enrollment_id: enr.id, to_role: newRoleType, to_ref: newRoleRefId, reason: body.reason ?? null });
+      return NextResponse.json({
+        success: true, action, pin, enrollment_id: enr.id,
+        role_type: newRoleType, role_ref_id: newRoleRefId, rematched,
+        message: `PIN ${pin} reassigned to ${newRoleType} #${newRoleRefId}. Future scans use the new person; past attendance stays with the previous person.`,
+      });
+    }
+
+    // ── unmap: release the PIN (revoke enrollment) ────────────────────
+    if (action === 'unmap') {
+      const enr = await activeEnrollmentForPin();
+      if (!enr) return NextResponse.json({ error: `PIN ${pin} is not mapped.` }, { status: 404 });
+      const res = await unmapEnrollment({
+        schoolId, enrollmentId: enr.id, reason: body.reason ?? 'unmapped by operator', actorUserId: session.userId,
+      });
+      if (!res.ok) return NextResponse.json({ error: `Unmap failed: ${res.detail || 'unknown error'}` }, { status: 400 });
+      await query(
+        `UPDATE device_reconciliation_items
+            SET action_status = 'resolved', action_taken = 'unmap', resolved_by = ?, resolved_at = NOW()
+          WHERE device_sn = ? AND device_user_pin = ? AND action_status = 'open'`,
+        [session.userId, sn, String(pin)],
+      ).catch(() => {});
+      await auditDirectoryAction(schoolId, sn, String(pin), 'unmap', session.userId, { enrollment_id: enr.id, reason: body.reason ?? null });
+      return NextResponse.json({ success: true, action, pin, message: `PIN ${pin} unmapped. It is now available for mapping.` });
     }
 
     let roleType: 'student' | 'staff';
