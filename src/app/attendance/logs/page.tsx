@@ -272,6 +272,9 @@ export default function UnifiedAttendancePage() {
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState('');
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
   const { events: liveEvents, connected: sseConnected } = useLiveFeed();
 
   // Build query params
@@ -353,6 +356,24 @@ export default function UnifiedAttendancePage() {
       // apiFetch surfaces the error toast (e.g. 403 for non-admins)
     } finally {
       setClearing(false);
+    }
+  };
+
+  const handleResetBiometrics = async () => {
+    setResetting(true);
+    try {
+      await apiFetch<any>('/api/attendance/biometric/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
+      });
+      setShowResetModal(false);
+      setResetConfirmText('');
+      mutate();
+    } catch {
+      // apiFetch surfaces the error toast (e.g. 403 for non-admins)
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -577,6 +598,16 @@ export default function UnifiedAttendancePage() {
             >
               <Trash2 className="w-4 h-4" />
               Clear Logs
+            </button>
+            <button
+              onClick={() => { setResetConfirmText(''); setShowResetModal(true); }}
+              className="flex items-center gap-1 px-3 py-2 text-sm border border-red-300
+                dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg
+                hover:bg-red-50 dark:hover:bg-red-900/30"
+              title="Unmap every device PIN for this school (clears biometric enrollments + mappings)"
+            >
+              <Fingerprint className="w-4 h-4" />
+              Reset Biometrics
             </button>
           </div>
         </div>
@@ -928,6 +959,75 @@ export default function UnifiedAttendancePage() {
                   <><RefreshCw className="w-4 h-4 animate-spin" /> Clearing…</>
                 ) : (
                   <><Trash2 className="w-4 h-4" /> Clear all logs</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset-Biometrics Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
+                <Fingerprint className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Reset biometric enrollments?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  This affects this school only.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                This unmaps every device PIN — DRAIS forgets who each
+                fingerprint belongs to. It cannot be undone.
+              </p>
+              <ul className="mt-2 text-xs text-red-700 dark:text-red-300 list-disc list-inside space-y-0.5">
+                <li>Clears biometric enrollments + device mappings.</li>
+                <li>Students, staff, devices and attendance history are kept.</li>
+                <li>The physical device keeps its users until you re-sync.</li>
+                <li>You'll need to re-map or re-enroll each person afterwards.</li>
+              </ul>
+            </div>
+
+            <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
+              Type <span className="font-mono font-bold">RESET</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder="RESET"
+              autoFocus
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                bg-white dark:bg-slate-900 text-sm mb-4 focus:ring-2 focus:ring-red-500"
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowResetModal(false); setResetConfirmText(''); }}
+                disabled={resetting}
+                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg
+                  text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetBiometrics}
+                disabled={resetting || resetConfirmText.trim().toUpperCase() !== 'RESET'}
+                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium
+                  hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed
+                  flex items-center justify-center gap-2"
+              >
+                {resetting ? (
+                  <><RefreshCw className="w-4 h-4 animate-spin" /> Resetting…</>
+                ) : (
+                  <><Fingerprint className="w-4 h-4" /> Reset biometrics</>
                 )}
               </button>
             </div>
