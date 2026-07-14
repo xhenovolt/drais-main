@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/utils/database';
 import { getSessionSchoolId } from '@/lib/auth';
+import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+
+function escapeCsv(value: string): string {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
 
 export async function GET(request: NextRequest) {
   const session = await getSessionSchoolId(request);
@@ -15,6 +23,8 @@ export async function GET(request: NextRequest) {
     if (!classId) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
     }
+
+    const formatter = await AttendanceFormatter.forSchool(schoolId);
 
     // Get attendance data for export
     const query = `
@@ -50,8 +60,7 @@ export async function GET(request: NextRequest) {
     // Convert to CSV
     const headers = [
       'Admission No',
-      'First Name', 
-      'Last Name',
+      'Name',
       'Class',
       'Stream',
       'Status',
@@ -64,15 +73,14 @@ export async function GET(request: NextRequest) {
       headers.join(','),
       ...data.map(row => [
         row.admission_no,
-        row.first_name,
-        row.last_name,
+        [row.first_name, row.last_name].filter(Boolean).join(' '),
         row.class_name,
-        row.stream_name || '',
-        row.attendance_status,
-        row.time_in || '',
-        row.time_out || '',
-        (row.notes || '').replace(/,/g, ';') // Replace commas to avoid CSV issues
-      ].join(','))
+        formatter.formatNullable(row.stream_name),
+        formatter.formatNullable(row.attendance_status),
+        formatter.formatTime(row.time_in),
+        formatter.formatTime(row.time_out),
+        formatter.formatNullable(row.notes),
+      ].map((value) => escapeCsv(String(value))).join(','))
     ].join('\n');
 
     // Return CSV file

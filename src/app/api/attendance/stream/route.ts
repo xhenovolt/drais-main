@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { getEventBus } from '@/lib/events/eventbus';
+import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +32,7 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return new Response('Unauthorized', { status: 401 });
   const schoolId = session.schoolId;
+  const formatter = await AttendanceFormatter.forSchool(schoolId);
 
   const encoder = new TextEncoder();
   let closed = false;
@@ -96,6 +99,19 @@ export async function GET(req: NextRequest) {
           } else if (r.device_known_name) {
             personName = r.device_known_name;
           }
+          const presentation = AttendancePresentationModel.fromHistoryRow({
+            id: r.id,
+            device_sn: r.device_sn,
+            device_user_id: r.device_user_id,
+            check_time: r.check_time,
+            verify_type: r.verify_type,
+            matched: r.matched,
+            role_type: personType,
+            derived_event: r.derived_event ?? null,
+            derived_detail: r.derived_detail ?? null,
+            class_name: r.class_name ?? null,
+            person_name: personName,
+          }, formatter);
           send({
             id: r.id,
             device_user_id: r.device_user_id,
@@ -112,6 +128,7 @@ export async function GET(req: NextRequest) {
             device_known_name: r.device_known_name || null,
             photo_url: r.student_photo || null,
             sms_status: r.sms_status ?? null,
+            presentation,
           });
           lastId = Math.max(lastId, r.id);
         }

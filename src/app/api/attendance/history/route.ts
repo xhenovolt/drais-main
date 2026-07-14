@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
+import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
 
 export const runtime = 'nodejs';
 
@@ -35,17 +37,18 @@ export async function GET(req: NextRequest) {
 
   try {
     await ensureAttendanceEngineSchema();
+    const formatter = await AttendanceFormatter.forSchool(schoolId);
 
     const conditions: string[] = ['ar.school_id = ?'];
     const params: any[] = [schoolId];
 
     if (dateFrom) {
       conditions.push('ar.punch_at >= ?');
-      params.push(`${dateFrom} 00:00:00`);
+      params.push(formatter.toUtcBoundary(dateFrom, 'start'));
     }
     if (dateTo) {
       conditions.push('ar.punch_at <= ?');
-      params.push(`${dateTo} 23:59:59`);
+      params.push(formatter.toUtcBoundary(dateTo, 'end'));
     }
     if (deviceSn) {
       conditions.push('ar.device_sn = ?');
@@ -178,9 +181,18 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const data = enriched.map((row) => ({
+      ...row,
+      presentation: AttendancePresentationModel.fromHistoryRow(row, formatter),
+    }));
+
     return NextResponse.json({
       success: true,
-      data: enriched,
+      data,
+      presentation: {
+        timezone: formatter.timezone,
+        visibleCount: data.length,
+      },
       tab_counts: {
         all: Number(tabCountsRows[0]?.total_all || 0),
         learners: Number(tabCountsRows[0]?.total_learners || 0),

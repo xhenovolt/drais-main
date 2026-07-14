@@ -3,23 +3,14 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Users, UserCheck, Briefcase, AlertTriangle, Activity,
-  Search, Filter, RefreshCw, ChevronLeft, ChevronRight,
+  Search, RefreshCw, ChevronLeft, ChevronRight,
   Fingerprint, Download, UserPlus, X, Check, Clock,
   Radio, ChevronDown, ChevronUp, Trash2,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-const verifyLabel = (v: number | null) => {
-  const map: Record<number, string> = { 0: 'Password', 1: 'Fingerprint', 2: 'Card', 15: 'Face' };
-  return v != null ? map[v] ?? `Type ${v}` : '—';
-};
-const ioLabel = (m: number | null) => {
-  const map: Record<number, string> = { 0: 'Check-in', 1: 'Check-out', 2: 'Break Out', 3: 'Break In' };
-  return m != null ? map[m] ?? `Mode ${m}` : '—';
-};
+import { AttendanceExportService } from '@/lib/attendance/export/AttendanceExportService';
 
 // DERIVED attendance meaning (from the state engine), NOT the device's
 // raw IN/OUT field. This is what operators should trust.
@@ -36,7 +27,6 @@ const DERIVED_CLASS: Record<string, string> = {
   CHECKED_OUT: 'bg-indigo-100 text-indigo-700', OVERTIME_EXIT: 'bg-purple-100 text-purple-800',
   EARLY_DEPARTURE: 'bg-orange-100 text-orange-800', DUPLICATE: 'bg-gray-100 text-gray-400',
 };
-const derivedLabel = (e: string | null) => (e ? (DERIVED_LABEL[e] ?? e) : null);
 
 // SMS notification outbox status for the row.
 const SMS_LABEL: Record<string, string> = {
@@ -275,6 +265,7 @@ export default function UnifiedAttendancePage() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
+  const [exportingFormat, setExportingFormat] = useState<'csv' | 'excel' | null>(null);
   const { events: liveEvents, connected: sseConnected } = useLiveFeed();
 
   // Build query params
@@ -308,37 +299,37 @@ export default function UnifiedAttendancePage() {
   const logs = data?.data || [];
   const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
   const tabCounts = data?.tab_counts || { all: 0, learners: 0, staff: 0, unmatched: 0 };
+  const visiblePresentationRows = useMemo(
+    () => logs.map((log: any) => log.presentation).filter(Boolean),
+    [logs],
+  );
 
   const handleTabChange = useCallback((key: TabKey) => {
     setTab(key);
     setPage(1);
   }, []);
 
-  const handleExport = () => {
-    const csvRows = [
-      'Time,Person,Type,Class,Device User ID,Device,Verify,IO Mode,Matched',
-      ...logs.map((l: any) =>
-        [
-          l.check_time,
-          l.person_name || `UID: ${l.device_user_id}`,
-          l.person_type,
-          l.class_name || '',
-          l.device_user_id,
-          l.device_name || l.device_sn,
-          verifyLabel(l.verify_type),
-          ioLabel(l.io_mode),
-          l.matched ? 'Yes' : 'No',
-        ].join(','),
-      ),
-    ].join('\n');
-    const blob = new Blob([csvRows], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `attendance-${tab}-${dateFrom || 'all-time'}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    showToast('success', 'CSV exported');
-  };
+  const handleExport = useCallback(async (format: 'csv' | 'excel') => {
+    if (visiblePresentationRows.length === 0) {
+      showToast('error', 'No visible attendance rows to export');
+      return;
+    }
+
+    setExportingFormat(format);
+    try {
+      await AttendanceExportService.exportVisibleRows({
+        format,
+        filename: `attendance-logs-${tab}-${dateFrom || 'all-time'}-page-${page}`,
+        rows: visiblePresentationRows,
+      });
+      showToast('success', format === 'excel' ? 'Excel exported' : 'CSV exported');
+    } catch (error) {
+      console.error('[Attendance Logs] Export failed:', error);
+      showToast('error', 'Failed to export attendance logs');
+    } finally {
+      setExportingFormat(null);
+    }
+  }, [dateFrom, page, tab, visiblePresentationRows]);
 
   const handleClearLogs = async () => {
     setClearing(true);
@@ -428,20 +419,20 @@ export default function UnifiedAttendancePage() {
                 <div key={`${ev.id}-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
                   <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <span className="text-gray-500 text-xs whitespace-nowrap">
-                    {ev.check_time ? new Date(ev.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                    {ev.presentation?.time || '—'}
                   </span>
                   {ev.person_name ? (
-                    <span className="font-medium">{ev.person_name}</span>
+                    <span className="font-medium">{ev.presentation?.name || ev.person_name}</span>
                   ) : (
-                    <span className="text-amber-600 font-mono text-xs">UID: {ev.device_user_id}</span>
+                    <span className="text-amber-600 font-mono text-xs">{ev.presentation?.name || `UID: ${ev.device_user_id}`}</span>
                   )}
                   <span className={`px-1.5 py-0.5 rounded text-xs
                     ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
                       : ev.person_type === 'staff' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                         : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                    {ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched'}
+                    {ev.presentation?.category || (ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched')}
                   </span>
-                  {ev.class_name && <span className="text-xs text-gray-400">{ev.class_name}</span>}
+                  {ev.class_name && <span className="text-xs text-gray-400">{ev.presentation?.className || ev.class_name}</span>}
                   {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
                 </div>
               ))}
@@ -582,12 +573,24 @@ export default function UnifiedAttendancePage() {
               Refresh
             </button>
             <button
-              onClick={handleExport}
+              onClick={() => handleExport('excel')}
+              disabled={exportingFormat !== null}
               className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300
-                dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
+                dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700
+                disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="w-4 h-4" />
-              Export CSV
+              {exportingFormat === 'excel' ? 'Exporting…' : 'Export Visible Excel'}
+            </button>
+            <button
+              onClick={() => handleExport('csv')}
+              disabled={exportingFormat !== null}
+              className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300
+                dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700
+                disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              {exportingFormat === 'csv' ? 'Exporting…' : 'Export Visible CSV'}
             </button>
             <button
               onClick={() => { setClearConfirmText(''); setShowClearModal(true); }}
@@ -623,7 +626,10 @@ export default function UnifiedAttendancePage() {
           {!isLoading && logs.length === 0 && (
             <div className="text-center py-8 text-gray-400 text-sm">No records found.</div>
           )}
-          {logs.map((log: any) => (
+          {logs.map((log: any) => {
+            const presentation = log.presentation;
+
+            return (
             <div key={log.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -640,32 +646,32 @@ export default function UnifiedAttendancePage() {
                   )}
                   <div className="min-w-0">
                     {log.person_name ? (
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{log.person_name}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{presentation?.name || log.person_name}</p>
                     ) : (
-                      <p className="text-xs font-mono text-amber-600 dark:text-amber-400">UID: {log.device_user_id}</p>
+                      <p className="text-xs font-mono text-amber-600 dark:text-amber-400">{presentation?.name || `UID: ${log.device_user_id}`}</p>
                     )}
                     {log.class_name && (
-                      <p className="text-xs text-gray-400 truncate">{log.class_name}</p>
+                      <p className="text-xs text-gray-400 truncate">{presentation?.className || log.class_name}</p>
                     )}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   <span className="text-xs text-gray-500 whitespace-nowrap">
-                    {log.check_time ? new Date(log.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {presentation?.time || '—'}
                   </span>
                   {/* DERIVED meaning from the state engine (falls back to
                       "Scan" when a day hasn't been evaluated yet) — never
                       the device's raw IN/OUT field. */}
-                  {derivedLabel(log.derived_event) ? (
+                  {presentation?.attendanceStatus && presentation.attendanceStatus !== 'Scan' ? (
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}
                           title={log.derived_detail || ''}>
-                      {derivedLabel(log.derived_event)}
+                      {presentation.attendanceStatus}
                     </span>
                   ) : (
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500" title="Awaiting evaluation">Scan</span>
                   )}
-                  {log.derived_detail && (
-                    <span className="text-[10px] text-gray-400 whitespace-nowrap">{log.derived_detail}</span>
+                  {presentation?.statusDetail && presentation.statusDetail !== '—' && (
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap">{presentation.statusDetail}</span>
                   )}
                 </div>
               </div>
@@ -677,15 +683,15 @@ export default function UnifiedAttendancePage() {
                       ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                       : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
                 }`}>
-                  {log.person_type === 'student' ? 'Learner' : log.person_type === 'staff' ? 'Staff' : 'Unmatched'}
+                  {presentation?.category || (log.person_type === 'student' ? 'Learner' : log.person_type === 'staff' ? 'Staff' : 'Unmatched')}
                 </span>
                 {log.matched ? (
                   <span className="flex items-center gap-0.5 text-green-600 text-[10px] font-medium">
-                    <UserCheck className="w-3 h-3" /> Matched
+                    <UserCheck className="w-3 h-3" /> {presentation?.matchStatus || 'Matched'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium">
-                    <AlertTriangle className="w-3 h-3" /> Unmatched
+                    <AlertTriangle className="w-3 h-3" /> {presentation?.matchStatus || 'Unmatched'}
                   </span>
                 )}
                 {tab === 'unmatched' && (
@@ -698,7 +704,7 @@ export default function UnifiedAttendancePage() {
                 )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         {/* ── Table (sm+) ────────────────────────────────────────────── */}
@@ -709,13 +715,13 @@ export default function UnifiedAttendancePage() {
               <thead className="bg-gray-50 dark:bg-slate-900/50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Person</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Class</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Device UID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Verify</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">IO</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Device ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Verification Method</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Attendance Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Match Status</th>
                   {tab === 'unmatched' && (
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
                   )}
@@ -739,37 +745,38 @@ export default function UnifiedAttendancePage() {
                         <div key={`${ev.id}-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
                           <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           <span className="text-gray-500 text-xs whitespace-nowrap">
-                            {ev.check_time ? new Date(ev.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                            {ev.presentation?.time || '—'}
                           </span>
                           {ev.person_name ? (
-                            <span className="font-medium">{ev.person_name}</span>
+                            <span className="font-medium">{ev.presentation?.name || ev.person_name}</span>
                           ) : (
-                            <span className="text-amber-600 font-mono text-xs">UID: {ev.device_user_id}</span>
+                            <span className="text-amber-600 font-mono text-xs">{ev.presentation?.name || `UID: ${ev.device_user_id}`}</span>
                           )}
                           <span className={`px-1.5 py-0.5 rounded text-xs
                             ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
                               : ev.person_type === 'staff' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                            {ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched'}
+                            {ev.presentation?.category || (ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched')}
                           </span>
-                          {ev.class_name && <span className="text-xs text-gray-400">{ev.class_name}</span>}
+                          {ev.class_name && <span className="text-xs text-gray-400">{ev.presentation?.className || ev.class_name}</span>}
                           {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
                         </div>
                       ))}
                     </td>
                   </tr>
                 )}
-                {logs.map((log: any) => (
+                {logs.map((log: any) => {
+                  const presentation = log.presentation;
+
+                  return (
                   <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
                     <td className="px-4 py-3 text-sm whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        {log.check_time ? new Date(log.check_time).toLocaleTimeString([], {
-                          hour: '2-digit', minute: '2-digit', second: '2-digit',
-                        }) : '—'}
+                        {presentation?.time || '—'}
                       </div>
                       <span className="text-xs text-gray-400">
-                        {log.check_time ? new Date(log.check_time).toLocaleDateString() : ''}
+                        {presentation?.date && presentation.date !== '—' ? presentation.date : ''}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -787,11 +794,11 @@ export default function UnifiedAttendancePage() {
                               {log.person_name.charAt(0)}
                             </div>
                           )}
-                          <span className="text-sm font-medium">{log.person_name}</span>
+                          <span className="text-sm font-medium">{presentation?.name || log.person_name}</span>
                         </div>
                       ) : (
                         <span className="text-sm text-amber-600 dark:text-amber-400 font-mono">
-                          UID: {log.device_user_id}
+                          {presentation?.name || `UID: ${log.device_user_id}`}
                           <span className="text-xs ml-1 text-gray-400">(Unassigned)</span>
                         </span>
                       )}
@@ -803,28 +810,28 @@ export default function UnifiedAttendancePage() {
                           : log.person_type === 'staff'
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                             : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                        {log.person_type === 'student' ? 'Learner'
+                        {presentation?.category || (log.person_type === 'student' ? 'Learner'
                           : log.person_type === 'staff' ? 'Staff'
-                            : 'Unmatched'}
+                            : 'Unmatched')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
-                      {log.class_name || '—'}
+                      {presentation?.className || '—'}
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-gray-500 hidden lg:table-cell">
-                      {log.device_user_id}
+                      {presentation?.deviceId || log.device_user_id}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hidden lg:table-cell">
-                      {verifyLabel(log.verify_type)}
+                      {presentation?.verificationMethod || '—'}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {/* DERIVED attendance meaning from the state engine */}
-                      {derivedLabel(log.derived_event) ? (
+                      {presentation?.attendanceStatus && presentation.attendanceStatus !== 'Scan' ? (
                         <div className="flex flex-col gap-0.5">
                           <span className={`inline-block w-fit px-2 py-0.5 rounded text-xs font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}>
-                            {derivedLabel(log.derived_event)}
+                            {presentation.attendanceStatus}
                           </span>
-                          {log.derived_detail && <span className="text-[11px] text-gray-400">{log.derived_detail}</span>}
+                          {presentation.statusDetail !== '—' && <span className="text-[11px] text-gray-400">{presentation.statusDetail}</span>}
                           <SmsPill status={log.sms_status} matched={log.matched} />
                         </div>
                       ) : (
@@ -834,11 +841,11 @@ export default function UnifiedAttendancePage() {
                     <td className="px-4 py-3">
                       {log.matched ? (
                         <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
-                          <UserCheck className="w-3.5 h-3.5" /> Matched
+                          <UserCheck className="w-3.5 h-3.5" /> {presentation?.matchStatus || 'Matched'}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-red-500 text-xs font-medium">
-                          <AlertTriangle className="w-3.5 h-3.5" /> Unmatched
+                          <AlertTriangle className="w-3.5 h-3.5" /> {presentation?.matchStatus || 'Unmatched'}
                         </span>
                       )}
                     </td>
@@ -855,7 +862,7 @@ export default function UnifiedAttendancePage() {
                       </td>
                     )}
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
