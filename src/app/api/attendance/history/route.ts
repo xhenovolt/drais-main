@@ -132,6 +132,7 @@ export async function GET(req: NextRequest) {
          ar.derived_event,
          ar.derived_detail,
          ar.matched,
+         ar.is_provisional,
          ar.role_type,
          ar.display_name,
          ar.person_id,
@@ -178,6 +179,7 @@ export async function GET(req: NextRequest) {
         ...row,
         person_name: personName,
         person_type: row.role_type || 'unmatched',
+        is_provisional: Boolean(row.is_provisional) || (!row.person_id && Number(row.matched) === 0),
       };
     });
 

@@ -143,6 +143,10 @@ export class AttendanceFormatter {
     return matched ? 'Matched' : 'Unmatched';
   }
 
+  formatProvisionalStatus(isProvisional: boolean | null | undefined): string {
+    return isProvisional ? 'Provisional' : 'Verified';
+  }
+
   formatDate(value: AttendanceTimestampInput): string {
     const date = this.parseTimestamp(value);
     if (!date) {

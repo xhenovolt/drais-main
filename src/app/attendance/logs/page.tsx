@@ -38,8 +38,12 @@ const SMS_CLASS: Record<string, string> = {
   delivered: 'bg-emerald-100 text-emerald-700', failed: 'bg-red-100 text-red-700',
   expired: 'bg-gray-100 text-gray-500',
 };
-function SmsPill({ status, matched }: { status: string | null; matched: number | boolean }) {
-  if (!matched) return <span className="text-[10px] text-gray-400">SMS: n/a</span>;
+function ProvisionalBadge({ isProvisional }: { isProvisional?: boolean | null }) {
+  if (!isProvisional) return null;
+  return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">Provisional</span>;
+}
+function SmsPill({ status, matched, isProvisional }: { status: string | null; matched: number | boolean; isProvisional?: boolean | null }) {
+  if (!matched || isProvisional) return <span className="text-[10px] text-gray-400">SMS: skipped</span>;
   if (!status) return <span className="text-[10px] text-gray-400">SMS: none</span>;
   return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SMS_CLASS[status] ?? 'bg-gray-100 text-gray-500'}`}>{SMS_LABEL[status] ?? `SMS ${status}`}</span>;
 }
@@ -685,15 +689,18 @@ export default function UnifiedAttendancePage() {
                 }`}>
                   {presentation?.category || (log.person_type === 'student' ? 'Learner' : log.person_type === 'staff' ? 'Staff' : 'Unmatched')}
                 </span>
-                {log.matched ? (
-                  <span className="flex items-center gap-0.5 text-green-600 text-[10px] font-medium">
-                    <UserCheck className="w-3 h-3" /> {presentation?.matchStatus || 'Matched'}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium">
-                    <AlertTriangle className="w-3 h-3" /> {presentation?.matchStatus || 'Unmatched'}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {log.matched && !log.is_provisional ? (
+                    <span className="flex items-center gap-0.5 text-green-600 text-[10px] font-medium">
+                      <UserCheck className="w-3 h-3" /> {presentation?.matchStatus || 'Matched'}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium">
+                      <AlertTriangle className="w-3 h-3" /> {log.is_provisional ? 'Provisional' : (presentation?.matchStatus || 'Unmatched')}
+                    </span>
+                  )}
+                  <ProvisionalBadge isProvisional={log.is_provisional} />
+                </div>
                 {tab === 'unmatched' && (
                   <button
                     onClick={() => setAssignTarget(log.device_user_id)}
@@ -832,22 +839,25 @@ export default function UnifiedAttendancePage() {
                             {presentation.attendanceStatus}
                           </span>
                           {presentation.statusDetail !== '—' && <span className="text-[11px] text-gray-400">{presentation.statusDetail}</span>}
-                          <SmsPill status={log.sms_status} matched={log.matched} />
+                          <SmsPill status={log.sms_status} matched={log.matched} isProvisional={log.is_provisional} />
                         </div>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500" title="Awaiting day evaluation">Scan</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {log.matched ? (
-                        <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
-                          <UserCheck className="w-3.5 h-3.5" /> {presentation?.matchStatus || 'Matched'}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-red-500 text-xs font-medium">
-                          <AlertTriangle className="w-3.5 h-3.5" /> {presentation?.matchStatus || 'Unmatched'}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {log.matched && !log.is_provisional ? (
+                          <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
+                            <UserCheck className="w-3.5 h-3.5" /> {presentation?.matchStatus || 'Matched'}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-red-500 text-xs font-medium">
+                            <AlertTriangle className="w-3.5 h-3.5" /> {log.is_provisional ? 'Provisional' : (presentation?.matchStatus || 'Unmatched')}
+                          </span>
+                        )}
+                        <ProvisionalBadge isProvisional={log.is_provisional} />
+                      </div>
                     </td>
                     {tab === 'unmatched' && (
                       <td className="px-4 py-3">

@@ -144,6 +144,13 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
         /* idempotent; ignore */
       }
 
+      for (const sql of [
+        `ALTER TABLE attendance_raw_events ADD COLUMN IF NOT EXISTS is_provisional BOOLEAN NOT NULL DEFAULT FALSE`,
+        `ALTER TABLE attendance_raw_events ADD COLUMN IF NOT EXISTS provisional_reason VARCHAR(60) DEFAULT NULL`,
+      ]) {
+        try { await query(sql, []); } catch { /* idempotent; ignore */ }
+      }
+
       try {
         await query(
           `UPDATE attendance_raw_events ar
@@ -170,7 +177,7 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
         `CREATE TABLE IF NOT EXISTS attendance_records (
            id              BIGINT PRIMARY KEY AUTO_INCREMENT,
            school_id       BIGINT NOT NULL,
-           person_id       BIGINT NOT NULL,
+           person_id       BIGINT DEFAULT NULL,
            role_type       ENUM('student','staff') NOT NULL,
            attendance_date DATE NOT NULL,
            first_in_at     DATETIME DEFAULT NULL,
@@ -183,6 +190,8 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
            total_minutes   INT NOT NULL DEFAULT 0,
            rule_id         BIGINT DEFAULT NULL,
            raw_event_count INT NOT NULL DEFAULT 0,
+           is_provisional  BOOLEAN NOT NULL DEFAULT FALSE,
+           provisional_reason VARCHAR(60) DEFAULT NULL,
            evaluated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
            UNIQUE KEY uk_person_day (person_id, attendance_date),
            KEY idx_school_day    (school_id, attendance_date),
@@ -191,6 +200,14 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
         [],
       );
+
+      for (const sql of [
+        `ALTER TABLE attendance_records MODIFY person_id BIGINT DEFAULT NULL`,
+        `ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS is_provisional BOOLEAN NOT NULL DEFAULT FALSE`,
+        `ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS provisional_reason VARCHAR(60) DEFAULT NULL`,
+      ]) {
+        try { await query(sql, []); } catch { /* idempotent; ignore */ }
+      }
     } catch (err) {
       ensured = null;
       throw err;

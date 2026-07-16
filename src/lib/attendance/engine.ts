@@ -51,6 +51,7 @@ import { publishEvent } from '@/lib/events/eventbus';
 // notification_outbox rows. NO synchronous external calls happen on
 // the engine's emit path — the drainer cron is what actually sends.
 import { installNotificationFanout, fanoutAttendanceRecord } from '@/lib/notifications/fanout';
+import { getProvisionalAttendanceMeta } from '@/lib/attendance/provisional';
 installNotificationFanout();
 
 export type AttendanceSource = 'zkteco_push' | 'dahua_pull' | 'manual' | 'relay';
@@ -193,7 +194,7 @@ async function resolveDisplayName(input: RecordRawEventInput): Promise<string | 
 export async function evaluatePunch(rawEventId: number): Promise<void> {
   await ensureAttendanceEngineSchema();
   const rows = (await query(
-    `SELECT school_id, person_id, role_type, punch_at
+    `SELECT school_id, person_id, role_type, punch_at, matched, display_name, device_sn, device_user_id
        FROM attendance_raw_events
       WHERE id = ?
       LIMIT 1`,
@@ -203,14 +204,35 @@ export async function evaluatePunch(rawEventId: number): Promise<void> {
     person_id: number | null;
     role_type: 'student' | 'staff' | 'visitor' | null;
     punch_at: Date | string;
+    matched: number | boolean | null;
+    display_name: string | null;
+    device_sn: string | null;
+    device_user_id: number | string | null;
   }>;
 
   if (rows.length === 0) return;
   const r = rows[0];
+  const meta = getProvisionalAttendanceMeta({ matched: Boolean(r.matched), personId: r.person_id });
   if (!r.person_id || !r.role_type || r.role_type === 'visitor') {
-    // Unresolved punches don't produce attendance_records — they sit
-    // in raw_events until orphan-claim stamps the person_id. Visitor
-    // attendance is out of scope until Phase X.
+    // Temporary operational mode: unresolved punches still create a
+    // visible attendance row as provisional so they are not lost while
+    // identity reconciliation catches up. The existing unresolved queue
+    // remains intact and later mapping can promote them to matched.
+    if (meta.isProvisional) {
+      const punchAt = r.punch_at instanceof Date ? r.punch_at : new Date(r.punch_at);
+      const attendanceDate = startOfDay(punchAt);
+      await upsertProvisionalAttendanceRecord(
+        r.school_id,
+        r.person_id,
+        r.role_type ?? 'staff',
+        attendanceDate,
+        r.display_name,
+        r.device_sn,
+        r.device_user_id,
+        rawEventId,
+        meta,
+      );
+    }
     return;
   }
   const punchAt = r.punch_at instanceof Date ? r.punch_at : new Date(r.punch_at);
@@ -484,6 +506,71 @@ async function persistVerdict(
       ruleId, v.rawEventCount,
     ],
   );
+}
+
+async function upsertProvisionalAttendanceRecord(
+  schoolId: number,
+  personId: number | null,
+  roleType: 'student' | 'staff' | 'visitor',
+  attendanceDate: Date,
+  displayName: string | null,
+  deviceSn: string | null,
+  deviceUserId: number | string | null,
+  rawEventId: number,
+  meta: ReturnType<typeof getProvisionalAttendanceMeta>,
+): Promise<void> {
+  const date = formatDate(attendanceDate);
+  const status = meta.isProvisional ? 'present' : 'absent';
+  const firstInAt = new Date(attendanceDate);
+  const lastOutAt = new Date(attendanceDate);
+  const personKey = personId ?? null;
+  await query(
+    `INSERT INTO attendance_records
+       (school_id, person_id, role_type, attendance_date,
+        first_in_at, last_out_at, first_in_device, last_out_device,
+        status, late_minutes, early_minutes, total_minutes,
+        rule_id, raw_event_count, is_provisional, provisional_reason)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       first_in_at         = VALUES(first_in_at),
+       last_out_at         = VALUES(last_out_at),
+       first_in_device     = VALUES(first_in_device),
+       last_out_device     = VALUES(last_out_device),
+       status              = VALUES(status),
+       late_minutes        = VALUES(late_minutes),
+       early_minutes       = VALUES(early_minutes),
+       total_minutes       = VALUES(total_minutes),
+       rule_id             = VALUES(rule_id),
+       raw_event_count     = VALUES(raw_event_count),
+       is_provisional      = VALUES(is_provisional),
+       provisional_reason  = VALUES(provisional_reason)`,
+    [
+      schoolId,
+      personKey,
+      roleType,
+      date,
+      firstInAt,
+      lastOutAt,
+      deviceSn,
+      deviceSn,
+      status,
+      0,
+      0,
+      0,
+      null,
+      1,
+      meta.isProvisional ? 1 : 0,
+      meta.provisionalReason,
+    ],
+  );
+
+  await query(
+    `UPDATE attendance_raw_events
+        SET is_provisional = ?, provisional_reason = ?,
+            display_name = COALESCE(NULLIF(TRIM(?), ''), display_name)
+      WHERE id = ?`,
+    [meta.isProvisional ? 1 : 0, meta.provisionalReason, displayName ?? null, rawEventId],
+  ).catch(() => {});
 }
 
 /**
