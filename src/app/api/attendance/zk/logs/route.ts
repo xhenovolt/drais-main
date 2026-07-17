@@ -82,17 +82,27 @@ export async function GET(req: NextRequest) {
          dud.device_name AS device_known_name,
          sp.first_name AS student_first_name,
          sp.last_name AS student_last_name,
-         stf.first_name AS staff_first_name,
-         stf.last_name AS staff_last_name
+         tp.first_name AS staff_first_name,
+         tp.last_name AS staff_last_name,
+         be.role_type AS canonical_role_type,
+         be.role_ref_id AS canonical_role_ref_id,
+         CONCAT_WS(' ', bpe.first_name, bpe.last_name) AS canonical_person_name
        FROM zk_attendance_logs al
        LEFT JOIN devices d ON al.device_sn = d.sn
        LEFT JOIN students st ON al.student_id = st.id
        LEFT JOIN people sp ON st.person_id = sp.id
        LEFT JOIN staff stf ON al.staff_id = stf.id
+       LEFT JOIN people tp ON stf.person_id = tp.id
        LEFT JOIN device_user_directory dud
          ON dud.school_id = al.school_id
         AND dud.device_sn = al.device_sn
         AND dud.device_user_id = al.device_user_id
+       LEFT JOIN biometric_enrollments be
+         ON be.school_id = al.school_id
+        AND al.device_user_id REGEXP '^[0-9]+$'
+        AND be.pin_value = CAST(al.device_user_id AS UNSIGNED)
+        AND be.status = 'active'
+       LEFT JOIN people bpe ON bpe.id = be.person_id
        WHERE ${where}
        ORDER BY al.check_time DESC
        LIMIT ${limit} OFFSET ${offset}`,
@@ -106,11 +116,10 @@ export async function GET(req: NextRequest) {
       const staffName = row.staff_first_name || row.staff_last_name
         ? [row.staff_first_name, row.staff_last_name].filter(Boolean).join(' ')
         : null;
+      const canonicalName = row.canonical_person_name?.trim() || null;
+      const canonicalType = row.canonical_role_type || null;
 
-      return {
-        ...row,
-        person_name: studentName || staffName || row.device_known_name || null,
-        person_type: studentName ? 'student' : staffName ? 'staff' : 'unmatched',
+      const personName = studentName || staffName || canonicalName || row.device_known_name || null;
       };
     });
 

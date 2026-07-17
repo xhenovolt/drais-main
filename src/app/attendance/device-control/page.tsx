@@ -12,6 +12,84 @@ import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
+function isAttendanceResponse(data: any) {
+  return Array.isArray(data?.data) && data.data.length > 0 && (
+    data.data[0].deviceUserId !== undefined ||
+    data.data[0].device_user_id !== undefined ||
+    data.data[0].recordTime !== undefined ||
+    data.data[0].record_date !== undefined
+  );
+}
+
+function getAttendanceValue(row: any, key: string) {
+  switch (key) {
+    case 'date':
+      return row.record_date || (row.recordTime ? row.recordTime.slice(0, 10) : row.check_time?.slice(0, 10)) || '';
+    case 'time':
+      return row.record_time || (row.recordTime ? row.recordTime.slice(11, 19) : row.check_time?.slice(11, 19)) || '';
+    case 'staff':
+      return 'staff';
+    case 'device_user_id':
+      return row.deviceUserId ?? row.device_user_id ?? '';
+    case 'device_name':
+      return row.deviceName ?? row.device_name ?? '';
+    case 'drais_name':
+      return row.draisName ?? row.drais_name ?? row.displayName ?? '';
+    case 'role_type':
+      return row.roleType ?? row.role_type ?? '';
+    case 'matched':
+      return row.matched ? 'yes' : 'no';
+    case 'verification':
+      return row.verification ?? row.verify_type ?? '';
+    case 'status':
+      return row.status ?? row.io_mode ?? '';
+    default:
+      return '';
+  }
+}
+
+function AttendanceResultTable({ rows }: { rows: any[] }) {
+  const columns = [
+    { key: 'date', label: 'Date' },
+    { key: 'time', label: 'Time' },
+    { key: 'staff', label: 'Staff' },
+    { key: 'device_user_id', label: 'Device PIN' },
+    { key: 'device_name', label: 'Device Name' },
+    { key: 'drais_name', label: 'DRAIS Name' },
+    { key: 'role_type', label: 'Role' },
+    { key: 'matched', label: 'Matched' },
+    { key: 'verification', label: 'Verification' },
+    { key: 'status', label: 'Status' },
+  ];
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <table className="min-w-full text-xs text-left border-collapse">
+        <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300 uppercase tracking-[.03em] text-[10px]">
+          <tr>
+            {columns.map((col) => (
+              <th key={col.key} className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap">
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-950'}>
+              {columns.map((col) => (
+                <td key={col.key} className="px-2 py-2 align-top border-b border-gray-100 dark:border-gray-800 whitespace-nowrap">
+                  {getAttendanceValue(row, col.key)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function DeviceControlPage() {
   const [deviceSn, setDeviceSn] = useState('');
   const [directIp, setDirectIp] = useState('');
@@ -510,9 +588,13 @@ export default function DeviceControlPage() {
                   <span className="font-medium text-sm text-gray-900 dark:text-white">{r.action}</span>
                   <span className="text-xs text-gray-400 ml-auto">{r.time}</span>
                 </div>
-                <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
-                  {JSON.stringify(r.data, null, 2)}
-                </pre>
+                {isAttendanceResponse(r.data) ? (
+                  <AttendanceResultTable rows={r.data.data} />
+                ) : (
+                  <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
+                    {JSON.stringify(r.data, null, 2)}
+                  </pre>
+                )}
               </div>
             ))}
           </div>

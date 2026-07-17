@@ -144,6 +144,8 @@ async function buildJoinedAttendance(
       resolutionPath: resolution?.path ?? null,
       matched: resolution?.resolved ?? false,
       recordTime: ts,
+      record_date: formatDate(adjusted),
+      record_time: formatTime(adjusted),
       verification: rec.verification || null,
       status: rec.status || null,
     });
@@ -171,6 +173,22 @@ async function resolveDeviceIP(sn: string, schoolId: number): Promise<string | n
 }
 
 // ─── Validate raw IP address (IPv4 private/LAN only) ─────────────────────────
+
+function pad2(value: number) {
+  return String(value).padStart(2, '0');
+}
+
+function formatDate(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatTime(date: Date) {
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+}
+
+function formatDateTime(date: Date) {
+  return `${formatDate(date)} ${formatTime(date)}`;
+}
 
 function isValidLanIP(ip: string): boolean {
   const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
@@ -340,7 +358,7 @@ export async function GET(req: NextRequest) {
         const joined = await buildJoinedAttendance(rawArr, zk, ip, session, deviceSn, 500, clockOffsetMinutes);
 
         const rows: string[] = [];
-        rows.push('device_user_id,ddevice_name,drais_name,person_id,role_type,record_time,verification,status');
+        rows.push('date,time,staff,device_user_id,device_name,drais_name,person_id,role_type,verification,status');
 
         const esc = (v: any) => {
           if (v === null || v === undefined) return '';
@@ -349,8 +367,18 @@ export async function GET(req: NextRequest) {
         };
 
         for (const r of joined) {
-          const name = r.draisName || r.deviceName || '';
-          rows.push([r.deviceUserId, r.deviceName || '', name, r.personId || '', r.roleType || '', r.recordTime, r.verification || '', r.status || ''].map(esc).join(','));
+          rows.push([
+            r.record_date,
+            r.record_time,
+            'staff',
+            r.deviceUserId,
+            r.deviceName || '',
+            r.draisName || '',
+            r.personId || '',
+            r.roleType || '',
+            r.verification || '',
+            r.status || '',
+          ].map(esc).join(','));
         }
 
         const csv = rows.join('\n');
