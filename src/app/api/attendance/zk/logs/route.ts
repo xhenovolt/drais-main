@@ -120,6 +120,16 @@ export async function GET(req: NextRequest) {
       const canonicalType = row.canonical_role_type || null;
 
       const personName = studentName || staffName || canonicalName || row.device_known_name || null;
+      const personType = studentName
+        ? 'student'
+        : staffName
+          ? 'staff'
+          : canonicalType || 'unmatched';
+
+      return {
+        ...row,
+        person_name: personName,
+        person_type: personType,
       };
     });
 
