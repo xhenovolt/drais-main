@@ -25,6 +25,7 @@ export default function DeviceControlPage() {
   const [rawCmd, setRawCmd] = useState('');
   const [rawData, setRawData] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [clockOffsetMinutes, setClockOffsetMinutes] = useState('0');
 
   const { data: devicesData } = useSWR<any>('/api/devices/list', fetcher);
   const devices = devicesData?.data || [];
@@ -60,6 +61,9 @@ export default function DeviceControlPage() {
         params.set('device_port', directPort);
       } else {
         params.set('device_sn', deviceSn);
+      }
+      if (clockOffsetMinutes && clockOffsetMinutes !== '0') {
+        params.set('clock_offset_minutes', clockOffsetMinutes);
       }
       const url = `/api/attendance/zk-tcp?${params}`;
       // CSV download needs text response and a file save
@@ -220,6 +224,15 @@ export default function DeviceControlPage() {
                   {isOnline ? 'Online' : 'Offline'}
                 </span>
                 <span className="text-gray-400">IP: {selectedDevice.ip_address || '—'}</span>
+                <div className="ml-3">
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block">Clock offset (min)</label>
+                  <input
+                    type="number"
+                    value={clockOffsetMinutes}
+                    onChange={(e) => setClockOffsetMinutes(e.target.value)}
+                    className="w-28 px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -251,6 +264,14 @@ export default function DeviceControlPage() {
           busy={busy === 'map'}
           disabled={busy !== null}
           onClick={() => doGet('map_attendance', 'Map Names')}
+        />
+        <ActionButton
+          icon={<Clock className="w-5 h-5" />}
+          label="Correct Time"
+          color="purple"
+          busy={busy === 'correct'}
+          disabled={busy !== null}
+          onClick={() => doGet('map_attendance', 'Correct Time')}
         />
         <ActionButton
           icon={<Clock className="w-5 h-5" />}

@@ -83,6 +83,7 @@ async function buildJoinedAttendance(
   session: any,
   deviceSnParam?: string,
   maxRecords = 500,
+  clockOffsetMinutes = 0,
 ) {
   // Build device PIN -> device name map
   const userNameMap: Record<string, string> = {};
@@ -103,7 +104,9 @@ async function buildJoinedAttendance(
   const out: any[] = [];
   for (const rec of limited) {
     const pin = String(rec.deviceUserId ?? '');
-    const ts = rec.recordTime instanceof Date ? rec.recordTime.toISOString() : new Date(rec.recordTime).toISOString();
+    const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
+    const adjusted = new Date(rawDate.getTime() + (clockOffsetMinutes || 0) * 60000);
+    const ts = adjusted.toISOString();
 
     let resolution = null;
     if (resolvedSn) {
@@ -323,16 +326,18 @@ export async function GET(req: NextRequest) {
       }
 
       case 'map_attendance': {
+        const clockOffsetMinutes = parseInt(url.searchParams.get('clock_offset_minutes') || '0', 10) || 0;
         const attResult = await zk.getAttendances();
         const rawArr: any[] = (attResult.data || []);
-        const joined = await buildJoinedAttendance(rawArr, zk, ip, session, deviceSn, 500);
+        const joined = await buildJoinedAttendance(rawArr, zk, ip, session, deviceSn, 500, clockOffsetMinutes);
         return NextResponse.json({ success: true, data: joined, total: rawArr.length });
       }
 
       case 'attendance_csv': {
+        const clockOffsetMinutes = parseInt(url.searchParams.get('clock_offset_minutes') || '0', 10) || 0;
         const attResult = await zk.getAttendances();
         const rawArr: any[] = (attResult.data || []);
-        const joined = await buildJoinedAttendance(rawArr, zk, ip, session, deviceSn, 500);
+        const joined = await buildJoinedAttendance(rawArr, zk, ip, session, deviceSn, 500, clockOffsetMinutes);
 
         const rows: string[] = [];
         rows.push('device_user_id,ddevice_name,drais_name,person_id,role_type,record_time,verification,status');
