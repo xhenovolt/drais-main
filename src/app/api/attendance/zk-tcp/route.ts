@@ -75,6 +75,80 @@ async function getConnection(ip: string, port = 4370, timeout = 10000): Promise<
   return zk;
 }
 
+// Helper: build joined attendance records (device users + DRAIS resolution)
+async function buildJoinedAttendance(
+  rawArr: any[],
+  zk: any,
+  ip: string,
+  session: any,
+  deviceSnParam?: string,
+  maxRecords = 500,
+) {
+  // Build device PIN -> device name map
+  const userNameMap: Record<string, string> = {};
+  try {
+    const usersResult = await zk.getUsers();
+    for (const u of (usersResult?.data || [])) {
+      const pin = String(u.userId ?? '');
+      if (pin && u.name) userNameMap[pin] = String(u.name).trim();
+    }
+  } catch {}
+
+  const resolvedSn: string = (deviceSnParam as string | undefined)
+    || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
+    || '';
+
+  const limited = rawArr.slice(-maxRecords);
+
+  const out: any[] = [];
+  for (const rec of limited) {
+    const pin = String(rec.deviceUserId ?? '');
+    const ts = rec.recordTime instanceof Date ? rec.recordTime.toISOString() : new Date(rec.recordTime).toISOString();
+
+    let resolution = null;
+    if (resolvedSn) {
+      try {
+        resolution = await resolveIdentity({
+          schoolId: session.schoolId,
+          deviceSn: resolvedSn,
+          deviceUserId: pin,
+        });
+      } catch { resolution = null; }
+    }
+
+    // derive draisName from resolved role if possible
+    let draisName: string | null = null;
+    if (resolution?.resolved) {
+      try {
+        if (resolution.roleType === 'student' && resolution.studentId) {
+          const r = await query('SELECT full_name FROM students WHERE id = ? AND school_id = ? LIMIT 1', [resolution.studentId, session.schoolId]);
+          draisName = r?.[0]?.full_name ?? null;
+        } else if (resolution.roleType === 'staff' && resolution.staffId) {
+          const r = await query('SELECT full_name FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [resolution.staffId, session.schoolId]);
+          draisName = r?.[0]?.full_name ?? null;
+        }
+      } catch { draisName = null; }
+    }
+
+    out.push({
+      deviceUserId: pin,
+      deviceName: userNameMap[pin] || null,
+      draisName,
+      personId: resolution?.personId ?? null,
+      roleType: resolution?.roleType ?? null,
+      roleRefId: (resolution?.studentId ?? resolution?.staffId) ?? null,
+      enrollmentId: resolution?.enrollmentId ?? null,
+      resolutionPath: resolution?.path ?? null,
+      matched: resolution?.resolved ?? false,
+      recordTime: ts,
+      verification: rec.verification || null,
+      status: rec.status || null,
+    });
+  }
+
+  return out;
+}
+
 async function disconnectDevice(ip: string) {
   const entry = pool.get(ip);
   if (entry) {
@@ -249,126 +323,29 @@ export async function GET(req: NextRequest) {
       }
 
       case 'map_attendance': {
-        // Similar to 'attendance' but force a DB identity resolution for every
-        // attendance record and return enriched mapping info.
-        const result = await zk.getAttendances();
-        const rawArr: any[] = (result.data || []);
-
-        const resolvedSn: string = (deviceSn as string | undefined)
-          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
-          || '';
-
-        const limited = rawArr.slice(-500); // allow more rows for mapping
-        const mapped = await Promise.all(limited.map(async (rec: any) => {
-          const pin = String(rec.deviceUserId ?? '');
-          const ts = rec.recordTime instanceof Date ? rec.recordTime.toISOString() : new Date(rec.recordTime).toISOString();
-
-          let resolution = null;
-          if (resolvedSn) {
-            try {
-              resolution = await resolveIdentity({
-                schoolId: session.schoolId,
-                deviceSn: resolvedSn,
-                deviceUserId: pin,
-              });
-            } catch { resolution = null; }
-          }
-
-          // If DB resolved to a person, attempt to derive a displayName from students/staff
-          let displayName: string | null = null;
-          if (resolution?.resolved) {
-            try {
-              if (resolution.roleType === 'student' && resolution.studentId) {
-                const r = await query('SELECT full_name FROM students WHERE id = ? AND school_id = ? LIMIT 1', [resolution.studentId, session.schoolId]);
-                displayName = r?.[0]?.full_name ?? null;
-              } else if (resolution.roleType === 'staff' && resolution.staffId) {
-                const r = await query('SELECT full_name FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [resolution.staffId, session.schoolId]);
-                displayName = r?.[0]?.full_name ?? null;
-              }
-            } catch { displayName = null; }
-          }
-
-          return {
-            deviceUserId: pin,
-            recordTime: ts,
-            verification: rec.verification || null,
-            status: rec.status || null,
-            matched: resolution?.resolved ?? false,
-            personId: resolution?.personId ?? null,
-            roleType: resolution?.roleType ?? null,
-            roleRefId: (resolution?.studentId ?? resolution?.staffId) ?? null,
-            enrollmentId: resolution?.enrollmentId ?? null,
-            resolutionPath: resolution?.path ?? null,
-            displayName,
-          };
-        }));
-
-        return NextResponse.json({
-          success: true,
-          data: mapped,
-          total: rawArr.length,
-        });
+        const attResult = await zk.getAttendances();
+        const rawArr: any[] = (attResult.data || []);
+        const joined = await buildJoinedAttendance(rawArr, zk, ip, session, deviceSn, 500);
+        return NextResponse.json({ success: true, data: joined, total: rawArr.length });
       }
 
       case 'attendance_csv': {
-        // Return a CSV representation of the last N attendance records
-        const result = await zk.getAttendances();
-        const rawArr: any[] = (result.data || []);
-        const limited = rawArr.slice(-500);
-
-        // Attempt to build a name map from device users
-        const userNameMap: Record<string, string> = {};
-        try {
-          const usersResult = await zk.getUsers();
-          for (const u of (usersResult?.data || [])) {
-            const pin = String(u.userId ?? '');
-            if (pin && u.name) userNameMap[pin] = String(u.name).trim();
-          }
-        } catch {}
-
-        // Resolve SN for DB mapping
-        const resolvedSn: string = (deviceSn as string | undefined)
-          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
-          || '';
+        const attResult = await zk.getAttendances();
+        const rawArr: any[] = (attResult.data || []);
+        const joined = await buildJoinedAttendance(rawArr, zk, ip, session, deviceSn, 500);
 
         const rows: string[] = [];
-        rows.push('device_user_id,display_name,person_id,role_type,record_time,verification,status');
+        rows.push('device_user_id,ddevice_name,drais_name,person_id,role_type,record_time,verification,status');
 
-        for (const rec of limited) {
-          const pin = String(rec.deviceUserId ?? '');
-          const ts = rec.recordTime instanceof Date ? rec.recordTime.toISOString() : new Date(rec.recordTime).toISOString();
+        const esc = (v: any) => {
+          if (v === null || v === undefined) return '';
+          const s = String(v).replace(/"/g, '""');
+          return `"${s}"`;
+        };
 
-          let personId = '';
-          let roleType = '';
-          let displayName = userNameMap[pin] || '';
-
-          if (resolvedSn) {
-            try {
-              const resolution = await resolveIdentity({ schoolId: session.schoolId, deviceSn: resolvedSn, deviceUserId: pin });
-              if (resolution?.resolved) {
-                personId = String(resolution.personId ?? '');
-                roleType = String(resolution.roleType ?? '');
-                if (!displayName) {
-                  if (resolution.roleType === 'student' && resolution.studentId) {
-                    const r = await query('SELECT full_name FROM students WHERE id = ? AND school_id = ? LIMIT 1', [resolution.studentId, session.schoolId]);
-                    displayName = r?.[0]?.full_name ?? '';
-                  } else if (resolution.roleType === 'staff' && resolution.staffId) {
-                    const r = await query('SELECT full_name FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [resolution.staffId, session.schoolId]);
-                    displayName = r?.[0]?.full_name ?? '';
-                  }
-                }
-              }
-            } catch {}
-          }
-
-          // CSV-escape simple fields
-          const esc = (v: any) => {
-            if (v === null || v === undefined) return '';
-            const s = String(v).replace(/"/g, '""');
-            return `"${s}"`;
-          };
-
-          rows.push([pin, displayName, personId, roleType, ts, rec.verification || '', rec.status || ''].map(esc).join(','));
+        for (const r of joined) {
+          const name = r.draisName || r.deviceName || '';
+          rows.push([r.deviceUserId, r.deviceName || '', name, r.personId || '', r.roleType || '', r.recordTime, r.verification || '', r.status || ''].map(esc).join(','));
         }
 
         const csv = rows.join('\n');
