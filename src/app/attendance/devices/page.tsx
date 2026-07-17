@@ -397,6 +397,55 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [idProgress, setIdProgress] = useState<{ total: number; pending: number; sent: number; acknowledged: number; failed: number; status: string } | null>(null);
   const [idPolling, setIdPolling] = useState(false);
 
+  // ── Pull Attendance Logs ──
+  const [showPullDialog, setShowPullDialog] = useState(false);
+  const [pullMode, setPullMode] = useState<'today' | 'full' | 'range'>('today');
+  const [pullDateFrom, setPullDateFrom] = useState('');
+  const [pullDateTo, setPullDateTo] = useState(new Date().toISOString().slice(0, 10));
+  const [pullStage, setPullStage] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+  const [pullResult, setPullResult] = useState<any>(null);
+
+  const handlePullAttendance = useCallback(async () => {
+    const lsKey = `drais.lanip.${device.serial_number}`;
+    let lanIp = device.lan_ip
+      || (typeof window !== 'undefined' ? window.localStorage.getItem(lsKey) : '')
+      || '';
+    if (!lanIp) {
+      lanIp = window.prompt(
+        `Enter the device LAN IP (e.g. 192.168.1.197) for "${device.device_name || device.serial_number}" to pull attendance directly.`,
+        '192.168.1.',
+      ) ?? '';
+      if (!lanIp) return;
+      if (typeof window !== 'undefined') window.localStorage.setItem(lsKey, lanIp);
+    }
+    setPullStage('running');
+    setPullResult(null);
+    try {
+      const body: Record<string, unknown> = {
+        action: 'pull_attendance',
+        device_sn: device.serial_number,
+        device_ip: lanIp,
+        mode: pullMode,
+      };
+      if (pullMode === 'range') {
+        body.date_from = pullDateFrom;
+        body.date_to   = pullDateTo;
+      }
+      const r = await apiFetch<any>('/api/attendance/zk-tcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        silent: true,
+      });
+      setPullResult(r);
+      setPullStage('done');
+      onMutate();
+    } catch (err: any) {
+      setPullResult({ error: err?.message || 'Pull failed' });
+      setPullStage('error');
+    }
+  }, [device, pullMode, pullDateFrom, pullDateTo, onMutate]);
+
   // ── Device action (restart, clear logs, sync time, get info) ──
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -741,6 +790,181 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
           />
         )}
 
+        {/* ── Pull Attendance Logs dialog ── */}
+        {showPullDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Download className="w-5 h-5 text-blue-600" />
+                  <h2 className="font-semibold text-gray-900 dark:text-white text-sm">
+                    Pull Attendance Logs
+                  </h2>
+                </div>
+                <button onClick={() => { setShowPullDialog(false); setPullStage('idle'); setPullResult(null); }}
+                  className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Device info */}
+                <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-3 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Device</span>
+                    <span className="font-mono font-medium text-gray-800 dark:text-gray-200">{device.device_name || device.serial_number}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Serial</span>
+                    <span className="font-mono text-gray-700 dark:text-gray-300">{device.serial_number}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">LAN IP</span>
+                    <span className="font-mono text-gray-700 dark:text-gray-300">{device.lan_ip || 'Not set (will prompt)'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Status</span>
+                    <span className={`font-semibold ${isOnline ? 'text-green-600' : 'text-red-500'}`}>
+                      {isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mode selector */}
+                {pullStage === 'idle' && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Select range to pull:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['today', 'full', 'range'] as const).map(m => (
+                        <button key={m} onClick={() => setPullMode(m)}
+                          className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                            pullMode === m
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                          }`}>
+                          {m === 'today' ? "Today's Logs" : m === 'full' ? 'All Logs' : 'Date Range'}
+                        </button>
+                      ))}
+                    </div>
+                    {pullMode === 'range' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">From</label>
+                          <input type="date" value={pullDateFrom} onChange={e => setPullDateFrom(e.target.value)}
+                            className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">To</label>
+                          <input type="date" value={pullDateTo} onChange={e => setPullDateTo(e.target.value)}
+                            className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white" />
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-gray-400">
+                      {pullMode === 'today' && 'Retrieves only today\'s punches from the device.'}
+                      {pullMode === 'full'  && 'Downloads all logs stored on the device. May take a moment.'}
+                      {pullMode === 'range' && 'Retrieves logs between the two dates (device local time).'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Running */}
+                {pullStage === 'running' && (
+                  <div className="flex flex-col items-center py-6 gap-3">
+                    <Loader className="w-8 h-8 text-blue-500 animate-spin" />
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Connecting to device…</p>
+                    <p className="text-xs text-gray-400">Downloading attendance logs over LAN TCP</p>
+                  </div>
+                )}
+
+                {/* Done */}
+                {pullStage === 'done' && pullResult && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="text-sm font-semibold">Pull complete</span>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Logs on device</span>
+                        <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.totalOnDevice ?? '—'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Matching date filter</span>
+                        <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.filteredCount ?? '—'}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-1.5 mt-1">
+                        <span className="text-green-600 font-medium">Inserted (new)</span>
+                        <span className="font-bold text-green-700 dark:text-green-400">{pullResult.inserted ?? 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-500 font-medium">Duplicates skipped</span>
+                        <span className="font-semibold text-blue-600">{pullResult.duplicates ?? 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-amber-500 font-medium">Unmatched identity</span>
+                        <span className="font-semibold text-amber-600">{pullResult.unmatched ?? 0}</span>
+                      </div>
+                      {(pullResult.failed ?? 0) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-red-500 font-medium">Failed</span>
+                          <span className="font-semibold text-red-600">{pullResult.failed}</span>
+                        </div>
+                      )}
+                    </div>
+                    {(pullResult.unmatched ?? 0) > 0 && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                        {pullResult.unmatched} punch{pullResult.unmatched !== 1 ? 'es' : ''} stored but identity pending — visible under Attendance → Logs → Unmatched tab.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Error */}
+                {pullStage === 'error' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span className="text-sm font-semibold">Pull failed</span>
+                    </div>
+                    <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+                      {pullResult?.error || 'Unknown error'}
+                    </p>
+                    <p className="text-[11px] text-gray-400">Check that the device LAN IP is correct and the device is reachable on port 4370.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+                {pullStage === 'idle' && (
+                  <button onClick={handlePullAttendance}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                    <Download className="w-4 h-4" />
+                    Pull Logs
+                  </button>
+                )}
+                {pullStage === 'running' && (
+                  <button disabled className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium cursor-wait">
+                    <Loader className="w-4 h-4 animate-spin" /> Pulling…
+                  </button>
+                )}
+                {(pullStage === 'done' || pullStage === 'error') && (
+                  <button onClick={() => { setPullStage('idle'); setPullResult(null); }}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                    Pull Again
+                  </button>
+                )}
+                <button onClick={() => { setShowPullDialog(false); setPullStage('idle'); setPullResult(null); }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {editing ? (
           <div className="space-y-2">
             <input type="text" placeholder="Device name" value={editForm.device_name}
@@ -913,6 +1137,15 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 done={syncState === 'acknowledged'}
                 disabled={!isOnline}
                 onClick={startSync}
+              />
+              {/* Pull Attendance Logs */}
+              <ActionIcon
+                icon={<ClipboardList className="w-4 h-4" />}
+                label="Pull Attendance Logs"
+                color="green"
+                loading={pullStage === 'running'}
+                done={pullStage === 'done'}
+                onClick={() => { setPullStage('idle'); setPullResult(null); setShowPullDialog(true); }}
               />
               {/* Re-sync (push DB → device) */}
               <ActionIcon

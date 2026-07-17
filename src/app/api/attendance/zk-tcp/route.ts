@@ -14,6 +14,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { resolveIdentity } from '@/lib/biometric/identity/resolve';
+import { recordRawEvent } from '@/lib/attendance/engine';
 
 export const runtime = 'nodejs';
 
@@ -486,6 +488,161 @@ export async function POST(req: NextRequest) {
           command,
           resultLength: result?.length,
           resultHex: result ? result.toString('hex').substring(0, 200) : null,
+        });
+      }
+
+      // ── Pull Attendance Logs ─────────────────────────────────────────────
+      // Connects directly to the device over LAN TCP, downloads the full
+      // attendance log buffer, optionally filters by date, resolves each
+      // record's identity against biometric_enrollments / zk_user_mapping,
+      // and inserts into attendance_raw_events (INSERT IGNORE — idempotent).
+      // Unmapped PINs are stored with matched=false so they surface in the
+      // Unmatched tab and can be reconciled by the administrator later.
+      case 'pull_attendance': {
+        const mode: 'today' | 'full' | 'range' = body.mode || 'today';
+        const dateFrom: string | null = body.date_from || null;   // YYYY-MM-DD
+        const dateTo: string | null   = body.date_to   || null;   // YYYY-MM-DD
+        const clockOffsetMinutes      = parseInt(body.clock_offset_minutes ?? '0', 10) || 0;
+
+        // Determine date filter boundaries (device timestamps are local time,
+        // so we compare against the ISO date prefix rather than a UTC boundary).
+        const filterFrom = mode === 'today'
+          ? new Date().toISOString().slice(0, 10)
+          : mode === 'range' ? (dateFrom ?? null) : null;
+        const filterTo = mode === 'today'
+          ? new Date().toISOString().slice(0, 10)
+          : mode === 'range' ? (dateTo ?? null)   : null;
+
+        const zk = await getConnection(ip, port);
+        const attResult = await zk.getAttendances();
+        const allRecords: any[] = attResult?.data || [];
+
+        // Get device info for the forensic report
+        let deviceInfo: any = {};
+        try { deviceInfo = await zk.getInfo(); } catch {}
+
+        // Filter to the requested date window (device time, no UTC conversion —
+        // node-zklib returns Date objects whose numeric value is local-time-as-UTC)
+        const toLocalDateStr = (rt: any): string => {
+          const iso = rt instanceof Date ? rt.toISOString() : new Date(rt).toISOString();
+          // Apply caller-supplied clock offset if device time is known to drift
+          if (clockOffsetMinutes) {
+            return new Date(new Date(iso).getTime() + clockOffsetMinutes * 60000)
+              .toISOString().slice(0, 10);
+          }
+          return iso.slice(0, 10);
+        };
+
+        const filtered = allRecords.filter(r => {
+          if (!filterFrom && !filterTo) return true; // mode=full → keep all
+          const d = toLocalDateStr(r.recordTime);
+          if (filterFrom && d < filterFrom) return false;
+          if (filterTo   && d > filterTo)   return false;
+          return true;
+        });
+
+        // Pull user list to enrich display_name
+        let userNameMap: Record<string, string> = {};
+        try {
+          const usersResult = await zk.getUsers();
+          for (const u of (usersResult?.data || [])) {
+            const pin = String(u.userId ?? '');
+            if (pin && u.name) userNameMap[pin] = String(u.name).trim();
+          }
+        } catch { /* name enrichment is best-effort */ }
+
+        // Resolve each record and insert
+        let inserted = 0, duplicates = 0, failed = 0, unmatched = 0;
+        const failures: Array<{ pin: string; ts: string; reason: string }> = [];
+
+        // Resolve device SN from DB if we got here via lan_ip
+        const resolvedSn: string = (device_sn as string | undefined)
+          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
+          || '';
+
+        for (const rec of filtered) {
+          const pin  = String(rec.deviceUserId ?? '');
+          const rawTs = rec.recordTime instanceof Date
+            ? rec.recordTime.toISOString()
+            : new Date(rec.recordTime).toISOString();
+
+          if (!pin || !rawTs) {
+            failed++;
+            failures.push({ pin, ts: rawTs, reason: 'missing pin or timestamp' });
+            continue;
+          }
+
+          const punchAt = new Date(rawTs);
+          const displayName = userNameMap[pin] || null;
+
+          // Identity resolution — never blocks insertion
+          let resolution: Awaited<ReturnType<typeof resolveIdentity>> | null = null;
+          if (resolvedSn) {
+            try {
+              resolution = await resolveIdentity({
+                schoolId: session.schoolId,
+                deviceSn: resolvedSn,
+                deviceUserId: pin,
+              });
+            } catch { /* non-fatal */ }
+          }
+
+          const matched    = resolution?.resolved ?? false;
+          const personId   = resolution?.personId ?? null;
+          const roleType   = resolution?.roleType ?? null;
+          const roleRefId  = (resolution?.studentId ?? resolution?.staffId) ?? null;
+          const enrollId   = resolution?.enrollmentId ?? null;
+          const resPath    = resolution?.path ?? null;
+
+          if (!matched) unmatched++;
+
+          try {
+            const rawEventId = await recordRawEvent({
+              schoolId:     session.schoolId,
+              deviceSn:     resolvedSn || 'unknown',
+              deviceUserId: parseInt(pin, 10),
+              displayName,
+              punchAt,
+              deviceReportedTime: punchAt,
+              clockSkewSeconds: clockOffsetMinutes * 60,
+              timeSource: 'device',
+              timeConfidence: 'review',
+              source: 'manual',
+              matched,
+              enrollmentId: enrollId,
+              personId,
+              roleType,
+              roleRefId,
+              resolutionPath: resPath,
+              resolutionScore: resolution?.resolved ? 1.0 : null,
+              legacyTable: 'zk_tcp_pull',
+              legacyId: rec.userSn ?? null,
+            });
+
+            if (rawEventId) inserted++;
+            else            duplicates++;
+          } catch (err: any) {
+            failed++;
+            failures.push({ pin, ts: rawTs, reason: err.message });
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          mode,
+          filterFrom,
+          filterTo,
+          deviceIp: ip,
+          deviceSn: resolvedSn || null,
+          deviceLogCounts: deviceInfo?.logCounts ?? null,
+          deviceUserCounts: deviceInfo?.userCounts ?? null,
+          totalOnDevice: allRecords.length,
+          filteredCount: filtered.length,
+          inserted,
+          duplicates,
+          unmatched,
+          failed,
+          failures: failures.slice(0, 20), // cap at 20 for response size
         });
       }
 
