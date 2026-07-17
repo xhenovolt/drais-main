@@ -190,11 +190,60 @@ export async function GET(req: NextRequest) {
 
       case 'attendance': {
         const result = await zk.getAttendances();
+        const rawArr: any[] = (result.data || []);
+
+        // Build a best-effort map of device PIN -> name from the device
+        const userNameMap: Record<string, string> = {};
+        try {
+          const usersResult = await zk.getUsers();
+          for (const u of (usersResult?.data || [])) {
+            const pin = String(u.userId ?? '');
+            if (pin && u.name) userNameMap[pin] = String(u.name).trim();
+          }
+        } catch { /* best-effort enrichment */ }
+
+        // Resolve device SN for identity lookups when caller used direct IP
+        const resolvedSn: string = (deviceSn as string | undefined)
+          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
+          || '';
+
+        // Limit to the last 100 records for UI display and to bound DB calls
+        const limited = rawArr.slice(-100);
+        const enriched = await Promise.all(limited.map(async (rec: any) => {
+          const pin = String(rec.deviceUserId ?? '');
+          const ts = rec.recordTime instanceof Date ? rec.recordTime.toISOString() : new Date(rec.recordTime).toISOString();
+
+          let resolution = null;
+          if (resolvedSn) {
+            try {
+              resolution = await resolveIdentity({
+                schoolId: session.schoolId,
+                deviceSn: resolvedSn,
+                deviceUserId: pin,
+              });
+            } catch { resolution = null; }
+          }
+
+          return {
+            deviceUserId: pin,
+            recordTime: ts,
+            verification: rec.verification || null,
+            status: rec.status || null,
+            displayName: userNameMap[pin] || null,
+            matched: resolution?.resolved ?? false,
+            personId: resolution?.personId ?? null,
+            roleType: resolution?.roleType ?? null,
+            roleRefId: (resolution?.studentId ?? resolution?.staffId) ?? null,
+            enrollmentId: resolution?.enrollmentId ?? null,
+            resolutionPath: resolution?.path ?? null,
+          };
+        }));
+
         return NextResponse.json({
           success: true,
           connectionType: 'TCP',
-          data: (result.data || []).slice(-100), // last 100
-          total: (result.data || []).length,
+          data: enriched,
+          total: rawArr.length,
           error: result.err ? String(result.err) : null,
         });
       }
