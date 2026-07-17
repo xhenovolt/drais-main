@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-07-17T11:26:03.887Z",
+  "jipraSchoolId": 12004,
+  "staffOverview": {
+    "class_teachers": {
+      "active": 0,
+      "softDeleted": 0
+    },
+    "user_notifications": {
+      "active": 570,
+      "softDeleted": 0
+    },
+    "staff_employment": {
+      "active": 1,
+      "softDeleted": 0
+    },
+    "zk_user_mapping": {
+      "active": 147,
+      "softDeleted": 0
+    },
+    "pending_device_users": {
+      "active": 70,
+      "softDeleted": 0
+    },
+    "user_roles": {
+      "active": 3,
+      "softDeleted": 0
+    },
+    "staff_qualifications": {
+      "active": 0,
+      "softDeleted": 0
+    },
+    "attendance_users": {
+      "active": 0,
+      "softDeleted": 0
+    },
+    "device_users": {
+      "active": 0,
+      "softDeleted": 0
+    },
+    "device_user_mappings": {
+      "active": 0,
+      "softDeleted": 0
+    },
+    "device_user_directory": {
+      "active": 1234,
+      "softDeleted": 0
+    },
+    "staff_salaries": {
+      "active": 0,
+      "softDeleted": 0
+    },
+    "staff_subject_specializations": {
+      "active": 0,
+      "softDeleted": 0
+    }
+  },
+  "deletedStaff": [],
+  "softDeletedStaff": [],
+  "orphanedAllocations": [],
+  "auditLogReferences": [],
+  "inconsistencies": [],
+  "recoveryPlan": {
+    "softDeletedStaffToRestore": 0,
+    "orphanedAllocationsToRepair": 0,
+    "auditEventsToAnalyze": 0,
+    "consistencyIssues": 0
+  }
+}
