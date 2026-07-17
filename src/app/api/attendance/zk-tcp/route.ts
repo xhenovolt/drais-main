@@ -248,6 +248,139 @@ export async function GET(req: NextRequest) {
         });
       }
 
+      case 'map_attendance': {
+        // Similar to 'attendance' but force a DB identity resolution for every
+        // attendance record and return enriched mapping info.
+        const result = await zk.getAttendances();
+        const rawArr: any[] = (result.data || []);
+
+        const resolvedSn: string = (deviceSn as string | undefined)
+          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
+          || '';
+
+        const limited = rawArr.slice(-500); // allow more rows for mapping
+        const mapped = await Promise.all(limited.map(async (rec: any) => {
+          const pin = String(rec.deviceUserId ?? '');
+          const ts = rec.recordTime instanceof Date ? rec.recordTime.toISOString() : new Date(rec.recordTime).toISOString();
+
+          let resolution = null;
+          if (resolvedSn) {
+            try {
+              resolution = await resolveIdentity({
+                schoolId: session.schoolId,
+                deviceSn: resolvedSn,
+                deviceUserId: pin,
+              });
+            } catch { resolution = null; }
+          }
+
+          // If DB resolved to a person, attempt to derive a displayName from students/staff
+          let displayName: string | null = null;
+          if (resolution?.resolved) {
+            try {
+              if (resolution.roleType === 'student' && resolution.studentId) {
+                const r = await query('SELECT full_name FROM students WHERE id = ? AND school_id = ? LIMIT 1', [resolution.studentId, session.schoolId]);
+                displayName = r?.[0]?.full_name ?? null;
+              } else if (resolution.roleType === 'staff' && resolution.staffId) {
+                const r = await query('SELECT full_name FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [resolution.staffId, session.schoolId]);
+                displayName = r?.[0]?.full_name ?? null;
+              }
+            } catch { displayName = null; }
+          }
+
+          return {
+            deviceUserId: pin,
+            recordTime: ts,
+            verification: rec.verification || null,
+            status: rec.status || null,
+            matched: resolution?.resolved ?? false,
+            personId: resolution?.personId ?? null,
+            roleType: resolution?.roleType ?? null,
+            roleRefId: (resolution?.studentId ?? resolution?.staffId) ?? null,
+            enrollmentId: resolution?.enrollmentId ?? null,
+            resolutionPath: resolution?.path ?? null,
+            displayName,
+          };
+        }));
+
+        return NextResponse.json({
+          success: true,
+          data: mapped,
+          total: rawArr.length,
+        });
+      }
+
+      case 'attendance_csv': {
+        // Return a CSV representation of the last N attendance records
+        const result = await zk.getAttendances();
+        const rawArr: any[] = (result.data || []);
+        const limited = rawArr.slice(-500);
+
+        // Attempt to build a name map from device users
+        const userNameMap: Record<string, string> = {};
+        try {
+          const usersResult = await zk.getUsers();
+          for (const u of (usersResult?.data || [])) {
+            const pin = String(u.userId ?? '');
+            if (pin && u.name) userNameMap[pin] = String(u.name).trim();
+          }
+        } catch {}
+
+        // Resolve SN for DB mapping
+        const resolvedSn: string = (deviceSn as string | undefined)
+          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
+          || '';
+
+        const rows: string[] = [];
+        rows.push('device_user_id,display_name,person_id,role_type,record_time,verification,status');
+
+        for (const rec of limited) {
+          const pin = String(rec.deviceUserId ?? '');
+          const ts = rec.recordTime instanceof Date ? rec.recordTime.toISOString() : new Date(rec.recordTime).toISOString();
+
+          let personId = '';
+          let roleType = '';
+          let displayName = userNameMap[pin] || '';
+
+          if (resolvedSn) {
+            try {
+              const resolution = await resolveIdentity({ schoolId: session.schoolId, deviceSn: resolvedSn, deviceUserId: pin });
+              if (resolution?.resolved) {
+                personId = String(resolution.personId ?? '');
+                roleType = String(resolution.roleType ?? '');
+                if (!displayName) {
+                  if (resolution.roleType === 'student' && resolution.studentId) {
+                    const r = await query('SELECT full_name FROM students WHERE id = ? AND school_id = ? LIMIT 1', [resolution.studentId, session.schoolId]);
+                    displayName = r?.[0]?.full_name ?? '';
+                  } else if (resolution.roleType === 'staff' && resolution.staffId) {
+                    const r = await query('SELECT full_name FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [resolution.staffId, session.schoolId]);
+                    displayName = r?.[0]?.full_name ?? '';
+                  }
+                }
+              }
+            } catch {}
+          }
+
+          // CSV-escape simple fields
+          const esc = (v: any) => {
+            if (v === null || v === undefined) return '';
+            const s = String(v).replace(/"/g, '""');
+            return `"${s}"`;
+          };
+
+          rows.push([pin, displayName, personId, roleType, ts, rec.verification || '', rec.status || ''].map(esc).join(','));
+        }
+
+        const csv = rows.join('\n');
+        return new NextResponse(csv, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="attendance_${Date.now()}.csv"`,
+          },
+        });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }

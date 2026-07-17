@@ -61,10 +61,34 @@ export default function DeviceControlPage() {
       } else {
         params.set('device_sn', deviceSn);
       }
-      const res = await fetch(`/api/attendance/zk-tcp?${params}`);
-      const json = await res.json();
-      addResult(label, json, json.success);
-      if (!json.success) showToast('error', json.error || 'Failed');
+      const url = `/api/attendance/zk-tcp?${params}`;
+      // CSV download needs text response and a file save
+      if (action === 'attendance_csv') {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const err = await res.text();
+          addResult(label, { error: err }, false);
+          showToast('error', err || 'Failed');
+        } else {
+          const blob = await res.blob();
+          const fname = res.headers.get('content-disposition')?.match(/filename="?(.*)"?/)?.[1] || `attendance.csv`;
+          const urlObj = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = urlObj;
+          a.download = fname;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(urlObj);
+          addResult(label, { message: 'CSV downloaded', filename: fname }, true);
+          showToast('success', 'CSV downloaded');
+        }
+      } else {
+        const res = await fetch(url);
+        const json = await res.json();
+        addResult(label, json, json.success);
+        if (!json.success) showToast('error', json.error || 'Failed');
+      }
     } catch (err: any) {
       addResult(label, { error: err.message }, false);
       showToast('error', err.message);
@@ -221,12 +245,28 @@ export default function DeviceControlPage() {
           onClick={() => doGet('users', 'Get Users')}
         />
         <ActionButton
+          icon={<Users className="w-5 h-5" />}
+          label="Map Names"
+          color="blue"
+          busy={busy === 'map'}
+          disabled={busy !== null}
+          onClick={() => doGet('map_attendance', 'Map Names')}
+        />
+        <ActionButton
           icon={<Clock className="w-5 h-5" />}
           label="Attendance"
           color="blue"
           busy={busy === 'attendance'}
           disabled={busy !== null}
           onClick={() => doGet('attendance', 'Get Attendance')}
+        />
+        <ActionButton
+          icon={<Download className="w-5 h-5" />}
+          label="Download CSV"
+          color="green"
+          busy={busy === 'csv'}
+          disabled={busy !== null}
+          onClick={() => doGet('attendance_csv', 'Download CSV')}
         />
         <ActionButton
           icon={<Wifi className="w-5 h-5" />}
