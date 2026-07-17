@@ -25,6 +25,7 @@ import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
 import { completeAdmsInventoryRun, refreshLiveCountFromDirectory } from '@/lib/biometric/inventory-service';
 import { drainOutboxOpportunistically, drainNotificationOutbox } from '@/lib/notifications/drain';
 import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
+import { admsUploadAck, parseZKBody } from '@/lib/attendance/adms-protocol';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -48,77 +49,6 @@ function textResponse(body: string = 'OK', status: number = 200): NextResponse {
     status,
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   });
-}
-
-/**
- * Parse ZKTeco ADMS body.
- * Format varies by firmware but commonly:
- *   - Tab-separated key=value pairs on a single line
- *   - Or newline-separated rows of tab-separated key=value
- *
- * OPERLOG lines start with "OPLOG" — must be detected and tagged.
- *
- * Examples:
- *   USERID=101\tCHECKTIME=2026-03-30 10:00:00\tLOGID=1
- *   101\t2026-03-30 10:00:00\t0\t1\t\t0\t0\t0\t0
- *   OPLOG 4\t0\t2026-04-02 16:54:02\t1\t0\t0\t0
- */
-function parseZKBody(raw: string, tableName: string): { records: Record<string, string>[]; lines: string[] } {
-  const records: Record<string, string>[] = [];
-  const lines: string[] = [];
-  if (!raw || !raw.trim()) return { records, lines };
-
-  const rawLines = raw.trim().split('\n');
-
-  for (const line of rawLines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    lines.push(trimmed);
-
-    // ── Skip OPERLOG lines when we're expecting ATTLOG ────────────────────
-    // OPERLOG lines start with "OPLOG" — they have a different schema
-    if (/^OPLOG\s/i.test(trimmed)) {
-      records.push({ _TYPE: 'OPERLOG', _RAW: trimmed });
-      continue;
-    }
-
-    // Key=Value format (standard ADMS)
-    if (trimmed.includes('=')) {
-      const record: Record<string, string> = {};
-      const parts = trimmed.split('\t');
-      for (const part of parts) {
-        const eqIdx = part.indexOf('=');
-        if (eqIdx > 0) {
-          const key = part.substring(0, eqIdx).trim().toUpperCase();
-          const value = part.substring(eqIdx + 1).trim();
-          record[key] = value;
-        }
-      }
-      if (Object.keys(record).length > 0) records.push(record);
-    } else {
-      // Positional ZK ATTLOG: PIN \t time \t STATUS \t VERIFY \t workcode …
-      //   col2 = STATUS  (device IN/OUT state: 0=in,1=out,2..5=break/OT)
-      //   col3 = VERIFY  (method: 0=pwd,1=fingerprint,2=card,15=face)
-      // The previous code had these SWAPPED, so every fingerprint punch
-      // (verify=1) was stored as io_mode=1 → shown as "Check-out". We map
-      // them correctly now. NOTE: io_mode (device status) is kept only as
-      // a hint — attendance state is DERIVED by the engine, never taken
-      // from this field (deriveEvents in rule-evaluator).
-      const cols = trimmed.split('\t');
-      if (cols.length >= 2) {
-        records.push({
-          USERID: cols[0]?.trim() || '',
-          CHECKTIME: cols[1]?.trim() || '',
-          INOUTMODE: cols[2]?.trim() || '',
-          VERIFYTYPE: cols[3]?.trim() || '',
-          WORKCODE: cols[4]?.trim() || '',
-          LOGID: cols[5]?.trim() || '',
-        });
-      }
-    }
-  }
-
-  return { records, lines };
 }
 
 /** Extract device serial number from request. */
@@ -308,7 +238,7 @@ async function saveParsedLog(opts: {
 
 // ─── zk_device_logs — Unified Observability (NEVER remove) ───────────────────
 
-type ZkEventType = 'HEARTBEAT' | 'DATA_RECEIVED' | 'DATA_PARSED' | 'PUNCH_SAVED' | 'ERROR';
+type ZkEventType = 'HEARTBEAT' | 'DATA_RECEIVED' | 'DATA_PARSED' | 'DATA_ACK_SENT' | 'PUNCH_SAVED' | 'ERROR';
 
 interface ZkDeviceLogEntry {
   deviceSn:     string | null;
@@ -1873,7 +1803,15 @@ export async function POST(req: NextRequest) {
     } catch { /* non-critical */ }
 
     zkLog('info', 'DATA_PROCESSED', { sn, table, recordCount: records.length, rawLogId });
-    return textResponse('OK');
+    // For data uploads, acknowledge the number of records accepted. This is
+    // how the device advances its ATTLOG/OPERLOG upload cursor.
+    const ack = admsUploadAck(records.length);
+    logDeviceEvent({
+      deviceSn: sn, ipAddress: ip, eventType: 'DATA_ACK_SENT',
+      tableName: table, rawPayload: ack, recordCount: records.length,
+      status: 'success', schoolId,
+    }).catch(() => {});
+    return textResponse(ack);
 
   } catch (err) {
     zkLog('error', 'POST_HANDLER_ERROR', { sn, error: String(err), bodyLength: rawBody.length, rawLogId });

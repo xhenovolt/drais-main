@@ -70,8 +70,8 @@ interface ParsedFilters extends Filters {
 }
 
 async function handleRaw(schoolId: number, f: Filters) {
-  const conds: string[] = ['1=1'];
-  const params: unknown[] = [];
+  const conds: string[] = ['r.school_id = ?'];
+  const params: unknown[] = [schoolId];
 
   if (f.deviceSn) { conds.push('r.device_sn = ?'); params.push(f.deviceSn); }
   if (f.dateFrom) { conds.push('r.created_at >= ?'); params.push(`${f.dateFrom} 00:00:00`); }
@@ -88,8 +88,9 @@ async function handleRaw(schoolId: number, f: Filters) {
          SUM(CASE WHEN http_method = 'POST' THEN 1 ELSE 0 END) AS posts_24h,
          COUNT(DISTINCT device_sn) AS devices_24h
        FROM zk_raw_logs
-       WHERE created_at >= NOW() - INTERVAL 24 HOUR`,
-      [],
+       WHERE school_id = ?
+         AND created_at >= NOW() - INTERVAL 24 HOUR`,
+      [schoolId],
     ),
     query(`SELECT COUNT(*) AS total FROM zk_raw_logs r WHERE ${where}`, params),
     query(
@@ -130,8 +131,8 @@ async function handleRaw(schoolId: number, f: Filters) {
 }
 
 async function handleParsed(schoolId: number, f: ParsedFilters) {
-  const conds: string[] = ['1=1'];
-  const params: unknown[] = [];
+  const conds: string[] = ['p.school_id = ?'];
+  const params: unknown[] = [schoolId];
 
   if (f.errorsOnly) { conds.push("p.status = 'failed'"); }
   if (f.deviceSn)   { conds.push('p.device_sn = ?'); params.push(f.deviceSn); }
@@ -152,8 +153,9 @@ async function handleParsed(schoolId: number, f: ParsedFilters) {
          SUM(CASE WHEN matched = 0 AND table_name = 'ATTLOG' THEN 1 ELSE 0 END) AS unmatched_24h,
          COUNT(DISTINCT device_sn) AS devices_24h
        FROM zk_parsed_logs
-       WHERE created_at >= NOW() - INTERVAL 24 HOUR`,
-      [],
+       WHERE school_id = ?
+         AND created_at >= NOW() - INTERVAL 24 HOUR`,
+      [schoolId],
     ),
     query(`SELECT COUNT(*) AS total FROM zk_parsed_logs p WHERE ${where}`, params),
     query(
