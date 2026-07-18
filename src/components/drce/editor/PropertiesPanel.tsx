@@ -885,9 +885,64 @@ function StudentInfoPanel({ section, onMutate }: { section: DRCEStudentInfoSecti
 
 function AssessmentPanel({ section, onMutate }: { section: DRCEAssessmentSection; onMutate: (m: DRCEMutation) => void }) {
   const set = (path: string, value: unknown) => onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
+  const setAgg = (path: string, value: unknown) => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: `aggregateConfig.${path}`, value });
   const style = section.style as Record<string, unknown>;
+  const agg = section.aggregateConfig ?? {};
+  
   return (
     <div className="p-3">
+      <PanelSection title="Aggregate & Division Configuration">
+        <div style={{ fontSize: '11px', color: '#666', margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+          Aggregates are always calculated from grade points only. Marks-based totals are no longer supported.
+        </div>
+        <div style={{ fontSize: '11px', color: '#666', margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+          Grade Point Map: Enter as JSON (e.g. &#123;"D1":1, "D2":2, "C3":3, ... "F9":9&#125;)
+        </div>
+        <Row label="">
+          <TextInput 
+            value={JSON.stringify(agg.gradePointMap ?? { D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9 }, null, 2)}
+            onChange={v => {
+              try {
+                const parsed = JSON.parse(v);
+                setAgg('gradePointMap', parsed);
+              } catch (e) {
+                // ignore parse errors while typing
+              }
+            }}
+            multiline
+          />
+        </Row>
+        <div style={{ fontSize: '11px', color: '#666', margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+          Division Thresholds: Max aggregate value for each division<br/>
+          e.g. I: ≤12, II: ≤23, III: ≤29, IV: ≤34, else U
+        </div>
+        <Row label="">
+          <TextInput 
+            value={JSON.stringify(agg.divisionThresholds ?? [
+              { maxValue: 12, label: 'Division I' },
+              { maxValue: 23, label: 'Division II' },
+              { maxValue: 29, label: 'Division III' },
+              { maxValue: 34, label: 'Division IV' }
+            ], null, 2)}
+            onChange={v => {
+              try {
+                const parsed = JSON.parse(v);
+                setAgg('divisionThresholds', parsed);
+              } catch (e) {
+                // ignore parse errors while typing
+              }
+            }}
+            multiline
+          />
+        </Row>
+        <Row label="Fallback division">
+          <TextInput 
+            value={String(agg.divisionFallback ?? 'Division U')}
+            onChange={v => setAgg('divisionFallback', v)}
+            placeholder="Division U"
+          />
+        </Row>
+      </PanelSection>
       <PanelSection title="Layout">
         <Row label="Layout">
           <SelectInput value={String(style.layout ?? 'table')} onChange={v => set('layout', v)} options={[

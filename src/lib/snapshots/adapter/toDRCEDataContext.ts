@@ -23,6 +23,7 @@ import type {
 } from '@/lib/drce/schema';
 import type { ReportSnapshot } from '../types';
 import { displaySubjectComment } from '../grader';
+import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
 
 export interface SchoolMetaForRender {
   schoolName:       string;
@@ -227,11 +228,12 @@ export function snapshotToDRCEDataContext(
       : {}),
   };
 
+  const computedAssessment = computeAssessmentRawValues(results);
   const assessment: DRCEAssessmentData = {
     classPosition:  stu.position || null,
     streamPosition: stu.position || null,
-    aggregates:     stu.aggregates ?? Math.round(stu.total) ?? null,
-    division:       stu.division ?? null,
+    aggregates:     computedAssessment.aggregate,
+    division:       computedAssessment.division,
     totalStudents:  stu.totalInClass || null,
     position:       stu.totalInClass
       ? `${stu.position} / ${stu.totalInClass}`

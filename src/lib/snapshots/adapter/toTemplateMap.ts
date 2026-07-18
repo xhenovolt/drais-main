@@ -11,12 +11,14 @@
 import type { ReportSnapshot } from '../types';
 import { toArabicNumerals } from '../normalizers';
 import { displaySubjectComment } from '../grader';
+import { computeAssessmentValues } from '@/lib/drce/assessmentUtils';
 
 export interface TemplateRenderInput {
   snapshot:   ReportSnapshot;
   classIdx:   number;
   studentIdx: number;
   editMode?:  boolean;
+  aggregateConfig?: import('@/lib/drce/schema').DRCEAggregateConfig;
 }
 
 export interface TemplateRenderOutput {
@@ -70,32 +72,9 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
       `</tr>`;
   }
 
-  // Calculate aggregates as sum of grade points (D1=1, D2=2, C3=3, etc.)
-  const GRADE_POINTS: Record<string, number> = {
-    D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9,
-  };
-  let aggregatePoints = 0;
-  for (const result of stu.results) {
-    const grade = (result.grade || '').toUpperCase().trim();
-    if (grade && GRADE_POINTS[grade] !== undefined) {
-      aggregatePoints += GRADE_POINTS[grade];
-    }
-  }
-
-  // Calculate division from aggregates
-  let divisionStr = '-';
-  if (stu.results.length > 0) {
-    if (aggregatePoints <= 12) divisionStr = 'I';
-    else if (aggregatePoints <= 23) divisionStr = 'II';
-    else if (aggregatePoints <= 29) divisionStr = 'III';
-    else if (aggregatePoints <= 34) divisionStr = 'IV';
-    else divisionStr = 'U';
-  }
-
-  const aggregates = isArabic
-    ? toArabicNumerals(aggregatePoints.toString())
-    : aggregatePoints.toString();
-  const division   = isArabic ? toArabicNumerals(divisionStr) : divisionStr;
+  const assessment = computeAssessmentValues(stu.results, input.aggregateConfig, snapshot.meta.language);
+  const aggregates = assessment.aggregates ?? (snapshot.meta.language === 'ar' ? toArabicNumerals('0') : '0');
+  const division = assessment.division ?? (snapshot.meta.language === 'ar' ? toArabicNumerals('-') : '-');
 
   // Pull tenant branding from the frozen snapshot meta, with safe fallbacks
   // for v1 snapshots that predate the `branding` block.

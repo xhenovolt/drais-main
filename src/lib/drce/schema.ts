@@ -581,10 +581,46 @@ export interface DRCEResultsTableSection extends DRCESectionBase {
   totalsConfig?: DRCEResultsTableTotalsConfig;
 }
 
+export interface DRCEDivisionThreshold {
+  /** Max aggregate value for this division. E.g., 12 for Division I, 23 for Division II */
+  maxValue: number;
+  /** Display text. E.g., "Division I" or "I" or "A" */
+  label: string;
+}
+
+/** Configuration for calculating aggregates and divisions */
+export interface DRCEAggregateConfig {
+  /** Mode: 'grade_points' sums D1=1, D2=2, C3=3 etc; 'marks' sums column values */
+  mode: 'grade_points' | 'marks';
+  
+  // ─── Grade points config (when mode='grade_points') ──────────────────────
+  /** Map of grade → points. E.g., { "D1": 1, "D2": 2, "C3": 3, ... } */
+  gradePointMap?: Record<string, number>;
+  
+  // ─── Marks-based config (when mode='marks') ──────────────────────────────
+  /** Which column IDs to sum for marks-based aggregates. E.g., ["score", "eot"] */
+  sumColumnIds?: string[];
+  
+  // ─── Division thresholds (both modes) ──────────────────────────────────────
+  /** Thresholds defining divisions. Sorted by maxValue ascending.
+   *  E.g., [
+   *    { maxValue: 12, label: "Division I" },
+   *    { maxValue: 23, label: "Division II" },
+   *    { maxValue: 29, label: "Division III" },
+   *    { maxValue: 34, label: "Division IV" }
+   *  ] */
+  divisionThresholds?: DRCEDivisionThreshold[];
+  
+  /** Fallback label when aggregate exceeds all thresholds. Default "Division U" */
+  divisionFallback?: string;
+}
+
 export interface DRCEAssessmentSection extends DRCESectionBase {
   type: 'assessment';
   fields: DRCEField[];
   style: Record<string, unknown>;
+  /** Configuration for how aggregates and divisions are calculated */
+  aggregateConfig?: DRCEAggregateConfig;
 }
 
 export interface DRCECommentsSection extends DRCESectionBase {

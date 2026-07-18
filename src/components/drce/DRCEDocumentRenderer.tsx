@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import type { DRCEDocument, DRCEDataContext, DRCESection, DRCEShape } from '@/lib/drce/schema';
+import type { DRCEDocument, DRCEDataContext, DRCESection, DRCEShape, DRCEAssessmentSection } from '@/lib/drce/schema';
 import { resolvePageStyle, resolvePageDimensions } from '@/lib/drce/styleResolver';
 import type { DRCERenderContext } from './types';
 
@@ -15,6 +15,7 @@ import './sections/builtins';
 import { getSectionPlugin } from '@/lib/drce/section-registry';
 import { SectionErrorBoundary } from './SectionErrorBoundary';
 import { evaluateRule } from '@/lib/drce/visibility';
+import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
 
 interface Props {
   document: DRCEDocument;
@@ -51,10 +52,24 @@ function renderSection(
     console.warn(`[renderSection] No plugin registered for type: ${(section as { type?: string }).type}`);
     return null;
   }
+
+  const sectionDataCtx = section.type === 'assessment'
+    ? {
+      ...dataCtx,
+      assessment: {
+        ...dataCtx.assessment,
+        ...computeAssessmentRawValues(dataCtx.results, (section as DRCEAssessmentSection).aggregateConfig),
+      },
+    }
+    : dataCtx;
+
   const node = plugin.Render({
-    section, theme, dataCtx,
+    section,
+    theme,
+    dataCtx: sectionDataCtx,
     renderCtx: renderCtx as unknown as { language?: 'en' | 'ar'; [k: string]: unknown },
-    onCellChange, onColumnHide,
+    onCellChange,
+    onColumnHide,
   });
   // The registry's Render returns `unknown` to keep /lib React-free; cast at the call site.
   return <React.Fragment key={section.id}>{node as React.ReactNode}</React.Fragment>;

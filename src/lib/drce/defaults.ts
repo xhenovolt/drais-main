@@ -136,6 +136,17 @@ export const DRAIS_DEFAULT_DOCUMENT: DRCEDocument = {
         { id: 'a-division',   label: 'Division',         binding: 'assessment.division',       visible: true, order: 2 },
       ],
       style: {},
+      aggregateConfig: {
+        mode: 'grade_points',
+        gradePointMap: { D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9 },
+        divisionThresholds: [
+          { maxValue: 12, label: 'Division I' },
+          { maxValue: 23, label: 'Division II' },
+          { maxValue: 29, label: 'Division III' },
+          { maxValue: 34, label: 'Division IV' },
+        ],
+        divisionFallback: 'Division U',
+      },
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
@@ -251,6 +262,17 @@ export const MODERN_CLEAN_DOCUMENT: DRCEDocument = {
         { id: 'a-division',   label: 'Division',        binding: 'assessment.division',      visible: true, order: 2 },
       ],
       style: {},
+      aggregateConfig: {
+        mode: 'grade_points',
+        gradePointMap: { D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9 },
+        divisionThresholds: [
+          { maxValue: 12, label: 'Division I' },
+          { maxValue: 23, label: 'Division II' },
+          { maxValue: 29, label: 'Division III' },
+          { maxValue: 34, label: 'Division IV' },
+        ],
+        divisionFallback: 'Division U',
+      },
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
@@ -366,6 +388,17 @@ export const NORTHGATE_CLASSIC_DOCUMENT: DRCEDocument = {
         { id: 'a-division',    label: 'Division',        binding: 'assessment.division',       visible: true, order: 3 },
       ],
       style: {},
+      aggregateConfig: {
+        mode: 'grade_points',
+        gradePointMap: { D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9 },
+        divisionThresholds: [
+          { maxValue: 12, label: 'Division I' },
+          { maxValue: 23, label: 'Division II' },
+          { maxValue: 29, label: 'Division III' },
+          { maxValue: 34, label: 'Division IV' },
+        ],
+        divisionFallback: 'Division U',
+      },
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
@@ -535,6 +568,17 @@ export const NORTHGATE_OFFICIAL_DOCUMENT: DRCEDocument = {
         { id: 'a-division',   label: 'Division',   binding: 'assessment.division',       visible: true, order: 3 },
       ],
       style: { layout: 'table', positionFields: 2, assessmentLabel: 'Grade Assessment', headerBackground: '#f2f2f2', valueColor: '#B22222' },
+      aggregateConfig: {
+        mode: 'grade_points',
+        gradePointMap: { D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9 },
+        divisionThresholds: [
+          { maxValue: 12, label: 'Division I' },
+          { maxValue: 23, label: 'Division II' },
+          { maxValue: 29, label: 'Division III' },
+          { maxValue: 34, label: 'Division IV' },
+        ],
+        divisionFallback: 'Division U',
+      },
     },
     // 9 ── Comments (arrow-chevron labels, blue italic text)
     {
@@ -731,6 +775,17 @@ export const ARABIC_CLONE_DOCUMENT: DRCEDocument = {
         { id: 'a-division',   label: 'التقدير',         binding: 'assessment.division',       visible: true, order: 2 },
       ],
       style: {},
+      aggregateConfig: {
+        mode: 'grade_points',
+        gradePointMap: { D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9 },
+        divisionThresholds: [
+          { maxValue: 12, label: 'Division I' },
+          { maxValue: 23, label: 'Division II' },
+          { maxValue: 29, label: 'Division III' },
+          { maxValue: 34, label: 'Division IV' },
+        ],
+        divisionFallback: 'Division U',
+      },
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
