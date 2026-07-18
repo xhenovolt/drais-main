@@ -112,11 +112,12 @@ async function buildJoinedAttendance(
     const pin = String(rec.deviceUserId ?? '');
     const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
     const normalizedCheckTime = normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
+    const effectiveOffsetMinutes = clockOffsetMinutes || (deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes);
     const decision = decidePunchTime(
       normalizedCheckTime,
       storedOffsetSeconds,
       timePolicy,
-      clockOffsetMinutes || deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes,
+      effectiveOffsetMinutes,
       Date.now(),
     );
     const adjusted = decision.punchInstant;
@@ -782,11 +783,12 @@ export async function POST(req: NextRequest) {
           }
 
           const normalizedCheckTime = normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
+          const effectiveOffsetMinutes = clockOffsetMinutes || (deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes);
           const decision = decidePunchTime(
             normalizedCheckTime,
             storedOffsetSeconds,
             timePolicy,
-            clockOffsetMinutes || deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes,
+            effectiveOffsetMinutes,
             Date.now(),
           );
           const punchAt = decision.punchInstant;
