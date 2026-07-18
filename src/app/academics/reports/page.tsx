@@ -1012,6 +1012,56 @@ const ReportsPage = () => {
     }
   };
 
+  const handlePrint = (): void => {
+    const reportArea = reportExportRef.current;
+    if (!reportArea) {
+      toast.error('Report area not found.');
+      return;
+    }
+
+    const hasRenderedReports = reportArea.querySelector('.reportPage, .dual-report-page, [data-report-page="true"]');
+    if (!hasRenderedReports) {
+      toast.error('No reports are currently available to print.');
+      return;
+    }
+
+    const printRootId = 'drce-report-print-root';
+    const existingStyle = document.getElementById(printRootId);
+    if (existingStyle) existingStyle.remove();
+
+    const styleEl = document.createElement('style');
+    styleEl.id = printRootId;
+    styleEl.textContent = `
+      @media print {
+        body > *:not([data-print-root]) {
+          display: none !important;
+        }
+        body {
+          background: #fff !important;
+          margin: 0;
+          padding: 0;
+        }
+        [data-print-root] {
+          display: block !important;
+          width: 100% !important;
+          max-width: none !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    `;
+    document.head.appendChild(styleEl);
+    reportArea.setAttribute('data-print-root', 'true');
+
+    window.print();
+
+    window.setTimeout(() => {
+      reportArea.removeAttribute('data-print-root');
+      styleEl.remove();
+    }, 1500);
+  };
+
   // Export reports to PDF
   const exportToPDF = async (): Promise<void> => {
     const reportArea = reportExportRef.current;
@@ -1261,7 +1311,7 @@ const ReportsPage = () => {
           {/* Row 2: Action buttons */}
           <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-blue-600 shadow-sm hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
