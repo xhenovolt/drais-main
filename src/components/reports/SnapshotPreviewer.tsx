@@ -16,6 +16,7 @@ import {
   type PersistedOverride,
 } from '@/lib/drce/overrides';
 import { OverridesPanel } from './OverridesPanel';
+import { resolveActiveTemplateId } from '@/lib/snapshots/active-template';
 
 export interface SnapshotPreviewerProps {
   snapshot: ReportSnapshot;
@@ -30,14 +31,11 @@ const DEFAULT_EMERGENCY_BY_TYPE: Record<SnapshotType, string> = {
 };
 
 /**
- * Sensible DRCE built-in id for the snapshot type, used when the user has
- * not picked a specific DRCE template but is in DRCE mode. The print
- * route's `resolveBuiltInDocument` will then resolve this to a
- * DRCEDocument and the DRCE branch of the route runs.
+ * Last-resort DRCE built-in id for the snapshot type, used only when the
+ * active/school-selected DRCE document cannot be resolved.
  *
- * Without this fallback, an empty drceTemplateId would send `template=`
- * to the route, which would silently fall through to the emergency
- * template (PHASE 0 audit G1 — the original failure mode).
+ * The normal DRCE print path should prefer the explicit dropdown value,
+ * then the active school document from /api/dvcf/active.
  */
 const DEFAULT_DRCE_BY_TYPE: Record<SnapshotType, string> = {
   secular:  'drce-emergency-secular',
@@ -59,6 +57,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   const [drceDoc, setDrceDoc]       = useState<DRCEDocument | null>(null);
   const [drceError, setDrceError]   = useState<string | null>(null);
   const [drceLoading, setDrceLoading] = useState<boolean>(false);
+  const [activeDrceTemplateId, setActiveDrceTemplateId] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   // Registry-driven template selection. Loaded once; the dropdown is filtered
@@ -79,6 +78,19 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
       .then(json => {
         if (cancelled) return;
         if (Array.isArray(json?.templates)) setRegistry(json.templates as RegistryEntry[]);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/dvcf/active?type=report_card')
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        const id = json?.document?.meta?.id;
+        setActiveDrceTemplateId(typeof id === 'string' ? id.trim() : '');
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -207,8 +219,11 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   );
 
   const drceOptions = useMemo(
-    () => registry.filter(t => t.renderer === 'drce'),
-    [registry],
+    () => registry.filter(t =>
+      t.renderer === 'drce' &&
+      t.supportedTypes.includes(snapshot.meta.type),
+    ),
+    [registry, snapshot.meta.type],
   );
 
   const selectedEmergency = useMemo(
@@ -236,11 +251,24 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
    * when no specific template was picked.
    */
   const activeTemplateId = useMemo(() => {
-    if (mode === 'drce') {
-      return drceTemplateId || DEFAULT_DRCE_BY_TYPE[snapshot.meta.type];
-    }
-    return emergencyTemplateId;
-  }, [mode, drceTemplateId, emergencyTemplateId, snapshot.meta.type]);
+    const resolved = resolveActiveTemplateId({
+      mode,
+      selectedDrceTemplateId: drceTemplateId || '',
+      activeDrceTemplateId,
+      fallbackTemplateId: mode === 'drce'
+        ? DEFAULT_DRCE_BY_TYPE[snapshot.meta.type]
+        : DEFAULT_EMERGENCY_BY_TYPE[snapshot.meta.type],
+      availableTemplateIds: drceOptions.map(option => option.id),
+    });
+
+    return mode === 'drce' ? resolved : emergencyTemplateId || resolved;
+  }, [mode, drceTemplateId, activeDrceTemplateId, emergencyTemplateId, snapshot.meta.type, drceOptions]);
+
+  const shouldResolveDrceTemplateInPrintRoute =
+    mode === 'drce' &&
+    !drceTemplateId.trim() &&
+    !activeDrceTemplateId.trim() &&
+    drceOptions.length === 0;
 
   const previewSrc = useMemo(() => {
     if (!cls) return printBase;
@@ -254,10 +282,13 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   // Print: DRCE goes to the naked page, emergency stays on the legacy
   // route. PDF always goes through /pdf (which internally puppeteers
   // the naked page for DRCE).
+  const routeTemplateQuery = shouldResolveDrceTemplateInPrintRoute
+    ? ''
+    : `&template=${encodeURIComponent(activeTemplateId)}`;
   const printHref = mode === 'drce'
-    ? `${drcePrintBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`
-    : `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
-  const pdfHref   = `${pdfBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
+    ? `${drcePrintBase}?class_id=${classIdx}${routeTemplateQuery}`
+    : `${printBase}?class_id=${classIdx}${routeTemplateQuery}`;
+  const pdfHref   = `${pdfBase}?class_id=${classIdx}${routeTemplateQuery}`;
   const [pdfBusy, setPdfBusy] = useState(false);
   async function downloadPdf() {
     setPdfBusy(true);

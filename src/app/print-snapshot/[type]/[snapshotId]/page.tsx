@@ -34,6 +34,7 @@ import { snapshotToDRCEDataContext } from '@/lib/snapshots/adapter/toDRCEDataCon
 import { buildPuppeteerHeaderFooterHtml, reserveMmFor } from '@/lib/snapshots/running-header';
 import { applyOverrides, readHiddenSubjectIds, selectOverridesForStudent, type PersistedOverride } from '@/lib/drce/overrides';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
+import { resolveActiveTemplateId } from '@/lib/snapshots/active-template';
 
 interface PageProps {
   params: Promise<{ type: string; snapshotId: string }>;
@@ -78,7 +79,8 @@ export default function PrintSnapshotPage({ params }: PageProps) {
   useEffect(() => {
     if (sp === null) return;
     let cancelled = false;
-    const templateId = sp.get('template') || DEFAULT_DRCE_BY_TYPE[type as SnapshotType] || 'drce-emergency-secular';
+    const requestedTemplateId = sp.get('template') || '';
+    const fallbackTemplateId = DEFAULT_DRCE_BY_TYPE[type as SnapshotType] || 'drce-emergency-secular';
     // THREE FETCH MODES — picked by URL param, fall through in order:
     //   1. ?verify_token=<t>  → public token-gated /api/verify/<t>/…
     //   2. ?parent=1          → portal session /api/portal/snapshots/…
@@ -103,6 +105,24 @@ export default function PrintSnapshotPage({ params }: PageProps) {
 
     (async () => {
       try {
+        const activeTemplateId = requestedTemplateId.trim()
+          ? ''
+          : await fetch('/api/dvcf/active?type=report_card')
+              .then(async r => {
+                if (!r.ok) return '';
+                const json = await r.json().catch(() => ({}));
+                const id = json?.document?.meta?.id;
+                return typeof id === 'string' ? id.trim() : '';
+              })
+              .catch(() => '');
+
+        const templateId = resolveActiveTemplateId({
+          mode: 'drce',
+          selectedDrceTemplateId: requestedTemplateId,
+          activeDrceTemplateId: activeTemplateId,
+          fallbackTemplateId,
+        });
+
         const [snapRes, ovRes, docRes] = await Promise.all([
           fetch(snapUrl),
           fetch(ovUrl),
