@@ -9,6 +9,51 @@ import {
   resolveTableDataCellStyle,
 } from '@/lib/drce/styleResolver';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
+import { buildTotalsRowCellContent } from '@/lib/drce/totalsCalculator';
+
+function calculateTotals(
+  results: Array<Record<string, any>>,
+  columns: Array<{ id: string; binding?: string }>,
+  ctx: DRCEDataContext,
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+
+  columns.forEach(col => {
+    let sum = 0;
+    let count = 0;
+
+    results.forEach(row => {
+      const binding = col.binding || '';
+      if (!binding) return;
+      const value = resolveBinding(binding, ctx, row as Record<string, unknown>);
+      const numValue = parseFloat(String(value));
+      if (!isNaN(numValue)) {
+        sum += numValue;
+        count++;
+      }
+    });
+
+    totals[col.id] = count > 0 ? sum : 0;
+  });
+
+  return totals;
+}
+
+function calculateAverages(
+  results: Array<Record<string, any>>,
+  columns: Array<{ id: string; binding?: string }>,
+  ctx: DRCEDataContext,
+): Record<string, number> {
+  const totals = calculateTotals(results, columns, ctx);
+  const count = results.length;
+
+  const averages: Record<string, number> = {};
+  columns.forEach(col => {
+    averages[col.id] = count > 0 ? totals[col.id] / count : 0;
+  });
+
+  return averages;
+}
 
 interface Props {
   section: DRCEResultsTableSection;
@@ -18,57 +63,6 @@ interface Props {
   onCellChange?: (columnId: string, rowIndex: number, newValue: string) => Promise<void>;
   /** Optional callback when a column should be hidden */
   onColumnHide?: (columnId: string) => Promise<void>;
-}
-
-/**
- * Calculate totals for numeric columns
- */
-function calculateTotals(
-  results: Array<Record<string, any>>,
-  sumColumnIds: string[],
-  ctx: DRCEDataContext,
-): Record<string, number> {
-  const totals: Record<string, number> = {};
-
-  sumColumnIds.forEach(colId => {
-    let sum = 0;
-    let count = 0;
-
-    results.forEach(row => {
-      const columnBinding = ctx.columns?.find(c => c.id === colId)?.binding || '';
-      if (columnBinding) {
-        const value = resolveBinding(columnBinding, ctx, row);
-        const numValue = parseFloat(String(value));
-        if (!isNaN(numValue)) {
-          sum += numValue;
-          count++;
-        }
-      }
-    });
-
-    totals[colId] = count > 0 ? sum : 0;
-  });
-
-  return totals;
-}
-
-/**
- * Calculate averages for numeric columns
- */
-function calculateAverages(
-  results: Array<Record<string, any>>,
-  sumColumnIds: string[],
-  ctx: DRCEDataContext,
-): Record<string, number> {
-  const totals = calculateTotals(results, sumColumnIds, ctx);
-  const count = results.length;
-
-  const averages: Record<string, number> = {};
-  sumColumnIds.forEach(colId => {
-    averages[colId] = count > 0 ? totals[colId] / count : 0;
-  });
-
-  return averages;
 }
 
 export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }: Props) {
@@ -120,9 +114,12 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
 
   const totalsConfig = section.totalsConfig;
   const totalsEnabled = totalsConfig?.enabled ?? true;  // Default to TRUE - always show totals
-  const sumColumnIds = totalsConfig?.sumColumnIds ?? visibleCols.filter(c => c.id.toLowerCase().includes('score') || c.id.toLowerCase().includes('total')).map(c => c.id) ?? [];
-  const totals = calculateTotals(results, sumColumnIds, ctx);
-  const averages = totalsConfig?.showAverage !== false ? calculateAverages(results, sumColumnIds, ctx) : {};
+  const sumColumnIds = (totalsConfig?.sumColumnIds && totalsConfig.sumColumnIds.length > 0
+    ? totalsConfig.sumColumnIds
+    : visibleCols.filter(c => c.id.toLowerCase().includes('score') || c.id.toLowerCase().includes('total')).map(c => c.id));
+  const totalColumns = visibleCols.filter(col => sumColumnIds.includes(col.id));
+  const totals = calculateTotals(results, totalColumns, ctx);
+  const averages = totalsConfig?.showAverage !== false ? calculateAverages(results, totalColumns, ctx) : {};
 
   // Calculate grand totals for the summary row
   const totalObtained = results.reduce((sum, result) => sum + (parseFloat(String(result.total || 0)) || 0), 0);
@@ -262,61 +259,17 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
           }}>
             {visibleCols.map((col, idx) => {
               const isFirstCol = idx === 0;
-              let cellContent: React.ReactNode = '';
-
-              if (isFirstCol) {
-                // Show TOTAL label in the first column. The school-configured
-                // labelText takes precedence (dynamic content); the fallback
-                // localises so AR-mode reports don't show a stray English
-                // 'TOTAL' next to Arabic data.
-                cellContent = totalsConfig?.labelText ?? (language === 'ar' ? 'المجموع' : 'TOTAL');
-              } else {
-                // Determine what to show based on column type and configuration
-                const header = col.header.toLowerCase();
-
-                if (header.includes('percentage') || header.includes('%')) {
-                  // Show percentage in percentage columns
-                  if (totalsConfig?.showPercentage !== false) {
-                    cellContent = `${percentage.toFixed(1)}%`;
-                  }
-                } else if (header.includes('average')) {
-                  // Show average in average columns
-                  if (totalsConfig?.showAverage) {
-                    cellContent = averageScore.toFixed(1);
-                  }
-                } else if (header.includes('subject') || header.includes('name')) {
-                  // Show total possible in subject/name column if configured
-                  if (totalsConfig?.showTotalPossible) {
-                    cellContent = totalPossible.toFixed(1);
-                  }
-                } else if (header.includes('total') && header.includes('marks')) {
-                  // Total Marks column: show aggregate if defined, otherwise show subject total
-                  if (totalsConfig?.sumColumnIds?.includes(col.id)) {
-                    // Column has an aggregate defined — show the calculated total
-                    cellContent = totals[col.id]?.toFixed(1) ?? '0';
-                  } else {
-                    // No aggregate — show default subject total (100)
-                    cellContent = '100';
-                  }
-                } else if (header.includes('total') || header.includes('obtained') || header.includes('score') || header.includes('eot')) {
-                  // Total Row: show sum of obtained marks in total/obtained/score/EOT columns
-                  if (totalsConfig?.showTotalObtained !== false) {
-                    // Show aggregate if defined for this column, otherwise use totalObtained
-                    if (totalsConfig?.sumColumnIds?.includes(col.id)) {
-                      cellContent = totals[col.id]?.toFixed(1) ?? '0';
-                    } else {
-                      cellContent = totalObtained.toFixed(1);
-                    }
-                  }
-                } else if (header.includes('possible') || header.includes('maximum')) {
-                  // Show total possible in possible/maximum columns
-                  if (totalsConfig?.showTotalPossible) {
-                    cellContent = totalPossible.toFixed(1);
-                  }
-                }
-                // No fallback - only show totals in specifically identified columns
-                // This prevents duplication across all columns
-              }
+              const cellContent = buildTotalsRowCellContent({
+                column: col,
+                totals,
+                totalsConfig,
+                totalObtained,
+                totalPossible,
+                percentage,
+                averageScore,
+                language,
+                isFirstColumn: isFirstCol,
+              });
 
               return (
                 <td

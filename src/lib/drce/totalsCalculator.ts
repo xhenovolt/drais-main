@@ -8,6 +8,12 @@
 import type { DRCEColumn, DRCEDataContext, DRCEResultsTableTotalsConfig } from './schema';
 import { resolveBinding } from './bindingResolver';
 
+interface TotalsColumnLike {
+  id: string;
+  binding?: string;
+  header?: string;
+}
+
 /**
  * Generate default totals configuration for a results table
  * Automatically detects numeric columns (typically score/marks columns)
@@ -64,24 +70,30 @@ export function generateDefaultTotalsConfig(
  */
 export function calculateColumnTotals(
   results: Array<Record<string, any>>,
-  sumColumnIds: string[],
+  columns: string[] | TotalsColumnLike[],
   ctx: DRCEDataContext,
 ): Record<string, number> {
   const totals: Record<string, number> = {};
+  const columnDefinitions = Array.isArray(columns) && columns.length > 0 && typeof columns[0] === 'string'
+    ? undefined
+    : (columns as TotalsColumnLike[]);
+  const colIds = Array.isArray(columns) && columns.length > 0 && typeof columns[0] === 'string'
+    ? (columns as string[])
+    : (columns as TotalsColumnLike[]).map(col => col.id);
 
-  sumColumnIds.forEach(colId => {
+  colIds.forEach(colId => {
     let sum = 0;
     let count = 0;
+    const column = columnDefinitions?.find(c => c.id === colId) ?? ctx.columns?.find(c => c.id === colId);
+    const binding = column?.binding ?? '';
 
     results.forEach(row => {
-      const column = ctx.columns?.find(c => c.id === colId);
-      if (column && column.binding) {
-        const value = resolveBinding(column.binding, ctx, row);
-        const numValue = parseFloat(String(value));
-        if (!isNaN(numValue)) {
-          sum += numValue;
-          count++;
-        }
+      if (!binding) return;
+      const value = resolveBinding(binding, ctx, row);
+      const numValue = parseFloat(String(value));
+      if (!isNaN(numValue)) {
+        sum += numValue;
+        count++;
       }
     });
 
@@ -96,18 +108,88 @@ export function calculateColumnTotals(
  */
 export function calculateColumnAverages(
   results: Array<Record<string, any>>,
-  sumColumnIds: string[],
+  columns: string[] | TotalsColumnLike[],
   ctx: DRCEDataContext,
 ): Record<string, number> {
-  const totals = calculateColumnTotals(results, sumColumnIds, ctx);
+  const totals = calculateColumnTotals(results, columns, ctx);
   const count = results.length;
 
   const averages: Record<string, number> = {};
-  sumColumnIds.forEach(colId => {
+  const colIds = Array.isArray(columns) && columns.length > 0 && typeof columns[0] === 'string'
+    ? (columns as string[])
+    : (columns as TotalsColumnLike[]).map(col => col.id);
+
+  colIds.forEach(colId => {
     averages[colId] = count > 0 ? totals[colId] / count : 0;
   });
 
   return averages;
+}
+
+export function buildTotalsRowCellContent(options: {
+  column: TotalsColumnLike;
+  totals: Record<string, number>;
+  totalsConfig?: DRCEResultsTableTotalsConfig;
+  totalObtained: number;
+  totalPossible: number;
+  percentage: number;
+  averageScore: number;
+  language?: 'en' | 'ar';
+  isFirstColumn?: boolean;
+}): string {
+  const {
+    column,
+    totals,
+    totalsConfig,
+    totalObtained,
+    totalPossible,
+    percentage,
+    averageScore,
+    language = 'en',
+    isFirstColumn = false,
+  } = options;
+
+  if (isFirstColumn) {
+    return totalsConfig?.labelText ?? (language === 'ar' ? 'المجموع' : 'TOTAL');
+  }
+
+  const header = String(column.header || '').toLowerCase();
+
+  if (header.includes('percentage') || header.includes('%')) {
+    return totalsConfig?.showPercentage !== false ? `${percentage.toFixed(1)}%` : '';
+  }
+
+  if (header.includes('average')) {
+    return totalsConfig?.showAverage ? averageScore.toFixed(1) : '';
+  }
+
+  if (header.includes('subject') || header.includes('name')) {
+    return totalsConfig?.showTotalPossible ? totalPossible.toFixed(1) : '';
+  }
+
+  if (header.includes('total') && header.includes('marks')) {
+    if (totalsConfig?.sumColumnIds?.includes(column.id)) {
+      const value = totals[column.id] ?? 0;
+      return value % 1 === 0 ? String(value) : value.toFixed(1);
+    }
+    return '100';
+  }
+
+  if (header.includes('total') || header.includes('obtained') || header.includes('score') || header.includes('eot')) {
+    if (totalsConfig?.showTotalObtained !== false) {
+      if (totalsConfig?.sumColumnIds?.includes(column.id)) {
+        const value = totals[column.id] ?? 0;
+        return value % 1 === 0 ? String(value) : value.toFixed(1);
+      }
+      return totalObtained % 1 === 0 ? String(totalObtained) : totalObtained.toFixed(1);
+    }
+  }
+
+  if (header.includes('possible') || header.includes('maximum')) {
+    return totalsConfig?.showTotalPossible ? totalPossible.toFixed(1) : '';
+  }
+
+  return '';
 }
 
 /**

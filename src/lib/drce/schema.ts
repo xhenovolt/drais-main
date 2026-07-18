@@ -555,6 +555,12 @@ export interface DRCEResultsTableTotalsConfig {
   enabled: boolean;
   /** Label text to display in the first column */
   labelText: string;
+  /** Optional identifier for the label column used by the totals helper */
+  labelColumnId?: string;
+  /** Optional identifier for the average label column used by the totals helper */
+  averageLabelColumnId?: string;
+  /** Optional text for the average row label */
+  averageLabelText?: string;
   /** Whether to show total marks obtained */
   showTotalObtained: boolean;
   /** Whether to show total possible marks */

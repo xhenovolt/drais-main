@@ -97,19 +97,29 @@ export async function buildSnapshotPrintHtml(
   // ── DRCE path ──────────────────────────────────────────────────────────
   let drceDoc: DRCEDocument | null = resolveBuiltInDocument(templateId);
   if (!drceDoc) {
-    const numericId = Number(templateId);
-    if (Number.isFinite(numericId) && numericId > 0) {
-      try {
-        const { query } = await import('@/lib/db');
-        const rows = (await query(
-          `SELECT schema_json FROM dvcf_documents
-            WHERE id = ? AND (school_id IS NULL OR school_id = ?)
-            LIMIT 1`,
-          [numericId, schoolId],
-        )) as Array<{ schema_json: string }>;
-        if (rows.length) drceDoc = JSON.parse(rows[0].schema_json) as DRCEDocument;
-      } catch { /* fall through */ }
-    }
+    try {
+      const { query } = await import('@/lib/db');
+      const normalized = templateId.trim();
+      const numericId = Number(normalized);
+
+      const rows = Number.isFinite(numericId) && numericId > 0
+        ? (await query(
+            `SELECT schema_json FROM dvcf_documents
+              WHERE id = ? AND (school_id IS NULL OR school_id = ?)
+              LIMIT 1`,
+            [numericId, schoolId],
+          )) as Array<{ schema_json: string }>
+        : (await query(
+            `SELECT schema_json FROM dvcf_documents
+              WHERE template_key = ? AND (school_id IS NULL OR school_id = ?)
+              LIMIT 1`,
+            [normalized, schoolId],
+          )) as Array<{ schema_json: string }>;
+
+      if (rows.length) {
+        drceDoc = JSON.parse(rows[0].schema_json) as DRCEDocument;
+      }
+    } catch { /* fall through */ }
   }
 
   if (drceDoc) {

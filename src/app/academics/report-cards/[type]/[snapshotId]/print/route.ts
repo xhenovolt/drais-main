@@ -67,7 +67,7 @@ export async function GET(
       filterClassIdx,
       filterStudentDbId,
       editMode,
-      controls:           buildPrintControls(snapshot, isArabic, editMode),
+      controls:           buildPrintControls(snapshot, isArabic, editMode, templateIdRaw ?? undefined),
       emergencyEditScript: editMode ? buildEmergencyEditScript(snapshot.meta.snapshotId) : '',
       // Preserve byte-equivalence with the previous emergency_html output
       // by passing the existing `wrapDocument` wrapper. The /pdf route
@@ -101,7 +101,7 @@ export async function GET(
   });
 }
 
-function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean, editMode = false): string {
+function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean, editMode = false, templateId?: string): string {
   const classOptions = snapshot.classes.map((c, i) => {
     const label = isArabic ? `📚 ${c.className}` : `📚 ${c.className}`;
     return `<option value="${i}">${escape(label)}</option>`;
@@ -112,6 +112,7 @@ function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean, editMod
   const selectLabel    = isArabic ? 'اختر الفصل:'      : 'Select class:';
 
   const editQuery = editMode ? '&edit=1' : '';
+  const templateQuery = templateId ? `&template=${encodeURIComponent(templateId)}` : '';
   return `
     <div class="no-print" style="position: fixed; top: 10px; ${isArabic ? 'left' : 'right'}: 10px; background: #fff; border: 1px solid #ccc; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 6px; z-index: 9999; min-width: 240px;">
       <div style="font-size: 12px; color: #555; margin-bottom: 6px;">${selectLabel}</div>
@@ -125,13 +126,13 @@ function buildPrintControls(snapshot: ReportSnapshot, isArabic: boolean, editMod
     <script>
       function snapshotFilterByClass() {
         var v = document.getElementById('snapshotClassSelect').value;
-        if (v) window.location.href = '?class_id=' + v + '${editQuery}';
-        else   window.location.href = window.location.pathname + '${editQuery}';
+        if (v) window.location.href = '?class_id=' + v + '${editQuery}${templateQuery}';
+        else   window.location.href = window.location.pathname + '${editQuery}${templateQuery}';
       }
       function snapshotPrintSelectedClass() {
         var v = document.getElementById('snapshotClassSelect').value;
         if (v) {
-          var w = window.open('?class_id=' + v + '${editQuery}', '_blank');
+          var w = window.open('?class_id=' + v + '${editQuery}${templateQuery}', '_blank');
           if (w) w.addEventListener('load', function () { try { w.print(); } catch (e) {} });
         } else {
           window.print();
