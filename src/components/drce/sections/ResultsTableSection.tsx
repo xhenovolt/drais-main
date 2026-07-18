@@ -290,12 +290,23 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
                     cellContent = totalPossible.toFixed(1);
                   }
                 } else if (header.includes('total') && header.includes('marks')) {
-                  // Total Marks column: show "100" for each subject (subject total)
-                  cellContent = '100';
+                  // Total Marks column: show aggregate if defined, otherwise show subject total
+                  if (totalsConfig?.sumColumnIds?.includes(col.id)) {
+                    // Column has an aggregate defined — show the calculated total
+                    cellContent = totals[col.id]?.toFixed(1) ?? '0';
+                  } else {
+                    // No aggregate — show default subject total (100)
+                    cellContent = '100';
+                  }
                 } else if (header.includes('total') || header.includes('obtained') || header.includes('score') || header.includes('eot')) {
                   // Total Row: show sum of obtained marks in total/obtained/score/EOT columns
                   if (totalsConfig?.showTotalObtained !== false) {
-                    cellContent = totalObtained.toFixed(1);
+                    // Show aggregate if defined for this column, otherwise use totalObtained
+                    if (totalsConfig?.sumColumnIds?.includes(col.id)) {
+                      cellContent = totals[col.id]?.toFixed(1) ?? '0';
+                    } else {
+                      cellContent = totalObtained.toFixed(1);
+                    }
                   }
                 } else if (header.includes('possible') || header.includes('maximum')) {
                   // Show total possible in possible/maximum columns
