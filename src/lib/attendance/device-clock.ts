@@ -50,6 +50,7 @@
  */
 
 import { query } from '@/lib/db';
+import { normalizeDeviceDateTime } from '@/lib/attendance/adms-protocol';
 
 const DEFAULT_OFFSET_MIN = 180; // EAT / UTC+3
 
@@ -205,13 +206,14 @@ export function decidePunchTime(
   nowMs = Date.now(),
 ): ClockDecision {
   // Per-device tz override wins over the school offset.
+  const normalizedDeviceCheckTime = normalizeDeviceDateTime(deviceCheckTime) ?? deviceCheckTime;
   const offsetMin = deviceOffsetMin != null ? deviceOffsetMin : policy.offsetMinutes;
   const maxDriftMs = Math.max(0, policy.maxDriftSeconds) * 1000;
-  const base = { deviceReportedTime: deviceCheckTime, policyUsed: policy.policy };
+  const base = { deviceReportedTime: normalizedDeviceCheckTime, policyUsed: policy.policy };
 
   // The naive device string is the device's LOCAL wall clock. Parse it as
   // an absolute UTC instant: read the digits as UTC, then remove the offset.
-  const deviceWallMs = Date.parse(`${deviceCheckTime.replace(' ', 'T')}Z`);
+  const deviceWallMs = Date.parse(`${normalizedDeviceCheckTime.replace(' ', 'T')}Z`);
   if (!Number.isFinite(deviceWallMs)) {
     return { ...base, punchInstant: new Date(nowMs), skewSeconds: 0, corrected: true, timeSource: 'server', needsResync: false, timeConfidence: 'server' };
   }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { admsUploadAck, parseZKBody } from '../adms-protocol.ts';
+import { admsUploadAck, parseZKBody, normalizeDeviceDateTime } from '../adms-protocol.ts';
 
 test('parses every positional ATTLOG line into a distinct record', () => {
   const raw = [
@@ -38,4 +38,11 @@ test('formats counted ADMS upload acknowledgements', () => {
   assert.equal(admsUploadAck(0), 'OK: 0');
   assert.equal(admsUploadAck(128), 'OK: 128');
   assert.equal(admsUploadAck(2.9), 'OK: 2');
+});
+
+test('normalizes compact and single-digit device timestamps', () => {
+  assert.equal(normalizeDeviceDateTime('20260718080000'), '2026-07-18 08:00:00');
+  assert.equal(normalizeDeviceDateTime('2026/7/8 8:0:0'), '2026-07-08 08:00:00');
+  assert.equal(normalizeDeviceDateTime('2026-7-8 8:0'), '2026-07-08 08:00:00');
+  assert.equal(normalizeDeviceDateTime('2026-07-17 16:23:47'), '2026-07-17 16:23:47');
 });

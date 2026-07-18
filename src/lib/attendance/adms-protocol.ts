@@ -22,6 +22,37 @@ export interface ParsedAdmsBody {
  * A new object is created for every line. This is intentionally line based:
  * one HTTP body may contain many independent records.
  */
+export function normalizeDeviceDateTime(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+
+  const clean = String(raw).trim();
+  if (!clean) return null;
+
+  // Already in canonical form.
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(clean)) return clean;
+
+  // Slash-separated values such as 2026/7/8 8:0:0.
+  const normalizedSlashes = clean.replace(/\//g, '-');
+  const match = normalizedSlashes.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+  if (match) {
+    const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+    return [
+      `${year}-${String(Number(month)).padStart(2, '0')}-${String(Number(day)).padStart(2, '0')}`,
+      `${String(Number(hour)).padStart(2, '0')}:${String(Number(minute)).padStart(2, '0')}:${String(Number(second)).padStart(2, '0')}`,
+    ].join(' ');
+  }
+
+  // Compact 14-digit values such as 20260718080000.
+  if (/^\d{14}$/.test(clean)) {
+    return `${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)} ${clean.slice(8, 10)}:${clean.slice(10, 12)}:${clean.slice(12, 14)}`;
+  }
+
+  // Date-only values become midnight.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return `${clean} 00:00:00`;
+
+  return clean;
+}
+
 export function parseZKBody(raw: string, _tableName = ''): ParsedAdmsBody {
   const records: AdmsRecord[] = [];
   const lines: string[] = [];

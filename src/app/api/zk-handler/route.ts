@@ -25,7 +25,7 @@ import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
 import { completeAdmsInventoryRun, refreshLiveCountFromDirectory } from '@/lib/biometric/inventory-service';
 import { drainOutboxOpportunistically, drainNotificationOutbox } from '@/lib/notifications/drain';
 import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
-import { admsUploadAck, parseZKBody } from '@/lib/attendance/adms-protocol';
+import { admsUploadAck, normalizeDeviceDateTime, parseZKBody } from '@/lib/attendance/adms-protocol';
 
 /**
  * ZKTeco ADMS (Push Protocol) Handler
@@ -95,26 +95,7 @@ function zkLog(
  */
 function normalizeCheckTime(raw: string): string | null {
   if (!raw) return null;
-  const clean = raw.trim();
-
-  // Already correct format
-  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(clean)) return clean;
-
-  // Slash format → dash
-  if (/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/.test(clean)) {
-    return clean.replace(/\//g, '-');
-  }
-
-  // Compact format: 20260330100000
-  if (/^\d{14}$/.test(clean)) {
-    return `${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)} ${clean.slice(8, 10)}:${clean.slice(10, 12)}:${clean.slice(12, 14)}`;
-  }
-
-  // Date-only
-  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return `${clean} 00:00:00`;
-
-  // Let DB handle it; return as-is
-  return clean;
+  return normalizeDeviceDateTime(raw);
 }
 
 // ─── Database Operations (all wrapped in try/catch — NEVER crash) ─────────

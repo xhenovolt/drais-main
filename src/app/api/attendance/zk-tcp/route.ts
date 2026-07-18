@@ -16,6 +16,8 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent } from '@/lib/attendance/engine';
+import { decidePunchTime, getDeviceTimeContext, resolveTimePolicy } from '@/lib/attendance/device-clock';
+import { normalizeDeviceDateTime } from '@/lib/attendance/adms-protocol';
 
 export const runtime = 'nodejs';
 
@@ -101,11 +103,23 @@ async function buildJoinedAttendance(
 
   const limited = rawArr.slice(-maxRecords);
 
+  const timePolicy = await resolveTimePolicy(session.schoolId);
+  const deviceCtx = await getDeviceTimeContext(resolvedSn || '');
+  const storedOffsetSeconds = deviceCtx.clockOffsetSeconds;
+
   const out: any[] = [];
   for (const rec of limited) {
     const pin = String(rec.deviceUserId ?? '');
     const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
-    const adjusted = new Date(rawDate.getTime() + (clockOffsetMinutes || 0) * 60000);
+    const normalizedCheckTime = normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
+    const decision = decidePunchTime(
+      normalizedCheckTime,
+      storedOffsetSeconds,
+      timePolicy,
+      clockOffsetMinutes || deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes,
+      Date.now(),
+    );
+    const adjusted = decision.punchInstant;
     const ts = adjusted.toISOString();
 
     let resolution = null;
@@ -752,11 +766,14 @@ export async function POST(req: NextRequest) {
           || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
           || '';
 
+        const timePolicy = await resolveTimePolicy(session.schoolId);
+        const deviceCtx = await getDeviceTimeContext(resolvedSn || device_sn || '');
+        const storedOffsetSeconds = deviceCtx.clockOffsetSeconds;
+
         for (const rec of filtered) {
           const pin  = String(rec.deviceUserId ?? '');
-          const rawTs = rec.recordTime instanceof Date
-            ? rec.recordTime.toISOString()
-            : new Date(rec.recordTime).toISOString();
+          const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
+          const rawTs = rawDate.toISOString();
 
           if (!pin || !rawTs) {
             failed++;
@@ -764,7 +781,15 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          const punchAt = new Date(rawTs);
+          const normalizedCheckTime = normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
+          const decision = decidePunchTime(
+            normalizedCheckTime,
+            storedOffsetSeconds,
+            timePolicy,
+            clockOffsetMinutes || deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes,
+            Date.now(),
+          );
+          const punchAt = decision.punchInstant;
           const displayName = userNameMap[pin] || null;
 
           // Identity resolution — never blocks insertion
@@ -795,10 +820,10 @@ export async function POST(req: NextRequest) {
               deviceUserId: parseInt(pin, 10),
               displayName,
               punchAt,
-              deviceReportedTime: punchAt,
-              clockSkewSeconds: clockOffsetMinutes * 60,
-              timeSource: 'device',
-              timeConfidence: 'review',
+              deviceReportedTime: decision.deviceReportedTime,
+              clockSkewSeconds: decision.skewSeconds,
+              timeSource: decision.timeSource,
+              timeConfidence: decision.timeConfidence,
               source: 'manual',
               matched,
               enrollmentId: enrollId,
