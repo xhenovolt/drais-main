@@ -167,6 +167,7 @@ const ReportsPage = () => {
   const [enableMarkConversion, setEnableMarkConversion] = useState(false);
   const defaultLogoInputRef = useRef<HTMLInputElement>(null);
   const reportExportRef = useRef<HTMLDivElement>(null);
+  const printIframeRef = useRef<HTMLIFrameElement>(null);
   const [defaultLogoUploading, setDefaultLogoUploading] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
     name: '',
@@ -1076,10 +1077,19 @@ const ReportsPage = () => {
     }
 
     const currentInitials = hydrateTeacherInitialsFromDom();
-    const printWindow = window.open('', '_blank', 'width=1280,height=900,noopener,noreferrer');
-    if (!printWindow) {
-      toast.error('Popup blocked. Please allow popups for this page and try again.');
-      return;
+    let iframe = printIframeRef.current;
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.style.left = '0';
+      iframe.style.top = '0';
+      iframe.style.visibility = 'hidden';
+      iframe.id = 'drais-print-iframe';
+      document.body.appendChild(iframe);
+      printIframeRef.current = iframe;
     }
 
     const printRoot = reportArea.cloneNode(true) as HTMLElement;
@@ -1159,25 +1169,18 @@ const ReportsPage = () => {
   </body>
 </html>`;
 
-    const wrapperHtml = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Printable Report</title>
-    <style>
-      body { margin: 0; padding: 0; height: 100vh; overflow: hidden; }
-      iframe { width: 100%; height: 100%; border: none; }
-    </style>
-  </head>
-  <body>
-    <iframe id="drais-print-iframe" srcdoc=${JSON.stringify(iframeContent)}></iframe>
-  </body>
-</html>`;
-
-    printWindow.document.open();
-    printWindow.document.write(wrapperHtml);
-    printWindow.document.close();
+    iframe.srcdoc = iframeContent;
+    iframe.onload = () => {
+      try {
+        const iframeWindow = iframe.contentWindow;
+        if (iframeWindow) {
+          iframeWindow.focus();
+          iframeWindow.print();
+        }
+      } catch (error) {
+        console.warn('Iframe print failed:', error);
+      }
+    };
   };
 
   const handlePrint = (): void => {
@@ -1488,6 +1491,20 @@ const ReportsPage = () => {
           id="academic-reports-export-area"
           data-report-export-root="true"
         >
+          <iframe
+            ref={printIframeRef}
+            title="Editable report print preview"
+            style={{
+              position: 'fixed',
+              width: 0,
+              height: 0,
+              border: 0,
+              left: 0,
+              top: 0,
+              visibility: 'hidden',
+            }}
+            aria-hidden="true"
+          />
           {/* Show loading if DRCE templates haven't loaded yet */}
           {!activeDrceDoc && availableDrceTemplates.length === 0 && (
             <div className="no-print text-center py-12 text-gray-500">
