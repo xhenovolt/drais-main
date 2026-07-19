@@ -60,6 +60,16 @@ const SECULAR_KEYWORDS = [
 export function classifySubject(subjectName: string): ClassificationResult {
   const normalized = (subjectName || '').toLowerCase().trim();
 
+  // Explicit override: Islamic Religious Education is treated as secular.
+  if (normalized.includes('islamic religious education')) {
+    return {
+      isTheology: false,
+      classifiedType: 'secular',
+      confidence: 'high',
+      reason: 'Islamic Religious Education is explicitly treated as secular',
+    };
+  }
+
   // Check theology keywords
   for (const keyword of THEOLOGY_KEYWORDS) {
     if (normalized.includes(keyword)) {

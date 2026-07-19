@@ -174,10 +174,12 @@ function getDisplayScore(
   return 0;
 }
 
-/** Classify a subject as theology based on subject_type value */
-function isTheologySubject(subjectType?: string): boolean {
+/** Classify a subject as theology based on subject_type or subject_name. */
+function isTheologySubject(subjectType?: string, subjectName?: string): boolean {
+  const name = (subjectName || '').toLowerCase();
   const t = (subjectType || '').toLowerCase();
-  return t === 'theology' || t.includes('theol') || t.includes('islam') || t.includes('religion');
+  if (name.includes('islamic religious education')) return false;
+  return t === 'theology' || t.includes('theol') || (t !== 'primary' && t !== 'secondary' && (t.includes('islam') || t.includes('religion')));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -354,8 +356,8 @@ export default function DualCurriculumTemplate({
   const allGrouped = groupBySubject(student.results || []);
 
   // Split by subject_type: theology subjects go right, secular left
-  const secularSubjects = allGrouped.filter((r) => !isTheologySubject(r.subject_type));
-  const theologySubjects = allGrouped.filter((r) => isTheologySubject(r.subject_type));
+  const secularSubjects = allGrouped.filter((r) => !isTheologySubject(r.subject_type, r.subject_name));
+  const theologySubjects = allGrouped.filter((r) => isTheologySubject(r.subject_type, r.subject_name));
 
   const termLabel =
     editableTermValue ||

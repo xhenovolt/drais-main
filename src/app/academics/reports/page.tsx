@@ -62,6 +62,7 @@ interface Result {
   gender?: string;
   stream_name?: string;
   subject_type?: string;
+  academic_type?: string;
   mid_term_score?: number;
   end_term_score?: number;
   teacher_initials?: string;
@@ -1397,16 +1398,28 @@ const ReportsPage = () => {
                 const filteredStudentResults: Result[] = isCurriculumFiltered
                   ? (Array.isArray(student.results) ? student.results : []).filter((r: Result) => {
                       if (!r) return false;
+                      const academicType = (r.academic_type || '').toLowerCase();
                       const type = (r.subject_type || '').toLowerCase();
                       const name = (r.subject_name || '').toLowerCase();
+                      const isIRE = name.includes('islamic religious education');
+
                       if (curriculum === 'secular') {
-                        return type === 'secular' ||
-                               (!type.includes('theol') && !type.includes('islam') && !type.includes('religion') && type !== 'theology' &&
-                                !name.includes('islam') && !name.includes('religion') && !name.includes('quran') && !name.includes('arabic'));
+                        if (isIRE) return true;
+                        if (academicType) {
+                          return academicType !== 'theology';
+                        }
+                        // Include: subjects with no explicit theology type
+                        return type !== 'theology' && type !== 'tahfiz' &&
+                               !(name.includes('quran') || name.includes('hafiz'));
                       }
                       if (curriculum === 'theology') {
-                        return type === 'theology' || type.includes('theol') || type.includes('islam') || type.includes('religion') ||
-                               name.includes('islam') || name.includes('religion') || name.includes('quran') || name.includes('arabic');
+                        if (isIRE) return false;
+                        if (academicType) {
+                          return academicType === 'theology';
+                        }
+                        // Include: subjects explicitly marked theology/tahfiz or pure Quranic
+                        return type === 'theology' || type === 'tahfiz' ||
+                               name.includes('quran') || name.includes('hafiz');
                       }
                       return true;
                     })

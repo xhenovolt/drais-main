@@ -76,6 +76,7 @@ export async function GET(req: NextRequest) {
         sub.name as subject_name,
         COALESCE(sub.name_ar, '') as name_ar,
         sub.subject_type,
+        sub.academic_type,
         (
           SELECT CONCAT_WS(' ', tp.first_name, tp.last_name)
           FROM class_subjects cs2
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
       ${where}
       ORDER BY p.last_name ASC, p.first_name ASC, cr.id DESC
       `,
-      []
+      params
     ).catch(err => {
       console.error('Term facets error:', err);
       return [[]];

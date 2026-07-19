@@ -67,8 +67,8 @@ export interface RawResultRow {
   subject_name:     string;
   subject_name_ar:  string | null;
   subject_type:     string | null;
+  academic_type:    string | null;
   score:            string | number | null;
-  grade:            string | null;
   remarks:          string | null;
   teacher_initials: string | null;
   teacher_name:     string | null;
@@ -219,6 +219,7 @@ export async function fetchResultsForGeneration(args: {
         sub.name           AS subject_name,
         COALESCE(sub.name_ar, '') AS subject_name_ar,
         sub.subject_type   AS subject_type,
+        sub.academic_type  AS academic_type,
         cr.score           AS score,
         cr.grade           AS grade,
         cr.remarks         AS remarks,
@@ -313,20 +314,37 @@ export async function fetchResultsForGeneration(args: {
 /**
  * Curriculum heuristic mirroring the legacy filter at
  * src/app/academics/reports/page.tsx:1310-1320.
+ *
+ * UPDATED: Now primarily relies on explicit subject_type field.
+ * Name-based detection is minimal to avoid false positives on secular
+ * subjects with Islamic-sounding names (e.g., "Islamic Religious Education"
+ * taught in secular contexts).
  */
 export function matchesCurriculum(r: RawResultRow, type: SnapshotType): boolean {
-  const st = (r.subject_type || 'core').toLowerCase();
+  const at = (r.academic_type || '').toLowerCase();
+  const st = (r.subject_type || '').toLowerCase();
   const name = (r.subject_name || '').toLowerCase();
-  const isTheology =
-    st === 'theology' ||
-    st.includes('theol') ||
-    st.includes('islam') ||
-    st.includes('religion') ||
+  const isIRE = name.includes('islamic religious education');
+
+  // Prefer explicit academic_type for curriculum classification.
+  const isAcademicTheology = at === 'theology';
+  const isExplicitTheology = isAcademicTheology || st === 'theology' || st === 'tahfiz';
+
+  // Name-based detection only for pure Quranic/Arabic subjects (minimal false positives)
+  const isPureQuranic =
     /[؀-ۿ]/.test(r.subject_name || '') ||
     /[؀-ۿ]/.test(r.subject_name_ar || '') ||
-    name.includes('quran') || name.includes('qur\'an') || name.includes('arabic') ||
-    name.includes('islamic') || name.includes('hadith') || name.includes('fiqh');
-  if (type === 'theology') return isTheology;
-  if (type === 'secular')  return !isTheology;
-  return true;
+    name.includes('quran') || name.includes('qur\'an') || name.includes('hafiz');
+
+  const isTheology = isExplicitTheology || isPureQuranic;
+
+  if (type === 'theology') {
+    if (isIRE) return false;
+    return isTheology;
+  }
+  if (type === 'secular') {
+    if (isIRE) return true;
+    return !isExplicitTheology; // Allow secular Islamic subjects when academic_type is not theology
+  }
+  return true; // mixed type includes everything
 }
