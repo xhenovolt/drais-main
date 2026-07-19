@@ -1085,86 +1085,99 @@ const ReportsPage = () => {
     const printRoot = reportArea.cloneNode(true) as HTMLElement;
     printRoot.querySelectorAll<HTMLElement>('[data-initials-key]').forEach((cell) => {
       cell.setAttribute('contenteditable', 'true');
-      cell.setAttribute('suppressContentEditableWarning', 'true');
       cell.setAttribute('spellcheck', 'false');
       cell.style.outline = '1px dashed #3b82f6';
       cell.style.minWidth = '90px';
       cell.style.background = '#ffffff';
+      cell.style.padding = '4px 6px';
     });
 
-    const printableHtml = `<!DOCTYPE html>
+    const iframeContent = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Editable Report Print</title>
+    <title>Editable Report</title>
     <style>
       body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #f5f5f5; color: #111; }
-      .print-shell { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
       .reportPage { page-break-after: always; background: #fff; }
       .no-print { display: none !important; }
-      [data-initials-key] { min-width: 90px; padding: 4px 6px; border: 1px dashed #94a3b8; }
+      [data-initials-key] { min-width: 90px; padding: 4px 6px; border: 1px dashed #94a3b8; background: #fff; }
       [data-initials-key]:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
       @media print {
         body { background: #fff; padding: 0; }
-        .print-shell { box-shadow: none; padding: 0; }
+        .reportPage { page-break-after: always; }
       }
     </style>
   </head>
   <body>
-    <div class="print-shell">${printRoot.innerHTML}</div>
+    <div id="report-root">${printRoot.innerHTML}</div>
     <script>
-      const storageKey = 'drais_teacher_initials';
-      const syncValues = (values) => {
-        if (!values || typeof values !== 'object') return;
-        const serialised = JSON.stringify(values);
-        try { localStorage.setItem(storageKey, serialised); } catch (_) {}
-        if (window.opener && !window.opener.closed) {
-          window.opener.postMessage({ type: 'teacher-initials-updated', values }, window.location.origin);
-        }
-      };
+      (function() {
+        const storageKey = ${JSON.stringify(TEACHER_INITIALS_STORAGE_KEY)};
+        const initialValues = ${JSON.stringify(currentInitials)};
 
-      const applyValue = (cell, value) => {
-        const nextValue = (value || '').trim() || 'N/A';
-        cell.textContent = nextValue;
-        const initialsKey = cell.getAttribute('data-initials-key');
-        if (!initialsKey) return;
-        const current = JSON.parse(localStorage.getItem(storageKey) || '{}');
-        current[initialsKey] = nextValue;
-        syncValues(current);
-      };
-
-      document.querySelectorAll('[data-initials-key]').forEach((cell) => {
-        cell.setAttribute('contenteditable', 'true');
-        cell.setAttribute('spellcheck', 'false');
-        cell.addEventListener('blur', () => applyValue(cell, cell.textContent || ''));
-        cell.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            cell.blur();
+        const syncValues = (values) => {
+          if (!values || typeof values !== 'object') return;
+          try { localStorage.setItem(storageKey, JSON.stringify(values)); } catch (_) {}
+          if (window.top && window.top.opener && !window.top.opener.closed) {
+            window.top.opener.postMessage({ type: 'teacher-initials-updated', values }, window.location.origin);
           }
-        });
-      });
+        };
 
-      window.addEventListener('load', () => {
-        window.setTimeout(() => window.print(), 350);
-      });
+        const applyValue = (cell, value) => {
+          const nextValue = (value || '').trim() || 'N/A';
+          cell.textContent = nextValue;
+          const initialsKey = cell.getAttribute('data-initials-key');
+          if (!initialsKey) return;
+          const current = JSON.parse(localStorage.getItem(storageKey) || '{}');
+          current[initialsKey] = nextValue;
+          syncValues(current);
+        };
+
+        document.querySelectorAll('[data-initials-key]').forEach((cell) => {
+          cell.setAttribute('contenteditable', 'true');
+          cell.setAttribute('spellcheck', 'false');
+          cell.addEventListener('blur', () => applyValue(cell, cell.textContent || ''));
+          cell.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              cell.blur();
+            }
+          });
+        });
+
+        window.addEventListener('load', () => {
+          window.setTimeout(() => window.print(), 350);
+        });
+
+        if (Object.keys(initialValues).length > 0) {
+          try { localStorage.setItem(storageKey, JSON.stringify(initialValues)); } catch (_) {}
+        }
+      })();
     </script>
   </body>
 </html>`;
 
-    printWindow.document.open();
-    printWindow.document.write(printableHtml);
-    printWindow.document.close();
+    const wrapperHtml = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Printable Report</title>
+    <style>
+      body { margin: 0; padding: 0; height: 100vh; overflow: hidden; }
+      iframe { width: 100%; height: 100%; border: none; }
+    </style>
+  </head>
+  <body>
+    <iframe id="drais-print-iframe" srcdoc=${JSON.stringify(iframeContent)}></iframe>
+  </body>
+</html>`;
 
-    const printValues = { ...currentInitials };
-    if (Object.keys(printValues).length > 0) {
-      try {
-        printWindow.localStorage.setItem(TEACHER_INITIALS_STORAGE_KEY, JSON.stringify(printValues));
-      } catch (_) {
-        // Ignore storage errors in the print window.
-      }
-    }
+    printWindow.document.open();
+    printWindow.document.write(wrapperHtml);
+    printWindow.document.close();
   };
 
   const handlePrint = (): void => {
