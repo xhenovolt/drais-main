@@ -9,6 +9,7 @@
  * so generation is deterministic.
  */
 import { query } from '@/lib/db';
+import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import type { SnapshotType } from './types';
 
 export interface ClassRow {
@@ -324,7 +325,7 @@ export function matchesCurriculum(r: RawResultRow, type: SnapshotType): boolean 
   const at = (r.academic_type || '').toLowerCase();
   const st = (r.subject_type || '').toLowerCase();
   const name = (r.subject_name || '').toLowerCase();
-  const isIRE = name.includes('islamic religious education');
+  const isIRE = isReligiousEducationSubject(r.subject_name);
 
   // Prefer explicit academic_type for curriculum classification.
   const isAcademicTheology = at === 'theology';

@@ -8,6 +8,7 @@
 
 import React, { useRef, useState } from 'react';
 import type { ReportLayoutJSON } from '@/lib/reportTemplates';
+import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types (mirrors page.tsx – keep in sync)
@@ -178,7 +179,7 @@ function getDisplayScore(
 function isTheologySubject(subjectType?: string, subjectName?: string): boolean {
   const name = (subjectName || '').toLowerCase();
   const t = (subjectType || '').toLowerCase();
-  if (name.includes('islamic religious education')) return false;
+  if (isReligiousEducationSubject(name)) return false;
   return t === 'theology' || t.includes('theol') || (t !== 'primary' && t !== 'secondary' && (t.includes('islam') || t.includes('religion')));
 }
 

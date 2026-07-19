@@ -14,6 +14,7 @@ import { DEFAULT_TEMPLATE_JSON } from '@/lib/reportTemplates';
 import DualCurriculumTemplate from '@/templates/DualCurriculumTemplate';
 import { getSubjectName } from '@/templates/DualCurriculumTemplate';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
+import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import type { DRCEDocument, DRCEDataContext } from '@/lib/drce/schema';
 import type { DRCERenderContext } from '@/components/drce/types';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -777,8 +778,7 @@ const ReportsPage = () => {
     results.forEach(r => {
       if (!r) return; // Skip null/undefined items
       const st = (r.subject_type ?? 'core').toLowerCase();
-      const name = String(r.subject_name || '').toLowerCase();
-      const isIRE = name.includes('islamic religious education');
+      const isIRE = isReligiousEducationSubject(r.subject_name);
       if (st === 'core' || isIRE) principal.push(r);
       else others.push(r);
     });
@@ -1403,7 +1403,7 @@ const ReportsPage = () => {
                       const academicType = (r.academic_type || '').toLowerCase();
                       const type = (r.subject_type || '').toLowerCase();
                       const name = (r.subject_name || '').toLowerCase();
-                      const isIRE = name.includes('islamic religious education');
+                      const isIRE = isReligiousEducationSubject(r.subject_name);
 
                       if (curriculum === 'secular') {
                         if (isIRE) return true;
@@ -1452,8 +1452,7 @@ const ReportsPage = () => {
                 // Enhanced calculations - only use CORE subjects for grading
                 const coreResults = groupedResults.filter(r => {
                   const type = (r.subject_type || 'core').toLowerCase();
-                  const name = String(r.subject_name || '').toLowerCase();
-                  const isIRE = name.includes('islamic religious education');
+                  const isIRE = isReligiousEducationSubject(r.subject_name);
                   return type === 'core' || isIRE;
                 });
 

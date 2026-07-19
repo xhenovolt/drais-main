@@ -8,6 +8,7 @@ import {
   resolveTableHeaderCellStyle,
   resolveTableDataCellStyle,
 } from '@/lib/drce/styleResolver';
+import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
 import { buildTotalsRowCellContent } from '@/lib/drce/totalsCalculator';
 import { resolveLocalizedLabel } from '@/lib/drce/arabic';
@@ -95,13 +96,7 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
     ? allResults
     : allResults.filter(r => {
         const type = (r.subjectType ?? 'primary').toLowerCase();
-        const name = String(r.subjectName || '').toLowerCase();
-        const isIRE = name.includes('islamic religious education');
-        if (subjectFilter === 'primary') {
-          // Include primary + assessment-critical theology-style subjects, plus IRE explicitly.
-          return type === 'primary' || type === 'core' || type === 'theology' || type === 'islamic' || type === 'religion' || isIRE;
-        } else {
-          // For secondary filter, exclude IRE even if its subjectType is not primary.
+            const isIRE = isReligiousEducationSubject(String(r.subjectName || ''));
           return !isIRE && type !== 'primary' && type !== 'core' && type !== 'theology' && type !== 'islamic' && type !== 'religion';
         }
       });

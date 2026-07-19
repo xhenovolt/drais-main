@@ -60,13 +60,18 @@ const SECULAR_KEYWORDS = [
 export function classifySubject(subjectName: string): ClassificationResult {
   const normalized = (subjectName || '').toLowerCase().trim();
 
-  // Explicit override: Islamic Religious Education is treated as secular.
-  if (normalized.includes('islamic religious education')) {
+  // Explicit override: Islamic Religious Education and related Religious
+  // Education labels are treated as secular.
+  if (
+    normalized.includes('islamic religious education') ||
+    normalized.includes('religious education') ||
+    /\bire\b/.test(normalized)
+  ) {
     return {
       isTheology: false,
       classifiedType: 'secular',
       confidence: 'high',
-      reason: 'Islamic Religious Education is explicitly treated as secular',
+      reason: 'Islamic Religious Education / Religious Education is explicitly treated as secular',
     };
   }
 
@@ -108,6 +113,16 @@ export function classifySubject(subjectName: string): ClassificationResult {
  */
 export function getSubjectType(subjectName: string): 'theology' | 'secular' | 'core' {
   return classifySubject(subjectName).classifiedType;
+}
+
+export function isReligiousEducationSubject(subjectName?: string): boolean {
+  const normalized = (subjectName || '').toLowerCase().trim();
+  if (!normalized) return false;
+  return (
+    normalized.includes('islamic religious education') ||
+    normalized.includes('religious education') ||
+    /\bire\b/.test(normalized)
+  );
 }
 
 /**

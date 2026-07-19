@@ -24,9 +24,10 @@ import type {
 import type { ReportSnapshot } from '../types';
 import { displaySubjectComment } from '../grader';
 import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
+import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 
 function isIslamicReligiousEducationSubject(name?: string): boolean {
-  return typeof name === 'string' && name.toLowerCase().includes('islamic religious education');
+  return isReligiousEducationSubject(name);
 }
 
 export interface SchoolMetaForRender {

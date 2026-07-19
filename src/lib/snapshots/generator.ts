@@ -48,6 +48,7 @@ import {
   resolveComment,
   type CommentRule,
 } from '@/lib/drce/reportComments';
+import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import { listCommentRules } from '@/lib/drce/reportComments.server';
 import {
   applyGradingScale,
@@ -550,7 +551,7 @@ function buildClasses(
         ? r.subject_name_ar
         : englishName;
       const normalizedSubjectName = (englishName || '').toLowerCase();
-      const isIRE = normalizedSubjectName.includes('islamic religious education');
+      const isIRE = isReligiousEducationSubject(englishName);
       const subjectType: 'primary' | 'secondary' =
         (r.subject_type || 'core').toLowerCase() === 'core' || isIRE ? 'primary' : 'secondary';
       cls.subjects.set(r.subject_id, {
