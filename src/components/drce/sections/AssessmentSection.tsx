@@ -4,7 +4,7 @@
 import React from 'react';
 import type { DRCEAssessmentSection, DRCETheme, DRCEDataContext } from '@/lib/drce/schema';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
-import { resolveLocalizedText } from '@/lib/drce/arabic';
+import { resolveLocalizedText, resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 interface Props {
   section: DRCEAssessmentSection;

@@ -13,7 +13,7 @@ import {
   resolveStudentInfoValueStyle,
 } from '@/lib/drce/styleResolver';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
-import { resolveLocalizedText } from '@/lib/drce/arabic';
+import { resolveLocalizedText, resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 interface Props {
   section: DRCEStudentInfoSection;

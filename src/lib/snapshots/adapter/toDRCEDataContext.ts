@@ -228,7 +228,13 @@ export function snapshotToDRCEDataContext(
       : {}),
   };
 
-  const computedAssessment = computeAssessmentRawValues(results);
+  // Filter results to only principal/core subjects for aggregates
+  const principalResults = results.filter(r => {
+    const subj = cls.subjects.find(s => s.id === r.subjectId);
+    return subj && (subj.subjectType === 'principal' || subj.subjectType === 'core');
+  });
+
+  const computedAssessment = computeAssessmentRawValues(principalResults);
   const assessment: DRCEAssessmentData = {
     classPosition:  stu.position || null,
     streamPosition: stu.position || null,
