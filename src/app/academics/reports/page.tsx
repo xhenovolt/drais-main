@@ -1021,50 +1021,31 @@ const ReportsPage = () => {
     }
   };
 
-  // Ensure any inline edits are flushed before printing/exporting
-  const flushInitialsBeforePrint = async (): Promise<void> => {
-    try {
-      try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch (e) { /* ignore */ }
-      await new Promise((res) => setTimeout(res, 150));
-
-      const entries = Object.entries(teacherInitials).filter(([k]) => /^\d+-\d+$/.test(k));
-      if (!entries.length) return;
-
-      // Try bulk endpoint first (optional). If not available, fall back to per-item saves.
-      try {
-        const payload = entries.map(([k, v]) => {
-          const [classId, subjectId] = k.split('-');
-          return { classId, subjectId, initials: v };
-        });
-        const bulkResp = await fetch('/api/teacher-initials/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: payload }),
-        });
-        if (bulkResp.ok) return;
-      } catch (e) {
-        // ignore and fallback
-      }
-
-      await Promise.all(entries.map(async ([k, v]) => {
-        const [classId, subjectId] = k.split('-');
-        try {
-          await fetch('/api/teacher-initials', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ classId, subjectId, initials: v }),
-          });
-        } catch (err) {
-          // ignore individual failures during flush
-        }
-      }));
-    } catch (err) {
-      // no-op
+  const hydrateTeacherInitialsFromDom = (): Record<string, string> => {
+    const reportArea = reportExportRef.current;
+    if (!reportArea) {
+      return teacherInitials;
     }
+
+    const activeElement = document.activeElement as HTMLElement | null;
+    if (activeElement?.isContentEditable && reportArea.contains(activeElement)) {
+      activeElement.blur();
+    }
+
+    const next = { ...teacherInitials };
+    reportArea.querySelectorAll<HTMLElement>('[data-initials-key]').forEach((cell) => {
+      const initialsKey = cell.dataset.initialsKey;
+      if (!initialsKey) return;
+      next[initialsKey] = cell.textContent?.trim() || '';
+    });
+
+    persistTeacherInitials(next);
+    setTeacherInitials(next);
+    return next;
   };
 
-  const handlePrint = async (): Promise<void> => {
-    await flushInitialsBeforePrint();
+  const handlePrint = (): void => {
+    hydrateTeacherInitialsFromDom();
     const reportArea = reportExportRef.current;
     if (!reportArea) {
       toast.error('Report area not found.');
@@ -1116,7 +1097,7 @@ const ReportsPage = () => {
 
   // Export reports to PDF
   const exportToPDF = async (): Promise<void> => {
-    await flushInitialsBeforePrint();
+    hydrateTeacherInitialsFromDom();
     const reportArea = reportExportRef.current;
     if (!reportArea) {
       window.alert('Report area not found!');
@@ -1156,8 +1137,8 @@ const ReportsPage = () => {
   };
 
   // Export reports to Excel
-  const exportToExcel = async (): Promise<void> => {
-    await flushInitialsBeforePrint();
+  const exportToExcel = (): void => {
+    const currentInitials = hydrateTeacherInitialsFromDom();
     const workbook = XLSX.utils.book_new();
     Object.values(classGroupsWithPositions).forEach((classGroup: ClassGroup) => {
       const worksheetData: (string | number)[][] = [
@@ -1166,7 +1147,7 @@ const ReportsPage = () => {
           student.results.map((result: Result) => [
             `${student.first_name} ${student.last_name}`,
             result.subject_name,
-            teacherInitials[`${result.class_id}-${result.subject_id}`] || result.teacher_initials || 'N/A',
+            currentInitials[`${result.class_id}-${result.subject_id}`] || result.teacher_initials || 'N/A',
             result.score,
           ])
         ),
@@ -1412,19 +1393,741 @@ const ReportsPage = () => {
           </div>
           </div>
         </div>
-        <div ref={reportExportRef} id="academic-reports-export-area" data-report-export-root="true">
-          {/* Reports rendering temporarily disabled for syntax isolation. */}
-          <div className="no-print text-center py-12">Reports rendering disabled (temp)</div>
-        </div>
+        <div
+          ref={reportExportRef}
+          id="academic-reports-export-area"
+          data-report-export-root="true"
+        >
+          {/* Show loading if DRCE templates haven't loaded yet */}
+          {!activeDrceDoc && availableDrceTemplates.length === 0 && (
+            <div className="no-print text-center py-12 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              <p className="font-medium">{t('common.loading')}</p>
+              <p className="text-sm mt-1">Please wait while we prepare the report system.</p>
+            </div>
+          )}
+          {!loading && Object.keys(classGroupsWithPositions).length === 0 && allResults.length > 0 && activeDrceDoc && (
+            <div className="no-print text-center py-12 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <p className="font-medium">No reports match your filters</p>
+              <p className="text-sm mt-1">Try adjusting the year, term, class, or result type filters above.</p>
+            </div>
+          )}
+          {!loading && allResults.length === 0 && (
+            <div className="no-print text-center py-12 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <p className="font-medium">No report data found</p>
+              <p className="text-sm mt-1">Enter results in the Results page first, then come back here to generate reports.</p>
+            </div>
+          )}
+          {activeDrceDoc && classGroupsWithPositions && Object.values(classGroupsWithPositions).map((classGroup: any) => {
+            return (
+              <div key={classGroup && classGroup.className ? classGroup.className : Math.random()}>
+                <div className="classHeading text-2xl font-bold text-center my-0">{classGroup && classGroup.className ? classGroup.className : 'Unknown Class'}</div>
+              {classGroup && Array.isArray(classGroup.students) && classGroup.students.map((student: any) => {
+                if (!student) return null;
+                // ── Phase 9: apply curriculum filter to results client-side
+                // The dual curriculum template always receives all results (it splits them internally).
+                const isDualCurriculum = selectedTemplateId === 'dual_curriculum_template';
+                const isCurriculumFiltered = !isDualCurriculum && curriculum !== 'all';
+                const filteredStudentResults: Result[] = isCurriculumFiltered
+                  ? (Array.isArray(student.results) ? student.results : []).filter((r: Result) => {
+                      if (!r) return false;
+                      const academicType = (r.academic_type || '').toLowerCase();
+                      const type = (r.subject_type || '').toLowerCase();
+                      const name = (r.subject_name || '').toLowerCase();
+                      const isIRE = isReligiousEducationSubject(r.subject_name);
 
+                      if (curriculum === 'secular') {
+                        if (isIRE) return true;
+                        if (academicType) {
+                          return academicType !== 'theology';
+                        }
+                        // Include: subjects with no explicit theology type
+                        return type !== 'theology' && type !== 'tahfiz' &&
+                               !(name.includes('quran') || name.includes('hafiz'));
+                      }
+                      if (curriculum === 'theology') {
+                        if (isIRE) return false;
+                        if (academicType) {
+                          return academicType === 'theology';
+                        }
+                        // Include: subjects explicitly marked theology/tahfiz or pure Quranic
+                        return type === 'theology' || type === 'tahfiz' ||
+                               name.includes('quran') || name.includes('hafiz');
+                      }
+                      return true;
+                    })
+                  : (student.results || []);
+
+                // ENFORCE SCOPE: Filter results by subject class allocations
+                // Only show subjects that are allocated to the student's class
+                const scopeFilteredResults: Result[] = filteredStudentResults.filter((r: Result) => {
+                  if (!r) return false;
+                  // If no class_id, skip scope filtering
+                  if (!student.class_id) return true;
+                  // Check if subject is in class_subjects (class_subjects.class_id = student.class_id AND class_subjects.subject_id = r.subject_id)
+                  // Since we added the LEFT JOIN, subjects with matching allocation will have data
+                  // For now, if we have a class_id, only include if there's allocation evidence
+                  // This is a client-side enforcement; server already filters via the JOIN
+                  return true; // Server-side filtering via API handles this
+                });
+
+                const { principal, others } = splitSubjects(scopeFilteredResults);
+                const groupedResults = groupResultsBySubject(principal);
+                const allGroupedResults = groupResultsBySubject([...principal, ...others]); // Include all subjects for display
+                
+                const isNursery = isNurseryStudent(student.class_name);
+                
+                const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') || 
+                  principal.some((r: any) => (r.result_type_name || r.results_type || '').toLowerCase().includes('end'));
+
+                // Enhanced calculations - only use CORE subjects for grading
+                const coreResults = groupedResults.filter(r => {
+                  const type = (r.subject_type || 'core').toLowerCase();
+                  const isIRE = isReligiousEducationSubject(r.subject_name);
+                  return type === 'core' || isIRE;
+                });
+
+                const totalMarks = allGroupedResults.reduce((sum, r) => {
+                  const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                  return sum + totalMarks;
+                }, 0);
+                
+                const coreGradingMarks = coreResults.reduce((sum, r) => {
+                  const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                  return sum + totalMarks;
+                }, 0);
+                
+                const averageMarks = coreResults.length > 0 ? Math.round(coreGradingMarks / coreResults.length) : 0;
+                
+                // Calculate aggregates and division/overall grade
+                let aggregates = 0;
+                let division = '';
+                let nurseryOverallGrade = '';
+
+                if (isNursery) {
+                  // For Nursery: get overall grade based on mode (core subjects only)
+                  const coreGrades = coreResults.map(r => {
+                    const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                    return getGrade(totalMarks, true);
+                  });
+                  nurseryOverallGrade = getNurseryOverallGrade(coreGrades);
+                } else {
+                  // For non-Nursery: calculate traditional aggregates and division (core subjects only)
+                  aggregates = coreResults.reduce((sum, r) => {
+                    const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                    return sum + getGradePoint(getGrade(totalMarks, false));
+                  }, 0);
+                  division = getDivision(aggregates);
+
+                  // Adjust division based on F9 grades
+                  const coreGrades = coreResults.map(r => {
+                    const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                    return getGrade(totalMarks, false);
+                  });
+                  const hasMathF9 = coreResults.some(r => {
+                    if (!isMathSubject(r.subject_name)) return false;
+                    const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                    return getGrade(totalMarks, false) === 'F9';
+                  });
+                  division = adjustDivisionForF9(division, coreGrades, hasMathF9);
+                }
+
+                const drceData = {
+                  student: {
+                      fullName: `${student.first_name} ${student.last_name}`,
+                      firstName: student.first_name,
+                      lastName: student.last_name,
+                      gender: student.gender || '',
+                      className: student.class_name,
+                      streamName: student.stream_name || '',
+                      admissionNo: student.admission_no,
+                      photoUrl: student.photo || null,
+                      dateOfBirth: null,
+                    },
+                    subjects: allGroupedResults.map(r => r.subject_name || 'Unknown Subject'),
+                    results: allGroupedResults.map(r => {
+                      const { midTermMarks, endTermMarks, totalMarks: tM } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                      const scoreForGrade = isEndOfTerm ? tM : midTermMarks;
+                      const manualInitials =
+                        (student.class_id != null && r.subject_id != null
+                          ? teacherInitials[`${student.class_id}-${r.subject_id}`]
+                          : undefined) ||
+                        teacherInitials[`${student.class_name}-${r.subject_name}`];
+
+                      // Resolve teacher initials from explicit overrides first, then DB assignments,
+                      // then DRCE mappings, and finally derive from the teacher's name.
+                      const resolvedInitials = (() => {
+                        if (manualInitials) return manualInitials;
+                        if (r.teacher_initials?.trim()) return r.teacher_initials.trim();
+
+                        const maps = activeDrceDoc.teacherMappings;
+                        if (maps?.length) {
+                          const subj = (r.subject_name || '').toLowerCase();
+                          const cls  = (student.class_name || '').toLowerCase();
+                          const match = maps.find(m => {
+                            const sp = (m.subjectPattern || '').toLowerCase();
+                            const cp = (m.classPattern  || '').toLowerCase();
+                            const subjOk = !sp || subj.includes(sp);
+                            const clsOk  = !cp || cp === 'all' || cls.includes(cp);
+                            return subjOk && clsOk;
+                          });
+                          if (match) return match.initials;
+                        }
+                        return r.teacher_name?.split(' ').map((n: string) => n[0]).join('') || 'N/A';
+                      })();
+                      return {
+                        subjectName: r.subject_name,
+                        midTermScore: midTermMarks || null,
+                        endTermScore: isEndOfTerm ? (endTermMarks || null) : null,
+                        total: tM || null,
+                        grade: getGrade(scoreForGrade || 0, isNursery),
+                        comment: commentsForGrade(getGrade(scoreForGrade || 0, isNursery)),
+                        initials: resolvedInitials,
+                        teacherName: r.teacher_name || '',
+                        subjectType: (r.subject_type || 'core').toLowerCase() === 'core' ? 'primary' : 'secondary',
+                      };
+                    }),
+                    assessment: {
+                      classPosition: student.position ?? null,
+                      streamPosition: null,
+                      aggregates: isNursery ? null : (aggregates || null),
+                      division: isNursery ? (nurseryOverallGrade || null) : (division || null),
+                      totalStudents: student.totalInClass ?? null,
+                      position: student.position ? String(student.position) : null,
+                    },
+                    comments: (() => {
+                      const divComments = getCommentsByDivision(
+                        isNursery ? nurseryOverallGrade : division
+                      );
+                      // Check if kitchen comment rules exist — match by student's average total score
+                      const rules = activeDrceDoc.commentRules;
+                      let ruleComments: { classTeacher: string; dos: string; headTeacher: string } | null = null;
+                      if (rules?.length) {
+                        const scores = allGroupedResults.map(r => {
+                          const { totalMarks: tM, midTermMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                          return (isEndOfTerm ? tM : midTermMarks) || 0;
+                        });
+                        const avg = scores.length ? scores.reduce((s, v) => s + v, 0) / scores.length : 0;
+                        const matched = rules.find(rule => avg >= rule.minScore && avg <= rule.maxScore);
+                        if (matched) {
+                          ruleComments = {
+                            classTeacher: matched.classTeacher,
+                            dos:          matched.dos,
+                            headTeacher:  matched.headTeacher,
+                          };
+                        }
+                      }
+                      return {
+                        classTeacher: student.class_teacher_comment || ruleComments?.classTeacher || divComments.classTeacher,
+                        dos:          student.dos_comment           || ruleComments?.dos          || divComments.dos,
+                        headTeacher:  student.headteacher_comment   || ruleComments?.headTeacher  || divComments.headteacher,
+                      };
+                    })(),
+                    meta: {
+                      schoolName: schoolInfo.name,
+                      schoolAddress: schoolInfo.address || '',
+                      schoolContact: schoolInfo.contact || '',
+                      schoolEmail: schoolInfo.email || '',
+                      centerNo: schoolInfo.center_no || '',
+                      registrationNo: schoolInfo.registration_no || '',
+                      arabicName: schoolInfo.arabic_name || null,
+                      arabicAddress: schoolInfo.arabic_address || null,
+                      logoUrl: schoolInfo.logo_url || null,
+                      term: editableTermValue || filters.term || '',
+                      year: '',
+                      nextTermBegins: nextTermBegins,
+                      reportTitle: [
+                        (principal[0]?.result_type_name || principal[0]?.results_type || 'MID TERM')
+                          .toUpperCase(),
+                        filters.term ? filters.term.toUpperCase() : '',
+                        'REPORT',
+                      ].filter(Boolean).join(' '),
+                    },
+                  };
+                  const drceRenderCtx: DRCERenderContext = {
+                    school: {
+                      name: schoolInfo.name,
+                      arabic_name: schoolInfo.arabic_name || undefined,
+                      address: schoolInfo.address || undefined,
+                      contact: schoolInfo.contact || undefined,
+                      center_no: schoolInfo.center_no || undefined,
+                      registration_no: schoolInfo.registration_no || undefined,
+                      logo_url: schoolInfo.logo_url || '/uploads/logo.png',
+                    },
+                    language: selectedLanguage,
+                    isRTL: selectedLanguage === 'ar',
+                  };
+                  if (activeDrceDoc) {
+                    return (
+                      <div
+                        key={student.student_id}
+                        className="reportPage"
+                        data-report-page="true"
+                        style={{ pageBreakAfter: 'always', display: 'flex', justifyContent: 'center' }}
+                      >
+                        <DRCEDocumentRenderer
+                          document={activeDrceDoc}
+                          dataCtx={drceData}
+                          renderCtx={drceRenderCtx}
+                        />
+                      </div>
+                    );
+                  }
+
+                // ── Fallback: if no DRCE doc available (should not happen with new system)
+                const isArabicMode = selectedTemplateId === 'arabic_template' || selectedTemplateId === 'arabic_clone_template';
+
+                return (
+                  <div key={student.student_id} className="reportPage" data-report-page="true" style={{
+                    pageBreakAfter: 'always',
+                    background: activeLayout.page.background,
+                    boxShadow: activeLayout.page.boxShadow,
+                    padding: activeLayout.page.padding,
+                    borderRadius: activeLayout.page.borderRadius,
+                    maxWidth: activeLayout.page.maxWidth,
+                    margin: activeLayout.page.margin,
+                    fontSize: activeLayout.page.fontSize,
+                    fontFamily: activeLayout.page.fontFamily,
+                  }}>
+                    {/* Header */}
+                    {/* Phase 5: isArabicMode = Arabic-first layout */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: activeLayout.header.layout === 'centered' ? 'center' : 'space-between',
+                      alignItems: 'center',
+                      flexDirection: activeLayout.header.layout === 'centered' ? 'column' : (isArabicMode ? 'row-reverse' : 'row'),
+                      paddingBottom: activeLayout.header.paddingBottom,
+                      opacity: activeLayout.header.opacity,
+                      marginBottom: 0,
+                      marginTop: 0,
+                      borderBottom: activeLayout.header.borderBottom,
+                    }}>
+                      <div className="text-left ltr:text-left rtl:text-right" style={{ direction: 'ltr', textAlign: 'left', flex: 1 }}>
+                        <h2 className="text-xl font-bold">{schoolInfo.name}</h2>
+                        <p>{schoolInfo.address}</p>
+                        <p>{schoolInfo.contact}</p>
+                        <p>{schoolInfo.center_no}</p>
+                        <p>{schoolInfo.registration_no}</p>
+                      </div>
+                      <div
+                        className="text-center"
+                        style={{ flex: 'none', cursor: 'pointer', position: 'relative' }}
+                        onClick={() => defaultLogoInputRef.current?.click()}
+                        title={`${t('actions.edit')} — ${t('settings.logo')}`}
+                      >
+                        <input
+                          ref={defaultLogoInputRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setDefaultLogoUploading(true);
+                            await handleLogoUpload(file);
+                            setDefaultLogoUploading(false);
+                            e.target.value = '';
+                          }}
+                        />
+                        <img
+                          src={schoolInfo.logo_url || '/uploads/logo.png'}
+                          alt="School Logo"
+                          style={{ maxHeight: 80, width: 'auto', objectFit: 'contain', borderRadius: 4, border: '2px dashed transparent' }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLImageElement).style.border = '2px dashed #4f8cf7'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLImageElement).style.border = '2px dashed transparent'; }}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/uploads/logo.png'; }}
+                        />
+                        {defaultLogoUploading && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)', borderRadius: 4, fontSize: 10 }}>
+                            Uploading…
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right font-bold text-xl rtl:text-right ltr:text-left" style={{ direction: 'rtl', textAlign: 'right', flex: 1 }}>
+                        <h1 className="text-xl font-bold">{schoolInfo.arabic_name}</h1>
+                        <p>{schoolInfo.arabic_address}</p>
+                        <p className="arabic-font">{toArabicDigits(schoolInfo.arabic_contact)}</p>
+                        <p className="arabic-font">UNEB: {toArabicDigits(schoolInfo.arabic_center_no)}</p>
+                        <p className="arabic-font">Reg: {toArabicDigits(schoolInfo.arabic_registration_no)}</p>
+                      </div>
+                    </div>
+                    {/* Banner */}
+                    <div style={{
+                      backgroundColor: activeLayout.banner.backgroundColor,
+                      color: activeLayout.banner.color,
+                      textAlign: activeLayout.banner.textAlign,
+                      fontSize: activeLayout.banner.fontSize,
+                      fontWeight: activeLayout.banner.fontWeight,
+                      padding: activeLayout.banner.padding,
+                      marginTop: activeLayout.banner.marginTop,
+                      marginBottom: activeLayout.banner.marginBottom,
+                      borderRadius: activeLayout.banner.borderRadius,
+                      letterSpacing: activeLayout.banner.letterSpacing,
+                      textTransform: activeLayout.banner.textTransform,
+                      cursor: 'text',
+                    }} contentEditable suppressContentEditableWarning>
+                      {(principal[0]?.result_type_name || 'MID TERM').toUpperCase()} REPORT
+                    </div>
+                    {/* Student Info */}
+                    <div style={{
+                      border: activeLayout.studentInfoBox.border,
+                      borderRadius: activeLayout.studentInfoBox.borderRadius,
+                      padding: activeLayout.studentInfoBox.padding,
+                      background: activeLayout.studentInfoBox.background,
+                      boxShadow: activeLayout.studentInfoBox.boxShadow,
+                      margin: activeLayout.studentInfoBox.margin,
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        gap: 5,
+                        marginBottom: 2,
+                        alignItems: 'center',
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'row', padding: 0, margin: 0, gap: 2, alignItems: 'center' }}>
+                          <img src={`/api/barcode?id=${student.student_id}`} style={{ width: 90, height: 40, marginRight: -30, marginLeft: -20, transform: 'rotate(270deg)' }} alt="Barcode" />
+                          <span style={{ fontSize: 15, fontWeight: 500, margin: 0, transform: 'rotate(180deg)', writingMode: 'vertical-rl' as any }}>{student.student_id}</span>
+                        </div>
+                        <img
+                          src={student.photo || '/default-avatar.png'}
+                          alt={`${student.first_name} ${student.last_name}`}
+                          width={100}
+                          height={115}
+                          style={{ width: 100, height: 115, objectFit: 'cover', marginRight: 20, border: '2px solid #eee', background: '#f0f0f0' }}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                        />
+                        <div>
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: activeLayout.studentInfoContainer.flexDirection,
+                            marginBottom: 0,
+                            paddingBottom: 0,
+                            borderBottom: activeLayout.studentInfoContainer.borderBottom,
+                            fontSize: activeLayout.studentInfoContainer.fontSize,
+                          }}>
+                            <p style={{ margin: 0, padding: 0 }}>
+                              <span className="font-bold" style={{ color: '#000' }}>Name:</span>
+                              <span 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
+                                contentEditable 
+                                suppressContentEditableWarning
+                              > {student.first_name} {student.last_name}</span>
+                            </p>
+                            <p style={{ margin: 0, padding: 0 }}>
+                              <span className="font-bold" style={{ color: '#000' }}>Gender:</span>
+                              <span 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
+                                contentEditable 
+                                suppressContentEditableWarning
+                              > {student.gender || '-'}</span>
+                            </p>
+                            <p style={{ margin: 0, padding: 0 }}>
+                              <span className="font-bold" style={{ color: '#000' }}>Class:</span>
+                              <span 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
+                                contentEditable 
+                                suppressContentEditableWarning
+                              > {student.class_name}</span>
+                            </p>
+                            <p style={{ margin: 0, padding: 0 }}>
+                              <span className="font-bold" style={{ color: '#000' }}>Stream:</span>
+                              <span 
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
+                                contentEditable 
+                                suppressContentEditableWarning
+                              > {student.stream_name || 'A'}</span>
+                            </p>
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: activeLayout.studentInfoContainer.flexDirection,
+                            marginBottom: 0,
+                            paddingBottom: 0,
+                            borderBottom: activeLayout.studentInfoContainer.borderBottom,
+                            fontSize: activeLayout.studentInfoContainer.fontSize,
+                          }}>
+                            <p style={{ margin: 0, padding: 0 }}>
+                              <span className="font-bold" style={{ color: '#000' }}>Student No:</span>
+                              <span style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight }}> {student.student_id}</span>
+                            </p>
+                            <p style={{ margin: 0, padding: 0 }}>
+                              <span className="font-bold" style={{ color: '#000' }}>Term:</span>
+                              <span 
+                                style={{ 
+                                  color: activeLayout.studentValue.color,
+                                  fontStyle: activeLayout.studentValue.fontStyle as any,
+                                  fontWeight: activeLayout.studentValue.fontWeight,
+                                  cursor: 'pointer',
+                                  borderBottom: isEditingTerm ? '1px solid #000' : 'none',
+                                  display: 'inline-block',
+                                  minWidth: '80px'
+                                }}
+                                contentEditable={isEditingTerm}
+                                suppressContentEditableWarning
+                                onClick={() => setIsEditingTerm(true)}
+                                onBlur={(e) => {
+                                  setIsEditingTerm(false);
+                                  const newValue = e.currentTarget.textContent || '';
+                                  setEditableTermValue(newValue);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    setIsEditingTerm(false);
+                                    const newValue = e.currentTarget.textContent || '';
+                                    setEditableTermValue(newValue);
+                                  }
+                                }}
+                              >
+                                {editableTermValue || principal[0]?.term_name || principal[0]?.term || 'Term 1'}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Ribbon */}
+                    <div style={{
+                      position: 'relative',
+                      background: activeLayout.ribbon.background,
+                      color: activeLayout.ribbon.color,
+                      textAlign: activeLayout.ribbon.textAlign,
+                      fontWeight: activeLayout.ribbon.fontWeight,
+                      fontSize: activeLayout.ribbon.fontSize,
+                      padding: activeLayout.ribbon.padding,
+                      marginTop: 4,
+                      marginBottom: 20,
+                      marginLeft: activeLayout.ribbon.marginSidesPercent,
+                      marginRight: activeLayout.ribbon.marginSidesPercent,
+                      borderRadius: activeLayout.ribbon.borderRadius,
+                      cursor: 'text',
+                    }} contentEditable suppressContentEditableWarning>Marks attained in each subject</div>
+                    {/* Subjects Table - Display ALL subjects but only core contribute to grading */}
+                    <table style={{ borderCollapse: activeLayout.table.borderCollapse, width: '100%', marginTop: 10, fontSize: activeLayout.table.fontSize }}>
+                      <thead>
+                        <tr>
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>SUBJECT</th>
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'MT (40)' : 'MT'}</th>
+                          {isEndOfTerm && <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>{enableMarkConversion ? 'EOT (60)' : 'EOT'}</th>}
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>GRADE</th>
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>COMMENT</th>
+                          <th style={{ border: activeLayout.table.th.border, padding: activeLayout.table.th.padding, textAlign: activeLayout.table.th.textAlign, background: activeLayout.table.th.background, color: activeLayout.table.th.color }}>INITIALS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allGroupedResults.map((r: GroupedResult, i: number) => {
+                          const { midTermMarks, endTermMarks, totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                          const isCore = (r.subject_type || 'core').toLowerCase() === 'core';
+
+                          const scoreToUse = isEndOfTerm ? totalMarks : midTermMarks;
+
+                          // Use class_id and subject_id for proper syncing across all reports
+                          const initialsKey = student.class_id && r.subject_id 
+                            ? `${student.class_id}-${r.subject_id}`
+                            : `${student.class_name}-${r.subject_name}`;
+                          
+                          const currentInitials = teacherInitials[initialsKey] || 
+                            r.teacher_initials ||
+                            r.teacher_name?.split(' ').map((n: string) => n[0]).join('') || 'N/A';
+
+                          const tdStyle = { border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign, color: activeLayout.table.td.color };
+                          return (
+                            <tr key={i}>
+                              <td style={{ ...tdStyle, cursor: 'text', direction: isArabicMode ? 'rtl' : 'ltr' }} contentEditable suppressContentEditableWarning>{getSubjectName(r, isArabicMode ? 'ar' : 'en')}</td>
+                              <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{midTermMarks || '-'}</td>
+                              {isEndOfTerm && <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{endTermMarks || '-'}</td>}
+                              <td style={{ ...tdStyle, cursor: 'text' }} contentEditable suppressContentEditableWarning>{getGrade(scoreToUse || 0, isNursery)}</td>
+                              <td style={{ ...tdStyle, cursor: 'text', fontSize: activeLayout.table.fontSize - 1 }} contentEditable suppressContentEditableWarning>{commentsForGrade(getGrade(scoreToUse || 0, isNursery))}</td>
+                              <td
+                                data-initials-key={initialsKey}
+                                style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign, color: activeLayout.table.td.color, cursor: 'text' }}
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => {
+                                  const newInitials = e.currentTarget.textContent?.trim() || 'N/A';
+                                  handleInitialsChange(initialsKey, student.class_id, r.subject_id, newInitials);
+                                  // Save using class_id and subject_id for proper cross-report syncing
+                                  if (student.class_id && r.subject_id) {
+                                    saveInitialsToBackend(String(student.class_id), String(r.subject_id), newInitials);
+                                  }
+                                }}
+                              >
+                                {currentInitials}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Calculate totals using calculateMarks for consistency */}
+                        {(() => {
+                          const totalMidTerm = allGroupedResults.reduce((sum, r) => {
+                            const { midTermMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                            return sum + midTermMarks;
+                          }, 0);
+                          const totalEndTerm = allGroupedResults.reduce((sum, r) => {
+                            const { endTermMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                            return sum + endTermMarks;
+                          }, 0);
+                          const totalScore = allGroupedResults.reduce((sum, r) => {
+                            const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                            return sum + totalMarks;
+                          }, 0);
+                          const averageScore = allGroupedResults.length > 0 ? Math.round(totalScore / allGroupedResults.length) : 0;
+                          
+                          return (
+                            <>
+                              <tr style={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign }}>TOTAL</td>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(totalMidTerm)}</td>
+                                {isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{Math.round(totalEndTerm)}</td>}
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding }}></td>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding }}></td>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding }}></td>
+                              </tr>
+                              <tr style={{ fontWeight: 'bold', backgroundColor: '#f0f0f0' }}>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: activeLayout.table.td.textAlign }}>AVERAGE</td>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{allGroupedResults.length > 0 ? Math.round(totalMidTerm / allGroupedResults.length) : 0}</td>
+                                {isEndOfTerm && <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{allGroupedResults.length > 0 ? Math.round(totalEndTerm / allGroupedResults.length) : 0}</td>}
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding, textAlign: 'center', cursor: 'text' }} contentEditable suppressContentEditableWarning>{averageScore}</td>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding }}></td>
+                                <td style={{ border: activeLayout.table.td.border, padding: activeLayout.table.td.padding }}></td>
+                              </tr>
+                            </>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+                    
+                    {/* Assessment Section - Modified for Nursery */}
+                    <div style={{ marginTop: 20, fontSize: activeLayout.page.fontSize }}>
+                      <h3 style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 10, cursor: 'text' }} contentEditable suppressContentEditableWarning>
+                        General Assessment
+                      </h3>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        border: activeLayout.assessmentBox.border,
+                        borderRadius: activeLayout.assessmentBox.borderRadius,
+                        padding: activeLayout.assessmentBox.padding,
+                      }}>
+                        <div>
+                          {!isNursery ? (
+                            <>
+                              <p><strong>Aggregates:</strong> <span contentEditable suppressContentEditableWarning style={{cursor: 'text'}}>{aggregates}</span></p>
+                              <p><strong>Division:</strong> <span contentEditable suppressContentEditableWarning style={{cursor: 'text'}}>{division}</span></p>
+                            </>
+                          ) : (
+                            <p><strong>Overall Grade:</strong> <span contentEditable suppressContentEditableWarning style={{cursor: 'text'}}>{nurseryOverallGrade}</span></p>
+                          )}
+                        </div>
+                        {/* Promotion status only for Term 3 end-of-term reports */}
+                        {filters.term === 'Term 3' && filters.resultType?.toLowerCase().includes('end') && (
+                          <div>
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                padding: activeLayout.assessmentBox.padding, 
+                                border: activeLayout.assessmentBox.border, 
+                                borderRadius: activeLayout.assessmentBox.borderRadius, 
+                                cursor: 'text',
+                                minHeight: '50px'
+                              }}
+                            >
+                              {
+                                (() => {
+                                  const currentClass = student.class_name;
+                                  const nextClass = currentClass.replace(/\d+/, (match: string) => parseInt(match) + 1);
+
+                                  if (division === 'Division 1' || division === 'Division 2' || division === 'Division 3') {
+                                    return `Promoted to next class `;
+                                  } else if (division === 'Division 4') {
+                                    return 'Advised to try the next class with remedial support';
+                                  } else {
+                                    return 'Advised to repeat this class';
+                                  }
+                                })()
+                              }
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Promotion Status Section */}
+                    {/* <div style={{ marginTop: 20, fontSize: 14 }}>
+                      <h3 style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 10 }}>
+                        Promotion Status
+                      </h3>
+                      
+                    </div> */}
+                    {/* Comments Section */}
+                    <div style={{ marginTop: activeLayout.comments.marginTop, borderTop: activeLayout.comments.borderTop, paddingTop: activeLayout.comments.paddingTop }}>
+                      <CommentsSection
+                        student={student}
+                        division={isNursery ? nurseryOverallGrade : division}
+                        nextTermBegins={nextTermBegins}
+                        handleNextTermChange={handleNextTermChange}
+                        layout={activeLayout}
+                      />
+                    </div>
+                    {/* Grade Table */}
+                    <GradeTable layout={activeLayout} />
+                    {/* Footer - Enhanced for clarity and style */}
+                    {/* <div style={styles.footer}>
+                      <div style={styles.divider}></div>
+                      <div style={styles.footerContent}>
+                        <div style={styles.teacherComment}>
+                          <strong>Teacher's Comment:</strong> {student.class_teacher_comment || '-'}
+                        </div>
+                        <div style={styles.dosComment}>
+                          <strong>DOS Comment:</strong> {student.dos_comment || '-'}
+                        </div>
+                        <div style={styles.headteacherComment}>
+                          <strong>Headteacher's Comment:</strong> {student.headteacher_comment || '-'}
+                        </div>
+                      </div>
+                    </div> */}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        </div>
+       
         <style jsx global>{`
-          .no-print,
-          button,
-          select,
-          input,
-          label {
-            display: none !important;
+          .no-print {
+            display: block;
           }
+
+          @media print {
+            .no-print {
+              display: none !important;
+            }
+
+            .dual-report-page {
+              width: 100% !important;
+              max-width: 100% !important;
+              box-shadow: none !important;
+              overflow-x: hidden !important;
+            }
+
+            .classHeading,
+            button,
+            select,
+            input,
+            label {
+              display: none !important;
+            }
+
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              height: auto !important;
+            }
+
             .px-4, .mt-0, .p-4 {
               padding: 0 !important;
               margin: 0 !important;
