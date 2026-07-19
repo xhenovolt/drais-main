@@ -59,6 +59,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   const [drceLoading, setDrceLoading] = useState<boolean>(false);
   const [activeDrceTemplateId, setActiveDrceTemplateId] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [forcedPreviewSrc, setForcedPreviewSrc] = useState<string | null>(null);
 
   // Registry-driven template selection. Loaded once; the dropdown is filtered
   // to entries compatible with the snapshot's curriculum type.
@@ -271,6 +272,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     drceOptions.length === 0;
 
   const previewSrc = useMemo(() => {
+    if (forcedPreviewSrc) return forcedPreviewSrc;
     if (!cls) return mode === 'drce' ? drcePrintBase : printBase;
     const base = mode === 'drce' ? drcePrintBase : printBase;
     let url = `${base}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
@@ -479,15 +481,26 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               <Layers className="w-3.5 h-3.5" /> DRCE
             </button>
           </div>
-          <Link
-            href={printHref}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              // Load the print view into the in-page iframe instead of opening a new tab
+              setForcedPreviewSrc(printHref);
+              setMode('emergency');
+              // ensure we show the iframe immediately
+              setIsEditMode(false);
+              // small delay to allow iframe to mount
+              setTimeout(() => {
+                const el = document.querySelector('iframe[title^="Snapshot preview"]') as HTMLIFrameElement | null;
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 120);
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-blue-600 text-white hover:bg-blue-700"
-            title={mode === 'drce' ? 'Print this class using the DRCE template' : 'Print this class using the emergency template'}
+            title={mode === 'drce' ? 'Open printable DRCE view in this panel' : 'Open printable emergency view in this panel'}
           >
             <Printer className="w-4 h-4" /> Print
-          </Link>
+          </button>
           <button
             type="button"
             onClick={downloadPdf}
