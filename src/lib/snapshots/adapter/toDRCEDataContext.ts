@@ -96,6 +96,30 @@ export function snapshotToDRCEDataContext(
   const results: DRCEResultRow[] = stu.results
     .filter(r => !hidden.has(String(r.subjectId)))
     .map(r => {
+    // Build an exact teacher mapping lookup from snapshot.config.teacherMappings
+    // and from per-class subject allocations when available. Keys are
+    // `${classId}-${subjectId}` for fast lookup during rendering.
+    const teacherMapExact: Record<string, string> = {};
+    try {
+      const cfgMaps = (snapshot.config && Array.isArray(snapshot.config.teacherMappings)) ? snapshot.config.teacherMappings : [];
+      for (const m of cfgMaps) {
+        // Attempt to apply mapping to known classes/subjects to produce exact keys
+        for (const c of snapshot.classes || []) {
+          for (const s of c.subjects || []) {
+            const subjName = (s.displayName || s.name || '').toLowerCase();
+            const clsName = (c.className || '').toLowerCase();
+            const subjMatch = !m.subjectPattern || subjName.includes(m.subjectPattern.toLowerCase());
+            const clsMatch = !m.classPattern || m.classPattern === 'all' || clsName.includes(m.classPattern.toLowerCase());
+            if (subjMatch && clsMatch) {
+              teacherMapExact[`${c.classId}-${s.id}`] = m.initials;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Defensive: do not fail rendering when mappings are malformed
+      console.warn('Failed to build teacherMapExact from snapshot.config.teacherMappings', e);
+    }
     const subj = cls.subjects.find(s => s.id === r.subjectId);
     // CAFE Phase 2 — additive binding surface. Templates can read either:
     //   • `result.score` / `result.total` / `result.grade` (legacy, polyfilled)
@@ -123,6 +147,16 @@ export function snapshotToDRCEDataContext(
       competencyLevel = codes[0] ?? null;
     }
     const resolvedComment = displaySubjectComment(r.remarks, r.score, snapshot.meta.language);
+    const derivedInitials = ((): string | undefined => {
+      // Prefer exact mapping by classId+subjectId, then any statically stored
+      // initials on the result, then derive from teacherName.
+      const exactKey = `${cls.classId}-${r.subjectId}`;
+      if (teacherMapExact[exactKey]) return teacherMapExact[exactKey];
+      if (r.initials && String(r.initials).trim()) return String(r.initials).trim();
+      if (r.teacherName) return String(r.teacherName).split(' ').map((n: string) => n[0]).join('');
+      return undefined;
+    })();
+
     return {
       subjectName:  r.displaySubject || r.subjectName,
       midTermScore: null,
@@ -130,7 +164,7 @@ export function snapshotToDRCEDataContext(
       total:        r.score,
       grade:        r.grade,
       comment:      resolvedComment,
-      initials:     r.initials,
+      initials:     derivedInitials ?? r.initials,
       teacherName:  r.teacherName ?? '',
       // Phase 7 — allocation-derived bindings (empty string on legacy snapshots).
       primaryTeacher: r.teacherName ?? '',
@@ -159,6 +193,35 @@ export function snapshotToDRCEDataContext(
       competencyLevel: string | null;
     };
   });
+
+  // Build final teacherMappings array to surface into the DRCE data context.
+  const teacherMappings: import('@/lib/drce/schema').DRCETeacherMapping[] = [];
+  try {
+    // Start from snapshot.config mappings (if present)
+    const cfgMaps = (snapshot.config && Array.isArray(snapshot.config.teacherMappings)) ? snapshot.config.teacherMappings : [];
+    for (const m of cfgMaps) {
+      teacherMappings.push({
+        id: `cfg-${String(Math.random()).slice(2,8)}`,
+        subjectPattern: m.subjectPattern || '',
+        classPattern: m.classPattern || '',
+        initials: m.initials || '',
+        teacherName: '',
+      });
+    }
+    // Add exact per-class/subject mappings discovered above
+    for (const key of Object.keys(teacherMapExact)) {
+      const [classId, subjectId] = key.split('-');
+      teacherMappings.push({
+        id: `exact-${key}`,
+        subjectPattern: String(subjectId),
+        classPattern: String(classId),
+        initials: teacherMapExact[key],
+        teacherName: '',
+      });
+    }
+  } catch (e) {
+    console.warn('Failed to assemble teacherMappings for DRCE context', e);
+  }
 
   // P1 — custom field values surface as `student.custom.<code>` in DRCE
   // templates. Snapshot stores them at top-level keyed by studentDbId
@@ -284,5 +347,5 @@ export function snapshotToDRCEDataContext(
 
   const language: Language = snapshot.meta.language;
 
-  return { student, results, subjects, assessment, comments, meta, language };
+  return { student, results, subjects, assessment, comments, meta, language, teacherMappings } as unknown as DRCEDataContext;
 }

@@ -1435,6 +1435,10 @@ export interface DRCEDataContext {
   language?: Language;
   /** Columns visible in results table (injected by section renderer) */
   columns?: Array<{ id: string; binding: string }>;
+  /** Optional teacher mappings surfaced from the snapshot adapter so
+   *  templates can resolve initials by class+subject without mutating
+   *  the source `DRCEDocument`. */
+  teacherMappings?: DRCETeacherMapping[];
 }
 
 // ─── DB Row (as stored in dvcf_documents) ────────────────────────────────────
