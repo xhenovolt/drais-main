@@ -987,6 +987,24 @@ const ReportsPage = () => {
   }
 
   // Save initials to backend
+  useEffect(() => {
+    const handleTeacherInitialsMessage = (event: MessageEvent) => {
+      if (event.origin && event.origin !== window.location.origin) return;
+      const payload = event.data;
+      if (payload?.type !== 'teacher-initials-updated') return;
+      const values = payload.values;
+      if (!values || typeof values !== 'object') return;
+      setTeacherInitials((prev) => {
+        const next = { ...prev, ...values };
+        persistTeacherInitials(next);
+        return next;
+      });
+    };
+
+    window.addEventListener('message', handleTeacherInitialsMessage);
+    return () => window.removeEventListener('message', handleTeacherInitialsMessage);
+  }, []);
+
   const persistTeacherInitials = (values: Record<string, string>) => {
     try {
       localStorage.setItem(TEACHER_INITIALS_STORAGE_KEY, JSON.stringify(values));
@@ -1044,8 +1062,7 @@ const ReportsPage = () => {
     return next;
   };
 
-  const handlePrint = (): void => {
-    hydrateTeacherInitialsFromDom();
+  const openEditablePrintWindow = (): void => {
     const reportArea = reportExportRef.current;
     if (!reportArea) {
       toast.error('Report area not found.');
@@ -1058,41 +1075,101 @@ const ReportsPage = () => {
       return;
     }
 
-    const printRootId = 'drce-report-print-root';
-    const existingStyle = document.getElementById(printRootId);
-    if (existingStyle) existingStyle.remove();
+    const currentInitials = hydrateTeacherInitialsFromDom();
+    const printWindow = window.open('', '_blank', 'width=1280,height=900,noopener,noreferrer');
+    if (!printWindow) {
+      toast.error('Popup blocked. Please allow popups for this page and try again.');
+      return;
+    }
 
-    const styleEl = document.createElement('style');
-    styleEl.id = printRootId;
-    styleEl.textContent = `
+    const printRoot = reportArea.cloneNode(true) as HTMLElement;
+    printRoot.querySelectorAll<HTMLElement>('[data-initials-key]').forEach((cell) => {
+      cell.setAttribute('contenteditable', 'true');
+      cell.setAttribute('suppressContentEditableWarning', 'true');
+      cell.setAttribute('spellcheck', 'false');
+      cell.style.outline = '1px dashed #3b82f6';
+      cell.style.minWidth = '90px';
+      cell.style.background = '#ffffff';
+    });
+
+    const printableHtml = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editable Report Print</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #f5f5f5; color: #111; }
+      .print-shell { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+      .reportPage { page-break-after: always; background: #fff; }
+      .no-print { display: none !important; }
+      [data-initials-key] { min-width: 90px; padding: 4px 6px; border: 1px dashed #94a3b8; }
+      [data-initials-key]:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
       @media print {
-        body > *:not([data-print-root]) {
-          display: none !important;
-        }
-        body {
-          background: #fff !important;
-          margin: 0;
-          padding: 0;
-        }
-        [data-print-root] {
-          display: block !important;
-          width: 100% !important;
-          max-width: none !important;
-        }
-        .no-print {
-          display: none !important;
-        }
+        body { background: #fff; padding: 0; }
+        .print-shell { box-shadow: none; padding: 0; }
       }
-    `;
-    document.head.appendChild(styleEl);
-    reportArea.setAttribute('data-print-root', 'true');
+    </style>
+  </head>
+  <body>
+    <div class="print-shell">${printRoot.innerHTML}</div>
+    <script>
+      const storageKey = 'drais_teacher_initials';
+      const syncValues = (values) => {
+        if (!values || typeof values !== 'object') return;
+        const serialised = JSON.stringify(values);
+        try { localStorage.setItem(storageKey, serialised); } catch (_) {}
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({ type: 'teacher-initials-updated', values }, window.location.origin);
+        }
+      };
 
-    window.print();
+      const applyValue = (cell, value) => {
+        const nextValue = (value || '').trim() || 'N/A';
+        cell.textContent = nextValue;
+        const initialsKey = cell.getAttribute('data-initials-key');
+        if (!initialsKey) return;
+        const current = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        current[initialsKey] = nextValue;
+        syncValues(current);
+      };
 
-    window.setTimeout(() => {
-      reportArea.removeAttribute('data-print-root');
-      styleEl.remove();
-    }, 1500);
+      document.querySelectorAll('[data-initials-key]').forEach((cell) => {
+        cell.setAttribute('contenteditable', 'true');
+        cell.setAttribute('spellcheck', 'false');
+        cell.addEventListener('blur', () => applyValue(cell, cell.textContent || ''));
+        cell.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            cell.blur();
+          }
+        });
+      });
+
+      window.addEventListener('load', () => {
+        window.setTimeout(() => window.print(), 350);
+      });
+    </script>
+  </body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(printableHtml);
+    printWindow.document.close();
+
+    const printValues = { ...currentInitials };
+    if (Object.keys(printValues).length > 0) {
+      try {
+        printWindow.localStorage.setItem(TEACHER_INITIALS_STORAGE_KEY, JSON.stringify(printValues));
+      } catch (_) {
+        // Ignore storage errors in the print window.
+      }
+    }
+  };
+
+  const handlePrint = (): void => {
+    hydrateTeacherInitialsFromDom();
+    openEditablePrintWindow();
   };
 
   // Export reports to PDF
@@ -1534,7 +1611,7 @@ const ReportsPage = () => {
                   division = adjustDivisionForF9(division, coreGrades, hasMathF9);
                 }
 
-                const drceData = {
+                const drceData: DRCEDataContext = {
                   student: {
                       fullName: `${student.first_name} ${student.last_name}`,
                       firstName: student.first_name,
@@ -1546,7 +1623,12 @@ const ReportsPage = () => {
                       photoUrl: student.photo || null,
                       dateOfBirth: null,
                     },
-                    subjects: allGroupedResults.map(r => r.subject_name || 'Unknown Subject'),
+                    subjects: allGroupedResults.map(r => ({
+                      id: r.subject_id ?? 0,
+                      name: r.subject_name || 'Unknown Subject',
+                      totalMarks: 100,
+                      subjectType: (r.subject_type || 'core').toLowerCase() === 'core' ? 'primary' : 'secondary',
+                    })),
                     results: allGroupedResults.map(r => {
                       const { midTermMarks, endTermMarks, totalMarks: tM } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                       const scoreForGrade = isEndOfTerm ? tM : midTermMarks;
