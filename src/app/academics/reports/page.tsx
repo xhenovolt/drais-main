@@ -946,6 +946,7 @@ const ReportsPage = () => {
       case 'C4': return 4;
       case 'C5': return 5;
       case 'C6': return 6;
+      case 'P7': return 7;
       case 'P8': return 8;
       case 'F9': return 9;
       default: return 9;
@@ -958,6 +959,11 @@ const ReportsPage = () => {
     if (aggregates <= 28) return 'Division 3';
     if (aggregates <= 32) return 'Division 4';
     return 'Division U';
+  }
+
+  function isMathSubject(subjectName?: string): boolean {
+    const normalized = (subjectName || '').toLowerCase();
+    return normalized.includes('math') || normalized.includes('mathematics');
   }
   
   function commentsForGrade(grade: string) {
@@ -1493,22 +1499,16 @@ const ReportsPage = () => {
                     const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                     return getGrade(totalMarks, false);
                   });
-                  division = adjustDivisionForF9(division, coreGrades);
+                  const hasMathF9 = coreResults.some(r => {
+                    if (!isMathSubject(r.subject_name)) return false;
+                    const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
+                    return getGrade(totalMarks, false) === 'F9';
+                  });
+                  division = adjustDivisionForF9(division, coreGrades, hasMathF9);
                 }
 
-                // ── Phase 9: Unified DRCE rendering (all templates now DRCE documents)
-                if (activeDrceDoc) {
-                  const drceData: DRCEDataContext = {
-                    subjects: allGroupedResults.map(r => {
-                      const isIRE = String(r.subject_name || '').toLowerCase().includes('islamic religious education');
-                      return {
-                        id: r.subject_id || 0,
-                        name: r.subject_name,
-                        totalMarks: 100, // Default, could be made configurable later
-                        subjectType: isIRE || (r.subject_type || 'core').toLowerCase() === 'core' ? 'primary' : 'secondary',
-                      };
-                    }),
-                    student: {
+                return {
+                  student: {
                       fullName: `${student.first_name} ${student.last_name}`,
                       firstName: student.first_name,
                       lastName: student.last_name,
@@ -2156,22 +2156,31 @@ export default ReportsPage;
 // This file uses activeLayout from /api/report-templates/active instead.
 
 // Adjust division based on the presence of F9 grades
-function adjustDivisionForF9(division: string, grades: string[]): string {
-  if (grades.includes('F9')) {
-    switch (division) {
-      case 'Division 1':
-        return 'Division 2';
-      case 'Division 2':
-        return 'Division 3';
-      case 'Division 3':
-        return 'Division 4';
-      case 'Division 4':
-        return 'Division U';
-      default:
-        return division; // Keep the same if already in the last division
-    }
+function downgradeDivision(division: string): string {
+  switch (division) {
+    case 'Division 1': return 'Division 2';
+    case 'Division 2': return 'Division 3';
+    case 'Division 3': return 'Division 4';
+    case 'Division 4': return 'Division U';
+    default: return division;
   }
-  return division; // No adjustment needed if no F9 grades
+}
+
+function adjustDivisionForF9(division: string, grades: string[], mathFail: boolean = false): string {
+  const failCount = grades.filter(g => g === 'F9').length;
+  if (failCount === 0) return division;
+
+  let downgradeSteps = 1;
+  if (mathFail) downgradeSteps += 1;
+
+  let adjusted = division;
+  for (let i = 0; i < downgradeSteps; i += 1) {
+    const nextDivision = downgradeDivision(adjusted);
+    if (nextDivision === adjusted) break;
+    adjusted = nextDivision;
+  }
+
+  return adjusted;
 }
 
 // Enhanced calculation function for marks with conditional conversion
