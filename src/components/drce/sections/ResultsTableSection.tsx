@@ -92,14 +92,16 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
 
   const allResults = ctx.results ?? [];
   const subjectFilter = section.subjectFilter ?? 'all';
+
+  const isFilteredSubject = (r: any): boolean => {
+    const type = (r.subjectType ?? 'primary').toLowerCase();
+    const isIRE = isReligiousEducationSubject(String(r.subjectName || ''));
+    return !isIRE && type !== 'primary' && type !== 'core' && type !== 'theology' && type !== 'islamic' && type !== 'religion';
+  };
+
   let results = subjectFilter === 'all'
     ? allResults
-    : allResults.filter(r => {
-        const type = (r.subjectType ?? 'primary').toLowerCase();
-            const isIRE = isReligiousEducationSubject(String(r.subjectName || ''));
-          return !isIRE && type !== 'primary' && type !== 'core' && type !== 'theology' && type !== 'islamic' && type !== 'religion';
-        }
-      });
+    : allResults.filter(isFilteredSubject);
 
   // Apply cell content edits from overrides
   const cellContentEdits = (section as any).__cellContentEdits || [];
