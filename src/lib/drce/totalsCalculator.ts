@@ -167,29 +167,21 @@ export function buildTotalsRowCellContent(options: {
   }
 
   if (header.includes('subject') || header.includes('name')) {
-    return totalsConfig?.showTotalPossible ? totalPossible.toFixed(1) : '';
+    return '';  // Subject/name column in totals row is blank
   }
 
-  if (header.includes('total') && header.includes('marks')) {
-    if (totalsConfig?.sumColumnIds?.includes(column.id)) {
-      const value = totals[column.id] ?? 0;
+  // For columns marked in sumColumnIds, always show the sum
+  if (totalsConfig?.sumColumnIds?.includes(column.id)) {
+    const value = totals[column.id] ?? 0;
+    return value % 1 === 0 ? String(value) : value.toFixed(1);
+  }
+
+  // Fallback: if header looks like a score/total column, try to display sum from totals
+  if (header.includes('score') || header.includes('mark') || header.includes('total') || header.includes('eot')) {
+    const value = totals[column.id];
+    if (typeof value === 'number') {
       return value % 1 === 0 ? String(value) : value.toFixed(1);
     }
-    return '100';
-  }
-
-  if (header.includes('total') || header.includes('obtained') || header.includes('score') || header.includes('eot')) {
-    if (totalsConfig?.showTotalObtained !== false) {
-      if (totalsConfig?.sumColumnIds?.includes(column.id)) {
-        const value = totals[column.id] ?? 0;
-        return value % 1 === 0 ? String(value) : value.toFixed(1);
-      }
-      return totalObtained % 1 === 0 ? String(totalObtained) : totalObtained.toFixed(1);
-    }
-  }
-
-  if (header.includes('possible') || header.includes('maximum')) {
-    return totalsConfig?.showTotalPossible ? totalPossible.toFixed(1) : '';
   }
 
   return '';

@@ -228,10 +228,12 @@ export function snapshotToDRCEDataContext(
       : {}),
   };
 
-  // Filter results to only principal/core subjects for aggregates
+  // Filter results to only principal/core/primary subjects for aggregates
   const principalResults = results.filter(r => {
-    const subj = cls.subjects.find(s => s.id === r.subjectId);
-    return subj && (subj.subjectType === 'principal' || subj.subjectType === 'core');
+    const subj = cls.subjects.find(s => s.id === r.subject?.id || s.id === r.subjectId);
+    if (!subj) return false;
+    const type = (subj.subjectType || 'primary').toLowerCase();
+    return type === 'principal' || type === 'core' || type === 'primary' || type === 'theology' || type === 'islamic' || type === 'religion';
   });
 
   const computedAssessment = computeAssessmentRawValues(principalResults);

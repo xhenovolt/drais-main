@@ -93,11 +93,16 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
   const subjectFilter = section.subjectFilter ?? 'all';
   let results = subjectFilter === 'all'
     ? allResults
-    : allResults.filter(r =>
-        subjectFilter === 'primary'
-          ? (r.subjectType ?? 'primary') === 'primary'
-          : (r.subjectType ?? 'primary') === 'secondary',
-      );
+    : allResults.filter(r => {
+        const type = (r.subjectType ?? 'primary').toLowerCase();
+        if (subjectFilter === 'primary') {
+          // Include primary, core, theology, islamic, and religion subjects
+          return type === 'primary' || type === 'core' || type === 'theology' || type === 'islamic' || type === 'religion';
+        } else {
+          // For secondary filter, exclude the above types
+          return type !== 'primary' && type !== 'core' && type !== 'theology' && type !== 'islamic' && type !== 'religion';
+        }
+      });
 
   // Apply cell content edits from overrides
   const cellContentEdits = (section as any).__cellContentEdits || [];
