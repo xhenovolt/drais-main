@@ -549,8 +549,10 @@ function buildClasses(
       const displayName = numerals === 'arabic' && r.subject_name_ar
         ? r.subject_name_ar
         : englishName;
+      const normalizedSubjectName = (englishName || '').toLowerCase();
+      const isIRE = normalizedSubjectName.includes('islamic religious education');
       const subjectType: 'primary' | 'secondary' =
-        (r.subject_type || 'core').toLowerCase() === 'core' ? 'primary' : 'secondary';
+        (r.subject_type || 'core').toLowerCase() === 'core' || isIRE ? 'primary' : 'secondary';
       cls.subjects.set(r.subject_id, {
         id:          r.subject_id,
         name:        englishName,

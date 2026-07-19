@@ -95,12 +95,14 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
     ? allResults
     : allResults.filter(r => {
         const type = (r.subjectType ?? 'primary').toLowerCase();
+        const name = String(r.subjectName || '').toLowerCase();
+        const isIRE = name.includes('islamic religious education');
         if (subjectFilter === 'primary') {
-          // Include primary, core, theology, islamic, and religion subjects
-          return type === 'primary' || type === 'core' || type === 'theology' || type === 'islamic' || type === 'religion';
+          // Include primary + assessment-critical theology-style subjects, plus IRE explicitly.
+          return type === 'primary' || type === 'core' || type === 'theology' || type === 'islamic' || type === 'religion' || isIRE;
         } else {
-          // For secondary filter, exclude the above types
-          return type !== 'primary' && type !== 'core' && type !== 'theology' && type !== 'islamic' && type !== 'religion';
+          // For secondary filter, exclude IRE even if its subjectType is not primary.
+          return !isIRE && type !== 'primary' && type !== 'core' && type !== 'theology' && type !== 'islamic' && type !== 'religion';
         }
       });
 

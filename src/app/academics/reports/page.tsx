@@ -777,7 +777,9 @@ const ReportsPage = () => {
     results.forEach(r => {
       if (!r) return; // Skip null/undefined items
       const st = (r.subject_type ?? 'core').toLowerCase();
-      if (st === 'core') principal.push(r);
+      const name = String(r.subject_name || '').toLowerCase();
+      const isIRE = name.includes('islamic religious education');
+      if (st === 'core' || isIRE) principal.push(r);
       else others.push(r);
     });
     return { principal, others };
@@ -1448,9 +1450,12 @@ const ReportsPage = () => {
                   principal.some((r: any) => (r.result_type_name || r.results_type || '').toLowerCase().includes('end'));
 
                 // Enhanced calculations - only use CORE subjects for grading
-                const coreResults = groupedResults.filter(r => 
-                  (r.subject_type || 'core').toLowerCase() === 'core'
-                );
+                const coreResults = groupedResults.filter(r => {
+                  const type = (r.subject_type || 'core').toLowerCase();
+                  const name = String(r.subject_name || '').toLowerCase();
+                  const isIRE = name.includes('islamic religious education');
+                  return type === 'core' || isIRE;
+                });
 
                 const totalMarks = allGroupedResults.reduce((sum, r) => {
                   const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
@@ -1495,12 +1500,15 @@ const ReportsPage = () => {
                 // ── Phase 9: Unified DRCE rendering (all templates now DRCE documents)
                 if (activeDrceDoc) {
                   const drceData: DRCEDataContext = {
-                    subjects: allGroupedResults.map(r => ({
-                      id: r.subject_id || 0,
-                      name: r.subject_name,
-                      totalMarks: 100, // Default, could be made configurable later
-                      subjectType: (r.subject_type || 'core').toLowerCase() === 'core' ? 'primary' : 'secondary',
-                    })),
+                    subjects: allGroupedResults.map(r => {
+                      const isIRE = String(r.subject_name || '').toLowerCase().includes('islamic religious education');
+                      return {
+                        id: r.subject_id || 0,
+                        name: r.subject_name,
+                        totalMarks: 100, // Default, could be made configurable later
+                        subjectType: isIRE || (r.subject_type || 'core').toLowerCase() === 'core' ? 'primary' : 'secondary',
+                      };
+                    }),
                     student: {
                       fullName: `${student.first_name} ${student.last_name}`,
                       firstName: student.first_name,

@@ -25,6 +25,10 @@ import type { ReportSnapshot } from '../types';
 import { displaySubjectComment } from '../grader';
 import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
 
+function isIslamicReligiousEducationSubject(name?: string): boolean {
+  return typeof name === 'string' && name.toLowerCase().includes('islamic religious education');
+}
+
 export interface SchoolMetaForRender {
   schoolName:       string;
   schoolAddress?:   string;
@@ -83,7 +87,7 @@ export function snapshotToDRCEDataContext(
       id:          s.id,
       name:        s.displayName || s.name,
       totalMarks:  s.totalMarks,
-      subjectType: s.subjectType,
+      subjectType: isIslamicReligiousEducationSubject(s.name) ? 'primary' : s.subjectType,
       department:   s.department ?? '',
       subjectGroup: s.subjectGroup ?? '',
     }));
