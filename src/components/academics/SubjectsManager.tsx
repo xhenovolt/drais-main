@@ -676,7 +676,7 @@ export const SubjectsManager: React.FC = () => {
             <div className="fixed inset-0 bg-gradient-to-br from-black/20 via-slate-900/30 to-black/40 backdrop-blur-md backdrop-saturate-150" />
           </Transition.Child>
 
-          <div className="fixed inset-0 overflow-y-auto">
+          <div className="fixed inset-0 overflow-visible">
             <div className="flex items-center justify-center min-h-full p-4">
               <Transition.Child
                 as={React.Fragment}
@@ -687,7 +687,7 @@ export const SubjectsManager: React.FC = () => {
                 leaveFrom="opacity-100 scale-100 translate-y-0"
                 leaveTo="opacity-0 scale-90 translate-y-8"
               >
-                <Dialog.Panel className="w-full max-w-md p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl backdrop-saturate-150 rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30">
+                <Dialog.Panel className="w-full max-w-md p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl backdrop-saturate-150 rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 max-h-[80vh] overflow-y-auto overflow-x-hidden">
                   <div className="flex items-center justify-between mb-8">
                     <Dialog.Title className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {editingId ? 'Edit Subject' : 'Add New Subject'}
@@ -840,7 +840,7 @@ export const SubjectsManager: React.FC = () => {
             <div className="fixed inset-0 bg-gradient-to-br from-black/20 via-slate-900/30 to-black/40 backdrop-blur-md backdrop-saturate-150" />
           </Transition.Child>
 
-          <div className="fixed inset-0 overflow-y-auto">
+          <div className="fixed inset-0 overflow-visible">
             <div className="flex items-center justify-center min-h-full p-4">
               <Transition.Child
                 as={React.Fragment}
@@ -851,7 +851,7 @@ export const SubjectsManager: React.FC = () => {
                 leaveFrom="opacity-100 scale-100 translate-y-0"
                 leaveTo="opacity-0 scale-90 translate-y-8"
               >
-                <Dialog.Panel className="w-full max-w-2xl p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl backdrop-saturate-150 rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 max-h-[80vh] overflow-y-auto">
+                <Dialog.Panel className="w-full max-w-lg p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl backdrop-saturate-150 rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 max-h-[80vh] overflow-y-auto overflow-x-hidden">
                   <div className="flex items-center justify-between mb-8">
                     <div>
                       <Dialog.Title className="text-2xl font-bold text-gray-900 dark:text-gray-100">
