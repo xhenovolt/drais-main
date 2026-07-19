@@ -4,6 +4,7 @@
 import React from 'react';
 import type { DRCERibbonSection, DRCETheme, DRCEDataContext } from '@/lib/drce/schema';
 import { resolveToken } from '@/lib/drce/tokenResolver';
+import { resolveLocalizedText } from '@/lib/drce/arabic';
 
 interface Props {
   section: DRCERibbonSection;
@@ -131,7 +132,12 @@ function RibbonPrimitive({
 export function RibbonSection({ section, theme, ctx }: Props) {
   if (!section.visible) return null;
   const { style, content } = section;
-  const text = resolveToken(content.text, ctx);
+  const text = resolveToken(
+    ctx.language === 'ar'
+      ? resolveLocalizedText(ctx.language, content.text, content.textAr)
+      : content.text,
+    ctx,
+  );
 
   // Default shape to 'arrow-down' if missing or invalid
   const shape = content.shape ?? 'arrow-down';
@@ -143,6 +149,7 @@ export function RibbonSection({ section, theme, ctx }: Props) {
     fontWeight: style.fontWeight ?? 'bold',
     padding: style.padding ?? '4px',
     textAlign: style.textAlign ?? 'center',
+    direction: ctx.language === 'ar' ? 'rtl' : 'ltr',
   };
 
   if (shape === 'arrow-down' || shape === 'chevron') {

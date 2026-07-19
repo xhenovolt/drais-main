@@ -5,6 +5,7 @@ import React from 'react';
 import type { DRCECommentsSection, DRCETheme, DRCEDataContext } from '@/lib/drce/schema';
 import { resolveCommentRibbonStyle, resolveCommentTextStyle } from '@/lib/drce/styleResolver';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
+import { resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 interface Props {
   section: DRCECommentsSection;
@@ -66,8 +67,8 @@ export function CommentsSection({ section, theme, ctx }: Props) {
   const language = ctx.language ?? 'en';
   const isRTL = language === 'ar';
   const { style } = section;
-  const ribbonStyle = { ...resolveCommentRibbonStyle(style), direction: isRTL ? 'rtl' : 'ltr' };
-  const textStyle = { ...resolveCommentTextStyle(style), textAlign: isRTL ? 'right' : 'left' };
+  const ribbonStyle: React.CSSProperties = { ...resolveCommentRibbonStyle(style), direction: isRTL ? 'rtl' : 'ltr' };
+  const textStyle: React.CSSProperties = { ...resolveCommentTextStyle(style), textAlign: isRTL ? 'right' : 'left' };
 
   const visibleItems = [...(section.items || [])]
     .filter(i => i.visible)
@@ -81,7 +82,7 @@ export function CommentsSection({ section, theme, ctx }: Props) {
         return (
           <div key={item.id} style={{ ...ribbonStyle, marginBottom: 3 }}>
             <ArrowLabel
-              label={item.label}
+              label={resolveLocalizedLabel(ctx.language, item.label, item.labelAr)}
               bg={style.ribbonBackground ?? theme.accentColor}
               color={style.ribbonColor ?? '#000'}
               fontSize={style.ribbonFontSize ?? 10}

@@ -3,13 +3,16 @@
 
 import React from 'react';
 import type { DRCENextTermBeginsSection } from '@/lib/drce/schema';
+import { resolveLocalizedText } from '@/lib/drce/arabic';
 
 export function NextTermBeginsSection({
   section,
-  nextTermBegins
+  nextTermBegins,
+  language,
 }: {
   section: DRCENextTermBeginsSection;
   nextTermBegins?: string;
+  language?: 'en' | 'ar';
 }) {
   if (!section.visible) return null;
 
@@ -38,6 +41,7 @@ export function NextTermBeginsSection({
     fontSize: style.fontSize || 14,
     fontWeight: style.fontWeight ? parseInt(style.fontWeight.toString()) : 500,
     textAlign: style.textAlign || 'center',
+    direction: language === 'ar' ? 'rtl' : 'ltr',
     padding: style.padding || '12px 16px',
     borderRadius: style.borderRadius || 4,
     border: style.borderWidth && style.borderColor 
@@ -50,7 +54,7 @@ export function NextTermBeginsSection({
     <div style={containerStyle}>
       {style.icon && <span style={{ marginRight: '8px' }}>{style.icon}</span>}
       <span>
-        {content.text}
+        {resolveLocalizedText(language, content.text, content.textAr)}
         {dateText && <> • {dateText}</>}
       </span>
     </div>

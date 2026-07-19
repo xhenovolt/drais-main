@@ -271,13 +271,14 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     drceOptions.length === 0;
 
   const previewSrc = useMemo(() => {
-    if (!cls) return printBase;
-    let url = `${printBase}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
+    if (!cls) return mode === 'drce' ? drcePrintBase : printBase;
+    const base = mode === 'drce' ? drcePrintBase : printBase;
+    let url = `${base}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
     if (mode === 'emergency' && isEditMode) {
       url += '&edit=1';
     }
     return url;
-  }, [printBase, classIdx, cls, activeTemplateId, mode, isEditMode]);
+  }, [printBase, drcePrintBase, classIdx, cls, activeTemplateId, mode, isEditMode]);
 
   // Print: DRCE goes to the naked page, emergency stays on the legacy
   // route. PDF always goes through /pdf (which internally puppeteers

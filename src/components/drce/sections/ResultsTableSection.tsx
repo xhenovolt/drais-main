@@ -10,6 +10,7 @@ import {
 } from '@/lib/drce/styleResolver';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
 import { buildTotalsRowCellContent } from '@/lib/drce/totalsCalculator';
+import { resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 function calculateTotals(
   results: Array<Record<string, any>>,
@@ -74,8 +75,8 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
   const language = ctx.language ?? 'en';
   const isRTL = language === 'ar';
   const { style } = section;
-  const tableStyle = { 
-    ...resolveTableStyle(style), 
+  const tableStyle: React.CSSProperties = {
+    ...resolveTableStyle(style),
     direction: isRTL ? 'rtl' : 'ltr'
   };
 
@@ -179,7 +180,7 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
               style={resolveTableHeaderCellStyle(style, col.align, col.style)}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'flex-start', gap: '4px' }}>
-                <span>{col.header}</span>
+                <span>{resolveLocalizedLabel(ctx.language, col.header, col.headerAr)}</span>
                 {onColumnHide && (
                   <button
                     onClick={() => onColumnHide(col.id)}
@@ -293,4 +294,3 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
     </table>
   );
 }
-

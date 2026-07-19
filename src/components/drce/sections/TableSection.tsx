@@ -24,6 +24,7 @@ import type {
 import { resolveExpression } from '@/lib/drce/computed/resolveExpression';
 import { getByPath } from '@/lib/drce/bindingResolver';
 import { evaluateFormula, type FormulaContext, type FormulaError } from '@/lib/drce/table/formula';
+import { resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 /** Cell-level metadata produced by the resolver — used by the renderer to
  *  surface visible error states with hover tooltips. */
@@ -179,6 +180,7 @@ function colLetterToIdx(s: string): number {
 export function TableSection({ section, theme, ctx, onCellChange }: Props) {
   const { rowKeys, cellValues, cellMeta } = resolveCells(section, ctx);
   const style = section.style ?? {};
+  const isRTL = ctx.language === 'ar';
 
   // Pre-compute merged-cell skip set: a cell that's being spanned ONTO by a
   // neighbour gets `skipped` and renders nothing.
@@ -203,6 +205,7 @@ export function TableSection({ section, theme, ctx, onCellChange }: Props) {
     <table style={{
       width: '100%', borderCollapse: 'collapse',
       fontSize: style.rowFontSize ?? 11,
+      direction: isRTL ? 'rtl' : 'ltr',
     }}>
       <thead>
         <tr>
@@ -216,7 +219,7 @@ export function TableSection({ section, theme, ctx, onCellChange }: Props) {
               fontSize:   style.headerFontSize    ?? 11,
               textTransform: style.headerTextTransform,
               fontWeight: 600,
-            }}>{(ctx.language ?? 'en') === 'ar' && col.headerAr ? col.headerAr : col.header}</th>
+            }}>{resolveLocalizedLabel(ctx.language, col.header, col.headerAr)}</th>
           ))}
         </tr>
       </thead>

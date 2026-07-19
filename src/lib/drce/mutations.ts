@@ -9,6 +9,7 @@ import { setByPath } from './bindingResolver';
 import {
   enableMultiPage, addPage, deletePage, reorderPages, setPageProp, addSectionToPage,
 } from './pages';
+import { arabizeDocumentText } from './arabic';
 
 /**
  * Recursive helpers — needed for Phase C containers so mutations work uniformly
@@ -72,6 +73,16 @@ function patchSections(
  */
 export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDocument {
   switch (mutation.type) {
+    case 'SET_META': {
+      return {
+        ...doc,
+        meta: setByPath(doc.meta, mutation.path, mutation.value) as DRCEDocument['meta'],
+      };
+    }
+
+    case 'ARABIZE_TEMPLATE_TEXT': {
+      return arabizeDocumentText(doc);
+    }
 
     case 'SET_THEME': {
       return {

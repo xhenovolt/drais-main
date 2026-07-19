@@ -13,6 +13,7 @@ import {
   resolveStudentInfoValueStyle,
 } from '@/lib/drce/styleResolver';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
+import { resolveLocalizedText } from '@/lib/drce/arabic';
 
 interface Props {
   section: DRCEStudentInfoSection;
@@ -108,12 +109,12 @@ export function StudentInfoSection({ section, ctx }: Props) {
   const isRTL = language === 'ar';
 
   // Guard against null student data
-  const student = ctx.student || {};
+  const student = (ctx.student || {}) as Partial<DRCEDataContext['student']>;
 
   // Strip outer box border — we don't want a border around the whole student section
-  const boxStyle    = { ...resolveStudentInfoBoxStyle(style), border: 'none', direction: isRTL ? 'rtl' : 'ltr' };
-  const labelStyle  = { ...resolveStudentInfoLabelStyle(style), textAlign: isRTL ? 'right' : 'left' };
-  const valueStyle  = { ...resolveStudentInfoValueStyle(style), textAlign: isRTL ? 'right' : 'left' };
+  const boxStyle: React.CSSProperties = { ...resolveStudentInfoBoxStyle(style), border: 'none', direction: isRTL ? 'rtl' : 'ltr' };
+  const labelStyle: React.CSSProperties = { ...resolveStudentInfoLabelStyle(style), textAlign: isRTL ? 'right' : 'left' };
+  const valueStyle: React.CSSProperties = { ...resolveStudentInfoValueStyle(style), textAlign: isRTL ? 'right' : 'left' };
 
   const showBarcode     = style.showBarcode     !== false;
   const showPhoto       = style.showPhoto       !== false;
@@ -132,8 +133,7 @@ export function StudentInfoSection({ section, ctx }: Props) {
     .sort((a, b) => a.order - b.order)
     .map(f => ({
       ...f,
-      // Translate label if it's a known key
-      label: f.label, // Fallback to original if not in dictionary
+      label: resolveLocalizedLabel(ctx.language, f.label, f.labelAr),
     }));
 
   const row1 = visibleFields.slice(0, fieldsPerRow);

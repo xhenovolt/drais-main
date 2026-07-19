@@ -16,6 +16,7 @@ import { getSectionPlugin } from '@/lib/drce/section-registry';
 import { SectionErrorBoundary } from './SectionErrorBoundary';
 import { evaluateRule } from '@/lib/drce/visibility';
 import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
+import { inferDocumentDirection, inferDocumentLanguage } from '@/lib/drce/arabic';
 
 interface Props {
   document: DRCEDocument;
@@ -162,6 +163,17 @@ function DRCEDocumentRendererInner({
   if (!renderCtx) { console.error('[DRCEDocumentRenderer] renderCtx is missing'); return null; }
   
   const { theme, watermark, sections, pages } = document;
+  const effectiveLanguage = renderCtx.language ?? inferDocumentLanguage(document);
+  const effectiveDirection = renderCtx.isRTL === true ? 'rtl' : inferDocumentDirection(document, effectiveLanguage);
+  const effectiveRenderCtx = React.useMemo(() => ({
+    ...renderCtx,
+    language: effectiveLanguage,
+    isRTL: effectiveDirection === 'rtl',
+  }), [renderCtx, effectiveLanguage, effectiveDirection]);
+  const effectiveDataCtx = React.useMemo(() => ({
+    ...dataCtx,
+    language: effectiveLanguage,
+  }), [dataCtx, effectiveLanguage]);
 
   // P5 — multi-page mode: when document.pages is set and non-empty, render
   // one page wrapper per page with its own theme override + watermark
@@ -172,7 +184,7 @@ function DRCEDocumentRendererInner({
       <div className={className}>
         {pages.map((p, idx) => {
           // P2 — per-page visibility rule, evaluated against the same dataCtx.
-          if (!evaluateRule(p.visibilityRule, dataCtx) && !onSectionClick) return null;
+          if (!evaluateRule(p.visibilityRule, effectiveDataCtx) && !onSectionClick) return null;
           // Theme override: shallow merge so unset fields fall back to the
           // document-level theme. Most templates only override page size /
           // orientation per page.
@@ -199,6 +211,8 @@ function DRCEDocumentRendererInner({
               key={p.id}
               data-drce-page-id={p.id}
               className="drce-page"
+              dir={effectiveDirection}
+              lang={effectiveLanguage}
               style={{
                 ...ps,
                 width: dims.width, minHeight: dims.minHeight,
@@ -221,8 +235,8 @@ function DRCEDocumentRendererInner({
                     key={`${p.id}-header`}
                     section={p.pageHeader}
                     doc={document}
-                    dataCtx={dataCtx}
-                    renderCtx={renderCtx}
+                    dataCtx={effectiveDataCtx}
+                    renderCtx={effectiveRenderCtx}
                     isSelected={selectedSectionId === p.pageHeader.id}
                     onClick={onSectionClick}
                     onCellChange={onCellChange}
@@ -234,8 +248,8 @@ function DRCEDocumentRendererInner({
                     key={section.id}
                     section={section}
                     doc={document}
-                    dataCtx={dataCtx}
-                    renderCtx={renderCtx}
+                    dataCtx={effectiveDataCtx}
+                    renderCtx={effectiveRenderCtx}
                     isSelected={selectedSectionId === section.id}
                     onClick={onSectionClick}
                     onCellChange={onCellChange}
@@ -249,8 +263,8 @@ function DRCEDocumentRendererInner({
                     key={`${p.id}-footer`}
                     section={p.pageFooter}
                     doc={document}
-                    dataCtx={dataCtx}
-                    renderCtx={renderCtx}
+                    dataCtx={effectiveDataCtx}
+                    renderCtx={effectiveRenderCtx}
                     isSelected={selectedSectionId === p.pageFooter.id}
                     onClick={onSectionClick}
                     onCellChange={onCellChange}
@@ -263,8 +277,8 @@ function DRCEDocumentRendererInner({
                   previous code emitted document.shapes on every page,
                   causing decorative shapes to repeat). Watermarks are
                   intentionally per-page already. */}
-              <StaticShapeLayer shapes={p.shapes ?? []} dataCtx={dataCtx} />
-              {idx === 0 && <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={dataCtx} />}
+              <StaticShapeLayer shapes={p.shapes ?? []} dataCtx={effectiveDataCtx} />
+              {idx === 0 && <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={effectiveDataCtx} />}
             </div>
           );
         })}
@@ -279,7 +293,12 @@ function DRCEDocumentRendererInner({
   const sorted = [...(sections ?? [])].sort((a, b) => a.order - b.order);
 
   return (
-    <div style={{ ...pageStyle, width, minHeight }} className={className}>
+    <div
+      style={{ ...pageStyle, width, minHeight, direction: effectiveDirection }}
+      dir={effectiveDirection}
+      lang={effectiveLanguage}
+      className={className}
+    >
       {/* Watermark */}
       {watermark?.enabled && (
         <div
@@ -336,8 +355,8 @@ function DRCEDocumentRendererInner({
             key={section.id}
             section={section}
             doc={document}
-            dataCtx={dataCtx}
-            renderCtx={renderCtx}
+            dataCtx={effectiveDataCtx}
+            renderCtx={effectiveRenderCtx}
             isSelected={selectedSectionId === section.id}
             onClick={onSectionClick}
             onCellChange={onCellChange}
@@ -351,7 +370,7 @@ function DRCEDocumentRendererInner({
           We render them as a passive SVG layer above the sections so they
           appear identically in editor preview AND in renderToStaticMarkup
           output for /print. Interactive shape editing remains in ShapeCanvas. */}
-      <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={dataCtx} />
+      <StaticShapeLayer shapes={document.shapes ?? []} dataCtx={effectiveDataCtx} />
     </div>
   );
 }

@@ -105,8 +105,8 @@ export default function PrintSnapshotPage({ params }: PageProps) {
 
     (async () => {
       try {
-        const activeTemplateId = requestedTemplateId.trim()
-          ? ''
+        const selectedTemplateId = requestedTemplateId.trim()
+          ? requestedTemplateId.trim()
           : await fetch('/api/dvcf/active?type=report_card')
               .then(async r => {
                 if (!r.ok) return '';
@@ -118,8 +118,8 @@ export default function PrintSnapshotPage({ params }: PageProps) {
 
         const templateId = resolveActiveTemplateId({
           mode: 'drce',
-          selectedDrceTemplateId: requestedTemplateId,
-          activeDrceTemplateId: activeTemplateId,
+          selectedDrceTemplateId: selectedTemplateId,
+          activeDrceTemplateId: selectedTemplateId,
           fallbackTemplateId,
         });
 

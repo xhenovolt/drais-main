@@ -4,6 +4,7 @@
 import React from 'react';
 import type { DRCEAssessmentSection, DRCETheme, DRCEDataContext } from '@/lib/drce/schema';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
+import { resolveLocalizedText } from '@/lib/drce/arabic';
 
 interface Props {
   section: DRCEAssessmentSection;
@@ -15,6 +16,7 @@ export function AssessmentSection({ section, theme, ctx }: Props) {
   if (!section.visible) return null;
 
   const style = section.style as Record<string, unknown>;
+  const isRTL = ctx.language === 'ar';
   const layout = String(style.layout ?? 'table');
   const labelColor = String(style.labelColor ?? '#444444');
   const valueColor = String(style.valueColor ?? theme.secondaryColor);
@@ -29,8 +31,8 @@ export function AssessmentSection({ section, theme, ctx }: Props) {
   const columnGap = Number(style.columnGap ?? 16);
   const itemMinWidth = Number(style.itemMinWidth ?? 160);
   const tableLayout = String(style.tableLayout ?? 'fixed');
-  const groupHeader = String(style.assessmentLabel ?? 'Grade Assessment');
-  const positionLabel = String(style.positionLabel ?? 'Position');
+  const groupHeader = resolveLocalizedText(ctx.language, String(style.assessmentLabel ?? 'Grade Assessment'), String(style.assessmentLabelAr ?? ''));
+  const positionLabel = resolveLocalizedText(ctx.language, String(style.positionLabel ?? 'Position'), String(style.positionLabelAr ?? ''));
 
   const visibleFields = [...(section.fields || [])]
     .filter(f => f.visible)
@@ -60,7 +62,9 @@ export function AssessmentSection({ section, theme, ctx }: Props) {
               gap: 4,
             }}
           >
-            <span style={{ color: labelColor, fontSize: labelFontSize }}>{field.label}:</span>
+            <span style={{ color: labelColor, fontSize: labelFontSize }}>
+              {resolveLocalizedText(ctx.language, field.label, field.labelAr)}:
+            </span>
             <span style={{ color: valueColor, fontWeight: valueFontWeight, fontSize: valueFontSize }}>
               {resolveBinding(field.binding, ctx)}
             </span>
@@ -106,6 +110,7 @@ export function AssessmentSection({ section, theme, ctx }: Props) {
         margin: 0,
         fontFamily: theme.fontFamily,
         tableLayout: tableLayout === 'auto' ? 'auto' : 'fixed',
+        direction: isRTL ? 'rtl' : 'ltr',
       }}
     >
       <tbody>
@@ -123,7 +128,7 @@ export function AssessmentSection({ section, theme, ctx }: Props) {
         {/* Label row */}
         <tr>
           {visibleFields.map(f => (
-            <td key={f.id} style={labelCell}>{f.label}</td>
+            <td key={f.id} style={labelCell}>{resolveLocalizedLabel(ctx.language, f.label, f.labelAr)}</td>
           ))}
         </tr>
         {/* Value row */}

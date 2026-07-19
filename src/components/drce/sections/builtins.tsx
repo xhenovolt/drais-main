@@ -244,7 +244,7 @@ registerSection({
     },
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
-    <SignatureSection section={p.section as any} ctx={p.dataCtx} />) as any,
+    <SignatureSection section={p.section as any} ctx={enhanced(p) as any} />) as any,
 });
 
 registerSection({
@@ -254,7 +254,7 @@ registerSection({
   description: 'Spreadsheet-style DataGrid with per-cell editing, formulas (=SUM, =AVG, =IF), and arbitrary dataSource binding.',
   defaultProps: defaultTable,
   Render: ((p: SectionRenderProps) =>
-    <TableSection section={p.section as any} theme={p.theme} ctx={p.dataCtx} />) as any,
+    <TableSection section={p.section as any} theme={p.theme} ctx={enhanced(p) as any} />) as any,
 });
 
 registerSection({
@@ -274,7 +274,7 @@ registerSection({
   description: 'One header element (logo, name, address, contact, motto, QR, custom). Drop several into a row container for true header composition.',
   defaultProps: defaultHeaderBlock,
   Render: ((p: SectionRenderProps) =>
-    <HeaderBlockSection section={p.section as any} ctx={p.dataCtx} />) as any,
+    <HeaderBlockSection section={p.section as any} ctx={enhanced(p) as any} />) as any,
 });
 
 registerSection({
@@ -297,7 +297,7 @@ registerSection({
     <ContainerSection
       section={p.section as any}
       theme={p.theme}
-      dataCtx={p.dataCtx}
+      dataCtx={enhanced(p) as any}
       renderCtx={p.renderCtx}
       onCellChange={p.onCellChange}
       onColumnHide={p.onColumnHide}
@@ -317,7 +317,7 @@ registerSection({
       borderWidth: 1, icon: '📅' },
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
-    <NextTermBeginsSection section={p.section as any} nextTermBegins={p.dataCtx.meta.nextTermBegins} />) as any,
+    <NextTermBeginsSection section={p.section as any} nextTermBegins={p.dataCtx.meta.nextTermBegins} language={p.renderCtx.language} />) as any,
 });
 
 // ─── CAFE Phase 4 — competency-aware section types ──────────────────────────

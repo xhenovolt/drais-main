@@ -95,7 +95,7 @@ export function HeaderBlockSection({ section, ctx }: { section: Section; ctx: DR
   // All text-bearing kinds collapse here.
   const text = blockText(section, ctx);
   if (!text) return null;
-  return <div style={style}>{text}</div>;
+  return <div style={{ ...style, direction: ctx.language === 'ar' ? 'rtl' : 'ltr' }}>{text}</div>;
 }
 
 export function defaultHeaderBlock(): Omit<DRCESection, 'id' | 'order'> {

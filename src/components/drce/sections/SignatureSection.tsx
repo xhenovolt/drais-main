@@ -22,6 +22,7 @@ import type {
   DRCESignatory,
 } from '@/lib/drce/schema';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
+import { resolveLocalizedText, resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 interface Props {
   section: DRCESignatureSection;
@@ -62,7 +63,8 @@ export function SignatureSection({ section, ctx }: Props) {
   const padding        = style.padding ?? '8px 0';
   const background     = style.background ?? 'transparent';
   const showDateLabel  = style.showDateLabel !== false;
-  const dateLabel      = style.dateLabel ?? 'Date:';
+  const isRTL          = ctx.language === 'ar';
+  const dateLabel      = resolveLocalizedText(ctx.language, style.dateLabel ?? 'Date:', style.dateLabelAr);
 
   return (
     <div
@@ -73,6 +75,7 @@ export function SignatureSection({ section, ctx }: Props) {
         padding,
         background,
         width:               '100%',
+        direction:            isRTL ? 'rtl' : 'ltr',
       }}
     >
       {sigs.map(sig => {
@@ -144,7 +147,7 @@ export function SignatureSection({ section, ctx }: Props) {
                   marginTop:      1,
                 }}
               >
-                {sig.roleLabel}
+                {resolveLocalizedLabel(ctx.language, sig.roleLabel, sig.roleLabelAr)}
               </div>
             )}
 

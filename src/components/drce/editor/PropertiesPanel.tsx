@@ -27,6 +27,7 @@ import { newFieldId, newColumnId, newItemId, newId } from '@/lib/drce/ids';
 import { VisibilityRuleEditor } from './VisibilityRuleEditor';
 import type { VisibilityRule } from '@/lib/drce/visibility';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { inferDocumentDirection, inferDocumentLanguage } from '@/lib/drce/arabic';
 
 // ─── i18n label map ───────────────────────────────────────────────────────────
 // Maps every recurring English label in this panel onto a dictionary key.
@@ -162,9 +163,21 @@ function NumberInput({ value, onChange, min, max, step }: {
   );
 }
 
-function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+function TextInput({ value, onChange, placeholder, multiline, dir }: { value: string; onChange: (v: string) => void; placeholder?: string; multiline?: boolean; dir?: 'ltr' | 'rtl' | 'auto' }) {
+  if (multiline) {
+    return (
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        dir={dir ?? 'auto'}
+        rows={3}
+        className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-800 resize-y"
+      />
+    );
+  }
   return (
-    <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+    <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} dir={dir ?? 'auto'}
       className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-800" />
   );
 }
@@ -491,7 +504,7 @@ function HeaderPanel({ section, onMutate }: { section: DRCESection & { type: 'he
               ]} />
             </Row>
             <Row label="Radius"><NumberInput value={Number(style.headerBorder.radius ?? 0)} onChange={v => set('headerBorder', { ...(style.headerBorder as any), radius: Number(v) })} min={0} max={16} /></Row>
-            <Row label="Padding"><TextInput value={String(style.headerBorder.padding ?? '12px')} onChange={v => set('headerBorder', { ...(style.headerBorder as any), padding: v })} placeholder="12px" /></Row>
+            <Row label="Padding"><TextInput value={String((style.headerBorder as any).padding ?? '12px')} onChange={v => set('headerBorder', { ...(style.headerBorder as any), padding: v })} placeholder="12px" /></Row>
           </>
         )}
       </PanelSection>
@@ -887,7 +900,7 @@ function AssessmentPanel({ section, onMutate }: { section: DRCEAssessmentSection
   const set = (path: string, value: unknown) => onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
   const setAgg = (path: string, value: unknown) => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: `aggregateConfig.${path}`, value });
   const style = section.style as Record<string, unknown>;
-  const agg = section.aggregateConfig ?? {};
+  const agg = (section.aggregateConfig ?? {}) as NonNullable<DRCEAssessmentSection['aggregateConfig']>;
   
   return (
     <div className="p-3">
@@ -1961,9 +1974,45 @@ function ThemePanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMu
     orientation: 'portrait' as const,
   };
   const set = (path: string, value: unknown) => onMutate({ type: 'SET_THEME', path, value });
+  const setMeta = (path: string, value: unknown) => onMutate({ type: 'SET_META', path, value });
+  const effectiveLanguage = inferDocumentLanguage(doc);
+  const effectiveDirection = inferDocumentDirection(doc, effectiveLanguage);
 
   return (
     <div className="p-3 space-y-1">
+      <PanelSection title="Language & Direction">
+        <Row label="Language">
+          <SelectInput
+            value={doc.meta.defaultLanguage ?? effectiveLanguage}
+            onChange={v => setMeta('defaultLanguage', v)}
+            options={[
+              { label: 'English', value: 'en' },
+              { label: 'Arabic', value: 'ar' },
+            ]}
+          />
+        </Row>
+        <Row label="Direction">
+          <SelectInput
+            value={doc.meta.direction ?? 'auto'}
+            onChange={v => setMeta('direction', v)}
+            options={[
+              { label: `Auto (${effectiveDirection.toUpperCase()})`, value: 'auto' },
+              { label: 'Right to left', value: 'rtl' },
+              { label: 'Left to right', value: 'ltr' },
+            ]}
+          />
+        </Row>
+        <button
+          type="button"
+          onClick={() => onMutate({ type: 'ARABIZE_TEMPLATE_TEXT' })}
+          className="w-full mt-2 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+        >
+          Arabic sweep: convert known English report labels
+        </button>
+        <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+          Converts common report labels only. Already-Arabic and custom wording stays editable.
+        </p>
+      </PanelSection>
       <PanelSection title="Page Setup">
         <Row label="Size">
           <SelectInput value={t.pageSize ?? 'a4'} onChange={v => set('pageSize', v)} options={[
@@ -2348,7 +2397,13 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
     }
     return null;
   };
-  const selectedSection = selectedSectionId ? findDeep(doc.sections) : null;
+  const selectedSection = selectedSectionId
+    ? (findDeep(doc.sections ?? []) ?? findDeep((doc.pages ?? []).flatMap(p => [
+      ...(p.sections ?? []),
+      ...(p.pageHeader ? [p.pageHeader] : []),
+      ...(p.pageFooter ? [p.pageFooter] : []),
+    ])))
+    : null;
 
   const tabs = [
     { id: 'section' as const,   icon: <Layers size={14} />,  label: 'Section' },

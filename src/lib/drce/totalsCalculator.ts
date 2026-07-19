@@ -150,7 +150,10 @@ export function buildTotalsRowCellContent(options: {
   } = options;
 
   if (isFirstColumn) {
-    return totalsConfig?.labelText ?? (language === 'ar' ? 'المجموع' : 'TOTAL');
+    if (language === 'ar') {
+      return totalsConfig?.labelTextAr ?? totalsConfig?.labelText ?? 'المجموع';
+    }
+    return totalsConfig?.labelText ?? 'TOTAL';
   }
 
   const header = String(column.header || '').toLowerCase();

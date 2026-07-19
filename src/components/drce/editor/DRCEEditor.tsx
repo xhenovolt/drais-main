@@ -30,6 +30,7 @@ import { ShapeCanvas, type DrawTool } from '../canvas/ShapeCanvas';
 import { DRCEDocumentRenderer } from '../DRCEDocumentRenderer';
 import { showToast } from '@/lib/toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { inferDocumentDirection, inferDocumentLanguage } from '@/lib/drce/arabic';
 
 // Demo data context for the live preview
 import type { DRCEDataContext } from '@/lib/drce/schema';
@@ -156,6 +157,56 @@ export function DRCEEditor({ initial, onSave }: Props) {
   }, [document.pages, activePageId]);
   const documentDbId = Number(initial.meta.id);
   const hasDbId = Number.isFinite(documentDbId) && documentDbId > 0;
+  const previewLanguage = inferDocumentLanguage(document);
+  const previewDirection = inferDocumentDirection(document, previewLanguage);
+  const previewDataCtx = React.useMemo<DRCEDataContext>(() => ({
+    ...DEMO_DATA_CTX,
+    student: previewLanguage === 'ar'
+      ? {
+        ...DEMO_DATA_CTX.student,
+        fullName: 'سارة ناكاتو',
+        firstName: 'سارة',
+        lastName: 'ناكاتو',
+        gender: 'أنثى',
+        className: 'السادس شرق',
+        streamName: 'شرق',
+      }
+      : DEMO_DATA_CTX.student,
+    subjects: previewLanguage === 'ar'
+      ? [
+        { id: 1, name: 'الرياضيات', totalMarks: 100, subjectType: 'primary' },
+        { id: 2, name: 'اللغة الإنجليزية', totalMarks: 100, subjectType: 'primary' },
+        { id: 3, name: 'العلوم', totalMarks: 100, subjectType: 'primary' },
+        { id: 4, name: 'الدراسات الاجتماعية', totalMarks: 100, subjectType: 'primary' },
+        { id: 5, name: 'السواحيلية', totalMarks: 100, subjectType: 'primary' },
+      ]
+      : DEMO_DATA_CTX.subjects,
+    results: previewLanguage === 'ar'
+      ? DEMO_DATA_CTX.results.map((r, idx) => ({
+        ...r,
+        subjectName: ['الرياضيات', 'اللغة الإنجليزية', 'العلوم', 'الدراسات الاجتماعية', 'السواحيلية'][idx] ?? r.subjectName,
+        comment: ['ممتاز', 'جيد جداً', 'جيد', 'متميز', 'مقبول'][idx] ?? r.comment,
+      }))
+      : DEMO_DATA_CTX.results,
+    comments: previewLanguage === 'ar'
+      ? {
+        classTeacher: 'طالبة مجتهدة وتظهر تقدماً واضحاً.',
+        dos: 'واصلي هذا الأداء الممتاز.',
+        headTeacher: 'أحسنتِ، حافظي على هذا المستوى.',
+      }
+      : DEMO_DATA_CTX.comments,
+    meta: {
+      ...DEMO_DATA_CTX.meta,
+      term: previewLanguage === 'ar' ? 'الفصل الأول' : DEMO_DATA_CTX.meta.term,
+      reportTitle: previewLanguage === 'ar' ? 'تقرير نهاية الفصل الأول 2026' : DEMO_DATA_CTX.meta.reportTitle,
+    },
+    language: previewLanguage,
+  }), [previewLanguage]);
+  const previewRenderCtx = React.useMemo<DRCERenderContext>(() => ({
+    ...DEMO_RENDER_CTX,
+    language: previewLanguage,
+    isRTL: previewDirection === 'rtl',
+  }), [previewLanguage, previewDirection]);
 
   // Refs mirror the latest selection so the keydown handler reads fresh values
   // without re-binding the listener on every selection change (Phase 0 fix C2).
@@ -711,8 +762,8 @@ export function DRCEEditor({ initial, onSave }: Props) {
               >
                 <DRCEDocumentRenderer
                   document={document}
-                  dataCtx={DEMO_DATA_CTX}
-                  renderCtx={DEMO_RENDER_CTX}
+                  dataCtx={previewDataCtx}
+                  renderCtx={previewRenderCtx}
                   onSectionClick={handleSectionClick}
                   selectedSectionId={selectedId}
                 />

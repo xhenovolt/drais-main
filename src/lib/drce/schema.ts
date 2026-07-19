@@ -286,6 +286,7 @@ export interface DRCEColumnStyle {
 export interface DRCEColumn {
   id: string;
   header: string;         // display text in <th>
+  headerAr?: string;
   binding: string;        // dot-path into data context e.g. "result.grade"
   width: string;          // CSS width e.g. "25%", "60px"
   visible: boolean;
@@ -300,6 +301,7 @@ export interface DRCEColumn {
 export interface DRCEField {
   id: string;
   label: string;
+  labelAr?: string;
   binding: string;        // dot-path into data context
   visible: boolean;
   order: number;
@@ -310,6 +312,7 @@ export interface DRCEField {
 export interface DRCECommentItem {
   id: string;
   label: string;          // e.g. "Class teacher comment:"
+  labelAr?: string;
   binding: string;        // dot-path into data context
   visible: boolean;
   order: number;
@@ -480,9 +483,11 @@ export interface DRCEGradeTableStyle {
 
 export interface DRCEGradeRow {
   label: string;
+  labelAr?: string;
   min: number;
   max: number;
   remark: string;
+  remarkAr?: string;
 }
 
 export interface DRCESpacerStyle {
@@ -534,7 +539,7 @@ export interface DRCEHeaderSection extends DRCESectionBase {
 
 export interface DRCEBannerSection extends DRCESectionBase {
   type: 'banner';
-  content: { text: string };
+  content: { text: string; textAr?: string };
   style: DRCEBannerStyle;
 }
 
@@ -546,7 +551,7 @@ export interface DRCEStudentInfoSection extends DRCESectionBase {
 
 export interface DRCERibbonSection extends DRCESectionBase {
   type: 'ribbon';
-  content: { text: string; shape: 'arrow-down' | 'flat' | 'chevron' };
+  content: { text: string; textAr?: string; shape: 'arrow-down' | 'flat' | 'chevron' };
   style: DRCERibbonStyle;
 }
 
@@ -555,12 +560,16 @@ export interface DRCEResultsTableTotalsConfig {
   enabled: boolean;
   /** Label text to display in the first column */
   labelText: string;
+  /** Optional Arabic override for the first-column totals label */
+  labelTextAr?: string;
   /** Optional identifier for the label column used by the totals helper */
   labelColumnId?: string;
   /** Optional identifier for the average label column used by the totals helper */
   averageLabelColumnId?: string;
   /** Optional text for the average row label */
   averageLabelText?: string;
+  /** Optional Arabic override for the average label text */
+  averageLabelTextAr?: string;
   /** Whether to show total marks obtained */
   showTotalObtained: boolean;
   /** Whether to show total possible marks */
@@ -673,6 +682,7 @@ export interface DRCESignatory {
   id:                string;
   /** Role title above or below the line. Empty hides the label row. */
   roleLabel:         string;
+  roleLabelAr?:      string;
   /** Signatory name, e.g. "Mr. Kalungi Steven". Empty hides the name row. */
   name:              string;
   /** Static signature image URL — overridden by imageBinding when set. */
@@ -710,6 +720,8 @@ export interface DRCESignatureSectionStyle {
   /** Show a label like "Date:" next to the date value. */
   showDateLabel?: boolean;
   dateLabel?:     string;
+  /** Optional explicit Arabic label for the date row */
+  dateLabelAr?:   string;
 }
 
 export interface DRCESignatureSection extends DRCESectionBase {
@@ -722,6 +734,7 @@ export interface DRCENextTermBeginsSection extends DRCESectionBase {
   type: 'next_term_begins';
   content: {
     text: string;
+    textAr?: string;
     customDate?: string;
     /** Where the date comes from. Missing = inferred (manual if customDate set,
      *  else auto). 'hidden' renders nothing. */
@@ -827,6 +840,7 @@ export interface DRCEHeaderBlockSection extends DRCESectionBase {
   kind:  DRCEHeaderBlockKind;
   /** For custom_text / motto override — supports expression tokens. */
   text?:     string;
+  textAr?:   string;
   /** For custom_image. */
   imageUrl?: string;
   /** For qr — what to encode. Supports expression tokens. */
@@ -1112,6 +1126,15 @@ export interface DRCEMeta {
    * the kind (e.g. portrait orientation on a certificate).
    */
   document_kind?: string;
+  /**
+   * Authoring/render language for templates that are intentionally Arabic.
+   * Snapshot renderers may still pass their own language, but the editor and
+   * template previews use this so Arabic templates do not silently preview as
+   * English just because the operator's UI is English.
+   */
+  defaultLanguage?: Language;
+  /** Text direction for template composition. 'auto' follows defaultLanguage. */
+  direction?: 'ltr' | 'rtl' | 'auto';
 }
 
 // ─── Page (P5 — multi-page document model) ───────────────────────────────────
@@ -1239,6 +1262,8 @@ export interface DRCEDocument {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export type DRCEMutation =
+  | { type: 'SET_META';            path: string; value: unknown }
+  | { type: 'ARABIZE_TEMPLATE_TEXT' }
   | { type: 'SET_THEME';           path: string; value: unknown }
   | { type: 'SET_SECTION_STYLE';   sectionId: string; path: string; value: unknown }
   | { type: 'SET_SECTION_PROP';    sectionId: string; path: string; value: unknown }
