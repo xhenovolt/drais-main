@@ -30,11 +30,11 @@
 import { use, useEffect, useState } from 'react';
 import { DRCEDocumentRenderer } from '@/components/drce/DRCEDocumentRenderer';
 import type { DRCEDocument } from '@/lib/drce/schema';
-import { snapshotToDRCEDataContext } from '@/lib/snapshots/adapter/toDRCEDataContext';
 import { buildPuppeteerHeaderFooterHtml, reserveMmFor } from '@/lib/snapshots/running-header';
-import { applyOverrides, readHiddenSubjectIds, selectOverridesForStudent, type PersistedOverride } from '@/lib/drce/overrides';
+import { type PersistedOverride } from '@/lib/drce/overrides';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 import { resolveActiveTemplateId } from '@/lib/snapshots/active-template';
+import { buildSnapshotRenderState } from '@/lib/snapshots/print-state';
 
 interface PageProps {
   params: Promise<{ type: string; snapshotId: string }>;
@@ -239,40 +239,40 @@ export default function PrintSnapshotPage({ params }: PageProps) {
     cls.students.forEach((stu, studentIdx) => {
       if (filterStudentDbId !== null && !Number.isNaN(filterStudentDbId) && stu.studentDbId !== filterStudentDbId) return;
 
-      const studentOverrides = selectOverridesForStudent(state.overrides, stu.studentDbId);
-      const overriddenDoc    = applyOverrides(state.document!, studentOverrides);
-      const hiddenSubjectIds = readHiddenSubjectIds(overriddenDoc);
-      const dataCtx = snapshotToDRCEDataContext(
-        state.snapshot!, classIdx, studentIdx,
-        { schoolName: state.snapshot!.meta.schoolName },
-        hiddenSubjectIds,
-        {
+      const renderState = buildSnapshotRenderState({
+        snapshot: state.snapshot!,
+        document: state.document!,
+        classIdx,
+        studentIdx,
+        overrides: state.overrides,
+        verifyCtx: {
           snapshotUrl: state.verifyUrl,
           studentUrl:  state.verifyByStudent[stu.studentDbId],
         },
-      );
+        renderCtx: {
+          school: state.snapshot!.meta.branding
+            ? {
+                name:            state.snapshot!.meta.branding.schoolName,
+                arabic_name:     state.snapshot!.meta.branding.arabicName,
+                address:         state.snapshot!.meta.branding.address,
+                contact:         state.snapshot!.meta.branding.phone || state.snapshot!.meta.branding.email,
+                center_no:       state.snapshot!.meta.branding.centerNo,
+                registration_no: state.snapshot!.meta.branding.registrationNumber,
+                logo_url:        state.snapshot!.meta.branding.logoUrl,
+              }
+            : { name: state.snapshot!.meta.schoolName },
+          isPrint: true,
+          language: state.snapshot!.meta.language,
+          isRTL:    state.snapshot!.meta.numerals === 'arabic',
+        },
+      });
 
       blocks.push(
         <div key={`${classIdx}-${stu.studentDbId}`} className="student-block">
           <DRCEDocumentRenderer
-            document={overriddenDoc}
-            dataCtx={dataCtx}
-            renderCtx={{
-              school: state.snapshot!.meta.branding
-                ? {
-                    name:            state.snapshot!.meta.branding.schoolName,
-                    arabic_name:     state.snapshot!.meta.branding.arabicName,
-                    address:         state.snapshot!.meta.branding.address,
-                    contact:         state.snapshot!.meta.branding.phone || state.snapshot!.meta.branding.email,
-                    center_no:       state.snapshot!.meta.branding.centerNo,
-                    registration_no: state.snapshot!.meta.branding.registrationNumber,
-                    logo_url:        state.snapshot!.meta.branding.logoUrl,
-                  }
-                : { name: state.snapshot!.meta.schoolName },
-              isPrint: true,
-              language: state.snapshot!.meta.language,
-              isRTL:    state.snapshot!.meta.numerals === 'arabic',
-            }}
+            document={renderState.document}
+            dataCtx={renderState.dataCtx}
+            renderCtx={renderState.renderCtx}
           />
         </div>
       );

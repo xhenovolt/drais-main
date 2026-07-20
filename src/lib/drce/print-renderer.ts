@@ -18,12 +18,7 @@ import type { DRCEDocument, DRCEDataContext } from './schema';
 import type { DRCERenderContext } from '@/components/drce/types';
 import type { ReportSnapshot } from '@/lib/snapshots/types';
 import type { PersistedOverride } from './overrides';
-import {
-  applyOverrides,
-  readHiddenSubjectIds,
-  selectOverridesForStudent,
-} from './overrides';
-import { snapshotToDRCEDataContext } from '@/lib/snapshots/adapter/toDRCEDataContext';
+import { buildSnapshotRenderState } from '@/lib/snapshots/print-state';
 
 /**
  * Render one student's report card as an HTML string.
@@ -38,34 +33,14 @@ export async function renderStudentToDRCEHtml(args: {
   renderCtx:  DRCERenderContext;
 }): Promise<string> {
   const { document, snapshot, classIdx, studentIdx, overrides, renderCtx } = args;
-  const cls = snapshot.classes[classIdx];
-  const stu = cls?.students[studentIdx];
-  if (!cls || !stu) throw new Error(`Invalid class/student index: ${classIdx}/${studentIdx}`);
-
-  // Apply per-student overrides (structural removals + style patches)
-  const studentOverrides = selectOverridesForStudent(overrides, stu.studentDbId);
-  const overriddenDoc    = applyOverrides(document, studentOverrides);
-  const hiddenSubjectIds = readHiddenSubjectIds(overriddenDoc);
-
-  // Build data context from the frozen snapshot
-  const schoolMeta = snapshot.meta.branding
-    ? {
-        schoolName:      snapshot.meta.branding.schoolName,
-        schoolAddress:   snapshot.meta.branding.address,
-        schoolContact:   snapshot.meta.branding.phone || snapshot.meta.branding.email,
-        schoolEmail:     snapshot.meta.branding.email,
-        centerNo:        snapshot.meta.branding.centerNo,
-        registrationNo:  snapshot.meta.branding.registrationNumber,
-        arabicName:      snapshot.meta.branding.arabicName,
-        arabicAddress:   snapshot.meta.branding.arabicAddress,
-        logoUrl:         snapshot.meta.branding.logoUrl,
-        reportTitle:     `${snapshot.meta.termName} ${snapshot.meta.yearName}`,
-      }
-    : { schoolName: snapshot.meta.schoolName };
-
-  const dataCtx: DRCEDataContext = snapshotToDRCEDataContext(
-    snapshot, classIdx, studentIdx, schoolMeta, hiddenSubjectIds,
-  );
+  const renderState = buildSnapshotRenderState({
+    snapshot,
+    document,
+    classIdx,
+    studentIdx,
+    overrides,
+    renderCtx,
+  });
 
   // Dynamic import so Node.js loads the component only in the Route Handler
   // context, avoiding any static analysis issues with 'use client' boundaries.
@@ -73,8 +48,8 @@ export async function renderStudentToDRCEHtml(args: {
   const { renderToStaticMarkup } = await import('react-dom/server');
 
   const element = React.createElement(DRCEDocumentRenderer, {
-    document:  overriddenDoc,
-    dataCtx,
+    document:  renderState.document,
+    dataCtx:   renderState.dataCtx,
     renderCtx,
   });
 

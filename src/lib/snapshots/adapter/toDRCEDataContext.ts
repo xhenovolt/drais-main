@@ -81,6 +81,26 @@ export function snapshotToDRCEDataContext(
   if (!stu) throw new Error(`Student index ${studentIdx} out of range`);
 
   const hidden = new Set(hiddenSubjectIds.map(String));
+  const teacherMapExact: Record<string, string> = {};
+
+  try {
+    const cfgMaps = (snapshot.config && Array.isArray(snapshot.config.teacherMappings)) ? snapshot.config.teacherMappings : [];
+    for (const m of cfgMaps) {
+      for (const c of snapshot.classes || []) {
+        for (const s of c.subjects || []) {
+          const subjName = (s.displayName || s.name || '').toLowerCase();
+          const clsName = (c.className || '').toLowerCase();
+          const subjMatch = !m.subjectPattern || subjName.includes(m.subjectPattern.toLowerCase());
+          const clsMatch = !m.classPattern || m.classPattern === 'all' || clsName.includes(m.classPattern.toLowerCase());
+          if (subjMatch && clsMatch) {
+            teacherMapExact[`${c.classId}-${s.id}`] = m.initials;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to build teacherMapExact from snapshot.config.teacherMappings', e);
+  }
 
   const subjects: DRCESubject[] = cls.subjects
     .filter(s => !hidden.has(String(s.id)))
@@ -96,30 +116,6 @@ export function snapshotToDRCEDataContext(
   const results: DRCEResultRow[] = stu.results
     .filter(r => !hidden.has(String(r.subjectId)))
     .map(r => {
-    // Build an exact teacher mapping lookup from snapshot.config.teacherMappings
-    // and from per-class subject allocations when available. Keys are
-    // `${classId}-${subjectId}` for fast lookup during rendering.
-    const teacherMapExact: Record<string, string> = {};
-    try {
-      const cfgMaps = (snapshot.config && Array.isArray(snapshot.config.teacherMappings)) ? snapshot.config.teacherMappings : [];
-      for (const m of cfgMaps) {
-        // Attempt to apply mapping to known classes/subjects to produce exact keys
-        for (const c of snapshot.classes || []) {
-          for (const s of c.subjects || []) {
-            const subjName = (s.displayName || s.name || '').toLowerCase();
-            const clsName = (c.className || '').toLowerCase();
-            const subjMatch = !m.subjectPattern || subjName.includes(m.subjectPattern.toLowerCase());
-            const clsMatch = !m.classPattern || m.classPattern === 'all' || clsName.includes(m.classPattern.toLowerCase());
-            if (subjMatch && clsMatch) {
-              teacherMapExact[`${c.classId}-${s.id}`] = m.initials;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Defensive: do not fail rendering when mappings are malformed
-      console.warn('Failed to build teacherMapExact from snapshot.config.teacherMappings', e);
-    }
     const subj = cls.subjects.find(s => s.id === r.subjectId);
     // CAFE Phase 2 — additive binding surface. Templates can read either:
     //   • `result.score` / `result.total` / `result.grade` (legacy, polyfilled)
@@ -335,7 +331,7 @@ export function snapshotToDRCEDataContext(
     term:             snapshot.meta.termName,
     year:             snapshot.meta.yearName,
     reportTitle:      schoolMeta.reportTitle ?? `${snapshot.meta.type} report`,
-    nextTermBegins:   snapshot.config.nextTermBegins,
+    nextTermBegins:   snapshot.config?.nextTermBegins ?? '',
     // Academic-calendar enrichment (Phase B wiring). Populated when the
     // snapshot was generated with calendar inference; undefined on legacy
     // snapshots — computed fields fall back to nextTermBegins above.

@@ -18,6 +18,13 @@ import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import type { DRCEDocument, DRCEDataContext } from '@/lib/drce/schema';
 import type { DRCERenderContext } from '@/components/drce/types';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import {
+  computeDivision,
+  createTeacherInitialsSyncMessage,
+  resolveTeacherInitials,
+  selectContributingSubjects,
+  type ContributionPolicy,
+} from '@/lib/reports/canonical-report-engine';
 
 // Type definitions
 interface Student {
@@ -955,11 +962,10 @@ const ReportsPage = () => {
   }
   
   function getDivision(aggregates: number) {
-    if (aggregates <= 12) return 'Division 1';
-    if (aggregates <= 24) return 'Division 2';
-    if (aggregates <= 28) return 'Division 3';
-    if (aggregates <= 32) return 'Division 4';
-    return 'Division U';
+    return computeDivision(aggregates, {
+      boundaries: [12, 24, 28, 32],
+      labels: ['Division I', 'Division II', 'Division III', 'Division IV', 'Division U'],
+    });
   }
 
   function isMathSubject(subjectName?: string): boolean {
@@ -1077,6 +1083,7 @@ const ReportsPage = () => {
     }
 
     const currentInitials = hydrateTeacherInitialsFromDom();
+    const printSyncPayload = createTeacherInitialsSyncMessage(currentInitials, TEACHER_INITIALS_STORAGE_KEY);
     let iframe = printIframeRef.current;
     if (!iframe) {
       iframe = document.createElement('iframe');
@@ -1126,12 +1133,18 @@ const ReportsPage = () => {
       (function() {
         const storageKey = ${JSON.stringify(TEACHER_INITIALS_STORAGE_KEY)};
         const initialValues = ${JSON.stringify(currentInitials)};
+        const syncPayload = ${JSON.stringify(printSyncPayload)};
 
         const syncValues = (values) => {
           if (!values || typeof values !== 'object') return;
           try { localStorage.setItem(storageKey, JSON.stringify(values)); } catch (_) {}
-          if (window.top && window.top.opener && !window.top.opener.closed) {
-            window.top.opener.postMessage({ type: 'teacher-initials-updated', values }, window.location.origin);
+          const message = {
+            ...syncPayload,
+            values,
+          };
+          const target = window.parent && window.parent !== window ? window.parent : window.top;
+          if (target && typeof target.postMessage === 'function') {
+            target.postMessage(message, window.location.origin);
           }
         };
 
@@ -1608,6 +1621,16 @@ const ReportsPage = () => {
                 
                 const averageMarks = coreResults.length > 0 ? Math.round(coreGradingMarks / coreResults.length) : 0;
                 
+                const contributingSubjects = selectContributingSubjects(
+                  allGroupedResults.map((r) => ({
+                    id: r.subject_id ?? 0,
+                    name: r.subject_name || 'Unknown Subject',
+                    score: (r.midTermScore ?? r.endTermScore ?? r.regularScore ?? 0) as number | null,
+                    contributionPolicy: (r.subject_type || 'core').toLowerCase() === 'core' ? 'compulsory' : 'elective' as ContributionPolicy,
+                    isReligiousEducation: isReligiousEducationSubject(r.subject_name),
+                  }))
+                );
+
                 // Calculate aggregates and division/overall grade
                 let aggregates = 0;
                 let division = '';
@@ -1621,10 +1644,10 @@ const ReportsPage = () => {
                   });
                   nurseryOverallGrade = getNurseryOverallGrade(coreGrades);
                 } else {
-                  // For non-Nursery: calculate traditional aggregates and division (core subjects only)
-                  aggregates = coreResults.reduce((sum, r) => {
-                    const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
-                    return sum + getGradePoint(getGrade(totalMarks, false));
+                  // For non-Nursery: calculate traditional aggregates and division from the canonical contributing subjects.
+                  aggregates = contributingSubjects.reduce((sum, r) => {
+                    const grade = getGrade(r.score ?? 0, false);
+                    return sum + getGradePoint(grade);
                   }, 0);
                   division = getDivision(aggregates);
 
@@ -1670,25 +1693,12 @@ const ReportsPage = () => {
 
                       // Resolve teacher initials from explicit overrides first, then DB assignments,
                       // then DRCE mappings, and finally derive from the teacher's name.
-                      const resolvedInitials = (() => {
-                        if (manualInitials) return manualInitials;
-                        if (r.teacher_initials?.trim()) return r.teacher_initials.trim();
-
-                        const maps = activeDrceDoc.teacherMappings;
-                        if (maps?.length) {
-                          const subj = (r.subject_name || '').toLowerCase();
-                          const cls  = (student.class_name || '').toLowerCase();
-                          const match = maps.find(m => {
-                            const sp = (m.subjectPattern || '').toLowerCase();
-                            const cp = (m.classPattern  || '').toLowerCase();
-                            const subjOk = !sp || subj.includes(sp);
-                            const clsOk  = !cp || cp === 'all' || cls.includes(cp);
-                            return subjOk && clsOk;
-                          });
-                          if (match) return match.initials;
-                        }
-                        return r.teacher_name?.split(' ').map((n: string) => n[0]).join('') || 'N/A';
-                      })();
+                      const resolvedInitials = resolveTeacherInitials({
+                        manualInitials: manualInitials,
+                        allocationInitials: r.teacher_initials?.trim() || undefined,
+                        teacherName: r.teacher_name || undefined,
+                        teacherInitials: r.teacher_initials?.trim() || undefined,
+                      });
                       return {
                         subjectName: r.subject_name,
                         midTermScore: midTermMarks || null,

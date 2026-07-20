@@ -84,7 +84,9 @@ export async function GET(req: NextRequest) {
           LEFT JOIN people tp ON tp.id = ts.person_id
           WHERE cs2.class_id = cr.class_id
             AND cs2.subject_id = cr.subject_id
-          ORDER BY cs2.id DESC
+            AND COALESCE(cs2.display_on_report, 1) = 1
+            AND (cs2.status IS NULL OR cs2.status = 'active')
+          ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
           LIMIT 1
         ) AS teacher_name,
         (
@@ -100,7 +102,9 @@ export async function GET(req: NextRequest) {
           LEFT JOIN people tp ON tp.id = ts.person_id
           WHERE cs2.class_id = cr.class_id
             AND cs2.subject_id = cr.subject_id
-          ORDER BY cs2.id DESC
+            AND COALESCE(cs2.display_on_report, 1) = 1
+            AND (cs2.status IS NULL OR cs2.status = 'active')
+          ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
           LIMIT 1
         ) AS teacher_initials,
         rt.name as result_type_name,
