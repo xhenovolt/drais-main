@@ -34,11 +34,21 @@ export function createTeacherInitialsSyncMessage(values: Record<string, string>,
   };
 }
 
+function normalizeInitialsValue(value?: string | null): string {
+  if (value === undefined || value === null) return '';
+  const trimmed = value.toString().trim();
+  if (!trimmed) return '';
+  if (trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'none' || trimmed.toLowerCase() === 'n/a') {
+    return '';
+  }
+  return trimmed;
+}
+
 export function resolveTeacherInitials(ctx: ReportInitialsContext): string {
-  const value = (ctx.manualInitials ?? '').toString().trim();
+  const value = normalizeInitialsValue(ctx.manualInitials);
   if (value) return value;
 
-  const allocation = (ctx.allocationInitials ?? '').toString().trim();
+  const allocation = normalizeInitialsValue(ctx.allocationInitials);
   if (allocation) return allocation;
 
   const teacher = (ctx.teacherName ?? '').trim();
@@ -52,7 +62,8 @@ export function resolveTeacherInitials(ctx: ReportInitialsContext): string {
     if (initials) return initials;
   }
 
-  return (ctx.teacherInitials ?? '').toString().trim() || 'N/A';
+  const fallback = normalizeInitialsValue(ctx.teacherInitials);
+  return fallback || 'N/A';
 }
 
 export function selectContributingSubjects(subjects: ContributionSubject[]): ContributionSubject[] {

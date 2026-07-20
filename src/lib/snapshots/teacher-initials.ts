@@ -4,6 +4,16 @@ export interface SnapshotTeacherInitialsInput {
   teachersAll?: string | null;
 }
 
+function normalizeInitialsValue(value?: string | null): string {
+  if (value === undefined || value === null) return '';
+  const trimmed = value.toString().trim();
+  if (!trimmed) return '';
+  if (trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'none' || trimmed.toLowerCase() === 'n/a') {
+    return '';
+  }
+  return trimmed;
+}
+
 function initialsFromName(name: string): string {
   return name
     .split(/\s+/)
@@ -14,13 +24,13 @@ function initialsFromName(name: string): string {
 }
 
 export function resolveSnapshotTeacherInitials(input: SnapshotTeacherInitialsInput): string {
-  const explicit = (input.teacherInitials ?? '').toString().trim();
+  const explicit = normalizeInitialsValue(input.teacherInitials);
   if (explicit) return explicit;
 
   const singleName = (input.teacherName ?? '').toString().trim();
   if (singleName) return initialsFromName(singleName);
 
-  const multiName = (input.teachersAll ?? '').toString().trim();
+  const multiName = normalizeInitialsValue(input.teachersAll);
   if (!multiName) return '';
 
   return multiName

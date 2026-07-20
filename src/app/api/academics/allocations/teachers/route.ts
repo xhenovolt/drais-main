@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
+import { resolveTeacherInitials } from '@/lib/reports/canonical-report-engine';
 
 export const runtime = 'nodejs';
 
@@ -52,7 +53,21 @@ export async function GET(req: NextRequest) {
       ORDER BY (cs.allocation_role='primary_teacher') DESC, cs.id ASC`,
     [classId, subjectId],
   );
-  return NextResponse.json({ success: true, rows });
+
+  const normalizedRows = rows.map((row: any) => {
+    const autoInitials = resolveTeacherInitials({
+      allocationInitials: row.custom_initials,
+      teacherName: row.teacher_name,
+      teacherInitials: row.auto_initials,
+    });
+
+    return {
+      ...row,
+      auto_initials: autoInitials === 'N/A' ? '' : autoInitials,
+    };
+  });
+
+  return NextResponse.json({ success: true, rows: normalizedRows });
 }
 
 export async function POST(req: NextRequest) {

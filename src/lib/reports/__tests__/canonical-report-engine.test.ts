@@ -29,6 +29,16 @@ test('resolveTeacherInitials falls back to allocation initials when no manual ov
   assert.equal(resolved, 'AB');
 });
 
+test('resolveTeacherInitials ignores literal null placeholders and falls back to teacher names', () => {
+  const resolved = resolveTeacherInitials({
+    allocationInitials: 'null',
+    teacherName: 'Amina Bukenya',
+    teacherInitials: 'OLD',
+  });
+
+  assert.equal(resolved, 'AB');
+});
+
 test('selectContributingSubjects excludes ignored and IRE subjects by default', () => {
   const subjects = [
     { id: 1, name: 'Mathematics', score: 80, contributionPolicy: 'compulsory' as ContributionPolicy },

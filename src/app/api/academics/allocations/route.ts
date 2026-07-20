@@ -7,6 +7,7 @@ import {
   validateOwnership,
   ensureAllocationBelongsToSchool,
 } from '@/lib/allocation-validation';
+import { resolveTeacherInitials } from '@/lib/reports/canonical-report-engine';
 
 // ============================================================================
 // GET: Fetch all allocations with optional filters
@@ -100,18 +101,26 @@ export async function GET(req: Request) {
 
     const [rows] = await connection.execute(query, params);
 
-    const allocations = rows.map((r: any) => ({
-      id: r.id,
-      class_id: r.class_id,
-      subject_id: r.subject_id,
-      teacher_id: r.teacher_id,
-      custom_initials: r.custom_initials,
-      class_name: r.class_name,
-      subject_name: r.subject_name,
-      subject_code: r.subject_code,
-      teacher_name: r.teacher_name || 'Unassigned',
-      display_initials: r.custom_initials || r.auto_generated_initials || '',
-    }));
+    const allocations = rows.map((r: any) => {
+      const displayInitials = resolveTeacherInitials({
+        allocationInitials: r.custom_initials,
+        teacherName: r.teacher_name,
+        teacherInitials: r.auto_generated_initials,
+      });
+
+      return {
+        id: r.id,
+        class_id: r.class_id,
+        subject_id: r.subject_id,
+        teacher_id: r.teacher_id,
+        custom_initials: r.custom_initials,
+        class_name: r.class_name,
+        subject_name: r.subject_name,
+        subject_code: r.subject_code,
+        teacher_name: r.teacher_name || 'Unassigned',
+        display_initials: displayInitials === 'N/A' ? '' : displayInitials,
+      };
+    });
 
     await connection.end();
 
@@ -184,6 +193,11 @@ export async function POST(req: Request) {
     }
 
     const record = rows[0];
+    const resolvedInitials = resolveTeacherInitials({
+      allocationInitials: record.custom_initials,
+      teacherName: record.teacher_name,
+      teacherInitials: record.auto_generated_initials,
+    });
     const allocation = {
       id: record.id,
       class_id: record.class_id,
@@ -193,7 +207,7 @@ export async function POST(req: Request) {
       class_name: record.class_name,
       subject_name: record.subject_name,
       teacher_name: record.teacher_name || 'Unassigned',
-      display_initials: record.custom_initials || record.auto_generated_initials || '',
+      display_initials: resolvedInitials === 'N/A' ? '' : resolvedInitials,
     };
 
     return NextResponse.json({ success: true, data: allocation }, { status: 201 });
@@ -265,6 +279,11 @@ export async function PUT(req: Request) {
     }
 
     const record = rows[0];
+    const resolvedInitials = resolveTeacherInitials({
+      allocationInitials: record.custom_initials,
+      teacherName: record.teacher_name,
+      teacherInitials: record.auto_generated_initials,
+    });
     const allocation = {
       id: record.id,
       class_id: record.class_id,
@@ -274,7 +293,7 @@ export async function PUT(req: Request) {
       class_name: record.class_name,
       subject_name: record.subject_name,
       teacher_name: record.teacher_name || 'Unassigned',
-      display_initials: record.custom_initials || record.auto_generated_initials || '',
+      display_initials: resolvedInitials === 'N/A' ? '' : resolvedInitials,
     };
 
     return NextResponse.json({ success: true, data: allocation });
