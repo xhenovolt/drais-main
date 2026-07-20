@@ -78,24 +78,10 @@ export async function GET(req: NextRequest) {
         sub.subject_type,
         sub.academic_type,
         (
-          SELECT CONCAT_WS(' ', tp.first_name, tp.last_name)
-          FROM class_subjects cs2
-          LEFT JOIN staff ts ON ts.id = cs2.teacher_id
-          LEFT JOIN people tp ON tp.id = ts.person_id
-          WHERE cs2.class_id = cr.class_id
-            AND cs2.subject_id = cr.subject_id
-            AND COALESCE(cs2.display_on_report, 1) = 1
-            AND (cs2.status IS NULL OR cs2.status = 'active')
-          ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
-          LIMIT 1
-        ) AS teacher_name,
-        (
-          SELECT COALESCE(
-            cs2.custom_initials,
-            NULLIF(CONCAT(
-              COALESCE(LEFT(tp.first_name, 1), ''),
-              COALESCE(LEFT(tp.last_name, 1), '')
-            ), '')
+          SELECT GROUP_CONCAT(
+            NULLIF(CONCAT_WS(' ', tp.first_name, tp.last_name), '')
+            ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
+            SEPARATOR ' / '
           )
           FROM class_subjects cs2
           LEFT JOIN staff ts ON ts.id = cs2.teacher_id
@@ -104,8 +90,26 @@ export async function GET(req: NextRequest) {
             AND cs2.subject_id = cr.subject_id
             AND COALESCE(cs2.display_on_report, 1) = 1
             AND (cs2.status IS NULL OR cs2.status = 'active')
-          ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
-          LIMIT 1
+        ) AS teacher_name,
+        (
+          SELECT GROUP_CONCAT(
+            COALESCE(
+              NULLIF(TRIM(cs2.custom_initials), ''),
+              NULLIF(CONCAT(
+                COALESCE(LEFT(tp.first_name, 1), ''),
+                COALESCE(LEFT(tp.last_name, 1), '')
+              ), '')
+            )
+            ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC
+            SEPARATOR ' / '
+          )
+          FROM class_subjects cs2
+          LEFT JOIN staff ts ON ts.id = cs2.teacher_id
+          LEFT JOIN people tp ON tp.id = ts.person_id
+          WHERE cs2.class_id = cr.class_id
+            AND cs2.subject_id = cr.subject_id
+            AND COALESCE(cs2.display_on_report, 1) = 1
+            AND (cs2.status IS NULL OR cs2.status = 'active')
         ) AS teacher_initials,
         rt.name as result_type_name,
         t.name as term_name,
