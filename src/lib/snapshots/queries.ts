@@ -256,7 +256,7 @@ export async function fetchResultsForGeneration(args: {
           -- ordering keeps re-generated snapshots byte-identical.
           SELECT GROUP_CONCAT(
                    COALESCE(
-                     cs2.custom_initials,
+                     NULLIF(TRIM(cs2.custom_initials), ''),
                      NULLIF(CONCAT(COALESCE(LEFT(tp.first_name, 1), ''), COALESCE(LEFT(tp.last_name, 1), '')), '')
                    )
                    ORDER BY (cs2.allocation_role = 'primary_teacher') DESC, cs2.id ASC

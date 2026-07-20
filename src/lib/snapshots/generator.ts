@@ -44,6 +44,7 @@ import {
 } from './normalizers';
 import { rankStudents } from './ranker';
 import { infer as inferCalendar } from '@/lib/calendar';
+import { resolveSnapshotTeacherInitials } from './teacher-initials';
 import {
   resolveComment,
   type CommentRule,
@@ -635,6 +636,12 @@ function buildClasses(
         ? r.remarks
         : (ruleComment || subjectComment(score, language));
       const subj = cls.subjects.get(r.subject_id)!;
+      const resolvedInitials = resolveSnapshotTeacherInitials({
+        teacherInitials: r.teacher_initials,
+        teacherName: r.teacher_name,
+        teachersAll: r.teachers_all,
+      });
+
       stuEntry.results.set(r.subject_id, {
         subjectId:      r.subject_id,
         subjectName:    subj.name,
@@ -643,7 +650,7 @@ function buildClasses(
         displayScore:   formatScoreForDisplay(score, numerals),
         grade,
         remarks,
-        initials:       (r.teacher_initials ?? '').trim(),
+        initials:       resolvedInitials,
         teacherName:    (r.teacher_name ?? '').trim() || undefined,
         teachersAll:    (r.teachers_all ?? '').trim() || undefined,
         enteredAt:      r.created_at ?? undefined,
