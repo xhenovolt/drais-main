@@ -3,6 +3,7 @@ const nextConfig = {
   // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
+    cpus: 1,
   },
   
   // Turbopack configuration
@@ -36,33 +37,11 @@ const nextConfig = {
   // Enable compression
   compress: true,
 
-  // Optimize bundle
+  // Optimize bundle without the aggressive chunking that can spike memory
   webpack: (config, { dev, isServer }) => {
     if (!dev && !isServer) {
-      // Tree shaking optimization
       config.optimization.usedExports = true;
       config.optimization.sideEffects = false;
-      
-      // Split chunks for better caching
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          default: false,
-          vendors: false,
-          vendor: {
-            chunks: 'all',
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            enforce: true,
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            chunks: 'all',
-            enforce: true,
-          },
-        },
-      };
     }
 
     return config;
