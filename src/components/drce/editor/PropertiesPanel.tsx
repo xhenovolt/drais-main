@@ -1156,6 +1156,14 @@ function SortableColumn({
           <Row label="Binding">
             <SelectInput value={col.binding} onChange={v => onPropChange('binding', v)} options={bindingOptions} />
           </Row>
+          <Row label="Editable">
+            <input
+              type="checkbox"
+              checked={col.contentEditable === true}
+              onChange={e => onPropChange('contentEditable', e.target.checked ? true : undefined)}
+              className="h-4 w-4 text-indigo-600 rounded border-gray-300"
+            />
+          </Row>
           <Row label="Width"><TextInput value={col.width} onChange={v => onPropChange('width', v)} placeholder="15%" /></Row>
           <Row label="Align">
             <SelectInput value={col.align} onChange={v => onPropChange('align', v)} options={[
