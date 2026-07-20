@@ -400,10 +400,6 @@ export function applyMutation(doc: DRCEDocument, mutation: DRCEMutation): DRCEDo
       return { ...doc, commentRules: mutation.rules };
     }
 
-    case 'SET_TEACHER_MAPPINGS': {
-      return { ...doc, teacherMappings: mutation.mappings };
-    }
-
     // ── P5 — multi-page mutations ─────────────────────────────────────────────
 
     case 'ENABLE_MULTI_PAGE': {

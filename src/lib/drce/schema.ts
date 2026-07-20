@@ -505,16 +505,6 @@ export interface DRCECommentRule {
   headTeacher: string;
 }
 
-// ─── Teacher Mappings (subject+class → initials) ──────────────────────────────
-
-export interface DRCETeacherMapping {
-  id: string;
-  subjectPattern: string;  // substring match, case-insensitive; '' = all subjects
-  classPattern: string;    // substring match, case-insensitive; '' or 'all' = all classes
-  initials: string;
-  teacherName: string;
-}
-
 // ─── Section (base + discriminated union) ────────────────────────────────────
 
 interface DRCESectionBase {
@@ -1106,8 +1096,8 @@ export interface DRCEMeta {
    * Phase H — parent document id for template inheritance. When set, the
    * loader merges the parent's full DRCEDocument with this child before
    * render: child sections with the same id REPLACE parent sections; new
-   * child ids append. Parent theme/watermark/commentRules/teacherMappings
-   * provide the baseline that the child overrides field-by-field.
+   * child ids append. Parent theme/watermark/commentRules provide the
+   * baseline that the child overrides field-by-field.
    */
   parent_id?: number | null;
   /**
@@ -1243,8 +1233,6 @@ export interface DRCEDocument {
   shapes: DRCEShape[];
   /** Auto-comment rules: match by average subject score range */
   commentRules?: DRCECommentRule[];
-  /** Teacher initials: map subject+class pattern to initials */
-  teacherMappings?: DRCETeacherMapping[];
   /**
    * P5 — multi-page mode. When present and non-empty the renderer iterates
    * the pages and the flat `sections` array is treated as legacy fallback
@@ -1311,7 +1299,6 @@ export type DRCEMutation =
   | { type: 'UPDATE_SHAPE';        id: string; updates: Partial<DRCEShape> }
   | { type: 'DELETE_SHAPE';        id: string }
   | { type: 'SET_COMMENT_RULES';   rules: DRCECommentRule[] }
-  | { type: 'SET_TEACHER_MAPPINGS'; mappings: DRCETeacherMapping[] }
   // ── P5 — multi-page mutations ─────────────────────────────────────────────
   | { type: 'ENABLE_MULTI_PAGE' }
   | { type: 'ADD_PAGE';            name?: string; afterId?: string | null }
@@ -1435,10 +1422,6 @@ export interface DRCEDataContext {
   language?: Language;
   /** Columns visible in results table (injected by section renderer) */
   columns?: Array<{ id: string; binding: string }>;
-  /** Optional teacher mappings surfaced from the snapshot adapter so
-   *  templates can resolve initials by class+subject without mutating
-   *  the source `DRCEDocument`. */
-  teacherMappings?: DRCETeacherMapping[];
 }
 
 // ─── DB Row (as stored in dvcf_documents) ────────────────────────────────────

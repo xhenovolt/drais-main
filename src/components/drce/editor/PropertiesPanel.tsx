@@ -9,7 +9,7 @@ import type {
   DRCEResultsTableSection, DRCEColumn,
   DRCEStudentInfoSection, DRCEAssessmentSection, DRCECommentsSection,
   DRCEField, DRCECommentItem, DRCEGradeTableSection, DRCEGradeRow,
-  DRCECommentRule, DRCETeacherMapping,
+  DRCECommentRule,
 } from '@/lib/drce/schema';
 import { DEFAULT_GRADE_ROWS } from '@/lib/drce/defaults';
 import { AVAILABLE_BINDINGS } from '@/lib/drce/bindingResolver';
@@ -2193,7 +2193,6 @@ function RunningPagePanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: 
 
 function RulesPanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMutation) => void }) {
   const commentRules: DRCECommentRule[] = doc.commentRules ?? [];
-  const teacherMappings: DRCETeacherMapping[] = doc.teacherMappings ?? [];
 
   const addCommentRule = () => {
     const newRule: DRCECommentRule = {
@@ -2216,28 +2215,6 @@ function RulesPanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMu
 
   const deleteCommentRule = (id: string) => {
     onMutate({ type: 'SET_COMMENT_RULES', rules: commentRules.filter(r => r.id !== id) });
-  };
-
-  const addTeacherMapping = () => {
-    const newMapping: DRCETeacherMapping = {
-      id: newId('tm'),
-      subjectPattern: '',
-      classPattern: '',
-      initials: '',
-      teacherName: '',
-    };
-    onMutate({ type: 'SET_TEACHER_MAPPINGS', mappings: [...teacherMappings, newMapping] });
-  };
-
-  const updateTeacherMapping = (id: string, field: keyof DRCETeacherMapping, value: string) => {
-    onMutate({
-      type: 'SET_TEACHER_MAPPINGS',
-      mappings: teacherMappings.map(m => m.id === id ? { ...m, [field]: value } : m),
-    });
-  };
-
-  const deleteTeacherMapping = (id: string) => {
-    onMutate({ type: 'SET_TEACHER_MAPPINGS', mappings: teacherMappings.filter(m => m.id !== id) });
   };
 
   return (
@@ -2292,59 +2269,8 @@ function RulesPanel({ doc, onMutate }: { doc: DRCEDocument; onMutate: (m: DRCEMu
         </div>
       </PanelSection>
 
-      {/* Teacher Mappings */}
-      <PanelSection title="Teacher Initials (class + subject fallback)">
-        <div className="space-y-2">
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-            Reports now use Class Subject Assignments first. Add mappings here only as a DRCE fallback for exact class/subject initials.
-          </p>
-          {teacherMappings.map(mapping => (
-            <div key={mapping.id} className="border border-gray-200 dark:border-slate-600 rounded p-2 space-y-1 text-xs">
-              <div className="flex items-center gap-1">
-                <span className="text-gray-500 text-xs flex-1">Mapping</span>
-                <button type="button" onClick={() => deleteTeacherMapping(mapping.id)}
-                  className="text-red-400 hover:text-red-600">
-                  <Trash2 size={12} />
-                </button>
-              </div>
-              <div>
-                <label className="text-gray-400 text-[10px] block mb-0.5">Subject (contains)</label>
-                <input type="text" value={mapping.subjectPattern}
-                  onChange={e => updateTeacherMapping(mapping.id, 'subjectPattern', e.target.value)}
-                  placeholder="e.g. MATH"
-                  className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-1 py-0.5 bg-white dark:bg-slate-800" />
-              </div>
-              <div>
-                <label className="text-gray-400 text-[10px] block mb-0.5">Class (contains, blank = all)</label>
-                <input type="text" value={mapping.classPattern}
-                  onChange={e => updateTeacherMapping(mapping.id, 'classPattern', e.target.value)}
-                  placeholder="e.g. P7"
-                  className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-1 py-0.5 bg-white dark:bg-slate-800" />
-              </div>
-              <div className="flex gap-1">
-                <div className="flex-1">
-                  <label className="text-gray-400 text-[10px] block mb-0.5">Initials</label>
-                  <input type="text" value={mapping.initials}
-                    onChange={e => updateTeacherMapping(mapping.id, 'initials', e.target.value)}
-                    placeholder="e.g. E.L"
-                    className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-1 py-0.5 bg-white dark:bg-slate-800" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-gray-400 text-[10px] block mb-0.5">Teacher Name</label>
-                  <input type="text" value={mapping.teacherName}
-                    onChange={e => updateTeacherMapping(mapping.id, 'teacherName', e.target.value)}
-                    placeholder="e.g. Luke Ewayu"
-                    className="w-full text-xs border border-gray-200 dark:border-slate-600 rounded px-1 py-0.5 bg-white dark:bg-slate-800" />
-                </div>
-              </div>
-            </div>
-          ))}
-          <button type="button" onClick={addTeacherMapping}
-            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800">
-            <Plus size={12} /> Add Mapping
-          </button>
-        </div>
-      </PanelSection>
+      {/* Teacher mappings are deprecated and no longer editable in document templates.
+          Initials now resolve directly from result.initials / result.teacherName in DRCE. */}
     </div>
   );
 }

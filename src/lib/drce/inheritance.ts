@@ -8,9 +8,8 @@
  *   - Child sections with the same id REPLACE parent sections of the same id
  *     (deep replacement; the child wins).
  *   - Child sections with new ids APPEND after the merged parent set.
- *   - Theme / watermark / commentRules / teacherMappings — child fields, when
- *     present, override parent fields. Absent child fields fall through to
- *     the parent.
+ *   - Theme / watermark / commentRules — child fields, when present,
+ *     override parent fields. Absent child fields fall through to the parent.
  *   - Cycles are broken by tracking visited ids; max depth 8 by default.
  *
  * Block resolution:
@@ -66,7 +65,6 @@ function mergeDocument(parent: DRCEDocument, child: DRCEDocument): DRCEDocument 
     sections:    mergeSections(parent.sections ?? [], child.sections ?? []),
     shapes:      child.shapes && child.shapes.length ? child.shapes : (parent.shapes ?? []),
     commentRules:    child.commentRules    ?? parent.commentRules,
-    teacherMappings: child.teacherMappings ?? parent.teacherMappings,
   };
 }
 

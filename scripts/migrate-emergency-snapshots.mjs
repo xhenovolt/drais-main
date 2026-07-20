@@ -255,7 +255,6 @@ function buildSnapshot(legacy, opts) {
       classes,
       config: {
         gradingScale: GRADE_SCALE.map(g => ({ min: g.min, max: g.max, grade: g.label, remark: g.remark })),
-        teacherMappings: [],
         nextTermBegins: '',
       },
     },
