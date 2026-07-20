@@ -119,7 +119,7 @@ const EMERGENCY_SECULAR_DOCUMENT: DRCEDocument = {
         { id: 'col-eot',      header: 'TOTAL',    binding: 'result.endTermScore',  width: '8%',  visible: true, order: 2, align: 'center' },
         { id: 'col-grade',    header: 'GRADE',    binding: 'result.grade',         width: '8%',  visible: true, order: 3, align: 'center', style: { color: '#0066cc' } },
         { id: 'col-comment',  header: 'REMARKS',  binding: 'result.comment',       width: '40%', visible: true, order: 4, align: 'left',   style: { fontStyle: 'italic', color: '#09a12a' } },
-        { id: 'col-initials', header: 'INITIAL',  binding: 'result.initials',      width: '11%', visible: true, order: 5, align: 'center', style: { color: '#09a12a', fontWeight: 'bold' } },
+        { id: 'col-initials', header: 'INITIAL',  binding: 'result.initials',      width: '11%', visible: true, order: 5, align: 'center', contentEditable: true, style: { color: '#09a12a', fontWeight: 'bold' } },
       ],
       style: {
         headerBackground:    '#f2f2f2',

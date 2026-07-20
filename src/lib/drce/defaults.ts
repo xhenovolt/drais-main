@@ -120,7 +120,7 @@ export const DRAIS_DEFAULT_DOCUMENT: DRCEDocument = {
         { id: 'col-total',    header: 'Total',     binding: 'result.total',         width: '8%',  visible: true, order: 3, align: 'center' },
         { id: 'col-grade',    header: 'Grade',     binding: 'result.grade',         width: '8%',  visible: true, order: 4, align: 'center', style: { color: '#B22222' } },
         { id: 'col-comment',  header: 'Comment',   binding: 'result.comment',       width: '35%', visible: true, order: 5, align: 'left',   style: { fontStyle: 'italic', color: '#0000FF' } },
-        { id: 'col-initials', header: 'Initials',  binding: 'result.initials',      width: '8%',  visible: true, order: 6, align: 'center', style: { color: '#0000FF', fontWeight: 'bold' } },
+        { id: 'col-initials', header: 'Initials',  binding: 'result.initials',      width: '8%',  visible: true, order: 6, align: 'center', contentEditable: true, style: { color: '#0000FF', fontWeight: 'bold' } },
       ],
       style: {
         headerBackground: '#f2f2f2', headerBorder: '1px solid #333',
@@ -246,7 +246,7 @@ export const MODERN_CLEAN_DOCUMENT: DRCEDocument = {
         { id: 'col-total',    header: 'Total',     binding: 'result.total',        width: '8%',  visible: true, order: 3, align: 'center' },
         { id: 'col-grade',    header: 'Grade',     binding: 'result.grade',        width: '8%',  visible: true, order: 4, align: 'center', style: { color: '#0d9488', fontWeight: 'bold' } },
         { id: 'col-comment',  header: 'Comment',   binding: 'result.comment',      width: '30%', visible: true, order: 5, align: 'left',   style: { fontStyle: 'italic', color: '#065f46' } },
-        { id: 'col-initials', header: 'Initials',  binding: 'result.initials',     width: '8%',  visible: true, order: 6, align: 'center' },
+        { id: 'col-initials', header: 'Initials',  binding: 'result.initials',     width: '8%',  visible: true, order: 6, align: 'center', contentEditable: true },
       ],
       style: {
         headerBackground: '#d1fae5', headerBorder: '1px solid #6ee7b7',
@@ -371,7 +371,7 @@ export const NORTHGATE_CLASSIC_DOCUMENT: DRCEDocument = {
         { id: 'col-total',    header: 'Total',     binding: 'result.total',        width: '10%', visible: true, order: 2, align: 'center' },
         { id: 'col-grade',    header: 'Grade',     binding: 'result.grade',        width: '8%',  visible: true, order: 3, align: 'center', style: { color: '#B22222' } },
         { id: 'col-comment',  header: 'Comment',   binding: 'result.comment',      width: '37%', visible: true, order: 4, align: 'left',   style: { fontStyle: 'italic', color: '#0000FF', fontSize: 11 } as Record<string, string | number> },
-        { id: 'col-initials', header: 'Initials',  binding: 'result.initials',     width: '10%', visible: true, order: 5, align: 'center', style: { color: '#0000FF', fontWeight: 'bold' } },
+        { id: 'col-initials', header: 'Initials',  binding: 'result.initials',     width: '10%', visible: true, order: 5, align: 'center', contentEditable: true, style: { color: '#0000FF', fontWeight: 'bold' } },
       ],
       style: {
         headerBackground: '#f2f2f2', headerBorder: '1px solid #000',
@@ -443,7 +443,7 @@ const NORTHGATE_OFFICIAL_COLUMNS = [
   { id: 'col-total',    header: 'Total',    binding: 'result.total',        width: '10%', visible: true, order: 2, align: 'center' as const },
   { id: 'col-grade',    header: 'Grade',    binding: 'result.grade',        width: '8%',  visible: true, order: 3, align: 'center' as const, style: { color: '#B22222' } },
   { id: 'col-comment',  header: 'Comment',  binding: 'result.comment',      width: '37%', visible: true, order: 4, align: 'left'   as const, style: { fontStyle: 'italic', color: '#0000FF', fontSize: 11 } as Record<string, string | number> },
-  { id: 'col-initials', header: 'Initials', binding: 'result.initials',     width: '10%', visible: true, order: 5, align: 'center' as const, style: { color: '#0000FF', fontWeight: 'bold' } },
+  { id: 'col-initials', header: 'Initials', binding: 'result.initials',     width: '10%', visible: true, order: 5, align: 'center' as const, contentEditable: true, style: { color: '#0000FF', fontWeight: 'bold' } },
 ];
 
 const NORTHGATE_OFFICIAL_TABLE_STYLE = {
@@ -755,7 +755,7 @@ export const ARABIC_CLONE_DOCUMENT: DRCEDocument = {
         { id: 'col-total',    header: 'المجموع',  binding: 'result.total',        width: '10%', visible: true, order: 3, align: 'center' as const },
         { id: 'col-grade',    header: 'الدرجة',    binding: 'result.grade',        width: '8%',  visible: true, order: 4, align: 'center' as const, style: { color: '#B22222', fontWeight: 'bold' } },
         { id: 'col-comment',  header: 'التعليق',  binding: 'result.comment',      width: '27%', visible: true, order: 5, align: 'right' as const, style: { fontStyle: 'italic', color: '#006633' } },
-        { id: 'col-initials', header: 'الرمز',    binding: 'result.initials',     width: '10%', visible: true, order: 6, align: 'center' as const },
+        { id: 'col-initials', header: 'الرمز',    binding: 'result.initials',     width: '10%', visible: true, order: 6, align: 'center' as const, contentEditable: true },
       ],
       style: {
         headerBackground: '#f0f8f0',

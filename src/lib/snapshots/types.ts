@@ -227,7 +227,6 @@ export interface SnapshotConfig {
   /** CAFE Phase 2 — optional ranking mode. Absent on legacy snapshots →
    *  defaults to 'numeric' at evaluation time. */
   rankingMode?: RankingMode;
-  teacherMappings: Array<{ subjectPattern: string; classPattern: string; initials: string }>;
   nextTermBegins: string;
   /**
    * Optional academic-calendar enrichment, computed at snapshot generation

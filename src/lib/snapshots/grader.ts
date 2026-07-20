@@ -138,7 +138,6 @@ export function buildDefaultConfig(nextTermBegins: string): SnapshotConfig {
       grade:  e.grade,
       remark: e.remark,
     })),
-    teacherMappings: [],
     nextTermBegins,
   };
 }

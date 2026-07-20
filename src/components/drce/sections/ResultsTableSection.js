@@ -235,10 +235,9 @@ function ResultsTableSection(_a) {
                     }
                 }
                 // Editable when a column opts in (contentEditable: true) OR when
-                // the preview is in edit mode — onCellChange is only wired up by
-                // the snapshot previewer's Edit button, so in normal/print render
-                // it is undefined and cells stay read-only.
-                var isEditable = col.contentEditable === true || !!onCellChange;
+                // the preview is in edit mode and this is the initials column.
+                // This keeps result.initials as the explicit editable fallback.
+                var isEditable = col.contentEditable === true || (!!onCellChange && col.binding === 'result.initials');
                 return (<td key={col.id} style={__assign(__assign({}, (0, styleResolver_1.resolveTableDataCellStyle)(style, col.align, col.style)), { cursor: isEditable ? 'text' : 'default' })} contentEditable={isEditable} suppressContentEditableWarning={isEditable} onBlur={isEditable ? function (e) { return handleCellBlur(e, col.id, i); } : undefined} onFocus={function () { return isEditable && setEditingCell({ col: col.id, row: i }); }}>
                   {cellValue}
                 </td>);

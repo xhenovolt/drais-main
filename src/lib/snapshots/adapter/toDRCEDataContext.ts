@@ -81,26 +81,6 @@ export function snapshotToDRCEDataContext(
   if (!stu) throw new Error(`Student index ${studentIdx} out of range`);
 
   const hidden = new Set(hiddenSubjectIds.map(String));
-  const teacherMapExact: Record<string, string> = {};
-
-  try {
-    const cfgMaps = (snapshot.config && Array.isArray(snapshot.config.teacherMappings)) ? snapshot.config.teacherMappings : [];
-    for (const m of cfgMaps) {
-      for (const c of snapshot.classes || []) {
-        for (const s of c.subjects || []) {
-          const subjName = (s.displayName || s.name || '').toLowerCase();
-          const clsName = (c.className || '').toLowerCase();
-          const subjMatch = !m.subjectPattern || subjName.includes(m.subjectPattern.toLowerCase());
-          const clsMatch = !m.classPattern || m.classPattern === 'all' || clsName.includes(m.classPattern.toLowerCase());
-          if (subjMatch && clsMatch) {
-            teacherMapExact[`${c.classId}-${s.id}`] = m.initials;
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('Failed to build teacherMapExact from snapshot.config.teacherMappings', e);
-  }
 
   const subjects: DRCESubject[] = cls.subjects
     .filter(s => !hidden.has(String(s.id)))
@@ -144,10 +124,10 @@ export function snapshotToDRCEDataContext(
     }
     const resolvedComment = displaySubjectComment(r.remarks, r.score, snapshot.meta.language);
     const derivedInitials = ((): string | undefined => {
-      // Prefer exact mapping by classId+subjectId, then any statically stored
-      // initials on the result, then derive from teacherName.
-      const exactKey = `${cls.classId}-${r.subjectId}`;
-      if (teacherMapExact[exactKey]) return teacherMapExact[exactKey];
+      // Prefer explicit initials from the snapshot when present. When missing,
+      // derive a fallback from teacherName so DRCE templates still render a
+      // sensible initials placeholder. The rendered initials cell remains
+      // editable in DRCE preview/editor mode via result.initials.
       if (r.initials && String(r.initials).trim()) return String(r.initials).trim();
       if (r.teacherName) return String(r.teacherName).split(' ').map((n: string) => n[0]).join('');
       return undefined;
@@ -160,7 +140,7 @@ export function snapshotToDRCEDataContext(
       total:        r.score,
       grade:        r.grade,
       comment:      resolvedComment,
-      initials:     derivedInitials ?? r.initials,
+      initials:     derivedInitials ?? '',
       teacherName:  r.teacherName ?? '',
       // Phase 7 — allocation-derived bindings (empty string on legacy snapshots).
       primaryTeacher: r.teacherName ?? '',
@@ -190,34 +170,6 @@ export function snapshotToDRCEDataContext(
     };
   });
 
-  // Build final teacherMappings array to surface into the DRCE data context.
-  const teacherMappings: import('@/lib/drce/schema').DRCETeacherMapping[] = [];
-  try {
-    // Start from snapshot.config mappings (if present)
-    const cfgMaps = (snapshot.config && Array.isArray(snapshot.config.teacherMappings)) ? snapshot.config.teacherMappings : [];
-    for (const m of cfgMaps) {
-      teacherMappings.push({
-        id: `cfg-${String(Math.random()).slice(2,8)}`,
-        subjectPattern: m.subjectPattern || '',
-        classPattern: m.classPattern || '',
-        initials: m.initials || '',
-        teacherName: '',
-      });
-    }
-    // Add exact per-class/subject mappings discovered above
-    for (const key of Object.keys(teacherMapExact)) {
-      const [classId, subjectId] = key.split('-');
-      teacherMappings.push({
-        id: `exact-${key}`,
-        subjectPattern: String(subjectId),
-        classPattern: String(classId),
-        initials: teacherMapExact[key],
-        teacherName: '',
-      });
-    }
-  } catch (e) {
-    console.warn('Failed to assemble teacherMappings for DRCE context', e);
-  }
 
   // P1 — custom field values surface as `student.custom.<code>` in DRCE
   // templates. Snapshot stores them at top-level keyed by studentDbId
@@ -343,5 +295,5 @@ export function snapshotToDRCEDataContext(
 
   const language: Language = snapshot.meta.language;
 
-  return { student, results, subjects, assessment, comments, meta, language, teacherMappings } as unknown as DRCEDataContext;
+  return { student, results, subjects, assessment, comments, meta, language } as unknown as DRCEDataContext;
 }

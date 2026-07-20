@@ -23,6 +23,13 @@ function initialsFromName(name: string): string {
     .toUpperCase();
 }
 
+function resolveNameSegments(value: string): string[] {
+  return value
+    .split(/\s*\/\s*/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
 export function resolveSnapshotTeacherInitials(input: SnapshotTeacherInitialsInput): string {
   const explicit = normalizeInitialsValue(input.teacherInitials);
   if (explicit) return explicit;
@@ -33,10 +40,7 @@ export function resolveSnapshotTeacherInitials(input: SnapshotTeacherInitialsInp
   const multiName = normalizeInitialsValue(input.teachersAll);
   if (!multiName) return '';
 
-  return multiName
-    .split(/\s*\/\s*/)
-    .map((segment) => segment.trim())
-    .filter(Boolean)
+  return resolveNameSegments(multiName)
     .map((segment) => initialsFromName(segment))
     .filter(Boolean)
     .join(' / ');

@@ -229,11 +229,11 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
                 }
               }
               
-              // Editable when a column opts in (contentEditable: true) OR when
-              // the preview is in edit mode — onCellChange is only wired up by
-              // the snapshot previewer's Edit button, so in normal/print render
-              // it is undefined and cells stay read-only.
-              const isEditable = col.contentEditable === true || !!onCellChange;
+              // Editable when a column explicitly opts in via contentEditable
+              // or when the preview is in edit mode and onCellChange is present.
+              // This ensures initials stay editable in DRCE templates while other
+              // columns remain read-only unless explicitly enabled.
+              const isEditable = col.contentEditable === true || (!!onCellChange && col.binding === 'result.initials');
               
               return (
                 <td

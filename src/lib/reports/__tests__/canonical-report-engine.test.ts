@@ -7,6 +7,7 @@ import {
   selectContributingSubjects,
   type ContributionPolicy,
 } from '../canonical-report-engine';
+import { resolveSnapshotTeacherInitials } from '../../snapshots/teacher-initials';
 
 test('resolveTeacherInitials prefers custom allocation initials over fallback values', () => {
   const resolved = resolveTeacherInitials({
@@ -34,6 +35,16 @@ test('resolveTeacherInitials ignores literal null placeholders and falls back to
     allocationInitials: 'null',
     teacherName: 'Amina Bukenya',
     teacherInitials: 'OLD',
+  });
+
+  assert.equal(resolved, 'AB');
+});
+
+test('resolveSnapshotTeacherInitials derives initials from teacher names when placeholders are present', () => {
+  const resolved = resolveSnapshotTeacherInitials({
+    teacherInitials: 'null',
+    teacherName: 'Amina Bukenya',
+    teachersAll: 'Amina Bukenya / Sara Kato',
   });
 
   assert.equal(resolved, 'AB');

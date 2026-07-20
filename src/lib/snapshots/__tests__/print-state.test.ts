@@ -26,7 +26,7 @@ test('freezeSnapshot recursively freezes snapshot data', () => {
 test('buildSnapshotRenderState composes a render-safe state for one student', () => {
   const snapshot = {
     meta: { snapshotId: 'snap-2', schoolName: 'Demo School', type: 'secular', language: 'en', numerals: 'western' },
-    config: { nextTermBegins: '', teacherMappings: [] },
+    config: { nextTermBegins: '' },
     classes: [{ classId: 1, className: 'P1', stream: 'A', subjects: [], students: [{ studentDbId: 9, name: 'Ada', results: [{ subjectId: 1, subjectName: 'Math', score: 90, displayScore: '90', grade: 'A', remarks: '', initials: 'AD' }] }] }],
   } as unknown as ReportSnapshot;
 

@@ -95,7 +95,7 @@ export const AVAILABLE_BINDINGS: Array<{ group: string; binding: string; label: 
   { group: 'Subject Result', binding: 'result.subject.totalMarks', label: 'Subject Total Marks' },
   { group: 'Subject Result', binding: 'result.grade',         label: 'Grade' },
   { group: 'Subject Result', binding: 'result.comment',       label: 'Comment' },
-  { group: 'Subject Result', binding: 'result.initials',      label: 'Teacher Initials' },
+  { group: 'Subject Result', binding: 'result.initials',      label: 'Teacher Initials (editable fallback)' },
   { group: 'Subject Result', binding: 'result.teacherName',   label: 'Teacher Name' },
   { group: 'Subject Result', binding: 'result.primaryTeacher', label: 'Primary Teacher' },
   { group: 'Subject Result', binding: 'result.teachers',      label: 'All Teachers' },

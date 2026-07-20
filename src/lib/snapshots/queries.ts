@@ -246,8 +246,8 @@ export async function fetchResultsForGeneration(args: {
             LEFT JOIN people tp ON tp.id = ts.person_id
            WHERE cs2.class_id  = cr.class_id
              AND cs2.subject_id = cr.subject_id
-             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
-             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= CURRENT_TIMESTAMP)
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  CURRENT_TIMESTAMP)
            ORDER BY cs2.valid_from DESC, cs2.id DESC LIMIT 1
         )                  AS teacher_name,
         (
@@ -269,8 +269,8 @@ export async function fetchResultsForGeneration(args: {
              AND cs2.subject_id = cr.subject_id
              AND COALESCE(cs2.display_on_report, 1) = 1
              AND (cs2.status IS NULL OR cs2.status = 'active')
-             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
-             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= CURRENT_TIMESTAMP)
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  CURRENT_TIMESTAMP)
         )                  AS teacher_initials,
         (
           -- All report-visible teacher NAMES for this subject/class, primary
@@ -288,8 +288,8 @@ export async function fetchResultsForGeneration(args: {
              AND cs2.subject_id = cr.subject_id
              AND COALESCE(cs2.display_on_report, 1) = 1
              AND (cs2.status IS NULL OR cs2.status = 'active')
-             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURDATE()))
-             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURDATE()))
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= CURRENT_TIMESTAMP)
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  CURRENT_TIMESTAMP)
         )                  AS teachers_all,
         dep.name           AS department_name,
         sg.name            AS subject_group_name
