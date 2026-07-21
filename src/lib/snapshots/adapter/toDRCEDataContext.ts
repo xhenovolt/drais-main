@@ -259,10 +259,6 @@ export function snapshotToDRCEDataContext(
   // Filter results to only principal/core/primary subjects for aggregates,
   // excluding IRE/Religious Education from the contributing set.
   const principalResults = getContributingAssessmentResults(results, cls.subjects);
-  if (process.env.DEBUG_SNAPSHOT_IRE === '1') {
-    console.log('DEBUG_SNAPSHOT_IRE principalResults', principalResults.map((r) => ({ subjectId: r.subjectId, grade: r.grade, score: r.score })));
-    console.log('DEBUG_SNAPSHOT_IRE scores', principalResults.map((r) => r.score));
-  }
 
   let assessment: DRCEAssessmentData;
   if (isNursery) {
