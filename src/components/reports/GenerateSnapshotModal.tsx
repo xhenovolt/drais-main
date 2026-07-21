@@ -49,6 +49,8 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
   const [generated, setGenerated]       = useState<{ snapshotId: string; counts: any } | null>(null);
   const [choice, setChoice]             = useState<ChoiceContext | null>(null);
   const [flushing, setFlushing]         = useState(false);
+  const [inflightSnapshotId, setInflightSnapshotId] = useState<string | null>(null);
+  const [polledRow, setPolledRow] = useState<SnapshotRow | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -125,6 +127,20 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
         if (json?.stack) setErrorStack(String(json.stack));
         return;
       }
+
+      // Server may either complete generation synchronously (ready) and
+      // return counts, or it may return a snapshotId for an async-inflight
+      // generation. Handle both: if snapshotId present, poll status until
+      // it leaves 'generating'. Otherwise treat as immediate success.
+      if (json?.snapshotId) {
+        setInflightSnapshotId(String(json.snapshotId));
+        // optimistic counts when available
+        if (json.counts) setGenerated({ snapshotId: json.snapshotId, counts: json.counts });
+        setStep('generating');
+        showToast('success', 'Generation started — inspecting progress');
+        return;
+      }
+
       setGenerated({ snapshotId: json.snapshotId, counts: json.counts });
       setStep('success');
       showToast('success', 'Snapshot generated');
@@ -133,6 +149,46 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
       setErrorMsg(e?.message || 'Network error');
     }
   }
+
+  // Polling effect: when `inflightSnapshotId` is set, poll status endpoint
+  // until snapshot row moves out of 'generating'. Updates `polledRow`.
+  useEffect(() => {
+    if (!inflightSnapshotId) return;
+    let cancelled = false;
+    let timer: NodeJS.Timeout | null = null;
+
+    const pollOnce = async () => {
+      try {
+        const res = await fetch(`/api/snapshots/${encodeURIComponent(inflightSnapshotId)}/status`);
+        if (!res.ok) return;
+        const j = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (j?.row) setPolledRow(j.row as SnapshotRow);
+        const status = j?.row?.status;
+        if (status && status !== 'generating') {
+          // finished — update UI accordingly
+          if (status === 'ready') {
+            setGenerated({ snapshotId: inflightSnapshotId, counts: {
+              classes: j.row.classCount, students: j.row.studentCount, subjects: j.row.resultCount, results: j.row.resultCount,
+            } });
+            setStep('success');
+          } else {
+            setStep('error');
+            setErrorMsg(`Generation ended with status ${status}`);
+          }
+          setInflightSnapshotId(null);
+          return;
+        }
+      } catch (e) {
+        // ignore transient network errors while polling
+      }
+      if (cancelled) return;
+      timer = setTimeout(pollOnce, 1500);
+    };
+
+    pollOnce();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [inflightSnapshotId]);
 
   async function viewExisting() {
     const target = choice?.existing?.[0]?.snapshotId
@@ -270,9 +326,57 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
         )}
 
         {step === 'generating' && (
-          <div className="py-12 text-center text-sm text-slate-600">
-            <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin" />
-            Generating snapshot — fetching learners, computing rankings…
+          <div className="py-6 text-sm text-slate-600">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <div>
+                <div className="font-medium">Generating snapshot — fetching learners, computing rankings…</div>
+                <div className="text-xs text-slate-500">This may take a minute for large schools. You can cancel or wait to inspect progress.</div>
+              </div>
+            </div>
+
+            {polledRow && (
+              <div className="mt-4 rounded border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-800 text-xs">
+                <div className="mb-2">Status: <span className="font-medium">{polledRow.status}</span></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><b>Snapshot</b><div className="font-mono text-[12px] break-all">{polledRow.snapshotId}</div></div>
+                  <div><b>Generated</b><div>{polledRow.generatedAt ? new Date(polledRow.generatedAt).toLocaleString() : '—'}</div></div>
+                  <div><b>Classes</b><div>{polledRow.classCount}</div></div>
+                  <div><b>Students</b><div>{polledRow.studentCount}</div></div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  {polledRow.status === 'generating' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const r = await fetch(`/api/snapshots/${encodeURIComponent(polledRow.snapshotId)}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'cancelled via UI' }) });
+                          if (r.ok) {
+                            setStep('error');
+                            setErrorMsg('Generation cancelled');
+                            setInflightSnapshotId(null);
+                          } else {
+                            showToast('error', 'Failed to cancel');
+                          }
+                        } catch (e) { showToast('error', 'Network error'); }
+                      }}
+                      className="px-3 py-1.5 rounded border text-sm bg-rose-600 text-white hover:bg-rose-700"
+                    >
+                      Cancel generation
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (!polledRow?.snapshotId) return;
+                      router.push(`/academics/report-cards/${type}/${polledRow.snapshotId}`);
+                      onClose();
+                    }}
+                    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm"
+                  >
+                    Inspect snapshot
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -330,6 +434,19 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
             <div className="text-sm text-slate-600 dark:text-slate-300">
               Choose how to proceed:
             </div>
+            {choice.code === 'GENERATION_IN_PROGRESS' && choice.inflight?.snapshotId && (
+              <div className="mt-2">
+                <button
+                  onClick={() => {
+                    setInflightSnapshotId(choice.inflight!.snapshotId);
+                    setStep('generating');
+                  }}
+                  className="px-3 py-1.5 text-sm rounded bg-emerald-600 text-white"
+                >
+                  Wait & Inspect
+                </button>
+              </div>
+            )}
           </div>
         )}
 
