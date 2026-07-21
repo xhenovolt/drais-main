@@ -8,6 +8,15 @@ import * as XLSX from 'xlsx';
 import PromotionSummaryNotification from '@/components/academics/PromotionSummaryNotification';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
+import {
+  adjustDivisionForF9,
+  computeDivision,
+  DEFAULT_DIVISION_CONFIG,
+  gradeForScore,
+  getGradePoint,
+  getNurseryOverallGrade,
+  isNurseryClassName,
+} from '@/lib/reports/canonical-report-engine';
 
 // Type definitions
 interface Student {
@@ -579,97 +588,7 @@ const ReportsPage = () => {
     return Object.values(grouped).filter(item => item.subject_name);
   }
 
-  // Helper function to check if student is in Nursery section
-  function isNurseryStudent(className: string): boolean {
-    const nurseryKeywords = ['nursery', 'baby', 'kindergarten', 'pre', 'reception'];
-    return nurseryKeywords.some(keyword => 
-      className.toLowerCase().includes(keyword)
-    );
-  }
-
-  // Updated grading function with new scale
-  function getGrade(score: number, isNursery: boolean = false) {
-    const standardGrade = (() => {
-      if (score >= 90) return 'D1';
-      if (score >= 80) return 'D2';
-      if (score >= 70) return 'C3';
-      if (score >= 60) return 'C4';
-      if (score >= 50) return 'C5';
-      if (score >= 44) return 'C6';
-      if (score >= 40) return 'P7';
-      if (score >= 34) return 'P8';
-      return 'F9';
-    })();
-
-    if (!isNursery) return standardGrade;
-
-    // Nursery grade mapping
-    switch (standardGrade) {
-      case 'D1':
-      case 'D2':
-        return 'A';
-      case 'C3':
-      case 'C4':
-        return 'B';
-      case 'C5':
-      case 'C6':
-        return 'C';
-      case 'P7':
-      case 'P8':
-        return 'D';
-      case 'F9':
-        return 'E';
-      default:
-        return 'E';
-    }
-  }
-
-  // Helper function to get overall grade for Nursery (mode of grades)
-  function getNurseryOverallGrade(grades: string[]): string {
-    if (grades.length === 0) return 'C';
-
-    // Count frequency of each grade
-    const gradeCount: Record<string, number> = {};
-    grades.forEach(grade => {
-      gradeCount[grade] = (gradeCount[grade] || 0) + 1;
-    });
-
-    // Find the most frequent grade(s)
-    const maxCount = Math.max(...Object.values(gradeCount));
-    const mostFrequentGrades = Object.keys(gradeCount).filter(
-      grade => gradeCount[grade] === maxCount
-    );
-
-    // If there's a clear majority, return it
-    if (mostFrequentGrades.length === 1) {
-      return mostFrequentGrades[0];
-    }
-
-    // If grades are balanced, return 'C'
-    return 'C';
-  }
-  
-  function getGradePoint(grade: string) {
-    switch (grade) {
-      case 'D1': return 1;
-      case 'D2': return 2;
-      case 'C3': return 3;
-      case 'C4': return 4;
-      case 'C5': return 5;
-      case 'C6': return 6;
-      case 'P8': return 8;
-      case 'F9': return 9;
-      default: return 9;
-    }
-  }
-  
-  function getDivision(aggregates: number) {
-    if (aggregates <= 12) return 'Division 1';
-    if (aggregates <= 24) return 'Division 2';
-    if (aggregates <= 28) return 'Division 3';
-    if (aggregates <= 32) return 'Division 4';
-    return 'Division U';
-  }
+  // Canonical grading helpers are imported from '@/lib/reports/canonical-report-engine'.
   
   function commentsForGrade(grade: string) {
     if (grade === 'D1') return 'Excellent results, keep it up.';
@@ -839,7 +758,7 @@ const ReportsPage = () => {
                 const groupedResults = groupResultsBySubject(principal);
                 const allGroupedResults = groupResultsBySubject([...principal, ...others]); // Include all subjects for display
                 
-                const isNursery = isNurseryStudent(student.class_name);
+                const isNursery = isNurseryClassName(student.class_name);
                 
                 const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') || 
                   principal.some((r: any) => (r.result_type_name || r.results_type || '').toLowerCase().includes('end'));
@@ -870,16 +789,18 @@ const ReportsPage = () => {
                   // For Nursery: get overall grade based on mode (core subjects only)
                   const coreGrades = coreResults.map(r => {
                     const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
-                    return getGrade(totalMarks, true);
+                    return gradeForScore(totalMarks, true);
                   });
                   nurseryOverallGrade = getNurseryOverallGrade(coreGrades);
                 } else {
                   // For non-Nursery: calculate traditional aggregates and division (core subjects only)
-                  aggregates = coreResults.reduce((sum, r) => {
+                  const coreGrades = coreResults.map((r) => {
                     const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
-                    return sum + getGradePoint(getGrade(totalMarks, false));
-                  }, 0);
-                  division = getDivision(aggregates);
+                    return gradeForScore(totalMarks, false);
+                  });
+                  aggregates = coreGrades.reduce((sum, grade) => sum + getGradePoint(grade), 0);
+                  division = computeDivision(aggregates, DEFAULT_DIVISION_CONFIG);
+                  division = adjustDivisionForF9(division, coreGrades);
                 }
 
                 // Helper to detect Tahfiz-related subjects robustly
@@ -1082,10 +1003,10 @@ const ReportsPage = () => {
                                 {totalMarks}
                               </td>
                               <td style={{ ...styles.studentTd, color: 'red', fontWeight: 'bold' }}>
-                                {isTahfizSubject(r.subject_name) ? getTahfizDescriptiveGrade(totalCombinedScore) : descriptiveGrade(getGrade(totalMarks, isNursery))}
+                                {isTahfizSubject(r.subject_name) ? getTahfizDescriptiveGrade(totalCombinedScore) : descriptiveGrade(gradeForScore(totalMarks, isNursery))}
                               </td>
                               <td style={styles.studentTd} className="commentsCell">
-                                {isTahfizSubject(r.subject_name) ? learnerComment : commentsForGrade(getGrade(totalMarks, isNursery))}
+                                {isTahfizSubject(r.subject_name) ? learnerComment : commentsForGrade(gradeForScore(totalMarks, isNursery))}
                               </td>
                               <td
                                 style={styles.studentTd}
@@ -1514,28 +1435,30 @@ function calculateMarks(groupedResult: GroupedResult, isEndOfTerm: boolean, enab
 
 // Helper function to get comments based on division
 function getCommentsByDivision(division: string) {
+  const normalizedDivision = String(division ?? '').trim().toUpperCase().replace(/^DIVISION\s+1$/i, 'DIVISION I').replace(/^DIVISION\s+2$/i, 'DIVISION II').replace(/^DIVISION\s+3$/i, 'DIVISION III').replace(/^DIVISION\s+4$/i, 'DIVISION IV');
+
   const comments = {
-    'Division 1': {
+    'DIVISION I': {
       classTeacher: 'Brilliant!! all my hopes are in you.',
       dos: 'Outstanding Results, keep focused.',
       headteacher: 'Great work done, keep it up.'
     },
-    'Division 2': {
+    'DIVISION II': {
       classTeacher: 'Promising results, keep more focused.',
       dos: 'Very good performance, keep it up.',
       headteacher: 'You are a first grade material, keep more focused.'
     },
-    'Division 3': {
+    'DIVISION III': {
       classTeacher: 'Improve and make it to the next grade.',
       dos: 'Good effort, but more work needed.',
       headteacher: 'You need to be active in discussions.'
     },
-    'Division 4': {
+    'DIVISION IV': {
       classTeacher: 'You have to be very active in the discussion groups.',
       dos: 'More effort is needed from you.',
       headteacher: 'You are capable of improving, just keep focused.'
     },
-    'Division U': {
+    'DIVISION U': {
       classTeacher: 'More concentration is needed from you in order to perform better.',
       dos: 'Work very hard to improve your performance.',
       headteacher: 'Concentrate more on academics for a better performance.'

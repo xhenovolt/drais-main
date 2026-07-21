@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  adjustDivisionForF9,
+  computeAggregateFromGrades,
   computeDivision,
   createTeacherInitialsSyncMessage,
+  gradeForScore,
+  getNurseryOverallGrade,
   resolveTeacherInitials,
   selectContributingSubjects,
   type ContributionPolicy,
@@ -61,6 +65,23 @@ test('selectContributingSubjects excludes ignored and IRE subjects by default', 
   assert.deepEqual(results.map((s) => s.id), [1]);
 });
 
+test('gradeForScore returns nursery grade mapping and standard grades correctly', () => {
+  assert.equal(gradeForScore(92, false), 'D1');
+  assert.equal(gradeForScore(92, true), 'A');
+  assert.equal(gradeForScore(55, true), 'C');
+  assert.equal(gradeForScore(30, true), 'E');
+});
+
+test('getNurseryOverallGrade chooses the most frequent nursery grade', () => {
+  const overall = getNurseryOverallGrade(['A', 'B', 'A', 'C']);
+  assert.equal(overall, 'A');
+});
+
+test('computeAggregateFromGrades sums grade points correctly', () => {
+  const aggregate = computeAggregateFromGrades(['D1', 'D2', 'C3']);
+  assert.equal(aggregate, 6);
+});
+
 test('computeDivision uses configured boundaries and returns Division I for aggregate 12', () => {
   const division = computeDivision(12, {
     boundaries: [12, 24, 28, 32],
@@ -77,6 +98,21 @@ test('computeDivision supports custom boundary labels and best-of-N policies', (
   });
 
   assert.equal(division, 'Third');
+});
+
+test('adjustDivisionForF9 downgrades division correctly for a failing subject', () => {
+  const division = adjustDivisionForF9('Division I', ['D1', 'F9', 'C3'], false);
+  assert.equal(division, 'Division II');
+});
+
+test('adjustDivisionForF9 downgrades twice when math fail is present', () => {
+  const division = adjustDivisionForF9('Division I', ['D1', 'F9', 'C3'], true);
+  assert.equal(division, 'Division III');
+});
+
+test('adjustDivisionForF9 normalizes division labels before downgrading', () => {
+  const division = adjustDivisionForF9('division 1', ['F9'], false);
+  assert.equal(division, 'Division II');
 });
 
 test('createTeacherInitialsSyncMessage builds a parent-safe payload for print edits', () => {

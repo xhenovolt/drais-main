@@ -25,6 +25,7 @@ import type { ReportSnapshot } from '../types';
 import { displaySubjectComment } from '../grader';
 import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
 import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
+import { resolveSnapshotTeacherInitials } from '@/lib/snapshots/teacher-initials';
 
 function isIslamicReligiousEducationSubject(name?: string): boolean {
   return isReligiousEducationSubject(name);
@@ -125,12 +126,16 @@ export function snapshotToDRCEDataContext(
     const resolvedComment = displaySubjectComment(r.remarks, r.score, snapshot.meta.language);
     const derivedInitials = ((): string | undefined => {
       // Prefer explicit initials from the snapshot when present. When missing,
-      // derive a fallback from teacherName so DRCE templates still render a
-      // sensible initials placeholder. The rendered initials cell remains
-      // editable in DRCE preview/editor mode via result.initials.
+      // derive a fallback from teacherName / teachersAll so DRCE templates still
+      // render a sensible initials placeholder. The rendered initials cell
+      // remains editable in DRCE preview/editor mode via result.initials.
       if (r.initials && String(r.initials).trim()) return String(r.initials).trim();
-      if (r.teacherName) return String(r.teacherName).split(' ').map((n: string) => n[0]).join('');
-      return undefined;
+      const normalized = resolveSnapshotTeacherInitials({
+        teacherInitials: r.initials,
+        teacherName: r.teacherName,
+        teachersAll: r.teachersAll,
+      });
+      return normalized || undefined;
     })();
 
     return {

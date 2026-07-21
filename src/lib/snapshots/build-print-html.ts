@@ -137,6 +137,7 @@ export async function buildSnapshotPrintHtml(
           }
         : { name: snapshot.meta.schoolName },
       isPrint:  true,
+      editMode, 
       language: snapshot.meta.language,
       isRTL:    isArabic,
     };

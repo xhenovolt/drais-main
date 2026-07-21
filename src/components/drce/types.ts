@@ -17,6 +17,8 @@ export interface DRCERenderContext {
   school: DRCESchoolInfo;
   /** Whether this render is for print (disables interactive elements) */
   isPrint?: boolean;
+  /** When true, the document is being rendered in editable print mode */
+  editMode?: boolean;
   /** Current language for rendering: 'en' | 'ar' */
   language?: Language;
   /** Whether to apply RTL layout */

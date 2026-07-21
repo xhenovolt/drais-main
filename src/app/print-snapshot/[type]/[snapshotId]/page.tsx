@@ -70,9 +70,12 @@ export default function PrintSnapshotPage({ params }: PageProps) {
   // Read URL params on the client. We avoid Next's searchParams prop so the
   // page stays naked-client and we can be sure puppeteer sees a hydrated tree.
   const [sp, setSp] = useState<URLSearchParams | null>(null);
+  const [editMode, setEditMode] = useState(false);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setSp(new URLSearchParams(window.location.search));
+      const params = new URLSearchParams(window.location.search);
+      setSp(params);
+      setEditMode(params.get('edit') === '1' || params.get('edit') === 'true');
     }
   }, []);
 
@@ -262,6 +265,7 @@ export default function PrintSnapshotPage({ params }: PageProps) {
               }
             : { name: state.snapshot!.meta.schoolName },
           isPrint: true,
+          editMode,
           language: state.snapshot!.meta.language,
           isRTL:    state.snapshot!.meta.numerals === 'arabic',
         },

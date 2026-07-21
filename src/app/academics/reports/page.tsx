@@ -20,9 +20,15 @@ import type { DRCERenderContext } from '@/components/drce/types';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import {
   computeDivision,
+  computeAggregateFromGrades,
   createTeacherInitialsSyncMessage,
+  gradeForScore,
+  getGradePoint,
+  getNurseryOverallGrade,
+  isNurseryClassName,
   resolveTeacherInitials,
   selectContributingSubjects,
+  DEFAULT_DIVISION_CONFIG,
   type ContributionPolicy,
 } from '@/lib/reports/canonical-report-engine';
 
@@ -877,96 +883,7 @@ const ReportsPage = () => {
   }
 
   // Helper function to check if student is in Nursery section
-  function isNurseryStudent(className: string): boolean {
-    const nurseryKeywords = ['nursery', 'baby', 'kindergarten', 'middle', 'top', 'pre', 'reception'];
-    return nurseryKeywords.some(keyword => 
-      className.toLowerCase().includes(keyword)
-    );
-  }
-
-  // Updated grading function with new scale
-  function getGrade(score: number, isNursery: boolean = false) {
-    const standardGrade = (() => {
-      if (score >= 90) return 'D1';
-      if (score >= 80) return 'D2';
-      if (score >= 70) return 'C3';
-      if (score >= 60) return 'C4';
-      if (score >= 50) return 'C5';
-      if (score >= 44) return 'C6';
-      if (score >= 40) return 'P7';
-      if (score >= 34) return 'P8';
-      return 'F9';
-    })();
-
-    if (!isNursery) return standardGrade;
-
-    // Nursery grade mapping
-    switch (standardGrade) {
-      case 'D1':
-      case 'D2':
-        return 'A';
-      case 'C3':
-      case 'C4':
-        return 'B';
-      case 'C5':
-      case 'C6':
-        return 'C';
-      case 'P7':
-      case 'P8':
-        return 'D';
-      case 'F9':
-        return 'E';
-      default:
-        return 'E';
-    }
-  }
-
-  // Helper function to get overall grade for Nursery (mode of grades)
-  function getNurseryOverallGrade(grades: string[]): string {
-    if (grades.length === 0) return 'C';
-
-    // Count frequency of each grade
-    const gradeCount: Record<string, number> = {};
-    grades.forEach(grade => {
-      gradeCount[grade] = (gradeCount[grade] || 0) + 1;
-    });
-
-    // Find the most frequent grade(s)
-    const maxCount = Math.max(...Object.values(gradeCount));
-    const mostFrequentGrades = Object.keys(gradeCount).filter(
-      grade => gradeCount[grade] === maxCount
-    );
-
-    // If there's a clear majority, return it
-    if (mostFrequentGrades.length === 1) {
-      return mostFrequentGrades[0];
-    }
-
-    // If grades are balanced, return 'C'
-    return 'C';
-  }
-  
-  function getGradePoint(grade: string) {
-    switch (grade) {
-      case 'D1': return 1;
-      case 'D2': return 2;
-      case 'C3': return 3;
-      case 'C4': return 4;
-      case 'C5': return 5;
-      case 'C6': return 6;
-      case 'P7': return 7;
-      case 'P8': return 8;
-      case 'F9': return 9;
-      default: return 9;
-    }
-  }
-  
-  function getDivision(aggregates: number) {
-    return computeDivision(aggregates, {
-      boundaries: [12, 24, 28, 32],
-      labels: ['Division I', 'Division II', 'Division III', 'Division IV', 'Division U'],
-    });
-  }
+  // Canonical grading helpers are imported from the shared report engine.
 
   function isMathSubject(subjectName?: string): boolean {
     const normalized = (subjectName || '').toLowerCase();
@@ -1597,16 +1514,15 @@ const ReportsPage = () => {
                 const groupedResults = groupResultsBySubject(principal);
                 const allGroupedResults = groupResultsBySubject([...principal, ...others]); // Include all subjects for display
                 
-                const isNursery = isNurseryStudent(student.class_name);
+                const isNursery = isNurseryClassName(student.class_name);
                 
                 const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') || 
                   principal.some((r: any) => (r.result_type_name || r.results_type || '').toLowerCase().includes('end'));
 
-                // Enhanced calculations - only use CORE subjects for grading
+                // Enhanced calculations - use core subjects only, excluding IRE from aggregate/division
                 const coreResults = groupedResults.filter(r => {
                   const type = (r.subject_type || 'core').toLowerCase();
-                  const isIRE = isReligiousEducationSubject(r.subject_name);
-                  return type === 'core' || isIRE;
+                  return type === 'core';
                 });
 
                 const totalMarks = allGroupedResults.reduce((sum, r) => {
@@ -1640,26 +1556,25 @@ const ReportsPage = () => {
                   // For Nursery: get overall grade based on mode (core subjects only)
                   const coreGrades = coreResults.map(r => {
                     const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
-                    return getGrade(totalMarks, true);
+                    return gradeForScore(totalMarks, true);
                   });
                   nurseryOverallGrade = getNurseryOverallGrade(coreGrades);
                 } else {
                   // For non-Nursery: calculate traditional aggregates and division from the canonical contributing subjects.
-                  aggregates = contributingSubjects.reduce((sum, r) => {
-                    const grade = getGrade(r.score ?? 0, false);
-                    return sum + getGradePoint(grade);
-                  }, 0);
-                  division = getDivision(aggregates);
+                  aggregates = computeAggregateFromGrades(
+                    contributingSubjects.map((r) => gradeForScore(r.score ?? 0, false)),
+                  );
+                  division = computeDivision(aggregates, DEFAULT_DIVISION_CONFIG);
 
                   // Adjust division based on F9 grades
                   const coreGrades = coreResults.map(r => {
                     const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
-                    return getGrade(totalMarks, false);
+                    return gradeForScore(totalMarks, false);
                   });
                   const hasMathF9 = coreResults.some(r => {
                     if (!isMathSubject(r.subject_name)) return false;
                     const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
-                    return getGrade(totalMarks, false) === 'F9';
+                    return gradeForScore(totalMarks, false) === 'F9';
                   });
                   division = adjustDivisionForF9(division, coreGrades, hasMathF9);
                 }
@@ -1704,8 +1619,8 @@ const ReportsPage = () => {
                         midTermScore: midTermMarks || null,
                         endTermScore: isEndOfTerm ? (endTermMarks || null) : null,
                         total: tM || null,
-                        grade: getGrade(scoreForGrade || 0, isNursery),
-                        comment: commentsForGrade(getGrade(scoreForGrade || 0, isNursery)),
+                        grade: gradeForScore(scoreForGrade || 0, isNursery),
+                        comment: commentsForGrade(gradeForScore(scoreForGrade || 0, isNursery)),
                         initials: resolvedInitials,
                         teacherName: r.teacher_name || '',
                         subjectType: (r.subject_type || 'core').toLowerCase() === 'core' ? 'primary' : 'secondary',
@@ -2308,33 +2223,6 @@ export default ReportsPage;
 // These legacy style references remain only for the tahfiz/reports page.
 // This file uses activeLayout from /api/report-templates/active instead.
 
-// Adjust division based on the presence of F9 grades
-function downgradeDivision(division: string): string {
-  switch (division) {
-    case 'Division 1': return 'Division 2';
-    case 'Division 2': return 'Division 3';
-    case 'Division 3': return 'Division 4';
-    case 'Division 4': return 'Division U';
-    default: return division;
-  }
-}
-
-function adjustDivisionForF9(division: string, grades: string[], mathFail: boolean = false): string {
-  const failCount = grades.filter(g => g === 'F9').length;
-  if (failCount === 0) return division;
-
-  let downgradeSteps = 1;
-  if (mathFail) downgradeSteps += 1;
-
-  let adjusted = division;
-  for (let i = 0; i < downgradeSteps; i += 1) {
-    const nextDivision = downgradeDivision(adjusted);
-    if (nextDivision === adjusted) break;
-    adjusted = nextDivision;
-  }
-
-  return adjusted;
-}
 
 // Enhanced calculation function for marks with conditional conversion
 function calculateMarks(groupedResult: GroupedResult, isEndOfTerm: boolean, enableConversion: boolean = false) {

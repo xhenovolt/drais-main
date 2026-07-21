@@ -275,9 +275,10 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     if (forcedPreviewSrc) return forcedPreviewSrc;
     if (!cls) return mode === 'drce' ? drcePrintBase : printBase;
     const base = mode === 'drce' ? drcePrintBase : printBase;
-    let url = `${base}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
-    if (mode === 'emergency' && isEditMode) {
-      url += '&edit=1';
+    const editQuery = isEditMode ? '&edit=1' : '';
+    let url = `${base}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}${editQuery}`;
+    if (mode === 'emergency' && !isEditMode) {
+      url = `${base}?class_id=${classIdx}&template=${encodeURIComponent(activeTemplateId)}`;
     }
     return url;
   }, [printBase, drcePrintBase, classIdx, cls, activeTemplateId, mode, isEditMode]);
@@ -285,13 +286,14 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   // Print: DRCE goes to the naked page, emergency stays on the legacy
   // route. PDF always goes through /pdf (which internally puppeteers
   // the naked page for DRCE).
+  const editQuery = isEditMode ? '&edit=1' : '';
   const routeTemplateQuery = shouldResolveDrceTemplateInPrintRoute
     ? ''
     : `&template=${encodeURIComponent(activeTemplateId)}`;
   const printHref = mode === 'drce'
-    ? `${drcePrintBase}?class_id=${classIdx}${routeTemplateQuery}`
-    : `${printBase}?class_id=${classIdx}${routeTemplateQuery}`;
-  const pdfHref   = `${pdfBase}?class_id=${classIdx}${routeTemplateQuery}`;
+    ? `${drcePrintBase}?class_id=${classIdx}${routeTemplateQuery}${editQuery}`
+    : `${printBase}?class_id=${classIdx}${routeTemplateQuery}${editQuery}`;
+  const pdfHref   = `${pdfBase}?class_id=${classIdx}${routeTemplateQuery}${editQuery}`;
   const [pdfBusy, setPdfBusy] = useState(false);
   async function downloadPdf() {
     setPdfBusy(true);

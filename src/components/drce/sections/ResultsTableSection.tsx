@@ -61,13 +61,14 @@ interface Props {
   section: DRCEResultsTableSection;
   theme: DRCETheme;
   ctx: DRCEDataContext;
+  renderCtx?: { isPrint?: boolean; editMode?: boolean; [k: string]: unknown };
   /** Optional callback when an editable cell is changed */
   onCellChange?: (columnId: string, rowIndex: number, newValue: string) => Promise<void>;
   /** Optional callback when a column should be hidden */
   onColumnHide?: (columnId: string) => Promise<void>;
 }
 
-export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }: Props) {
+export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onColumnHide }: Props) {
   const [editingCell, setEditingCell] = useState<{ col: string; row: number } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -230,10 +231,11 @@ export function ResultsTableSection({ section, ctx, onCellChange, onColumnHide }
               }
               
               // Editable when a column explicitly opts in via contentEditable
-              // or when the preview is in edit mode and onCellChange is present.
-              // This ensures initials stay editable in DRCE templates while other
-              // columns remain read-only unless explicitly enabled.
-              const isEditable = col.contentEditable === true || (!!onCellChange && col.binding === 'result.initials');
+              // or when editMode is enabled for a DRCE report and the binding is
+              // the editable initials fallback field.
+              const isEditable = col.contentEditable === true
+                || (!!onCellChange && col.binding === 'result.initials')
+                || (renderCtx?.editMode === true && col.binding === 'result.initials');
               
               return (
                 <td
