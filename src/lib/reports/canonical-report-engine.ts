@@ -163,7 +163,20 @@ export function getNurseryOverallGrade(grades: string[]): string {
 export function isNurseryClassName(className?: string): boolean {
   if (!className) return false;
   const normalized = className.toLowerCase();
-  const nurseryKeywords = ['nursery', 'baby', 'kindergarten', 'pre', 'reception', 'playgroup', 'creche'];
+  const nurseryKeywords = [
+    'nursery',
+    'baby',
+    'baby class',
+    'middle',
+    'middle class',
+    'top',
+    'top class',
+    'kindergarten',
+    'pre',
+    'reception',
+    'playgroup',
+    'creche',
+  ];
   return nurseryKeywords.some(keyword => normalized.includes(keyword));
 }
 

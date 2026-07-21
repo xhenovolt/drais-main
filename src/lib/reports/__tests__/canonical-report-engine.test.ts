@@ -7,6 +7,7 @@ import {
   createTeacherInitialsSyncMessage,
   gradeForScore,
   getNurseryOverallGrade,
+  isNurseryClassName,
   resolveTeacherInitials,
   selectContributingSubjects,
   type ContributionPolicy,
@@ -77,6 +78,13 @@ test('gradeForScore returns nursery grade mapping and standard grades correctly'
 test('getNurseryOverallGrade chooses the most frequent nursery grade', () => {
   const overall = getNurseryOverallGrade(['A', 'B', 'A', 'C']);
   assert.equal(overall, 'A');
+});
+
+test('isNurseryClassName recognizes baby, middle and top classes as nursery', () => {
+  assert.equal(isNurseryClassName('Baby Class'), true);
+  assert.equal(isNurseryClassName('Middle Class'), true);
+  assert.equal(isNurseryClassName('Top Class'), true);
+  assert.equal(isNurseryClassName('Primary 4'), false);
 });
 
 test('computeAggregateFromGrades sums grade points correctly', () => {
