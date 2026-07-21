@@ -123,7 +123,42 @@ export async function buildSnapshotPrintHtml(
   }
 
   if (drceDoc) {
-    const allOverrides = await listOverrides({ snapshotId: snapshot.meta.snapshotId, schoolId });
+    // Apply school-specific DRCE aggregate rules where necessary.
+    function ensureSchoolAggregateConfig(doc: DRCEDocument, snapshot: ReportSnapshot): DRCEDocument {
+      const ALBAYAN_SCHOOL_ID = 8002;
+      const albayanThresholds = [
+        { maxValue: 12, label: 'Division I' },
+        { maxValue: 24, label: 'Division II' },
+        { maxValue: 28, label: 'Division III' },
+        { maxValue: 32, label: 'Division IV' },
+      ];
+      try {
+        const sid = Number(snapshot.meta.schoolId ?? snapshot.meta.yearId ?? NaN);
+        const slug = String(snapshot.meta.schoolSlug ?? '').toLowerCase();
+        const name = String(snapshot.meta.schoolName ?? '').toLowerCase();
+        if (sid === ALBAYAN_SCHOOL_ID || slug.includes('albayan') || name.includes('albayan')) {
+          // produce a shallow clone with patched assessment sections
+          const patched = { ...doc, sections: doc.sections.map(s => {
+            // only results/assessment sections carry aggregateConfig
+            if (s && (s as any).aggregateConfig) {
+              const sec = { ...(s as any) } as any;
+              sec.aggregateConfig = { ...(sec.aggregateConfig ?? {}), divisionThresholds: albayanThresholds };
+              return sec as typeof s;
+            }
+            return s;
+          }) };
+          return patched;
+        }
+      } catch (e) {
+        // ignore and return original document on any parsing error
+      }
+      return doc;
+    }
+
+    drceDoc = ensureSchoolAggregateConfig(drceDoc, snapshot);
+    const allOverrides = process.env.SKIP_DVCF_OVERRIDES === 'true'
+      ? []
+      : await listOverrides({ snapshotId: snapshot.meta.snapshotId, schoolId });
     const renderCtx = {
       school: snapshot.meta.branding
         ? {

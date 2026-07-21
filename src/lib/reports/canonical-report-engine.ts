@@ -29,7 +29,7 @@ export interface TeacherInitialsSyncMessage {
 }
 
 export const DEFAULT_DIVISION_CONFIG: DivisionConfig = {
-  boundaries: [12, 23, 29, 34],
+  boundaries: [12, 24, 28, 32],
   labels: ['Division I', 'Division II', 'Division III', 'Division IV', 'Division U'],
 };
 

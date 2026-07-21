@@ -17,9 +17,9 @@ export const DEFAULT_GRADE_POINT_MAP: Record<string, number> = {
 
 export const DEFAULT_DIVISION_THRESHOLDS: Array<{ maxValue: number; label: string }> = [
   { maxValue: 12, label: 'Division I' },
-  { maxValue: 23, label: 'Division II' },
-  { maxValue: 29, label: 'Division III' },
-  { maxValue: 34, label: 'Division IV' },
+  { maxValue: 24, label: 'Division II' },
+  { maxValue: 28, label: 'Division III' },
+  { maxValue: 32, label: 'Division IV' },
 ];
 
 function toNumber(value: unknown): number | null {

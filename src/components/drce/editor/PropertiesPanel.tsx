@@ -927,15 +927,15 @@ function AssessmentPanel({ section, onMutate }: { section: DRCEAssessmentSection
         </Row>
         <div style={{ fontSize: '11px', color: '#666', margin: '8px 0', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
           Division Thresholds: Max aggregate value for each division<br/>
-          e.g. I: ≤12, II: ≤23, III: ≤29, IV: ≤34, else U
+          e.g. I: ≤12, II: ≤24, III: ≤28, IV: ≤32, else U
         </div>
         <Row label="">
           <TextInput 
             value={JSON.stringify(agg.divisionThresholds ?? [
               { maxValue: 12, label: 'Division I' },
-              { maxValue: 23, label: 'Division II' },
-              { maxValue: 29, label: 'Division III' },
-              { maxValue: 34, label: 'Division IV' }
+              { maxValue: 24, label: 'Division II' },
+              { maxValue: 28, label: 'Division III' },
+              { maxValue: 32, label: 'Division IV' }
             ], null, 2)}
             onChange={v => {
               try {
