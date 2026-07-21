@@ -22,6 +22,16 @@ import {
   markSnapshotFailed,
   SnapshotInFlightError,
 } from './storage';
+import { getContributingAssessmentResults } from './assessment';
+import {
+  isNurseryClassName,
+  gradeForScore,
+  getNurseryOverallGrade,
+  computeAggregateFromGrades,
+  computeDivision,
+  DEFAULT_DIVISION_CONFIG,
+  getGradePoint,
+} from '@/lib/reports/canonical-report-engine';
 import {
   cancelInflightForKey,
   findReadyForKey,
@@ -203,7 +213,7 @@ export async function generateSnapshot(
       commentRules = [];
     }
 
-    const classes = buildClasses(rows, numerals, language, commentRules);
+    const { classes, audit } = buildClasses(rows, numerals, language, commentRules);
 
     // Phase E — enrich each class with its class teacher (if assigned).
     // The lookup uses the snapshot's termId + each classId; failures
@@ -374,6 +384,7 @@ export async function generateSnapshot(
         dataHash,
       },
       classes,
+      ...(audit ? { audit } : {}),
       ...(skillsMap     ? { genericSkills: skillsMap } : {}),
       ...(projectsMap   ? { projects:     projectsMap } : {}),
       config: {
@@ -516,7 +527,7 @@ function buildClasses(
   numerals: 'arabic' | 'western',
   language: 'en' | 'ar',
   commentRules: CommentRule[] = [],
-): SnapshotClass[] {
+): { classes: SnapshotClass[]; audit?: Record<number, Record<number, import('./types').SnapshotStudentAudit>> } {
   // Classes -> Students -> Results, all keyed by id for deterministic iteration.
   const classMap = new Map<number, {
     classId:   number;
@@ -693,5 +704,45 @@ function buildClasses(
       students,
     });
   }
-  return out;
+  return { classes: out, audit: out.length ? (function buildAudit() {
+    const map: Record<number, Record<number, import('./types').SnapshotStudentAudit>> = {};
+    for (const cls of out) {
+      const isNursery = isNurseryClassName(cls.className);
+      map[cls.classId] = {};
+      for (const stu of cls.students) {
+        const subjectsAudit: Array<import('./types').SnapshotSubjectAudit> = [];
+        const grades: string[] = [];
+        for (const res of stu.results) {
+          const included = res.score != null && !isReligiousEducationSubject(res.subjectName);
+          const gp = getGradePoint(res.grade);
+          subjectsAudit.push({
+            subjectId: res.subjectId,
+            subjectName: res.subjectName,
+            score: res.score,
+            grade: res.grade,
+            gradePoint: gp,
+            included,
+          });
+          if (included) grades.push(res.grade);
+        }
+        let aggregates: number | null = null;
+        let division: string | null = null;
+        if (isNursery) {
+          aggregates = null;
+          division = getNurseryOverallGrade(grades);
+        } else {
+          aggregates = computeAggregateFromGrades(grades);
+          division = computeDivision(aggregates, DEFAULT_DIVISION_CONFIG);
+        }
+        map[cls.classId][stu.studentDbId] = {
+          studentDbId: stu.studentDbId,
+          studentName: stu.name,
+          subjects: subjectsAudit,
+          aggregates,
+          division,
+        };
+      }
+    }
+    return map;
+  })() : undefined };
 }

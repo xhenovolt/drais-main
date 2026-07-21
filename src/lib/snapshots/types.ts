@@ -279,6 +279,30 @@ export interface ReportSnapshot {
     descriptor: string | null; outcome: string | null;
     evidenceUrl: string | null; gradeCode: string | null;
   }>>;
+  /**
+   * Phase P2 — per-student audit metadata captured at generation time.
+   * Lives OUTSIDE `classes` so it does not affect `meta.dataHash`.
+   * Structure: audit[classId][studentDbId] => SnapshotStudentAudit
+   */
+  audit?: Record<number, Record<number, SnapshotStudentAudit>>;
+}
+
+export interface SnapshotSubjectAudit {
+  subjectId: number;
+  subjectName: string;
+  score: number | null;
+  grade: string;
+  gradePoint: number;
+  included: boolean;
+}
+
+export interface SnapshotStudentAudit {
+  studentDbId: number;
+  studentName: string;
+  subjects: SnapshotSubjectAudit[];
+  aggregates: number | null;
+  division: string | null;
+  divisionThresholds?: { boundaries: number[]; labels: string[] };
 }
 
 /**
