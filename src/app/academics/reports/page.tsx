@@ -891,7 +891,7 @@ const ReportsPage = () => {
   }
   
   function commentsForGrade(grade: string) {
-    // Nursery grades (A-D)
+    // Nursery grades (A-E)
     if (grade === 'A') return 'Outstanding performance! Excellent work.';
     if (grade === 'B') return 'Very good work! Keep up the great effort.';
     if (grade === 'C') return 'Good progress! Continue working hard.';
@@ -908,6 +908,10 @@ const ReportsPage = () => {
     if (grade === 'P8') return 'Passed, but you can do better.';
     if (grade === 'F9') return 'Failed, please see your teacher for guidance.';
     return 'Continue working hard.';
+  }
+
+  function getGrade(score: number, isNursery: boolean) {
+    return gradeForScore(score, isNursery);
   }
 
   // Save initials to backend
@@ -1522,7 +1526,8 @@ const ReportsPage = () => {
                 // Enhanced calculations - use core subjects only, excluding IRE from aggregate/division
                 const coreResults = groupedResults.filter(r => {
                   const type = (r.subject_type || 'core').toLowerCase();
-                  return type === 'core';
+                  const isIRE = isReligiousEducationSubject(r.subject_name);
+                  return type === 'core' && !isIRE;
                 });
 
                 const totalMarks = allGroupedResults.reduce((sum, r) => {
@@ -2110,7 +2115,7 @@ const ReportsPage = () => {
                       />
                     </div>
                     {/* Grade Table */}
-                    <GradeTable layout={activeLayout} />
+                    <GradeTable layout={activeLayout} isNursery={isNursery} />
                     {/* Footer - Enhanced for clarity and style */}
                     {/* <div style={styles.footer}>
                       <div style={styles.divider}></div>
@@ -2379,7 +2384,7 @@ function CommentsSection({
 }
 
 // Grade table as a component
-function GradeTable({ layout }: { layout: import('@/lib/reportTemplates').ReportLayoutJSON }) {
+function GradeTable({ layout, isNursery }: { layout: import('@/lib/reportTemplates').ReportLayoutJSON; isNursery: boolean }) {
   const thStyle = {
     background: layout.gradeTable.th.background,
     border: layout.gradeTable.th.border,
@@ -2391,6 +2396,34 @@ function GradeTable({ layout }: { layout: import('@/lib/reportTemplates').Report
     textAlign: layout.gradeTable.td.textAlign as any,
     padding: layout.gradeTable.td.padding,
   };
+
+  if (isNursery) {
+    return (
+      <div style={{ marginTop: 20, width: '100%', fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            <tr>
+              <th style={thStyle}>GRADE</th>
+              <th style={thStyle}>A</th>
+              <th style={thStyle}>B</th>
+              <th style={thStyle}>C</th>
+              <th style={thStyle}>D</th>
+              <th style={thStyle}>E</th>
+            </tr>
+            <tr>
+              <td style={tdStyle}>SCORE RANGE</td>
+              <td style={tdStyle}>90–100</td>
+              <td style={tdStyle}>70–89</td>
+              <td style={tdStyle}>50–69</td>
+              <td style={tdStyle}>40–49</td>
+              <td style={tdStyle}>0–39</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div style={{ marginTop: 20, width: '100%', fontSize: 13 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>

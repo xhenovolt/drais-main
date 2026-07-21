@@ -68,7 +68,9 @@ test('selectContributingSubjects excludes ignored and IRE subjects by default', 
 test('gradeForScore returns nursery grade mapping and standard grades correctly', () => {
   assert.equal(gradeForScore(92, false), 'D1');
   assert.equal(gradeForScore(92, true), 'A');
+  assert.equal(gradeForScore(75, true), 'B');
   assert.equal(gradeForScore(55, true), 'C');
+  assert.equal(gradeForScore(42, true), 'D');
   assert.equal(gradeForScore(30, true), 'E');
 });
 

@@ -591,6 +591,11 @@ const ReportsPage = () => {
   // Canonical grading helpers are imported from '@/lib/reports/canonical-report-engine'.
   
   function commentsForGrade(grade: string) {
+    if (grade === 'A') return 'Outstanding performance! Excellent work.';
+    if (grade === 'B') return 'Very good work! Keep up the great effort.';
+    if (grade === 'C') return 'Good progress! Continue working hard.';
+    if (grade === 'D') return 'Needs more effort. Please work harder.';
+    if (grade === 'E') return 'Requires significant improvement. Seek extra help.';
     if (grade === 'D1') return 'Excellent results, keep it up.';
     if (grade === 'D2') return 'Very good score, but aim at excellency.';
     if (grade === 'C3') return 'Satisfactory performance, please work harder.';
@@ -763,10 +768,11 @@ const ReportsPage = () => {
                 const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') || 
                   principal.some((r: any) => (r.result_type_name || r.results_type || '').toLowerCase().includes('end'));
 
-                // Enhanced calculations - only use CORE subjects for grading
-                const coreResults = groupedResults.filter(r => 
-                  (r.subject_type || 'core').toLowerCase() === 'core'
-                );
+                // Enhanced calculations - only use CORE subjects for grading, excluding IRE
+                const coreResults = groupedResults.filter((r) => {
+                  const type = (r.subject_type || 'core').toLowerCase();
+                  return type === 'core' && !isReligiousEducationSubject(r.subject_name);
+                });
 
                 const totalMarks = allGroupedResults.reduce((sum, r) => {
                   const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
@@ -1003,7 +1009,7 @@ const ReportsPage = () => {
                                 {totalMarks}
                               </td>
                               <td style={{ ...styles.studentTd, color: 'red', fontWeight: 'bold' }}>
-                                {isTahfizSubject(r.subject_name) ? getTahfizDescriptiveGrade(totalCombinedScore) : descriptiveGrade(gradeForScore(totalMarks, isNursery))}
+                                {isTahfizSubject(r.subject_name) ? getTahfizDescriptiveGrade(totalCombinedScore) : gradeForScore(totalMarks, isNursery)}
                               </td>
                               <td style={styles.studentTd} className="commentsCell">
                                 {isTahfizSubject(r.subject_name) ? learnerComment : commentsForGrade(gradeForScore(totalMarks, isNursery))}

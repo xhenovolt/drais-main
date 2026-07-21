@@ -128,24 +128,11 @@ export function gradeForScore(score: number, isNursery: boolean = false): string
 
   if (!isNursery) return standardGrade;
 
-  switch (standardGrade) {
-    case 'D1':
-    case 'D2':
-      return 'A';
-    case 'C3':
-    case 'C4':
-      return 'B';
-    case 'C5':
-    case 'C6':
-      return 'C';
-    case 'P7':
-    case 'P8':
-      return 'D';
-    case 'F9':
-      return 'E';
-    default:
-      return 'E';
-  }
+  if (score >= 90) return 'A';
+  if (score >= 70) return 'B';
+  if (score >= 50) return 'C';
+  if (score >= 40) return 'D';
+  return 'E';
 }
 
 export function getNurseryOverallGrade(grades: string[]): string {
