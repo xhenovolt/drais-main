@@ -12,6 +12,7 @@ import type { ReportSnapshot } from '../types';
 import { toArabicNumerals } from '../normalizers';
 import { displaySubjectComment } from '../grader';
 import { computeAssessmentValues } from '@/lib/drce/assessmentUtils';
+import { getContributingAssessmentResults } from '@/lib/snapshots/assessment';
 
 export interface TemplateRenderInput {
   snapshot:   ReportSnapshot;
@@ -72,7 +73,8 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
       `</tr>`;
   }
 
-  const assessment = computeAssessmentValues(stu.results, input.aggregateConfig, snapshot.meta.language);
+  const contributingResults = getContributingAssessmentResults(stu.results, cls.subjects);
+  const assessment = computeAssessmentValues(contributingResults, input.aggregateConfig, snapshot.meta.language);
   const aggregates = assessment.aggregates ?? (snapshot.meta.language === 'ar' ? toArabicNumerals('0') : '0');
   const division = assessment.division ?? (snapshot.meta.language === 'ar' ? toArabicNumerals('-') : '-');
 

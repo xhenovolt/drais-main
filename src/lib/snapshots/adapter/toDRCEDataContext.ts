@@ -26,6 +26,7 @@ import { displaySubjectComment } from '../grader';
 import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
 import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import { resolveSnapshotTeacherInitials } from '@/lib/snapshots/teacher-initials';
+import { getContributingAssessmentResults } from '@/lib/snapshots/assessment';
 
 function isIslamicReligiousEducationSubject(name?: string): boolean {
   return isReligiousEducationSubject(name);
@@ -249,13 +250,9 @@ export function snapshotToDRCEDataContext(
       : {}),
   };
 
-  // Filter results to only principal/core/primary subjects for aggregates
-  const principalResults = results.filter(r => {
-    const subj = cls.subjects.find(s => s.id === r.subject?.id || s.id === r.subjectId);
-    if (!subj) return false;
-    const type = (subj.subjectType || 'primary').toLowerCase();
-    return type === 'principal' || type === 'core' || type === 'primary' || type === 'theology' || type === 'islamic' || type === 'religion';
-  });
+  // Filter results to only principal/core/primary subjects for aggregates,
+  // excluding IRE/Religious Education from the contributing set.
+  const principalResults = getContributingAssessmentResults(results, cls.subjects);
 
   const computedAssessment = computeAssessmentRawValues(principalResults);
   const assessment: DRCEAssessmentData = {
