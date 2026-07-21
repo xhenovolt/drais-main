@@ -178,6 +178,64 @@ describe('DRCE assessment aggregation', () => {
     assert.equal(output.placeholders.division, 'Division I');
   });
 
+  it('renders nursery grades as letters and suppresses numeric aggregates for baby class snapshots', () => {
+    const snapshot = {
+      classes: [
+        {
+          className: 'Baby Class',
+          classNameAr: 'الفصل الرضيع',
+          stream: 'Stream 1',
+          streamAr: 'التيار 1',
+          subjects: [
+            { id: '1', name: 'Social Development', displayName: 'Social Development', totalMarks: 100, subjectType: 'primary', department: '' },
+            { id: '2', name: 'Numbers', displayName: 'Numbers', totalMarks: 100, subjectType: 'primary', department: '' },
+          ],
+          students: [
+            {
+              id: 'student-1',
+              studentDbId: 'student-1',
+              name: 'Test Student',
+              nameAr: 'طالب الاختبار',
+              firstName: 'Test',
+              lastName: 'Student',
+              gender: 'M',
+              admissionNumber: 'A001',
+              photoUrl: null,
+              results: [
+                { subjectId: '1', subjectName: 'Social Development', displaySubject: 'Social Development', score: 90, displayScore: '90', grade: 'D1', remarks: '', initials: '', teacherName: '', teachersAll: '', enteredAt: '2026-01-01' },
+                { subjectId: '2', subjectName: 'Numbers', displaySubject: 'Numbers', score: 85, displayScore: '85', grade: 'D1', remarks: '', initials: '', teacherName: '', teachersAll: '', enteredAt: '2026-01-01' },
+              ],
+              total: 0,
+              average: 0,
+              position: 1,
+              totalInClass: 1,
+              displayTotal: '0',
+              displayAverage: '0',
+              displayPosition: '1',
+              comments: { classTeacher: '', dos: '', headTeacher: '' },
+              remarks: '',
+            },
+          ],
+        },
+      ],
+      meta: {
+        language: 'en',
+        numerals: 'western',
+        termName: 'Term 1',
+        yearName: '2026',
+        type: 'Final',
+        schoolName: 'Test School',
+        branding: {},
+      },
+      config: {},
+    };
+
+    const output = snapshotToTemplateMap({ snapshot, classIdx: 0, studentIdx: 0 });
+    assert.equal(output.placeholders.aggregates, '');
+    assert.equal(output.placeholders.division, 'A');
+    assert.match(output.subjectsHtml, /<td[^>]*>A<\/td>/);
+  });
+
   it('recomputes snapshot assessment as grade-point total in snapshot adapter', () => {
     const snapshot = {
       classes: [

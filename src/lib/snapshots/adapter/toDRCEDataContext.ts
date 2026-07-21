@@ -24,6 +24,7 @@ import type {
 import type { ReportSnapshot } from '../types';
 import { displaySubjectComment } from '../grader';
 import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
+import { isNurseryClassName, gradeForScore, getNurseryOverallGrade } from '@/lib/reports/canonical-report-engine';
 import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import { resolveSnapshotTeacherInitials } from '@/lib/snapshots/teacher-initials';
 import { getContributingAssessmentResults } from '@/lib/snapshots/assessment';
@@ -84,6 +85,7 @@ export function snapshotToDRCEDataContext(
 
   const hidden = new Set(hiddenSubjectIds.map(String));
 
+  const isNursery = isNurseryClassName(cls.className);
   const subjects: DRCESubject[] = cls.subjects
     .filter(s => !hidden.has(String(s.id)))
     .map(s => ({
@@ -139,12 +141,16 @@ export function snapshotToDRCEDataContext(
       return normalized || undefined;
     })();
 
+    const resolvedGrade = isNursery
+      ? (r.score != null ? gradeForScore(r.score, true) : (r.grade ?? ''))
+      : (r.grade ? String(r.grade).trim() : (r.score != null ? gradeForScore(r.score, false) : ''));
+
     return {
       subjectName:  r.displaySubject || r.subjectName,
       midTermScore: null,
       endTermScore: r.score,
       total:        r.score,
-      grade:        r.grade,
+      grade:        resolvedGrade,
       comment:      resolvedComment,
       initials:     derivedInitials ?? '',
       teacherName:  r.teacherName ?? '',
@@ -253,18 +259,38 @@ export function snapshotToDRCEDataContext(
   // Filter results to only principal/core/primary subjects for aggregates,
   // excluding IRE/Religious Education from the contributing set.
   const principalResults = getContributingAssessmentResults(results, cls.subjects);
+  if (process.env.DEBUG_SNAPSHOT_IRE === '1') {
+    console.log('DEBUG_SNAPSHOT_IRE principalResults', principalResults.map((r) => ({ subjectId: r.subjectId, grade: r.grade, score: r.score })));
+    console.log('DEBUG_SNAPSHOT_IRE scores', principalResults.map((r) => r.score));
+  }
 
-  const computedAssessment = computeAssessmentRawValues(principalResults);
-  const assessment: DRCEAssessmentData = {
-    classPosition:  stu.position || null,
-    streamPosition: stu.position || null,
-    aggregates:     computedAssessment.aggregate,
-    division:       computedAssessment.division,
-    totalStudents:  stu.totalInClass || null,
-    position:       stu.totalInClass
-      ? `${stu.position} / ${stu.totalInClass}`
-      : (stu.position ? String(stu.position) : null),
-  };
+  let assessment: DRCEAssessmentData;
+  if (isNursery) {
+    const nurseryGrades = principalResults.map((r) => gradeForScore(r.score ?? 0, true));
+    const nurseryOverallGrade = getNurseryOverallGrade(nurseryGrades);
+    assessment = {
+      classPosition:  stu.position || null,
+      streamPosition: stu.position || null,
+      aggregates:     null,
+      division:       nurseryOverallGrade || null,
+      totalStudents:  stu.totalInClass || null,
+      position:       stu.totalInClass
+        ? `${stu.position} / ${stu.totalInClass}`
+        : (stu.position ? String(stu.position) : null),
+    };
+  } else {
+    const computedAssessment = computeAssessmentRawValues(principalResults);
+    assessment = {
+      classPosition:  stu.position || null,
+      streamPosition: stu.position || null,
+      aggregates:     computedAssessment.aggregate,
+      division:       computedAssessment.division,
+      totalStudents:  stu.totalInClass || null,
+      position:       stu.totalInClass
+        ? `${stu.position} / ${stu.totalInClass}`
+        : (stu.position ? String(stu.position) : null),
+    };
+  }
 
   const comments: DRCECommentsData = {
     classTeacher: stu.comments?.classTeacher ?? '',

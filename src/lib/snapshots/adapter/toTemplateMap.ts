@@ -13,6 +13,7 @@ import { toArabicNumerals } from '../normalizers';
 import { displaySubjectComment } from '../grader';
 import { computeAssessmentValues } from '@/lib/drce/assessmentUtils';
 import { getContributingAssessmentResults } from '@/lib/snapshots/assessment';
+import { isNurseryClassName, gradeForScore, getNurseryOverallGrade } from '@/lib/reports/canonical-report-engine';
 
 export interface TemplateRenderInput {
   snapshot:   ReportSnapshot;
@@ -49,10 +50,12 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
 
   // Subjects table rows
   let subjectsHtml = '';
+  const isNursery = isNurseryClassName(cls.className);
+
   for (let rowIndex = 0; rowIndex < stu.results.length; rowIndex += 1) {
     const r = stu.results[rowIndex];
     const score = r.displayScore || '—';
-    const grade = r.grade || '';
+    const grade = isNursery ? gradeForScore(r.score ?? 0, true) : (r.grade || '');
     const initials = r.initials || (isArabic ? 'ب.ج.م' : 'BJM');
     const editableComments = input.editMode === true;
     const commentText = displaySubjectComment(r.remarks, r.score, snapshot.meta.language);
@@ -74,8 +77,18 @@ export function snapshotToTemplateMap(input: TemplateRenderInput): TemplateRende
   }
 
   const contributingResults = getContributingAssessmentResults(stu.results, cls.subjects);
-  const assessment = computeAssessmentValues(contributingResults, input.aggregateConfig, snapshot.meta.language);
-  const aggregates = assessment.aggregates ?? (snapshot.meta.language === 'ar' ? toArabicNumerals('0') : '0');
+  const assessment = isNursery
+    ? {
+        aggregates: null,
+        division:   getNurseryOverallGrade(
+          contributingResults.map((r) => gradeForScore(r.score ?? 0, true)),
+        ),
+      }
+    : computeAssessmentValues(contributingResults, input.aggregateConfig, snapshot.meta.language);
+
+  const aggregates = isNursery
+    ? ''
+    : assessment.aggregates ?? (snapshot.meta.language === 'ar' ? toArabicNumerals('0') : '0');
   const division = assessment.division ?? (snapshot.meta.language === 'ar' ? toArabicNumerals('-') : '-');
 
   // Pull tenant branding from the frozen snapshot meta, with safe fallbacks
