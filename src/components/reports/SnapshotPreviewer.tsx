@@ -16,6 +16,7 @@ import {
   type PersistedOverride,
 } from '@/lib/drce/overrides';
 import { OverridesPanel } from './OverridesPanel';
+import SnapshotAuditPanel from './SnapshotAuditPanel';
 import { resolveActiveTemplateId } from '@/lib/snapshots/active-template';
 
 export interface SnapshotPreviewerProps {
@@ -59,6 +60,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
   const [drceLoading, setDrceLoading] = useState<boolean>(false);
   const [activeDrceTemplateId, setActiveDrceTemplateId] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [showAudit, setShowAudit] = useState<boolean>(false);
   const [forcedPreviewSrc, setForcedPreviewSrc] = useState<string | null>(null);
 
   // Registry-driven template selection. Loaded once; the dropdown is filtered
@@ -502,6 +504,14 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
             title={mode === 'drce' ? 'Open printable DRCE view in this panel' : 'Open printable emergency view in this panel'}
           >
             <Printer className="w-4 h-4" /> Print
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAudit(s => !s)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-yellow-600 text-white hover:bg-yellow-700"
+            title="Show generation audit metadata"
+          >
+            Audit
           </button>
           <button
             type="button"
