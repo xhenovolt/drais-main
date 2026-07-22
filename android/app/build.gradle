@@ -24,6 +24,12 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode draisVersionCode
         versionName draisVersion
+        // Node 18 mobile prebuilts (nodejs-mobile-react-native) ship no x86
+        // slice; set filters EARLY so AGP never configures an x86 CMake
+        // variant (the plugin gradle's late default happens post-config).
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -146,54 +146,127 @@ async function stageBuiltinAssets() {
 }
 
 /**
- * Replicate the plugin's Cordova native-prepare into the :app project.
+ * Stage the embedded Node runtime — **Node 18.20.4**, not the plugin's own.
  *
- * The plugin's externalNativeBuild (applied into :app via app/capacitor.build.gradle)
- * compiles android/app/libs/cdvnodejsmobile/CMakeLists.txt, which needs its C++
- * bridge sources and the prebuilt libnode alongside it. Cordova copies these via
- * plugin.xml <source-file> entries and gunzips libnode.so.gz in a plugin-install
- * hook; Capacitor's cap sync does neither. So we do both here (post-sync):
- *   - copy CMakeLists.txt, native-lib.cpp, cordova-bridge.{cpp,h}
- *   - copy libnode/ (include + bin) and gunzip each bin/<ABI>/libnode.so.gz → .so
- * Idempotent: the libnode dir is cleaned and recopied each run.
+ * nodejs-mobile-cordova is abandoned at 0.4.3 and bundles Node **12.19.0**,
+ * which cannot even parse Next 15's syntax (`??` in picocolors.js was the
+ * first crash; hundreds more behind it — Next 15 requires Node >= 18.18).
+ * The nodejs-mobile project ships current prebuilts through its React
+ * Native package, so we source the runtime from nodejs-mobile-react-native
+ * (Node 18.20.4) and keep the Cordova plugin's Java/JS layer:
+ *
+ *   - libnode.so + headers  → from nodejs-mobile-react-native/android/libnode
+ *     (plain .so, no gunzip; ships armeabi-v7a / arm64-v8a / x86_64 — NO x86,
+ *      see patchPluginAbiFilters below)
+ *   - native-lib.cpp        → RN's Node-18-compatible JNI layer, with the
+ *     JNI symbol prefix renamed to the Cordova plugin's Java class
+ *     (…rn_1nodejs_1mobile_RNNodeJsMobileModule_ → …cdvnodejsmobile_NodeJS_).
+ *     Same four natives, same signatures — verified against both Java files.
+ *   - cordova-bridge.cpp/.h → RN's rn-bridge.cpp/.h with the linked-binding
+ *     renamed rn_bridge → cordova_bridge (what builtin_modules/cordova-bridge
+ *     JS resolves via process._linkedBinding). Exports match what the JS
+ *     calls: sendMessage / registerChannel / getDataDir.
+ *   - CMakeLists.txt        → the Cordova plugin's (same filenames/target).
+ *
+ * Idempotent: destinations are cleaned and regenerated each run.
  */
+const rnRoot = path.join(root, 'node_modules', 'nodejs-mobile-react-native');
+
 async function stageNativeLibs() {
-  const files = [
-    ['src/android/CMakeLists.txt', 'CMakeLists.txt'],
-    ['src/android/jni/native-lib.cpp', 'native-lib.cpp'],
-    ['src/common/cordova-bridge/cordova-bridge.cpp', 'cordova-bridge.cpp'],
-    ['src/common/cordova-bridge/cordova-bridge.h', 'cordova-bridge.h'],
+  const rnCpp = path.join(rnRoot, 'android', 'src', 'main', 'cpp');
+  const needed = [
+    path.join(pluginRoot, 'src/android/CMakeLists.txt'),
+    path.join(rnCpp, 'native-lib.cpp'),
+    path.join(rnCpp, 'rn-bridge.cpp'),
+    path.join(rnCpp, 'rn-bridge.h'),
+    path.join(rnRoot, 'android', 'libnode', 'bin'),
   ];
-  for (const [src] of files) {
-    if (!existsSync(path.join(pluginRoot, src))) {
-      console.error(`[stage-node-android] plugin native source missing: ${src} — is nodejs-mobile-cordova installed?`);
+  for (const p of needed) {
+    if (!existsSync(p)) {
+      console.error(`[stage-node-android] missing: ${p} — run npm install (needs nodejs-mobile-cordova AND nodejs-mobile-react-native).`);
       process.exit(1);
     }
   }
 
+  // Transform RN sources → Cordova naming.
+  const renameIncludes = (s) => s.replaceAll('rn-bridge.h', 'cordova-bridge.h');
+  const nativeLib = renameIncludes(await fs.readFile(path.join(rnCpp, 'native-lib.cpp'), 'utf8'))
+    .replaceAll('Java_com_janeasystems_rn_1nodejs_1mobile_RNNodeJsMobileModule_', 'Java_com_janeasystems_cdvnodejsmobile_NodeJS_');
+  const bridgeCpp = renameIncludes(await fs.readFile(path.join(rnCpp, 'rn-bridge.cpp'), 'utf8'))
+    .replaceAll('NODE_MODULE_LINKED(rn_bridge,', 'NODE_MODULE_LINKED(cordova_bridge,');
+  const bridgeH = renameIncludes(await fs.readFile(path.join(rnCpp, 'rn-bridge.h'), 'utf8'));
+  if (!nativeLib.includes('Java_com_janeasystems_cdvnodejsmobile_NodeJS_startNodeWithArguments')) {
+    console.error('[stage-node-android] JNI rename failed — RN native-lib.cpp layout changed; review the transform.');
+    process.exit(1);
+  }
+  if (!bridgeCpp.includes('NODE_MODULE_LINKED(cordova_bridge,')) {
+    console.error('[stage-node-android] linked-binding rename failed — rn-bridge.cpp layout changed; review the transform.');
+    process.exit(1);
+  }
+
   for (const nativeDst of nativeDsts) {
     await fs.mkdir(nativeDst, { recursive: true });
-    for (const [src, name] of files) {
-      await fs.copyFile(path.join(pluginRoot, src), path.join(nativeDst, name));
-    }
+    await fs.copyFile(path.join(pluginRoot, 'src/android/CMakeLists.txt'), path.join(nativeDst, 'CMakeLists.txt'));
+    await fs.writeFile(path.join(nativeDst, 'native-lib.cpp'), nativeLib);
+    await fs.writeFile(path.join(nativeDst, 'cordova-bridge.cpp'), bridgeCpp);
+    await fs.writeFile(path.join(nativeDst, 'cordova-bridge.h'), bridgeH);
 
-    // libnode: headers + prebuilt per-ABI libs (shipped gzipped to save space).
+    // libnode 18.20.4: headers + per-ABI prebuilt .so (plain, no gunzip).
     const libnodeDst = path.join(nativeDst, 'libnode');
     await fs.rm(libnodeDst, { recursive: true, force: true });
-    await copyTree(path.join(pluginRoot, 'libs', 'android', 'libnode'), libnodeDst);
-
-    let gunzipped = 0;
-    for (const abi of ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']) {
-      const gz = path.join(libnodeDst, 'bin', abi, 'libnode.so.gz');
-      const so = path.join(libnodeDst, 'bin', abi, 'libnode.so');
-      if (existsSync(gz)) {
-        await pipeline(createReadStream(gz), zlib.createGunzip(), createWriteStream(so));
-        await fs.rm(gz); // jniLibs must see .so, not .so.gz
-        gunzipped++;
-      }
-    }
-    console.log(`✔ native libs staged into ${path.relative(root, nativeDst)} (libnode gunzipped for ${gunzipped} ABIs).`);
+    await copyTree(path.join(rnRoot, 'android', 'libnode'), libnodeDst);
+    const abis = await fs.readdir(path.join(libnodeDst, 'bin'));
+    console.log(`✔ Node 18 runtime staged into ${path.relative(root, nativeDst)} (ABIs: ${abis.join(', ')}).`);
   }
+
+  await patchPluginAbiFilters();
+}
+
+/**
+ * Node 18 prebuilts have no x86 slice, but the plugin gradle (applied from
+ * node_modules by BOTH the :app and plugins projects) defaults abiFilters to
+ * a list including x86 — which would fail CMake with a missing libnode.so.
+ * Patch the default in place (idempotent; reapplied after every npm install).
+ */
+async function patchPluginAbiFilters() {
+  const gradleFile = path.join(pluginRoot, 'src', 'android', 'build.gradle');
+  const before = await fs.readFile(gradleFile, 'utf8');
+  const after = before.replaceAll('["armeabi-v7a", "x86", "arm64-v8a", "x86_64"]', '["armeabi-v7a", "arm64-v8a", "x86_64"]');
+  if (after !== before) {
+    await fs.writeFile(gradleFile, after);
+    console.log('✔ plugin gradle abiFilters patched (dropped x86 — Node 18 prebuilts ship 3 ABIs).');
+  } else if (before.includes('["armeabi-v7a", "arm64-v8a", "x86_64"]')) {
+    console.log('• plugin gradle abiFilters already patched.');
+  } else {
+    console.error('[stage-node-android] could not patch plugin abiFilters default — build.gradle layout changed.');
+    process.exit(1);
+  }
+
+  // The plugin's default above applies POST-configuration — too late to stop
+  // AGP from configuring an x86 CMake variant. Inject filters EARLY into the
+  // regenerated capacitor-cordova-android-plugins project (cap sync rewrites
+  // it, so this must run after every sync; :app has them in its own gradle).
+  const pluginsGradle = path.join(root, 'android', 'capacitor-cordova-android-plugins', 'build.gradle');
+  const pg = await fs.readFile(pluginsGradle, 'utf8');
+  if (!pg.includes('abiFilters')) {
+    const marker = 'defaultConfig {';
+    if (!pg.includes(marker)) {
+      console.error('[stage-node-android] could not inject abiFilters — plugins build.gradle has no defaultConfig block.');
+      process.exit(1);
+    }
+    const injected = pg.replace(marker, marker + "\n        ndk { abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64' } // Node 18 prebuilts: no x86 (stage-node-android)");
+    await fs.writeFile(pluginsGradle, injected);
+    console.log('✔ abiFilters injected into capacitor-cordova-android-plugins/build.gradle.');
+  } else {
+    console.log('• plugins project abiFilters already present.');
+  }
+
+  // Drop stale per-ABI CMake configurations (an old x86 config would still
+  // try to build against the removed x86 libnode).
+  for (const proj of ['app', 'capacitor-cordova-android-plugins']) {
+    await fs.rm(path.join(root, 'android', proj, '.cxx'), { recursive: true, force: true });
+  }
+  console.log('✔ stale .cxx CMake configurations cleared.');
 }
 
 /**

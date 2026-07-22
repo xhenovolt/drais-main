@@ -135,6 +135,12 @@
           el('note').textContent = 'First launch copies ~4,000 files out of the app package. This happens ONCE per install and is skipped on every later launch.';
           try {
             window.nodejs.start('main.js', function (err) {
+              if (err && /already started/i.test(String(err))) {
+                // Benign: app relaunched while the runtime is still alive
+                // from the previous session — the server is (re)usable.
+                setPhase('server', 'Reconnecting to DRAIS server…');
+                return;
+              }
               if (err) fail('The embedded runtime failed to start: ' + err + ' — uninstall and reinstall the app; if it persists, this build is faulty.');
             });
           } catch (e) {

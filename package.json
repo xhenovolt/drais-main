@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "1.80.79",
+  "version": "1.80.80",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -151,6 +151,7 @@
     "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "^15.5.12",
+    "nodejs-mobile-react-native": "^18.20.4",
     "tailwindcss": "^4.1.12",
     "typescript": "^5"
   },
