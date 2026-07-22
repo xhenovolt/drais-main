@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getDashboardAttendanceCounts } from '@/lib/attendance/dashboard-counts';
+import { resolveTimePolicy } from '@/lib/attendance/device-clock';
+
+/** UTC SQL instant for local midnight of `date` (+`plusDays`). */
+function utcBoundary(date: string, offsetMin: number, plusDays = 0): string {
+  const ms = Date.parse(`${date}T00:00:00Z`) - offsetMin * 60_000 + plusDays * 86_400_000;
+  return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
 
 export const runtime = 'nodejs';
 
@@ -44,20 +51,27 @@ export async function GET(req: NextRequest) {
       [schoolId],
     );
 
-    // Today's punches (school-scoped)
+    // Today's punches — CANONICAL store (attendance_raw_events), which
+    // ingestion + identity matching + repairs all write to. The legacy
+    // zk_attendance_logs student_id/staff_id columns are only set by the
+    // retired mapping path and go stale (dashboard showed wrong numbers).
+    const policy = await resolveTimePolicy(schoolId);
+    const offsetMin = policy.offsetMinutes;
+    const dayStart = utcBoundary(date, offsetMin, 0);
+    const dayEnd = utcBoundary(date, offsetMin, 1);
     const punchStats = await query(
       `SELECT
          COUNT(*) AS total_punches,
          SUM(CASE WHEN matched = 1 THEN 1 ELSE 0 END) AS matched_punches,
          SUM(CASE WHEN matched = 0 THEN 1 ELSE 0 END) AS unmatched_punches,
-         SUM(CASE WHEN student_id IS NOT NULL THEN 1 ELSE 0 END) AS student_punches,
-         SUM(CASE WHEN staff_id IS NOT NULL THEN 1 ELSE 0 END) AS staff_punches,
-         COUNT(DISTINCT CASE WHEN student_id IS NOT NULL THEN student_id END) AS unique_students_present,
-         COUNT(DISTINCT CASE WHEN staff_id IS NOT NULL THEN staff_id END) AS unique_staff_present,
+         SUM(CASE WHEN matched = 1 AND role_type = 'student' THEN 1 ELSE 0 END) AS student_punches,
+         SUM(CASE WHEN matched = 1 AND role_type = 'staff' THEN 1 ELSE 0 END) AS staff_punches,
+         COUNT(DISTINCT CASE WHEN matched = 1 AND role_type = 'student' THEN role_ref_id END) AS unique_students_present,
+         COUNT(DISTINCT CASE WHEN matched = 1 AND role_type = 'staff' THEN role_ref_id END) AS unique_staff_present,
          COUNT(DISTINCT device_user_id) AS unique_users
-       FROM zk_attendance_logs
-       WHERE school_id = ? AND DATE(check_time) = ?`,
-      [schoolId, date],
+       FROM attendance_raw_events
+       WHERE school_id = ? AND punch_at >= ? AND punch_at < ?`,
+      [schoolId, dayStart, dayEnd],
     );
 
     // Pending commands (school-scoped)
@@ -71,43 +85,45 @@ export async function GET(req: NextRequest) {
       [schoolId],
     );
 
-    // Hourly breakdown for chart (school-scoped)
+    // Hourly breakdown for chart — school-local hours from UTC instants.
     const hourlyData = await query(
       `SELECT
-         HOUR(check_time) AS hour,
+         HOUR(DATE_ADD(punch_at, INTERVAL ? MINUTE)) AS hour,
          COUNT(*) AS punches,
          SUM(CASE WHEN io_mode = 0 THEN 1 ELSE 0 END) AS check_ins,
          SUM(CASE WHEN io_mode = 1 THEN 1 ELSE 0 END) AS check_outs
-       FROM zk_attendance_logs
-       WHERE school_id = ? AND DATE(check_time) = ?
-       GROUP BY HOUR(check_time)
+       FROM attendance_raw_events
+       WHERE school_id = ? AND punch_at >= ? AND punch_at < ?
+       GROUP BY HOUR(DATE_ADD(punch_at, INTERVAL ? MINUTE))
        ORDER BY hour`,
-      [schoolId, date],
+      [offsetMin, schoolId, dayStart, dayEnd, offsetMin],
     );
 
-    // Recent punches (live feed, school-scoped)
+    // Recent punches (live feed) — canonical store; aliases preserved so
+    // the frontend keeps working (student_/staff_ names from people via
+    // person_id, ids from role_ref_id per role).
     const recentPunches = await query(
       `SELECT
-         al.id, al.device_sn, al.device_user_id, al.check_time,
-         al.verify_type, al.io_mode, al.matched,
-       al.student_id, al.staff_id,
-       d.device_name, d.location,
-       sp.first_name AS student_first_name,
-       sp.last_name AS student_last_name,
-        stf.first_name AS staff_first_name,
-        stf.last_name AS staff_last_name,
-        dud.device_name AS device_known_name
-       FROM zk_attendance_logs al
-       LEFT JOIN devices d ON al.device_sn = d.sn
-       LEFT JOIN students st ON al.student_id = st.id
-       LEFT JOIN people sp ON st.person_id = sp.id
-       LEFT JOIN staff stf ON al.staff_id = stf.id
+         ar.id, ar.device_sn, CAST(ar.device_user_id AS CHAR) AS device_user_id,
+         ar.punch_at AS check_time,
+         ar.verify_type, ar.io_mode, ar.matched,
+         CASE WHEN ar.role_type = 'student' THEN ar.role_ref_id END AS student_id,
+         CASE WHEN ar.role_type = 'staff'   THEN ar.role_ref_id END AS staff_id,
+         d.device_name, d.location,
+         CASE WHEN ar.role_type = 'student' THEN p.first_name END AS student_first_name,
+         CASE WHEN ar.role_type = 'student' THEN p.last_name  END AS student_last_name,
+         CASE WHEN ar.role_type = 'staff'   THEN p.first_name END AS staff_first_name,
+         CASE WHEN ar.role_type = 'staff'   THEN p.last_name  END AS staff_last_name,
+         COALESCE(ar.display_name, dud.device_name) AS device_known_name
+       FROM attendance_raw_events ar
+       LEFT JOIN devices d ON ar.device_sn = d.sn
+       LEFT JOIN people p ON ar.person_id = p.id
        LEFT JOIN device_user_directory dud
-         ON dud.school_id = al.school_id
-        AND dud.device_sn = al.device_sn
-        AND dud.device_user_id = al.device_user_id
-       WHERE al.school_id = ?
-       ORDER BY al.check_time DESC
+         ON dud.school_id = ar.school_id
+        AND dud.device_sn = ar.device_sn
+        AND dud.device_user_id = CAST(ar.device_user_id AS CHAR)
+       WHERE ar.school_id = ?
+       ORDER BY ar.punch_at DESC
        LIMIT 20`,
       [schoolId],
     );

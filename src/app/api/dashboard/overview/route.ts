@@ -168,11 +168,14 @@ export async function GET(req: NextRequest) {
         WHERE deleted_at IS NULL
       `, []),
 
-      // Today biometric punches from ZKTeco devices
+      // Today biometric punches — canonical store (school-local day via
+      // the EAT offset; punch_at is a real UTC instant).
       connection.execute(`
         SELECT COUNT(*) AS today_punches, SUM(matched) AS matched_punches
-        FROM zk_attendance_logs
-        WHERE school_id = ? AND DATE(check_time) = CURDATE()
+        FROM attendance_raw_events
+        WHERE school_id = ?
+          AND punch_at >= DATE_SUB(DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 180 MINUTE)), INTERVAL 180 MINUTE)
+          AND punch_at <  DATE_SUB(DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 180 MINUTE)) + INTERVAL 1 DAY, INTERVAL 180 MINUTE)
       `, [schoolId])
     ]);
 

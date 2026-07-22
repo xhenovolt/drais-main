@@ -1,20 +1,21 @@
 /**
  * Dashboard attendance counts (present / late / absent).
  * ─────────────────────────────────────────────────────
- * Derived directly from the raw punches (zk_attendance_logs) + the
- * school's attendance rule, NOT from the canonical attendance_records
- * table — because attendance_records is only populated for matched,
- * engine-evaluated punches and is sparse in practice, which made every
- * dashboard read 0. Raw punches always exist, so this shows real numbers
- * regardless of engine state.
+ * Reads attendance_raw_events — the CANONICAL punch store that ingestion,
+ * identity matching, and repairs all write to. (The previous version read
+ * the legacy zk_attendance_logs table, whose student_id/staff_id columns
+ * are only populated by the retired mapping path — so people mapped
+ * through biometric_enrollments never appeared in the dashboard numbers.)
  *
- *   present = distinct matched people with >= 1 punch on the date
- *   late    = of those, whose FIRST punch (in school-local time) is after
- *             arrival_end_time + late_threshold_minutes
- *   absent  = active roster total - present
+ *   present = distinct matched people with ≥ 1 punch on the school-local date
+ *   late    = of those, whose FIRST punch (school-local) is after the
+ *             ROLE's rule cutoff (arrival_end_time + grace) — staff and
+ *             students each use their own applicable rule
+ *   absent  = active roster total − present
  *
- * Local time-of-day is computed with the school's UTC offset (time
- * policy), since punch_at is stored as a real UTC instant.
+ * punch_at is a real UTC instant; the school-local day window is
+ * [localMidnight − offset, +24h) — no DATE(punch_at) shortcuts, which
+ * misplace 00:00–02:59 punches on non-UTC schools.
  */
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
@@ -41,6 +42,32 @@ function localTodayStr(offsetMin: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** UTC SQL instant for local midnight of `date` (+`plusDays`). */
+function utcBoundary(date: string, offsetMin: number, plusDays = 0): string {
+  const ms = Date.parse(`${date}T00:00:00Z`) - offsetMin * 60_000 + plusDays * 86_400_000;
+  return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/** The role's late cutoff from the school's own active rules. */
+async function roleLateCutoff(schoolId: number, role: 'student' | 'staff'): Promise<string> {
+  const applies = role === 'staff'
+    ? `('staff','teachers','all')`
+    : `('students','learners','all')`;
+  try {
+    const rules = (await query(
+      `SELECT arrival_end_time, late_threshold_minutes
+         FROM attendance_rules
+        WHERE school_id = ? AND applies_to IN ${applies}
+        ORDER BY is_active DESC, priority DESC, id DESC LIMIT 1`,
+      [schoolId],
+    )) as Array<{ arrival_end_time: string | null; late_threshold_minutes: number | null }>;
+    if (rules[0]?.arrival_end_time) {
+      return addMinutesToTime(String(rules[0].arrival_end_time), Number(rules[0].late_threshold_minutes ?? 0));
+    }
+  } catch { /* default */ }
+  return '08:45:00';
+}
+
 export async function getDashboardAttendanceCounts(
   schoolId: number,
   dateStr?: string,
@@ -48,35 +75,25 @@ export async function getDashboardAttendanceCounts(
   const policy = await resolveTimePolicy(schoolId);
   const offsetMin = policy.offsetMinutes;
   const date = dateStr || localTodayStr(offsetMin);
+  const utcStart = utcBoundary(date, offsetMin, 0);
+  const utcEnd = utcBoundary(date, offsetMin, 1);
 
-  // Arrival cutoff (on-time end + grace). Prefer the active rule.
-  let lateCutoff = '08:45:00';
-  try {
-    const rules = (await query(
-      `SELECT arrival_end_time, late_threshold_minutes
-         FROM attendance_rules
-        WHERE school_id = ? AND applies_to IN ('students','all')
-        ORDER BY is_active DESC, priority DESC, id DESC LIMIT 1`,
-      [schoolId],
-    )) as Array<{ arrival_end_time: string | null; late_threshold_minutes: number | null }>;
-    if (rules[0]?.arrival_end_time) {
-      lateCutoff = addMinutesToTime(String(rules[0].arrival_end_time), Number(rules[0].late_threshold_minutes ?? 0));
-    }
-  } catch { /* default cutoff */ }
-
-  const roleCounts = async (idCol: 'student_id' | 'staff_id'): Promise<{ present: number; late: number }> => {
+  const roleCounts = async (role: 'student' | 'staff'): Promise<{ present: number; late: number }> => {
     try {
+      const cutoff = await roleLateCutoff(schoolId, role);
       const rows = (await query(
         `SELECT
            COUNT(*) AS present,
-           SUM(CASE WHEN TIME(DATE_ADD(first_ct, INTERVAL ? MINUTE)) > ? THEN 1 ELSE 0 END) AS late
+           SUM(CASE WHEN TIME(DATE_ADD(first_at, INTERVAL ? MINUTE)) > ? THEN 1 ELSE 0 END) AS late
          FROM (
-           SELECT ${idCol} AS pid, MIN(check_time) AS first_ct
-             FROM zk_attendance_logs
-            WHERE school_id = ? AND ${idCol} IS NOT NULL AND DATE(check_time) = ?
-            GROUP BY ${idCol}
+           SELECT role_ref_id, MIN(punch_at) AS first_at
+             FROM attendance_raw_events
+            WHERE school_id = ? AND matched = 1 AND role_type = ?
+              AND role_ref_id IS NOT NULL
+              AND punch_at >= ? AND punch_at < ?
+            GROUP BY role_ref_id
          ) t`,
-        [offsetMin, lateCutoff, schoolId, date],
+        [offsetMin, cutoff, schoolId, role, utcStart, utcEnd],
       )) as Array<{ present: number; late: number }>;
       return { present: Number(rows[0]?.present || 0), late: Number(rows[0]?.late || 0) };
     } catch {
@@ -89,12 +106,12 @@ export async function getDashboardAttendanceCounts(
   };
 
   const [stu, stf, studentTotal, staffTotal] = await Promise.all([
-    roleCounts('student_id'),
-    roleCounts('staff_id'),
+    roleCounts('student'),
+    roleCounts('staff'),
     num(`SELECT COUNT(DISTINCT s.id) AS total
            FROM students s JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
           WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL`),
-    num(`SELECT COUNT(*) AS total FROM staff WHERE school_id = ? AND status = 'active'`),
+    num(`SELECT COUNT(*) AS total FROM staff WHERE school_id = ? AND status = 'active' AND deleted_at IS NULL`),
   ]);
 
   return {
