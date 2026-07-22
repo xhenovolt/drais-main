@@ -87,3 +87,32 @@ export function wallDiffSeconds(a: DeviceWallTime, b: DeviceWallTime): number | 
   if (!Number.isFinite(ams) || !Number.isFinite(bms)) return null;
   return Math.round((ams - bms) / 1000);
 }
+
+/**
+ * Decode ZKTeco's packed DateTime integer (CMD_GET_TIME reply / DateTime
+ * option) to the device's wall clock. Pure inverse of encodeZkDateTime in
+ * device-clock.ts:
+ *   packed = ((Y-2000)*12*31 + (M-1)*31 + (D-1)) * 86400 + h*3600 + m*60 + s
+ */
+export function decodeZkPackedTime(packed: number): DeviceWallTime | null {
+  if (!Number.isFinite(packed) || packed < 0) return null;
+  const s = packed % 60;   packed = (packed - s) / 60;
+  const mi = packed % 60;  packed = (packed - mi) / 60;
+  const h = packed % 24;   packed = (packed - h) / 24;
+  const d = (packed % 31) + 1;   packed = (packed - (d - 1)) / 31;
+  const mo = (packed % 12) + 1;  packed = (packed - (mo - 1)) / 12;
+  const y = packed + 2000;
+  if (y < 2000 || y > 2099) return null;
+  const wall = `${y}-${p2(mo)}-${p2(d)} ${p2(h)}:${p2(mi)}:${p2(s)}` as DeviceWallTime;
+  return isDeviceWallTime(wall) ? wall : null;
+}
+
+/** First-N / last-N punches of a batch by wall order — the operator's
+ *  plausibility anchors ("do these look like this morning?"). */
+export function summarizeWallTimes<T extends { wall: DeviceWallTime }>(
+  records: readonly T[],
+  n = 3,
+): { first: T[]; last: T[] } {
+  const sorted = [...records].sort((a, b) => a.wall < b.wall ? -1 : a.wall > b.wall ? 1 : 0);
+  return { first: sorted.slice(0, n), last: sorted.slice(-n).reverse() };
+}

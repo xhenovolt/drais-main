@@ -85,3 +85,42 @@ describe('DeviceWallTime canonical helpers', () => {
     }
   });
 });
+
+// ── Phase 2 additions ────────────────────────────────────────────────────────
+import { decodeZkPackedTime, summarizeWallTimes } from '@/lib/attendance/acquisition/wall-time';
+import { encodeZkDateTime } from '@/lib/attendance/device-clock';
+
+describe('decodeZkPackedTime (CMD_GET_TIME reply)', () => {
+  it('is the exact inverse of encodeZkDateTime', () => {
+    // encode produces the packed device wall for a given instant+offset;
+    // decode must recover the same wall string.
+    const instant = Date.UTC(2026, 6, 17, 5, 19, 33); // 05:19:33Z
+    const packed = encodeZkDateTime(instant, 180);     // EAT wall 08:19:33
+    assert.equal(decodeZkPackedTime(packed), '2026-07-17 08:19:33');
+  });
+
+  it('rejects garbage', () => {
+    assert.equal(decodeZkPackedTime(-5), null);
+    assert.equal(decodeZkPackedTime(Number.NaN), null);
+  });
+});
+
+describe('summarizeWallTimes (first-3 / last-3 anchors)', () => {
+  const rec = (wall, pin) => ({ wall, pin });
+  it('picks first and last three by wall order, last reversed (latest first)', () => {
+    const batch = [
+      rec('2026-07-17 06:48:00', 'c'), rec('2026-07-17 06:41:00', 'a'),
+      rec('2026-07-17 17:28:00', 'z'), rec('2026-07-17 06:45:00', 'b'),
+      rec('2026-07-17 17:06:00', 'x'), rec('2026-07-17 12:00:00', 'm'),
+      rec('2026-07-17 17:11:00', 'y'),
+    ];
+    const { first, last } = summarizeWallTimes(batch);
+    assert.deepEqual(first.map(r => r.pin), ['a', 'b', 'c']);
+    assert.deepEqual(last.map(r => r.pin), ['z', 'y', 'x']);
+  });
+  it('handles batches smaller than N', () => {
+    const { first, last } = summarizeWallTimes([rec('2026-07-17 06:41:00', 'a')]);
+    assert.equal(first.length, 1);
+    assert.equal(last.length, 1);
+  });
+});

@@ -19,7 +19,19 @@ import { recordRawEvent } from '@/lib/attendance/engine';
 import { decidePunchTime, getDeviceTimeContext, resolveTimePolicy } from '@/lib/attendance/device-clock';
 import { normalizeDeviceDateTime } from '@/lib/attendance/adms-protocol';
 import { beginAcquisition, stageRecords, finishAcquisition } from '@/lib/attendance/acquisition/service';
-import { wallFromZkRecordTime } from '@/lib/attendance/acquisition/wall-time';
+import { wallFromZkRecordTime, wallDate, decodeZkPackedTime, type DeviceWallTime } from '@/lib/attendance/acquisition/wall-time';
+import { validateAcquisition } from '@/lib/attendance/acquisition/validate';
+
+/** Probe the device's own wall clock (CMD_GET_TIME=201). Best-effort. */
+async function probeDeviceWallTime(zk: any): Promise<DeviceWallTime | null> {
+  try {
+    const reply: Buffer = await zk.executeCmd(COMMANDS.CMD_GET_TIME, '');
+    if (!reply || reply.length < 4) return null;
+    // TCP replies carry an 8-byte header before payload; UDP replies don't.
+    const packed = reply.length >= 12 ? reply.readUInt32LE(8) : reply.readUInt32LE(reply.length - 4);
+    return decodeZkPackedTime(packed);
+  } catch { return null; }
+}
 
 export const runtime = 'nodejs';
 
@@ -698,6 +710,106 @@ export async function POST(req: NextRequest) {
           resultLength: result?.length,
           resultHex: result ? result.toString('hex').substring(0, 200) : null,
         });
+      }
+
+      // ── Phase 2: staging-only pull for one date ──────────────────────────
+      // Pulls the device log, filters to the requested calendar DATE using
+      // the verbatim device wall clock (day-boundary-safe — no UTC math),
+      // stages the records, probes the device clock, and runs automatic
+      // validation. ZERO writes to attendance_raw_events — persistence is
+      // an explicit operator decision (Phase 4 committer).
+      case 'stage_pull': {
+        const dateStr: string | null = body.date || null; // YYYY-MM-DD
+        if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          return NextResponse.json({ error: 'date (YYYY-MM-DD) is required' }, { status: 400 });
+        }
+
+        const zk = await getConnection(ip, port);
+        const stageStartMs = Date.now();
+        const attResult = await zk.getAttendances();
+        const allRecords: any[] = attResult?.data || [];
+        let deviceInfo: any = {};
+        try { deviceInfo = await zk.getInfo(); } catch {}
+        const deviceWallNow = await probeDeviceWallTime(zk);
+
+        // Device name map for the inspection screen.
+        const userNameMap: Record<string, string> = {};
+        try {
+          const usersResult = await zk.getUsers();
+          for (const u of (usersResult?.data || [])) {
+            const pin = String(u.userId ?? '');
+            if (pin && u.name) userNameMap[pin] = String(u.name).trim();
+          }
+        } catch { /* best-effort */ }
+
+        const resolvedSn: string = (device_sn as string | undefined)
+          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
+          || '';
+
+        const acquisitionId = await beginAcquisition({
+          schoolId: session.schoolId,
+          method: 'tcp_pull',
+          deviceSn: resolvedSn || null,
+          deviceIp: ip,
+          requestedBy: session.userId ?? null,
+          windowFrom: dateStr,
+          windowTo: dateStr,
+        });
+
+        try {
+          // Filter by the DEVICE's calendar date — verbatim wall, no UTC.
+          const punches = allRecords
+            .map((r: any) => ({
+              seq: typeof r.userSn === 'number' ? r.userSn : null,
+              deviceUserId: String(r.deviceUserId ?? ''),
+              wallTime: wallFromZkRecordTime(r.recordTime)!,
+              verifyType: r.verification ?? null,
+              statusCode: r.status ?? null,
+              displayName: userNameMap[String(r.deviceUserId ?? '')] || null,
+            }))
+            .filter((p: any) => p.wallTime && p.deviceUserId && wallDate(p.wallTime) === dateStr);
+
+          const { staged, invalid } = await stageRecords(acquisitionId, punches);
+
+          const deviceTz = await getDeviceTimeContext(resolvedSn || '');
+          const timePolicy = await resolveTimePolicy(session.schoolId);
+          const tzOffsetMinutes = deviceTz.tzOffsetMinutes ?? timePolicy.offsetMinutes;
+
+          const validation = await validateAcquisition({
+            schoolId: session.schoolId,
+            acquisitionId,
+            deviceSn: resolvedSn || null,
+            tzOffsetMinutes,
+            deviceWallNow,
+          });
+
+          await finishAcquisition(acquisitionId, {
+            status: 'validated',
+            deviceLogCount: deviceInfo?.logCounts ?? null,
+            recordsReceived: punches.length,
+            recordsStaged: staged,
+            recordsFailed: invalid,
+            durationMs: Date.now() - stageStartMs,
+          });
+
+          return NextResponse.json({
+            success: true,
+            acquisitionId,
+            date: dateStr,
+            deviceSn: resolvedSn || null,
+            totalOnDevice: allRecords.length,
+            staged,
+            invalid,
+            validation,
+          });
+        } catch (err: any) {
+          await finishAcquisition(acquisitionId, {
+            status: 'failed',
+            errorMessage: String(err?.message || err).slice(0, 1000),
+            durationMs: Date.now() - stageStartMs,
+          }).catch(() => undefined);
+          throw err;
+        }
       }
 
       // ── Pull Attendance Logs ─────────────────────────────────────────────
