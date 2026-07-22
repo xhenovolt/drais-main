@@ -10,6 +10,21 @@ const nextConfig = {
   // Next's file tracing ships them as-is so @sparticuz/chromium's brotli
   // binaries reach the Vercel function (see src/lib/pdf/browser.ts).
   serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium'],
+
+  // @sparticuz/chromium locates its bin/ payload via fs at runtime, which
+  // the static tracer cannot see — without these includes the lambda dies
+  // with `The input directory ".../@sparticuz/chromium/bin" does not exist`.
+  // Keys are micromatch globs against route names; `*` matches a whole
+  // segment including literal `[param]` text (avoid brackets in keys — they
+  // parse as character classes). Scoped to the PDF routes only so other
+  // functions don't carry the ~70MB Chromium payload.
+  outputFileTracingIncludes: {
+    '/academics/report-cards/*/*/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
+    '/api/portal/learners/*/snapshots/*/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
+    '/api/verify/*/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
+    '/api/students/*/transcript/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
+    '/api/students/full': ['./node_modules/@sparticuz/chromium/bin/**'],
+  },
   
   // Turbopack configuration
   turbopack: {
