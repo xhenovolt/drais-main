@@ -12,6 +12,8 @@ export interface AttendanceHistoryBaseRow {
   derived_detail: string | null;
   class_name: string | null;
   person_name: string | null;
+  staff_position?: string | null;
+  staff_department?: string | null;
 }
 
 export interface AttendancePresentationRow {
@@ -19,6 +21,8 @@ export interface AttendancePresentationRow {
   time: string;
   timestamp: string;
   name: string;
+  designation: string;
+  department: string;
   category: string;
   className: string;
   deviceId: string;
@@ -39,6 +43,8 @@ const EXPORT_COLUMNS: ReadonlyArray<AttendanceExportColumn> = [
   { key: 'date', header: 'Date' },
   { key: 'time', header: 'Time' },
   { key: 'name', header: 'Name' },
+  { key: 'designation', header: 'Designation' },
+  { key: 'department', header: 'Department' },
   { key: 'category', header: 'Category' },
   { key: 'className', header: 'Class' },
   { key: 'deviceId', header: 'Device ID' },
@@ -66,6 +72,8 @@ export class AttendancePresentationModel {
       time: formatter.formatTime(row.check_time),
       timestamp: formatter.formatDateTime(row.check_time),
       name,
+      designation: formatter.formatNullable(row.staff_position ?? null),
+      department: formatter.formatNullable(row.staff_department ?? null),
       category: formatter.formatCategory(row.role_type || (row.matched ? 'student' : 'unmatched')),
       className: formatter.formatNullable(row.class_name),
       deviceId: formatter.formatNullable(row.device_user_id),

@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const tab = url.searchParams.get('tab') || 'all';
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+  // Rows-per-page: 10/20/50/100/250, or 'all' (bounded at 5000 so a
+  // misbehaving client can't stream the whole history table).
+  const limitRaw = url.searchParams.get('limit') || '50';
+  const limit = limitRaw === 'all'
+    ? 5000
+    : Math.min(250, Math.max(1, parseInt(limitRaw, 10) || 50));
   const offset = (page - 1) * limit;
   const dateFrom = url.searchParams.get('date_from');
   const dateTo = url.searchParams.get('date_to');
@@ -112,6 +117,16 @@ export async function GET(req: NextRequest) {
       params.push(gender);
     }
 
+    // Arrival-status quick filter (derived_event stamped by the engine).
+    const derived = url.searchParams.get('derived');
+    if (derived === 'late') {
+      conditions.push(`ar.derived_event = 'ARRIVED_LATE'`);
+    } else if (derived === 'early') {
+      conditions.push(`ar.derived_event = 'ARRIVED_EARLY'`);
+    } else if (derived === 'ontime') {
+      conditions.push(`ar.derived_event IN ('ARRIVED','ARRIVED_EARLY')`);
+    }
+
     const where = conditions.join(' AND ');
 
     const countRows = await query(
@@ -171,10 +186,14 @@ export async function GET(req: NextRequest) {
          p.photo_url,
          p.gender,
          c.name AS class_name,
-         s.admission_no
+         s.admission_no,
+         stf.position AS staff_position,
+         dep.name AS staff_department
        FROM attendance_raw_events ar
        LEFT JOIN devices d ON ar.device_sn = d.sn
        LEFT JOIN people p ON ar.person_id = p.id
+       LEFT JOIN staff stf ON ar.role_type = 'staff' AND stf.person_id = ar.person_id AND stf.school_id = ar.school_id AND stf.deleted_at IS NULL
+       LEFT JOIN departments dep ON dep.id = stf.department_id
        LEFT JOIN students s ON p.id = s.person_id AND s.school_id = ar.school_id
        LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
        LEFT JOIN classes c ON e.class_id = c.id
