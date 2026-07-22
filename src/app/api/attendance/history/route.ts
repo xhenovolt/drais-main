@@ -42,11 +42,33 @@ export async function GET(req: NextRequest) {
     const conditions: string[] = ['ar.school_id = ?'];
     const params: any[] = [schoolId];
 
-    if (dateFrom) {
+    // Optional intra-day window (HH:MM) — "this morning / afternoon /
+    // evening / custom". Applied on top of the date filters; when no date
+    // is given the window means TODAY (school-local).
+    const timeFrom = url.searchParams.get('time_from'); // HH:MM
+    const timeTo = url.searchParams.get('time_to');     // HH:MM
+    const hhmm = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    /** School-local date+time → UTC SQL, via the day-start boundary + minutes. */
+    const timeBoundary = (localDate: string, t: string, endOfMinute: boolean): string => {
+      const startSql = formatter.toUtcBoundary(localDate, 'start');
+      const startMs = Date.parse(`${startSql.replace(' ', 'T')}Z`);
+      const [h, m] = t.split(':').map(Number);
+      const ms = startMs + ((h * 60 + m) * 60 + (endOfMinute ? 59 : 0)) * 1000;
+      return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+    };
+    const defaultDay = () => dateFrom || dateTo || new Date().toISOString().slice(0, 10);
+
+    if (timeFrom && hhmm.test(timeFrom)) {
+      conditions.push('ar.punch_at >= ?');
+      params.push(timeBoundary(dateFrom || defaultDay(), timeFrom, false));
+    } else if (dateFrom) {
       conditions.push('ar.punch_at >= ?');
       params.push(formatter.toUtcBoundary(dateFrom, 'start'));
     }
-    if (dateTo) {
+    if (timeTo && hhmm.test(timeTo)) {
+      conditions.push('ar.punch_at <= ?');
+      params.push(timeBoundary(dateTo || defaultDay(), timeTo, true));
+    } else if (dateTo) {
       conditions.push('ar.punch_at <= ?');
       params.push(formatter.toUtcBoundary(dateTo, 'end'));
     }

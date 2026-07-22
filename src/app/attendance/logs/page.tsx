@@ -271,6 +271,19 @@ export default function UnifiedAttendancePage() {
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [exportingFormat, setExportingFormat] = useState<'csv' | 'excel' | null>(null);
   const { events: liveEvents, connected: sseConnected } = useLiveFeed();
+  // Per-row selection for surgical deletes + intra-day timeframe filter.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [timeframe, setTimeframe] = useState<'all' | 'morning' | 'afternoon' | 'evening' | 'custom'>('all');
+  const [customTimeFrom, setCustomTimeFrom] = useState('');
+  const [customTimeTo, setCustomTimeTo] = useState('');
+
+  const TIMEFRAMES: Record<string, { label: string; from: string; to: string } | null> = {
+    all: null,
+    morning: { label: 'Morning', from: '05:00', to: '11:59' },
+    afternoon: { label: 'Afternoon', from: '12:00', to: '16:59' },
+    evening: { label: 'Evening', from: '17:00', to: '22:59' },
+  };
 
   // Build query params
   const params = useMemo(() => {
@@ -284,8 +297,16 @@ export default function UnifiedAttendancePage() {
     if (search) p.set('search', search);
     if (classId) p.set('class_id', classId);
     if (gender) p.set('gender', gender);
+    if (timeframe === 'custom') {
+      if (customTimeFrom) p.set('time_from', customTimeFrom);
+      if (customTimeTo) p.set('time_to', customTimeTo);
+    } else if (TIMEFRAMES[timeframe]) {
+      p.set('time_from', TIMEFRAMES[timeframe]!.from);
+      p.set('time_to', TIMEFRAMES[timeframe]!.to);
+    }
     return p.toString();
-  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender, timeframe, customTimeFrom, customTimeTo]);
 
   const { data, isLoading, mutate } = useSWR<any>(
     `/api/attendance/history?${params}`,
@@ -369,6 +390,46 @@ export default function UnifiedAttendancePage() {
       // apiFetch surfaces the error toast (e.g. 403 for non-admins)
     } finally {
       setResetting(false);
+    }
+  };
+
+  // ── Surgical log deletion (admin) ─────────────────────────────────────
+  const toggleSelected = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const allVisibleSelected = logs.length > 0 && logs.every((l: any) => selectedIds.has(l.id));
+  const toggleAllVisible = useCallback(() => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      const every = logs.every((l: any) => next.has(l.id));
+      for (const l of logs) { if (every) next.delete(l.id); else next.add(l.id); }
+      return next;
+    });
+  }, [logs]);
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    if (!window.confirm(`Permanently delete ${ids.length} attendance log(s)? Derived attendance for the affected days is recomputed. This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const res = await apiFetch<any>('/api/attendance/logs/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, confirm: true }),
+      });
+      showToast('success', `Deleted ${res?.deleted ?? ids.length} log(s)`);
+      setSelectedIds(new Set());
+      mutate();
+    } catch {
+      // apiFetch surfaces the error toast (e.g. 403 for non-admins)
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -472,6 +533,63 @@ export default function UnifiedAttendancePage() {
               </button>
             );
           })}
+        </div>
+
+        {/* ── Timeframe quick filters ─────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {(['all', 'morning', 'afternoon', 'evening', 'custom'] as const).map(tf => (
+            <button
+              key={tf}
+              onClick={() => {
+                setTimeframe(tf); setPage(1);
+                // A timeframe implies a single day — default to today when
+                // no date is chosen yet ("this morning" means today).
+                if (tf !== 'all' && !dateFrom && !dateTo) {
+                  const today = new Date().toISOString().slice(0, 10);
+                  setDateFrom(today); setDateTo(today);
+                }
+              }}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${timeframe === tf
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
+            >
+              {tf === 'all' ? 'All day' : tf === 'custom' ? 'Custom time' : TIMEFRAMES[tf]!.label}
+            </button>
+          ))}
+          {timeframe === 'custom' && (
+            <div className="flex items-center gap-2 text-xs">
+              <input
+                type="time" value={customTimeFrom}
+                onChange={(e) => { setCustomTimeFrom(e.target.value); setPage(1); }}
+                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
+              />
+              <span className="text-gray-400">to</span>
+              <input
+                type="time" value={customTimeTo}
+                onChange={(e) => { setCustomTimeTo(e.target.value); setPage(1); }}
+                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
+          )}
+          {selectedIds.size > 0 && (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">{selectedIds.size} selected</span>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium disabled:opacity-50"
+              >
+                {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Delete selected
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-2 py-1.5 rounded-lg text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Filters ────────────────────────────────────────────────── */}
@@ -721,6 +839,15 @@ export default function UnifiedAttendancePage() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-900/50">
                 <tr>
+                  <th className="pl-4 pr-1 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleAllVisible}
+                      className="rounded border-gray-300 dark:border-gray-600"
+                      title="Select all on this page"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Time</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
@@ -737,7 +864,7 @@ export default function UnifiedAttendancePage() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {isLoading && logs.length === 0 && (
                   <tr>
-                    <td colSpan={tab === 'unmatched' ? 9 : 8} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={tab === 'unmatched' ? 10 : 9} className="px-4 py-12 text-center text-gray-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                       Loading...
                     </td>
@@ -745,7 +872,7 @@ export default function UnifiedAttendancePage() {
                 )}
                 {!isLoading && logs.length === 0 && (
                   <tr>
-                    <td colSpan={tab === 'unmatched' ? 9 : 8} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={tab === 'unmatched' ? 10 : 9} className="px-4 py-12 text-center text-gray-400">
                       No records found for this filter.
                       Try to see this live view here <br></br>
                       {liveEvents.map((ev, i) => (
@@ -776,7 +903,15 @@ export default function UnifiedAttendancePage() {
                   const presentation = log.presentation;
 
                   return (
-                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                  <tr key={log.id} className={`hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors ${selectedIds.has(log.id) ? 'bg-red-50/60 dark:bg-red-900/10' : ''}`}>
+                    <td className="pl-4 pr-1 py-3 w-8">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(log.id)}
+                        onChange={() => toggleSelected(log.id)}
+                        className="rounded border-gray-300 dark:border-gray-600"
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
