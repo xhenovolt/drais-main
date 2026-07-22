@@ -124,3 +124,40 @@ describe('summarizeWallTimes (first-3 / last-3 anchors)', () => {
     assert.equal(last.length, 1);
   });
 });
+
+// ── Phase 4: commit planner ──────────────────────────────────────────────────
+import { planCommit } from '@/lib/attendance/acquisition/commit';
+
+describe('planCommit (guarded committer eligibility)', () => {
+  const stage = (id, pin, wall) => ({
+    id, device_user_id: pin, device_wall_time: wall,
+    verify_type: null, io_mode: null, display_name: null,
+    matched: 1, person_id: 1, role_type: 'staff', role_ref_id: 1,
+    duplicate_of_event_id: null,
+  });
+
+  it('skips punches already in DRAIS (any source) and in-batch repeats', () => {
+    const records = [
+      stage(1, '53', '2026-07-17 07:06:24'),  // exists → duplicate
+      stage(2, '53', '2026-07-17 08:00:00'),  // new
+      stage(3, '53', '2026-07-17 08:00:00'),  // in-batch repeat → duplicate
+      stage(4, '64', '2026-07-17 05:19:42'),  // new
+    ];
+    const existing = new Set(['53|2026-07-17 07:06:24']);
+    const plan = planCommit(records, existing);
+    assert.deepEqual(plan.eligible.map(r => r.id), [2, 4]);
+    assert.deepEqual(plan.skippedDuplicates.map(r => r.id), [1, 3]);
+    assert.equal(plan.skippedInvalid.length, 0);
+  });
+
+  it('quarantines invalid wall strings instead of committing them', () => {
+    const records = [
+      stage(1, '53', '2026-07-17T07:06:24'),  // ISO-ish — invalid identity
+      stage(2, '', '2026-07-17 08:00:00'),    // missing pin
+      stage(3, '64', '2026-07-17 09:00:00'),  // fine
+    ];
+    const plan = planCommit(records, new Set());
+    assert.deepEqual(plan.eligible.map(r => r.id), [3]);
+    assert.deepEqual(plan.skippedInvalid.map(r => r.id), [1, 2]);
+  });
+});

@@ -147,7 +147,8 @@ interface WizardValidation {
 }
 
 interface WizardState {
-  step: 'idle' | 'pulling' | 'inspect' | 'decide' | 'discarded' | 'error';
+  step: 'idle' | 'pulling' | 'inspect' | 'decide' | 'saving' | 'saved' | 'discarded' | 'error';
+  saveResult?: { committed: number; duplicates: number; invalid: number; evaluated: number; tzOffsetMinutes: number };
   date: string;
   acquisitionId?: number;
   staged?: number;
@@ -306,6 +307,27 @@ export default function DeviceControlPage() {
       refreshAcquisitions();
     } catch (err: any) {
       setWiz(w => ({ ...w, step: 'error', error: err.message }));
+      showToast('error', err.message);
+    }
+  };
+
+  const saveBatch = async () => {
+    if (!wiz.acquisitionId) return;
+    if (!confirm(`Save ${wiz.staged} punch(es) permanently to DRAIS attendance? Duplicates are skipped automatically.`)) return;
+    setWiz(w => ({ ...w, step: 'saving' }));
+    try {
+      const res = await fetch('/api/attendance/acquisitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: wiz.acquisitionId, action: 'commit' }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Save failed');
+      setWiz(w => ({ ...w, step: 'saved', saveResult: json }));
+      refreshAcquisitions();
+      showToast('success', `Saved ${json.committed} punch(es) to DRAIS`);
+    } catch (err: any) {
+      setWiz(w => ({ ...w, step: 'decide' }));
       showToast('error', err.message);
     }
   };
@@ -520,6 +542,36 @@ export default function DeviceControlPage() {
           </div>
         )}
 
+        {wiz.step === 'saving' && (
+          <div className="flex items-center gap-3 p-6 justify-center text-sm text-gray-600 dark:text-gray-300">
+            <Loader className="w-5 h-5 animate-spin text-green-500" />
+            Saving batch #{wiz.acquisitionId} in a single transaction…
+          </div>
+        )}
+
+        {wiz.step === 'saved' && wiz.saveResult && (
+          <div className="space-y-3">
+            <div className="p-4 rounded-lg border border-green-200 dark:border-green-800 bg-green-50/60 dark:bg-green-900/10">
+              <div className="flex items-center gap-2 text-green-800 dark:text-green-300 font-medium text-sm mb-2">
+                <CheckCircle className="w-4 h-4" /> Batch #{wiz.acquisitionId} saved to DRAIS
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">{wiz.saveResult.committed} saved</span>
+                <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">{wiz.saveResult.duplicates} duplicates skipped</span>
+                {wiz.saveResult.invalid > 0 && <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{wiz.saveResult.invalid} invalid</span>}
+                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{wiz.saveResult.evaluated} evaluated into attendance</span>
+                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">device zone UTC{wiz.saveResult.tzOffsetMinutes >= 0 ? '+' : ''}{wiz.saveResult.tzOffsetMinutes / 60}h</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setWiz({ step: 'idle', date: todayStr(), records: [], search: '', page: 0 })}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
+            >
+              <CalendarDays className="w-4 h-4" /> Pull another date
+            </button>
+          </div>
+        )}
+
         {(wiz.step === 'inspect' || wiz.step === 'decide') && v && (
           <div className="space-y-4">
             {/* Summary chips */}
@@ -608,8 +660,8 @@ export default function DeviceControlPage() {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium">
                     <Eye className="w-3.5 h-3.5" /> Preview only (no database writes)
                   </button>
-                  <button disabled title="Enabled in the next rollout phase (guarded transactional import)"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium opacity-50 cursor-not-allowed">
+                  <button onClick={saveBatch}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium">
                     <ShieldCheck className="w-3.5 h-3.5" /> Save attendance to DRAIS
                   </button>
                   <button onClick={() => downloadRaw('csv')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium">
@@ -621,7 +673,8 @@ export default function DeviceControlPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Save is enabled after the guarded import path ships — until then this screen is read-only by design.
+                  Save runs in a single transaction: duplicates are re-checked at the moment of saving, timestamps are
+                  converted once using the device&apos;s configured timezone, and every row records this batch and operator.
                 </p>
               </div>
             )}

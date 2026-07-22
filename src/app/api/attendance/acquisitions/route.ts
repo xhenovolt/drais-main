@@ -19,6 +19,7 @@ import { query } from '@/lib/db';
 import {
   listAcquisitions, getAcquisitionRecords,
 } from '@/lib/attendance/acquisition/service';
+import { commitAcquisition } from '@/lib/attendance/acquisition/commit';
 
 export const runtime = 'nodejs';
 
@@ -63,6 +64,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Batch not found or not in a discardable state' }, { status: 409 });
     }
     return NextResponse.json({ success: true, id, status: 'discarded' });
+  }
+
+  if (action === 'commit') {
+    // Phase 4 — the guarded committer. Transactional; wall→UTC exactly
+    // once; cross-source dup re-check inside the tx; full provenance.
+    try {
+      const result = await commitAcquisition({
+        schoolId: session.schoolId,
+        acquisitionId: id,
+        operatorId: session.userId ?? null,
+      });
+      return NextResponse.json({ success: true, ...result });
+    } catch (err: any) {
+      return NextResponse.json({ error: err?.message || 'Commit failed' }, { status: 409 });
+    }
   }
 
   return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
