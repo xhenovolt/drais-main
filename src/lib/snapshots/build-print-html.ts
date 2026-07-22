@@ -95,8 +95,15 @@ export async function buildSnapshotPrintHtml(
   const lang      = isArabic ? 'ar' : 'en';
 
   // ── DRCE path ──────────────────────────────────────────────────────────
-  let drceDoc: DRCEDocument | null = resolveBuiltInDocument(templateId);
-  if (!drceDoc) {
+  // Built-in emergency_html template ids (e.g. 'emergency-secular') must
+  // NEVER resolve through dvcf_documents: a DB row sharing the template_key
+  // would hijack the emergency template into the DRCE branch, whose
+  // renderToStaticMarkup of a 'use client' component throws under Next 15
+  // ("Attempted to call DRCEDocumentRenderer() from the server"). Emergency
+  // ids go straight to the string-templating path below.
+  const isBuiltInEmergency = resolveEmergencyTemplateFile(templateId) !== null;
+  let drceDoc: DRCEDocument | null = isBuiltInEmergency ? null : resolveBuiltInDocument(templateId);
+  if (!drceDoc && !isBuiltInEmergency) {
     try {
       const { query } = await import('@/lib/db');
       const normalized = templateId.trim();
