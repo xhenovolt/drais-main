@@ -1,4 +1,4 @@
-# DRAIS — Digital Resource and Academic Information System
+# DRAIS — Digital Records & Attendance Intelligence System
 
 DRAIS is a full-featured, multi-tenant school information platform built for real schools running real terms. It manages the complete academic lifecycle — enrollment, marks, report cards, attendance (manual and biometric), finance, Qur'an memorization (Tahfiz), and parent communication — with first-class bilingual support (English / العربية) throughout.
 
