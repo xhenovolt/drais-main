@@ -18,6 +18,8 @@ import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent } from '@/lib/attendance/engine';
 import { decidePunchTime, getDeviceTimeContext, resolveTimePolicy } from '@/lib/attendance/device-clock';
 import { normalizeDeviceDateTime } from '@/lib/attendance/adms-protocol';
+import { beginAcquisition, stageRecords, finishAcquisition } from '@/lib/attendance/acquisition/service';
+import { wallFromZkRecordTime } from '@/lib/attendance/acquisition/wall-time';
 
 export const runtime = 'nodejs';
 
@@ -721,12 +723,31 @@ export async function POST(req: NextRequest) {
           : mode === 'range' ? (dateTo ?? null)   : null;
 
         const zk = await getConnection(ip, port);
+        const pullStartedMs = Date.now();
         const attResult = await zk.getAttendances();
         const allRecords: any[] = attResult?.data || [];
 
         // Get device info for the forensic report
         let deviceInfo: any = {};
         try { deviceInfo = await zk.getInfo(); } catch {}
+
+        // Phase 1 (acquisition backbone): every pull produces an audit batch
+        // row + verbatim staged records. Best-effort — the pull itself must
+        // never fail because audit logging did.
+        let acquisitionId: number | null = null;
+        try {
+          acquisitionId = await beginAcquisition({
+            schoolId: session.schoolId,
+            method: 'tcp_pull',
+            deviceSn: device_sn ?? null,
+            deviceIp: ip,
+            requestedBy: session.userId ?? null,
+            windowFrom: filterFrom,
+            windowTo: filterTo,
+          });
+        } catch (e) {
+          console.warn('[zk-tcp] acquisition audit unavailable:', e instanceof Error ? e.message : e);
+        }
 
         // Filter to the requested date window (device time, no UTC conversion —
         // node-zklib returns Date objects whose numeric value is local-time-as-UTC)
@@ -846,6 +867,35 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Phase 1 — stage the verbatim raw punches + close the audit batch.
+        if (acquisitionId != null) {
+          try {
+            const rawPunches = filtered.map((r: any) => ({
+              seq: typeof r.userSn === 'number' ? r.userSn : null,
+              deviceUserId: String(r.deviceUserId ?? ''),
+              wallTime: wallFromZkRecordTime(r.recordTime)!,
+              verifyType: r.verification ?? null,
+              statusCode: r.status ?? null,
+              displayName: userNameMap[String(r.deviceUserId ?? '')] || null,
+            })).filter((p: any) => p.wallTime && p.deviceUserId);
+            const { staged, invalid } = await stageRecords(acquisitionId, rawPunches);
+            await finishAcquisition(acquisitionId, {
+              status: failed === filtered.length && filtered.length > 0 ? 'failed' : 'committed',
+              deviceLogCount: deviceInfo?.logCounts ?? null,
+              recordsReceived: filtered.length,
+              recordsStaged: staged,
+              recordsCommitted: inserted,
+              recordsDuplicate: duplicates,
+              recordsUnmatched: unmatched,
+              recordsFailed: failed + invalid,
+              durationMs: Date.now() - pullStartedMs,
+              warnings: invalid ? [`${invalid} record(s) had unparseable wall time`] : null,
+            });
+          } catch (e) {
+            console.warn('[zk-tcp] acquisition audit close failed:', e instanceof Error ? e.message : e);
+          }
+        }
+
         return NextResponse.json({
           success: true,
           mode,
@@ -862,6 +912,7 @@ export async function POST(req: NextRequest) {
           unmatched,
           failed,
           failures: failures.slice(0, 20), // cap at 20 for response size
+          acquisitionId, // Phase 1 — audit batch reference (null if audit unavailable)
         });
       }
 
