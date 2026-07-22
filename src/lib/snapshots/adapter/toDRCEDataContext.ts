@@ -262,7 +262,14 @@ export function snapshotToDRCEDataContext(
 
   let assessment: DRCEAssessmentData;
   if (isNursery) {
-    const nurseryGrades = principalResults.map((r) => gradeForScore(r.score ?? 0, true));
+    // Nursery overall grade must come from the SNAPSHOT result rows — they
+    // carry `score`. The DRCE context rows built above expose the score as
+    // `endTermScore`/`total` only, so reading `r.score` off them yielded
+    // undefined → gradeForScore(0) → 'E' for every subject and an overall
+    // division of E on every nursery report (2026-07 bug). Mirrors the
+    // toTemplateMap nursery path exactly.
+    const nurseryPrincipal = getContributingAssessmentResults(stu.results, cls.subjects);
+    const nurseryGrades = nurseryPrincipal.map((r) => gradeForScore(r.score ?? 0, true));
     const nurseryOverallGrade = getNurseryOverallGrade(nurseryGrades);
     assessment = {
       classPosition:  stu.position || null,

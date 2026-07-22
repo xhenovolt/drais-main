@@ -407,3 +407,60 @@ describe('resolveAssessmentForSection (division/aggregate coherence)', () => {
     assert.equal(out.aggregates, 3);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Regression: nursery overall division rendered E for every learner because
+// the nursery branch read `r.score` off DRCE context rows (which only expose
+// endTermScore/total) — undefined → gradeForScore(0) → 'E'. The overall grade
+// must derive from the snapshot result rows' real scores: most frequent of
+// A(≥90) B(≥70) C(≥50) D(≥40) E(<40).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('nursery overall division (Division-E regression)', () => {
+  function nurserySnapshot(scores) {
+    return {
+      classes: [{
+        classId: 1,
+        className: 'BABY CLASS',
+        stream: '',
+        subjects: scores.map((_, i) => ({
+          id: String(i + 1), name: `Subject ${i + 1}`, displayName: `Subject ${i + 1}`,
+          totalMarks: 100, subjectType: 'primary', department: '',
+        })),
+        students: [{
+          id: 's1', studentDbId: 1, name: 'Nursery Child',
+          firstName: 'Nursery', lastName: 'Child', gender: 'F',
+          admissionNumber: 'N1', photoUrl: null,
+          results: scores.map((score, i) => ({
+            subjectId: String(i + 1), subjectName: `Subject ${i + 1}`,
+            displaySubject: `Subject ${i + 1}`, score, total: score,
+            grade: '', remarks: '', initials: '', teacherName: '', components: [],
+          })),
+          total: 0, average: 0, position: 1, totalInClass: 1,
+          displayTotal: '0', displayAverage: '0', displayPosition: '1',
+          comments: { classTeacher: '', dos: '', headTeacher: '' }, remarks: '',
+        }],
+      }],
+      meta: {
+        language: 'en', numerals: 'western', termName: 'Term 2', yearName: '2026',
+        type: 'secular', schoolName: 'Test School', branding: {},
+      },
+      config: {},
+    };
+  }
+
+  it('derives the overall grade from real scores — never E when marks are high', () => {
+    const ctx = snapshotToDRCEDataContext(nurserySnapshot([99, 99, 85, 60, 45]), 0, 0, { schoolName: 'T' });
+    assert.equal(ctx.assessment.division, 'A'); // grades A,A,B,C,D → most frequent A
+    assert.equal(ctx.assessment.aggregates, null); // nursery has no aggregates
+  });
+
+  it('still yields E when most subjects genuinely score below 40', () => {
+    const ctx = snapshotToDRCEDataContext(nurserySnapshot([20, 20, 45, 80, 69]), 0, 0, { schoolName: 'T' });
+    assert.equal(ctx.assessment.division, 'E'); // E,E,D,B,C → most frequent E
+  });
+
+  it('breaks frequency ties alphabetically (best grade wins)', () => {
+    const ctx = snapshotToDRCEDataContext(nurserySnapshot([70, 85, 69, 97, 55]), 0, 0, { schoolName: 'T' });
+    assert.equal(ctx.assessment.division, 'B'); // B,B,C,A,C → tie B/C → B
+  });
+});
