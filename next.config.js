@@ -5,6 +5,11 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
     cpus: 1,
   },
+
+  // Keep puppeteer + the lambda Chromium binary out of the webpack bundle;
+  // Next's file tracing ships them as-is so @sparticuz/chromium's brotli
+  // binaries reach the Vercel function (see src/lib/pdf/browser.ts).
+  serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium'],
   
   // Turbopack configuration
   turbopack: {

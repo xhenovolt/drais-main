@@ -18,6 +18,7 @@ import { loadSnapshot } from '@/lib/snapshots/storage';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 import {
   buildSnapshotPrintHtml,
+  isEmergencyTemplateId,
   VALID_SNAPSHOT_TYPES as VALID_TYPES,
 } from '@/lib/snapshots/build-print-html';
 
@@ -45,6 +46,17 @@ export async function GET(
 
   const sp = req.nextUrl.searchParams;
   const templateIdRaw = sp.get('template');
+
+  // DRCE template ids cannot render through this legacy string path —
+  // renderToStaticMarkup of the 'use client' DRCEDocumentRenderer throws
+  // under Next 15. Send them to the /print-snapshot page, which renders
+  // DRCE correctly via SSR + hydration. Emergency ids (and the default,
+  // which is an emergency id) stay here.
+  if (templateIdRaw && !isEmergencyTemplateId(templateIdRaw.trim())) {
+    const drceUrl = new URL(`/print-snapshot/${type}/${snapshotId}`, req.nextUrl.origin);
+    for (const [k, v] of sp.entries()) drceUrl.searchParams.set(k, v);
+    return NextResponse.redirect(drceUrl, 307);
+  }
 
   const classIdRaw     = sp.get('class_id');
   const studentIdRaw   = sp.get('student_id');

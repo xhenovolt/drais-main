@@ -294,13 +294,25 @@ export async function generateBatch(args: {
   let issued = 0, skipped = 0, errored = 0;
   let eligible = items.filter(i => i.status === 'eligible').length;
 
-  // Dynamic import — DRCEDocumentRenderer is a client component but works
-  // under renderToStaticMarkup on the server (proven by the report print path).
   const [{ DRCEDocumentRenderer }, { renderToStaticMarkup }, React] = await Promise.all([
     import('@/components/drce/DRCEDocumentRenderer'),
     import('react-dom/server'),
     import('react'),
   ]);
+
+  // Next 15's RSC runtime turns 'use client' exports imported from server
+  // code into client references — calling one throws "Attempted to call
+  // DRCEDocumentRenderer() from the server". The report print/PDF paths
+  // solved this by rendering through the /print-snapshot page + puppeteer;
+  // issuance has no equivalent page yet. Fail the batch up front with an
+  // actionable message instead of erroring every item with a cryptic stack.
+  if (typeof DRCEDocumentRenderer !== 'function') {
+    throw new Error(
+      'ISSUANCE_RENDER_UNAVAILABLE — server-side DRCE rendering is blocked by the framework ' +
+      '(client component). Issuance generation needs a print-page render pipeline like the ' +
+      'report PDF routes; no items were processed.',
+    );
+  }
 
   for (const item of items) {
     if (item.status !== 'eligible') continue;

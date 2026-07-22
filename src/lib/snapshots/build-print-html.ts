@@ -67,6 +67,12 @@ function resolveEmergencyTemplateFile(templateId: string): string | null {
   return entry.engineRef;
 }
 
+/** True when the id names a built-in emergency_html template. Routes use this
+ *  to keep DRCE template ids away from the legacy /print string path. */
+export function isEmergencyTemplateId(templateId: string): boolean {
+  return resolveEmergencyTemplateFile(templateId) !== null;
+}
+
 /**
  * Build the full printable HTML for a snapshot given a template id and
  * optional class/student filter. Returns a discriminated union so

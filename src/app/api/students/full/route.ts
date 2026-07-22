@@ -4,7 +4,7 @@ import { getSchoolFromDB } from '@/lib/schoolDB';
 import { getNextAdmissionNumber, formatAdmissionNumber } from '@/lib/admissionNumber';
 import { getSessionSchoolId } from '@/lib/auth';
 import { uploadStudentPhoto } from '@/lib/cloudinary';
-import puppeteer from 'puppeteer';
+import { launchPdfBrowser } from '@/lib/pdf/browser';
 
 export const config = {
   api: {
@@ -407,7 +407,7 @@ export async function POST(req: NextRequest) {
       
       let pdfUrl = null;
       try {
-        const browser = await puppeteer.launch({ headless: true });
+        const browser = await launchPdfBrowser();
         const page = await browser.newPage();
         await page.setContent(pdfHtml, { waitUntil: 'networkidle0' });
         await page.pdf({ path: pdfPath, format: 'A4', printBackground: true });

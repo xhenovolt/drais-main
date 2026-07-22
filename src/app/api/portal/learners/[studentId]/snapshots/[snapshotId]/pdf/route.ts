@@ -31,6 +31,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireLinkedLearner } from '@/lib/portal/context';
 import { query } from '@/lib/db';
+import { launchPdfBrowser } from '@/lib/pdf/browser';
+
+// Puppeteer + serverless Chromium needs more than the default duration.
+export const maxDuration = 60;
 
 const DEFAULT_DRCE_BY_TYPE: Record<string, string> = {
   secular:  'drce-emergency-secular',
@@ -98,22 +102,10 @@ export async function GET(
 
   const cookieHeader = req.headers.get('cookie') ?? '';
 
-  // ── Launch puppeteer ────────────────────────────────────────────────────
-  let puppeteer: typeof import('puppeteer').default;
-  try {
-    puppeteer = (await import('puppeteer')).default;
-  } catch (e) {
-    console.error('[portal/pdf] puppeteer import failed:', e);
-    return NextResponse.json({
-      error:   'PUPPETEER_IMPORT_FAILED',
-      message: e instanceof Error ? e.message : String(e),
-    }, { status: 500 });
-  }
-
+  // ── Launch puppeteer (serverless-aware) ─────────────────────────────────
   let browser: import('puppeteer').Browser | null = null;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
+    browser = await launchPdfBrowser({
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       protocolTimeout: 60_000,
     });

@@ -27,6 +27,10 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
+import { launchPdfBrowser } from '@/lib/pdf/browser';
+
+// Puppeteer + serverless Chromium needs more than the default duration.
+export const maxDuration = 60;
 
 export async function GET(
   req: NextRequest,
@@ -56,23 +60,10 @@ export async function GET(
   // accept the in-browser fetches made by the print-snapshot page.
   const cookieHeader = req.headers.get('cookie') ?? '';
 
-  // ── Launch puppeteer ────────────────────────────────────────────────────
-  let puppeteer: typeof import('puppeteer').default;
-  try {
-    puppeteer = (await import('puppeteer')).default;
-  } catch (e) {
-    console.error('[snapshots/pdf] puppeteer import failed:', e);
-    return NextResponse.json({
-      error:   'PUPPETEER_IMPORT_FAILED',
-      message: e instanceof Error ? e.message : String(e),
-      hint:    'Run `npm install` to ensure puppeteer is present.',
-    }, { status: 500 });
-  }
-
+  // ── Launch puppeteer (serverless-aware) ─────────────────────────────────
   let browser: import('puppeteer').Browser | null = null;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
+    browser = await launchPdfBrowser({
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

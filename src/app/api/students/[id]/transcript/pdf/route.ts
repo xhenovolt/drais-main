@@ -10,6 +10,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { launchPdfBrowser } from '@/lib/pdf/browser';
+
+// Puppeteer + serverless Chromium needs more than the default duration.
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
@@ -28,22 +32,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const printUrl = new URL(`/print-transcript/${encodeURIComponent(String(studentId))}`, req.nextUrl.origin);
   const cookieHeader = req.headers.get('cookie') ?? '';
 
-  let puppeteer: typeof import('puppeteer').default;
-  try {
-    puppeteer = (await import('puppeteer')).default;
-  } catch (e) {
-    console.error('[students/transcript/pdf] puppeteer import failed:', e);
-    return NextResponse.json({
-      error:   'PUPPETEER_IMPORT_FAILED',
-      message: e instanceof Error ? e.message : String(e),
-      hint:    'Run `npm install` to ensure puppeteer is present.',
-    }, { status: 500 });
-  }
-
   let browser: import('puppeteer').Browser | null = null;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
+    browser = await launchPdfBrowser({
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       protocolTimeout: 60_000,
     });
