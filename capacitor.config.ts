@@ -39,19 +39,23 @@ const config: CapacitorConfig = {
   },
 
   server: {
-    // The embedded Next server listens on 127.0.0.1:3210 (see
-    // mobile/nodejs-project/main.js). Capacitor's WebView loads this
-    // URL instead of the file:// webDir, so SSR, API routes, SSE,
-    // and the /iclock/* rewrite all keep working.
+    // IMPORTANT: no `server.url` here. The nodejs-mobile-cordova engine is
+    // only started by a JS call (`nodejs.start('main.js')`) over the Cordova
+    // bridge — and that bridge is only injected into pages served from the
+    // Capacitor local server (webDir). With `server.url` set the WebView
+    // went straight to http://127.0.0.1:3210 before anything had started
+    // Node, and every launch died with ERR_CONNECTION_REFUSED.
     //
-    // 127.0.0.1 is preferred over localhost on Android because some
-    // OEMs resolve localhost via IPv6-only and the embedded server
-    // binds IPv4.
-    url: 'http://127.0.0.1:3210',
+    // Boot sequence now: WebView loads mobile/webview-placeholder/, its
+    // script calls nodejs.start('main.js'), polls 127.0.0.1:3210, and
+    // navigates there once the embedded Next server answers.
     cleartext: true,
-    // androidScheme defaults to 'https' in Capacitor 5+. We override
-    // to 'http' so the WebView matches the embedded server's scheme.
+    // 'http' so the placeholder's origin scheme matches the embedded
+    // server's plain-HTTP scheme (no mixed-content block on the poll).
     androidScheme: 'http',
+    // Allow in-WebView navigation to the embedded server; without this
+    // Capacitor would bounce the redirect out to the system browser.
+    allowNavigation: ['127.0.0.1'],
   },
 };
 

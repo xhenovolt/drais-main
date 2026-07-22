@@ -49,6 +49,34 @@ const writableHome =
   (typeof process.env.NODEJS_MOBILE_DATA_DIR === 'string' && process.env.NODEJS_MOBILE_DATA_DIR) ||
   '/data/local/tmp';
 
+// ── DB / runtime config, mirroring electron/config.cjs ────────────────
+// Sources (earlier wins, existing process.env always wins):
+//   1. drais.env in the writable data dir — admin-editable on the device
+//   2. .env.production bundled next to main.js — staged by
+//      scripts/build-mobile.mjs from build/.env.production when the
+//      operator provides one (same file electron-builder bundles).
+// Without either, the embedded server still boots but DB-backed routes
+// have no TiDB credentials — same failure mode as an unconfigured desktop.
+function loadEnvFile(p) {
+  try {
+    const txt = fs.readFileSync(p, 'utf8');
+    for (const line of txt.split(/\r?\n/)) {
+      const m = /^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
+      if (!m || m[1].startsWith('#')) continue;
+      if (process.env[m[1]] === undefined) {
+        process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+      }
+    }
+    return true;
+  } catch { return false; }
+}
+// NOTE: bundled as 'env.production' (no leading dot) — the android
+// aaptOptions.ignoreAssetsPattern contains `.*`, which silently strips
+// every dotfile from APK assets.
+const envUser    = loadEnvFile(path.join(writableHome, 'drais.env'));
+const envBundled = loadEnvFile(path.join(__dirname, 'env.production'));
+console.log('[drais] env config: user drais.env=' + envUser + ', bundled env.production=' + envBundled);
+
 process.env.PORT     = String(PORT);
 process.env.HOSTNAME = '127.0.0.1';
 process.env.NODE_ENV = 'production';

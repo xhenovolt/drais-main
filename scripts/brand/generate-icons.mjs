@@ -96,6 +96,37 @@ async function generateAndroid(master, w) {
   }
 }
 
+/**
+ * Rebrand the Capacitor splash drawables (the first screen Android shows).
+ * The stock Capacitor project ships generic 480x320 placeholders; this
+ * regenerates every existing res/drawable*&#47;splash.png at its CURRENT
+ * dimensions — dark brand field with the DRAIS mark centred on a white
+ * rounded tile — so all density/orientation slots stay covered.
+ */
+async function generateAndroidSplash(master, w) {
+  const resRoot = path.join(root, 'android', 'app', 'src', 'main', 'res');
+  const entries = await fs.readdir(resRoot, { withFileTypes: true });
+  const BRAND_BG = { r: 15, g: 23, b: 42, alpha: 1 }; // #0f172a — matches the boot placeholder
+  for (const e of entries) {
+    if (!e.isDirectory() || !e.name.startsWith('drawable')) continue;
+    const splashPath = path.join(resRoot, e.name, 'splash.png');
+    try { await fs.access(splashPath); } catch { continue; }
+    const meta = await sharp(splashPath).metadata();
+    const W = meta.width ?? 480, H = meta.height ?? 320;
+    const tile = Math.round(Math.min(W, H) * 0.38);
+    const iconSize = Math.round(tile * 0.78);
+    const radius = Math.round(tile * 0.22);
+    const icon = await sharp(master).resize(iconSize, iconSize, { fit: 'contain', background: TRANSPARENT }).png().toBuffer();
+    const tilePng = await sharp(Buffer.from(
+      `<svg width="${tile}" height="${tile}"><rect width="${tile}" height="${tile}" rx="${radius}" fill="#ffffff"/></svg>`,
+    )).png().toBuffer();
+    await w(`android/app/src/main/res/${e.name}/splash.png`,
+      sharp({ create: { width: W, height: H, channels: 4, background: BRAND_BG } })
+        .composite([{ input: tilePng, gravity: 'center' }, { input: icon, gravity: 'center' }])
+        .png());
+  }
+}
+
 async function main() {
   for (const p of [SRC_ICON, SRC_WORDMARK]) {
     try { await fs.access(p); } catch { console.error(`Missing source: ${p}`); process.exit(1); }
@@ -137,7 +168,14 @@ async function main() {
   try {
     await fs.access(path.join(root, 'android', 'app', 'src', 'main', 'res'));
     await generateAndroid(master, w);
+    await generateAndroidSplash(master, w);
   } catch { /* no android project — skip */ }
+
+  // ── Mobile webview placeholder logo (the "Starting DRAIS" boot screen) ──
+  try {
+    await fs.access(path.join(root, 'mobile', 'webview-placeholder'));
+    await w('mobile/webview-placeholder/logo.png', await pngAt(master, 384));
+  } catch { /* no mobile project — skip */ }
 
   console.log(`✔ generated ${written.length} brand assets`);
   for (const r of written) console.log('   ' + r);

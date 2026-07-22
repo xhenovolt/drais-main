@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+// DRAIS version comes from the repo's package.json so the APK always
+// matches the web/desktop release. versionCode is derived from it
+// (major*1_000_000 + minor*10_000 + patch) for monotonic Play ordering.
+def packageJson = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def draisVersion = packageJson.version
+def (vMaj, vMin, vPat) = draisVersion.tokenize('.').collect { it.toInteger() }
+def draisVersionCode = vMaj * 1000000 + vMin * 10000 + vPat
+// Stability channel for the APK filename: -PdraisStability=alpha|beta|lts
+// (default: beta for debug builds, lts for release builds).
+def draisStability = project.hasProperty('draisStability') ? project.property('draisStability') : null
+
 android {
     namespace = "ug.drais.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -11,8 +22,8 @@ android {
         applicationId "ug.drais.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode draisVersionCode
+        versionName draisVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -24,6 +35,16 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // Name the APK drais-<version>-<stability>.apk instead of app-debug.apk.
+    // Stability: -PdraisStability=alpha|beta|lts; defaults to beta (debug)
+    // and lts (release).
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def channel = draisStability ?: (variant.buildType.name == 'release' ? 'lts' : 'beta')
+            outputFileName = "drais-${draisVersion}-${channel}.apk"
         }
     }
 }

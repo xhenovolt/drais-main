@@ -76,6 +76,24 @@ async function copyTree(src, dst) {
 await copyTree(standalone, nodeProj);
 console.log(`  copied ${standalone} → ${nodeProj}`);
 
+// ── 3b. Bundle DB config, mirroring the Electron packaging flow ──
+// electron-builder ships build/.env.production into resources/; the APK
+// equivalent is a copy next to main.js, which mobile/nodejs-project/main.js
+// loads at boot (device admins can still override via drais.env in the
+// app's writable data dir). Without it the app boots but has no TiDB
+// credentials — same as an unconfigured desktop install.
+const bundledEnv = path.join(root, 'build', '.env.production');
+if (existsSync(bundledEnv)) {
+  // Dotless destination name: android aaptOptions.ignoreAssetsPattern has
+  // `.*` which strips every dotfile from APK assets.
+  await fs.copyFile(bundledEnv, path.join(nodeProj, 'env.production'));
+  console.log('  bundled build/.env.production → nodejs-project/env.production');
+} else {
+  console.warn('  ⚠ build/.env.production not found — APK will ship without DB credentials.');
+  console.warn('    Create it (TIDB_HOST/TIDB_USER/TIDB_PASSWORD/TIDB_DB, DATABASE_MODE=tidb)');
+  console.warn('    and re-run, or configure drais.env on the device.');
+}
+
 // Re-assert main.js wasn't trampled — the standalone tree contains
 // a generic server.js that we leave alone (main.js requires it).
 const mainJs = path.join(nodeProj, 'main.js');
