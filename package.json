@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "1.80.84",
+  "version": "1.80.85",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -99,6 +99,7 @@
     "formidable": "^3.5.4",
     "framer-motion": "^12.23.22",
     "html2canvas": "^1.4.1",
+    "i18next": "^26.3.6",
     "jotai": "^2.13.1",
     "json2csv": "^6.0.0-alpha.2",
     "jspdf": "^3.0.3",
@@ -123,6 +124,8 @@
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.62.0",
     "react-hot-toast": "^2.6.0",
+    "react-i18next": "^17.0.10",
+    "react-is": "^19.2.8",
     "react-toastify": "^11.0.5",
     "recharts": "^3.2.1",
     "socket.io": "^4.8.1",
