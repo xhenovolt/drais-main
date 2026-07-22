@@ -113,3 +113,8 @@ database/exports/
 workers/dist/drais-relay*
 workers/dist/*.zip
 drais-relay.apk
+
+# Local-only reference material (one-off forensic/debug scripts, data dumps)
+archive/
+# Production-data rollback backups (phase1 repairs, dvcf rows)
+backups/
