@@ -72,8 +72,39 @@ async function main() {
   }
   console.log('✔ www/nodejs-project staged — nodejs-mobile-cordova will bundle it into the APK.');
 
+  await stageBuiltinAssets();
   await patchBuildConfigReference();
   await stageNativeLibs();
+}
+
+/**
+ * Stage the plugin's built-in runtime assets. NodeJS.java's asyncInit copies
+ * "nodejs-mobile-cordova-assets" (builtin_modules etc.) from APK assets into
+ * filesDir before the engine can start — without this folder AT THAT EXACT
+ * PATH every launch fails with:
+ *   "Node start error: Initialization failed:
+ *    java.io.FileNotFoundException: nodejs-mobile-cordova assets"
+ * Cordova's prepare stages it via plugin.xml <asset>; under Capacitor we do
+ * it here. (An earlier manual attempt staged builtin_modules at the assets
+ * ROOT, which the plugin never looks at — we also clean that up.)
+ */
+async function stageBuiltinAssets() {
+  const src = path.join(pluginRoot, 'install', 'nodejs-mobile-cordova-assets');
+  if (!existsSync(src)) {
+    console.error('[stage-node-android] plugin install/nodejs-mobile-cordova-assets missing — is nodejs-mobile-cordova installed?');
+    process.exit(1);
+  }
+  const assetsRoot = path.join(root, 'android', 'capacitor-cordova-android-plugins', 'src', 'main', 'assets');
+  const dst = path.join(assetsRoot, 'nodejs-mobile-cordova-assets');
+  await fs.rm(dst, { recursive: true, force: true });
+  await copyTree(src, dst);
+  // Remove the mis-staged wrong-level copy if a previous run left one behind.
+  await fs.rm(path.join(assetsRoot, 'builtin_modules'), { recursive: true, force: true });
+  if (!existsSync(path.join(dst, 'builtin_modules'))) {
+    console.error('[stage-node-android] builtin_modules missing after staging — aborting.');
+    process.exit(1);
+  }
+  console.log('✔ nodejs-mobile-cordova-assets staged (builtin runtime modules).');
 }
 
 /**
