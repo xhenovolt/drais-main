@@ -63,6 +63,25 @@ process.on('unhandledRejection', (e) => {
 
 beacon('node-started', 'Node ' + process.version);
 
+// ICU capability probe — mobile Node builds sometimes ship without ICU
+// (or without its data), which breaks \p{...} regexes (SyntaxError at
+// require-time in Next's compiled code) and Intl APIs (Arabic dates).
+// Beacon the truth so a crash can be attributed instantly.
+try {
+  // eslint-disable-next-line no-new
+  new RegExp('\\p{L}', 'u');
+  beacon('icu-regex', 'ok');
+} catch (e) {
+  beacon('icu-regex', 'FAIL — ' + (e && e.message));
+}
+try {
+  beacon('icu-intl', typeof Intl === 'undefined'
+    ? 'ABSENT'
+    : 'ok (' + new Intl.DateTimeFormat('ar-EG', { month: 'long' }).format(new Date(2026, 0, 1)) + ')');
+} catch (e) {
+  beacon('icu-intl', 'FAIL — ' + (e && e.message));
+}
+
 // Tell Next + Node not to touch the read-only project root. The
 // nodejs-mobile API exposes a writable data dir via cordova; we
 // fall back to /data/local/tmp which is writable on most Android
@@ -122,7 +141,12 @@ try {
   beacon('server-starting', '127.0.0.1:' + PORT);
   require(serverEntry);
 } catch (err) {
-  beacon('server-crash', err && err.stack ? err.stack.split('\n').slice(0, 3).join(' | ') : err);
+  // Lead with the actual error name+message (a SyntaxError's stack puts the
+  // offending source line FIRST and the message several lines down — the
+  // previous slice lost the message entirely). Then the location line only.
+  const headline = err ? `${err.name || 'Error'}: ${err.message || err}` : 'unknown error';
+  const location = err && err.stack ? String(err.stack).split('\n')[0].slice(0, 300) : '';
+  beacon('server-crash', headline + (location ? ' @ ' + location : ''));
   // Don't let the runtime exit — the boot screen displays the crash.
   setInterval(() => {}, 60_000);
 }
