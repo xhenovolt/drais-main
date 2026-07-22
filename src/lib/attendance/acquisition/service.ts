@@ -171,7 +171,8 @@ export async function getAcquisitionRecords(
   )) as unknown[];
   if (!acq.length) return null;
   const records = (await query(
-    `SELECT id, seq, device_user_id, device_wall_time, verify_type, io_mode, status_code,
+    `SELECT id, seq, device_user_id, device_wall_time, corrected_wall_time,
+            verify_type, io_mode, status_code,
             display_name, matched, person_id, role_type, role_ref_id,
             duplicate_of_event_id, committed_event_id, validation_flags
        FROM attendance_acquisition_records

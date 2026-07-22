@@ -276,11 +276,18 @@ export default function DeviceControlPage() {
   };
 
   // ── Acquisition wizard actions ─────────────────────────────────────────
-  const startPull = async () => {
+  const fetchRecords = async (acqId: number): Promise<any[]> => {
+    const det = await fetch(`/api/attendance/acquisitions?id=${acqId}`).then(r => r.json());
+    return det?.records || [];
+  };
+
+  const startPull = async (dateOverride?: string) => {
     if (!requireTarget()) return;
-    setWiz(w => ({ ...w, step: 'pulling', error: undefined, rejected: false }));
+    const date = dateOverride ?? wiz.date;
+    setWiz(w => ({ ...w, step: 'pulling', date, error: undefined, rejected: false, saveResult: undefined }));
+    setTimeCheck({ device: '', real: '', answered: false, appliedDrift: null });
     try {
-      const payload: any = deviceParams({ action: 'stage_pull', date: wiz.date });
+      const payload: any = deviceParams({ action: 'stage_pull', date });
       const res = await fetch('/api/attendance/zk-tcp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -289,10 +296,15 @@ export default function DeviceControlPage() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Pull failed');
       let records: any[] = [];
-      if (json.acquisitionId != null) {
-        const det = await fetch(`/api/attendance/acquisitions?id=${json.acquisitionId}`).then(r => r.json());
-        records = det?.records || [];
-      }
+      if (json.acquisitionId != null) records = await fetchRecords(json.acquisitionId);
+      // Prefill the time check from the device's probed clock; real time
+      // from the operator's browser (their watch is the authority).
+      setTimeCheck({
+        device: json.validation?.deviceWallNow ? String(json.validation.deviceWallNow).slice(11, 19) : '',
+        real: new Date().toTimeString().slice(0, 8),
+        answered: false,
+        appliedDrift: null,
+      });
       setWiz(w => ({
         ...w,
         step: 'inspect',
@@ -309,6 +321,61 @@ export default function DeviceControlPage() {
       setWiz(w => ({ ...w, step: 'error', error: err.message }));
       showToast('error', err.message);
     }
+  };
+
+  // ── Operator time check (drift correction) ─────────────────────────────
+  const [timeCheck, setTimeCheck] = useState<{ device: string; real: string; answered: boolean; appliedDrift: number | null }>({
+    device: '', real: '', answered: false, appliedDrift: null,
+  });
+  const liveDriftSeconds = useMemo(() => {
+    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(timeCheck.device) || !/^\d{2}:\d{2}(:\d{2})?$/.test(timeCheck.real)) return null;
+    const t = (s: string) => { const [h, m, sec] = s.split(':').map(Number); return h * 3600 + m * 60 + (sec || 0); };
+    return t(timeCheck.device) - t(timeCheck.real);
+  }, [timeCheck.device, timeCheck.real]);
+
+  const applyCorrection = async () => {
+    if (!wiz.acquisitionId || liveDriftSeconds == null) return;
+    const today = todayStr();
+    const norm = (s: string) => (s.length === 5 ? `${s}:00` : s);
+    try {
+      const res = await fetch('/api/attendance/acquisitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: wiz.acquisitionId,
+          action: 'apply_correction',
+          deviceWall: `${today} ${norm(timeCheck.device)}`,
+          realWall: `${today} ${norm(timeCheck.real)}`,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Correction failed');
+      const records = await fetchRecords(wiz.acquisitionId);
+      setWiz(w => ({ ...w, records }));
+      setTimeCheck(tc => ({ ...tc, answered: true, appliedDrift: json.driftSeconds }));
+      showToast('success', json.corrected
+        ? `Correction applied — pulled times shifted by ${-json.driftSeconds}s`
+        : 'Clock verified — no correction needed');
+    } catch (err: any) {
+      showToast('error', err.message);
+    }
+  };
+
+  const acceptClock = async () => {
+    if (!wiz.acquisitionId) return;
+    if (timeCheck.appliedDrift) {
+      // Operator changed their mind after applying — clear it.
+      try {
+        await fetch('/api/attendance/acquisitions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: wiz.acquisitionId, action: 'clear_correction' }),
+        });
+        const records = await fetchRecords(wiz.acquisitionId);
+        setWiz(w => ({ ...w, records }));
+      } catch { /* keep going */ }
+    }
+    setTimeCheck(tc => ({ ...tc, answered: true, appliedDrift: null }));
   };
 
   const saveBatch = async () => {
@@ -392,6 +459,7 @@ export default function DeviceControlPage() {
   const isOnline = selectedDevice?.seconds_ago != null && selectedDevice.seconds_ago <= 120;
 
   const v = wiz.validation;
+  const hasCorrection = useMemo(() => wiz.records.some((r: any) => r.corrected_wall_time), [wiz.records]);
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
@@ -511,9 +579,19 @@ export default function DeviceControlPage() {
                 <span>Batch #{wiz.acquisitionId} discarded. Nothing was saved to DRAIS.</span>
               </div>
             )}
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+            {/* ONE-CLICK: today's attendance */}
+            <button
+              onClick={() => startPull(todayStr())}
+              disabled={busy !== null}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold disabled:opacity-50 shadow-sm"
+            >
+              <Clock className="w-5 h-5" />
+              Pull today&apos;s attendance
+            </button>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 pt-1">
               <div>
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Attendance date</label>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">…or a specific date</label>
                 <input
                   type="date" value={wiz.date} max={todayStr()}
                   onChange={(e) => setWiz(w => ({ ...w, date: e.target.value }))}
@@ -521,15 +599,15 @@ export default function DeviceControlPage() {
                 />
               </div>
               <button
-                onClick={startPull}
+                onClick={() => startPull()}
                 disabled={busy !== null || !wiz.date}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm font-medium disabled:opacity-50"
               >
                 <CalendarDays className="w-4 h-4" />
-                Pull attendance for this date
+                Pull this date
               </button>
               <p className="text-xs text-gray-400 dark:text-gray-500 sm:ml-2">
-                Staging only — raw logs are inspected before anything is stored.
+                Staging only — you inspect and confirm before anything is stored.
               </p>
             </div>
           </div>
@@ -612,11 +690,72 @@ export default function DeviceControlPage() {
               ))}
             </div>
 
+            {/* Time check — DRAIS asks the operator to verify the device clock */}
+            {wiz.step === 'inspect' && (
+              <div className={`p-3 rounded-lg border space-y-3 ${timeCheck.answered
+                ? 'border-green-200 dark:border-green-800 bg-green-50/40 dark:bg-green-900/10'
+                : 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10'}`}>
+                <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  Time check — is the device clock correct?
+                  {timeCheck.answered && (
+                    <span className="ml-auto text-xs font-normal text-green-700 dark:text-green-400">
+                      {timeCheck.appliedDrift
+                        ? `Correction applied: pulled times shifted by ${-timeCheck.appliedDrift}s`
+                        : 'Clock accepted — no correction'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">What time is on the DEVICE right now?</label>
+                    <input
+                      type="time" step={1} value={timeCheck.device}
+                      onChange={(e) => setTimeCheck(tc => ({ ...tc, device: e.target.value, answered: false }))}
+                      className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
+                    />
+                    {v.deviceWallNow && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">Device reported {String(v.deviceWallNow).slice(11)} at pull</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">What is the REAL time right now?</label>
+                    <input
+                      type="time" step={1} value={timeCheck.real}
+                      onChange={(e) => setTimeCheck(tc => ({ ...tc, real: e.target.value, answered: false }))}
+                      className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Prefilled from this computer&apos;s clock</p>
+                  </div>
+                  {liveDriftSeconds != null && (
+                    <div className={`px-3 py-2 rounded-lg text-sm font-mono ${Math.abs(liveDriftSeconds) > 60
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
+                      drift: {liveDriftSeconds > 0 ? '+' : ''}{liveDriftSeconds}s
+                      {Math.abs(liveDriftSeconds) > 60 ? ' (device wrong)' : ' (ok)'}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={acceptClock}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium">
+                    <CheckCircle className="w-3.5 h-3.5" /> Clock is correct — keep pulled times
+                  </button>
+                  <button onClick={applyCorrection} disabled={liveDriftSeconds == null || liveDriftSeconds === 0}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50">
+                    <RefreshCw className="w-3.5 h-3.5" /> Correct pulled times by this drift
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Operator confirmation */}
             {wiz.step === 'inspect' && !wiz.rejected && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 ${!timeCheck.answered ? 'opacity-50 pointer-events-none' : ''}`}>
                 <span className="text-sm font-medium text-gray-900 dark:text-white flex-1">
-                  Do these timestamps match what you expect from this day&apos;s attendance?
+                  {timeCheck.answered
+                    ? 'Do these timestamps match what you expect from this day’s attendance?'
+                    : 'Answer the time check above first'}
                 </span>
                 <div className="flex gap-2">
                   <button onClick={() => setWiz(w => ({ ...w, step: 'decide' }))}
@@ -697,7 +836,9 @@ export default function DeviceControlPage() {
                 <table className="text-xs w-full">
                   <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 z-10">
                     <tr>
-                      {['#', 'Device PIN', 'Name', 'Raw Timestamp (device)', 'Verify', 'Matched', 'Flags'].map(h => (
+                      {['#', 'Device PIN', 'Name', 'Raw Timestamp (device)',
+                        ...(hasCorrection ? ['Corrected Time'] : []),
+                        'Verify', 'Matched', 'Flags'].map(h => (
                         <th key={h} className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -711,6 +852,9 @@ export default function DeviceControlPage() {
                           <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white">{r.device_user_id}</td>
                           <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{r.display_name || <span className="text-gray-400">—</span>}</td>
                           <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white whitespace-nowrap">{r.device_wall_time}</td>
+                          {hasCorrection && (
+                            <td className="px-3 py-1.5 font-mono text-amber-700 dark:text-amber-400 whitespace-nowrap">{r.corrected_wall_time || '—'}</td>
+                          )}
                           <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400">{r.verify_type ?? '—'}</td>
                           <td className="px-3 py-1.5">{r.matched
                             ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
@@ -729,7 +873,7 @@ export default function DeviceControlPage() {
                       );
                     })}
                     {pageRecords.length === 0 && (
-                      <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">No records</td></tr>
+                      <tr><td colSpan={hasCorrection ? 8 : 7} className="px-3 py-6 text-center text-gray-400">No records</td></tr>
                     )}
                   </tbody>
                 </table>

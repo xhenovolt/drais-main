@@ -161,3 +161,26 @@ describe('planCommit (guarded committer eligibility)', () => {
     assert.deepEqual(plan.skippedInvalid.map(r => r.id), [1, 2]);
   });
 });
+
+// ── Phase 5: operator drift correction ──────────────────────────────────────
+import { shiftWall } from '@/lib/attendance/acquisition/wall-time';
+
+describe('shiftWall (operator drift correction)', () => {
+  it('shifts backwards for a fast device (drift +300s → −300s correction)', () => {
+    assert.equal(shiftWall('2026-07-22 08:05:00', -300), '2026-07-22 08:00:00');
+  });
+  it('shifts forwards for a slow device', () => {
+    assert.equal(shiftWall('2026-07-22 07:58:30', 90), '2026-07-22 08:00:00');
+  });
+  it('crosses midnight correctly', () => {
+    assert.equal(shiftWall('2026-07-23 00:00:30', -60), '2026-07-22 23:59:30');
+  });
+  it('the JIPRA-class ~5h-fast factory clock corrects to true morning times', () => {
+    // Device shows 13:19:33 (UTC+8 factory) — operator answers device=13:19:33,
+    // real=08:19:33 → drift 17997+3s ≈ +18000 → corrected wall 08:19:33.
+    assert.equal(shiftWall('2026-07-17 13:19:33', -18000), '2026-07-17 08:19:33');
+  });
+  it('rejects invalid input', () => {
+    assert.equal(shiftWall('bad', 60), null);
+  });
+});

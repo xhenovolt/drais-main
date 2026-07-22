@@ -88,6 +88,20 @@ export function ensureAcquisitionSchema(): Promise<void> {
       [],
     );
 
+    // Operator-driven time correction (Phase 5): DRAIS asks "what time is
+    // on the device?" and "what is the real time?", stores both answers +
+    // the derived drift, and keeps the corrected wall per record SEPARATE
+    // from the verbatim device wall (which stays the dedup identity).
+    for (const sql of [
+      `ALTER TABLE attendance_acquisitions ADD COLUMN IF NOT EXISTS operator_device_wall VARCHAR(19) DEFAULT NULL`,
+      `ALTER TABLE attendance_acquisitions ADD COLUMN IF NOT EXISTS operator_real_wall   VARCHAR(19) DEFAULT NULL`,
+      `ALTER TABLE attendance_acquisitions ADD COLUMN IF NOT EXISTS operator_drift_seconds INT DEFAULT NULL`,
+      `ALTER TABLE attendance_acquisitions ADD COLUMN IF NOT EXISTS correction_applied   BOOLEAN NOT NULL DEFAULT FALSE`,
+      `ALTER TABLE attendance_acquisition_records ADD COLUMN IF NOT EXISTS corrected_wall_time VARCHAR(19) DEFAULT NULL`,
+    ]) {
+      try { await query(sql, []); } catch { /* idempotent; ignore */ }
+    }
+
     // Additive enum extension — full restatement required by MySQL/TiDB.
     // Existing values keep their positions; new methods appended.
     try {

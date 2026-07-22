@@ -31,6 +31,9 @@ export interface StagedForCommit {
   id: number;
   device_user_id: string;
   device_wall_time: string;
+  /** Operator-drift-corrected wall (Phase 5); punch_at uses this when set,
+   *  but the dedup identity ALWAYS stays device_wall_time. */
+  corrected_wall_time?: string | null;
   verify_type: number | null;
   io_mode: number | null;
   display_name: string | null;
@@ -89,10 +92,11 @@ export async function commitAcquisition(args: {
   await ensureAcquisitionSchema();
 
   const batches = (await query(
-    `SELECT id, school_id, device_sn, status FROM attendance_acquisitions
+    `SELECT id, school_id, device_sn, status, correction_applied, operator_drift_seconds
+       FROM attendance_acquisitions
       WHERE id = ? AND school_id = ? LIMIT 1`,
     [acquisitionId, schoolId],
-  )) as Array<{ id: number; school_id: number; device_sn: string | null; status: string }>;
+  )) as Array<{ id: number; school_id: number; device_sn: string | null; status: string; correction_applied: number | boolean | null; operator_drift_seconds: number | null }>;
   if (!batches.length) throw new Error('Acquisition not found');
   const batch = batches[0];
   if (batch.status !== 'validated') {
@@ -104,8 +108,12 @@ export async function commitAcquisition(args: {
   const policy = await resolveTimePolicy(schoolId);
   const tzOffsetMinutes = deviceCtx.tzOffsetMinutes ?? policy.offsetMinutes;
 
+  const correctionApplied = Boolean(batch.correction_applied);
+  const driftSeconds = batch.operator_drift_seconds ?? null;
+
   const staged = (await query(
-    `SELECT id, device_user_id, device_wall_time, verify_type, io_mode, display_name,
+    `SELECT id, device_user_id, device_wall_time, corrected_wall_time,
+            verify_type, io_mode, display_name,
             matched, person_id, role_type, role_ref_id, duplicate_of_event_id
        FROM attendance_acquisition_records
       WHERE acquisition_id = ?
@@ -135,18 +143,26 @@ export async function commitAcquisition(args: {
     const plan = planCommit(staged, existingKeys);
 
     for (const r of plan.eligible) {
-      const punchAt = wallToUtc(r.device_wall_time as DeviceWallTime, tzOffsetMinutes)!;
+      // The EFFECTIVE wall (operator-corrected when a drift correction was
+      // applied) determines the stored instant; the VERBATIM device wall
+      // remains the identity so device re-sends still dedup.
+      const effectiveWall = (correctionApplied && r.corrected_wall_time && isDeviceWallTime(r.corrected_wall_time)
+        ? r.corrected_wall_time
+        : r.device_wall_time) as DeviceWallTime;
+      const punchAt = wallToUtc(effectiveWall, tzOffsetMinutes)!;
       const [ins] = await conn.execute(
         `INSERT IGNORE INTO attendance_raw_events
            (school_id, device_sn, device_user_id, display_name, person_id,
             role_type, role_ref_id, punch_at, device_reported_time,
-            time_source, time_confidence, verify_type, io_mode, source,
+            clock_skew_seconds, time_source, time_confidence, verify_type, io_mode, source,
             matched, resolution_path, legacy_table, legacy_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'device', 'high', ?, ?, 'tcp_pull', ?, ?, 'attendance_acquisitions', ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'device', ?, ?, ?, 'tcp_pull', ?, ?, 'attendance_acquisitions', ?)`,
         [
           schoolId, batch.device_sn, parseInt(r.device_user_id, 10) || 0,
           r.display_name, r.person_id, r.role_type, r.role_ref_id,
           punchAt, r.device_wall_time,
+          correctionApplied ? driftSeconds : null,
+          correctionApplied ? 'corrected' : 'high',
           r.verify_type, r.io_mode,
           r.matched ? 1 : 0,
           r.matched ? 'acquisition_committer' : null,

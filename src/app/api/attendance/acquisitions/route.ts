@@ -20,6 +20,7 @@ import {
   listAcquisitions, getAcquisitionRecords,
 } from '@/lib/attendance/acquisition/service';
 import { commitAcquisition } from '@/lib/attendance/acquisition/commit';
+import { isDeviceWallTime, wallDiffSeconds, shiftWall, type DeviceWallTime } from '@/lib/attendance/acquisition/wall-time';
 
 export const runtime = 'nodejs';
 
@@ -64,6 +65,62 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Batch not found or not in a discardable state' }, { status: 409 });
     }
     return NextResponse.json({ success: true, id, status: 'discarded' });
+  }
+
+  if (action === 'apply_correction') {
+    // Operator-driven drift correction: DRAIS asked "what time is on the
+    // device?" and "what is the real time?"; the difference is the drift.
+    // Every staged record gets corrected_wall_time = wall − drift. The
+    // VERBATIM device wall stays untouched — it is the dedup identity.
+    const deviceWall = String(body?.deviceWall || '');
+    const realWall   = String(body?.realWall || '');
+    if (!isDeviceWallTime(deviceWall) || !isDeviceWallTime(realWall)) {
+      return NextResponse.json({ error: 'deviceWall and realWall must be "YYYY-MM-DD HH:mm:ss"' }, { status: 400 });
+    }
+    const drift = wallDiffSeconds(deviceWall as DeviceWallTime, realWall as DeviceWallTime);
+    if (drift == null || Math.abs(drift) > 12 * 3600) {
+      return NextResponse.json({ error: 'Implausible drift (>12h) — check the two times' }, { status: 400 });
+    }
+    const upd = (await query(
+      `UPDATE attendance_acquisitions
+          SET operator_device_wall = ?, operator_real_wall = ?,
+              operator_drift_seconds = ?, correction_applied = ?
+        WHERE id = ? AND school_id = ? AND status IN ('staged','validated')`,
+      [deviceWall, realWall, drift, drift !== 0 ? 1 : 0, id, session.schoolId],
+    )) as { affectedRows?: number };
+    if (!upd?.affectedRows) {
+      return NextResponse.json({ error: 'Batch not found or not correctable (already saved/discarded)' }, { status: 409 });
+    }
+    // Shift every staged record. Set-based date arithmetic keeps this one
+    // statement; DATE_ADD on the parsed wall string mirrors shiftWall.
+    await query(
+      `UPDATE attendance_acquisition_records
+          SET corrected_wall_time = DATE_FORMAT(
+                DATE_ADD(STR_TO_DATE(device_wall_time, '%Y-%m-%d %H:%i:%s'), INTERVAL ? SECOND),
+                '%Y-%m-%d %H:%i:%s')
+        WHERE acquisition_id = ?`,
+      [-drift, id],
+    );
+    const sample = shiftWall(deviceWall as DeviceWallTime, -drift);
+    return NextResponse.json({ success: true, id, driftSeconds: drift, corrected: drift !== 0, sampleCorrectedDeviceWall: sample });
+  }
+
+  if (action === 'clear_correction') {
+    const upd = (await query(
+      `UPDATE attendance_acquisitions
+          SET operator_device_wall = NULL, operator_real_wall = NULL,
+              operator_drift_seconds = NULL, correction_applied = 0
+        WHERE id = ? AND school_id = ? AND status IN ('staged','validated')`,
+      [id, session.schoolId],
+    )) as { affectedRows?: number };
+    if (!upd?.affectedRows) {
+      return NextResponse.json({ error: 'Batch not found or not correctable' }, { status: 409 });
+    }
+    await query(
+      `UPDATE attendance_acquisition_records SET corrected_wall_time = NULL WHERE acquisition_id = ?`,
+      [id],
+    );
+    return NextResponse.json({ success: true, id, corrected: false });
   }
 
   if (action === 'commit') {

@@ -89,6 +89,22 @@ export function wallDiffSeconds(a: DeviceWallTime, b: DeviceWallTime): number | 
 }
 
 /**
+ * Shift a wall string by N seconds (negative = earlier). Pure calendar
+ * arithmetic on the string — used by the operator drift correction:
+ *   corrected = shiftWall(deviceWall, -driftSeconds)
+ * where driftSeconds = deviceClock − realClock as answered by the operator.
+ */
+export function shiftWall(wall: DeviceWallTime, seconds: number): DeviceWallTime | null {
+  if (!isDeviceWallTime(wall) || !Number.isFinite(seconds)) return null;
+  const ms = Date.parse(`${wall.replace(' ', 'T')}Z`) + Math.round(seconds) * 1000;
+  const d = new Date(ms);
+  return (
+    `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())} ` +
+    `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())}`
+  ) as DeviceWallTime;
+}
+
+/**
  * Decode ZKTeco's packed DateTime integer (CMD_GET_TIME reply / DateTime
  * option) to the device's wall clock. Pure inverse of encodeZkDateTime in
  * device-clock.ts:
