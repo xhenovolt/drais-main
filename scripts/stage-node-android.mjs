@@ -73,8 +73,46 @@ async function main() {
   console.log('✔ www/nodejs-project staged — nodejs-mobile-cordova will bundle it into the APK.');
 
   await stageBuiltinAssets();
+  await writeAssetLists();
   await patchBuildConfigReference();
   await stageNativeLibs();
+}
+
+/**
+ * Generate file.list / dir.list at the assets root — the plugin's FAST PATH.
+ *
+ * NodeJS.java's first-launch copy reads these lists and copies exactly those
+ * entries. Without them it falls back to recursively enumerating the asset
+ * tree via AssetManager.list(), which is extremely slow on-device — with the
+ * ~4k files of the Next standalone tree that meant 10+ minutes stuck on the
+ * "Starting DRAIS" screen on budget phones. Cordova generates these lists in
+ * its after-prepare hook (install/hooks/android/after-prepare-build-node-
+ * assets-lists.js); this replicates it against the staged tree.
+ *
+ * Same skip rules as the hook: dotfiles, *.gz, *~ (aapt strips dotfiles from
+ * APK assets anyway, so the list must match what actually ships).
+ */
+async function writeAssetLists() {
+  const assetsRoot = path.join(root, 'android', 'capacitor-cordova-android-plugins', 'src', 'main', 'assets');
+  const files = [];
+  const dirs = [];
+  async function enumFolder(rel) {
+    for (const entry of await fs.readdir(path.join(assetsRoot, rel), { withFileTypes: true })) {
+      const name = entry.name;
+      if (name.startsWith('.')) continue;
+      const relPath = `${rel}/${name}`;
+      if (entry.isDirectory()) {
+        dirs.push(relPath);
+        await enumFolder(relPath);
+      } else if (!name.endsWith('.gz') && !name.endsWith('~')) {
+        files.push(relPath);
+      }
+    }
+  }
+  await enumFolder('www/nodejs-project');
+  await fs.writeFile(path.join(assetsRoot, 'file.list'), files.join('\n'));
+  await fs.writeFile(path.join(assetsRoot, 'dir.list'), dirs.join('\n'));
+  console.log(`✔ asset lists written (fast first-launch copy): ${files.length} files, ${dirs.length} dirs.`);
 }
 
 /**
