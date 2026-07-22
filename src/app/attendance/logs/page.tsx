@@ -314,7 +314,7 @@ export default function UnifiedAttendancePage() {
   const [deviceSn, setDeviceSn] = useState('');
   const [search, setSearch] = useState('');
   const [assignTarget, setAssignTarget] = useState<string | null>(null);
-  const [liveFeedOpen, setLiveFeedOpen] = useState(true);
+  const [liveFeedOpen, setLiveFeedOpen] = useState(false); // collapsed — data first
   const [classId, setClassId] = useState('');
   const [gender, setGender] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
@@ -341,6 +341,8 @@ export default function UnifiedAttendancePage() {
 
   // Rows-per-page, arrival-status filter, and the allowance report view.
   const [rowsPerPage, setRowsPerPage] = useState<string>('50');
+  const [datePreset, setDatePreset] = useState<string>('all');
+  const [showActions, setShowActions] = useState(false);
   const [derivedFilter, setDerivedFilter] = useState<'' | 'late' | 'early' | 'ontime'>('');
   const [showAllowance, setShowAllowance] = useState(false);
   const [allowanceFilter, setAllowanceFilter] = useState<'all' | 'eligible' | 'rejected'>('all');
@@ -601,42 +603,170 @@ export default function UnifiedAttendancePage() {
           })}
         </div>
 
-        {/* ── Quick date filters + Allowance Report toggle ────────────── */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          {QUICK_DATES.map(q => {
-            const r = quickRange(q.key);
-            const active = dateFrom === r.from && dateTo === r.to;
-            return (
-              <button
-                key={q.key}
-                onClick={() => { setDateFrom(r.from); setDateTo(r.to); setPage(1); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${active
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
-              >
-                {q.label}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${!dateFrom && !dateTo
-              ? 'bg-blue-600 text-white'
-              : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}
+        {/* ── Unified toolbar — one compact row, data first ────────────── */}
+        <div className="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 mb-3 flex flex-wrap items-center gap-2">
+          <select
+            value={datePreset}
+            onChange={(e) => {
+              const v = e.target.value; setDatePreset(v); setPage(1);
+              if (v === 'all') { setDateFrom(''); setDateTo(''); }
+              else if (v !== 'customdate') { const r = quickRange(v); setDateFrom(r.from); setDateTo(r.to); }
+            }}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
+            title="Date"
           >
-            All time
-          </button>
+            <option value="all">All time</option>
+            {QUICK_DATES.map(q => <option key={q.key} value={q.key}>{q.label}</option>)}
+            <option value="customdate">Custom range…</option>
+          </select>
+          {datePreset === 'customdate' && (
+            <>
+              <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" />
+              <span className="text-gray-400 text-xs">→</span>
+              <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" />
+            </>
+          )}
+
+          <select
+            value={timeframe}
+            onChange={(e) => {
+              const tf = e.target.value as typeof timeframe; setTimeframe(tf); setPage(1);
+              if (tf !== 'all' && !dateFrom && !dateTo) {
+                const today = new Date().toISOString().slice(0, 10);
+                setDateFrom(today); setDateTo(today); setDatePreset('today');
+              }
+            }}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
+            title="Time of day"
+          >
+            <option value="all">All day</option>
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+            <option value="custom">Custom time…</option>
+          </select>
+          {timeframe === 'custom' && (
+            <>
+              <input type="time" value={customTimeFrom} onChange={(e) => { setCustomTimeFrom(e.target.value); setPage(1); }}
+                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" />
+              <span className="text-gray-400 text-xs">→</span>
+              <input type="time" value={customTimeTo} onChange={(e) => { setCustomTimeTo(e.target.value); setPage(1); }}
+                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" />
+            </>
+          )}
+
+          <select value={derivedFilter} onChange={(e) => { setDerivedFilter(e.target.value as any); setPage(1); }}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" title="Arrival status">
+            <option value="">All statuses</option>
+            <option value="late">Late only</option>
+            <option value="early">Early only</option>
+            <option value="ontime">On time / early</option>
+          </select>
+
+          <select value={deviceSn} onChange={(e) => { setDeviceSn(e.target.value); setPage(1); }}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs max-w-36" title="Device">
+            <option value="">All devices</option>
+            {devices.map((d: any) => (
+              <option key={d.sn || d.id} value={d.sn}>{d.device_name || d.sn}</option>
+            ))}
+          </select>
+
+          <select value={classId} onChange={(e) => { setClassId(e.target.value); setPage(1); }}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs max-w-32" title="Class">
+            <option value="">All classes</option>
+            {classes.map((c: any) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          <select value={gender} onChange={(e) => { setGender(e.target.value); setPage(1); }}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" title="Gender">
+            <option value="">All</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+
+          <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(e.target.value); setPage(1); }}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" title="Rows per page">
+            {['10', '20', '50', '100', '250', 'all'].map(n => (
+              <option key={n} value={n}>{n === 'all' ? 'All rows' : `${n} rows`}</option>
+            ))}
+          </select>
+
+          <div className="relative flex-1 min-w-36 max-w-56">
+            <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="text" placeholder="Name or User ID…" value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
+            />
+          </div>
+
           <button
             onClick={() => setShowAllowance(v => !v)}
-            className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${showAllowance
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${showAllowance
               ? 'bg-emerald-600 text-white'
               : 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
           >
             <Briefcase className="w-3.5 h-3.5" />
-            Allowance Report
+            Allowance
           </button>
-        </div>
 
+          <div className="relative">
+            <button
+              onClick={() => setShowActions(v => !v)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700"
+            >
+              Actions <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {showActions && (
+              <div className="absolute right-0 z-30 mt-1 w-52 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-lg py-1 text-sm"
+                onMouseLeave={() => setShowActions(false)}>
+                <button onClick={() => { setShowActions(false); mutate(); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-left">
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+                </button>
+                <button onClick={() => { setShowActions(false); handleExport('excel'); }} disabled={exportingFormat !== null}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-left disabled:opacity-50">
+                  <Download className="w-4 h-4" /> Export visible (Excel)
+                </button>
+                <button onClick={() => { setShowActions(false); handleExport('csv'); }} disabled={exportingFormat !== null}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-left disabled:opacity-50">
+                  <Download className="w-4 h-4" /> Export visible (CSV)
+                </button>
+                <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+                <button onClick={() => { setShowActions(false); setClearConfirmText(''); setShowClearModal(true); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-left">
+                  <Trash2 className="w-4 h-4" /> Clear all logs…
+                </button>
+                <button onClick={() => { setShowActions(false); setResetConfirmText(''); setShowResetModal(true); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-left">
+                  <Fingerprint className="w-4 h-4" /> Reset biometrics…
+                </button>
+              </div>
+            )}
+          </div>
+
+          {selectedIds.size > 0 && (
+            <div className="w-full flex items-center gap-2 pt-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">{selectedIds.size} selected</span>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium disabled:opacity-50"
+              >
+                {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Delete selected
+              </button>
+              <button onClick={() => setSelectedIds(new Set())}
+                className="px-2 py-1.5 rounded-lg text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
         {/* ── Allowance Eligibility Report ────────────────────────────── */}
         {showAllowance && (
           <div className="card bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-6 space-y-3">
@@ -720,175 +850,12 @@ export default function UnifiedAttendancePage() {
           </div>
         )}
 
-        {/* ── Timeframe quick filters ─────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          {(['all', 'morning', 'afternoon', 'evening', 'custom'] as const).map(tf => (
-            <button
-              key={tf}
-              onClick={() => {
-                setTimeframe(tf); setPage(1);
-                // A timeframe implies a single day — default to today when
-                // no date is chosen yet ("this morning" means today).
-                if (tf !== 'all' && !dateFrom && !dateTo) {
-                  const today = new Date().toISOString().slice(0, 10);
-                  setDateFrom(today); setDateTo(today);
-                }
-              }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${timeframe === tf
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
-            >
-              {tf === 'all' ? 'All day' : tf === 'custom' ? 'Custom time' : TIMEFRAMES[tf]!.label}
-            </button>
-          ))}
-          {timeframe === 'custom' && (
-            <div className="flex items-center gap-2 text-xs">
-              <input
-                type="time" value={customTimeFrom}
-                onChange={(e) => { setCustomTimeFrom(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
-              />
-              <span className="text-gray-400">to</span>
-              <input
-                type="time" value={customTimeTo}
-                onChange={(e) => { setCustomTimeTo(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
-              />
-            </div>
-          )}
-
-          {/* Arrival-status quick filter */}
-          <select
-            value={derivedFilter}
-            onChange={(e) => { setDerivedFilter(e.target.value as any); setPage(1); }}
-            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
-            title="Filter by arrival status"
-          >
-            <option value="">All statuses</option>
-            <option value="late">Late only</option>
-            <option value="early">Early only</option>
-            <option value="ontime">On time / early</option>
-          </select>
-
-          {/* Rows per page */}
-          <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-            Rows per page
-            <select
-              value={rowsPerPage}
-              onChange={(e) => { setRowsPerPage(e.target.value); setPage(1); }}
-              className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
-            >
-              {['10', '20', '50', '100', '250', 'all'].map(n => (
-                <option key={n} value={n}>{n === 'all' ? 'All' : n}</option>
-              ))}
-            </select>
-          </label>
-          {selectedIds.size > 0 && (
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400">{selectedIds.size} selected</span>
-              <button
-                onClick={handleDeleteSelected}
-                disabled={deleting}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium disabled:opacity-50"
-              >
-                {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                Delete selected
-              </button>
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="px-2 py-1.5 rounded-lg text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ── Filters ────────────────────────────────────────────────── */}
-        <div className="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700
-          rounded-xl p-4 mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                bg-white dark:bg-slate-900 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                bg-white dark:bg-slate-900 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Device</label>
-            <select
-              value={deviceSn}
-              onChange={(e) => { setDeviceSn(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                bg-white dark:bg-slate-900 text-sm"
-            >
-              <option value="">All Devices</option>
-              {devices.map((d: any) => (
-                <option key={d.sn || d.id} value={d.sn}>{d.device_name || d.sn}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Class</label>
-            <select
-              value={classId}
-              onChange={(e) => { setClassId(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                bg-white dark:bg-slate-900 text-sm"
-            >
-              <option value="">All Classes</option>
-              {classes.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Gender</label>
-            <select
-              value={gender}
-              onChange={(e) => { setGender(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                bg-white dark:bg-slate-900 text-sm"
-            >
-              <option value="">All</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Name or User ID..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                  bg-white dark:bg-slate-900 text-sm"
-              />
-            </div>
-          </div>
-        </div>
         <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
           Leave the date filters blank to show all saved attendance logs. The live panel above is only for new punches arriving right now.
         </p>
 
-        {/* ── Toolbar ────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-4">
+        {/* ── Record count ─────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-gray-500">
             {pagination.total.toLocaleString()} records
             {tab === 'unmatched' && pagination.total > 0 && (
@@ -897,56 +864,7 @@ export default function UnifiedAttendancePage() {
               </span>
             )}
           </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => mutate()}
-              className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300
-                dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            <button
-              onClick={() => handleExport('excel')}
-              disabled={exportingFormat !== null}
-              className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300
-                dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700
-                disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              {exportingFormat === 'excel' ? 'Exporting…' : 'Export Visible Excel'}
-            </button>
-            <button
-              onClick={() => handleExport('csv')}
-              disabled={exportingFormat !== null}
-              className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300
-                dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700
-                disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              {exportingFormat === 'csv' ? 'Exporting…' : 'Export Visible CSV'}
-            </button>
-            <button
-              onClick={() => { setClearConfirmText(''); setShowClearModal(true); }}
-              className="flex items-center gap-1 px-3 py-2 text-sm border border-red-300
-                dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg
-                hover:bg-red-50 dark:hover:bg-red-900/30"
-              title="Permanently delete all attendance logs for this school"
-            >
-              <Trash2 className="w-4 h-4" />
-              Clear Logs
-            </button>
-            <button
-              onClick={() => { setResetConfirmText(''); setShowResetModal(true); }}
-              className="flex items-center gap-1 px-3 py-2 text-sm border border-red-300
-                dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg
-                hover:bg-red-50 dark:hover:bg-red-900/30"
-              title="Unmap every device PIN for this school (clears biometric enrollments + mappings)"
-            >
-              <Fingerprint className="w-4 h-4" />
-              Reset Biometrics
-            </button>
-          </div>
+          {isLoading && <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />}
         </div>
 
         {/* ── Mobile card list (xs only, < sm) ───────────────────────── */}
