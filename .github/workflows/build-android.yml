@@ -17,6 +17,12 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      stability:
+        description: 'APK stability channel (filename suffix)'
+        type: choice
+        options: [beta, alpha, lts]
+        default: beta
 
 permissions:
   contents: write          # attach the APK to the release on tag builds
@@ -62,6 +68,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The APK bundles its DB config the same way the desktop build does:
+      # build/.env.production (gitignored) is copied into the node project by
+      # scripts/build-mobile.mjs and loaded by main.js at boot. In CI that
+      # file comes from the DRAIS_MOBILE_ENV repository secret — set it to
+      # the full env-file content (TIDB_HOST/TIDB_USER/TIDB_PASSWORD/TIDB_DB,
+      # DATABASE_MODE=tidb, DRAIS_DB_MODE=online). Without it the APK still
+      # builds and boots, but has no database credentials.
+      - name: Bundle DB config from secret
+        env:
+          DRAIS_MOBILE_ENV: ${{ secrets.DRAIS_MOBILE_ENV }}
+        run: |
+          if [ -n "$DRAIS_MOBILE_ENV" ]; then
+            mkdir -p build
+            printf '%s\n' "$DRAIS_MOBILE_ENV" > build/.env.production
+            echo "Bundled DB config written ($(wc -l < build/.env.production) lines)."
+          else
+            echo "::warning::DRAIS_MOBILE_ENV secret not set — the APK will ship without DB credentials."
+          fi
+
       - name: Build web bundle + mirror standalone into nodejs-project
         run: npm run mobile:build
         env:
@@ -79,11 +104,16 @@ jobs:
       - name: Stage nodejs-project into Android assets (www)
         run: npm run mobile:stage-node
 
+      # APK is named drais-<version>-<stability>.apk by android/app/build.gradle
+      # (version from package.json). Tag builds default to lts; manual runs
+      # pick the channel via the workflow input (default beta).
       - name: Gradle assembleDebug
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          STABILITY="${{ github.event.inputs.stability }}"
+          if [ -z "$STABILITY" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then STABILITY=lts; fi
+          ./gradlew assembleDebug --stacktrace ${STABILITY:+-PdraisStability=$STABILITY}
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
