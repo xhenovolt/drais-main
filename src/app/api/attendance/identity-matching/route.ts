@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
   const rows = await query(
     `SELECT device_pin, device_name, device_priv, device_card,
             candidate_role, candidate_ref_id, candidate_name, candidate_position,
-            confidence, tier, contested, rank, status
+            confidence, tier, contested, match_rank, status
        FROM biometric_match_suggestions
       WHERE school_id = ? AND device_sn = ? AND status IN ('pending','confirmed')
-      ORDER BY device_pin + 0 ASC, rank ASC`,
+      ORDER BY device_pin + 0 ASC, match_rank ASC`,
     [session.schoolId, sn],
   );
   return NextResponse.json({ success: true, data: rows });
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
           `SELECT device_pin, candidate_role, candidate_ref_id
              FROM biometric_match_suggestions
             WHERE school_id = ? AND device_sn = ? AND status = 'pending'
-              AND tier = 'auto' AND contested = 0 AND rank = 0
+              AND tier = 'auto' AND contested = 0 AND match_rank = 0
               AND candidate_ref_id IS NOT NULL`,
           [session.schoolId, deviceSn],
         )) as Array<{ device_pin: string; candidate_role: 'staff' | 'student'; candidate_ref_id: number }>;

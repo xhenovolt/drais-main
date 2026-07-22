@@ -51,7 +51,7 @@ function ensureSuggestionsSchema(): Promise<void> {
          confidence        INT NOT NULL DEFAULT 0,
          tier              ENUM('auto','review','unmatched') NOT NULL,
          contested         BOOLEAN NOT NULL DEFAULT FALSE,
-         rank              INT NOT NULL DEFAULT 0,
+         match_rank        INT NOT NULL DEFAULT 0,
          status            ENUM('pending','confirmed','rejected','superseded') NOT NULL DEFAULT 'pending',
          decided_by        BIGINT DEFAULT NULL,
          decided_at        DATETIME DEFAULT NULL,
@@ -183,7 +183,7 @@ export async function runDeviceUserMatching(args: {
     if (!cands.length) {
       await query(
         `INSERT INTO biometric_match_suggestions
-           (school_id, device_sn, device_pin, device_name, device_priv, device_card, tier, contested, rank, confidence)
+           (school_id, device_sn, device_pin, device_name, device_priv, device_card, tier, contested, match_rank, confidence)
          VALUES (?, ?, ?, ?, ?, ?, 'unmatched', 0, 0, 0)`,
         [schoolId, deviceSn, it.device.pin, it.device.name || null, it.device.privilege ?? null, it.device.card ?? null],
       );
@@ -195,7 +195,7 @@ export async function runDeviceUserMatching(args: {
         `INSERT INTO biometric_match_suggestions
            (school_id, device_sn, device_pin, device_name, device_priv, device_card,
             candidate_role, candidate_ref_id, candidate_person_id, candidate_name,
-            candidate_position, confidence, tier, contested, rank)
+            candidate_position, confidence, tier, contested, match_rank)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           schoolId, deviceSn, it.device.pin, it.device.name || null,
