@@ -214,6 +214,13 @@ export async function GET(req: NextRequest) {
         feesCollectedToday: 0, // Will be calculated from recent payments
         defaultersCount: (paymentData?.not_paid || 0) + (paymentData?.partially_paid || 0)
       },
+      // Role-labeled attendance — the dashboard must SAY whose numbers
+      // these are (staff vs learners), not show an unlabeled 0/0/0.
+      attendance: {
+        date: dashCounts.date,
+        learners: dashCounts.students,
+        staff: dashCounts.staff,
+      },
       schoolStats: {
         total_classes: classCount?.total_classes || 0,
         total_learners: studentCount?.total_learners || 0,

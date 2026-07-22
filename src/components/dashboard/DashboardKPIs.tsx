@@ -13,8 +13,16 @@ interface KPIData {
   defaultersCount: number;
 }
 
+interface RoleCounts { total: number; present: number; late: number; absent: number; }
+interface AttendanceByRole {
+  date: string;
+  learners: RoleCounts;
+  staff: RoleCounts;
+}
+
 interface DashboardKPIsProps {
   data?: KPIData;
+  attendance?: AttendanceByRole;
 }
 
 // Compact skeleton for loading state
@@ -28,7 +36,39 @@ function KPISkeleton() {
   );
 }
 
-const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
+/** One row of role-labeled counts: "Staff — 116 present · 9 late · 86 absent". */
+function RoleAttendanceCard({ label, counts, isAr }: { label: string; counts: RoleCounts; isAr: boolean }) {
+  const pct = counts.total > 0 ? Math.round((counts.present / counts.total) * 100) : 0;
+  const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500';
+  const cells: Array<{ v: number; label: string; cls: string }> = [
+    { v: counts.present, label: isAr ? 'حاضر' : 'present', cls: 'text-emerald-600 dark:text-emerald-400' },
+    { v: counts.late, label: isAr ? 'متأخر' : 'late', cls: 'text-amber-600 dark:text-amber-400' },
+    { v: counts.absent, label: isAr ? 'غائب' : 'absent', cls: 'text-red-600 dark:text-red-400' },
+  ];
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{label}</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          {isAr ? `من ${counts.total.toLocaleString()}` : `of ${counts.total.toLocaleString()}`}
+        </p>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        {cells.map((c) => (
+          <div key={c.label} className="text-center">
+            <p className={`text-xl font-bold ${c.cls}`}>{c.v.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">{c.label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="w-full h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
   const { t, lang } = useI18n();
   if (!data) return <KPISkeleton />;
 
@@ -50,7 +90,9 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
       iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
     },
     {
-      label: isAr ? 'حاضرون اليوم' : 'Present Today',
+      // Role-labeled: these two tiles are LEARNER numbers (staff has its
+      // own card strip below) — never an unlabeled "0 present".
+      label: isAr ? 'الطلاب الحاضرون اليوم' : 'Learners Present Today',
       value: (data.presentToday || 0).toLocaleString(),
       sub: isAr
         ? `معدل الحضور ${attendancePct}٪`
@@ -62,7 +104,7 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
       barColor: attendancePct >= 80 ? 'bg-emerald-500' : attendancePct >= 60 ? 'bg-amber-500' : 'bg-red-500',
     },
     {
-      label: isAr ? 'غائبون اليوم' : 'Absent Today',
+      label: isAr ? 'الطلاب الغائبون اليوم' : 'Learners Absent Today',
       value: (data.absentToday || 0).toLocaleString(),
       sub: data.absentToday > 0
         ? (isAr ? 'بحاجة إلى متابعة' : 'needs follow-up')
@@ -87,7 +129,23 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-3">
+      {/* Today's attendance, labeled by WHO — staff vs learners */}
+      {attendance && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <RoleAttendanceCard
+            label={isAr ? `حضور الموظفين اليوم (${attendance.date})` : `Staff Attendance Today (${attendance.date})`}
+            counts={attendance.staff}
+            isAr={isAr}
+          />
+          <RoleAttendanceCard
+            label={isAr ? `حضور الطلاب اليوم (${attendance.date})` : `Learners Attendance Today (${attendance.date})`}
+            counts={attendance.learners}
+            isAr={isAr}
+          />
+        </div>
+      )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((card) => (
         <div
           key={card.label}
@@ -108,6 +166,7 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data }) => {
           <p className={`text-xs ${card.subColor ?? 'text-slate-400 dark:text-slate-500'} truncate`}>{card.sub}</p>
         </div>
       ))}
+      </div>
     </div>
   );
 };

@@ -256,7 +256,7 @@ const DashboardPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-5 space-y-5">
 
         {/* KPIs — always visible */}
-        <DashboardKPIs data={overview?.kpis} />
+        <DashboardKPIs data={overview?.kpis} attendance={(overview as any)?.attendance} />
 
         {/* Two-column grid: signals left, widgets right */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

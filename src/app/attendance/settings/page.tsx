@@ -63,6 +63,37 @@ const SCOPE_LABEL: Record<AppliesTo, string> = {
   all: 'Everyone',
 };
 
+// Per-weekday overrides: weekday 0=Sunday … 6=Saturday (JS Date#getDay()).
+// Blank fields inherit the base rule — only filled days become override rows.
+interface DayOverrideDraft {
+  arrival_end_time: string;        // '' = inherit
+  late_threshold_minutes: string;  // '' = inherit
+}
+type DayOverrideMap = Record<number, DayOverrideDraft>;
+const WEEKDAYS: Array<{ day: number; label: string }> = [
+  { day: 1, label: 'Monday' }, { day: 2, label: 'Tuesday' }, { day: 3, label: 'Wednesday' },
+  { day: 4, label: 'Thursday' }, { day: 5, label: 'Friday' }, { day: 6, label: 'Saturday' },
+  { day: 0, label: 'Sunday' },
+];
+const emptyDayOverrides = (): DayOverrideMap => {
+  const m: DayOverrideMap = {};
+  for (const w of WEEKDAYS) m[w.day] = { arrival_end_time: '', late_threshold_minutes: '' };
+  return m;
+};
+function dayOverridesFromApi(rows: any[] | undefined): DayOverrideMap {
+  const m = emptyDayOverrides();
+  for (const r of rows || []) {
+    const d = Number(r.weekday);
+    if (d >= 0 && d <= 6) {
+      m[d] = {
+        arrival_end_time: r.arrival_end_time ? String(r.arrival_end_time).substring(0, 5) : '',
+        late_threshold_minutes: r.late_threshold_minutes != null ? String(r.late_threshold_minutes) : '',
+      };
+    }
+  }
+  return m;
+}
+
 /** Build a form state from a saved rule (or the defaults for a given scope). */
 function formFromRule(rule: AttendanceRule | null, scope: AppliesTo): FormState {
   if (!rule) {
@@ -95,6 +126,9 @@ export default function AttendanceSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [existingId, setExistingId] = useState<number | null>(null);
+  // Per-scope, per-weekday override drafts (Saturday 10:00 etc.).
+  const [dayOvByScope, setDayOvByScope] = useState<Partial<Record<AppliesTo, DayOverrideMap>>>({});
+  const [dayOv, setDayOv] = useState<DayOverrideMap>(emptyDayOverrides());
 
   // Load existing settings (all scopes)
   useEffect(() => {
@@ -108,6 +142,12 @@ export default function AttendanceSettingsPage() {
         setScope(initial);
         setForm(formFromRule(rules[initial] || null, initial));
         setExistingId(rules[initial]?.id ?? null);
+        const ovByScope: Partial<Record<AppliesTo, DayOverrideMap>> = {};
+        for (const k of ['students', 'teachers', 'all'] as const) {
+          ovByScope[k] = dayOverridesFromApi(data.day_overrides?.[k]);
+        }
+        setDayOvByScope(ovByScope);
+        setDayOv(ovByScope[initial] || emptyDayOverrides());
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -115,9 +155,12 @@ export default function AttendanceSettingsPage() {
 
   // Switch which person-group's window is being edited.
   const switchScope = (next: AppliesTo) => {
+    // Keep the current scope's override drafts before switching.
+    setDayOvByScope((prev) => ({ ...prev, [scope]: dayOv }));
     setScope(next);
     setForm(formFromRule(rulesByScope[next] || null, next));
     setExistingId(rulesByScope[next]?.id ?? null);
+    setDayOv(dayOvByScope[next] || emptyDayOverrides());
     setToast(null);
   };
 
@@ -126,10 +169,22 @@ export default function AttendanceSettingsPage() {
     setToast(null);
 
     try {
+      // Only send weekdays that actually override something.
+      const day_overrides = WEEKDAYS
+        .filter((w) => dayOv[w.day]?.arrival_end_time || dayOv[w.day]?.late_threshold_minutes !== '')
+        .map((w) => ({
+          weekday: w.day,
+          arrival_end_time: dayOv[w.day].arrival_end_time || null,
+          late_threshold_minutes: dayOv[w.day].late_threshold_minutes === ''
+            ? null
+            : parseInt(dayOv[w.day].late_threshold_minutes, 10),
+        }))
+        .filter((o) => o.arrival_end_time || o.late_threshold_minutes != null);
+
       const res = await fetch('/api/attendance/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, applies_to: scope }),
+        body: JSON.stringify({ ...form, applies_to: scope, day_overrides }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
@@ -139,6 +194,7 @@ export default function AttendanceSettingsPage() {
         ...prev,
         [scope]: { ...(prev[scope] || {}), id: data.rule_id, ...form, applies_to: scope } as AttendanceRule,
       }));
+      setDayOvByScope((prev) => ({ ...prev, [scope]: dayOv }));
       setToast({ type: 'success', msg: `${SCOPE_LABEL[scope]} window saved` });
     } catch (err: any) {
       setToast({ type: 'error', msg: err.message || 'Failed to save' });
@@ -345,6 +401,79 @@ export default function AttendanceSettingsPage() {
           })}
         </div>
         {form.weekday_mask === 0 && <p className="text-xs text-red-600">Select at least one school day.</p>}
+      </div>
+
+      {/* Per-weekday arrival overrides */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <Clock className="w-4 h-4 text-indigo-500" />
+          Day-Specific Arrival Times — {SCOPE_LABEL[scope]}
+        </h2>
+        <p className="text-xs text-gray-500">
+          Some days differ — e.g. &quot;Saturday arrival ends at 10:00&quot;. Set an on-time cutoff (and optional
+          grace minutes) for a specific day; leave a day blank to use the standard times above. Overrides apply
+          to lateness verdicts, the dashboard, and the allowance report.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
+                <th className="py-1.5 pr-3 font-medium">Day</th>
+                <th className="py-1.5 pr-3 font-medium">Arrival End (on-time cutoff)</th>
+                <th className="py-1.5 pr-3 font-medium">Grace (min)</th>
+                <th className="py-1.5 font-medium">Effective</th>
+              </tr>
+            </thead>
+            <tbody>
+              {WEEKDAYS.map((w) => {
+                const ov = dayOv[w.day] || { arrival_end_time: '', late_threshold_minutes: '' };
+                const overridden = !!(ov.arrival_end_time || ov.late_threshold_minutes !== '');
+                const effEnd = ov.arrival_end_time || form.arrival_end_time || '—';
+                const effGrace = ov.late_threshold_minutes !== '' ? ov.late_threshold_minutes : String(form.late_threshold_minutes);
+                return (
+                  <tr key={w.day} className="border-t border-gray-100 dark:border-gray-700">
+                    <td className="py-2 pr-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      {w.label}
+                      {overridden && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300">override</span>}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <input
+                        type="time"
+                        value={ov.arrival_end_time}
+                        onChange={(e) => setDayOv((prev) => ({ ...prev, [w.day]: { ...prev[w.day], arrival_end_time: e.target.value } }))}
+                        className="w-32 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        placeholder="—"
+                        value={ov.late_threshold_minutes}
+                        onChange={(e) => setDayOv((prev) => ({ ...prev, [w.day]: { ...prev[w.day], late_threshold_minutes: e.target.value } }))}
+                        className="w-20 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </td>
+                    <td className="py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      late after {effEnd}{effGrace !== '0' ? ` +${effGrace}m` : ''}
+                      {overridden && (
+                        <button
+                          type="button"
+                          onClick={() => setDayOv((prev) => ({ ...prev, [w.day]: { arrival_end_time: '', late_threshold_minutes: '' } }))}
+                          className="ml-2 text-red-500 hover:text-red-600 underline"
+                        >
+                          clear
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500">Saved together with the {SCOPE_LABEL[scope]} window using the button below.</p>
       </div>
 
       {/* Rule label (this scope) */}

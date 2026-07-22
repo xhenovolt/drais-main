@@ -20,6 +20,7 @@
  */
 import { query } from '@/lib/db';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+import { loadOverridesForRules } from '@/lib/attendance/day-overrides';
 
 export type ArrivalStatus = 'EARLY' | 'ON_TIME' | 'LATE' | 'ABSENT';
 
@@ -100,7 +101,7 @@ export async function buildAllowanceReport(
             TRIM(CONCAT_WS(' ', p.first_name, p.other_name, p.last_name)) AS name,
             d.name AS department,
             rec.status AS engine_status, rec.first_in_at, rec.last_out_at,
-            rec.late_minutes, rec.rule_id,
+            rec.late_minutes, rec.rule_id AS rule_id,
             r.arrival_end_time
        FROM staff st
        JOIN people p ON p.id = st.person_id
@@ -121,9 +122,16 @@ export async function buildAllowanceReport(
     name: string; department: string | null;
     engine_status: string | null;
     first_in_at: Date | string | null; last_out_at: Date | string | null;
-    late_minutes: number | null;
+    late_minutes: number | null; rule_id: number | null;
     arrival_end_time: string | null;
   }>;
+
+  // Per-weekday override of arrival_end_time for this report date (e.g.
+  // "Saturday arrival ends 10:00") — same layer the engine applies.
+  const overrides = await loadOverridesForRules(
+    rows.map(r => Number(r.rule_id)).filter(n => Number.isFinite(n) && n > 0),
+    date,
+  );
 
   const toDate = (v: Date | string | null): Date | null => {
     if (!v) return null;
@@ -137,7 +145,11 @@ export async function buildAllowanceReport(
     const cls = classifyArrival({
       engineStatus: r.engine_status,
       firstInAt, lastOutAt,
-      arrivalEndTime: r.arrival_end_time ? String(r.arrival_end_time) : null,
+      arrivalEndTime: (() => {
+        const ov = r.rule_id != null ? overrides.get(Number(r.rule_id)) : undefined;
+        const t = ov?.arrival_end_time ?? r.arrival_end_time;
+        return t ? String(t) : null;
+      })(),
       date, tzOffsetMinutes,
     });
     return {

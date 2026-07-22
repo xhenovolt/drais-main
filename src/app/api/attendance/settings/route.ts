@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { ensureDayOverrideSchema, saveRuleDayOverrides } from '@/lib/attendance/day-overrides';
 
 export const runtime = 'nodejs';
 
@@ -31,10 +32,31 @@ export async function GET(req: NextRequest) {
       if (!byScope[k]) byScope[k] = r;
     }
 
+    // Per-weekday overrides for the surfaced rules (Sat 10:00 etc.).
+    let dayOverrides: Record<string, any[]> = {};
+    try {
+      await ensureDayOverrideSchema();
+      const ids = Object.values(byScope).map((r: any) => Number(r.id)).filter(Boolean);
+      if (ids.length) {
+        const ovRows = (await query(
+          `SELECT rule_id, weekday, arrival_start_time, arrival_end_time,
+                  late_threshold_minutes, closing_time
+             FROM attendance_rule_day_overrides
+            WHERE rule_id IN (${ids.map(() => '?').join(',')})
+            ORDER BY weekday ASC`,
+          ids,
+        )) as any[];
+        for (const [scope, r] of Object.entries(byScope)) {
+          dayOverrides[scope] = ovRows.filter(o => Number(o.rule_id) === Number((r as any).id));
+        }
+      }
+    } catch { /* overrides are optional */ }
+
     return NextResponse.json({
       success: true,
       rule: rows[0] || null,
       rules: byScope, // { students?, teachers?, all? }
+      day_overrides: dayOverrides, // { students?: [{weekday,…}], teachers?: […] }
     });
   } catch (err: any) {
     console.error('[attendance/settings GET]', err);
@@ -66,6 +88,7 @@ export async function POST(req: NextRequest) {
       applies_to_classes,
       ignore_duplicate_scans_within_minutes = 2,
       weekday_mask = 31, // school days; bits Mon=1,Tue=2,Wed=4,Thu=8,Fri=16,Sat=32,Sun=64
+      day_overrides = [], // [{ weekday: 0-6 (Sun-Sat), arrival_end_time?, late_threshold_minutes?, arrival_start_time?, closing_time? }]
     } = body;
     const wmask = Number.isFinite(Number(weekday_mask))
       ? Math.max(1, Math.min(127, Number(weekday_mask)))
@@ -126,6 +149,25 @@ export async function POST(req: NextRequest) {
         priority,
       ],
     );
+
+    // Per-weekday overrides for the new rule (e.g. Saturday arrival 10:00).
+    // Validated: weekday 0-6, times HH:MM(:SS); rows with no override
+    // fields are skipped (blank day = inherit the base rule).
+    const newRuleId = Number(result?.insertId);
+    if (newRuleId && Array.isArray(day_overrides)) {
+      const clean = day_overrides
+        .filter((o: any) => o && Number.isInteger(Number(o.weekday)) && Number(o.weekday) >= 0 && Number(o.weekday) <= 6)
+        .map((o: any) => ({
+          weekday: Number(o.weekday),
+          arrival_start_time: o.arrival_start_time && timeRe.test(o.arrival_start_time) ? o.arrival_start_time : null,
+          arrival_end_time: o.arrival_end_time && timeRe.test(o.arrival_end_time) ? o.arrival_end_time : null,
+          late_threshold_minutes: Number.isFinite(Number(o.late_threshold_minutes)) && o.late_threshold_minutes !== '' && o.late_threshold_minutes !== null
+            ? Math.max(0, Math.min(600, Number(o.late_threshold_minutes)))
+            : null,
+          closing_time: o.closing_time && timeRe.test(o.closing_time) ? o.closing_time : null,
+        }));
+      await saveRuleDayOverrides(newRuleId, clean);
+    }
 
     return NextResponse.json({
       success: true,

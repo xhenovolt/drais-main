@@ -19,6 +19,7 @@
  */
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
+import { applyWeekdayOverride } from '@/lib/attendance/day-overrides';
 
 export interface RoleCounts { total: number; present: number; late: number; absent: number; }
 export interface DashboardAttendanceCounts {
@@ -48,8 +49,8 @@ function utcBoundary(date: string, offsetMin: number, plusDays = 0): string {
   return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
 }
 
-/** The role's late cutoff from the school's own active rules. */
-async function roleLateCutoff(schoolId: number, role: 'student' | 'staff'): Promise<string> {
+/** The role's late cutoff from the school's own active rules for `date`. */
+async function roleLateCutoff(schoolId: number, role: 'student' | 'staff', date: string): Promise<string> {
   const applies = role === 'staff'
     ? `('staff','teachers','all')`
     : `('students','learners','all')`;
@@ -58,14 +59,24 @@ async function roleLateCutoff(schoolId: number, role: 'student' | 'staff'): Prom
     // role-specific rule beats 'all', then priority ASC (the generic
     // 'all' 10:00 rule must never override the staff 08:30 rule).
     const rules = (await query(
-      `SELECT arrival_end_time, late_threshold_minutes
+      `SELECT id, arrival_end_time, late_threshold_minutes
          FROM attendance_rules
         WHERE school_id = ? AND is_active = 1 AND applies_to IN ${applies}
         ORDER BY (applies_to = 'all') ASC, priority ASC, id DESC LIMIT 1`,
       [schoolId],
-    )) as Array<{ arrival_end_time: string | null; late_threshold_minutes: number | null }>;
+    )) as Array<{ id: number; arrival_end_time: string | null; late_threshold_minutes: number | null }>;
     if (rules[0]?.arrival_end_time) {
-      return addMinutesToTime(String(rules[0].arrival_end_time), Number(rules[0].late_threshold_minutes ?? 0));
+      // Per-weekday override (e.g. "Saturday arrival ends 10:00") — must
+      // match what the engine used when it stamped verdicts for this date.
+      const rule = await applyWeekdayOverride(
+        {
+          id: Number(rules[0].id),
+          arrival_end_time: String(rules[0].arrival_end_time),
+          late_threshold_minutes: Number(rules[0].late_threshold_minutes ?? 0),
+        },
+        date,
+      );
+      return addMinutesToTime(String(rule.arrival_end_time), Number(rule.late_threshold_minutes ?? 0));
     }
   } catch { /* default */ }
   return '08:45:00';
@@ -83,7 +94,7 @@ export async function getDashboardAttendanceCounts(
 
   const roleCounts = async (role: 'student' | 'staff'): Promise<{ present: number; late: number }> => {
     try {
-      const cutoff = await roleLateCutoff(schoolId, role);
+      const cutoff = await roleLateCutoff(schoolId, role, date);
       const rows = (await query(
         `SELECT
            COUNT(*) AS present,

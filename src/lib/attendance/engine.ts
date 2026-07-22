@@ -43,6 +43,7 @@ import {
 } from '@/lib/attendance/rule-evaluator';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
 import { loadResolvedStaffShift } from './staff-shift';
+import { applyWeekdayOverride } from './day-overrides';
 import { shiftToAttendanceRule } from './shifts';
 import { publishEvent } from '@/lib/events/eventbus';
 // Phase 5 — registers the notification fanout subscriber the first
@@ -257,8 +258,11 @@ export async function evaluateDay(
   // 1. Load rule. Staff with an assigned shift are classified against THAT
   //    shift; everyone else uses the school's attendance_rules. Opt-in per
   //    school — no shift assignment ⇒ identical to the pre-shift behaviour.
-  const rule = (roleType === 'staff' ? await loadStaffShiftAsRule(schoolId, personId, attendanceDate) : null)
+  const baseRule = (roleType === 'staff' ? await loadStaffShiftAsRule(schoolId, personId, attendanceDate) : null)
     ?? await loadActiveRule(schoolId, roleType);
+  // Per-weekday override (e.g. "Saturday arrival ends 10:00") — a no-op
+  // for schools without override rows and for shift-derived rules.
+  const rule = baseRule ? await applyWeekdayOverride(baseRule, attendanceDate) : null;
   if (!rule) {
     // No rule configured — record a present/absent verdict based on
     // raw count only. This keeps Phase 3 useful for schools that
