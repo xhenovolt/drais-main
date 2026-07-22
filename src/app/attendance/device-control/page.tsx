@@ -1,16 +1,34 @@
-"use client";
+'use client';
 
-import React, { useState, useCallback } from 'react';
+/**
+ * Device Control — biometric device operations & attendance acquisition center.
+ *
+ * Phase 3 of docs/audits/TCP_PULL_FORENSIC_AND_REDESIGN.md (approved).
+ * Four sections: Device Status · Attendance Acquisition (staged wizard) ·
+ * Device Operations · Diagnostics. Every pre-redesign action is preserved,
+ * regrouped. The free-text "clock offset (minutes)" input is retired (RC-5 —
+ * it silently replaced the timezone offset in punch math).
+ *
+ * Acquisition wizard (mission Phases 1–5):
+ *   pull for ONE date → raw inspection (verbatim device wall times, no
+ *   formatting, no timezone conversion) → first-3/last-3 anchors → operator
+ *   ✓/✗ → Preview / Save / Export / Discard. Staging only — nothing touches
+ *   attendance_raw_events until the Phase 4 committer is enabled.
+ */
+
+import React, { useState, useCallback, useMemo } from 'react';
 import {
-  Wifi, WifiOff, Power, Lock, Unlock, Fingerprint, Monitor, RefreshCw,
+  Wifi, WifiOff, Lock, Unlock, Fingerprint, Monitor, RefreshCw,
   Send, Loader, Users, Clock, Terminal, Type, AlertTriangle,
   CheckCircle, XCircle, ChevronDown, ChevronRight, Trash2, Download, Globe,
+  CalendarDays, Search, ShieldCheck, History, Activity, FileDown, Eye,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
-import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
+
+// ─── Legacy attendance-result rendering (preserved) ─────────────────────────
 
 function isAttendanceResponse(data: any) {
   return Array.isArray(data?.data) && data.data.length > 0 && (
@@ -61,26 +79,21 @@ function AttendanceResultTable({ rows }: { rows: any[] }) {
     { key: 'verification', label: 'Verification' },
     { key: 'status', label: 'Status' },
   ];
-
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="min-w-full text-xs text-left border-collapse">
-        <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300 uppercase tracking-[.03em] text-[10px]">
+    <div className="overflow-x-auto max-h-64 border border-gray-100 dark:border-gray-700 rounded">
+      <table className="text-xs w-full">
+        <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900">
           <tr>
-            {columns.map((col) => (
-              <th key={col.key} className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap">
-                {col.label}
-              </th>
+            {columns.map(c => (
+              <th key={c.key} className="px-2 py-1.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{c.label}</th>
             ))}
           </tr>
         </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-950'}>
-              {columns.map((col) => (
-                <td key={col.key} className="px-2 py-2 align-top border-b border-gray-100 dark:border-gray-800 whitespace-nowrap">
-                  {getAttendanceValue(row, col.key)}
-                </td>
+        <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+          {rows.slice(0, 200).map((r, i) => (
+            <tr key={i}>
+              {columns.map(c => (
+                <td key={c.key} className="px-2 py-1 text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono">{String(getAttendanceValue(r, c.key))}</td>
               ))}
             </tr>
           ))}
@@ -89,6 +102,66 @@ function AttendanceResultTable({ rows }: { rows: any[] }) {
     </div>
   );
 }
+
+// ─── Section shell ──────────────────────────────────────────────────────────
+
+function Section({
+  icon, title, subtitle, defaultOpen = true, children,
+}: {
+  icon: React.ReactNode; title: string; subtitle?: string;
+  defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+      >
+        <span className="text-indigo-500">{icon}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold text-gray-900 dark:text-white">{title}</span>
+          {subtitle && <span className="block text-xs text-gray-500 dark:text-gray-400">{subtitle}</span>}
+        </span>
+        {open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && <div className="px-4 pb-4 space-y-4">{children}</div>}
+    </div>
+  );
+}
+
+// ─── Wizard types ───────────────────────────────────────────────────────────
+
+interface WizardValidation {
+  records: number;
+  matched: number;
+  unmatched: number;
+  duplicates: number;
+  futureFlagged: number;
+  first3: Array<{ pin: string; wall: string; name: string | null }>;
+  last3: Array<{ pin: string; wall: string; name: string | null }>;
+  deviceWallNow: string | null;
+  serverWallNow: string;
+  clockDeltaSeconds: number | null;
+  warnings: string[];
+}
+
+interface WizardState {
+  step: 'idle' | 'pulling' | 'inspect' | 'decide' | 'discarded' | 'error';
+  date: string;
+  acquisitionId?: number;
+  staged?: number;
+  totalOnDevice?: number;
+  validation?: WizardValidation;
+  records: any[];
+  search: string;
+  page: number;
+  rejected?: boolean;
+  error?: string;
+}
+
+const PAGE_SIZE = 50;
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function DeviceControlPage() {
   const [deviceSn, setDeviceSn] = useState('');
@@ -103,12 +176,13 @@ export default function DeviceControlPage() {
   const [rawCmd, setRawCmd] = useState('');
   const [rawData, setRawData] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [clockOffsetMinutes, setClockOffsetMinutes] = useState('0');
+  const [wiz, setWiz] = useState<WizardState>({ step: 'idle', date: todayStr(), records: [], search: '', page: 0 });
 
   const { data: devicesData } = useSWR<any>('/api/devices/list', fetcher);
   const devices = devicesData?.data || [];
+  const { data: acqData, mutate: refreshAcquisitions } = useSWR<any>('/api/attendance/acquisitions?limit=25', fetcher);
+  const acquisitions = acqData?.data || [];
 
-  // Auto-select first online device
   React.useEffect(() => {
     if (!deviceSn && devices.length > 0) {
       const online = devices.find((d: any) => d.seconds_ago != null && d.seconds_ago <= 120);
@@ -119,32 +193,34 @@ export default function DeviceControlPage() {
 
   const addResult = useCallback((action: string, data: any, success: boolean) => {
     setResults(prev => [{
-      id: Date.now(),
-      action,
-      data,
-      success,
-      time: new Date().toLocaleTimeString(),
+      id: Date.now(), action, data, success, time: new Date().toLocaleTimeString(),
     }, ...prev].slice(0, 30));
   }, []);
 
-  // GET actions
+  const deviceParams = useCallback((params: URLSearchParams | Record<string, any>) => {
+    if (params instanceof URLSearchParams) {
+      if (useDirectIp) { params.set('device_ip', directIp); params.set('device_port', directPort); }
+      else params.set('device_sn', deviceSn);
+      return params;
+    }
+    if (useDirectIp) { params.device_ip = directIp; params.device_port = directPort; }
+    else params.device_sn = deviceSn;
+    return params;
+  }, [useDirectIp, directIp, directPort, deviceSn]);
+
+  const requireTarget = () => {
+    if (!useDirectIp && !deviceSn) { showToast('error', 'Select a device or enter an IP'); return false; }
+    if (useDirectIp && !directIp) { showToast('error', 'Enter a device IP address'); return false; }
+    return true;
+  };
+
+  // ── Legacy GET/POST plumbing (preserved) ──────────────────────────────
   const doGet = async (action: string, label: string) => {
-    if (!useDirectIp && !deviceSn) return showToast('error', 'Select a device or enter an IP');
-    if (useDirectIp && !directIp) return showToast('error', 'Enter a device IP address');
+    if (!requireTarget()) return;
     setBusy(action);
     try {
-      const params = new URLSearchParams({ action });
-      if (useDirectIp) {
-        params.set('device_ip', directIp);
-        params.set('device_port', directPort);
-      } else {
-        params.set('device_sn', deviceSn);
-      }
-      if (clockOffsetMinutes && clockOffsetMinutes !== '0') {
-        params.set('clock_offset_minutes', clockOffsetMinutes);
-      }
+      const params = deviceParams(new URLSearchParams({ action })) as URLSearchParams;
       const url = `/api/attendance/zk-tcp?${params}`;
-      // CSV download needs text response and a file save
       if (action === 'attendance_csv') {
         const res = await fetch(url);
         if (!res.ok) {
@@ -153,14 +229,11 @@ export default function DeviceControlPage() {
           showToast('error', err || 'Failed');
         } else {
           const blob = await res.blob();
-          const fname = res.headers.get('content-disposition')?.match(/filename="?(.*)"?/)?.[1] || `attendance.csv`;
+          const fname = res.headers.get('content-disposition')?.match(/filename="?(.*)"?/)?.[1] || 'attendance.csv';
           const urlObj = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
-          a.href = urlObj;
-          a.download = fname;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
+          a.href = urlObj; a.download = fname;
+          document.body.appendChild(a); a.click(); a.remove();
           window.URL.revokeObjectURL(urlObj);
           addResult(label, { message: 'CSV downloaded', filename: fname }, true);
           showToast('success', 'CSV downloaded');
@@ -179,19 +252,11 @@ export default function DeviceControlPage() {
     }
   };
 
-  // POST actions
   const doPost = async (action: string, label: string, extra: Record<string, any> = {}) => {
-    if (!useDirectIp && !deviceSn) return showToast('error', 'Select a device or enter an IP');
-    if (useDirectIp && !directIp) return showToast('error', 'Enter a device IP address');
+    if (!requireTarget()) return;
     setBusy(action);
     try {
-      const payload: any = { action, ...extra };
-      if (useDirectIp) {
-        payload.device_ip = directIp;
-        payload.device_port = directPort;
-      } else {
-        payload.device_sn = deviceSn;
-      }
+      const payload: any = deviceParams({ action, ...extra });
       const res = await fetch('/api/attendance/zk-tcp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -199,11 +264,8 @@ export default function DeviceControlPage() {
       });
       const json = await res.json();
       addResult(label, json, json.success);
-      if (json.success) {
-        showToast('success', json.message || 'Done');
-      } else {
-        showToast('error', json.error || 'Failed');
-      }
+      if (json.success) showToast('success', json.message || 'Done');
+      else showToast('error', json.error || 'Failed');
     } catch (err: any) {
       addResult(label, { error: err.message }, false);
       showToast('error', err.message);
@@ -212,25 +274,118 @@ export default function DeviceControlPage() {
     }
   };
 
+  // ── Acquisition wizard actions ─────────────────────────────────────────
+  const startPull = async () => {
+    if (!requireTarget()) return;
+    setWiz(w => ({ ...w, step: 'pulling', error: undefined, rejected: false }));
+    try {
+      const payload: any = deviceParams({ action: 'stage_pull', date: wiz.date });
+      const res = await fetch('/api/attendance/zk-tcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Pull failed');
+      let records: any[] = [];
+      if (json.acquisitionId != null) {
+        const det = await fetch(`/api/attendance/acquisitions?id=${json.acquisitionId}`).then(r => r.json());
+        records = det?.records || [];
+      }
+      setWiz(w => ({
+        ...w,
+        step: 'inspect',
+        acquisitionId: json.acquisitionId,
+        staged: json.staged,
+        totalOnDevice: json.totalOnDevice,
+        validation: json.validation,
+        records,
+        page: 0,
+        search: '',
+      }));
+      refreshAcquisitions();
+    } catch (err: any) {
+      setWiz(w => ({ ...w, step: 'error', error: err.message }));
+      showToast('error', err.message);
+    }
+  };
+
+  const discardBatch = async () => {
+    if (!wiz.acquisitionId) return;
+    try {
+      const res = await fetch('/api/attendance/acquisitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: wiz.acquisitionId, action: 'discard' }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Discard failed');
+      setWiz(w => ({ ...w, step: 'discarded' }));
+      refreshAcquisitions();
+      showToast('success', 'Batch discarded — nothing was saved');
+    } catch (err: any) {
+      showToast('error', err.message);
+    }
+  };
+
+  const downloadRaw = (fmt: 'json' | 'csv') => {
+    if (!wiz.records.length) return;
+    let blob: Blob; let name: string;
+    if (fmt === 'json') {
+      blob = new Blob([JSON.stringify(wiz.records, null, 2)], { type: 'application/json' });
+      name = `acquisition_${wiz.acquisitionId}_raw.json`;
+    } else {
+      const head = 'device_pin,device_wall_time,name,verify_type,flags';
+      const lines = wiz.records.map((r: any) =>
+        [r.device_user_id, r.device_wall_time, r.display_name ?? '', r.verify_type ?? '', r.validation_flags ?? '']
+          .map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      blob = new Blob([[head, ...lines].join('\n')], { type: 'text/csv' });
+      name = `acquisition_${wiz.acquisitionId}_raw.csv`;
+    }
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const filteredRecords = useMemo(() => {
+    const q = wiz.search.trim().toLowerCase();
+    if (!q) return wiz.records;
+    return wiz.records.filter((r: any) =>
+      String(r.device_user_id).toLowerCase().includes(q) ||
+      String(r.display_name ?? '').toLowerCase().includes(q) ||
+      String(r.device_wall_time).includes(q) ||
+      String(r.validation_flags ?? '').includes(q));
+  }, [wiz.records, wiz.search]);
+  const pageCount = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const pageRecords = filteredRecords.slice(wiz.page * PAGE_SIZE, (wiz.page + 1) * PAGE_SIZE);
+  const anchorIds = useMemo(() => {
+    const v = wiz.validation;
+    if (!v) return new Set<string>();
+    return new Set([...v.first3, ...v.last3].map(a => `${a.pin}|${a.wall}`));
+  }, [wiz.validation]);
+
   const selectedDevice = devices.find((d: any) => d.sn === deviceSn);
   const isOnline = selectedDevice?.seconds_ago != null && selectedDevice.seconds_ago <= 120;
 
+  const v = wiz.validation;
+
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
           <Terminal className="w-7 h-7 text-indigo-500" />
-          Device Control (TCP SDK)
+          Device Control
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Direct TCP connection to ZKTeco device — full control including remote enrollment
+          Biometric device operations &amp; attendance acquisition center — direct TCP (port 4370, LAN or relay)
         </p>
       </div>
 
       {/* Device Selector */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
-        {/* Mode Toggle */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setUseDirectIp(false)}
@@ -248,14 +403,11 @@ export default function DeviceControlPage() {
         </div>
 
         {useDirectIp ? (
-          /* Direct IP Input */
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
             <div className="flex-1 min-w-0">
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Device IP Address</label>
               <input
-                type="text"
-                value={directIp}
-                onChange={(e) => setDirectIp(e.target.value)}
+                type="text" value={directIp} onChange={(e) => setDirectIp(e.target.value)}
                 placeholder="e.g. 192.168.1.197"
                 className="w-full sm:w-64 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
               />
@@ -263,9 +415,7 @@ export default function DeviceControlPage() {
             <div>
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Port</label>
               <input
-                type="number"
-                value={directPort}
-                onChange={(e) => setDirectPort(e.target.value)}
+                type="number" value={directPort} onChange={(e) => setDirectPort(e.target.value)}
                 placeholder="4370"
                 className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
               />
@@ -278,13 +428,11 @@ export default function DeviceControlPage() {
             )}
           </div>
         ) : (
-          /* Registered Device Selector */
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-1 min-w-0">
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Target Device</label>
               <select
-                value={deviceSn}
-                onChange={(e) => setDeviceSn(e.target.value)}
+                value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)}
                 className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
               >
                 <option value="">Select device...</option>
@@ -302,277 +450,443 @@ export default function DeviceControlPage() {
                   {isOnline ? 'Online' : 'Offline'}
                 </span>
                 <span className="text-gray-400">IP: {selectedDevice.ip_address || '—'}</span>
-                <div className="ml-3">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block">Clock offset (min)</label>
-                  <input
-                    type="number"
-                    value={clockOffsetMinutes}
-                    onChange={(e) => setClockOffsetMinutes(e.target.value)}
-                    className="w-28 px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
-                  />
-                </div>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Quick Actions Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        <ActionButton
-          icon={<Monitor className="w-5 h-5" />}
-          label="Get Info"
-          color="blue"
-          busy={busy === 'info'}
-          disabled={busy !== null}
-          onClick={() => doGet('info', 'Get Info')}
-        />
-        <ActionButton
-          icon={<Users className="w-5 h-5" />}
-          label="Get Users"
-          color="blue"
-          busy={busy === 'users'}
-          disabled={busy !== null}
-          onClick={() => doGet('users', 'Get Users')}
-        />
-        <ActionButton
-          icon={<Users className="w-5 h-5" />}
-          label="Map Names"
-          color="blue"
-          busy={busy === 'map'}
-          disabled={busy !== null}
-          onClick={() => doGet('map_attendance', 'Map Names')}
-        />
-        <ActionButton
-          icon={<Clock className="w-5 h-5" />}
-          label="Correct Time"
-          color="purple"
-          busy={busy === 'correct'}
-          disabled={busy !== null}
-          onClick={() => doGet('map_attendance', 'Correct Time')}
-        />
-        <ActionButton
-          icon={<Clock className="w-5 h-5" />}
-          label="Attendance"
-          color="blue"
-          busy={busy === 'attendance'}
-          disabled={busy !== null}
-          onClick={() => doGet('attendance', 'Get Attendance')}
-        />
-        <ActionButton
-          icon={<Download className="w-5 h-5" />}
-          label="Download CSV"
-          color="green"
-          busy={busy === 'csv'}
-          disabled={busy !== null}
-          onClick={() => doGet('attendance_csv', 'Download CSV')}
-        />
-        <ActionButton
-          icon={<Wifi className="w-5 h-5" />}
-          label="Test TCP"
-          color="green"
-          busy={busy === 'status'}
-          disabled={busy !== null}
-          onClick={() => doGet('status', 'TCP Test')}
-        />
-        <ActionButton
-          icon={<Power className="w-5 h-5" />}
-          label="Restart"
-          color="red"
-          busy={busy === 'restart'}
-          disabled={busy !== null}
-          onClick={() => doPost('restart', 'Restart')}
-        />
-        <ActionButton
-          icon={<Lock className="w-5 h-5" />}
-          label="Disable"
-          color="yellow"
-          busy={busy === 'disable'}
-          disabled={busy !== null}
-          onClick={() => doPost('disable', 'Disable Device')}
-        />
-        <ActionButton
-          icon={<Unlock className="w-5 h-5" />}
-          label="Enable"
-          color="green"
-          busy={busy === 'enable'}
-          disabled={busy !== null}
-          onClick={() => doPost('enable', 'Enable Device')}
-        />
-        <ActionButton
-          icon={<Unlock className="w-5 h-5" />}
-          label="Unlock Door"
-          color="purple"
-          busy={busy === 'unlock'}
-          disabled={busy !== null}
-          onClick={() => doPost('unlock', 'Unlock Door')}
-        />
-      </div>
-
-      {/* Enrollment Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
-        <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-          <Fingerprint className="w-5 h-5 text-indigo-500" />
-          Remote Fingerprint Enrollment (TCP SDK)
-        </h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Enter the device UID (internal user number on device) and finger index. The device will prompt the user to place their finger. After 3 touches the template is stored on device, then click &quot;Save Template&quot; to pull it into DRAIS.
-        </p>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Device UID</label>
-            <input
-              type="number"
-              value={enrollUid}
-              onChange={(e) => setEnrollUid(e.target.value)}
-              placeholder="e.g. 2"
-              min={1}
-              className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Finger (0-9)</label>
-            <select
-              value={enrollFinger}
-              onChange={(e) => setEnrollFinger(parseInt(e.target.value, 10))}
-              className="w-40 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
-            >
-              {['Right Thumb', 'Right Index', 'Right Middle', 'Right Ring', 'Right Pinky',
-                'Left Thumb', 'Left Index', 'Left Middle', 'Left Ring', 'Left Pinky'].map((name, i) => (
-                <option key={i} value={i}>{i} — {name}</option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={() => {
-              if (!enrollUid) return showToast('error', 'Enter device UID');
-              doPost('enroll', `Enroll UID=${enrollUid} F=${enrollFinger}`, {
-                uid: parseInt(enrollUid, 10),
-                finger: enrollFinger,
-              });
-            }}
-            disabled={busy !== null}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition flex items-center gap-2"
-          >
-            {busy === 'enroll' ? <Loader className="w-4 h-4 animate-spin" /> : <Fingerprint className="w-4 h-4" />}
-            Start Enrollment
-          </button>
-          <button
-            onClick={() => doPost('save_template', `Save Template UID=${enrollUid} F=${enrollFinger}`, {
-              uid: parseInt(enrollUid || '0', 10),
-              finger: enrollFinger,
-              pin: enrollUid,
-            })}
-            disabled={busy !== null || !enrollUid}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition flex items-center gap-2"
-          >
-            {busy === 'save_template' ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Save Template
-          </button>
-          <button
-            onClick={() => doPost('cancel_enroll', 'Cancel Enrollment')}
-            disabled={busy !== null}
-            className="px-3 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-sm rounded-lg transition flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            Cancel
-          </button>
+      {/* ── 1. Device Status ─────────────────────────────────────────────── */}
+      <Section icon={<Activity className="w-5 h-5" />} title="Device Status"
+        subtitle="Connection, identity, firmware, users">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <ActionButton icon={<Wifi className="w-5 h-5" />} label="Test TCP" color="green"
+            busy={busy === 'status'} disabled={busy !== null} onClick={() => doGet('status', 'TCP Test')} />
+          <ActionButton icon={<Monitor className="w-5 h-5" />} label="Get Info" color="blue"
+            busy={busy === 'info'} disabled={busy !== null} onClick={() => doGet('info', 'Get Info')} />
+          <ActionButton icon={<Users className="w-5 h-5" />} label="Get Users" color="blue"
+            busy={busy === 'users'} disabled={busy !== null} onClick={() => doGet('users', 'Get Users')} />
+          <ActionButton icon={<Users className="w-5 h-5" />} label="Map Names" color="blue"
+            busy={busy === 'map_attendance'} disabled={busy !== null} onClick={() => doGet('map_attendance', 'Map Names')} />
         </div>
-      </div>
+      </Section>
 
-      {/* LCD Display */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-        <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-          <Type className="w-5 h-5 text-gray-400" />
-          LCD Display
-        </h2>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={lcdText}
-            onChange={(e) => setLcdText(e.target.value)}
-            placeholder="Message to display on device screen..."
-            maxLength={100}
-            className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
-          />
-          <button
-            onClick={() => doPost('write_lcd', `LCD: ${lcdText}`, { text: lcdText })}
-            disabled={busy !== null || !lcdText}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-800 disabled:opacity-50 text-white text-sm rounded-lg transition"
-          >
-            Write
-          </button>
-          <button
-            onClick={() => doPost('clear_lcd', 'Clear LCD')}
-            disabled={busy !== null}
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-sm rounded-lg transition"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
+      {/* ── 2. Attendance Acquisition (wizard) ───────────────────────────── */}
+      <Section icon={<ShieldCheck className="w-5 h-5" />} title="Attendance Acquisition"
+        subtitle="Pull one date → inspect raw device times → confirm → decide. Nothing is saved without your confirmation.">
 
-      {/* Advanced: Raw Command */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
-        >
-          <span className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-500" />
-            Raw Command (Advanced)
-          </span>
-          {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-        {showAdvanced && (
-          <div className="border-t border-gray-100 dark:border-gray-700 p-4 space-y-3">
-            <p className="text-xs text-red-500">Send any ZK SDK command by numeric ID. Use with caution.</p>
-            <div className="flex gap-2 items-end">
-              <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Command ID</label>
-                <input
-                  type="number"
-                  value={rawCmd}
-                  onChange={(e) => setRawCmd(e.target.value)}
-                  placeholder="e.g. 61"
-                  className="w-28 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
-                />
+        {(wiz.step === 'idle' || wiz.step === 'error' || wiz.step === 'discarded') && (
+          <div className="space-y-3">
+            {wiz.step === 'error' && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>Pull failed: {wiz.error}</span>
               </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium text-gray-500 block mb-1">Data (hex, optional)</label>
+            )}
+            {wiz.step === 'discarded' && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 text-gray-600 dark:text-gray-300 text-sm">
+                <Trash2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>Batch #{wiz.acquisitionId} discarded. Nothing was saved to DRAIS.</span>
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Attendance date</label>
                 <input
-                  type="text"
-                  value={rawData}
-                  onChange={(e) => setRawData(e.target.value)}
-                  placeholder="e.g. 020000"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
+                  type="date" value={wiz.date} max={todayStr()}
+                  onChange={(e) => setWiz(w => ({ ...w, date: e.target.value }))}
+                  className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
                 />
               </div>
               <button
-                onClick={() => doPost('exec', `CMD ${rawCmd}`, { command: parseInt(rawCmd, 10), data: rawData })}
-                disabled={busy !== null || !rawCmd}
-                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white text-sm rounded-lg transition"
+                onClick={startPull}
+                disabled={busy !== null || !wiz.date}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50"
               >
-                Execute
+                <CalendarDays className="w-4 h-4" />
+                Pull attendance for this date
               </button>
-            </div>
-            <div className="text-xs text-gray-400 space-y-0.5">
-              <p>Common: 1000=CONNECT, 1004=RESTART, 50=GET_FREE_SIZES, 61=STARTENROLL, 62=CANCELCAPTURE</p>
-              <p>1002=ENABLE, 1003=DISABLE, 9=READ_TEMPLATE, 10=WRITE_TEMPLATE, 500=REG_EVENT</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 sm:ml-2">
+                Staging only — raw logs are inspected before anything is stored.
+              </p>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Results Log */}
+        {wiz.step === 'pulling' && (
+          <div className="flex items-center gap-3 p-6 justify-center text-sm text-gray-600 dark:text-gray-300">
+            <Loader className="w-5 h-5 animate-spin text-indigo-500" />
+            Pulling device log, staging &amp; validating {wiz.date}…
+          </div>
+        )}
+
+        {(wiz.step === 'inspect' || wiz.step === 'decide') && v && (
+          <div className="space-y-4">
+            {/* Summary chips */}
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-medium">Batch #{wiz.acquisitionId}</span>
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{wiz.staged} staged / {wiz.totalOnDevice} on device</span>
+              <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">{v.matched} matched</span>
+              <span className={`px-2 py-1 rounded-full ${v.unmatched ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>{v.unmatched} unmatched</span>
+              <span className={`px-2 py-1 rounded-full ${v.duplicates ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>{v.duplicates} already in DRAIS</span>
+              {v.clockDeltaSeconds != null && (
+                <span className={`px-2 py-1 rounded-full ${Math.abs(v.clockDeltaSeconds) > 120 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
+                  device clock {v.clockDeltaSeconds > 0 ? '+' : ''}{v.clockDeltaSeconds}s vs server
+                </span>
+              )}
+            </div>
+
+            {v.warnings.length > 0 && (
+              <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 text-xs space-y-1">
+                {v.warnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-2"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{w}</div>
+                ))}
+              </div>
+            )}
+
+            {/* First/Last anchors */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              {[['First punches of the day', v.first3], ['Last punches of the day', v.last3]].map(([title, list]: any) => (
+                <div key={title} className="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10 p-3">
+                  <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-2">{title}</div>
+                  {list.length === 0 && <div className="text-xs text-gray-400">No records</div>}
+                  {list.map((a: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-sm py-0.5">
+                      <span className="font-mono text-gray-900 dark:text-white">{a.wall.slice(11)}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{a.name || `PIN ${a.pin}`}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Operator confirmation */}
+            {wiz.step === 'inspect' && !wiz.rejected && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <span className="text-sm font-medium text-gray-900 dark:text-white flex-1">
+                  Do these timestamps match what you expect from this day&apos;s attendance?
+                </span>
+                <div className="flex gap-2">
+                  <button onClick={() => setWiz(w => ({ ...w, step: 'decide' }))}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium">
+                    <CheckCircle className="w-4 h-4" /> Yes
+                  </button>
+                  <button onClick={() => setWiz(w => ({ ...w, rejected: true }))}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium">
+                    <XCircle className="w-4 h-4" /> No
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {wiz.step === 'inspect' && wiz.rejected && (
+              <div className="p-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10 space-y-2">
+                <div className="text-sm text-red-700 dark:text-red-300 font-medium">Timestamps rejected — choose what to do:</div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={discardBatch} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium">
+                    <Trash2 className="w-3.5 h-3.5" /> Discard
+                  </button>
+                  <button onClick={() => downloadRaw('json')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium">
+                    <FileDown className="w-3.5 h-3.5" /> Download raw logs
+                  </button>
+                  <button onClick={() => setWiz(w => ({ ...w, rejected: false }))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-medium">
+                    <Eye className="w-3.5 h-3.5" /> Keep inspecting
+                  </button>
+                  <button onClick={startPull} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium">
+                    <RefreshCw className="w-3.5 h-3.5" /> Retry pull
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Decision */}
+            {wiz.step === 'decide' && (
+              <div className="p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10 space-y-2">
+                <div className="text-sm text-green-800 dark:text-green-300 font-medium">Timestamps confirmed. What would you like to do?</div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => { showToast('success', 'Preview mode — nothing was written'); setWiz(w => ({ ...w, step: 'inspect', rejected: false })); }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium">
+                    <Eye className="w-3.5 h-3.5" /> Preview only (no database writes)
+                  </button>
+                  <button disabled title="Enabled in the next rollout phase (guarded transactional import)"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium opacity-50 cursor-not-allowed">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Save attendance to DRAIS
+                  </button>
+                  <button onClick={() => downloadRaw('csv')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium">
+                    <Download className="w-3.5 h-3.5" /> Export CSV
+                  </button>
+                  <button onClick={() => setWiz(w => ({ ...w, step: 'idle', records: [], validation: undefined, rejected: false }))}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-medium">
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Save is enabled after the guarded import path ships — until then this screen is read-only by design.
+                </p>
+              </div>
+            )}
+
+            {/* Raw Inspection table */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-gray-400" />
+                  <input
+                    value={wiz.search}
+                    onChange={(e) => setWiz(w => ({ ...w, search: e.target.value, page: 0 }))}
+                    placeholder="Search PIN, name, time, flag…"
+                    className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-xs"
+                  />
+                </div>
+                <span className="text-xs text-gray-400">{filteredRecords.length} record(s) — raw device times, no conversion</span>
+              </div>
+              <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table className="text-xs w-full">
+                  <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 z-10">
+                    <tr>
+                      {['#', 'Device PIN', 'Name', 'Raw Timestamp (device)', 'Verify', 'Matched', 'Flags'].map(h => (
+                        <th key={h} className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {pageRecords.map((r: any, i: number) => {
+                      const isAnchor = anchorIds.has(`${r.device_user_id}|${r.device_wall_time}`);
+                      return (
+                        <tr key={r.id} className={isAnchor ? 'bg-indigo-50 dark:bg-indigo-900/20' : undefined}>
+                          <td className="px-3 py-1.5 text-gray-400">{wiz.page * PAGE_SIZE + i + 1}</td>
+                          <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white">{r.device_user_id}</td>
+                          <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{r.display_name || <span className="text-gray-400">—</span>}</td>
+                          <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white whitespace-nowrap">{r.device_wall_time}</td>
+                          <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400">{r.verify_type ?? '—'}</td>
+                          <td className="px-3 py-1.5">{r.matched
+                            ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                            : <XCircle className="w-3.5 h-3.5 text-yellow-500" />}</td>
+                          <td className="px-3 py-1.5">
+                            {(r.validation_flags || '').split(',').filter(Boolean).map((f: string) => (
+                              <span key={f} className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-1 ${
+                                f === 'duplicate' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                : f === 'future' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                                {f}
+                              </span>
+                            ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {pageRecords.length === 0 && (
+                      <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">No records</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {pageCount > 1 && (
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                  <button disabled={wiz.page === 0} onClick={() => setWiz(w => ({ ...w, page: w.page - 1 }))}
+                    className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">Previous</button>
+                  <span>Page {wiz.page + 1} / {pageCount}</span>
+                  <button disabled={wiz.page >= pageCount - 1} onClick={() => setWiz(w => ({ ...w, page: w.page + 1 }))}
+                    className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">Next</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Section>
+
+      {/* ── 3. Device Operations ─────────────────────────────────────────── */}
+      <Section icon={<Fingerprint className="w-5 h-5" />} title="Device Operations"
+        subtitle="Power, access, enrollment, display" defaultOpen={false}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <ActionButton icon={<RefreshCw className="w-5 h-5" />} label="Restart" color="yellow"
+            busy={busy === 'restart'} disabled={busy !== null} onClick={() => { if (confirm('Restart the device now?')) doPost('restart', 'Restart'); }} />
+          <ActionButton icon={<Lock className="w-5 h-5" />} label="Disable" color="red"
+            busy={busy === 'disable'} disabled={busy !== null} onClick={() => { if (confirm('Disable the device (stops accepting punches)?')) doPost('disable', 'Disable Device'); }} />
+          <ActionButton icon={<Unlock className="w-5 h-5" />} label="Enable" color="green"
+            busy={busy === 'enable'} disabled={busy !== null} onClick={() => doPost('enable', 'Enable Device')} />
+          <ActionButton icon={<Unlock className="w-5 h-5" />} label="Unlock Door" color="purple"
+            busy={busy === 'unlock'} disabled={busy !== null} onClick={() => doPost('unlock', 'Unlock Door')} />
+          <ActionButton icon={<Clock className="w-5 h-5" />} label="Attendance (legacy)" color="blue"
+            busy={busy === 'attendance'} disabled={busy !== null} onClick={() => doGet('attendance', 'Get Attendance')} />
+          <ActionButton icon={<Download className="w-5 h-5" />} label="CSV (legacy)" color="blue"
+            busy={busy === 'attendance_csv'} disabled={busy !== null} onClick={() => doGet('attendance_csv', 'Download CSV')} />
+        </div>
+
+        {/* Remote Enrollment (preserved) */}
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
+          <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+            <Fingerprint className="w-4 h-4 text-indigo-500" /> Remote Enrollment
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Enter the device UID (internal user number on device) and finger index. The device will prompt the user to
+            place their finger. After 3 touches the template is stored on device, then click &quot;Save Template&quot; to pull it into DRAIS.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Device UID</label>
+              <input type="text" value={enrollUid} onChange={(e) => setEnrollUid(e.target.value)}
+                className="w-28 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Finger (0-9)</label>
+              <input type="number" min={0} max={9} value={enrollFinger}
+                onChange={(e) => setEnrollFinger(parseInt(e.target.value || '0', 10))}
+                className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
+            </div>
+            <button
+              onClick={() => {
+                if (!enrollUid) return showToast('error', 'Enter device UID');
+                doPost('enroll', `Enroll UID=${enrollUid} F=${enrollFinger}`, { uid: parseInt(enrollUid, 10), finger: enrollFinger });
+              }}
+              disabled={busy !== null}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50"
+            >
+              {busy === 'enroll' ? <Loader className="w-4 h-4 animate-spin" /> : <Fingerprint className="w-4 h-4" />}
+              Start Enrollment
+            </button>
+            <button
+              onClick={() => doPost('save_template', `Save Template UID=${enrollUid} F=${enrollFinger}`, {
+                uid: parseInt(enrollUid || '0', 10), finger: enrollFinger, pin: enrollUid,
+              })}
+              disabled={busy !== null || !enrollUid}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50"
+            >
+              {busy === 'save_template' ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Save Template
+            </button>
+            <button
+              onClick={() => doPost('cancel_enroll', 'Cancel Enrollment')}
+              disabled={busy !== null}
+              className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        {/* LCD Display (preserved) */}
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
+          <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+            <Type className="w-4 h-4 text-indigo-500" /> LCD Display
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <input
+              type="text" value={lcdText} onChange={(e) => setLcdText(e.target.value)}
+              placeholder="Message to show on device screen"
+              className="flex-1 min-w-48 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+            />
+            <button
+              onClick={() => doPost('write_lcd', `LCD: ${lcdText}`, { text: lcdText })}
+              disabled={busy !== null || !lcdText}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" /> Write
+            </button>
+            <button
+              onClick={() => doPost('clear_lcd', 'Clear LCD')}
+              disabled={busy !== null}
+              className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium disabled:opacity-50"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        {/* Advanced raw command (preserved) */}
+        <div>
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300"
+          >
+            <Terminal className="w-4 h-4" />
+            Raw Command (Advanced)
+            {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          {showAdvanced && (
+            <div className="mt-3 space-y-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Command (numeric)</label>
+                  <input type="text" value={rawCmd} onChange={(e) => setRawCmd(e.target.value)} placeholder="e.g. 50"
+                    className="w-32 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
+                </div>
+                <div className="flex-1 min-w-48">
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Data (hex, optional)</label>
+                  <input type="text" value={rawData} onChange={(e) => setRawData(e.target.value)} placeholder="deadbeef"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
+                </div>
+                <button
+                  onClick={() => doPost('exec', `Exec ${rawCmd}`, { command: rawCmd, data: rawData || undefined })}
+                  disabled={busy !== null || !rawCmd}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium disabled:opacity-50"
+                >
+                  {busy === 'exec' ? <Loader className="w-4 h-4 animate-spin" /> : <Terminal className="w-4 h-4" />}
+                  Execute
+                </button>
+              </div>
+              <div className="text-[11px] text-gray-400 dark:text-gray-500 space-y-0.5">
+                <p>Common: 1000=CONNECT, 1004=RESTART, 50=GET_FREE_SIZES, 61=STARTENROLL, 62=CANCELCAPTURE</p>
+                <p>1002=ENABLE, 1003=DISABLE, 9=READ_TEMPLATE, 10=WRITE_TEMPLATE, 500=REG_EVENT, 201=GET_TIME</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* ── 4. Diagnostics ───────────────────────────────────────────────── */}
+      <Section icon={<History className="w-5 h-5" />} title="Diagnostics"
+        subtitle="Acquisition history & operational visibility" defaultOpen={false}>
+        <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+          <table className="text-xs w-full">
+            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900">
+              <tr>
+                {['#', 'Method', 'Status', 'Device', 'Date window', 'Staged', 'Saved', 'Dup', 'Unmatched', 'Clock Δ', 'Duration', 'Started'].map(h => (
+                  <th key={h} className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+              {acquisitions.map((a: any) => (
+                <tr key={a.id}>
+                  <td className="px-3 py-1.5 text-gray-400">{a.id}</td>
+                  <td className="px-3 py-1.5 font-mono text-gray-700 dark:text-gray-300">{a.method}</td>
+                  <td className="px-3 py-1.5">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      a.status === 'committed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : a.status === 'validated' || a.status === 'staged' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                      : a.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
+                      {a.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-1.5 font-mono text-gray-500 dark:text-gray-400">{a.device_sn || a.device_ip || '—'}</td>
+                  <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {a.window_from ? String(a.window_from).slice(0, 10) : '—'}
+                  </td>
+                  <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{a.records_staged}</td>
+                  <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{a.records_committed}</td>
+                  <td className="px-3 py-1.5 text-gray-500">{a.records_duplicate}</td>
+                  <td className="px-3 py-1.5 text-gray-500">{a.records_unmatched}</td>
+                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{a.clock_delta_seconds != null ? `${a.clock_delta_seconds}s` : '—'}</td>
+                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{a.duration_ms != null ? `${Math.round(a.duration_ms / 100) / 10}s` : '—'}</td>
+                  <td className="px-3 py-1.5 text-gray-400 whitespace-nowrap">{a.started_at ? String(a.started_at).replace('T', ' ').slice(0, 19) : '—'}</td>
+                </tr>
+              ))}
+              {acquisitions.length === 0 && (
+                <tr><td colSpan={12} className="px-3 py-6 text-center text-gray-400">No acquisitions yet — pull a date above to create the first audit entry.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      {/* Results Log (preserved) */}
       {results.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-semibold text-gray-900 dark:text-white">Results ({results.length})</h2>
-            <button
-              onClick={() => setResults([])}
-              className="text-xs text-gray-400 hover:text-gray-600 transition"
-            >
+            <button onClick={() => setResults([])} className="text-xs text-gray-400 hover:text-gray-600 transition">
               Clear
             </button>
           </div>
@@ -580,11 +894,9 @@ export default function DeviceControlPage() {
             {results.map((r) => (
               <div key={r.id} className="px-4 py-3">
                 <div className="flex items-center gap-2 mb-1">
-                  {r.success ? (
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                  )}
+                  {r.success
+                    ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />}
                   <span className="font-medium text-sm text-gray-900 dark:text-white">{r.action}</span>
                   <span className="text-xs text-gray-400 ml-auto">{r.time}</span>
                 </div>
