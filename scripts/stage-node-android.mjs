@@ -191,12 +191,22 @@ async function stageNativeLibs() {
   // Transform RN sources → Cordova naming.
   const renameIncludes = (s) => s.replaceAll('rn-bridge.h', 'cordova-bridge.h');
   const nativeLib = renameIncludes(await fs.readFile(path.join(rnCpp, 'native-lib.cpp'), 'utf8'))
-    .replaceAll('Java_com_janeasystems_rn_1nodejs_1mobile_RNNodeJsMobileModule_', 'Java_com_janeasystems_cdvnodejsmobile_NodeJS_');
+    .replaceAll('Java_com_janeasystems_rn_1nodejs_1mobile_RNNodeJsMobileModule_', 'Java_com_janeasystems_cdvnodejsmobile_NodeJS_')
+    // rcv_message's runtime FindClass — MUST point at the Cordova plugin class
+    // or the first node→Java message ('ready-for-app-events', sent the moment
+    // Node boots) throws ClassNotFoundException on the JNI env and the app
+    // dies instantly. Both plugins expose the identical static
+    // sendMessageToApplication(String,String) target.
+    .replaceAll('com/janeasystems/rn_nodejs_mobile/RNNodeJsMobileModule', 'com/janeasystems/cdvnodejsmobile/NodeJS');
   const bridgeCpp = renameIncludes(await fs.readFile(path.join(rnCpp, 'rn-bridge.cpp'), 'utf8'))
     .replaceAll('NODE_MODULE_LINKED(rn_bridge,', 'NODE_MODULE_LINKED(cordova_bridge,');
   const bridgeH = renameIncludes(await fs.readFile(path.join(rnCpp, 'rn-bridge.h'), 'utf8'));
   if (!nativeLib.includes('Java_com_janeasystems_cdvnodejsmobile_NodeJS_startNodeWithArguments')) {
     console.error('[stage-node-android] JNI rename failed — RN native-lib.cpp layout changed; review the transform.');
+    process.exit(1);
+  }
+  if (nativeLib.includes('rn_nodejs_mobile') || nativeLib.includes('RNNodeJsMobileModule')) {
+    console.error('[stage-node-android] RN class references survived the transform — the app would crash on the first node→Java message. Review native-lib.cpp.');
     process.exit(1);
   }
   if (!bridgeCpp.includes('NODE_MODULE_LINKED(cordova_bridge,')) {
