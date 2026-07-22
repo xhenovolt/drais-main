@@ -1,4 +1,5 @@
 import type { DRCEAggregateConfig, DRCEResultRow, Language } from './schema';
+import { getContributingAssessmentResults } from '@/lib/snapshots/assessment';
 
 const WESTERN_TO_ARABIC_DIGITS: Record<string, string> = {
   '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
@@ -99,6 +100,40 @@ export function computeAssessmentRawValues(
   const aggregate = calculateAggregateFromResults(results, config);
   const division = calculateDivisionFromAggregate(aggregate, config);
   return { aggregate, division };
+}
+
+/**
+ * Resolve the assessment values an `assessment` section must display.
+ *
+ * Invariant (production bug 2026-07, Albayan): the aggregate and the division
+ * shown on one report MUST derive from the SAME subject set — the contributing
+ * set (principal/core/primary; ICT, IRE and electives never count). The old
+ * renderer spread `...computeAssessmentRawValues(dataCtx.results)` over
+ * `dataCtx.assessment`, which (a) summed ALL subjects including secondary/IRE
+ * and (b) only overwrote `division` because the raw result uses the singular
+ * `aggregate` key — so reports showed a correct aggregate next to a division
+ * computed from a different, larger total.
+ *
+ * Nursery classes keep the base assessment untouched (letter grade, no
+ * aggregates). When no result row carries a resolvable subject (legacy editor
+ * sample data), all rows are treated as contributing to preserve previews.
+ */
+export function resolveAssessmentForSection<T extends { aggregates?: number | null; division?: string | null }>(
+  baseAssessment: T,
+  results: readonly DRCEResultRow[],
+  config?: DRCEAggregateConfig,
+  opts?: { isNursery?: boolean },
+): T {
+  if (opts?.isNursery) return baseAssessment;
+
+  const rows = (results ?? []) as Array<DRCEResultRow & { subject?: { id?: string | number | null } }>;
+  const hasSubjectInfo = rows.some((r) => r.subject != null);
+  const contributing = hasSubjectInfo
+    ? getContributingAssessmentResults(rows, undefined)
+    : rows;
+
+  const raw = computeAssessmentRawValues(contributing as DRCEResultRow[], config);
+  return { ...baseAssessment, aggregates: raw.aggregate, division: raw.division };
 }
 
 export function computeAssessmentValues(

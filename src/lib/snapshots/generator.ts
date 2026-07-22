@@ -712,8 +712,14 @@ function buildClasses(
       for (const stu of cls.students) {
         const subjectsAudit: Array<import('./types').SnapshotSubjectAudit> = [];
         const grades: string[] = [];
+        // The audit must mirror what reports display: only contributing
+        // subjects count (excludes secondary/ICT, electives and IRE) — the
+        // same filter the render adapters use. See 2026-07 division postmortem.
+        const contributingIds = new Set(
+          getContributingAssessmentResults(stu.results, cls.subjects).map(r => String(r.subjectId)),
+        );
         for (const res of stu.results) {
-          const included = res.score != null && !isReligiousEducationSubject(res.subjectName);
+          const included = res.score != null && contributingIds.has(String(res.subjectId));
           const gp = getGradePoint(res.grade);
           subjectsAudit.push({
             subjectId: res.subjectId,

@@ -15,7 +15,8 @@ import './sections/builtins';
 import { getSectionPlugin } from '@/lib/drce/section-registry';
 import { SectionErrorBoundary } from './SectionErrorBoundary';
 import { evaluateRule } from '@/lib/drce/visibility';
-import { computeAssessmentRawValues } from '@/lib/drce/assessmentUtils';
+import { resolveAssessmentForSection } from '@/lib/drce/assessmentUtils';
+import { isNurseryClassName } from '@/lib/reports/canonical-report-engine';
 import { inferDocumentDirection, inferDocumentLanguage } from '@/lib/drce/arabic';
 
 interface Props {
@@ -54,13 +55,19 @@ function renderSection(
     return null;
   }
 
+  // Aggregate and division must come from the SAME contributing subject set
+  // (ICT / IRE / electives never count). resolveAssessmentForSection applies
+  // the section's aggregateConfig over the contributing results and maps the
+  // keys explicitly — see the 2026-07 division-mismatch postmortem.
   const sectionDataCtx = section.type === 'assessment'
     ? {
       ...dataCtx,
-      assessment: {
-        ...dataCtx.assessment,
-        ...computeAssessmentRawValues(dataCtx.results, (section as DRCEAssessmentSection).aggregateConfig),
-      },
+      assessment: resolveAssessmentForSection(
+        dataCtx.assessment,
+        dataCtx.results,
+        (section as DRCEAssessmentSection).aggregateConfig,
+        { isNursery: isNurseryClassName(String(dataCtx.student?.className ?? '')) },
+      ),
     }
     : dataCtx;
 

@@ -297,3 +297,113 @@ describe('DRCE assessment aggregation', () => {
     assert.equal(dataCtx.assessment.division, 'Division I');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Regression: 2026-07 Albayan division-mismatch postmortem.
+// The assessment section must derive aggregate AND division from the SAME
+// contributing subject set (ICT / IRE / electives never count), and the
+// override must map `aggregate` (raw, singular) onto `aggregates` (binding,
+// plural) — the old spread only overwrote `division`, so reports showed a
+// correct aggregate next to a division computed from a larger subject total.
+// ─────────────────────────────────────────────────────────────────────────────
+import { resolveAssessmentForSection, calculateDivisionFromAggregate } from '@/lib/drce/assessmentUtils';
+
+function makeCtxResult(id, name, subjectType, grade, score) {
+  return {
+    subjectName: name,
+    midTermScore: null,
+    endTermScore: score,
+    total: score,
+    grade,
+    score,
+    comment: '',
+    initials: '',
+    teacherName: '',
+    subjectType: subjectType ?? 'primary',
+    subject: { id, name, subjectType, department: '', subjectGroup: '' },
+  };
+}
+
+const BASE = {
+  classPosition: 1, streamPosition: 1, aggregates: null, division: null,
+  totalStudents: 51, position: '1 / 51',
+};
+
+describe('resolveAssessmentForSection (division/aggregate coherence)', () => {
+  // Real production case: MUSA TARIQ MUKISA, Albayan P6, snapshot 6d3ada09.
+  const musaTariq = [
+    makeCtxResult(392001, 'SCIENCE', 'primary', 'D2', 84),
+    makeCtxResult(392002, 'SOCIAL STUDIES', 'primary', 'C3', 75),
+    makeCtxResult(392003, 'MATHEMATICS', 'primary', 'C4', 63),
+    makeCtxResult(420004, 'ICT (COMPUTER)', 'secondary', 'D2', 88),
+    makeCtxResult(428004, 'ENGLISH', 'primary', 'D2', 85),
+  ];
+
+  it('excludes secondary subjects (ICT) from BOTH aggregate and division', () => {
+    const out = resolveAssessmentForSection(BASE, musaTariq);
+    assert.equal(out.aggregates, 11);            // 2+3+4+2, ICT's 2 excluded
+    assert.equal(out.division, 'Division I');    // NOT Division II (13)
+  });
+
+  it('keeps division coherent with the displayed aggregate (invariant)', () => {
+    const out = resolveAssessmentForSection(BASE, musaTariq);
+    assert.equal(out.division, calculateDivisionFromAggregate(out.aggregates));
+  });
+
+  it('excludes IRE by name even when typed primary', () => {
+    const rows = [
+      makeCtxResult(1, 'MATHEMATICS', 'primary', 'D1', 92),
+      makeCtxResult(2, 'ENGLISH', 'primary', 'D1', 95),
+      makeCtxResult(3, 'Islamic Religious Education', 'primary', 'F9', 20),
+    ];
+    const out = resolveAssessmentForSection(BASE, rows);
+    assert.equal(out.aggregates, 2);
+    assert.equal(out.division, 'Division I');
+  });
+
+  it('excludes elective subjects', () => {
+    const rows = [
+      makeCtxResult(1, 'MATHEMATICS', 'primary', 'C3', 70),
+      makeCtxResult(2, 'MUSIC', 'elective', 'F9', 10),
+    ];
+    const out = resolveAssessmentForSection(BASE, rows);
+    assert.equal(out.aggregates, 3);
+  });
+
+  it('applies a custom aggregateConfig over the contributing set only', () => {
+    const cfg = {
+      gradePointMap: { D1: 1, D2: 2, C3: 3, C4: 4, C5: 5, C6: 6, P7: 7, P8: 8, F9: 9 },
+      divisionThresholds: [
+        { maxValue: 12, label: 'Division I' },
+        { maxValue: 24, label: 'Division II' },
+        { maxValue: 28, label: 'Division III' },
+        { maxValue: 32, label: 'Division IV' },
+      ],
+      divisionFallback: 'Division U',
+    };
+    const rows = [
+      makeCtxResult(1, 'MATHEMATICS', 'primary', 'F9', 10),
+      makeCtxResult(2, 'ENGLISH', 'primary', 'F9', 12),
+      makeCtxResult(3, 'SCIENCE', 'primary', 'C6', 45),
+      makeCtxResult(4, 'ICT', 'secondary', 'F9', 5),   // must not push 24 → 33
+    ];
+    const out = resolveAssessmentForSection(BASE, rows, cfg);
+    assert.equal(out.aggregates, 24);
+    assert.equal(out.division, 'Division II');
+  });
+
+  it('leaves nursery assessment untouched', () => {
+    const nurseryBase = { ...BASE, aggregates: null, division: 'B' };
+    const out = resolveAssessmentForSection(nurseryBase, musaTariq, undefined, { isNursery: true });
+    assert.deepEqual(out, nurseryBase);
+  });
+
+  it('falls back to all rows when results carry no subject info (editor previews)', () => {
+    const rows = [
+      { subjectName: 'A', grade: 'D1', score: 90 },
+      { subjectName: 'B', grade: 'D2', score: 85 },
+    ];
+    const out = resolveAssessmentForSection(BASE, rows);
+    assert.equal(out.aggregates, 3);
+  });
+});
