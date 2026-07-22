@@ -94,10 +94,21 @@ function letterBasedAssessment(stu, cls) {
 }
 
 // ── repair definitions ────────────────────────────────────────────────────
-const TARGETS = {
-  '6d3ada09-de4d-4b84-9f6a-6ee6d76cc7a2': 'audit',
-  'cae511f7-b1d4-437c-b5ee-401b1536c160': 'students',
-};
+// Default targets are the snapshots identified in the 2026-07 forensic
+// investigation. Additional snapshots can be targeted explicitly:
+//   node scripts/db/phase1-repair-snapshot-divisions.mjs --snapshot <id> --mode students|audit [--apply]
+const argSnapshot = process.argv.includes('--snapshot')
+  ? process.argv[process.argv.indexOf('--snapshot') + 1]
+  : null;
+const argMode = process.argv.includes('--mode')
+  ? process.argv[process.argv.indexOf('--mode') + 1]
+  : 'students';
+const TARGETS = argSnapshot
+  ? { [argSnapshot]: argMode === 'audit' ? 'audit' : 'students' }
+  : {
+      '6d3ada09-de4d-4b84-9f6a-6ee6d76cc7a2': 'audit',
+      'cae511f7-b1d4-437c-b5ee-401b1536c160': 'students',
+    };
 
 const conn = await mysql.createConnection({
   host: process.env.TIDB_HOST,

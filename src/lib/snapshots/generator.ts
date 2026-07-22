@@ -398,6 +398,26 @@ export async function generateSnapshot(
       ...(customValuesMap ? { customValues: customValuesMap } : {}),
     };
 
+    // Integrity guard (2026-07 division postmortem): stored audit/student
+    // aggregates+divisions must be coherent with the contributing subject
+    // set. Violations are non-fatal (the snapshot still saves) but logged
+    // loudly — they indicate a divergence between generation and render
+    // pipelines that must be fixed in code, never papered over in data.
+    try {
+      const { verifySnapshotDivisionCoherence } = await import('./integrity');
+      const violations = verifySnapshotDivisionCoherence(snapshot);
+      if (violations.length) {
+        console.error(
+          `[snapshot-integrity] ${violations.length} division-coherence violation(s) in snapshot ${snapshotId}:`,
+          violations.slice(0, 10).map(v =>
+            `${v.className}/${v.studentName} [${v.source}] expected ${v.expectedAggregates}/${v.expectedDivision} got ${v.actualAggregates}/${v.actualDivision}`,
+          ),
+        );
+      }
+    } catch (e) {
+      console.warn('[snapshot-integrity] check skipped:', e instanceof Error ? e.message : e);
+    }
+
     await saveSnapshot({ snapshotId, snapshot, generationMs });
 
     return { snapshotId, status: 'ready', generationMs, counts: sourceCounts };
