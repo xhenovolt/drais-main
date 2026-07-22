@@ -74,7 +74,7 @@ export class AttendancePresentationModel {
       name,
       designation: formatter.formatNullable(row.staff_position ?? null),
       department: formatter.formatNullable(row.staff_department ?? null),
-      category: formatter.formatCategory(row.role_type || (row.matched ? 'student' : 'unmatched')),
+      category: formatter.formatCategory(row.role_type || 'unmatched'),
       className: formatter.formatNullable(row.class_name),
       deviceId: formatter.formatNullable(row.device_user_id),
       school: formatter.formatNullable(formatter.schoolName),

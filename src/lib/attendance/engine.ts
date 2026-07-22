@@ -393,7 +393,7 @@ async function loadActiveRule(
          FROM attendance_rules
         WHERE school_id = ? AND is_active = 1
           AND applies_to IN ${appliesTo}
-        ORDER BY priority ASC
+        ORDER BY (applies_to = 'all') ASC, priority ASC, id DESC
         LIMIT 1`,
       [schoolId],
     )) as Array<Record<string, unknown>>;

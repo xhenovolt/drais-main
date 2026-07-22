@@ -85,10 +85,14 @@ export async function GET(req: NextRequest) {
       conditions.push('ar.matched = ?');
       params.push(Number(matchedFilter));
     }
+    // Strict tab semantics: a punch is a Learner/Staff row ONLY when it is
+    // matched with that role. Unmatched/NULL-role punches belong solely to
+    // the Unmatched tab (the old COALESCE defaults dumped every unmatched
+    // punch into Learners AND counted it under Staff).
     if (tab === 'learners' || userType === 'student') {
-      conditions.push("COALESCE(ar.role_type, 'student') = 'student'");
+      conditions.push("ar.role_type = 'student' AND ar.matched = 1");
     } else if (tab === 'staff' || userType === 'staff') {
-      conditions.push("COALESCE(ar.role_type, 'staff') = 'staff'");
+      conditions.push("ar.role_type = 'staff' AND ar.matched = 1");
     } else if (tab === 'unmatched') {
       conditions.push('(ar.matched = 0 OR ar.person_id IS NULL)');
     }
@@ -145,8 +149,8 @@ export async function GET(req: NextRequest) {
     const tabCountsRows = await query(
       `SELECT
          COUNT(*) AS total_all,
-         SUM(CASE WHEN COALESCE(ar.role_type, 'student') = 'student' THEN 1 ELSE 0 END) AS total_learners,
-         SUM(CASE WHEN COALESCE(ar.role_type, 'staff') = 'staff' THEN 1 ELSE 0 END) AS total_staff,
+         SUM(CASE WHEN ar.role_type = 'student' AND ar.matched = 1 THEN 1 ELSE 0 END) AS total_learners,
+         SUM(CASE WHEN ar.role_type = 'staff' AND ar.matched = 1 THEN 1 ELSE 0 END) AS total_staff,
          SUM(CASE WHEN ar.matched = 0 OR ar.person_id IS NULL THEN 1 ELSE 0 END) AS total_unmatched
        FROM attendance_raw_events ar
        LEFT JOIN people p ON ar.person_id = p.id

@@ -54,11 +54,14 @@ async function roleLateCutoff(schoolId: number, role: 'student' | 'staff'): Prom
     ? `('staff','teachers','all')`
     : `('students','learners','all')`;
   try {
+    // Same selection semantics as the engine: active rules only, a
+    // role-specific rule beats 'all', then priority ASC (the generic
+    // 'all' 10:00 rule must never override the staff 08:30 rule).
     const rules = (await query(
       `SELECT arrival_end_time, late_threshold_minutes
          FROM attendance_rules
-        WHERE school_id = ? AND applies_to IN ${applies}
-        ORDER BY is_active DESC, priority DESC, id DESC LIMIT 1`,
+        WHERE school_id = ? AND is_active = 1 AND applies_to IN ${applies}
+        ORDER BY (applies_to = 'all') ASC, priority ASC, id DESC LIMIT 1`,
       [schoolId],
     )) as Array<{ arrival_end_time: string | null; late_threshold_minutes: number | null }>;
     if (rules[0]?.arrival_end_time) {
