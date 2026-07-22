@@ -41,6 +41,28 @@ const fs   = require('fs');
 
 const PORT = 3210;
 
+// ── Boot beacons ──────────────────────────────────────────────────────
+// Every boot stage is pushed to the WebView over the cordova-bridge
+// channel so the "Starting DRAIS" screen can show REAL progress and REAL
+// failures instead of an opaque spinner. Also mirrored to logcat.
+let __bridge = null;
+try { __bridge = require('cordova-bridge'); } catch (e) { /* not under nodejs-mobile */ }
+function beacon(stage, detail) {
+  const msg = { drais: true, stage, detail: detail == null ? '' : String(detail), t: Date.now() };
+  try { __bridge && __bridge.channel && __bridge.channel.send(JSON.stringify(msg)); } catch (e) { /* channel not up yet */ }
+  console.log('[drais][boot] ' + stage + (msg.detail ? ' — ' + msg.detail : ''));
+}
+// Surface async crashes instead of dying silently: the boot screen shows
+// the message, the runtime stays up so the operator can read it.
+process.on('uncaughtException', (e) => {
+  beacon('uncaught-exception', e && e.stack ? e.stack.split('\n')[0] : e);
+});
+process.on('unhandledRejection', (e) => {
+  beacon('unhandled-rejection', e && e.message ? e.message : e);
+});
+
+beacon('node-started', 'Node ' + process.version);
+
 // Tell Next + Node not to touch the read-only project root. The
 // nodejs-mobile API exposes a writable data dir via cordova; we
 // fall back to /data/local/tmp which is writable on most Android
@@ -75,7 +97,7 @@ function loadEnvFile(p) {
 // every dotfile from APK assets.
 const envUser    = loadEnvFile(path.join(writableHome, 'drais.env'));
 const envBundled = loadEnvFile(path.join(__dirname, 'env.production'));
-console.log('[drais] env config: user drais.env=' + envUser + ', bundled env.production=' + envBundled);
+beacon('env-loaded', 'device drais.env=' + envUser + ', bundled env.production=' + envBundled);
 
 process.env.PORT     = String(PORT);
 process.env.HOSTNAME = '127.0.0.1';
@@ -85,13 +107,9 @@ process.env.NEXT_TELEMETRY_DISABLED = '1';
 
 const serverEntry = path.join(__dirname, 'server.js');
 if (!fs.existsSync(serverEntry)) {
-  // First-launch diagnostic: log to stdout so `adb logcat` shows it.
-  console.error(
-    '[drais] Next standalone server.js missing at ' + serverEntry + '. ' +
-    'Did scripts/build-mobile.mjs copy the standalone tree before cap sync?'
-  );
-  // Keep the runtime alive so the splash page stays visible instead
-  // of the app appearing to crash silently.
+  beacon('server-missing', serverEntry);
+  // Keep the runtime alive so the boot screen keeps showing the error
+  // instead of the app appearing to crash silently.
   setInterval(() => {}, 60_000);
   return;
 }
@@ -101,12 +119,10 @@ if (!fs.existsSync(serverEntry)) {
 process.chdir(__dirname);
 
 try {
-  console.log('[drais] booting Next standalone on 127.0.0.1:' + PORT);
+  beacon('server-starting', '127.0.0.1:' + PORT);
   require(serverEntry);
 } catch (err) {
-  console.error('[drais] Next server crashed at startup:');
-  console.error(err && err.stack ? err.stack : err);
-  // Same idea — don't let the runtime exit. The WebView keeps polling
-  // and the user can read the crash via adb logcat.
+  beacon('server-crash', err && err.stack ? err.stack.split('\n').slice(0, 3).join(' | ') : err);
+  // Don't let the runtime exit — the boot screen displays the crash.
   setInterval(() => {}, 60_000);
 }

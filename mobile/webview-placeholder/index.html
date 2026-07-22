@@ -7,101 +7,184 @@
     <style>
       :root { color-scheme: dark; }
       html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        background: #0f172a;
-        color: #e2e8f0;
+        margin: 0; padding: 0; height: 100%;
+        background: #0f172a; color: #e2e8f0;
         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
         -webkit-tap-highlight-color: transparent;
       }
       body {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 24px;
-        text-align: center;
-        padding: 24px;
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; gap: 18px; text-align: center; padding: 24px;
       }
       .logo {
-        width: 112px;
-        height: 112px;
-        border-radius: 24px;
-        object-fit: contain;
-        background: #ffffff;
-        padding: 10px;
-        box-sizing: border-box;
+        width: 104px; height: 104px; border-radius: 24px; object-fit: contain;
+        background: #ffffff; padding: 10px; box-sizing: border-box;
         box-shadow: 0 18px 48px rgba(99, 102, 241, 0.35);
       }
       .title { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
-      .subtitle { font-size: 13px; color: #94a3b8; max-width: 280px; line-height: 1.5; }
       .spinner {
-        width: 36px;
-        height: 36px;
-        border: 3px solid rgba(148, 163, 184, 0.25);
-        border-top-color: #818cf8;
-        border-radius: 50%;
-        animation: spin 0.9s linear infinite;
+        width: 32px; height: 32px;
+        border: 3px solid rgba(148, 163, 184, 0.25); border-top-color: #818cf8;
+        border-radius: 50%; animation: spin 0.9s linear infinite;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
-      #status { font-size: 12px; color: #64748b; min-height: 16px; }
+      .phase { font-size: 15px; font-weight: 600; color: #c7d2fe; min-height: 20px; }
+      .elapsed { font-size: 12px; color: #64748b; }
+      .note {
+        font-size: 12.5px; color: #94a3b8; max-width: 300px; line-height: 1.5;
+        border-radius: 10px; padding: 8px 12px; min-height: 0;
+      }
+      .note.warn { background: rgba(245, 158, 11, 0.12); color: #fcd34d; }
+      .note.bad  { background: rgba(239, 68, 68, 0.12);  color: #fca5a5; }
+      .log {
+        font-family: ui-monospace, Menlo, monospace; font-size: 10.5px;
+        color: #475569; max-width: 320px; width: 100%; text-align: left;
+        line-height: 1.6; word-break: break-word; min-height: 66px;
+      }
+      .err {
+        display: none; background: rgba(239, 68, 68, 0.12); color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px;
+        padding: 10px 14px; font-size: 12.5px; max-width: 320px;
+        line-height: 1.5; text-align: left; word-break: break-word;
+      }
+      .retry {
+        display: none; margin-top: 4px; background: #6366f1; color: white;
+        border: 0; border-radius: 10px; padding: 10px 26px; font-size: 14px;
+        font-weight: 600;
+      }
     </style>
   </head>
   <body>
     <img class="logo" src="./logo.png" alt="DRAIS" />
     <div class="title">Starting DRAIS</div>
-    <div class="spinner"></div>
-    <div class="subtitle">Booting the embedded server. This usually takes a few seconds on first launch.</div>
-    <div id="status"></div>
+    <div class="spinner" id="spinner"></div>
+    <div class="phase" id="phase">Waiting for app bridge…</div>
+    <div class="elapsed" id="elapsed"></div>
+    <div class="note" id="note"></div>
+    <div class="err" id="err"></div>
+    <button class="retry" id="retry" onclick="location.reload()">Retry</button>
+    <div class="log" id="log"></div>
     <script>
-      // ── Boot sequence ──────────────────────────────────────────────
-      // 1. Wait for the Cordova bridge (Capacitor injects it into pages
-      //    served from its local server; the `nodejs` global comes from
-      //    nodejs-mobile-cordova's js-module clobber).
-      // 2. Call nodejs.start('main.js') exactly once — this is the ONLY
-      //    thing that boots the embedded Node runtime. Nothing starts it
-      //    natively; skipping this call is why the app used to die with
-      //    ERR_CONNECTION_REFUSED at http://127.0.0.1:3210.
-      // 3. Poll the embedded Next server; navigate once it answers.
+      // ── Transparent boot: every stage visible, every failure loud ──────
+      // Phases:
+      //   bridge  — waiting for the Cordova bridge (window.nodejs)
+      //   prepare — nodejs.start() called; on FIRST launch Android copies
+      //             ~4,000 app files out of the APK here (one time only)
+      //   server  — Node runtime alive (beacon received); Next server booting
+      //   up      — port answered; navigating
+      // main.js pushes beacons over the cordova channel; they land in the
+      // log pane. Watchdogs escalate to warnings, then to a red panel.
       var SERVER = 'http://127.0.0.1:3210/';
-      var statusEl = document.getElementById('status');
+      var t0 = Date.now();
+      var phase = 'bridge';
+      var phaseT0 = t0;
       var started = false;
+      var failed = false;
+      var logLines = [];
 
-      function setStatus(msg) { statusEl.textContent = msg; }
+      var el = function (id) { return document.getElementById(id); };
 
+      function log(line) {
+        logLines.push('[' + Math.round((Date.now() - t0) / 1000) + 's] ' + line);
+        if (logLines.length > 6) logLines.shift();
+        el('log').innerHTML = logLines.join('<br>');
+      }
+      function setPhase(p, label) {
+        phase = p; phaseT0 = Date.now();
+        el('phase').textContent = label;
+        el('note').className = 'note'; el('note').textContent = '';
+        log('phase: ' + label);
+      }
+      function fail(msg) {
+        failed = true;
+        el('err').style.display = 'block';
+        el('err').textContent = msg;
+        el('retry').style.display = 'inline-block';
+        el('spinner').style.display = 'none';
+        log('ERROR: ' + msg);
+      }
+
+      // ── Beacons from main.js (real progress from inside the runtime) ──
+      function onBeacon(raw) {
+        var b; try { b = JSON.parse(raw); } catch (e) { return; }
+        if (!b || !b.drais) return;
+        log('node: ' + b.stage + (b.detail ? ' — ' + b.detail : ''));
+        if (b.stage === 'node-started') setPhase('server', 'Starting DRAIS server…');
+        if (b.stage === 'server-starting') el('note').textContent = 'Server is booting — almost there.';
+        if (b.stage === 'server-missing') fail('The embedded server files are missing from this build (server.js not found). Reinstall the app; if it persists this APK was built without the server bundle.');
+        if (b.stage === 'server-crash') fail('The DRAIS server crashed while starting: ' + b.detail + ' — reinstall the app; if it persists, connect the phone and run: adb logcat | grep drais');
+        if (b.stage === 'uncaught-exception') log('warning: ' + b.detail);
+      }
+      function hookChannel() {
+        try {
+          if (window.nodejs && nodejs.channel && typeof nodejs.channel.setListener === 'function') {
+            nodejs.channel.setListener(onBeacon);
+            return true;
+          }
+        } catch (e) {}
+        return false;
+      }
+
+      // ── Start the Node runtime (the ONLY thing that boots it) ─────────
       function startNode() {
-        if (started) return;
+        if (started || failed) return;
         if (window.nodejs && typeof window.nodejs.start === 'function') {
           started = true;
-          setStatus('Starting embedded server…');
+          hookChannel();
+          setPhase('prepare', 'Preparing app files…');
+          el('note').textContent = 'First launch copies ~4,000 files out of the app package. This happens ONCE per install and is skipped on every later launch.';
           try {
             window.nodejs.start('main.js', function (err) {
-              if (err) setStatus('Node start error: ' + err);
-              else setStatus('Server booting…');
+              if (err) fail('The embedded runtime failed to start: ' + err + ' — uninstall and reinstall the app; if it persists, this build is faulty.');
             });
           } catch (e) {
             started = false;
-            setStatus('Bridge not ready, retrying…');
+            log('bridge threw, retrying: ' + e);
           }
         }
       }
-
-      // The bridge may appear before or after deviceready — cover both.
       document.addEventListener('deviceready', startNode, false);
       var bridgeWait = setInterval(function () {
-        if (started) { clearInterval(bridgeWait); return; }
+        if (started || failed) { clearInterval(bridgeWait); return; }
         startNode();
       }, 250);
 
+      // ── Poll the server; navigate the moment it answers ───────────────
       (function poll() {
+        if (failed) return;
         fetch(SERVER, { cache: 'no-store' })
           .then(function (res) {
-            if (res.ok) { location.replace(SERVER); return; }
+            if (res.ok) { setPhase('up', 'Ready — opening DRAIS'); location.replace(SERVER); return; }
             setTimeout(poll, 1000);
           })
           .catch(function () { setTimeout(poll, 1000); });
       })();
+
+      // ── Elapsed timer + honest watchdogs ──────────────────────────────
+      setInterval(function () {
+        if (failed) return;
+        var total = Math.round((Date.now() - t0) / 1000);
+        var inPhase = Math.round((Date.now() - phaseT0) / 1000);
+        el('elapsed').textContent = total + 's elapsed';
+        var note = el('note');
+
+        if (phase === 'bridge' && inPhase > 15) {
+          fail('The app bridge never appeared (15s). This build cannot start its runtime — reinstall the app; if it persists the APK is faulty.');
+        }
+        if (phase === 'prepare') {
+          if (inPhase > 300) {
+            note.className = 'note bad';
+            note.textContent = 'Still preparing after ' + inPhase + 's — much longer than expected. Leave it running; if nothing happens by 10 minutes, uninstall, reinstall, and launch again.';
+          } else if (inPhase > 90) {
+            note.className = 'note warn';
+            note.textContent = 'Still copying files (' + inPhase + 's). Slower phones can take a few minutes on FIRST launch only — do not close the app.';
+          }
+        }
+        if (phase === 'server' && inPhase > 120) {
+          note.className = 'note warn';
+          note.textContent = 'The server is taking unusually long to answer (' + inPhase + 's). If this persists past 5 minutes, reinstall or check adb logcat | grep drais.';
+        }
+      }, 1000);
     </script>
   </body>
 </html>
