@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T15:24:58.996Z",
-  "last_commit": "d0901976840dd1c90aae9aa38a174260c3c40d65",
+  "generated_at": "2026-07-23T15:47:38.279Z",
+  "last_commit": "b52452edcebfa35e9096e461e7ceb408d04091ab",
   "releases": [
     {
       "version": "0.0.0049",
@@ -3940,7 +3940,33 @@
         }
       ],
       "commit": "d090197684"
+    },
+    {
+      "version": "1.83.3",
+      "date": "2026-07-23",
+      "release_type": "patch",
+      "title": "Sidebar reorganization, duplicate-route cleanup, live pill relocation, profile 404",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Sidebar reorganization, duplicate-route cleanup, live pill relocation, profile 404"
+        }
+      ],
+      "commit": "b52452edce"
+    },
+    {
+      "version": "1.84.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "DRAIS Control Center — isolated Xhenvolt control plane v1",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "DRAIS Control Center — isolated Xhenvolt control plane v1"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.83.3"
+  "app_version": "1.84.0"
 }

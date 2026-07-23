@@ -34,6 +34,11 @@ const PUBLIC_ROUTES = [
   '/api/internal',
   // JETON external control channel — authenticated via x-api-key + x-api-secret headers
   '/api/control',
+  // DRAIS Control Center (Xhenvolt internal console) — its OWN isolated auth
+  // (control_users/control_sessions + drais_control cookie), enforced inside
+  // /api/control-center routes. School sessions are neither required nor used.
+  '/control',
+  '/api/control-center',
   // Cron jobs — authenticated via CRON_SECRET header
   '/api/cron',
 ];

@@ -155,7 +155,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/rpt') ||               // Standalone rpt.html clone
     pathname.startsWith('/print-snapshot') ||    // Naked DRCE snapshot print/PDF target
     pathname.startsWith('/print-transcript') ||  // Naked cumulative transcript print/PDF target
-    pathname.startsWith('/verify');              // Public QR verification page
+    pathname.startsWith('/verify') ||            // Public QR verification page
+    pathname.startsWith('/control');             // DRAIS Control Center — Xhenvolt console, own shell + own auth
 
   return (
     <div className="min-h-screen">
