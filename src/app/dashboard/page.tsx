@@ -21,6 +21,7 @@ import Link from 'next/link';
 import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
 import AttendanceInsights from '@/components/dashboard/AttendanceInsights';
 import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
+import IntelligenceStrip from '@/components/attendance/IntelligenceStrip';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -261,6 +262,11 @@ const DashboardPage: React.FC = () => {
 
         {/* Device clock health — trust indicator for today's attendance numbers */}
         <ClockHealthBadges />
+
+        {/* Attendance is infrastructure, not a logbook: the full intelligence
+            layer (health, behaviour watch-list, gaps, clock, identity, devices)
+            summarised with links, right on the main dashboard. */}
+        <IntelligenceStrip />
 
         {/* Attendance intelligence — pie distribution + most absent/late/best */}
         <AttendanceInsights />

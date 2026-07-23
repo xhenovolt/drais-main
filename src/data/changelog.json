@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T21:50:05.958Z",
-  "last_commit": "17fdb1e23398a3ff3788336a533ffd093fdec6e2",
+  "generated_at": "2026-07-23T22:18:39.901Z",
+  "last_commit": "1c087c9d492de15736eba3a403648174d86190cf",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4122,7 +4122,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.93.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Fix dashboard 500 + Attendance Intelligence strip on both dashboards",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Fix dashboard 500 + Attendance Intelligence strip on both dashboards"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.92.0"
+  "app_version": "1.93.0"
 }

@@ -9,6 +9,7 @@ import {
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import IntelligenceStrip from '@/components/attendance/IntelligenceStrip';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const verifyLabel = (v: number | null) => {
@@ -111,6 +112,9 @@ export default function AttendanceDashboard() {
             />
           </div>
         </div>
+
+        {/* ── Attendance Intelligence strip (health, behaviour, gaps, …) ── */}
+        <IntelligenceStrip />
 
         {/* ── Metric Cards ─────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

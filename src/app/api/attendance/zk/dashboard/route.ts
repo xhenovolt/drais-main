@@ -87,6 +87,9 @@ export async function GET(req: NextRequest) {
 
     // Hourly breakdown for chart — school-local hours from UTC instants.
     const hourlyData = await query(
+      // GROUP BY the SELECT alias (not a repeated expression) so TiDB's
+      // only_full_group_by mode is satisfied — repeating the parameterised
+      // HOUR(...) expression trips it and 500s the whole dashboard.
       `SELECT
          HOUR(DATE_ADD(punch_at, INTERVAL ? MINUTE)) AS hour,
          COUNT(*) AS punches,
@@ -94,9 +97,9 @@ export async function GET(req: NextRequest) {
          SUM(CASE WHEN io_mode = 1 THEN 1 ELSE 0 END) AS check_outs
        FROM attendance_raw_events
        WHERE school_id = ? AND punch_at >= ? AND punch_at < ?
-       GROUP BY HOUR(DATE_ADD(punch_at, INTERVAL ? MINUTE))
+       GROUP BY hour
        ORDER BY hour`,
-      [offsetMin, schoolId, dayStart, dayEnd, offsetMin],
+      [offsetMin, schoolId, dayStart, dayEnd],
     );
 
     // Recent punches (live feed) — canonical store; aliases preserved so
