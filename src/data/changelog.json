@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T14:54:43.004Z",
-  "last_commit": "065f569b41e4d1f5c8fc4fbf5a741d181c9bc6ea",
+  "generated_at": "2026-07-23T15:02:43.757Z",
+  "last_commit": "296b82c7f2dfe2415b0e08b4d17b6b91fb181503",
   "releases": [
     {
       "version": "0.0.0049",
@@ -3914,7 +3914,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.83.1",
+      "date": "2026-07-23",
+      "release_type": "patch",
+      "title": "Product Evolution milestone layer — DRAIS history with meaning",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Product Evolution milestone layer — DRAIS history with meaning"
+        }
+      ],
+      "commit": "296b82c7f2"
     }
   ],
-  "app_version": "1.83.1"
+  "app_version": "1.83.2"
 }

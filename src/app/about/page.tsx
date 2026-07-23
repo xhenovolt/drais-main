@@ -64,6 +64,7 @@ export default function AboutPage() {
   const releases = (changelog.releases as Release[]).slice().reverse(); // newest first
   const current = releases.find((r) => r.version === APP_VERSION) || releases[0];
   const [openMinor, setOpenMinor] = useState<string | null>(null);
+  const [showTech, setShowTech] = useState<Record<string, boolean>>({});
 
   // System status from the Health Center (auth-gated; hidden if unavailable).
   const { data: health } = useSWR<any>('/api/attendance/health',
@@ -125,28 +126,49 @@ export default function AboutPage() {
       {/* ── Section 3b · Product evolution (milestone layer) ── */}
       <ProductEvolution />
 
-      {/* ── Section 4 · Release history ── */}
+      {/* ── Section 4 · Release history — grouped for schools, not a raw
+             commit dump. Each series shows its meaning (milestone), a
+             category summary and the NOTABLE changes; the full technical
+             commit list stays available behind a toggle (Layer 1 intact). */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1.5"><Info className="w-4 h-4" /> Release history</h2>
-        <p className="text-[11px] text-gray-400 mb-3">{releases.length} recorded releases · grouped by series · every entry generated from the actual commit history</p>
+        <p className="text-[11px] text-gray-400 mb-3">{releases.length} recorded releases, grouped so the evolution is readable — full technical detail is one click away in each group.</p>
         <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
           {series.map(([key, rels]) => {
             const open = openMinor === key;
             const isCurrent = current && current.version.startsWith(key + '.');
+            // The story of this series: matching milestone + category counts.
+            const from = rels[rels.length - 1].date, to = rels[0].date;
+            const milestone = MILESTONES.find((m) =>
+              m.version.startsWith(key + '.') || (m.period.from <= to && m.period.to >= from));
+            const counts: Record<string, number> = {};
+            for (const r of rels) for (const c of r.changes) counts[c.category] = (counts[c.category] || 0) + 1;
+            const notable = rels.filter((r) =>
+              r.release_type !== 'patch' || r.changes.some((c) => c.category === 'NEW' || c.category === 'SECURITY'));
+            const technical = rels.filter((r) => !notable.includes(r));
             return (
               <div key={key}>
                 <button onClick={() => setOpenMinor(open ? null : key)}
-                  className="w-full flex items-center justify-between py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded px-1">
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    {open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                    v{key}.x
-                    {isCurrent && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-semibold uppercase">Current</span>}
+                  className="w-full flex items-center justify-between gap-2 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded px-1">
+                  <span className="min-w-0">
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                      {open ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                      v{key}.x
+                      {isCurrent && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-semibold uppercase">Current</span>}
+                      {milestone && <span className="text-xs text-gray-500 dark:text-gray-400 truncate font-normal">— {milestone.milestone_title}</span>}
+                    </span>
+                    <span className="block pl-6 text-[11px] text-gray-400">
+                      {CATEGORY_ORDER.filter((c) => counts[c]).map((c) => `${counts[c]} ${c.toLowerCase()}`).join(' · ') || `${rels.length} changes`}
+                    </span>
                   </span>
-                  <span className="text-xs text-gray-400">{rels.length} release{rels.length === 1 ? '' : 's'} · {rels[rels.length - 1].date} → {rels[0].date}</span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{from.slice(0, 7)}</span>
                 </button>
                 {open && (
                   <div className="pl-7 pb-3 space-y-3">
-                    {rels.map((r) => (
+                    {milestone && (
+                      <p className="text-xs text-gray-600 dark:text-gray-300 -mt-1">{milestone.summary}</p>
+                    )}
+                    {notable.map((r) => (
                       <div key={r.version}>
                         <div className="flex items-center gap-2 text-sm">
                           <span className="font-mono font-semibold text-gray-800 dark:text-gray-100">v{r.version}</span>
@@ -157,6 +179,28 @@ export default function AboutPage() {
                         <ChangeList changes={r.changes} compact />
                       </div>
                     ))}
+                    {notable.length === 0 && (
+                      <p className="text-xs text-gray-400">Maintenance and refinement work only in this series.</p>
+                    )}
+                    {technical.length > 0 && (
+                      <div>
+                        <button onClick={() => setShowTech((p) => ({ ...p, [key]: !p[key] }))}
+                          className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline">
+                          {showTech[key] ? 'Hide' : 'Show'} technical details ({technical.length} maintenance {technical.length === 1 ? 'change' : 'changes'})
+                        </button>
+                        {showTech[key] && (
+                          <div className="mt-2 space-y-1.5">
+                            {technical.map((r) => (
+                              <div key={r.version} className="flex items-start gap-2 text-[11px]">
+                                <span className="font-mono text-gray-400 whitespace-nowrap">v{r.version}</span>
+                                <span className="text-gray-400 whitespace-nowrap">{r.date}</span>
+                                <span className="text-gray-500 dark:text-gray-400 min-w-0">{r.title}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
