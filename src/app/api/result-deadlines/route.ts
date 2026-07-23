@@ -76,6 +76,14 @@ async function authorize(req: NextRequest): Promise<{ schoolId: number | null; u
 }
 
 export async function GET(req: NextRequest) {
+  // Piggyback the daily attendance-intelligence sweep onto the single cron
+  // this project is allowed (Vercel Hobby = one cron). This is the ZERO-VISIT
+  // floor that keeps clock-health + baselines populated so Recovery, Device
+  // Intelligence, confidence and the clock badges work even if nobody opens
+  // an intelligence page. Best-effort; never blocks the reminder dispatch.
+  import('@/lib/attendance/intelligence-sweep')
+    .then(m => m.sweepAllSchools())
+    .catch(() => {});
   return dispatch(req);
 }
 export async function POST(req: NextRequest) {

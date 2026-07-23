@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { loadDeviceReputations } from '@/lib/attendance/device-intelligence-loader';
+import { sweepSchoolIntelligenceInBackground } from '@/lib/attendance/intelligence-sweep';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   try {
+    sweepSchoolIntelligenceInBackground(session.schoolId);
     const devices = await loadDeviceReputations(session.schoolId);
     if (new URL(req.url).searchParams.get('banner')) {
       const worst = devices.find(d => d.reputation.band === 'poor') || null;

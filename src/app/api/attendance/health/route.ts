@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { runHealthChecks } from '@/lib/attendance/health';
+import { sweepSchoolIntelligenceInBackground } from '@/lib/attendance/intelligence-sweep';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   try {
+    sweepSchoolIntelligenceInBackground(session.schoolId);
     const report = await runHealthChecks(session.schoolId);
     return NextResponse.json({ success: true, ...report });
   } catch (e: any) {

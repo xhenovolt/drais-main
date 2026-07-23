@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { detectGaps } from '@/lib/attendance/recovery';
+import { sweepSchoolIntelligenceInBackground } from '@/lib/attendance/intelligence-sweep';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,9 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   try {
+    // Keep clock-health + baselines fresh (throttled) so gap detection has
+    // data even if Time Health was never opened.
+    sweepSchoolIntelligenceInBackground(session.schoolId);
     const report = await detectGaps(session.schoolId);
     if (new URL(req.url).searchParams.get('banner')) {
       const worst = report.devices.filter(d => d.verdict.status === 'gap')
