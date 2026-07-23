@@ -401,6 +401,13 @@ export default function UnifiedAttendancePage() {
   const { data: devicesData } = useSWR<any>('/api/devices/list');
   const devices = devicesData?.data || [];
 
+  // Time Intelligence: proactive clock-drift warning — the anomaly finds the
+  // operator, not the other way round. Cheap poll; renders only on anomaly.
+  const { data: timeHealth } = useSWR<any>('/api/attendance/time-health?banner=1', {
+    refreshInterval: 5 * 60_000, revalidateOnFocus: false,
+  });
+  const timeAnomaly = timeHealth?.anomaly || null;
+
   // Classes for filter
   const { data: classesData } = useSWR<any>('/api/classes');
   const classes = classesData?.data || classesData?.classes || [];
@@ -928,6 +935,21 @@ export default function UnifiedAttendancePage() {
         <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
           Leave the date filters blank to show all saved attendance logs. The live panel above is only for new punches arriving right now.
         </p>
+
+        {/* ── Time Intelligence warning — device clock drift detected ─── */}
+        {timeAnomaly && (
+          <div className="mb-4 p-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20">
+            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> Attendance Time Anomaly Detected — {timeAnomaly.device_sn}
+            </p>
+            <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">
+              {timeAnomaly.detail} ({timeAnomaly.driftConfidence}% drift confidence). No corrections have been applied — today&apos;s times may be wrong.
+            </p>
+            <a href="/attendance/time-health" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium">
+              Review &amp; correct on the Time Health page
+            </a>
+          </div>
+        )}
 
         {/* ── Record count ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3 mb-2">
