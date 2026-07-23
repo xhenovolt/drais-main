@@ -211,7 +211,7 @@ export default function AttendanceDashboard() {
             dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('attendanceDash.commands', 'Commands')}</h3>
-              <Link href="/attendance/commands" className="text-xs text-blue-600 hover:underline">
+              <Link href="/attendance/devices/commands" className="text-xs text-blue-600 hover:underline">
                 {t('attendanceDash.view', 'View')} &rarr;
               </Link>
             </div>
@@ -240,9 +240,9 @@ export default function AttendanceDashboard() {
                 dark:text-blue-300 rounded-lg text-xs font-medium hover:bg-blue-100">
                 {t('attendanceDash.attendanceLogs', 'Attendance Logs')}
               </Link>
-              <Link href="/attendance/mapping" className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700
+              <Link href="/attendance/identity-matching" className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700
                 dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-100">
-                {t('attendanceDash.userMapping', 'User Mapping')}
+                {t('attendanceDash.identityMatching', 'Identity Matching')}
               </Link>
               <Link href="/attendance/device-logs" className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-700
                 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-100">

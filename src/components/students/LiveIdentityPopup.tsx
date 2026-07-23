@@ -568,7 +568,7 @@ export function LiveIdentityPopup() {
           setDisabled(false);
         }}
         title="Live attendance popup is muted on this device — click to enable"
-        className="fixed bottom-3 left-3 z-40"
+        className="fixed bottom-16 right-3 z-40"
       >
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md border bg-slate-100/80 dark:bg-slate-800/30 text-slate-500 border-slate-200 dark:border-slate-700">
           <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
@@ -590,7 +590,7 @@ export function LiveIdentityPopup() {
           setDisabled(true);
         }}
         title="Live attendance popup is ON — click to mute on this device"
-        className="fixed bottom-3 left-3 z-40"
+        className="fixed bottom-16 right-3 z-40"
       >
         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md border transition-colors ${
           connected

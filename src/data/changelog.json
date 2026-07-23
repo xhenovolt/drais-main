@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T15:02:43.757Z",
-  "last_commit": "296b82c7f2dfe2415b0e08b4d17b6b91fb181503",
+  "generated_at": "2026-07-23T15:24:58.996Z",
+  "last_commit": "d0901976840dd1c90aae9aa38a174260c3c40d65",
   "releases": [
     {
       "version": "0.0.0049",
@@ -3927,7 +3927,20 @@
         }
       ],
       "commit": "296b82c7f2"
+    },
+    {
+      "version": "1.83.2",
+      "date": "2026-07-23",
+      "release_type": "patch",
+      "title": "Grouped, school-readable release history — no raw commit dumps",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Grouped, school-readable release history — no raw commit dumps"
+        }
+      ],
+      "commit": "d090197684"
     }
   ],
-  "app_version": "1.83.2"
+  "app_version": "1.83.3"
 }

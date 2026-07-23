@@ -113,7 +113,7 @@ export const Navbar: React.FC = () => {
 
                   {/* Menu Items */}
                   <Link
-                    href="/profile"
+                    href="/settings/profile"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >

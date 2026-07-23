@@ -369,7 +369,57 @@ export function getNavigationItems(
       href:  '/dashboard',
     },
 
-    // ══ 2. STUDENTS ═══════════════════════════════════════════════════════════
+    // ══ 2. ATTENDANCE ═════════════════════════════════════════════════════════
+    // DRAIS is attendance-first: daily operations + intelligence, right under
+    // Overview. Device plumbing and gate/movement live in their own groups.
+    {
+      key:   'attendance',
+      label: 'Attendance',
+      icon:  <UserCheck className="w-5 h-5" />,
+      children: [
+        { key: 'att-dashboard',      label: 'Dashboard',         icon: <UserCheck className="w-4 h-4" />,    href: '/attendance' },
+        { key: 'att-logs',           label: 'Attendance Logs',   icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/logs' },
+        { key: 'att-shifts',         label: 'Shifts',            icon: <Clock className="w-4 h-4" />,        href: '/attendance/shifts', roles: ['admin', 'super_admin'] },
+        { key: 'att-holidays',       label: 'Holidays',          icon: <Calendar className="w-4 h-4" />,    href: '/attendance/holidays', roles: ['admin', 'super_admin'] },
+        { key: 'att-health',         label: 'Health Center',     icon: <Activity className="w-4 h-4" />,     href: '/attendance/health', roles: ['admin', 'super_admin'] },
+        { key: 'att-time-health',    label: 'Time Health',       icon: <Clock className="w-4 h-4" />,        href: '/attendance/time-health', roles: ['admin', 'super_admin'] },
+        { key: 'att-trace',          label: 'Event Explorer',    icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/trace', roles: ['admin', 'super_admin'] },
+        { key: 'att-settings',       label: 'Settings',          icon: <Settings className="w-4 h-4" />,    href: '/attendance/settings', roles: ['admin', 'super_admin'] },
+      ],
+    },
+
+    // ══ 2b. GATE & MOVEMENT ═══════════════════════════════════════════════════
+    {
+      key:   'gate-movement',
+      label: 'Gate & Movement',
+      icon:  <DoorOpen className="w-5 h-5" />,
+      children: [
+        { key: 'passouts',           label: 'Pass-outs',         icon: <DoorOpen className="w-4 h-4" />,     href: '/passouts' },
+        { key: 'passouts-gate',      label: 'Gate Mode',         icon: <RadioTower className="w-4 h-4" />,   href: '/passouts/gate' },
+        { key: 'visitation',         label: 'Visitation Cards',  icon: <CreditCard className="w-4 h-4" />,   href: '/visitation' },
+        { key: 'passouts-reports',   label: 'Pass-out Reports',  icon: <FileSearch className="w-4 h-4" />,   href: '/passouts/reports' },
+      ],
+    },
+
+    // ══ 2c. DEVICES & BIOMETRICS ══════════════════════════════════════════════
+    {
+      key:   'devices-biometrics',
+      label: 'Devices & Biometrics',
+      icon:  <Fingerprint className="w-5 h-5" />,
+      roles: ['admin', 'super_admin'],
+      children: [
+        { key: 'att-devices',        label: 'Devices',           icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices' },
+        { key: 'att-enrollment',     label: 'Enrollment Station', icon: <UserPlus className="w-4 h-4" />,    href: '/attendance/enrollment' },
+        { key: 'att-identity-match', label: 'Identity Matching', icon: <UserCheck className="w-4 h-4" />,    href: '/attendance/identity-matching' },
+        { key: 'att-device-ctrl',    label: 'Device Control',    icon: <Settings className="w-4 h-4" />,     href: '/attendance/device-control' },
+        { key: 'att-cmd-monitor',    label: 'Command Monitor',   icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/devices/commands' },
+        { key: 'att-device-alerts',  label: 'Device Alerts',     icon: <AlertTriangle className="w-4 h-4" />, href: '/admin/device-alerts' },
+        { key: 'att-device-logs',    label: 'Device Logs',       icon: <Activity className="w-4 h-4" />,     href: '/attendance/device-logs' },
+        { key: 'att-remote',         label: 'Remote Features',   icon: <Radio className="w-4 h-4" />,        href: '/attendance/remote-features' },
+      ],
+    },
+
+    // ══ 3. STUDENTS ═══════════════════════════════════════════════════════════
     {
       key:   'students',
       label: t('nav.students._', 'Students'),
@@ -462,39 +512,6 @@ export function getNavigationItems(
       ],
     },
 
-    // ══ 5. ATTENDANCE (PRIORITY) ══════════════════════════════════════════════
-    // Attendance-first architecture: biometrics, devices, monitoring
-    {
-      key:   'attendance',
-      label: 'Attendance',
-      icon:  <UserCheck className="w-5 h-5" />,
-      children: [
-        { key: 'att-dashboard',      label: 'Dashboard',         icon: <UserCheck className="w-4 h-4" />,    href: '/attendance' },
-        { key: 'att-logs',           label: 'Attendance Logs',   icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/logs' },
-        { key: 'att-device-logs',    label: 'Device Logs',       icon: <Activity className="w-4 h-4" />,     href: '/attendance/device-logs' },
-        { key: 'att-devices',        label: 'Devices',           icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices' },
-        { key: 'att-enrollment',     label: 'Enrollment Station', icon: <UserPlus className="w-4 h-4" />,    href: '/attendance/enrollment' },
-        { key: 'att-mapping',        label: 'User Mapping',      icon: <Users className="w-4 h-4" />,        href: '/attendance/mapping' },
-        { key: 'att-identity-match', label: 'Identity Matching', icon: <UserCheck className="w-4 h-4" />,    href: '/attendance/identity-matching', roles: ['admin', 'super_admin'] },
-        { key: 'att-shifts',         label: 'Shifts',            icon: <Clock className="w-4 h-4" />,        href: '/attendance/shifts', roles: ['admin', 'super_admin'] },
-        { key: 'att-health',         label: 'Health Center',     icon: <Activity className="w-4 h-4" />,     href: '/attendance/health', roles: ['admin', 'super_admin'] },
-        { key: 'att-trace',          label: 'Event Explorer',    icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/trace', roles: ['admin', 'super_admin'] },
-        { key: 'att-time-health',    label: 'Time Health',       icon: <Clock className="w-4 h-4" />,        href: '/attendance/time-health', roles: ['admin', 'super_admin'] },
-        { key: 'att-commands',       label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/commands', roles: ['admin', 'super_admin'] },
-        { key: 'att-cmd-monitor',    label: 'Command Monitor',   icon: <Activity className="w-4 h-4" />,    href: '/attendance/devices/commands', roles: ['admin', 'super_admin'] },
-        { key: 'att-device-ctrl',    label: 'Device Control',    icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/device-control', roles: ['admin', 'super_admin'] },
-        { key: 'att-remote',         label: 'Remote Features',   icon: <Activity className="w-4 h-4" />,    href: '/attendance/remote-features', roles: ['admin', 'super_admin'] },
-        { key: 'att-monitor',        label: 'Live Monitor',      icon: <Radio className="w-4 h-4" />,       href: '/admin/biometric-monitor', roles: ['admin', 'super_admin'] },
-        { key: 'att-device-alerts',  label: 'Device Alerts',     icon: <AlertTriangle className="w-4 h-4" />, href: '/admin/device-alerts', roles: ['admin', 'super_admin'] },
-        { key: 'att-holidays',       label: 'Holidays',          icon: <Calendar className="w-4 h-4" />,    href: '/attendance/holidays', roles: ['admin', 'super_admin'] },
-        { key: 'passouts',           label: 'Pass-outs',         icon: <DoorOpen className="w-4 h-4" />,     href: '/passouts' },
-        { key: 'passouts-gate',      label: 'Gate Mode',         icon: <RadioTower className="w-4 h-4" />,   href: '/passouts/gate' },
-        { key: 'visitation',         label: 'Visitation Cards',  icon: <CreditCard className="w-4 h-4" />,   href: '/visitation' },
-        { key: 'passouts-reports',   label: 'Pass-out Reports',  icon: <FileSearch className="w-4 h-4" />,   href: '/passouts/reports' },
-        { key: 'att-settings',       label: 'Settings',          icon: <Settings className="w-4 h-4" />,    href: '/attendance/settings', roles: ['admin', 'super_admin'] },
-      ],
-    },
-
     // ══ 6. FINANCE ════════════════════════════════════════════════════════════
     {
       key:   'finance',
@@ -502,7 +519,6 @@ export function getNavigationItems(
       icon:  <Wallet className="w-5 h-5" />,
       children: [
         { key: 'finance-dashboard',  label: 'Overview',          icon: <DollarSign className="w-4 h-4" />,   href: '/finance' },
-        { key: 'finance-dash',       label: 'Dashboard',         icon: <BarChart3 className="w-4 h-4" />,    href: '/finance/dashboard' },
         { key: 'fees',               label: 'Fees',              icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fees' },
         { key: 'fee-items',          label: 'Fee Items',         icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fee-items' },
         { key: 'fee-rules',          label: 'Fee Rules',         icon: <CreditCard className="w-4 h-4" />,   href: '/finance/fee-rules' },
