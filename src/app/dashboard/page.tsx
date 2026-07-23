@@ -20,7 +20,6 @@ import { fetcher } from '@/utils/fetcher';
 import Link from 'next/link';
 import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
 import AttendanceInsights from '@/components/dashboard/AttendanceInsights';
-import AttendanceToday from '@/components/dashboard/AttendanceToday';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -271,9 +270,10 @@ const DashboardPage: React.FC = () => {
             <AttendanceInsightCard schoolId={schoolId} />
           </div>
 
-          {/* Right column: attendance + device */}
+          {/* Right column: device status. (AttendanceToday widget removed —
+              the role-labeled attendance cards at the top already carry
+              today's staff/learner numbers; it was a duplicate.) */}
           <div className="space-y-4">
-            <AttendanceToday schoolId={schoolId} />
             <DeviceStatusWidget />
           </div>
         </div>
