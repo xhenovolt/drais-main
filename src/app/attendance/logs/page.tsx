@@ -434,6 +434,12 @@ export default function UnifiedAttendancePage() {
   });
   const timeAnomaly = timeHealth?.anomaly || null;
 
+  // Recovery: proactive attendance-gap detection (Phase 6).
+  const { data: recovery } = useSWR<any>('/api/attendance/recovery?banner=1', {
+    refreshInterval: 5 * 60_000, revalidateOnFocus: false,
+  });
+  const recoveryGap = recovery?.gap || null;
+
   // Classes for filter
   const { data: classesData } = useSWR<any>('/api/classes');
   const classes = classesData?.data || classesData?.classes || [];
@@ -973,6 +979,19 @@ export default function UnifiedAttendancePage() {
             </p>
             <a href="/attendance/time-health" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium">
               Review &amp; correct on the Time Health page
+            </a>
+          </div>
+        )}
+
+        {/* ── Attendance gap detected — recovery finds the operator ──── */}
+        {recoveryGap && (
+          <div className="mb-4 p-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20">
+            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> Attendance gap — {recoveryGap.device_name || recoveryGap.device_sn}
+            </p>
+            <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">{recoveryGap.verdict?.reason}</p>
+            <a href="/attendance/recovery" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium">
+              Open Recovery Center
             </a>
           </div>
         )}

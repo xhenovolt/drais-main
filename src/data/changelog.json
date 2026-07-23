@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T18:11:14.521Z",
-  "last_commit": "fdcc6347356a343173d8f488aa03c1958fc4e4fd",
+  "generated_at": "2026-07-23T18:20:32.048Z",
+  "last_commit": "8f23be877f6f8e75adeb82eadc6a690a912c192c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4005,7 +4005,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.86.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Automatic Attendance Recovery — Phase 5 Recovery Center",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Automatic Attendance Recovery — Phase 5 Recovery Center"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.85.0"
+  "app_version": "1.86.0"
 }
