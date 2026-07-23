@@ -39,6 +39,56 @@ const SMS_CLASS: Record<string, string> = {
   delivered: 'bg-emerald-100 text-emerald-700', failed: 'bg-red-100 text-red-700',
   expired: 'bg-gray-100 text-gray-500',
 };
+/** "Why?" — the Explanation Engine (Phase 9). Every verdict explains itself:
+ *  arrival vs cutoff, grace, difference, deciding policy, plain reason. */
+function ExplainButton({ personId, date, roleType }: { personId?: number | null; date?: string | null; roleType?: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  if (!personId || !date) return null;
+
+  const toggle = async () => {
+    const next = !open; setOpen(next);
+    if (next && !data) {
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/attendance/explain?person_id=${personId}&date=${date}&role=${roleType === 'staff' ? 'staff' : 'student'}`, { cache: 'no-store' });
+        const j = await r.json();
+        if (j.success) setData(j.explanation);
+      } finally { setLoading(false); }
+    }
+  };
+
+  return (
+    <span className="relative inline-block">
+      <button onClick={toggle} title="Explain this verdict" className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 font-medium">
+        Why?
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 right-0 w-72 p-3 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-xl text-left">
+          {loading && <p className="text-xs text-gray-400">Explaining…</p>}
+          {!loading && data && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{data.headline}</p>
+              <div className="space-y-0.5">
+                {data.factors.map((f: any, i: number) => (
+                  <div key={i} className="flex justify-between text-[11px]">
+                    <span className="text-gray-400">{f.label}</span>
+                    <span className="text-gray-700 dark:text-gray-200 font-medium">{f.value}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-1.5">{data.reason}</p>
+              <p className="text-[10px] text-indigo-500">Policy: {data.policy}</p>
+            </div>
+          )}
+          {!loading && !data && <p className="text-xs text-gray-400">No verdict to explain for this day.</p>}
+        </div>
+      )}
+    </span>
+  );
+}
+
 /** Per-record confidence chip (Phase 3). Hover shows the five sub-scores so an
  *  operator knows WHY a row is or isn't trustworthy. */
 function ConfidenceBadge({ confidence }: { confidence?: any }) {
@@ -1308,8 +1358,13 @@ export default function UnifiedAttendancePage() {
                       {/* DERIVED attendance meaning from the state engine */}
                       {presentation?.attendanceStatus && presentation.attendanceStatus !== 'Scan' ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className={`inline-block w-fit px-2 py-0.5 rounded text-xs font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}>
-                            {presentation.attendanceStatus}
+                          <span className="flex items-center gap-1.5">
+                            <span className={`inline-block w-fit px-2 py-0.5 rounded text-xs font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}>
+                              {presentation.attendanceStatus}
+                            </span>
+                            {log.matched && log.person_id && (
+                              <ExplainButton personId={log.person_id} date={(log.check_time || '').slice(0, 10)} roleType={log.role_type} />
+                            )}
                           </span>
                           {presentation.statusDetail !== '—' && <span className="text-[11px] text-gray-400">{presentation.statusDetail}</span>}
                           <SmsPill status={log.sms_status} matched={log.matched} isProvisional={log.is_provisional} />

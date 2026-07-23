@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T19:38:48.764Z",
-  "last_commit": "00799f6c90859cd7567d7f1ac5c90b5709cdfb81",
+  "generated_at": "2026-07-23T19:56:58.377Z",
+  "last_commit": "591906add512917b3d2a2dd7299a5a2ee52a25e3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4057,7 +4057,33 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.89.1",
+      "date": "2026-07-23",
+      "release_type": "patch",
+      "title": "Self-feeding intelligence sweep — remove founder-dependence bottleneck",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Self-feeding intelligence sweep — remove founder-dependence bottleneck"
+        }
+      ],
+      "commit": "591906add5"
+    },
+    {
+      "version": "1.90.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Explanation Engine + Founder Independence — Phases 9 & 10",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Explanation Engine + Founder Independence — Phases 9 & 10"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.89.1"
+  "app_version": "1.90.0"
 }
