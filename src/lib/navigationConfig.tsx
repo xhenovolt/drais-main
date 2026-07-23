@@ -57,6 +57,7 @@ import {
   Shield,
   Cog,
   HelpCircle,
+  Info,
   Phone,
   Mail,
   Package,
@@ -590,6 +591,7 @@ export function getNavigationItems(
         { key: 'system-status',   label: 'System Status',  icon: <Activity className="w-4 h-4" />, href: '/settings/system' },
         { key: 'relay-setup',     label: 'Relay Setup',    icon: <Radio className="w-4 h-4" />,    href: '/settings/relay' },
         { key: 'help',            label: 'Help & Support', icon: <HelpCircle className="w-4 h-4" />, href: '/help' },
+        { key: 'about',           label: 'About DRAIS',    icon: <Info className="w-4 h-4" />,     href: '/about' },
       ],
     },
   ];

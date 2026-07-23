@@ -27,4 +27,15 @@ fi
 # Re-stage package.json so the bumped version is part of THIS commit
 # rather than dangling unstaged in the working tree.
 git add package.json
+
+# Institutional memory: record this version in src/data/changelog.json for
+# the /about page. Runs AFTER the bump so the new version is included when
+# BUMP_MSG/CHANGELOG_MSG is set; commits made without it are picked up from
+# `git log` on the next run (self-healing, lag-by-one at worst).
+if node scripts/update-changelog.mjs; then
+  git add src/data/changelog.json
+else
+  echo "[pre-commit] update-changelog.mjs failed; committing without changelog update."
+fi
+
 exit 0

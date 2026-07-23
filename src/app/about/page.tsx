@@ -1,0 +1,207 @@
+'use client';
+
+/**
+ * DRAIS About / System Information — the product's institutional memory.
+ *
+ * Answers, permanently and without the founder: what version are we running,
+ * what changed, when, why, and is the system stable. Data comes from
+ * src/data/changelog.json (generated from git history by
+ * scripts/update-changelog.mjs on every commit) and package.json — no
+ * hardcoded release text in components.
+ *
+ * Design: enterprise-boring on purpose. No animations, no hero art.
+ * This page is the seed of the future DRAIS Control Center.
+ */
+import React, { useMemo, useState } from 'react';
+import useSWR from 'swr';
+import {
+  Info, ChevronDown, ChevronRight, CheckCircle, AlertTriangle,
+  GitCommit, Package, Server, Database, Shield,
+} from 'lucide-react';
+import changelog from '@/data/changelog.json';
+
+const APP_VERSION: string = (changelog as any).app_version
+  || (changelog.releases[changelog.releases.length - 1] as any)?.version || '0.0.0';
+
+interface Release {
+  version: string; date: string; release_type: string; title: string;
+  changes: Array<{ category: string; description: string }>;
+  commit: string | null;
+}
+
+const CATEGORY_ORDER = ['NEW', 'IMPROVED', 'FIXED', 'SECURITY', 'PERFORMANCE'];
+const CATEGORY_STYLE: Record<string, string> = {
+  NEW: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  IMPROVED: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+  FIXED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  SECURITY: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  PERFORMANCE: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+};
+const TYPE_STYLE: Record<string, string> = {
+  major: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  minor: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+  patch: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+};
+
+const fmtDate = (d: string) =>
+  new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+export default function AboutPage() {
+  const releases = (changelog.releases as Release[]).slice().reverse(); // newest first
+  const current = releases.find((r) => r.version === APP_VERSION) || releases[0];
+  const [openMinor, setOpenMinor] = useState<string | null>(null);
+
+  // System status from the Health Center (auth-gated; hidden if unavailable).
+  const { data: health } = useSWR<any>('/api/attendance/health',
+    (u: string) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    { revalidateOnFocus: false });
+
+  // Group history by minor series (v1.80.x, v1.81.x, …), newest series first.
+  const series = useMemo(() => {
+    const map = new Map<string, Release[]>();
+    for (const r of releases) {
+      const key = r.version.split('.').slice(0, 2).join('.');
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return [...map.entries()];
+  }, [releases]);
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      {/* ── Section 1 · Identity ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">DRAIS</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Digital Resource &amp; Attendance Intelligence System</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">School Operational Intelligence Infrastructure · by Xhenvolt Uganda</p>
+          </div>
+          <div className="text-right">
+            <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">v{APP_VERSION}</div>
+            <div className="text-[11px] text-gray-400 uppercase">{process.env.NODE_ENV === 'production' ? 'Production' : 'Development'}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 2 · Current version ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3 flex items-center gap-1.5"><Package className="w-4 h-4" /> Current release</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+          <div><div className="text-[11px] text-gray-400">Version</div><div className="font-semibold text-gray-900 dark:text-white">{APP_VERSION}</div></div>
+          <div><div className="text-[11px] text-gray-400">Released</div><div className="font-semibold text-gray-900 dark:text-white">{current ? fmtDate(current.date) : '—'}</div></div>
+          <div><div className="text-[11px] text-gray-400">Release type</div>
+            <span className={`inline-block text-[11px] px-2 py-0.5 rounded font-semibold uppercase ${TYPE_STYLE[current?.release_type] || TYPE_STYLE.patch}`}>{current?.release_type || 'patch'}</span>
+          </div>
+          <div><div className="text-[11px] text-gray-400">Status</div>
+            <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Stable</div>
+          </div>
+        </div>
+        {current && <p className="text-sm text-gray-600 dark:text-gray-300 mt-3">{current.title}</p>}
+      </div>
+
+      {/* ── Section 3 · What changed in this release ── */}
+      {current && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3 flex items-center gap-1.5"><GitCommit className="w-4 h-4" /> Changes in v{current.version}</h2>
+          <ChangeList changes={current.changes} />
+        </div>
+      )}
+
+      {/* ── Section 4 · Release history ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1.5"><Info className="w-4 h-4" /> Release history</h2>
+        <p className="text-[11px] text-gray-400 mb-3">{releases.length} recorded releases · grouped by series · every entry generated from the actual commit history</p>
+        <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
+          {series.map(([key, rels]) => {
+            const open = openMinor === key;
+            const isCurrent = current && current.version.startsWith(key + '.');
+            return (
+              <div key={key}>
+                <button onClick={() => setOpenMinor(open ? null : key)}
+                  className="w-full flex items-center justify-between py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded px-1">
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    {open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+                    v{key}.x
+                    {isCurrent && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-semibold uppercase">Current</span>}
+                  </span>
+                  <span className="text-xs text-gray-400">{rels.length} release{rels.length === 1 ? '' : 's'} · {rels[rels.length - 1].date} → {rels[0].date}</span>
+                </button>
+                {open && (
+                  <div className="pl-7 pb-3 space-y-3">
+                    {rels.map((r) => (
+                      <div key={r.version}>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-mono font-semibold text-gray-800 dark:text-gray-100">v{r.version}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${TYPE_STYLE[r.release_type] || TYPE_STYLE.patch}`}>{r.release_type}</span>
+                          <span className="text-xs text-gray-400">{fmtDate(r.date)}</span>
+                          {r.commit && <span className="text-[10px] font-mono text-gray-300 dark:text-gray-600">{r.commit.slice(0, 7)}</span>}
+                        </div>
+                        <ChangeList changes={r.changes} compact />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Section 5 · System information ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3 flex items-center gap-1.5"><Server className="w-4 h-4" /> System information</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+          <div><div className="text-[11px] text-gray-400">Application</div><div className="font-medium text-gray-800 dark:text-gray-100">DRAIS v{APP_VERSION}</div></div>
+          <div><div className="text-[11px] text-gray-400 flex items-center gap-1"><Database className="w-3 h-3" /> Database</div><div className="font-medium text-gray-800 dark:text-gray-100">TiDB Cloud (MySQL)</div></div>
+          <div><div className="text-[11px] text-gray-400">Platform</div><div className="font-medium text-gray-800 dark:text-gray-100">Web · Desktop · Android</div></div>
+          <div><div className="text-[11px] text-gray-400">Environment</div><div className="font-medium text-gray-800 dark:text-gray-100 capitalize">{process.env.NODE_ENV || 'production'}</div></div>
+          <div><div className="text-[11px] text-gray-400">Changelog updated</div><div className="font-medium text-gray-800 dark:text-gray-100">{changelog.generated_at ? new Date(changelog.generated_at).toLocaleDateString('en-GB') : '—'}</div></div>
+          <div>
+            <div className="text-[11px] text-gray-400">System health</div>
+            {health?.success ? (
+              <a href="/attendance/health" className={`font-medium flex items-center gap-1 ${health.score >= 90 ? 'text-emerald-600 dark:text-emerald-400' : health.score >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {health.score >= 90 ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                {health.score}% {health.status === 'healthy' ? 'Operational' : health.status}
+              </a>
+            ) : (
+              <div className="font-medium text-gray-400">—</div>
+            )}
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-4 flex items-center gap-1.5">
+          <Shield className="w-3.5 h-3.5" /> This page shows product information only — no credentials, endpoints or infrastructure details are exposed.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ChangeList({ changes, compact = false }: { changes: Release['changes']; compact?: boolean }) {
+  const grouped = useMemo(() => {
+    const g = new Map<string, string[]>();
+    for (const c of changes) {
+      if (!g.has(c.category)) g.set(c.category, []);
+      g.get(c.category)!.push(c.description);
+    }
+    return CATEGORY_ORDER.filter((k) => g.has(k)).map((k) => [k, g.get(k)!] as const);
+  }, [changes]);
+
+  return (
+    <div className={compact ? 'mt-1 space-y-1' : 'space-y-3'}>
+      {grouped.map(([cat, items]) => (
+        <div key={cat} className={compact ? 'flex items-start gap-2' : ''}>
+          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-semibold ${CATEGORY_STYLE[cat] || CATEGORY_STYLE.IMPROVED} ${compact ? 'mt-0.5 flex-shrink-0' : 'mb-1'}`}>{cat}</span>
+          <ul className={compact ? 'min-w-0' : 'space-y-1'}>
+            {items.map((d, i) => (
+              <li key={i} className="text-sm text-gray-700 dark:text-gray-200 flex items-start gap-1.5">
+                {!compact && <span className="text-emerald-500 mt-0.5">✓</span>}
+                <span className={compact ? 'text-xs text-gray-600 dark:text-gray-300' : ''}>{d}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
