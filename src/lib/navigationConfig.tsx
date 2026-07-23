@@ -385,6 +385,7 @@ export function getNavigationItems(
         { key: 'att-health',         label: 'Health Center',     icon: <Activity className="w-4 h-4" />,     href: '/attendance/health', roles: ['admin', 'super_admin'] },
         { key: 'att-recovery',       label: 'Recovery Center',   icon: <LifeBuoy className="w-4 h-4" />,     href: '/attendance/recovery', roles: ['admin', 'super_admin'] },
         { key: 'att-time-health',    label: 'Time Health',       icon: <Clock className="w-4 h-4" />,        href: '/attendance/time-health', roles: ['admin', 'super_admin'] },
+        { key: 'att-trends',         label: 'Trends',            icon: <ChartBar className="w-4 h-4" />,     href: '/attendance/trends', roles: ['admin', 'super_admin'] },
         { key: 'att-trace',          label: 'Event Explorer',    icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/trace', roles: ['admin', 'super_admin'] },
         { key: 'att-settings',       label: 'Settings',          icon: <Settings className="w-4 h-4" />,    href: '/attendance/settings', roles: ['admin', 'super_admin'] },
       ],

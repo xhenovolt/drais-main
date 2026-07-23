@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T18:20:32.048Z",
-  "last_commit": "8f23be877f6f8e75adeb82eadc6a690a912c192c",
+  "generated_at": "2026-07-23T18:38:20.960Z",
+  "last_commit": "ffef741a5898408e2c0015bb8c35b3ec15f5c7b7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4018,7 +4018,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.87.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Attendance Pattern Analytics — Phase 6 Trends",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Attendance Pattern Analytics — Phase 6 Trends"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.86.0"
+  "app_version": "1.87.0"
 }
