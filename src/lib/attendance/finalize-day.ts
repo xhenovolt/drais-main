@@ -46,6 +46,19 @@ export async function finalizeDay(schoolId: number, dateStr?: string, opts: { mi
   ).catch(() => [])) as any[]).length > 0;
   if (holiday) return { date, staff: 0, students: 0, skipped: true };
 
+  // Outage guard: if the WHOLE school produced (almost) no punches that day,
+  // it is a device/ingest outage or a non-operating day — NOT everyone being
+  // absent. Marking 200 people absent on a device-down day is worse than
+  // leaving the day unfinalized (Recovery / Device Intelligence flag the
+  // outage; Pattern Analytics' mass-absence detector would also catch it).
+  const utcStart = new Date(Date.parse(`${date}T00:00:00Z`) - off * 60_000);
+  const utcEnd = new Date(utcStart.getTime() + 86_400_000);
+  const punchRows = (await query(
+    `SELECT COUNT(*) n FROM attendance_raw_events WHERE school_id = ? AND punch_at >= ? AND punch_at < ?`,
+    [schoolId, utcStart, utcEnd],
+  ).catch(() => [{ n: 0 }])) as any[];
+  if (Number(punchRows[0]?.n || 0) < 3) return { date, staff: 0, students: 0, skipped: true };
+
   const dateObj = new Date(`${date}T00:00:00`);
 
   // ── Expected staff without a verdict for the date ──
