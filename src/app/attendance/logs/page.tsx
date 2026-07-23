@@ -10,6 +10,7 @@ import {
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
 import { AttendanceExportService } from '@/lib/attendance/export/AttendanceExportService';
 
 // DERIVED attendance meaning (from the state engine), NOT the device's
@@ -950,6 +951,11 @@ export default function UnifiedAttendancePage() {
             </a>
           </div>
         )}
+
+        {/* ── Device clock health — inline, where the operator actually works */}
+        <div className="mb-2">
+          <ClockHealthBadges />
+        </div>
 
         {/* ── Record count ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3 mb-2">

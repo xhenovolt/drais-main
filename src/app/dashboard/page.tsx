@@ -20,6 +20,7 @@ import { fetcher } from '@/utils/fetcher';
 import Link from 'next/link';
 import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
 import AttendanceInsights from '@/components/dashboard/AttendanceInsights';
+import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -257,6 +258,9 @@ const DashboardPage: React.FC = () => {
 
         {/* KPIs — always visible */}
         <DashboardKPIs data={overview?.kpis} attendance={(overview as any)?.attendance} />
+
+        {/* Device clock health — trust indicator for today's attendance numbers */}
+        <ClockHealthBadges />
 
         {/* Attendance intelligence — pie distribution + most absent/late/best */}
         <AttendanceInsights />

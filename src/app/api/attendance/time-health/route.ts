@@ -28,7 +28,12 @@ export async function GET(req: NextRequest) {
     if (new URL(req.url).searchParams.get('banner')) {
       const today = await sweepToday(session.schoolId);
       const worst = today.filter(t => t.status === 'anomaly').sort((a, b) => a.confidence - b.confidence)[0] || null;
-      return NextResponse.json({ success: true, anomaly: worst });
+      // Compact per-device list for inline badges (logs page + dashboard).
+      const devices = today.map(t => ({
+        device_sn: t.device_sn, status: t.status, confidence: t.confidence,
+        offset_min: t.offsetEstimateMin, cause: t.likelyCause, batch: t.batch_size,
+      }));
+      return NextResponse.json({ success: true, anomaly: worst, devices });
     }
     const overview = await deviceHealthOverview(session.schoolId);
     return NextResponse.json({ success: true, ...overview, fmt: undefined });
