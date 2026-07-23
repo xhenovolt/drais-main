@@ -39,12 +39,16 @@ export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => null);
   if (!b?.student_id) return NextResponse.json({ error: 'student_id is required' }, { status: 400 });
 
-  // Auto-approve only if the creator can approve (or is super-admin) and asked to.
+  // Auto-approve only if the creator can approve (or is super-admin) and asked
+  // to — and never in two-step mode, which always requires two distinct users.
   const canApprove = session.isSuperAdmin || await userCan(session.userId, session.schoolId, 'passouts.slip.approve');
-  const autoApprove = !!b.approve_now && canApprove;
+  const { getPassoutSettings } = await import('@/lib/passouts/settings');
+  const settings = await getPassoutSettings(session.schoolId);
+  const autoApprove = !!b.approve_now && canApprove && settings.approval_mode === 'single';
+  const ip = (req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '').trim() || null;
   try {
-    const id = await createPassout(session.schoolId, b, session.userId, autoApprove);
-    return NextResponse.json({ success: true, id, status: autoApprove ? 'approved' : 'pending' }, { status: 201 });
+    const created = await createPassout(session.schoolId, b, session.userId, autoApprove, ip);
+    return NextResponse.json({ success: true, ...created }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Failed' }, { status: 500 });
   }

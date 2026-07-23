@@ -415,7 +415,7 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
       const { decideGate, applyGate } = await import('@/lib/passouts/engine');
       passout = await decideGate(schoolId, studentId) as unknown as Record<string, unknown>;
       // Record the exit/return in the background — never block the popup on it.
-      applyGate(schoolId, studentId, r.device_sn, r.id, null).catch(() => {});
+      applyGate(schoolId, studentId, r.device_sn, r.id, null, 'fingerprint').catch(() => {});
     } catch { /* pass-out module optional — leave attendance popup unaffected */ }
   }
 

@@ -1,13 +1,19 @@
-/** PATCH /api/passouts/[id] — { action: 'approve'|'reject'|'cancel' } */
+/**
+ * PATCH /api/passouts/[id] — { action: 'approve'|'reject'|'cancel' }
+ * approve runs the school's configured workflow (single or two-step);
+ * every transition is audit-logged with the acting user + IP.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
-import { setPassoutStatus } from '@/lib/passouts/store';
+import { approvePassout, setPassoutStatus } from '@/lib/passouts/store';
 
 export const runtime = 'nodejs';
 
 const PERM: Record<string, string> = { approve: 'passouts.slip.approve', reject: 'passouts.slip.reject', cancel: 'passouts.slip.cancel' };
-const NEXT: Record<string, 'approved' | 'rejected' | 'cancelled'> = { approve: 'approved', reject: 'rejected', cancel: 'cancelled' };
+
+const clientIp = (req: NextRequest) =>
+  (req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '').trim() || null;
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
@@ -20,7 +26,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     await requirePermission(session.userId, session.schoolId, PERM[action], session.isSuperAdmin);
   } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 403 }); }
   try {
-    await setPassoutStatus(session.schoolId, Number(id), NEXT[action], session.userId);
+    const ip = clientIp(req);
+    if (action === 'approve') {
+      const res = await approvePassout(session.schoolId, Number(id), session.userId, ip);
+      if (!res.ok) return NextResponse.json({ error: res.reason || 'Cannot approve' }, { status: 409 });
+      return NextResponse.json({
+        success: true,
+        final: res.final,
+        message: res.final ? 'Pass-out approved' : 'First approval recorded — awaiting second approver',
+      });
+    }
+    await setPassoutStatus(session.schoolId, Number(id), action === 'reject' ? 'rejected' : 'cancelled', session.userId, ip);
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Failed' }, { status: 500 });
