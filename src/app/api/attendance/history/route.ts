@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
 import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
+import { scoreRecord } from '@/lib/attendance/confidence-scoring';
 
 export const runtime = 'nodejs';
 
@@ -194,11 +195,19 @@ export async function GET(req: NextRequest) {
          ar.person_id,
          ar.enrollment_id,
          ar.source,
+         ar.resolution_score,
+         ar.resolution_path,
+         ar.time_source,
+         ar.clock_skew_seconds,
          ar.legacy_table,
          ar.legacy_id,
          d.device_name,
          d.location AS device_location,
+         d.is_online AS device_online,
+         dch.confidence AS clock_confidence,
          dud.device_name AS device_known_name,
+         rec.rule_id AS rec_rule_id,
+         (rec.id IS NOT NULL) AS has_verdict,
          ob.status AS sms_status,
          p.first_name,
          p.last_name,
@@ -220,6 +229,12 @@ export async function GET(req: NextRequest) {
          ON dud.school_id = ar.school_id
         AND dud.device_sn = ar.device_sn
         AND dud.device_user_id = CAST(ar.device_user_id AS CHAR)
+       LEFT JOIN device_clock_health dch
+         ON dch.school_id = ar.school_id AND dch.device_sn = ar.device_sn
+        AND dch.local_date = DATE(DATE_ADD(ar.punch_at, INTERVAL 180 MINUTE))
+       LEFT JOIN attendance_records rec
+         ON rec.school_id = ar.school_id AND rec.person_id = ar.person_id
+        AND rec.attendance_date = DATE(DATE_ADD(ar.punch_at, INTERVAL 180 MINUTE))
        LEFT JOIN notification_outbox ob
          ON ob.school_id = ar.school_id
         AND ob.subject_person_id = ar.person_id
@@ -235,11 +250,26 @@ export async function GET(req: NextRequest) {
         ? [row.first_name, row.last_name].filter(Boolean).join(' ')
         : row.device_known_name || null);
 
+      // Per-record confidence (Phase 3) — the row carries its own trust.
+      const confidence = scoreRecord({
+        matched: row.matched, personId: row.person_id,
+        isProvisional: row.is_provisional, resolutionScore: row.resolution_score ?? null,
+        resolutionPath: row.resolution_path ?? null,
+        deviceSn: row.device_sn, deviceKnown: !!(row.device_name || row.device_known_name),
+        deviceOnline: row.device_online,
+        timeSource: row.time_source ?? null, clockSkewSeconds: row.clock_skew_seconds ?? null,
+        clockConfidence: row.clock_confidence ?? null,
+        wasCorrected: (Number(row.clock_skew_seconds) || 0) !== 0 && row.time_source === 'device' && row.clock_confidence >= 85,
+        hasVerdict: !!Number(row.has_verdict), ruleId: row.rec_rule_id ?? null,
+        derivedEvent: row.derived_event ?? null,
+      });
+
       return {
         ...row,
         person_name: personName,
         person_type: row.role_type || 'unmatched',
         is_provisional: Boolean(row.is_provisional) || (!row.person_id && Number(row.matched) === 0),
+        confidence,
       };
     });
 

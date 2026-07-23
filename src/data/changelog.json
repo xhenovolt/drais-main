@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T16:39:49.782Z",
-  "last_commit": "96a8db73a067e574af69ae50879821818a5ba654",
+  "generated_at": "2026-07-23T18:11:14.521Z",
+  "last_commit": "fdcc6347356a343173d8f488aa03c1958fc4e4fd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -3979,7 +3979,33 @@
         }
       ],
       "commit": "96a8db73a0"
+    },
+    {
+      "version": "1.84.2",
+      "date": "2026-07-23",
+      "release_type": "patch",
+      "title": "Bound webpack memory for Vercel's 8GB build container",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Bound webpack memory for Vercel's 8GB build container"
+        }
+      ],
+      "commit": "fdcc634735"
+    },
+    {
+      "version": "1.85.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Per-record confidence scoring — Phase 3 Attendance Intelligence Engine",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Per-record confidence scoring — Phase 3 Attendance Intelligence Engine"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.84.2"
+  "app_version": "1.85.0"
 }

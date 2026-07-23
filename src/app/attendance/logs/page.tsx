@@ -39,6 +39,31 @@ const SMS_CLASS: Record<string, string> = {
   delivered: 'bg-emerald-100 text-emerald-700', failed: 'bg-red-100 text-red-700',
   expired: 'bg-gray-100 text-gray-500',
 };
+/** Per-record confidence chip (Phase 3). Hover shows the five sub-scores so an
+ *  operator knows WHY a row is or isn't trustworthy. */
+function ConfidenceBadge({ confidence }: { confidence?: any }) {
+  if (!confidence?.overall) return null;
+  const { overall, identity, device, time, policy } = confidence;
+  const cls = overall.band === 'high'
+    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+    : overall.band === 'medium'
+      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+      : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
+  const tip = [
+    `Overall ${overall.score}% — ${overall.reason}`,
+    `· Identity ${identity.score}% (${identity.reason})`,
+    `· Time ${time.score}% (${time.reason})`,
+    `· Device ${device.score}% (${device.reason})`,
+    `· Policy ${policy.score}% (${policy.reason})`,
+  ].join('\n');
+  return (
+    <span title={tip} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${overall.band === 'high' ? 'bg-emerald-500' : overall.band === 'medium' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+      {overall.score}%
+    </span>
+  );
+}
+
 function ProvisionalBadge({ isProvisional }: { isProvisional?: boolean | null }) {
   if (!isProvisional) return null;
   return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">Provisional</span>;
@@ -1076,6 +1101,7 @@ export default function UnifiedAttendancePage() {
                     </span>
                   )}
                   <ProvisionalBadge isProvisional={log.is_provisional} />
+                  <ConfidenceBadge confidence={log.confidence} />
                 </div>
                 {tab === 'unmatched' && (
                   <button
@@ -1285,6 +1311,7 @@ export default function UnifiedAttendancePage() {
                           </span>
                         )}
                         <ProvisionalBadge isProvisional={log.is_provisional} />
+                        <ConfidenceBadge confidence={log.confidence} />
                       </div>
                     </td>
                     {tab === 'unmatched' && (
