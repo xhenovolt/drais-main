@@ -5,7 +5,7 @@ import {
   Users, UserCheck, Briefcase, AlertTriangle, Activity,
   Search, RefreshCw, ChevronLeft, ChevronRight,
   Fingerprint, Download, UserPlus, X, Check, Clock,
-  Radio, ChevronDown, ChevronUp, Trash2, Wand2,
+  Radio, ChevronDown, ChevronUp, Trash2, Wand2, GitBranch,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
@@ -1195,6 +1195,13 @@ export default function UnifiedAttendancePage() {
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
                         {presentation?.time || '—'}
+                        <a
+                          href={`/attendance/trace?event=${log.id}`}
+                          title="Trace this punch through every pipeline stage"
+                          className="text-gray-300 dark:text-gray-600 hover:text-indigo-500 dark:hover:text-indigo-400"
+                        >
+                          <GitBranch className="w-3 h-3" />
+                        </a>
                       </div>
                       <span className="text-xs text-gray-400">
                         {presentation?.date && presentation.date !== '—' ? presentation.date : ''}

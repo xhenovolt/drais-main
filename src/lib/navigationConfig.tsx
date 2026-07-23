@@ -477,6 +477,7 @@ export function getNavigationItems(
         { key: 'att-identity-match', label: 'Identity Matching', icon: <UserCheck className="w-4 h-4" />,    href: '/attendance/identity-matching', roles: ['admin', 'super_admin'] },
         { key: 'att-shifts',         label: 'Shifts',            icon: <Clock className="w-4 h-4" />,        href: '/attendance/shifts', roles: ['admin', 'super_admin'] },
         { key: 'att-health',         label: 'Health Center',     icon: <Activity className="w-4 h-4" />,     href: '/attendance/health', roles: ['admin', 'super_admin'] },
+        { key: 'att-trace',          label: 'Event Explorer',    icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/trace', roles: ['admin', 'super_admin'] },
         { key: 'att-time-health',    label: 'Time Health',       icon: <Clock className="w-4 h-4" />,        href: '/attendance/time-health', roles: ['admin', 'super_admin'] },
         { key: 'att-commands',       label: 'Command Center',    icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/commands', roles: ['admin', 'super_admin'] },
         { key: 'att-cmd-monitor',    label: 'Command Monitor',   icon: <Activity className="w-4 h-4" />,    href: '/attendance/devices/commands', roles: ['admin', 'super_admin'] },

@@ -419,6 +419,10 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
     } catch { /* pass-out module optional — leave attendance popup unaffected */ }
   }
 
+  // Digital-twin popup stage: stamp that this punch was served live.
+  // Fire-and-forget — never blocks or breaks the popup itself.
+  query(`UPDATE attendance_raw_events SET popup_at = NOW() WHERE id = ? AND popup_at IS NULL`, [r.id]).catch(() => {});
+
   return {
     scan_id: r.id,
     passout,
