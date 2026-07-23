@@ -59,6 +59,7 @@ import {
   HelpCircle,
   Info,
   LifeBuoy,
+  Cpu,
   Phone,
   Mail,
   Package,
@@ -412,6 +413,7 @@ export function getNavigationItems(
       roles: ['admin', 'super_admin'],
       children: [
         { key: 'att-devices',        label: 'Devices',           icon: <Fingerprint className="w-4 h-4" />,  href: '/attendance/devices' },
+        { key: 'att-device-intel',   label: 'Device Intelligence', icon: <Cpu className="w-4 h-4" />,         href: '/attendance/device-intelligence' },
         { key: 'att-enrollment',     label: 'Enrollment Station', icon: <UserPlus className="w-4 h-4" />,    href: '/attendance/enrollment' },
         { key: 'att-identity-match', label: 'Identity Matching', icon: <UserCheck className="w-4 h-4" />,    href: '/attendance/identity-matching' },
         { key: 'att-device-ctrl',    label: 'Device Control',    icon: <Settings className="w-4 h-4" />,     href: '/attendance/device-control' },

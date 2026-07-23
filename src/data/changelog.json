@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T18:38:20.960Z",
-  "last_commit": "ffef741a5898408e2c0015bb8c35b3ec15f5c7b7",
+  "generated_at": "2026-07-23T18:58:14.875Z",
+  "last_commit": "fc2c08c24510bdca4153841116e4c54302aa0a67",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4031,7 +4031,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.88.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Device Intelligence — Phase 7 reputation scoring",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Device Intelligence — Phase 7 reputation scoring"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.87.0"
+  "app_version": "1.88.0"
 }
