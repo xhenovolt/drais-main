@@ -36,6 +36,42 @@ function KPISkeleton() {
   );
 }
 
+/** Attendance status colors — status palette (good/warning/serious), always
+ *  paired with a visible label + count, never color alone. */
+const STATUS_HEX = { present: '#10b981', late: '#f59e0b', absent: '#ef4444' } as const;
+
+/** Small SVG donut: present / late / absent share. Counts are labeled beside
+ *  it, so the donut is reinforcement, not the only encoding. */
+function StatusDonut({ counts }: { counts: RoleCounts }) {
+  const total = Math.max(1, counts.present + counts.late + counts.absent);
+  const r = 26, cx = 32, cy = 32, sw = 10;
+  const C = 2 * Math.PI * r;
+  const segs: Array<{ v: number; color: string }> = [
+    { v: counts.present, color: STATUS_HEX.present },
+    { v: counts.late, color: STATUS_HEX.late },
+    { v: counts.absent, color: STATUS_HEX.absent },
+  ];
+  let offset = 0;
+  return (
+    <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-hidden="true" className="flex-shrink-0 -rotate-90">
+      <circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={sw} className="stroke-slate-100 dark:stroke-slate-700" />
+      {segs.map((s, i) => {
+        const frac = s.v / total;
+        const el = frac > 0 && (
+          <circle
+            key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth={sw}
+            strokeDasharray={`${Math.max(0, frac * C - 2)} ${C}`}
+            strokeDashoffset={-offset * C}
+            strokeLinecap="butt"
+          />
+        );
+        offset += frac;
+        return el;
+      })}
+    </svg>
+  );
+}
+
 /** One row of role-labeled counts: "Staff — 116 present · 9 late · 86 absent". */
 function RoleAttendanceCard({ label, counts, isAr }: { label: string; counts: RoleCounts; isAr: boolean }) {
   const pct = counts.total > 0 ? Math.round((counts.present / counts.total) * 100) : 0;
@@ -50,18 +86,23 @@ function RoleAttendanceCard({ label, counts, isAr }: { label: string; counts: Ro
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{label}</p>
         <p className="text-xs text-slate-400 dark:text-slate-500">
-          {isAr ? `من ${counts.total.toLocaleString()}` : `of ${counts.total.toLocaleString()}`}
+          {isAr
+            ? `${pct}٪ حضور من ${counts.total.toLocaleString()}`
+            : `${pct}% of ${counts.total.toLocaleString()}`}
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-2">
-        {cells.map((c) => (
-          <div key={c.label} className="text-center">
-            <p className={`text-xl font-bold ${c.cls}`}>{c.v.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">{c.label}</p>
-          </div>
-        ))}
+      <div className="flex items-center gap-4">
+        <StatusDonut counts={counts} />
+        <div className="grid grid-cols-3 gap-2 flex-1">
+          {cells.map((c) => (
+            <div key={c.label} className="text-center">
+              <p className={`text-xl font-bold ${c.cls}`}>{c.v.toLocaleString()}</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">{c.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="w-full h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+      <div className="w-full h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mt-2">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
     </div>
@@ -79,7 +120,10 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
     'text-red-600 dark:text-red-400';
 
   const isAr = lang === 'ar';
-  const cards = [
+  // When the role-labeled attendance block is present, the role cards carry
+  // present/late/absent — the old unlabeled tiles would duplicate them, so
+  // they are dropped and the row keeps only the non-attendance KPIs.
+  const allCards = [
     {
       label: isAr ? 'إجمالي الطلاب' : 'Total Students',
       value: (data.totalStudents || 0).toLocaleString(),
@@ -90,8 +134,9 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
       iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
     },
     {
-      // Role-labeled: these two tiles are LEARNER numbers (staff has its
-      // own card strip below) — never an unlabeled "0 present".
+      // Role-labeled: these two tiles are LEARNER numbers — only shown when
+      // the role attendance cards are absent (older API), never unlabeled.
+      attendanceTile: true,
       label: isAr ? 'الطلاب الحاضرون اليوم' : 'Learners Present Today',
       value: (data.presentToday || 0).toLocaleString(),
       sub: isAr
@@ -104,6 +149,7 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
       barColor: attendancePct >= 80 ? 'bg-emerald-500' : attendancePct >= 60 ? 'bg-amber-500' : 'bg-red-500',
     },
     {
+      attendanceTile: true,
       label: isAr ? 'الطلاب الغائبون اليوم' : 'Learners Absent Today',
       value: (data.absentToday || 0).toLocaleString(),
       sub: data.absentToday > 0
@@ -127,6 +173,7 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
       alert: data.defaultersCount > 10,
     },
   ];
+  const cards = attendance ? allCards.filter((c: any) => !c.attendanceTile) : allCards;
 
   return (
     <div className="space-y-3">
@@ -145,7 +192,7 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
           />
         </div>
       )}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className={`grid gap-3 ${cards.length <= 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'}`}>
       {cards.map((card) => (
         <div
           key={card.label}

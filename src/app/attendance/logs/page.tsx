@@ -339,6 +339,21 @@ export default function UnifiedAttendancePage() {
     evening: { label: 'Evening', from: '17:00', to: '22:59' },
   };
 
+  // Datatable-style column sorting (server-side, whitelisted keys).
+  const [sortBy, setSortBy] = useState<string>('time');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const toggleSort = useCallback((key: string) => {
+    setPage(1);
+    setSortBy((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setSortDir(key === 'time' ? 'desc' : 'asc');
+      return key;
+    });
+  }, []);
+
   // Rows-per-page, arrival-status filter, and the allowance report view.
   const [rowsPerPage, setRowsPerPage] = useState<string>('50');
   const [datePreset, setDatePreset] = useState<string>('all');
@@ -359,6 +374,7 @@ export default function UnifiedAttendancePage() {
     p.set('page', String(page));
     p.set('limit', rowsPerPage);
     if (derivedFilter) p.set('derived', derivedFilter);
+    if (sortBy !== 'time' || sortDir !== 'desc') { p.set('sort', sortBy); p.set('dir', sortDir); }
     if (dateFrom) p.set('date_from', dateFrom);
     if (dateTo) p.set('date_to', dateTo);
     if (deviceSn) p.set('device_sn', deviceSn);
@@ -374,7 +390,7 @@ export default function UnifiedAttendancePage() {
     }
     return p.toString();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender, timeframe, customTimeFrom, customTimeTo, rowsPerPage, derivedFilter]);
+  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender, timeframe, customTimeFrom, customTimeTo, rowsPerPage, derivedFilter, sortBy, sortDir]);
 
   const { data, isLoading, mutate } = useSWR<any>(
     `/api/attendance/history?${params}`,
@@ -1062,14 +1078,35 @@ export default function UnifiedAttendancePage() {
                       title="Select all on this page"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Class</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Device ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Verification Method</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Attendance Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Match Status</th>
+                  {([
+                    { key: 'time', label: 'Time', cls: '' },
+                    { key: 'name', label: 'Name', cls: '' },
+                    { key: 'type', label: 'Category', cls: '' },
+                    { key: null, label: 'Class', cls: ' hidden md:table-cell' },
+                    { key: 'pin', label: 'Device ID', cls: ' hidden lg:table-cell' },
+                    { key: null, label: 'Verification Method', cls: ' hidden lg:table-cell' },
+                    { key: 'status', label: 'Attendance Status', cls: '' },
+                    { key: null, label: 'Match Status', cls: '' },
+                  ] as Array<{ key: string | null; label: string; cls: string }>).map((col) => (
+                    <th
+                      key={col.label}
+                      onClick={col.key ? () => toggleSort(col.key!) : undefined}
+                      className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase${col.cls} ${
+                        col.key ? 'cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300' : ''
+                      }`}
+                      title={col.key ? 'Sort by ' + col.label.toLowerCase() : undefined}
+                    >
+                      <span className="inline-flex items-center gap-0.5">
+                        {col.label}
+                        {col.key && (
+                          <span className="flex flex-col -space-y-1.5 ml-0.5">
+                            <ChevronUp className={`w-3 h-3 ${sortBy === col.key && sortDir === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                            <ChevronDown className={`w-3 h-3 ${sortBy === col.key && sortDir === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                  ))}
                   {tab === 'unmatched' && (
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
                   )}

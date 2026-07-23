@@ -19,6 +19,7 @@ import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import Link from 'next/link';
 import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
+import AttendanceInsights from '@/components/dashboard/AttendanceInsights';
 import AttendanceToday from '@/components/dashboard/AttendanceToday';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import { useAuth } from '@/contexts/AuthContext';
@@ -257,6 +258,9 @@ const DashboardPage: React.FC = () => {
 
         {/* KPIs — always visible */}
         <DashboardKPIs data={overview?.kpis} attendance={(overview as any)?.attendance} />
+
+        {/* Attendance intelligence — pie distribution + most absent/late/best */}
+        <AttendanceInsights />
 
         {/* Two-column grid: signals left, widgets right */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -133,6 +133,21 @@ export async function GET(req: NextRequest) {
 
     const where = conditions.join(' AND ');
 
+    // Sortable columns (datatable-style header arrows). Whitelisted only —
+    // never interpolate user input into ORDER BY.
+    const SORTABLE: Record<string, string> = {
+      time: 'ar.punch_at',
+      name: `COALESCE(NULLIF(ar.display_name,''), NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)),''), dud.device_name, '')`,
+      pin: 'CAST(ar.device_user_id AS UNSIGNED)',
+      device: 'ar.device_sn',
+      status: 'ar.derived_event',
+      type: 'ar.role_type',
+    };
+    const sortKey = url.searchParams.get('sort') || 'time';
+    const sortCol = SORTABLE[sortKey] || SORTABLE.time;
+    const sortDir = url.searchParams.get('dir') === 'asc' ? 'ASC' : 'DESC';
+    const orderBy = `${sortCol} ${sortDir}${sortKey !== 'time' ? ', ar.punch_at DESC' : ''}`;
+
     const countRows = await query(
       `SELECT COUNT(*) AS total
          FROM attendance_raw_events ar
@@ -210,7 +225,7 @@ export async function GET(req: NextRequest) {
         AND ob.subject_person_id = ar.person_id
         AND DATE(ob.created_at) = DATE(ar.punch_at)
        WHERE ${where}
-       ORDER BY ar.punch_at DESC
+       ORDER BY ${orderBy}
        LIMIT ${limit} OFFSET ${offset}`,
       params,
     );
