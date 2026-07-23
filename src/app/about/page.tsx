@@ -16,12 +16,26 @@ import React, { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
   Info, ChevronDown, ChevronRight, CheckCircle, AlertTriangle,
-  GitCommit, Package, Server, Database, Shield,
+  GitCommit, Package, Server, Database, Shield, Milestone as MilestoneIcon,
 } from 'lucide-react';
 import changelog from '@/data/changelog.json';
+import milestonesData from '@/data/release-milestones.json';
 
 const APP_VERSION: string = (changelog as any).app_version
   || (changelog.releases[changelog.releases.length - 1] as any)?.version || '0.0.0';
+
+interface Milestone {
+  version: string;
+  period: { from: string; to: string };
+  milestone_title: string;
+  summary: string;
+  significance: string;
+  key_capabilities: string[];
+  architectural_changes: string[];
+  business_impact: string[];
+  related_commits: string[];
+}
+const MILESTONES: Milestone[] = (milestonesData as any).milestones || [];
 
 interface Release {
   version: string; date: string; release_type: string; title: string;
@@ -108,6 +122,9 @@ export default function AboutPage() {
         </div>
       )}
 
+      {/* ── Section 3b · Product evolution (milestone layer) ── */}
+      <ProductEvolution />
+
       {/* ── Section 4 · Release history ── */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1.5"><Info className="w-4 h-4" /> Release history</h2>
@@ -172,6 +189,105 @@ export default function AboutPage() {
         <p className="text-[11px] text-gray-400 mt-4 flex items-center gap-1.5">
           <Shield className="w-3.5 h-3.5" /> This page shows product information only — no credentials, endpoints or infrastructure details are exposed.
         </p>
+      </div>
+    </div>
+  );
+}
+
+/** Layer 2 — Product Evolution: the story of DRAIS, era by era. Selecting a
+ *  milestone answers "what was DRAIS at this point in time, and why?" */
+function ProductEvolution() {
+  const [selected, setSelected] = useState<Milestone | null>(null);
+  const timeline = [...MILESTONES].reverse(); // newest era first
+
+  if (!MILESTONES.length) return null;
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1.5"><MilestoneIcon className="w-4 h-4" /> Product evolution</h2>
+      <p className="text-[11px] text-gray-400 mb-3">
+        {MILESTONES.length} milestones — the meaning behind the release history below. Curated by humans, grounded in commits.
+      </p>
+
+      {/* Era timeline */}
+      <div className="space-y-1">
+        {timeline.map((m) => {
+          const open = selected?.milestone_title === m.milestone_title;
+          return (
+            <div key={m.milestone_title}>
+              <button
+                onClick={() => setSelected(open ? null : m)}
+                className={`w-full flex items-center justify-between gap-2 py-2 px-2 rounded-lg text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 ${open ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  {open ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{m.milestone_title}</span>
+                </span>
+                <span className="text-xs text-gray-400 whitespace-nowrap">v{m.version} · {m.period.from.slice(0, 7)}</span>
+              </button>
+
+              {open && (
+                <div className="ml-8 mr-2 mb-3 mt-1 space-y-3 text-sm border-l-2 border-indigo-200 dark:border-indigo-800 pl-4">
+                  <p className="text-gray-700 dark:text-gray-200">{m.summary}</p>
+
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase mb-0.5">Why it mattered</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">{m.significance}</p>
+                  </div>
+
+                  {m.key_capabilities.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-0.5">Capabilities unlocked</p>
+                      <ul className="space-y-0.5">
+                        {m.key_capabilities.map((c, i) => (
+                          <li key={i} className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1.5">
+                            <span className="text-emerald-500 mt-px">✓</span> {c}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {m.architectural_changes.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-0.5">Technical evolution</p>
+                      <ul className="space-y-0.5">
+                        {m.architectural_changes.map((c, i) => (
+                          <li key={i} className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1.5">
+                            <span className="text-indigo-400 mt-px">▸</span> {c}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {m.business_impact.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-0.5">Impact</p>
+                      <ul className="space-y-0.5">
+                        {m.business_impact.map((c, i) => (
+                          <li key={i} className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1.5">
+                            <span className="text-amber-500 mt-px">●</span> {c}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {m.related_commits.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-0.5">Related commits</p>
+                      <ul className="space-y-0.5">
+                        {m.related_commits.map((c, i) => (
+                          <li key={i} className="text-[11px] font-mono text-gray-400 dark:text-gray-500">{c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

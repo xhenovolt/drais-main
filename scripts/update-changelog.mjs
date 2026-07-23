@@ -21,6 +21,12 @@
  *      the next run via path 1 (documented lag-by-one, never data loss).
  *
  * Run directly: node scripts/update-changelog.mjs [--seed N]
+ *
+ * Milestone suggestions (Layer 2, human-reviewed — NEVER auto-published):
+ *   node scripts/update-changelog.mjs --suggest-milestones
+ * Groups releases newer than the last recorded milestone period by their
+ * conventional-commit scope and prints a milestone JSON skeleton to stdout.
+ * A human edits it and pastes it into src/data/release-milestones.json.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -145,7 +151,46 @@ function main() {
   console.log(`[changelog] ${added} new release(s) recorded → ${path.relative(root, OUT)} (${state.releases.length} total)`);
 }
 
+function suggestMilestones() {
+  const MILESTONES = path.join(root, 'src', 'data', 'release-milestones.json');
+  const existing = existsSync(MILESTONES) ? JSON.parse(readFileSync(MILESTONES, 'utf8')) : { milestones: [] };
+  const lastEnd = existing.milestones.reduce((a, m) => (m.period?.to > a ? m.period.to : a), '0000-00-00');
+  const state = load();
+
+  // Candidate releases: newer than every recorded milestone period.
+  const fresh = state.releases.filter((r) => r.date > lastEnd);
+  if (!fresh.length) { console.log(`[milestones] nothing newer than ${lastEnd} — no suggestions.`); return; }
+
+  // Group by conventional scope (feat(attendance): … → "attendance").
+  const groups = new Map();
+  for (const r of fresh) {
+    const raw = git('log', '--format=%s', '-1', r.commit || 'HEAD').trim();
+    const scope = (raw.match(/^\w+\(([^)]+)\)/) || [])[1] || 'general';
+    if (!groups.has(scope)) groups.set(scope, []);
+    groups.get(scope).push(r);
+  }
+
+  console.log(`[milestones] ${fresh.length} unassigned release(s) since ${lastEnd} — suggested skeletons:\n`);
+  for (const [scope, rels] of groups) {
+    if (rels.length < 2) continue; // a milestone groups related work, not single commits
+    const suggestion = {
+      version: rels[rels.length - 1].version,
+      period: { from: rels[0].date, to: rels[rels.length - 1].date },
+      milestone_title: `TODO — name the "${scope}" era (${rels.length} releases)`,
+      summary: 'TODO — one sentence: what did DRAIS become?',
+      significance: 'TODO — why it mattered.',
+      key_capabilities: rels.slice(0, 6).map((r) => r.title),
+      architectural_changes: ['TODO'],
+      business_impact: ['TODO'],
+      related_commits: rels.slice(0, 5).map((r) => `${r.date} ${r.title}`),
+    };
+    console.log(JSON.stringify(suggestion, null, 2) + ',\n');
+  }
+  console.log('[milestones] Review, edit and paste approved entries into src/data/release-milestones.json — suggestions are never auto-published.');
+}
+
 // Allow `import { classifySubject } from ...` in tests without executing.
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  main();
+  if (process.argv.includes('--suggest-milestones')) suggestMilestones();
+  else main();
 }

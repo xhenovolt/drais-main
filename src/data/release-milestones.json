@@ -1,0 +1,294 @@
+{
+  "$comment": "DRAIS Product Evolution — Layer 2 of the About module. Human-curated milestones grouping the commit-level changelog (Layer 1) into meaningful product history. Add entries via scripts/update-changelog.mjs --suggest-milestones, then review and edit BY HAND before committing — milestones are never auto-published.",
+  "milestones": [
+    {
+      "version": "0.0.0036",
+      "period": { "from": "2026-04-21", "to": "2026-05-10" },
+      "milestone_title": "Reports Kitchen Foundation",
+      "summary": "DRAIS was re-initialized around the DRCE report-card engine — templates, bindings, totals, teacher initials and the marks migration engine.",
+      "significance": "Report cards became DRAIS's first product identity: schools could design, compute and print their own documents instead of using fixed layouts.",
+      "key_capabilities": [
+        "DRCE template system (Arabic, Modern Traditional, Minimal Clean, Professional Business)",
+        "Configurable subject totals, grand-total rows and averages",
+        "Persistent editable teacher initials",
+        "Marks Migration Engine with guided wizard",
+        "Bulk enrollment with multi-student selection"
+      ],
+      "architectural_changes": [
+        "DRCE primitives/bindings refactor for full layout control",
+        "TiDB schema alignment for report data",
+        "Client-side display/hide filtering strategy for large report lists"
+      ],
+      "business_impact": [
+        "Northgate and Al Bayan produced their first DRAIS-native report cards",
+        "Per-school fallbacks (next-term-begins dates) established the multi-tenant pattern"
+      ],
+      "related_commits": [
+        "2026-04-21 reinitialize everything with reports kitchen",
+        "2026-04-27 feat: Implement Marks Migration Engine & Persistent Editable Initials System",
+        "2026-04-29 Fix DRCE report totals architecture"
+      ]
+    },
+    {
+      "version": "0.0.0036",
+      "period": { "from": "2026-05-23", "to": "2026-05-26" },
+      "milestone_title": "Security Hardening — the RBAC Era",
+      "summary": "A granular permission catalog with a sync engine, wildcard support and a permission-tree UI; 44+ finance routes and payroll gated behind requirePermission.",
+      "significance": "DRAIS stopped trusting roles implicitly. Every sensitive operation became an explicit, auditable permission — the prerequisite for multi-school trust.",
+      "key_capabilities": [
+        "Granular permission catalog + sync engine + wildcards",
+        "Permission tree UI with search",
+        "Finance reads/writes gated (44 routes)",
+        "Payroll hardening: RBAC, wallet debit integrity, soft delete"
+      ],
+      "architectural_changes": [
+        "requirePermission/userCan as the single authorization primitive",
+        "Super-admin lockout protection",
+        "Orphaned-permission lint (R5) keeping the catalog honest"
+      ],
+      "business_impact": [
+        "Schools can delegate finance work without handing over the whole system"
+      ],
+      "related_commits": [
+        "2026-05-23 feat(rbac): granular permission catalog + sync engine + wildcards",
+        "2026-05-25 feat(rbac): R4 finance writes — gate 24 routes with requirePermission",
+        "2026-05-26 feat(payroll): harden 3 payroll routes"
+      ]
+    },
+    {
+      "version": "0.0.0036",
+      "period": { "from": "2026-05-26", "to": "2026-05-28" },
+      "milestone_title": "Parent Communication System",
+      "summary": "Bulk SMS broadcast, scheduled deadline reminders, and the isolated Parent Portal: identity, OTP-verified learner linking, gated read surfaces and a dedicated UI shell.",
+      "significance": "Parents became first-class users. DRAIS moved from an internal school tool to a school–home communication platform.",
+      "key_capabilities": [
+        "Bulk SMS — paste numbers or pick an audience",
+        "Vercel Cron result-deadline SMS reminders",
+        "Parent portal: register, login, link learners with OTP + staff approval",
+        "Parent read surfaces: overview, attendance, results, fees"
+      ],
+      "architectural_changes": [
+        "Portal isolation core — separate identity and access gate from staff auth",
+        "School modules admin (per-school feature flags)"
+      ],
+      "business_impact": [
+        "Schools message every guardian in one action",
+        "Parents self-serve results and fees without calling the school"
+      ],
+      "related_commits": [
+        "2026-05-26 feat(comm): bulk SMS broadcast",
+        "2026-05-27 feat(portal): parent portal isolation core",
+        "2026-05-27 feat(portal): parent→learner linking with OTP-match + staff approval"
+      ]
+    },
+    {
+      "version": "0.0.0052",
+      "period": { "from": "2026-05-31", "to": "2026-06-10" },
+      "milestone_title": "Biometric Attendance Foundation",
+      "summary": "ZKTeco ADMS push ingestion with instant parent SMS, per-school working hours, orphan fingerprint claiming, fuzzy PIN mapping and holiday awareness.",
+      "significance": "DRAIS moved from recording attendance to sensing it — punches flow in live from devices, and parents know within seconds.",
+      "key_capabilities": [
+        "ADMS push ingestion (works on Vercel, store-and-forward tolerant)",
+        "SMS on punch: parents for learners, headteacher for staff, late-arrival routing",
+        "Per-school working/study hours with per-day overrides",
+        "Orphan FP claiming + name-aware fuzzy PIN candidates",
+        "Holiday CRUD + device alert acknowledgements"
+      ],
+      "architectural_changes": [
+        "Device → ingest → notify pipeline established",
+        "school_hours as the first per-school time policy"
+      ],
+      "business_impact": [
+        "JIPRA-class schools run gate attendance without manual registers"
+      ],
+      "related_commits": [
+        "2026-05-31 feat(adms): SMS notification trigger on ZKTeco ADMS push",
+        "2026-06-03 feat(biometric): store FP_CAPTURED_UNMAPPED orphans + admin claim API",
+        "2026-06-04 feat(attendance): holiday CRUD UI"
+      ]
+    },
+    {
+      "version": "0.0.0083",
+      "period": { "from": "2026-06-01", "to": "2026-06-22" },
+      "milestone_title": "Document Trust & Anti-Forgery",
+      "summary": "Signature blocks, QR/barcodes as first-class DRCE shapes, public verification URLs bound to each document, and parent-downloadable report PDFs.",
+      "significance": "A DRAIS report card became verifiable by anyone with a phone — forged documents die at the QR scan.",
+      "key_capabilities": [
+        "Signed-by signature panels in DRCE",
+        "QR + barcode shapes with document binding",
+        "Public anti-forgery verify URLs",
+        "Parent portal PDF downloads"
+      ],
+      "architectural_changes": [
+        "Verification tokens as a public, unauthenticated read surface"
+      ],
+      "business_impact": [
+        "Employers/universities can verify a result slip without contacting the school"
+      ],
+      "related_commits": [
+        "2026-06 feat(drce): QR code + barcode as first-class shapes",
+        "2026-06 feat(reports): public anti-forgery verify URLs + QR binding"
+      ]
+    },
+    {
+      "version": "1.48.2",
+      "period": { "from": "2026-06-03", "to": "2026-06-29" },
+      "milestone_title": "Multi-Platform Era",
+      "summary": "Electron desktop packaging for Windows, Android APK via Capacitor + nodejs-mobile, and a cross-platform CI release pipeline. Semver baseline (1.0.0) established mid-era.",
+      "significance": "DRAIS escaped the browser: schools with unstable internet got a desktop app; the field got an installable APK.",
+      "key_capabilities": [
+        "Windows desktop app (Electron + electron-builder)",
+        "Android APK (Capacitor 8 + nodejs-mobile)",
+        "Cross-platform desktop CI releases"
+      ],
+      "architectural_changes": [
+        "Version odometer replaced by semantic versioning (bump-version.mjs)",
+        "Standalone bundle handling for native modules"
+      ],
+      "business_impact": [
+        "Offline-leaning schools can adopt DRAIS"
+      ],
+      "related_commits": [
+        "2026-06-03 chore(packaging): Electron + electron-builder scaffold for Windows",
+        "2026-06-04 feat(packaging): Android APK scaffold via Capacitor + nodejs-mobile",
+        "2026-06-29 ci: cross-platform desktop release pipeline"
+      ]
+    },
+    {
+      "version": "1.70.3",
+      "period": { "from": "2026-06-30", "to": "2026-07-08" },
+      "milestone_title": "Design System & Theming Integrity",
+      "summary": "Tailwind v4 token migration, dark-mode binding fixed at the root, and a full dark-broken sweep across every component.",
+      "significance": "The product started looking like one system instead of many pages — and dark mode became a first-class citizen.",
+      "key_capabilities": [
+        "Theme toggle that actually re-themes every surface",
+        "Glass/token design policy"
+      ],
+      "architectural_changes": [
+        "@custom-variant dark binding; 'no-dark = broken' heuristic with safe automated sweeps"
+      ],
+      "business_impact": [
+        "Professional appearance in demos and daily use"
+      ],
+      "related_commits": [
+        "2026-07-05 fix(theme): final dark-broken components tokenized (v1.70.3)"
+      ]
+    },
+    {
+      "version": "1.80.65",
+      "period": { "from": "2026-07-10", "to": "2026-07-18" },
+      "milestone_title": "Grading Integrity — Division Forensics",
+      "summary": "Forensic investigation and phased repair of aggregate/division computation: the singular/plural spread bug, the contributing-subjects policy (ICT/IRE/electives never count), and the nursery grade rule.",
+      "significance": "Report-card numbers became provably correct — verified against every class, with a verify:divisions gate for future grading changes.",
+      "key_capabilities": [
+        "getContributingAssessmentResults as the single aggregates authority",
+        "Division thresholds policy [12,24,28,32]",
+        "Nursery most-common-grade rule"
+      ],
+      "architectural_changes": [
+        "Render-time calculation from snapshotted marks (no stale stored divisions)"
+      ],
+      "business_impact": [
+        "JIPRA/Al Bayan report cards match manual computation exactly"
+      ],
+      "related_commits": [
+        "v1.80.64-65 division mismatch postmortem (docs/audits)"
+      ]
+    },
+    {
+      "version": "1.80.97",
+      "period": { "from": "2026-07-15", "to": "2026-07-22" },
+      "milestone_title": "Attendance Time Authority & Identity Reconciliation",
+      "summary": "The TCP-pull forensic redesign: DeviceWallTime canonical module, staged acquisitions with validation, the device-control wizard with operator time-check, the identity-matching engine (auto/review tiers), and per-weekday arrival rules.",
+      "significance": "Attendance stopped depending on the device clock being right or PINs being pre-mapped — time and identity both became verified, correctable layers.",
+      "key_capabilities": [
+        "One-click day pull with names and drift correction",
+        "Identity matching with confidence tiers and 1:1 guards",
+        "Staff shifts (night workers) beating school rules",
+        "Per-weekday arrival overrides (Saturday 10:00)"
+      ],
+      "architectural_changes": [
+        "punch_at = corrected instant; device_reported_time = verbatim dedup identity",
+        "Staged acquisition pipeline (pull → validate → commit)"
+      ],
+      "business_impact": [
+        "JIPRA's 186-user device fully mapped; nameless logs eliminated"
+      ],
+      "related_commits": [
+        "docs/audits/TCP_PULL_FORENSIC_AND_REDESIGN.md",
+        "v1.80.98 feat(attendance): per-weekday arrival rules + role-labeled dashboard"
+      ]
+    },
+    {
+      "version": "1.80.102",
+      "period": { "from": "2026-07-01", "to": "2026-07-23" },
+      "milestone_title": "Learner Movement & Gate Security (Passout Intelligence)",
+      "summary": "From the biometric pass-out foundation and guardian visitation cards to full movement management: identity-verified creation, configurable approvals, AUTHORIZED/NOT-AUTHORIZED gate verdicts, exit-triggered parent SMS and return tracking.",
+      "significance": "The school gate became a verified checkpoint: no learner leaves without identity, authorization and a truthful parent notification.",
+      "key_capabilities": [
+        "Verify-first pass creation (fingerprint / student ID / gated manual)",
+        "Single or two-step approval workflows",
+        "Gate page + live-scan verdicts on gate devices",
+        "SMS only after verified exit; optional return SMS",
+        "Movement dashboard: outside-now, overdue, frequent leavers"
+      ],
+      "architectural_changes": [
+        "Gate engine on the live-scan hot path",
+        "Pass-out events as a full audit trail with actor + IP"
+      ],
+      "business_impact": [
+        "Parents are told the truth: SMS reflects actual gate exits, never intentions"
+      ],
+      "related_commits": [
+        "2026-07 feat(passouts): biometric pass-out foundation",
+        "v1.80.102 feat(passouts): biometric-backed learner movement management"
+      ]
+    },
+    {
+      "version": "1.82.0",
+      "period": { "from": "2026-07-23", "to": "2026-07-23" },
+      "milestone_title": "Operational Intelligence Era",
+      "summary": "The Attendance Intelligence Program: self-healing Time Intelligence (drift detection, assisted correction, undo), the ten-check Health Center with an overall score, and the Digital Twin tracing every punch through ten lifecycle stages.",
+      "significance": "DRAIS began monitoring, explaining and repairing itself — the founder-independence turn.",
+      "key_capabilities": [
+        "Per-device learned attendance fingerprints + batch confidence scoring",
+        "Attendance Health Score with worst-first recommendations",
+        "Event Explorer: 'where did it break?' for any punch",
+        "Inline clock-health badges where operators actually work"
+      ],
+      "architectural_changes": [
+        "attendance_time_baselines / device_clock_health / corrections-with-undo",
+        "Pure, unit-tested decision engines (assessBatch, composeStages, computeOverallHealth)"
+      ],
+      "business_impact": [
+        "The +5h JIPRA clock incident class is now caught automatically before reports are trusted"
+      ],
+      "related_commits": [
+        "v1.81.0 Attendance Health Center",
+        "v1.82.0 Attendance Digital Twin",
+        "v1.80.103 Time Intelligence Engine"
+      ]
+    },
+    {
+      "version": "1.83.0",
+      "period": { "from": "2026-07-23", "to": "2026-07-23" },
+      "milestone_title": "Institutional Memory Foundation",
+      "summary": "The About / System Information module: permanent release history generated from git on every commit, and this Product Evolution layer explaining why each era existed.",
+      "significance": "DRAIS can now explain its own evolution without depending on founder memory — every future employee can answer 'what is this version and why does it exist?' from inside the product.",
+      "key_capabilities": [
+        "/about: identity, current release, categorized changes, 300+ release history",
+        "Self-recording changelog (pre-commit hook, self-healing from git log)",
+        "Milestone layer with human-reviewed publishing"
+      ],
+      "architectural_changes": [
+        "src/data/changelog.json + release-milestones.json as structured, component-free history"
+      ],
+      "business_impact": [
+        "Product survives beyond its founder: history, reasoning and stability are visible in-app"
+      ],
+      "related_commits": [
+        "v1.83.0 feat(about): About / System Information module"
+      ]
+    }
+  ]
+}
