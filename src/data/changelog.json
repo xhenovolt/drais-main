@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T15:58:35.580Z",
-  "last_commit": "ab89625a13b1ef33e2572ecb6aef51208523eae2",
+  "generated_at": "2026-07-23T16:39:49.782Z",
+  "last_commit": "96a8db73a067e574af69ae50879821818a5ba654",
   "releases": [
     {
       "version": "0.0.0049",
@@ -3966,7 +3966,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.84.1",
+      "date": "2026-07-23",
+      "release_type": "patch",
+      "title": "Auto-publish snap to the Snap Store on tagged releases",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Auto-publish snap to the Snap Store on tagged releases"
+        }
+      ],
+      "commit": "96a8db73a0"
     }
   ],
-  "app_version": "1.84.1"
+  "app_version": "1.84.2"
 }

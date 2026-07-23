@@ -4,6 +4,10 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
     cpus: 1,
+    // Vercel's build container has 8 GB TOTAL; the compile phase OOM-killed
+    // once the app crossed ~660 pages (heap cap only bounds JS, not webpack/
+    // SWC native memory). This trades some build speed for bounded memory.
+    webpackMemoryOptimizations: true,
   },
 
   // Keep puppeteer + the lambda Chromium binary out of the webpack bundle;
