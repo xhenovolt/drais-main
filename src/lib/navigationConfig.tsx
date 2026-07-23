@@ -416,6 +416,7 @@ export function getNavigationItems(
         { key: 'att-device-intel',   label: 'Device Intelligence', icon: <Cpu className="w-4 h-4" />,         href: '/attendance/device-intelligence' },
         { key: 'att-enrollment',     label: 'Enrollment Station', icon: <UserPlus className="w-4 h-4" />,    href: '/attendance/enrollment' },
         { key: 'att-identity-match', label: 'Identity Matching', icon: <UserCheck className="w-4 h-4" />,    href: '/attendance/identity-matching' },
+        { key: 'att-identity-intel', label: 'Identity Intelligence', icon: <Fingerprint className="w-4 h-4" />, href: '/attendance/identity-intelligence' },
         { key: 'att-device-ctrl',    label: 'Device Control',    icon: <Settings className="w-4 h-4" />,     href: '/attendance/device-control' },
         { key: 'att-cmd-monitor',    label: 'Command Monitor',   icon: <ArrowUpDown className="w-4 h-4" />,  href: '/attendance/devices/commands' },
         { key: 'att-device-alerts',  label: 'Device Alerts',     icon: <AlertTriangle className="w-4 h-4" />, href: '/admin/device-alerts' },

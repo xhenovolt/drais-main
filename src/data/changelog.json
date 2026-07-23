@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T18:58:14.875Z",
-  "last_commit": "fc2c08c24510bdca4153841116e4c54302aa0a67",
+  "generated_at": "2026-07-23T19:12:32.320Z",
+  "last_commit": "3e9608b71392555e4282b6721697c1d2c33bef89",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4044,7 +4044,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.89.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Identity Intelligence — Phase 8 mapping health + suggestions",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Identity Intelligence — Phase 8 mapping health + suggestions"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.88.0"
+  "app_version": "1.89.0"
 }
