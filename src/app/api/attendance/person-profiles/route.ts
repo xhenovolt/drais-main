@@ -59,21 +59,27 @@ export async function GET(req: NextRequest) {
     }));
 
     // Watch-list first, then by absence rate.
-    const order: Record<string, number> = { frequently_absent: 0, declining: 1, chronically_late: 2, occasionally_late: 3, improving: 4, reliable: 5, insufficient_data: 6 };
+    const order: Record<string, number> = { frequently_absent: 0, declining: 1, chronically_late: 2, occasionally_late: 3, improving: 4, reliable: 5, never_present: 6, insufficient_data: 7 };
     profiles.sort((a, b) => (order[a.behaviour] - order[b.behaviour]) || (b.absentRate - a.absentRate));
 
     if (sp.get('banner')) {
       return NextResponse.json({ success: true, watch: profiles.filter(p => p.watch).length });
     }
+    // Behavioural watch-list and roster-review are DELIBERATELY separate: the
+    // former is real people to worry about, the latter is roster hygiene
+    // (never-present = likely former/unenrolled). DRAIS makes this split
+    // itself so the behaviour signal is never polluted by stale roster rows.
     return NextResponse.json({
       success: true, role, days,
       watchlist: profiles.filter(p => p.watch),
-      all: profiles,
+      roster_review: profiles.filter(p => p.rosterReview),
+      all: profiles.filter(p => !p.rosterReview),
       summary: {
         people: profiles.length,
         frequently_absent: profiles.filter(p => p.behaviour === 'frequently_absent').length,
         declining: profiles.filter(p => p.behaviour === 'declining').length,
         chronically_late: profiles.filter(p => p.behaviour === 'chronically_late').length,
+        roster_review: profiles.filter(p => p.rosterReview).length,
       },
     });
   } catch (e: any) {

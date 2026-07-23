@@ -16,6 +16,22 @@ describe('guards', () => {
   });
 });
 
+describe('roster noise self-separation', () => {
+  it('never showed up in 6 tracked days → never_present + rosterReview, NOT behavioural watch', () => {
+    const p = profilePerson(seq('AAAAAA'));
+    assert.equal(p.behaviour, 'never_present');
+    assert.equal(p.rosterReview, true);
+    assert.equal(p.watch, false); // kept OFF the behavioural watch-list
+    assert.match(p.note, /former member or not enrolled/);
+  });
+  it('showed up even once → treated as behaviour, not roster noise', () => {
+    const p = profilePerson(seq('PAAAAA'));
+    assert.notEqual(p.behaviour, 'never_present');
+    assert.equal(p.rosterReview, false);
+    assert.equal(p.watch, true); // real absenteeism → behavioural watch
+  });
+});
+
 describe('reliable', () => {
   it('mostly present → reliable, not watched', () => {
     const p = profilePerson(seq('PPPPPPPPPP'));

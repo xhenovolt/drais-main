@@ -38,14 +38,14 @@ export async function sweepSchoolIntelligence(schoolId: number, force = false): 
     try { await evaluateDeviceDay(schoolId, d.device_sn); n++; } catch { /* per-device best-effort */ }
   }
 
-  // Materialise absent rows for no-shows (past days + today after school),
-  // so per-person profiles / analytics / allowance see real absence — not a
-  // silent gap. Idempotent; finalizeDay skips people who already have a row.
+  // Materialise absent rows for no-shows so per-person profiles / analytics /
+  // allowance see real absence — not a silent gap. Self-healing: catch up the
+  // last 7 school-local days (each outage-guarded, so pre-deployment / device-
+  // down days are skipped, never marked mass-absent), not just today. This
+  // means a multi-day gap repairs itself with ZERO manual backfill.
   try {
-    const { finalizeDay } = await import('@/lib/attendance/finalize-day');
-    await finalizeDay(schoolId);            // today (after hours) or no-op
-    const y = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-    await finalizeDay(schoolId, y);         // yesterday, guaranteed complete
+    const { finalizeRecentDays } = await import('@/lib/attendance/finalize-day');
+    await finalizeRecentDays(schoolId, 7);
   } catch { /* finalization is best-effort */ }
 
   return { devices: n };

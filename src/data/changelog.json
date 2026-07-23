@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T20:46:38.535Z",
-  "last_commit": "3e1038b79697b1a58da3167ce8ae1f148cd314ce",
+  "generated_at": "2026-07-23T21:50:05.958Z",
+  "last_commit": "17fdb1e23398a3ff3788336a533ffd093fdec6e2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4096,7 +4096,33 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.91.1",
+      "date": "2026-07-23",
+      "release_type": "patch",
+      "title": "Skip absence finalization on whole-school outage days",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Skip absence finalization on whole-school outage days"
+        }
+      ],
+      "commit": "17fdb1e233"
+    },
+    {
+      "version": "1.92.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Self-scaling person intelligence — separates roster noise, self-heals",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Self-scaling person intelligence — separates roster noise, self-heals"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.91.1"
+  "app_version": "1.92.0"
 }

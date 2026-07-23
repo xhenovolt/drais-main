@@ -8,7 +8,7 @@
  */
 import React, { useState } from 'react';
 import useSWR from 'swr';
-import { Users, AlertTriangle, TrendingDown, Clock, UserCheck, Loader2, Eye } from 'lucide-react';
+import { Users, AlertTriangle, TrendingDown, Clock, UserCheck, Loader2, Eye, UserX } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -49,6 +49,7 @@ export default function AttendanceProfiles() {
   const { data, isLoading } = useSWR<any>(`/api/attendance/person-profiles?role=${role}&days=${days}`, fetcher);
 
   const watchlist = data?.watchlist || [];
+  const rosterReview = data?.roster_review || [];
   const all = data?.all || [];
 
   return (
@@ -97,6 +98,25 @@ export default function AttendanceProfiles() {
           ? <p className="text-sm text-gray-400 py-3">No one needs attention in this window — attendance behaviour is healthy.</p>
           : watchlist.map((p: any) => <Row key={p.person_id} p={p} />)}
       </div>
+
+      {/* Roster review — never-present people, kept OUT of behaviour on purpose */}
+      {rosterReview.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1 flex items-center gap-1.5">
+            <UserX className="w-4 h-4 text-slate-500" /> Roster review
+            <span className="text-[11px] font-normal text-gray-400">({rosterReview.length} never checked in — likely former or not enrolled)</span>
+          </p>
+          <p className="text-[11px] text-gray-400 mb-2">These are deliberately kept OUT of the behaviour watch-list. Mark them inactive or fix their device enrollment so attendance reflects real people.</p>
+          <div className="max-h-56 overflow-y-auto">
+            {rosterReview.map((p: any) => (
+              <div key={p.person_id} className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
+                <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{p.name || `#${p.person_id}`}</span>
+                <span className="text-[11px] text-gray-400">{p.trackedDays}d tracked · never present</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Everyone */}
       {all.length > watchlist.length && (

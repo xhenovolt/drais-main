@@ -16,7 +16,9 @@ export interface PersonDay { date: string; status: 'present' | 'late' | 'absent'
 
 export type Behaviour =
   | 'reliable' | 'occasionally_late' | 'chronically_late'
-  | 'frequently_absent' | 'declining' | 'improving' | 'insufficient_data';
+  | 'frequently_absent' | 'declining' | 'improving'
+  | 'never_present'          // tracked days but NEVER showed up → roster/enrollment noise, not behaviour
+  | 'insufficient_data';
 
 export interface PersonProfile {
   trackedDays: number;
@@ -30,7 +32,8 @@ export interface PersonProfile {
   behaviour: Behaviour;
   label: string;              // human label
   note: string;               // admin-facing sentence
-  watch: boolean;             // should this person be on the admin's watch-list?
+  watch: boolean;             // behavioural watch-list (real people to worry about)
+  rosterReview: boolean;      // likely former/unenrolled — for roster hygiene, NOT behaviour
 }
 
 const rate = (n: number, d: number) => (d > 0 ? n / d : 0);
@@ -57,7 +60,7 @@ export function profilePerson(days: PersonDay[]): PersonProfile {
       trackedDays: n, presentRate: 0, lateRate: 0, absentRate: 0,
       currentAbsentStreak: 0, longestAbsentStreak: 0, recentAbsentRate: 0, priorAbsentRate: 0,
       behaviour: 'insufficient_data', label: 'Not enough data',
-      note: `Only ${n} tracked day(s) — need more history to profile.`, watch: false,
+      note: `Only ${n} tracked day(s) — need more history to profile.`, watch: false, rosterReview: false,
     };
   }
 
@@ -65,6 +68,24 @@ export function profilePerson(days: PersonDay[]): PersonProfile {
   const late = graded.filter(d => d.status === 'late').length;
   const showed = graded.filter(d => d.status === 'present' || d.status === 'late' || d.status === 'half_day').length;
   const absentRate = rate(absent, n), lateRate = rate(late, n), presentRate = rate(showed, n);
+
+  // Roster/enrollment noise, separated from behaviour AUTOMATICALLY: a person
+  // with ≥5 tracked days who NEVER once showed up is almost certainly a former
+  // employee/learner or someone not enrolled on the device — not a real
+  // "frequently absent" behaviour. DRAIS flags them for roster review instead
+  // of polluting the behavioural watch-list. This is what makes the whole
+  // feature scalable without a human deciding what's roster bloat.
+  if (n >= 5 && showed === 0) {
+    const { current, longest } = streaks(graded);
+    return {
+      trackedDays: n, presentRate: 0, lateRate: 0, absentRate: 1,
+      currentAbsentStreak: current, longestAbsentStreak: longest,
+      recentAbsentRate: 1, priorAbsentRate: 1,
+      behaviour: 'never_present', label: 'Never present',
+      note: `No check-in on any of ${n} tracked days — likely a former member or not enrolled on the device. Review the roster / enrollment rather than treat as attendance behaviour.`,
+      watch: false, rosterReview: true,
+    };
+  }
 
   const half = Math.floor(n / 2);
   const priorAbsentRate = rate(graded.slice(0, half).filter(d => d.status === 'absent').length, half);
@@ -99,6 +120,6 @@ export function profilePerson(days: PersonDay[]): PersonProfile {
   return {
     trackedDays: n, presentRate, lateRate, absentRate,
     currentAbsentStreak: current, longestAbsentStreak: longest,
-    recentAbsentRate, priorAbsentRate, behaviour, label, note, watch,
+    recentAbsentRate, priorAbsentRate, behaviour, label, note, watch, rosterReview: false,
   };
 }
