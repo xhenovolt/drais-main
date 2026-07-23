@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T19:56:58.377Z",
-  "last_commit": "591906add512917b3d2a2dd7299a5a2ee52a25e3",
+  "generated_at": "2026-07-23T20:40:49.295Z",
+  "last_commit": "7d2242fa466228b3329b2d4b6d148e32cb3ac1e4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4083,7 +4083,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.91.0",
+      "date": "2026-07-23",
+      "release_type": "minor",
+      "title": "Person Attendance Intelligence + daily absence finalization",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Person Attendance Intelligence + daily absence finalization"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.90.0"
+  "app_version": "1.91.0"
 }

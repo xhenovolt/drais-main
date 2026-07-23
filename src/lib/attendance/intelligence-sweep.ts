@@ -37,6 +37,17 @@ export async function sweepSchoolIntelligence(schoolId: number, force = false): 
   for (const d of devices) {
     try { await evaluateDeviceDay(schoolId, d.device_sn); n++; } catch { /* per-device best-effort */ }
   }
+
+  // Materialise absent rows for no-shows (past days + today after school),
+  // so per-person profiles / analytics / allowance see real absence — not a
+  // silent gap. Idempotent; finalizeDay skips people who already have a row.
+  try {
+    const { finalizeDay } = await import('@/lib/attendance/finalize-day');
+    await finalizeDay(schoolId);            // today (after hours) or no-op
+    const y = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    await finalizeDay(schoolId, y);         // yesterday, guaranteed complete
+  } catch { /* finalization is best-effort */ }
+
   return { devices: n };
 }
 
