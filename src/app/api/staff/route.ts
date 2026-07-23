@@ -23,6 +23,13 @@ export async function GET(req: NextRequest) {
     const page = usePagination ? rawPage : 1;
     const limit = usePagination ? rawLimit : null;
     const offset = usePagination && limit ? Math.max(0, (page - 1) * limit) : 0;
+    // Name/staff-no/position search — pickers (e.g. the attendance Assign
+    // popup) rely on this to filter server-side instead of dumping the
+    // full staff list at the user.
+    const search = searchParams.get('search')?.trim() || '';
+    // Bare `search=…&limit=…` (no page) must still cap the result set.
+    const searchLimit = !usePagination && search && Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(100, rawLimit) : null;
 
     connection = await getConnection();
 
@@ -49,6 +56,15 @@ export async function GET(req: NextRequest) {
       console.log('Note: Some staff table columns may already exist');
     }
 
+    // Search across full name (any order), staff number and position.
+    const searchWhere = search
+      ? ` AND (CONCAT_WS(' ', p.first_name, p.other_name, p.last_name) LIKE ?
+           OR CONCAT_WS(' ', p.last_name, p.first_name) LIKE ?
+           OR s.staff_no LIKE ? OR s.position LIKE ?)`
+      : '';
+    const like = `%${search}%`;
+    const searchParams2: any[] = search ? [like, like, like, like] : [];
+
     // Get basic staff data
     let sql = `
       SELECT
@@ -66,22 +82,24 @@ export async function GET(req: NextRequest) {
         p.photo_url
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      WHERE s.school_id = ? AND s.deleted_at IS NULL
+      WHERE s.school_id = ? AND s.deleted_at IS NULL${searchWhere}
       ORDER BY p.first_name, p.last_name
     `;
     if (usePagination && limit) {
       sql += ` LIMIT ${Math.max(1, limit)} OFFSET ${Math.max(0, offset)}`;
+    } else if (searchLimit) {
+      sql += ` LIMIT ${searchLimit}`;
     }
 
-    const [staffRows] = await connection.execute(sql, [schoolId]);
+    const [staffRows] = await connection.execute(sql, [schoolId, ...searchParams2]);
 
     // Count total records
     const [countRows] = await connection.execute(`
       SELECT COUNT(*) as total
       FROM staff s
       JOIN people p ON s.person_id = p.id
-      WHERE s.school_id = ? AND s.deleted_at IS NULL
-    `, [schoolId]);
+      WHERE s.school_id = ? AND s.deleted_at IS NULL${searchWhere}
+    `, [schoolId, ...searchParams2]);
 
     const total = Array.isArray(countRows) ? countRows[0]?.total || 0 : 0;
 

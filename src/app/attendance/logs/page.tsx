@@ -5,7 +5,7 @@ import {
   Users, UserCheck, Briefcase, AlertTriangle, Activity,
   Search, RefreshCw, ChevronLeft, ChevronRight,
   Fingerprint, Download, UserPlus, X, Check, Clock,
-  Radio, ChevronDown, ChevronUp, Trash2,
+  Radio, ChevronDown, ChevronUp, Trash2, Wand2,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
@@ -401,6 +401,65 @@ export default function UnifiedAttendancePage() {
     setTab(key);
     setPage(1);
   }, []);
+
+  // ── Detect & Map ─────────────────────────────────────────────────────────
+  // One click: run the identity-matching engine over the device directory
+  // (live TCP, cached directory as fallback), auto-confirm the certain tier,
+  // retro-claim old punches, and point the operator at the review queue for
+  // the rest. No more manually assigning PINs one by one.
+  const [detecting, setDetecting] = useState(false);
+  const handleDetectAndMap = useCallback(async () => {
+    const targets: string[] = deviceSn
+      ? [deviceSn]
+      : devices.map((d: any) => d.sn).filter(Boolean);
+    if (targets.length === 0) {
+      showToast('error', 'No devices registered for this school');
+      return;
+    }
+    setDetecting(true);
+    try {
+      let mapped = 0, review = 0, unmatchedLeft = 0;
+      for (const sn of targets) {
+        const runRes = await fetch('/api/attendance/identity-matching', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'run', device_sn: sn }),
+        });
+        const runData = await runRes.json();
+        if (!runRes.ok) {
+          showToast('error', `${sn}: ${runData.error || 'matching failed'}`);
+          continue;
+        }
+        review += Number(runData.report?.review || 0);
+        unmatchedLeft += Number(runData.report?.unmatched || 0);
+        if (Number(runData.report?.auto || 0) > 0) {
+          const confRes = await fetch('/api/attendance/identity-matching', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'confirm_auto', device_sn: sn }),
+          });
+          const confData = await confRes.json();
+          if (confRes.ok) mapped += Number(confData.confirmed || 0);
+        }
+      }
+      if (mapped > 0) {
+        showToast('success', `Auto-mapped ${mapped} ${mapped === 1 ? 'person' : 'people'} — old logs claimed retroactively`);
+      }
+      if (review > 0) {
+        showToast('success', `${review} likely ${review === 1 ? 'match needs' : 'matches need'} your confirmation — opening review…`);
+        window.location.href = '/attendance/identity-matching';
+        return;
+      }
+      if (mapped === 0 && review === 0) {
+        showToast('error', unmatchedLeft > 0
+          ? `No name matches found for ${unmatchedLeft} device user${unmatchedLeft === 1 ? '' : 's'} — assign them manually or create the missing people`
+          : 'Nothing to detect — every device user is already mapped');
+      }
+      mutate();
+    } finally {
+      setDetecting(false);
+    }
+  }, [deviceSn, devices, mutate]);
 
   const handleExport = useCallback(async (format: 'csv' | 'excel') => {
     if (visiblePresentationRows.length === 0) {
@@ -855,7 +914,7 @@ export default function UnifiedAttendancePage() {
         </p>
 
         {/* ── Record count ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-sm text-gray-500">
             {pagination.total.toLocaleString()} records
             {tab === 'unmatched' && pagination.total > 0 && (
@@ -864,7 +923,29 @@ export default function UnifiedAttendancePage() {
               </span>
             )}
           </p>
-          {isLoading && <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />}
+          <div className="flex items-center gap-2">
+            {tab === 'unmatched' && pagination.total > 0 && (
+              <>
+                <button
+                  onClick={handleDetectAndMap}
+                  disabled={detecting}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
+                  title="Match device user names against DRAIS staff/learners automatically"
+                >
+                  {detecting
+                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Detecting…</>
+                    : <><Wand2 className="w-3.5 h-3.5" /> Detect &amp; map</>}
+                </button>
+                <a
+                  href="/attendance/identity-matching"
+                  className="text-xs text-violet-600 dark:text-violet-400 hover:underline whitespace-nowrap"
+                >
+                  Review queue
+                </a>
+              </>
+            )}
+            {isLoading && <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />}
+          </div>
         </div>
 
         {/* ── Mobile card list (xs only, < sm) ───────────────────────── */}

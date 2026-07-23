@@ -288,6 +288,38 @@ export async function confirmMatch(args: {
     roleType, refId, enrollmentId: res.enrollmentId,
   });
 
+  // Retro-claim: stamp all prior unmatched punches for this PIN with the
+  // person's identity, then re-run day verdicts for the affected dates —
+  // otherwise the Unmatched tab keeps showing history that IS now mapped.
+  try {
+    const { backfillAttendanceRawEventsForMapping } = await import('@/lib/attendance/raw-event-backfill');
+    const backfill = await backfillAttendanceRawEventsForMapping({
+      schoolId,
+      deviceUserId: pin,
+      deviceSn,
+      studentId: roleType === 'student' ? refId : null,
+      staffId: roleType === 'staff' ? refId : null,
+    });
+    if (backfill.affectedDates.length) {
+      const personRows = (await query(
+        roleType === 'staff'
+          ? `SELECT person_id FROM staff WHERE id = ? AND school_id = ? LIMIT 1`
+          : `SELECT person_id FROM students WHERE id = ? AND school_id = ? LIMIT 1`,
+        [refId, schoolId],
+      )) as Array<{ person_id: number | null }>;
+      const personId = personRows[0]?.person_id;
+      if (personId) {
+        const { evaluateDay } = await import('@/lib/attendance/engine');
+        for (const d of backfill.affectedDates) {
+          await evaluateDay(schoolId, personId, roleType, d).catch(() => {});
+        }
+      }
+    }
+  } catch (e) {
+    // Retro-claim is best-effort — the enrollment itself is already saved.
+    console.error('[identity-matching] retro-claim failed:', (e as Error)?.message);
+  }
+
   return { ok: true, enrollmentId: res.enrollmentId };
 }
 

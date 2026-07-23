@@ -26,10 +26,14 @@ export async function backfillAttendanceRawEventsForMapping(
     return { affectedDates: [], affectedRows: 0 };
   }
 
-  const mappedPersonId = input.studentId ?? input.staffId ?? null;
+  // role_ref_id = the staff/students ROW id; person_id = people.id.
+  // (These are different tables — the old code wrote the row id into
+  // person_id, which broke the `people` join for retro-assigned logs.)
+  const mappedRefId = input.studentId ?? input.staffId ?? null;
   const mappedRoleType = input.studentId != null ? 'student' : input.staffId != null ? 'staff' : null;
 
   let mappedDisplayName: string | null = null;
+  let mappedPersonId: number | null = null;
   if (input.studentId != null) {
     const rows = await query(
       `SELECT NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), '') AS person_name,
@@ -42,6 +46,7 @@ export async function backfillAttendanceRawEventsForMapping(
       [input.studentId, input.schoolId],
     ) as Array<{ person_name: string | null; person_id: number | null }>;
     mappedDisplayName = rows[0]?.person_name ?? null;
+    mappedPersonId = rows[0]?.person_id ?? null;
   } else if (input.staffId != null) {
     const rows = await query(
       `SELECT NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), '') AS person_name,
@@ -54,9 +59,10 @@ export async function backfillAttendanceRawEventsForMapping(
       [input.staffId, input.schoolId],
     ) as Array<{ person_name: string | null; person_id: number | null }>;
     mappedDisplayName = rows[0]?.person_name ?? null;
+    mappedPersonId = rows[0]?.person_id ?? null;
   }
 
-  if (mappedPersonId == null || !mappedRoleType) {
+  if (mappedRefId == null || mappedPersonId == null || !mappedRoleType) {
     return { affectedDates: [], affectedRows: 0 };
   }
 
@@ -76,7 +82,7 @@ export async function backfillAttendanceRawEventsForMapping(
             display_name = COALESCE(NULLIF(display_name, ''), ?),
             matched = 1
       WHERE ${where}`,
-    [mappedPersonId, mappedRoleType, mappedPersonId, mappedDisplayName, ...whereParams],
+    [mappedPersonId, mappedRoleType, mappedRefId, mappedDisplayName, ...whereParams],
   );
 
   const dateRows = await query(
