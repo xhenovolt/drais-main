@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
+import BiometricEnrollmentPanel from '@/components/attendance/BiometricEnrollmentPanel';
 
 /* ── Types ──────────────────────────────────────────────────────── */
 
@@ -186,6 +187,9 @@ export default function EnrollmentStationPage() {
             icon={<AlertTriangle className="w-5 h-5 text-amber-500" />}
           />
         </div>
+
+        {/* Biometric enrollment lookup — view/manage a person's fingers + card */}
+        <BiometricEnrollmentPanel />
 
         {/* Action bar */}
         {selectedDevice && (
