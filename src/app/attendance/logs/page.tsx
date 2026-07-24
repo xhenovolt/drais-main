@@ -760,23 +760,17 @@ export default function UnifiedAttendancePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100
-      dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600
-            bg-clip-text text-transparent flex items-center gap-3">
-            <Fingerprint className="w-8 h-8 text-blue-600" />
-            Attendance Logs
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Human-readable logs from biometric devices — persisted history
-          </p>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="max-w-[1600px] mx-auto px-4 py-4">
+        {/* ── Header — compact, ERP-style ─────────────────────────────── */}
+        <div className="mb-3 flex items-center gap-2">
+          <Fingerprint className="w-5 h-5 text-indigo-600" />
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white">Attendance Logs</h1>
+          <span className="text-xs text-gray-400 hidden sm:inline">— persisted biometric history</span>
         </div>
 
-        {/* ── Live Feed ──────────────────────────────────────────────── */}
-        <div className="mb-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+        {/* ── Live Feed (collapsed by default — data first) ───────────── */}
+        <div className="mb-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <button
             onClick={() => setLiveFeedOpen(!liveFeedOpen)}
             className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700/50"
@@ -1108,44 +1102,29 @@ export default function UnifiedAttendancePage() {
           </div>
         )}
 
-        <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-          Leave the date filters blank to show all saved attendance logs. The live panel above is only for new punches arriving right now.
-        </p>
-
-        {/* ── Time Intelligence warning — device clock drift detected ─── */}
-        {timeAnomaly && (
-          <div className="mb-4 p-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20">
-            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" /> Attendance Time Anomaly Detected — {timeAnomaly.device_sn}
-            </p>
-            <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">
-              {timeAnomaly.detail} ({timeAnomaly.driftConfidence}% drift confidence). No corrections have been applied — today&apos;s times may be wrong.
-            </p>
-            <a href="/attendance/time-health" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium">
-              Review &amp; correct on the Time Health page
-            </a>
+        {/* ── Attention row — anomalies + clock health on ONE compact line
+               so alerts never push the table below the fold ───────────── */}
+        {(timeAnomaly || recoveryGap) && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 text-xs">
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
+            {timeAnomaly && (
+              <span className="text-rose-800 dark:text-rose-200">
+                Clock drift on {timeAnomaly.device_sn} ({timeAnomaly.driftConfidence}%) —{' '}
+                <a href="/attendance/time-health" className="underline font-medium">fix time</a>
+              </span>
+            )}
+            {timeAnomaly && recoveryGap && <span className="text-rose-300">·</span>}
+            {recoveryGap && (
+              <span className="text-rose-800 dark:text-rose-200">
+                Gap on {recoveryGap.device_name || recoveryGap.device_sn} —{' '}
+                <a href="/attendance/recovery" className="underline font-medium">recover</a>
+              </span>
+            )}
           </div>
         )}
 
-        {/* ── Attendance gap detected — recovery finds the operator ──── */}
-        {recoveryGap && (
-          <div className="mb-4 p-4 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20">
-            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" /> Attendance gap — {recoveryGap.device_name || recoveryGap.device_sn}
-            </p>
-            <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">{recoveryGap.verdict?.reason}</p>
-            <a href="/attendance/recovery" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium">
-              Open Recovery Center
-            </a>
-          </div>
-        )}
-
-        {/* ── Device clock health — inline, where the operator actually works */}
-        <div className="mb-2">
-          <ClockHealthBadges />
-        </div>
-
-        {/* ── Record count ─────────────────────────────────────────────── */}
+        {/* ── Record count + device clock health, one line ─────────────── */}
+        <div className="mb-1.5"><ClockHealthBadges /></div>
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-sm text-gray-500">
             {pagination.total.toLocaleString()} records
