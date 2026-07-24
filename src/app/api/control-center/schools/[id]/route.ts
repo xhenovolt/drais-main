@@ -70,5 +70,53 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       { module: b.module_code, enabled: !!b.enabled }, clientIp(req));
     return NextResponse.json({ success: true });
   }
+
+  // ── Suspend / activate a school (operate without its credentials) ──
+  if (b?.action === 'set_status') {
+    const status = ['active', 'suspended'].includes(b.status) ? b.status : null;
+    if (!status) return NextResponse.json({ error: "status must be 'active' or 'suspended'" }, { status: 400 });
+    const before = ((await query(`SELECT status FROM schools WHERE id = ? LIMIT 1`, [schoolId])) as any[])[0]?.status ?? null;
+    await query(`UPDATE schools SET status = ?, updated_at = NOW() WHERE id = ?`, [status, schoolId]);
+    await controlAudit(user.id, status === 'suspended' ? 'school_suspended' : 'school_activated', `schools:${schoolId}`,
+      { from: before, to: status, reason: b.reason ?? null }, clientIp(req));
+    return NextResponse.json({ success: true, status });
+  }
+
+  // ── Subscription / license management ──
+  if (b?.action === 'set_subscription') {
+    const plan = b.plan ? String(b.plan).slice(0, 40) : null;
+    const subStatus = b.subscription_status ? String(b.subscription_status).slice(0, 40) : null;
+    const endDate = b.subscription_end_date ? String(b.subscription_end_date).slice(0, 10) : null;
+    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return NextResponse.json({ error: 'subscription_end_date must be YYYY-MM-DD' }, { status: 400 });
+    const before = ((await query(`SELECT subscription_plan, subscription_status, subscription_end_date FROM schools WHERE id = ? LIMIT 1`, [schoolId])) as any[])[0] ?? null;
+    await query(
+      `UPDATE schools SET
+         subscription_plan = COALESCE(?, subscription_plan),
+         subscription_status = COALESCE(?, subscription_status),
+         subscription_end_date = COALESCE(?, subscription_end_date),
+         updated_at = NOW()
+       WHERE id = ?`,
+      [plan, subStatus, endDate, schoolId],
+    );
+    await controlAudit(user.id, 'subscription_updated', `schools:${schoolId}`,
+      { before, after: { plan, subscription_status: subStatus, subscription_end_date: endDate } }, clientIp(req));
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Extend the trial/subscription by N days (quick action) ──
+  if (b?.action === 'extend_days') {
+    const days = Math.max(1, Math.min(3650, Number(b.days) || 0));
+    if (!days) return NextResponse.json({ error: 'days is required' }, { status: 400 });
+    await query(
+      `UPDATE schools SET subscription_end_date =
+         DATE_ADD(COALESCE(subscription_end_date, CURDATE()), INTERVAL ? DAY), updated_at = NOW()
+       WHERE id = ?`,
+      [days, schoolId],
+    );
+    const after = ((await query(`SELECT subscription_end_date FROM schools WHERE id = ? LIMIT 1`, [schoolId])) as any[])[0]?.subscription_end_date ?? null;
+    await controlAudit(user.id, 'subscription_extended', `schools:${schoolId}`, { days, new_end: after }, clientIp(req));
+    return NextResponse.json({ success: true, subscription_end_date: after });
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }

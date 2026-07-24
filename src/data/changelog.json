@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-24T08:10:14.089Z",
-  "last_commit": "4056903a2d36625e1b6c7bb5108ef86c4020abdd",
+  "generated_at": "2026-07-24T20:22:11.909Z",
+  "last_commit": "c4c5229d65cd57cecf34010bad6cfb00da9f2b72",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4200,7 +4200,33 @@
         }
       ],
       "commit": "4056903a2d"
+    },
+    {
+      "version": "1.94.5",
+      "date": "2026-07-24",
+      "release_type": "patch",
+      "title": "Correct-modal search now populates live (drop flaky SWR)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Correct-modal search now populates live (drop flaky SWR)"
+        }
+      ],
+      "commit": "c4c5229d65"
+    },
+    {
+      "version": "1.95.0",
+      "date": "2026-07-24",
+      "release_type": "minor",
+      "title": "Control Center subscription + suspend/activate — operate schools without their login",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Control Center subscription + suspend/activate — operate schools without their login"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.94.5"
+  "app_version": "1.95.0"
 }

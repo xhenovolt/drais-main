@@ -1,9 +1,9 @@
 'use client';
 
 /** School operations view — "is this school operating normally?" + feature flags. */
-import React, { use, useCallback } from 'react';
+import React, { use, useCallback, useState } from 'react';
 import useSWR from 'swr';
-import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity } from 'lucide-react';
+import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity, Power, CalendarPlus, CreditCard } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -11,13 +11,14 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
   const { id } = use(params);
   const { data, mutate, isLoading } = useSWR<any>(`/api/control-center/schools/${id}`, fetcher);
 
-  const toggleModule = useCallback(async (code: string, enabled: boolean) => {
+  const act = useCallback(async (body: any) => {
     const r = await fetch(`/api/control-center/schools/${id}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'set_module', module_code: code, enabled }),
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
     if (r.ok) mutate();
+    return r.ok;
   }, [id, mutate]);
+  const toggleModule = useCallback((code: string, enabled: boolean) => act({ action: 'set_module', module_code: code, enabled }), [act]);
 
   if (isLoading || !data) return <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>;
   if (!data.success) return <p className="text-rose-400 text-sm">{data.error}</p>;
@@ -36,6 +37,9 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
         </div>
         <span className={`text-[11px] px-2 py-1 rounded font-semibold uppercase ${s.status === 'active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>{s.status}</span>
       </div>
+
+      {/* Subscription & lifecycle control — operate the school without its login */}
+      <SubscriptionControl school={s} act={act} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Tile label="Punches (24h)" value={data.punches_24h} />
@@ -121,6 +125,54 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <p className="text-sm font-semibold text-slate-200 mb-2 flex items-center gap-1.5">{icon} {title}</p>
       {children}
+    </div>
+  );
+}
+
+function SubscriptionControl({ school, act }: { school: any; act: (b: any) => Promise<boolean> }) {
+  const [plan, setPlan] = useState(school.subscription_plan || '');
+  const [subStatus, setSubStatus] = useState(school.subscription_status || '');
+  const [endDate, setEndDate] = useState(school.subscription_end_date ? String(school.subscription_end_date).slice(0, 10) : '');
+  const [busy, setBusy] = useState('');
+  const run = async (label: string, body: any) => { setBusy(label); try { await act(body); } finally { setBusy(''); } };
+  const suspended = school.status === 'suspended';
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+      <p className="text-sm font-semibold text-slate-200 flex items-center gap-1.5"><CreditCard className="w-4 h-4 text-indigo-400" /> Subscription &amp; lifecycle</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <label className="text-[11px] text-slate-400">Plan
+          <select value={plan} onChange={(e) => setPlan(e.target.value)} className="mt-0.5 w-full px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 text-sm">
+            {['', 'Trial', 'Bronze', 'Silver', 'Gold', 'Enterprise'].map(p => <option key={p} value={p}>{p || '—'}</option>)}
+          </select>
+        </label>
+        <label className="text-[11px] text-slate-400">Status
+          <select value={subStatus} onChange={(e) => setSubStatus(e.target.value)} className="mt-0.5 w-full px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 text-sm">
+            {['', 'trial', 'active', 'past_due', 'cancelled'].map(p => <option key={p} value={p}>{p || '—'}</option>)}
+          </select>
+        </label>
+        <label className="text-[11px] text-slate-400">Ends
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-0.5 w-full px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 text-sm" />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => run('save', { action: 'set_subscription', plan, subscription_status: subStatus, subscription_end_date: endDate || null })}
+          disabled={busy === 'save'} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium disabled:opacity-50">
+          {busy === 'save' ? 'Saving…' : 'Save subscription'}
+        </button>
+        {[30, 90, 365].map(d => (
+          <button key={d} onClick={() => run(`ext${d}`, { action: 'extend_days', days: d })} disabled={busy === `ext${d}`}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs disabled:opacity-50">
+            <CalendarPlus className="w-3 h-3" /> +{d}d
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button onClick={() => run('status', { action: 'set_status', status: suspended ? 'active' : 'suspended' })} disabled={busy === 'status'}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 ${suspended ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-rose-600 hover:bg-rose-500 text-white'}`}>
+          <Power className="w-3.5 h-3.5" /> {suspended ? 'Reactivate school' : 'Suspend school'}
+        </button>
+      </div>
+      <p className="text-[10px] text-slate-500">Every change here is recorded in the Control Center audit log (who / when / old → new). Suspending blocks the school from operating without touching its data.</p>
     </div>
   );
 }
