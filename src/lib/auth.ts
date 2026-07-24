@@ -9,6 +9,20 @@ import { query } from '@/lib/db';
 
 const SESSION_COOKIE_NAME = 'drais_session';
 
+// The sessions.impersonated_by_control_user column is referenced in the hot
+// session query below. Guarantee it exists (promise-gated, runs the ALTER
+// once at runtime, then caches) BEFORE the query references it — otherwise a
+// fresh deploy would reference a missing column and break every login.
+let _impCol: Promise<void> | null = null;
+function ensureImpersonationColumn(): Promise<void> {
+  if (_impCol) return _impCol;
+  _impCol = (async () => {
+    try { await query(`ALTER TABLE sessions ADD COLUMN impersonated_by_control_user BIGINT DEFAULT NULL`, []); }
+    catch { /* already exists — fine */ }
+  })();
+  return _impCol;
+}
+
 export interface SessionInfo {
   userId:              number;
   schoolId:            number;
@@ -35,6 +49,8 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
   try {
     const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     if (!sessionToken) return null;
+
+    await ensureImpersonationColumn(); // guaranteed before the SELECT references it
 
     const sessions: any = await query(
       `SELECT
@@ -66,7 +82,8 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
                OR LOWER(r.slug) = 'super_admin'
                OR LOWER(TRIM(r.name)) IN ('super admin', 'superadmin')
             )
-        ) AS is_super_admin
+        ) AS is_super_admin,
+        s.impersonated_by_control_user AS impersonated_by_control_user
       FROM sessions s
       JOIN  users u  ON u.id             = s.user_id
       LEFT JOIN staff stf
@@ -123,7 +140,10 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
       email:              s.email || '',
       firstName:          s.first_name || '',
       lastName:           s.last_name || '',
-      isSuperAdmin:       Boolean(s.is_super_admin),
+      // A Control-Center impersonation is minted only by a verified Xhenvolt
+      // super-admin, so it carries full access regardless of the operated-as
+      // user's own roles — that's the point of "operate the school fully".
+      isSuperAdmin:       Boolean(s.is_super_admin) || s.impersonated_by_control_user != null,
       staffId:            s.staff_id ? Number(s.staff_id) : null,
       mustChangePassword: Boolean(s.must_change_password),
     };

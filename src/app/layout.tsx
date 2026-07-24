@@ -8,6 +8,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import FeatureUpdateNotification from '@/components/notifications/FeatureUpdateNotification';
+import ImpersonationBanner from '@/components/control/ImpersonationBanner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
 import { TermProvider } from '@/contexts/TermContext';
@@ -172,6 +173,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         </main>
       ) : (
         <>
+          <ImpersonationBanner />
           <MainLayout>
             <HeartbeatProvider />
             {/* Phase 7 — global live-scan popup (was /students/list only). */}

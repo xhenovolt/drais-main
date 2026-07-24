@@ -3,7 +3,7 @@
 /** School operations view — "is this school operating normally?" + feature flags. */
 import React, { use, useCallback, useState } from 'react';
 import useSWR from 'swr';
-import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity, Power, CalendarPlus, CreditCard } from 'lucide-react';
+import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity, Power, CalendarPlus, CreditCard, LogIn } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -35,7 +35,10 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
           <h1 className="text-xl font-bold text-slate-100">{s.name}</h1>
           <p className="text-xs text-slate-500">{s.district || ''} {s.country || ''} · Sub: {s.subscription_plan || '—'} ({s.subscription_status || '—'}) · Joined {new Date(s.created_at).toLocaleDateString()}</p>
         </div>
-        <span className={`text-[11px] px-2 py-1 rounded font-semibold uppercase ${s.status === 'active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>{s.status}</span>
+        <div className="flex items-center gap-2">
+          <OpenSchoolButton schoolId={s.id} />
+          <span className={`text-[11px] px-2 py-1 rounded font-semibold uppercase ${s.status === 'active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>{s.status}</span>
+        </div>
       </div>
 
       {/* Subscription & lifecycle control — operate the school without its login */}
@@ -174,5 +177,26 @@ function SubscriptionControl({ school, act }: { school: any; act: (b: any) => Pr
       </div>
       <p className="text-[10px] text-slate-500">Every change here is recorded in the Control Center audit log (who / when / old → new). Suspending blocks the school from operating without touching its data.</p>
     </div>
+  );
+}
+
+function OpenSchoolButton({ schoolId }: { schoolId: number }) {
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/control-center/impersonate', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ school_id: schoolId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) window.location.href = j.redirect || '/dashboard';
+      else { alert(j.error || 'Could not open school'); setBusy(false); }
+    } catch { setBusy(false); }
+  };
+  return (
+    <button onClick={open} disabled={busy}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold disabled:opacity-50">
+      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />} Open school
+    </button>
   );
 }

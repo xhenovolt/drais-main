@@ -28,6 +28,9 @@ const PUBLIC_ROUTES = [
   '/api/auth/logout',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  // Reads only the caller's own session cookie; safe public (returns
+  // impersonating:false when there's no session). Drives the control banner.
+  '/api/auth/impersonation-status',
   '/api/health',
   '/api/feature-flags',
   // Internal JETON control APIs — authenticated via x-api-key header, NOT session cookie

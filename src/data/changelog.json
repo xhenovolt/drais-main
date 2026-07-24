@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-24T20:22:11.909Z",
-  "last_commit": "c4c5229d65cd57cecf34010bad6cfb00da9f2b72",
+  "generated_at": "2026-07-24T20:50:29.903Z",
+  "last_commit": "9749f51eda0a84b5fb9edf54a33a23d3d24baf51",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4226,7 +4226,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.96.0",
+      "date": "2026-07-24",
+      "release_type": "minor",
+      "title": "Enter any school — secure audited impersonation",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Enter any school — secure audited impersonation"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.95.0"
+  "app_version": "1.96.0"
 }
