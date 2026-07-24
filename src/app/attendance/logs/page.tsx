@@ -353,6 +353,99 @@ function QuickAssignModal({
   );
 }
 
+// ── Identity Correction Modal ──────────────────────────────────────────────
+// "This punch is on the wrong person." Correct the mapping OR create a new
+// person — the attendance event is never deleted, only the identity is fixed
+// (history-first, audited, verdicts re-evaluated). Part 2/3 of the hardening.
+function CorrectIdentityModal({
+  open, deviceUserId, currentName, onClose, onCorrected,
+}: { open: boolean; deviceUserId: string; currentName: string | null; onClose: () => void; onCorrected: () => void }) {
+  const [tab, setTab] = useState<'reassign' | 'create'>('reassign');
+  const [role, setRole] = useState<'staff' | 'student'>('staff');
+  const [q, setQ] = useState('');
+  const [picked, setPicked] = useState<any>(null);
+  const [newName, setNewName] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const { data: staffData } = useSWR<any>(tab === 'reassign' && role === 'staff' && q.length > 1 ? `/api/staff?search=${encodeURIComponent(q)}&limit=8` : null);
+  const { data: stuData } = useSWR<any>(tab === 'reassign' && role === 'student' && q.length > 1 ? `/api/students/enrolled?search=${encodeURIComponent(q)}&limit=8` : null);
+  const results = useMemo(() => {
+    const rows = (role === 'staff' ? staffData?.data : stuData?.data) || [];
+    return rows.map((s: any) => ({ id: s.id, name: [s.first_name, s.last_name].filter(Boolean).join(' ') || s.display_name, detail: s.position || s.class_name || s.admission_no || '' }));
+  }, [role, staffData, stuData]);
+
+  const submit = useCallback(async () => {
+    setBusy(true);
+    try {
+      const body = tab === 'create'
+        ? { action: 'create_and_assign', device_user_id: deviceUserId, role, name: newName.trim() }
+        : { device_user_id: deviceUserId, new_role: role, new_ref_id: picked?.id, reason: reason.trim() || 'identity correction' };
+      const r = await apiFetch('/api/attendance/identity-correction', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        successMessage: tab === 'create' ? 'Person created and mapped' : 'Identity corrected — events preserved',
+      });
+      if (r) onCorrected();
+    } catch { /* apiFetch toasts */ } finally { setBusy(false); }
+  }, [tab, deviceUserId, role, newName, picked, reason, onCorrected]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold">Correct identity</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div className="text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+          PIN <span className="font-mono font-bold">{deviceUserId}</span> currently maps to <span className="font-semibold">{currentName || 'someone'}</span>.
+          The attendance events stay; only who they belong to changes (audited).
+        </div>
+        <div className="flex gap-2">
+          {(['reassign', 'create'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} className={`flex-1 py-1.5 rounded-lg text-sm font-medium ${tab === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300'}`}>
+              {t === 'reassign' ? 'Existing person' : 'Create new'}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {(['staff', 'student'] as const).map(r => (
+            <button key={r} onClick={() => { setRole(r); setPicked(null); }} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${role === r ? 'bg-slate-800 text-white dark:bg-slate-600' : 'bg-gray-100 dark:bg-slate-700 text-gray-500'}`}>
+              {r === 'staff' ? 'Staff' : 'Learner'}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'reassign' ? (
+          <div>
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900">
+              <Search className="w-4 h-4 text-gray-400" />
+              <input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} placeholder={`Search the correct ${role === 'staff' ? 'staff member' : 'learner'}…`} className="flex-1 bg-transparent text-sm outline-none" />
+            </div>
+            <div className="max-h-40 overflow-y-auto mt-1 divide-y divide-gray-100 dark:divide-gray-700">
+              {results.map((r: any) => (
+                <button key={r.id} onClick={() => setPicked(r)} className={`w-full text-left px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 ${picked?.id === r.id ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}>
+                  {r.name} <span className="text-xs text-gray-400">{r.detail}</span>
+                </button>
+              ))}
+            </div>
+            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, for the audit trail)" className="w-full mt-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
+          </div>
+        ) : (
+          <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`New ${role === 'staff' ? 'staff' : 'learner'} full name`} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
+        )}
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
+          <button onClick={submit} disabled={busy || (tab === 'reassign' ? !picked : !newName.trim())} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            {busy && <RefreshCw className="w-4 h-4 animate-spin" />}{tab === 'create' ? 'Create & map' : 'Apply correction'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Live Feed Hook ─────────────────────────────────────────────────────────
 function useLiveFeed() {
   const [events, setEvents] = useState<any[]>([]);
@@ -390,6 +483,7 @@ export default function UnifiedAttendancePage() {
   const [deviceSn, setDeviceSn] = useState('');
   const [search, setSearch] = useState('');
   const [assignTarget, setAssignTarget] = useState<string | null>(null);
+  const [correctTarget, setCorrectTarget] = useState<{ deviceUserId: string; name: string | null } | null>(null);
   const [liveFeedOpen, setLiveFeedOpen] = useState(false); // collapsed — data first
   const [classId, setClassId] = useState('');
   const [gender, setGender] = useState('');
@@ -1386,6 +1480,13 @@ export default function UnifiedAttendancePage() {
                         )}
                         <ProvisionalBadge isProvisional={log.is_provisional} />
                         <ConfidenceBadge confidence={log.confidence} />
+                        {log.matched && log.person_id && (
+                          <button
+                            onClick={() => setCorrectTarget({ deviceUserId: log.device_user_id, name: log.person_name })}
+                            title="Wrong person? Correct this identity — the event is kept, only the identity is fixed"
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-600"
+                          >Correct</button>
+                        )}
                       </div>
                     </td>
                     {tab === 'unmatched' && (
@@ -1446,6 +1547,15 @@ export default function UnifiedAttendancePage() {
         onClose={() => setAssignTarget(null)}
         deviceUserId={assignTarget || ''}
         onAssigned={() => mutate()}
+      />
+
+      {/* Identity Correction Modal — fix a wrong mapping without deleting events */}
+      <CorrectIdentityModal
+        open={!!correctTarget}
+        deviceUserId={correctTarget?.deviceUserId || ''}
+        currentName={correctTarget?.name || null}
+        onClose={() => setCorrectTarget(null)}
+        onCorrected={() => { setCorrectTarget(null); mutate(); }}
       />
 
       {/* Clear-Logs Confirmation Modal */}

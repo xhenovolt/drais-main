@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-23T22:18:39.901Z",
-  "last_commit": "1c087c9d492de15736eba3a403648174d86190cf",
+  "generated_at": "2026-07-24T02:41:50.626Z",
+  "last_commit": "7560ec68d309145096bb666ad57f49457fcfe8ce",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4135,7 +4135,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.94.0",
+      "date": "2026-07-24",
+      "release_type": "minor",
+      "title": "Identity correction from attendance — events immutable, audited",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Identity correction from attendance — events immutable, audited"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.93.0"
+  "app_version": "1.94.0"
 }
