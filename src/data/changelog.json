@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-24T03:02:39.515Z",
-  "last_commit": "816d2d38e42117ceace383e3cb4116e9f69234e2",
+  "generated_at": "2026-07-24T03:08:10.710Z",
+  "last_commit": "36d726678c50d59e6d13100865db9cc428535bd5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4161,7 +4161,20 @@
         }
       ],
       "commit": "816d2d38e4"
+    },
+    {
+      "version": "1.94.2",
+      "date": "2026-07-24",
+      "release_type": "patch",
+      "title": "Expose multi-finger + card enrollment UI (Parts 4 & 5)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Expose multi-finger + card enrollment UI (Parts 4 & 5)"
+        }
+      ],
+      "commit": "36d726678c"
     }
   ],
-  "app_version": "1.94.2"
+  "app_version": "1.94.3"
 }

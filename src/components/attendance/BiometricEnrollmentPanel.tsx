@@ -89,7 +89,14 @@ export default function BiometricEnrollmentPanel() {
                   <div className="space-y-1">
                     {data.fingers.map((f: any) => (
                       <div key={f.finger_index} className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 dark:text-gray-200">{f.name}{f.quality ? <span className="text-gray-400"> · q{f.quality}</span> : ''}{f.device ? <span className="text-gray-400"> · {f.device}</span> : ''}</span>
+                        <span className="text-gray-700 dark:text-gray-200">
+                          {f.name}{f.quality ? <span className="text-gray-400"> · q{f.quality}</span> : ''}
+                          {f.sync && f.sync.targets > 0 && (
+                            <span className="text-gray-400" title="Devices this template is loaded on / still queued">
+                              {' '}· on {f.sync.on_devices}/{f.sync.targets} device(s){f.sync.pending ? `, ${f.sync.pending} queued` : ''}
+                            </span>
+                          )}
+                        </span>
                         <button onClick={() => removeFinger(f.finger_index)} className="text-rose-500 hover:text-rose-600" title="Remove this finger"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     ))}

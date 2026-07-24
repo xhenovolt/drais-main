@@ -39,8 +39,16 @@ export async function GET(req: NextRequest) {
   if (!enr[0]) return NextResponse.json({ success: true, enrolled: false });
 
   const fingers = (await query(
-    `SELECT finger_index, quality_score, captured_device_sn, captured_at, template_size
-       FROM biometric_templates WHERE enrollment_id = ? ORDER BY finger_index ASC`,
+    `SELECT bt.finger_index, bt.quality_score, bt.captured_device_sn, bt.captured_at, bt.template_size,
+            bt.id AS template_id,
+            SUM(td.status = 'loaded') AS on_devices,
+            SUM(td.status = 'queued') AS pending_devices,
+            COUNT(td.id) AS total_targets
+       FROM biometric_templates bt
+       LEFT JOIN template_distributions td ON td.template_id = bt.id
+      WHERE bt.enrollment_id = ?
+      GROUP BY bt.id, bt.finger_index, bt.quality_score, bt.captured_device_sn, bt.captured_at, bt.template_size
+      ORDER BY bt.finger_index ASC`,
     [enr[0].id],
   ).catch(() => [])) as any[];
 
@@ -55,6 +63,9 @@ export async function GET(req: NextRequest) {
       finger_index: Number(f.finger_index),
       name: FINGER_NAMES[Number(f.finger_index)] || `Finger ${f.finger_index}`,
       quality: f.quality_score, device: f.captured_device_sn, captured_at: f.captured_at,
+      // Central-store sync state (Part 6): on how many devices this template
+      // is loaded vs still queued. Push itself is gated on device validation.
+      sync: { on_devices: Number(f.on_devices || 0), pending: Number(f.pending_devices || 0), targets: Number(f.total_targets || 0) },
     })),
     methods: {
       fingerprint: fingers.length > 0,
