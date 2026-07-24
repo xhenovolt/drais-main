@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-24T20:50:29.903Z",
-  "last_commit": "9749f51eda0a84b5fb9edf54a33a23d3d24baf51",
+  "generated_at": "2026-07-24T21:05:47.664Z",
+  "last_commit": "2ab6727d0d739e042e7e1fb0c0a4905f1d8cee64",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4241,5 +4241,5 @@
       "commit": null
     }
   ],
-  "app_version": "1.96.0"
+  "app_version": "1.96.1"
 }
