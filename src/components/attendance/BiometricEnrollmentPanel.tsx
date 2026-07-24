@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { Fingerprint, CreditCard, Search, Trash2, Plus, Loader2, ShieldCheck } from 'lucide-react';
+import { Fingerprint, CreditCard, Search, Trash2, Plus, Loader2, ShieldCheck, UploadCloud } from 'lucide-react';
 import { apiFetch } from '@/lib/apiClient';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
@@ -43,6 +43,19 @@ export default function BiometricEnrollmentPanel() {
       body: JSON.stringify({ action: 'remove_finger', enrollment_id: data.enrollment.id, finger_index: fi }), successMessage: 'Finger removed' });
     mutate();
   }, [data, mutate]);
+
+  // Devices to push this person's templates to (central-identity sync, Part 6).
+  const { data: devData } = useSWR<any>(person ? '/api/biometric/template-sync' : null, fetcher);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const pushToDevice = useCallback(async (deviceSn: string) => {
+    if (!person) return;
+    setSyncing(deviceSn);
+    try {
+      await apiFetch('/api/biometric/template-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_sn: deviceSn, person_id: person.person_id }), successMessage: 'Templates queued to device' });
+      mutate();
+    } catch { /* toast */ } finally { setSyncing(null); }
+  }, [person, mutate]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
@@ -114,6 +127,26 @@ export default function BiometricEnrollmentPanel() {
                 </div>
                 {data.enrollment.card_number && <p className="text-[10px] text-gray-400 mt-1">Current: <span className="font-mono">{data.enrollment.card_number}</span> — this person can check in by fingerprint or card.</p>}
               </div>
+
+              {/* Central-identity sync (Part 6): push this person's fingerprints
+                  to another device so they work on it too. Manual + audited. */}
+              {data.fingers.length > 0 && (devData?.devices?.length > 1) && (
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1 flex items-center gap-1"><UploadCloud className="w-3 h-3" /> Available on devices</p>
+                  <div className="space-y-1">
+                    {devData.devices.map((dv: any) => (
+                      <div key={dv.sn} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 dark:text-gray-300 font-mono">{dv.device_name || dv.sn}{dv.is_online ? '' : ' (offline)'}</span>
+                        <button onClick={() => pushToDevice(dv.sn)} disabled={syncing === dv.sn}
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 disabled:opacity-50">
+                          {syncing === dv.sn ? <Loader2 className="w-3 h-3 animate-spin" /> : <UploadCloud className="w-3 h-3" />} Push fingerprints
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">Queues the templates as device commands; the device loads them on its next sync. Nothing is deleted on the device.</p>
+                </div>
+              )}
             </>
           )}
           <button onClick={() => { setPerson(null); setQ(''); }} className="text-[11px] text-gray-400 hover:underline">← look up another person</button>

@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "1.94.3",
+  "version": "1.94.4",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {

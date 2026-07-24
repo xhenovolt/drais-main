@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-24T03:08:10.710Z",
-  "last_commit": "36d726678c50d59e6d13100865db9cc428535bd5",
+  "generated_at": "2026-07-24T07:51:29.226Z",
+  "last_commit": "0ea54923586248bc811492d0d8d455600e36e460",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4174,7 +4174,20 @@
         }
       ],
       "commit": "36d726678c"
+    },
+    {
+      "version": "1.94.3",
+      "date": "2026-07-24",
+      "release_type": "patch",
+      "title": "Template-sync capability report + sync visibility (Part 6)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Template-sync capability report + sync visibility (Part 6)"
+        }
+      ],
+      "commit": "0ea5492358"
     }
   ],
-  "app_version": "1.94.3"
+  "app_version": "1.94.4"
 }

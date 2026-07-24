@@ -151,3 +151,84 @@ export async function applyCorrection(args: {
 
   return { ok: true, enrollmentId, oldPersonId, newPersonId, eventsReattributed: reattributed, daysReevaluated: days };
 }
+
+/**
+ * Person-level reattribution — "move EVERY attendance record from person A to
+ * person B." More general than a PIN correction: it cascades across all of A's
+ * PINs/devices, raw events, verdicts and enrollments, so the logs fully reflect
+ * the new owner. Events are preserved (never deleted); only the identity label
+ * moves. Both people's affected days are re-evaluated; audited.
+ */
+export async function reattributePerson(args: {
+  schoolId: number;
+  fromPersonId: number;
+  toRoleType: 'staff' | 'student';
+  toRoleRefId: number;          // the staff/students row id of the NEW owner
+  reason?: string | null;
+  actorUserId?: number | null;
+}): Promise<{ ok: boolean; reason?: string; rawEvents: number; records: number; enrollments: number; daysReevaluated: number }> {
+  const { schoolId, fromPersonId, toRoleType, toRoleRefId } = args;
+  const roleTable = toRoleType === 'student' ? 'students' : 'staff';
+  const target = (await query(`SELECT person_id FROM ${roleTable} WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`, [toRoleRefId, schoolId])) as any[];
+  const toPersonId = target[0]?.person_id;
+  if (!toPersonId) return { ok: false, reason: 'target person not found', rawEvents: 0, records: 0, enrollments: 0, daysReevaluated: 0 };
+  if (Number(toPersonId) === Number(fromPersonId)) return { ok: false, reason: 'source and target are the same person', rawEvents: 0, records: 0, enrollments: 0, daysReevaluated: 0 };
+
+  const newName = ((await query(`SELECT TRIM(CONCAT_WS(' ', first_name, last_name)) nm FROM people WHERE id = ? LIMIT 1`, [toPersonId])) as any[])[0]?.nm ?? null;
+
+  // Collect affected dates BEFORE moving, for re-evaluation of both people.
+  const rawRows = (await query(`SELECT id, punch_at FROM attendance_raw_events WHERE school_id = ? AND person_id = ?`, [schoolId, fromPersonId])) as any[];
+  const off = 180;
+  const dayKeys = new Set<string>();
+  for (const r of rawRows) {
+    const d = new Date(new Date(r.punch_at).getTime() + off * 60_000).toISOString().slice(0, 10);
+    dayKeys.add(`${fromPersonId}|${d}`); dayKeys.add(`${toPersonId}|${d}`);
+  }
+
+  // 1. Raw events (preserved; identity label moved).
+  const rawUpd = (await query(
+    `UPDATE attendance_raw_events SET person_id = ?, role_type = ?, role_ref_id = ?, display_name = ?, matched = 1
+      WHERE school_id = ? AND person_id = ?`,
+    [toPersonId, toRoleType, toRoleRefId, newName, schoolId, fromPersonId],
+  )) as any;
+
+  // 2. Enrollments (PINs) move to the new person.
+  const enrUpd = (await query(
+    `UPDATE biometric_enrollments SET person_id = ?, role_type = ?, role_ref_id = ?, updated_by = ?, updated_at = NOW()
+      WHERE school_id = ? AND person_id = ?`,
+    [toPersonId, toRoleType, toRoleRefId, args.actorUserId ?? null, schoolId, fromPersonId],
+  ).catch(() => ({ affectedRows: 0 }))) as any;
+
+  // 3. Old verdict rows for the source person are stale — delete so the engine
+  //    rebuilds cleanly for the new owner (raw events, the source of truth,
+  //    are untouched). Count them for the report.
+  const recCount = ((await query(`SELECT COUNT(*) n FROM attendance_records WHERE school_id = ? AND person_id = ?`, [schoolId, fromPersonId])) as any[])[0]?.n || 0;
+  await query(`DELETE FROM attendance_records WHERE school_id = ? AND person_id = ?`, [schoolId, fromPersonId]).catch(() => {});
+
+  // 4. Re-evaluate every affected day for the NEW owner (rebuilds verdicts).
+  const { evaluateDay } = await import('@/lib/attendance/engine');
+  let days = 0;
+  const evalDays = new Set<string>();
+  for (const r of rawRows) evalDays.add(new Date(new Date(r.punch_at).getTime() + off * 60_000).toISOString().slice(0, 10));
+  for (const d of evalDays) { await evaluateDay(schoolId, Number(toPersonId), toRoleType, new Date(`${d}T00:00:00`)).catch(() => {}); days++; }
+
+  // 5. Audit.
+  try {
+    const { recordMappingHistory } = await import('@/lib/biometric/enrollment-service');
+    await recordMappingHistory({
+      schoolId, enrollmentId: null, deviceSn: null, pin: null,
+      action: 'person_reattribution' as any, oldPersonId: fromPersonId, newPersonId: Number(toPersonId),
+      newRoleType: toRoleType, newRoleRefId: toRoleRefId,
+      reason: `${args.reason ?? 'person reattribution'} · ${Number(rawUpd?.affectedRows || 0)} events → ${newName}`,
+      actorUserId: args.actorUserId ?? null,
+    });
+  } catch { /* best-effort */ }
+
+  return {
+    ok: true,
+    rawEvents: Number(rawUpd?.affectedRows || 0),
+    records: Number(recCount),
+    enrollments: Number(enrUpd?.affectedRows || 0),
+    daysReevaluated: days,
+  };
+}

@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
-import { applyCorrection, planCorrection } from '@/lib/biometric/identity-correction';
+import { applyCorrection, planCorrection, reattributePerson } from '@/lib/biometric/identity-correction';
 
 export const runtime = 'nodejs';
 
@@ -99,6 +99,22 @@ export async function POST(req: NextRequest) {
         studentId: role === 'student' ? refId : null, staffId: role === 'staff' ? refId : null,
       });
       return NextResponse.json({ success: true, created: { person_id: personId, role, ref_id: refId }, eventsReattributed: bf.affectedRows });
+    }
+
+    // ── Move ALL of one person's attendance to another (person-level) ──
+    if (body.action === 'reattribute_person') {
+      const fromPersonId = Number(body.from_person_id);
+      const toRole = body.new_role === 'student' ? 'student' : 'staff';
+      const toRefId = Number(body.new_ref_id);
+      if (!Number.isFinite(fromPersonId) || !Number.isFinite(toRefId)) {
+        return NextResponse.json({ error: 'from_person_id and new_ref_id are required' }, { status: 400 });
+      }
+      const res = await reattributePerson({
+        schoolId: session.schoolId, fromPersonId, toRoleType: toRole, toRoleRefId: toRefId,
+        reason: body.reason ?? null, actorUserId: session.userId,
+      });
+      if (!res.ok) return NextResponse.json({ error: res.reason }, { status: 409 });
+      return NextResponse.json({ success: true, ...res });
     }
 
     // ── Correct an existing mapping (Part 2) ──

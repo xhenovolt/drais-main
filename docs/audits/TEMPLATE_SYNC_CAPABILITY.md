@@ -2,7 +2,16 @@
 
 The brief said: *do not assume; study; if yes design, if no document the limitation and the closest alternative.* This is the verified finding for DRAIS v1.94.x, grounded in the code + the live `template_distributions` table.
 
-## Verdict: PARTIAL — central store ✓, distribution queue ✓, outbound device push ✗ (by design, safely)
+## Verdict (updated v1.95.0): YES — DRAIS can be the central identity authority. Implemented, gated to manual per-device sync.
+
+Deep inspection of JIPRA's live data settled the format-risk question:
+- `biometric_templates.template_format = 'ZK_ADMS'` for all 412 templates; `LENGTH(template_bytes) == template_size` and the payload decodes to the ZK template header — i.e. **templates are stored as the device's own base64 ADMS `TMP=` payload, verbatim.**
+- Templates exist from **two devices** (GED7254601134 ×223, GED7254601154 ×189), same K40 family, same format — cross-device push is format-identical.
+- Pushing is therefore the exact **inverse** of ingest: `DATA UPDATE FINGERTMP PIN=..\tFID=..\tSize=..\tValid=1\tTMP=<same base64>`, delivered on the existing `zk_device_commands` channel, ACKed via `path=devicecmd`. No conversion, no version guessing.
+
+**Implemented (v1.95.0):** `template-distribution.ts` (`buildFingerTmpCommand` pure+tested, `syncTemplatesToDevice`, `reconcileTemplateDistributions`), `/api/biometric/template-sync`, and a "Push fingerprints" action per device in the enrollment panel. A FINGERTMP command only adds/updates a finger — never deletes — and a rejected command logs 'failed' (non-destructive). **Gated to a MANUAL, per-device, audited action** (no silent fleet push) so an operator validates on one device before relying on it. This realises: Person → DRAIS Identity → Approved Devices → Events.
+
+### (Original finding, retained for history) PARTIAL — central store ✓, distribution queue ✓, outbound device push ✗ (by design, safely)
 
 ### What works today
 1. **Central template store.** Devices POST fingerprint templates after enrollment via the ADMS tables `TEMPLATEV10` / `BIODATA` (`zk-handler` → `processFingerprint`), stored verbatim in `biometric_templates(enrollment_id, finger_index, template_bytes, template_size, quality_score, captured_device_sn)`. So DRAIS already holds every template centrally. Production: templates present, people with 3–4 fingers.

@@ -368,11 +368,19 @@ function CorrectIdentityModal({
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const { data: staffData } = useSWR<any>(tab === 'reassign' && role === 'staff' && q.length > 1 ? `/api/staff?search=${encodeURIComponent(q)}&limit=8` : null);
-  const { data: stuData } = useSWR<any>(tab === 'reassign' && role === 'student' && q.length > 1 ? `/api/students/enrolled?search=${encodeURIComponent(q)}&limit=8` : null);
+  // Explicit fetcher (not the global apiFetch wrapper) so the result shape is
+  // unambiguous, and tolerate any envelope ({data:[...]} or a bare array).
+  const directJson = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
+  const { data: staffData } = useSWR<any>(tab === 'reassign' && role === 'staff' && q.length > 1 ? `/api/staff?search=${encodeURIComponent(q)}&limit=10` : null, directJson);
+  const { data: stuData } = useSWR<any>(tab === 'reassign' && role === 'student' && q.length > 1 ? `/api/students/enrolled?search=${encodeURIComponent(q)}&limit=10` : null, directJson);
   const results = useMemo(() => {
-    const rows = (role === 'staff' ? staffData?.data : stuData?.data) || [];
-    return rows.map((s: any) => ({ id: s.id, name: [s.first_name, s.last_name].filter(Boolean).join(' ') || s.display_name, detail: s.position || s.class_name || s.admission_no || '' }));
+    const raw = role === 'staff' ? staffData : stuData;
+    const rows = Array.isArray(raw) ? raw : (raw?.data || raw?.rows || raw?.results || []);
+    return rows.map((s: any) => ({
+      id: s.id ?? s.staff_id ?? s.student_id,
+      name: (s.display_name || [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ')).trim() || `#${s.id}`,
+      detail: s.position || s.class_name || s.admission_no || s.staff_no || '',
+    }));
   }, [role, staffData, stuData]);
 
   const submit = useCallback(async () => {
