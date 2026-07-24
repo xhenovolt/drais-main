@@ -368,20 +368,39 @@ function CorrectIdentityModal({
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Explicit fetcher (not the global apiFetch wrapper) so the result shape is
-  // unambiguous, and tolerate any envelope ({data:[...]} or a bare array).
-  const directJson = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
-  const { data: staffData } = useSWR<any>(tab === 'reassign' && role === 'staff' && q.length > 1 ? `/api/staff?search=${encodeURIComponent(q)}&limit=10` : null, directJson);
-  const { data: stuData } = useSWR<any>(tab === 'reassign' && role === 'student' && q.length > 1 ? `/api/students/enrolled?search=${encodeURIComponent(q)}&limit=10` : null, directJson);
-  const results = useMemo(() => {
-    const raw = role === 'staff' ? staffData : stuData;
-    const rows = Array.isArray(raw) ? raw : (raw?.data || raw?.rows || raw?.results || []);
-    return rows.map((s: any) => ({
-      id: s.id ?? s.staff_id ?? s.student_id,
-      name: (s.display_name || [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ')).trim() || `#${s.id}`,
-      detail: s.position || s.class_name || s.admission_no || s.staff_no || '',
-    }));
-  }, [role, staffData, stuData]);
+  // Direct debounced search with VISIBLE states — no SWR (it silently
+  // returned nothing here twice). This runs the fetch itself, tolerates any
+  // response envelope, and surfaces searching/empty/error so nothing is hidden.
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchErr, setSearchErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (tab !== 'reassign' || q.trim().length < 2) { setResults([]); setSearching(false); setSearchErr(null); return; }
+    let cancelled = false;
+    setSearching(true); setSearchErr(null);
+    const t = setTimeout(async () => {
+      try {
+        const url = role === 'staff'
+          ? `/api/staff?search=${encodeURIComponent(q.trim())}&limit=10`
+          : `/api/students/enrolled?search=${encodeURIComponent(q.trim())}&limit=10`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+        const j = await res.json().catch(() => null);
+        if (cancelled) return;
+        const rows = Array.isArray(j) ? j : (j?.data || j?.rows || j?.results || []);
+        setResults(rows.map((s: any) => ({
+          id: s.id ?? s.staff_id ?? s.student_id,
+          name: (s.display_name || [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ')).trim() || `#${s.id ?? '?'}`,
+          detail: s.position || s.class_name || s.admission_no || s.staff_no || '',
+        })).filter((r: any) => r.id != null));
+        if (!res.ok) setSearchErr(`Search failed (${res.status})`);
+      } catch (e: any) {
+        if (!cancelled) setSearchErr(e?.message || 'Search error');
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [q, role, tab]);
 
   const submit = useCallback(async () => {
     setBusy(true);
@@ -430,13 +449,20 @@ function CorrectIdentityModal({
               <Search className="w-4 h-4 text-gray-400" />
               <input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} placeholder={`Search the correct ${role === 'staff' ? 'staff member' : 'learner'}…`} className="flex-1 bg-transparent text-sm outline-none" />
             </div>
-            <div className="max-h-40 overflow-y-auto mt-1 divide-y divide-gray-100 dark:divide-gray-700">
+            <div className="max-h-40 overflow-y-auto mt-1 divide-y divide-gray-100 dark:divide-gray-700 border border-gray-100 dark:border-gray-700 rounded-lg">
+              {searching && <p className="px-2 py-2 text-xs text-gray-400 flex items-center gap-1.5"><RefreshCw className="w-3 h-3 animate-spin" /> Searching {role === 'staff' ? 'staff' : 'learners'}…</p>}
+              {searchErr && <p className="px-2 py-2 text-xs text-rose-500">{searchErr}</p>}
+              {!searching && !searchErr && q.trim().length >= 2 && results.length === 0 && (
+                <p className="px-2 py-2 text-xs text-gray-400">No {role === 'staff' ? 'staff' : 'learners'} match “{q.trim()}”. Try the other role tab, a different spelling, or “Create new”.</p>
+              )}
+              {!searching && q.trim().length < 2 && <p className="px-2 py-2 text-xs text-gray-400">Type at least 2 letters to search.</p>}
               {results.map((r: any) => (
                 <button key={r.id} onClick={() => setPicked(r)} className={`w-full text-left px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 ${picked?.id === r.id ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}>
-                  {r.name} <span className="text-xs text-gray-400">{r.detail}</span>
+                  {r.name} {r.detail && <span className="text-xs text-gray-400">· {r.detail}</span>}
                 </button>
               ))}
             </div>
+            {picked && <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">Selected: {picked.name} — apply below.</p>}
             <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, for the audit trail)" className="w-full mt-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
           </div>
         ) : (

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-24T07:51:29.226Z",
-  "last_commit": "0ea54923586248bc811492d0d8d455600e36e460",
+  "generated_at": "2026-07-24T08:10:14.089Z",
+  "last_commit": "4056903a2d36625e1b6c7bb5108ef86c4020abdd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4187,7 +4187,20 @@
         }
       ],
       "commit": "0ea5492358"
+    },
+    {
+      "version": "1.94.4",
+      "date": "2026-07-24",
+      "release_type": "patch",
+      "title": "Identity-correction search works + person-level cascade",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Identity-correction search works + person-level cascade"
+        }
+      ],
+      "commit": "4056903a2d"
     }
   ],
-  "app_version": "1.94.4"
+  "app_version": "1.94.5"
 }
