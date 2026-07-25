@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T08:55:10.021Z",
-  "last_commit": "39ff43a7605a7a5e6d5a8a2310645ea97debabdc",
+  "generated_at": "2026-07-25T09:05:15.618Z",
+  "last_commit": "6b35352fd57247e5a46396e62dd671d6daac4e70",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4330,7 +4330,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.102.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Bilingual Recovery Center + Identity Intelligence (Phase F pt1)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Bilingual Recovery Center + Identity Intelligence (Phase F pt1)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.101.0"
+  "app_version": "1.102.0"
 }
