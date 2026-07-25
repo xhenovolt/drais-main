@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T21:22:16.306Z",
-  "last_commit": "b120ccddc693f99cb3d91981bb20496aafe1425d",
+  "generated_at": "2026-07-25T22:33:28.769Z",
+  "last_commit": "34d08ab108a327b757d5375045247a192c829c74",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4486,7 +4486,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.109.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Platform Health Center — cross-school proactive monitors (P4)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Platform Health Center — cross-school proactive monitors (P4)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.108.0"
+  "app_version": "1.109.0"
 }
