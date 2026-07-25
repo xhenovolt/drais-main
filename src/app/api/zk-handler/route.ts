@@ -1233,6 +1233,7 @@ export async function POST(req: NextRequest) {
   let rawBody = '';
   let rawLogId: number | null = null;
   let schoolId: number | null = null; // resolved from device record
+  let deviceStatus: string | null = null; // 'active' | 'suspended' | 'retired' | ...
 
   try {
     // ════════════════════════════════════════════════════════════════════════
@@ -1246,9 +1247,14 @@ export async function POST(req: NextRequest) {
       bodyPreview: rawBody.substring(0, 200),
     });
 
-    // Resolve school ASAP (needed for raw log)
+    // Resolve school + platform status ASAP (needed for raw log + the
+    // suspended/retired ingest gate below).
     if (sn) {
-      schoolId = await getDeviceSchoolId(sn);
+      const drow = (await query(
+        'SELECT school_id, status FROM devices WHERE sn = ? LIMIT 1', [sn],
+      ).catch(() => [])) as any[];
+      schoolId = drow[0]?.school_id ?? null;
+      deviceStatus = drow[0]?.status ?? null;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1534,6 +1540,14 @@ export async function POST(req: NextRequest) {
           status: 'success',
         });
       }
+    } else if (deviceStatus === 'suspended' || deviceStatus === 'retired') {
+      // Platform (Xhenvolt Control) has taken this device out of service — it
+      // must record NO attendance. The raw payload is already persisted (STEP 2)
+      // for the audit trail; we simply do not turn these punches into attendance.
+      // The device is still ACK'd below so it advances its cursor rather than
+      // retrying forever.
+      await logSystemEvent(sn, 'PUNCH', 'SKIPPED_DEVICE_OUT_OF_SERVICE',
+        JSON.stringify({ status: deviceStatus, recordCount: records.length }), ip, ua);
     } else {
       // ATTLOG (or OPERLOG mixed in) — process each record individually
       await logSystemEvent(sn, 'PUNCH', 'INCOMING',

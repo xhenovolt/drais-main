@@ -50,6 +50,19 @@ describe('retired unscoped device endpoints return 410', () => {
   }
 });
 
+describe('suspended/retired devices record no attendance (P2.1)', () => {
+  const handler = read('src/app/api/zk-handler/route.ts');
+  it('the ingest path gates suspended/retired devices', () => {
+    assert.match(handler, /deviceStatus === 'suspended' \|\| deviceStatus === 'retired'/,
+      'ATTLOG ingest must skip devices the platform took out of service');
+    assert.match(handler, /SKIPPED_DEVICE_OUT_OF_SERVICE/, 'and log the skip for the audit trail');
+  });
+  it('the heartbeat upsert does not resurrect a suspended/retired device', () => {
+    assert.match(handler, /IF\(status IN \('suspended','retired'\), status, 'active'\)/,
+      'upsert must preserve a deliberate platform status');
+  });
+});
+
 describe('device ownership is platform-only (not school level)', () => {
   for (const action of ['release', 'acquire', 'decommission']) {
     it(`${action} is gated to super-admin`, () => {

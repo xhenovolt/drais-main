@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T20:51:41.773Z",
-  "last_commit": "f475ff9d6f105bb1015de0c820b656a52d2426dc",
+  "generated_at": "2026-07-25T21:11:06.700Z",
+  "last_commit": "672538eb9ffb4dc3677a209d907fe37d21a45ec0",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4460,7 +4460,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.107.1",
+      "date": "2026-07-25",
+      "release_type": "patch",
+      "title": "Suspended/retired devices record no attendance (P2.1)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Suspended/retired devices record no attendance (P2.1)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.107.0"
+  "app_version": "1.107.1"
 }
