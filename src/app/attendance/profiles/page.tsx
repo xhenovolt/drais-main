@@ -6,9 +6,9 @@
  * chronically late), plus every person's behavioural label. This is what lets
  * DRAIS say "this teacher is often absent" unprompted.
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import useSWR from 'swr';
-import { Users, AlertTriangle, TrendingDown, Clock, UserCheck, Loader2, Eye, UserX } from 'lucide-react';
+import { Users, AlertTriangle, TrendingDown, Clock, UserCheck, Loader2, Eye, UserX, Wrench } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -46,7 +46,7 @@ export default function AttendanceProfiles() {
   const [role, setRole] = useState<'staff' | 'student'>('staff');
   const [days, setDays] = useState(30);
   const [showAll, setShowAll] = useState(false);
-  const { data, isLoading } = useSWR<any>(`/api/attendance/person-profiles?role=${role}&days=${days}`, fetcher);
+  const { data, isLoading, mutate } = useSWR<any>(`/api/attendance/person-profiles?role=${role}&days=${days}`, fetcher);
 
   const watchlist = data?.watchlist || [];
   const rosterReview = data?.roster_review || [];
@@ -101,22 +101,11 @@ export default function AttendanceProfiles() {
 
       {/* Roster review — never-present people, kept OUT of behaviour on purpose */}
       {rosterReview.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1 flex items-center gap-1.5">
-            <UserX className="w-4 h-4 text-slate-500" /> Roster review
-            <span className="text-[11px] font-normal text-gray-400">({rosterReview.length} never checked in — likely former or not enrolled)</span>
-          </p>
-          <p className="text-[11px] text-gray-400 mb-2">These are deliberately kept OUT of the behaviour watch-list. Mark them inactive or fix their device enrollment so attendance reflects real people.</p>
-          <div className="max-h-56 overflow-y-auto">
-            {rosterReview.map((p: any) => (
-              <div key={p.person_id} className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
-                <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{p.name || `#${p.person_id}`}</span>
-                <span className="text-[11px] text-gray-400">{p.trackedDays}d tracked · never present</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RosterReview list={rosterReview} role={role} onChanged={() => mutate()} />
       )}
+
+      {/* Enrollment mismatch fixer (students actively enrolled but not active) */}
+      <EnrollmentMismatchFixer />
 
       {/* Everyone */}
       {all.length > watchlist.length && (
@@ -127,6 +116,86 @@ export default function AttendanceProfiles() {
           {showAll && <div className="mt-2">{all.map((p: any) => <Row key={p.person_id} p={p} />)}</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Roster review with reversible bulk deactivate (Phase C). */
+function RosterReview({ list, role, onChanged }: { list: any[]; role: 'staff' | 'student'; onChanged: () => void }) {
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const toggle = (id: number) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allSelected = list.length > 0 && sel.size === list.length;
+  const act = useCallback(async (action: 'deactivate' | 'reactivate') => {
+    if (sel.size === 0) return;
+    if (action === 'deactivate' && !confirm(`Mark ${sel.size} ${role === 'staff' ? 'staff' : 'learner'}(s) inactive? This is reversible.`)) return;
+    setBusy(true);
+    try {
+      const r = await fetch('/api/attendance/roster-hygiene', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action, role, person_ids: [...sel] }) });
+      const j = await r.json();
+      if (j.success) { setSel(new Set()); onChanged(); }
+      else alert(j.error || 'Failed');
+    } finally { setBusy(false); }
+  }, [sel, role, onChanged]);
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
+          <UserX className="w-4 h-4 text-slate-500" /> Roster review
+          <span className="text-[11px] font-normal text-gray-400">({list.length} never checked in — likely former or not enrolled)</span>
+        </p>
+        {sel.size > 0 && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => act('deactivate')} disabled={busy} className="text-[11px] px-2.5 py-1 rounded-lg bg-rose-600 text-white font-medium disabled:opacity-50">Mark {sel.size} inactive</button>
+            <button onClick={() => act('reactivate')} disabled={busy} className="text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium disabled:opacity-50">Reactivate</button>
+          </div>
+        )}
+      </div>
+      <p className="text-[11px] text-gray-400 mb-2">Kept OUT of the behaviour watch-list. Select and mark inactive so attendance reflects real people — fully reversible and audited.</p>
+      <label className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-1 cursor-pointer">
+        <input type="checkbox" checked={allSelected} onChange={() => setSel(allSelected ? new Set() : new Set(list.map((p: any) => p.person_id)))} /> Select all
+      </label>
+      <div className="max-h-56 overflow-y-auto">
+        {list.map((p: any) => (
+          <label key={p.person_id} className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50 last:border-0 cursor-pointer">
+            <span className="flex items-center gap-2 min-w-0">
+              <input type="checkbox" checked={sel.has(p.person_id)} onChange={() => toggle(p.person_id)} />
+              <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{p.name || `#${p.person_id}`}</span>
+            </span>
+            <span className="text-[11px] text-gray-400 flex-shrink-0">{p.trackedDays}d tracked · never present</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** One-click fix for students actively enrolled but marked non-active (Phase C). */
+function EnrollmentMismatchFixer() {
+  const { data, mutate } = useSWR<any>('/api/attendance/roster-hygiene', fetcher);
+  const [busy, setBusy] = useState(false);
+  const n = data?.enrollment_mismatch ?? 0;
+  if (!n) return null;
+  const fix = async () => {
+    if (!confirm(`${n} learner(s) have an active enrollment but are marked inactive. Activate them so their attendance is tracked?`)) return;
+    setBusy(true);
+    try {
+      const r = await fetch('/api/attendance/roster-hygiene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'fix_enrollment_mismatch' }) });
+      const j = await r.json();
+      if (j.success) { alert(`Activated ${j.activated} learner(s).`); mutate(); }
+      else alert(j.error || 'Failed');
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 p-4 flex items-center justify-between flex-wrap gap-2">
+      <p className="text-sm text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
+        <Wrench className="w-4 h-4" /> {n} learner(s) are actively enrolled but marked inactive — their attendance isn't tracked.
+      </p>
+      <button onClick={fix} disabled={busy} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white font-medium disabled:opacity-50">
+        {busy ? 'Fixing…' : `Activate ${n} learner(s)`}
+      </button>
     </div>
   );
 }

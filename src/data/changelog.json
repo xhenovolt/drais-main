@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T08:18:15.316Z",
-  "last_commit": "d22e46e3fe3c0edb11ef39a5421ed90ef9a5e123",
+  "generated_at": "2026-07-25T08:27:55.389Z",
+  "last_commit": "10e977cbcc0a4a67aa15f6d897d7ccb1403ff2d9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4291,7 +4291,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.99.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Bulk roster hygiene — founder-independence Phase C",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Bulk roster hygiene — founder-independence Phase C"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.98.0"
+  "app_version": "1.99.0"
 }
