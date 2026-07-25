@@ -3,7 +3,7 @@
 /** School operations view — "is this school operating normally?" + feature flags. */
 import React, { use, useCallback, useState } from 'react';
 import useSWR from 'swr';
-import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity, Power, CalendarPlus, CreditCard, LogIn } from 'lucide-react';
+import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity, Power, CalendarPlus, CreditCard, LogIn, Fingerprint } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -91,6 +91,27 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
             </div>
           ))
         )}
+      </Panel>
+
+      {/* Recent activity — see the school operating live, WITHOUT impersonation (P3). */}
+      <Panel title="Recent activity (live)" icon={<Fingerprint className="w-4 h-4" />}>
+        {(data.recent_punches || []).length === 0 ? <p className="text-xs text-slate-500">No punches recorded yet.</p> : (
+          <div className="space-y-1">
+            {(data.recent_punches || []).map((p: any, i: number) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <span className="text-slate-300 truncate">
+                  {p.who || <span className="text-amber-300">#{p.device_user_id || '—'} (unmatched)</span>}
+                  <span className="text-slate-600 ml-1.5">{p.role_type || ''}</span>
+                </span>
+                <span className="text-slate-500 flex items-center gap-1.5">
+                  <span className="font-mono text-[10px]">{p.device_sn}</span>
+                  {new Date(p.punch_at).toLocaleTimeString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-[10px] text-slate-500 mt-2">Read-only platform view of the last punches — confirm attendance is flowing without logging into the school.</p>
       </Panel>
 
       {/* Feature management */}

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const list = async (sql: string, params: any[] = [schoolId]) =>
     (await query(sql, params).catch(() => [])) as any[];
 
-  const [devices, punches24, todayCounts, clock, smsRecent, moduleRows, syncEvents] = await Promise.all([
+  const [devices, punches24, todayCounts, clock, smsRecent, moduleRows, syncEvents, recentPunches] = await Promise.all([
     list(`SELECT sn, device_name, device_type, is_online, last_seen, lan_ip FROM devices WHERE school_id = ?`),
     list(`SELECT COUNT(*) n FROM attendance_raw_events WHERE school_id = ? AND punch_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`),
     list(`SELECT role_type, status, COUNT(*) n FROM attendance_records WHERE school_id = ? AND attendance_date = CURDATE() GROUP BY role_type, status`),
@@ -36,6 +36,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     getSchoolModuleStatus(schoolId).catch(() => []),
     list(`SELECT source, COUNT(*) n, MAX(ingested_at) latest FROM attendance_raw_events
            WHERE school_id = ? AND ingested_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY source`),
+    // Recent activity — the last punches, with a resolved name where matched.
+    // Read-only platform view: see a school operating WITHOUT impersonating it.
+    list(`SELECT e.punch_at, e.role_type, e.device_sn, e.matched, e.device_user_id,
+                 COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''), NULL) AS who
+            FROM attendance_raw_events e
+            LEFT JOIN people p ON p.id = e.person_id
+           WHERE e.school_id = ?
+           ORDER BY e.punch_at DESC LIMIT 15`),
   ]);
 
   await controlAudit(user.id, 'viewed_school', `schools:${schoolId}`, { name: schools[0].name }, clientIp(req));
@@ -48,6 +56,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     clock_health_today: clock,
     sms_48h: smsRecent,
     sync_events_7d: syncEvents,
+    recent_punches: recentPunches,
     modules: {
       catalog: MODULE_CATALOG.map(m => ({ code: m.code, label: m.label })),
       enabled: moduleRows,

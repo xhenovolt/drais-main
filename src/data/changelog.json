@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T21:11:06.700Z",
-  "last_commit": "672538eb9ffb4dc3677a209d907fe37d21a45ec0",
+  "generated_at": "2026-07-25T21:22:16.306Z",
+  "last_commit": "b120ccddc693f99cb3d91981bb20496aafe1425d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4473,7 +4473,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.108.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Live recent-activity read — view a school without impersonation (P3)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Live recent-activity read — view a school without impersonation (P3)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.107.1"
+  "app_version": "1.108.0"
 }
