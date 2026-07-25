@@ -73,7 +73,13 @@ function formatDahuaResponse(records: DahuaRecord[]): string {
  * - action: 'getRecords' (required, matches real Dahua API)
  * - count: number of records to generate (default: 5)
  */
+// This is a development-only hardware stand-in. Never expose it from a hosted
+// production deployment.
+const simulatorDisabled = () =>
+  process.env.NODE_ENV === 'production' && process.env.ALLOW_DEVICE_SIMULATOR !== 'true';
+
 export async function GET(req: NextRequest) {
+  if (simulatorDisabled()) return new NextResponse('Not found', { status: 404 });
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');

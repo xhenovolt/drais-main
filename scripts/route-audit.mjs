@@ -26,11 +26,18 @@ function walk(dir) {
   return out;
 }
 
-const AUTH = /getSessionSchoolId|getControlSession|getServerSession|requirePermission|CRON_SECRET|x-cron-secret|x-api-key|getSession\b|status: 410/;
+// A route is "guarded" if it resolves identity/permission by any recognised
+// mechanism: school session, the withRoute wrapper (auth-by-default), the
+// platform bearer, parent/portal/verify-token contexts, cron/api secrets, or an
+// explicit retirement (410). Keep this in sync with real auth helpers so the
+// metric reflects reality rather than one naming convention.
+const AUTH = /getSessionSchoolId|getControlSession|getServerSession|requirePermission|withRoute|requirePlatformAuth|requireParent|requirePortalContext|verifyVerifyToken|CRON_SECRET|x-cron-secret|x-api-key|getSession\b|status: 410/;
 const routes = walk(apiDir);
 const classes = {
   'unguarded': (s) => !AUTH.test(s),
-  'no-trycatch': (s) => !/try\s*\{/.test(s),
+  // withRoute wraps the handler in try/catch internally, so it is robust
+  // without a literal `try {` in the route file.
+  'no-trycatch': (s) => !/try\s*\{/.test(s) && !/withRoute/.test(s),
   'select-star': (s) => /SELECT \*/i.test(s),
   'n-plus-1': (s) => /for\s*\(|for await|\.forEach\(/.test(s) && /await\s+(query|connection\.execute|pool\.)/.test(s),
   'inline-schema': (s) => /ensure[A-Z][A-Za-z]*Schema\(\)|CREATE TABLE IF NOT EXISTS|ADD COLUMN/.test(s),

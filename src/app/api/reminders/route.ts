@@ -3,9 +3,13 @@ import { getConnection } from "@/lib/db";
 import { getSessionSchoolId } from '@/lib/auth';
 import AfricasTalking from "africastalking";
 
+// Credentials come from the environment — never hardcode a provider key in
+// source (it leaks into git history). Set AFRICASTALKING_API_KEY /
+// AFRICASTALKING_USERNAME in the hosting env, matching the convention used
+// elsewhere in the codebase.
 const africasTalkingClient = AfricasTalking({
-  apiKey: 'atsk_3baf21e161cca165c4f5ccb67bc38f5a50a192e3208fafc3b575014f35793d9a1994a774',
-  username: 'xhenovolt',
+  apiKey: process.env.AFRICASTALKING_API_KEY || '',
+  username: process.env.AFRICASTALKING_USERNAME || 'xhenovolt',
 });
 
 const sms = africasTalkingClient.SMS;

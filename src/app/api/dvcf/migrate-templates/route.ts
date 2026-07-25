@@ -10,6 +10,7 @@
 import { getConnection } from '@/lib/db';
 import type { DRCEDocument } from '@/lib/drce/schema';
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionSchoolId } from '@/lib/auth';
 
 // ─── Template Definitions ───────────────────────────────────────────────────
 
@@ -937,6 +938,12 @@ const ALL_TEMPLATES: DRCEDocument[] = [
 
 export async function POST(request: NextRequest) {
   try {
+    // Seeding writes global report templates — restrict to a super-admin
+    // session. Previously this was an open, unauthenticated write.
+    const session = await getSessionSchoolId(request);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (!session.isSuperAdmin) return NextResponse.json({ error: 'Forbidden — super-admin only' }, { status: 403 });
+
     const { seed } = Object.fromEntries(request.nextUrl.searchParams);
 
     if (seed !== 'true') {
