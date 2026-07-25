@@ -55,9 +55,9 @@ export async function GET(req: NextRequest) {
          ss.sync_status
        FROM devices d
        LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
-       WHERE d.deleted_at IS NULL
+       WHERE d.deleted_at IS NULL AND d.school_id = ?
        ORDER BY d.last_seen DESC`,
-      [],
+      [session.schoolId],
     );
 
     // Staleness flag (default 24h) computed in JS so the UI gets a clear
@@ -71,7 +71,8 @@ export async function GET(req: NextRequest) {
       if (!dv.inventory_status) dv.inventory_status = 'never_synced';
     }
 
-    // Fallback: if no registered devices, discover from recent ADMS traffic (any school)
+    // Fallback: if no registered devices, discover from recent ADMS traffic —
+    // scoped to THIS school's logs only (never any other tenant's devices).
     let discovered: any[] = [];
     if (devices.length === 0) {
       discovered = await query(
@@ -85,19 +86,20 @@ export async function GET(req: NextRequest) {
              ELSE 'offline'
            END AS connection_status
          FROM zk_attendance_logs
-         WHERE check_time > DATE_SUB(NOW(), INTERVAL 7 DAY)
+         WHERE check_time > DATE_SUB(NOW(), INTERVAL 7 DAY) AND school_id = ?
          GROUP BY device_sn
          ORDER BY last_heartbeat DESC`,
-        [],
+        [session.schoolId],
       );
     }
 
-    // Debug: last heartbeat info
+    // Debug: last heartbeat info — scoped to this school's own devices.
     const lastHeartbeat = await query(
-      `SELECT sn, ip, push_version, created_at
-       FROM device_heartbeats
-       ORDER BY created_at DESC LIMIT 5`,
-      [],
+      `SELECT h.sn, h.ip, h.push_version, h.created_at
+       FROM device_heartbeats h
+       JOIN devices d ON d.sn = h.sn AND d.school_id = ?
+       ORDER BY h.created_at DESC LIMIT 5`,
+      [session.schoolId],
     );
 
     return NextResponse.json({ success: true, data: devices, discovered, debug: { lastHeartbeats: lastHeartbeat } });
@@ -125,10 +127,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Device ID required' }, { status: 400 });
     }
 
-    // Verify device exists
+    // Verify device exists AND belongs to this school (tenant isolation).
     const existing = await query(
-      'SELECT id FROM devices WHERE id = ? AND deleted_at IS NULL',
-      [id],
+      'SELECT id FROM devices WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+      [id, session.schoolId],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -141,8 +143,8 @@ export async function PUT(req: NextRequest) {
          model_name = COALESCE(?, model_name),
          status = COALESCE(?, status),
          updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [device_name || null, location || null, model || null, status || null, id],
+       WHERE id = ? AND school_id = ?`,
+      [device_name || null, location || null, model || null, status || null, id, session.schoolId],
     );
 
     await logAudit({
@@ -181,16 +183,16 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const existing = await query(
-      'SELECT sn FROM devices WHERE id = ? AND deleted_at IS NULL',
-      [id],
+      'SELECT sn FROM devices WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+      [id, session.schoolId],
     );
     if (!existing || existing.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
     await query(
-      `UPDATE devices SET deleted_at = NOW(), status = 'inactive', is_online = FALSE WHERE id = ?`,
-      [id],
+      `UPDATE devices SET deleted_at = NOW(), status = 'inactive', is_online = FALSE WHERE id = ? AND school_id = ?`,
+      [id, session.schoolId],
     );
 
     await logAudit({

@@ -1192,34 +1192,39 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 disabled={!isOnline}
                 onClick={handleResetAndSync}
               />
-              {/* Phase 2 — Release device. Available unless already
-                  released or retired; offline is fine (DRAIS-side state). */}
-              <ActionIcon
-                icon={<LogOut className="w-4 h-4" />}
-                label="Release Device"
-                color="orange"
-                loading={transferLoading === 'release'}
-                disabled={device.status === 'released' || device.status === 'retired'}
-                onClick={handleRelease}
-              />
-              {/* Phase 2 — Acquire (released → active). */}
-              <ActionIcon
-                icon={<LogIn className="w-4 h-4" />}
-                label="Acquire Device"
-                color="teal"
-                loading={transferLoading === 'acquire'}
-                disabled={device.status !== 'released'}
-                onClick={handleAcquire}
-              />
-              {/* Phase 2 — Decommission (terminal). */}
-              <ActionIcon
-                icon={<Archive className="w-4 h-4" />}
-                label="Decommission Device"
-                color="red"
-                loading={transferLoading === 'decommission'}
-                disabled={device.status === 'retired'}
-                onClick={handleDecommission}
-              />
+              {/* Device ownership (release / acquire / decommission) is a
+                  PLATFORM operation managed by Xhenvolt Control — never at the
+                  school level, so one tenant can't affect another's hardware.
+                  These controls are visible only to Xhenvolt super-admins; the
+                  server enforces the same rule regardless of the UI. */}
+              {isSuperAdmin && (
+                <>
+                  <ActionIcon
+                    icon={<LogOut className="w-4 h-4" />}
+                    label="Release Device"
+                    color="orange"
+                    loading={transferLoading === 'release'}
+                    disabled={device.status === 'released' || device.status === 'retired'}
+                    onClick={handleRelease}
+                  />
+                  <ActionIcon
+                    icon={<LogIn className="w-4 h-4" />}
+                    label="Acquire Device"
+                    color="teal"
+                    loading={transferLoading === 'acquire'}
+                    disabled={device.status !== 'released'}
+                    onClick={handleAcquire}
+                  />
+                  <ActionIcon
+                    icon={<Archive className="w-4 h-4" />}
+                    label="Decommission Device"
+                    color="red"
+                    loading={transferLoading === 'decommission'}
+                    disabled={device.status === 'retired'}
+                    onClick={handleDecommission}
+                  />
+                </>
+              )}
               {/* Edit */}
               <ActionIcon
                 icon={<Edit2 className="w-4 h-4" />}

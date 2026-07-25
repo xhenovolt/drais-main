@@ -36,6 +36,12 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
+  // Device ownership is a PLATFORM operation, not a tenant one — a school must
+  // never be able to release/transfer hardware (and thereby affect another
+  // school's data). Only Xhenvolt Control (super-admin) may run the ceremony.
+  if (!session.isSuperAdmin) {
+    return NextResponse.json({ error: 'Device ownership is managed centrally by Xhenvolt Control, not at the school level.' }, { status: 403 });
+  }
   const { sn } = await ctx.params;
   if (!sn) {
     return NextResponse.json({ error: 'Missing device sn' }, { status: 400 });

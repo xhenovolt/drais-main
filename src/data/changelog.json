@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T20:06:33.341Z",
-  "last_commit": "4eb57695286189524ffe3aab5d2412ddd2287e06",
+  "generated_at": "2026-07-25T20:34:32.737Z",
+  "last_commit": "49019ec7dbe64b6a566df1dfa323db3076258188",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4434,7 +4434,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.106.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Tenant isolation + platform-only ownership; fix build OOM (Control Center P1)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Tenant isolation + platform-only ownership; fix build OOM (Control Center P1)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.105.2"
+  "app_version": "1.106.0"
 }

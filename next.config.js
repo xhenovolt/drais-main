@@ -8,6 +8,11 @@ const nextConfig = {
     // once the app crossed ~660 pages (heap cap only bounds JS, not webpack/
     // SWC native memory). This trades some build speed for bounded memory.
     webpackMemoryOptimizations: true,
+    // Run webpack compilation in a dedicated worker process so its (native)
+    // memory is released between the client and server compiles instead of
+    // accumulating in one process — the lever that actually bounds the peak
+    // once the heap cap can no longer help. Keeps the SIGKILL/OOM away.
+    webpackBuildWorker: true,
   },
 
   // Keep puppeteer + the lambda Chromium binary out of the webpack bundle;
