@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T09:18:32.090Z",
-  "last_commit": "e90ffb7416aebfa48de43d8f0f7607025a4bebda",
+  "generated_at": "2026-07-25T09:26:36.429Z",
+  "last_commit": "833793e6f0ff38736a8d4d4441de1cbb0a1bdeec",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4356,7 +4356,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.104.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "WithRoute robustness wrapper + adopt on founder-independence routes (Phase G)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "WithRoute robustness wrapper + adopt on founder-independence routes (Phase G)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.103.0"
+  "app_version": "1.104.0"
 }

@@ -3,18 +3,18 @@
  *   GET                      → this school's digest mode + a live preview
  *   POST { mode }            → set digest mode (issues_only | daily | off)
  *   POST { action:'send' }   → send the digest now (admin-triggered, deduped)
+ *
+ * Robustness (auth + permission + try/catch + error envelope) via withRoute.
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { withRoute } from '@/lib/api/with-route';
 import { query } from '@/lib/db';
-import { getSessionSchoolId } from '@/lib/auth';
-import { requirePermission } from '@/lib/rbac';
 import { buildAttendanceDigest, sendDailyDigests } from '@/lib/attendance/digest';
 
 export const runtime = 'nodejs';
 
-export async function GET(req: NextRequest) {
-  const session = await getSessionSchoolId(req);
-  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+const badRequest = (msg: string) => { const e: any = new Error(msg); e.statusCode = 400; return e; };
+
+export const GET = withRoute(async ({ req, session }) => {
   const rows = (await query(
     `SELECT value_text FROM school_settings WHERE school_id = ? AND key_name = 'attendance.digest_mode' LIMIT 1`,
     [session.schoolId],
@@ -29,27 +29,21 @@ export async function GET(req: NextRequest) {
     if (s?.success) preview = buildAttendanceDigest(s);
   } catch { /* preview optional */ }
 
-  return NextResponse.json({ success: true, mode, preview });
-}
+  return { success: true, mode, preview };
+});
 
-export async function POST(req: NextRequest) {
-  const session = await getSessionSchoolId(req);
-  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  try {
-    await requirePermission(session.userId, session.schoolId, 'attendance.manage', session.isSuperAdmin);
-  } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 403 }); }
-
-  const b = await req.json().catch(() => null);
+export const POST = withRoute({ permission: 'attendance.manage' }, async ({ session, body }) => {
+  const b = await body();
 
   if (b?.action === 'send') {
     const res = await sendDailyDigests();
-    return NextResponse.json({ success: true, ...res });
+    return { success: true, ...res };
   }
 
   const mode = ['issues_only', 'daily', 'off'].includes(b?.mode) ? b.mode : null;
-  if (!mode) return NextResponse.json({ error: 'mode must be issues_only | daily | off' }, { status: 400 });
+  if (!mode) throw badRequest('mode must be issues_only | daily | off');
   const existing = (await query(`SELECT id FROM school_settings WHERE school_id = ? AND key_name = 'attendance.digest_mode' LIMIT 1`, [session.schoolId])) as any[];
   if (existing[0]) await query(`UPDATE school_settings SET value_text = ? WHERE id = ?`, [mode, existing[0].id]);
   else await query(`INSERT INTO school_settings (school_id, key_name, value_text) VALUES (?, 'attendance.digest_mode', ?)`, [session.schoolId, mode]);
-  return NextResponse.json({ success: true, mode });
-}
+  return { success: true, mode };
+});
