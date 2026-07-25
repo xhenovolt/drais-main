@@ -10,6 +10,9 @@ import {
   Activity, RefreshCw, CheckCircle, AlertTriangle, XCircle, HelpCircle,
   HardDrive, Radio, Waves, Clock, MessageSquare, Users, ListOrdered, Cog, Database, Cpu,
 } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
+
+type TFn = (k: string, v?: any, f?: string) => string;
 
 const CHECK_ICON: Record<string, React.ReactNode> = {
   devices: <HardDrive className="w-4 h-4" />, heartbeat: <Radio className="w-4 h-4" />,
@@ -26,6 +29,7 @@ const STATUS_STYLE: Record<string, { badge: string; icon: React.ReactNode }> = {
 };
 
 export default function AttendanceHealthPage() {
+  const { t } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(true);
@@ -59,35 +63,35 @@ export default function AttendanceHealthPage() {
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30"><Activity className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /></div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Attendance Health Center</h1>
-            <p className="text-sm text-gray-500">Every stage of the attendance pipeline, checked live — no SQL required.</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('attendanceIntel.health.title', 'Attendance Health Center')}</h1>
+            <p className="text-sm text-gray-500">{t('attendanceIntel.health.subtitle', 'Every stage of the attendance pipeline, checked live — no SQL required.')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-xs text-gray-500">
-            <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} /> Live refresh (30s)
+            <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} /> {t('attendanceIntel.health.liveRefresh', 'Live refresh (30s)')}
           </label>
-          <button onClick={load} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Re-check
+          <button onClick={load} aria-label={t('attendanceIntel.health.recheck', 'Re-check')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {t('attendanceIntel.health.recheck', 'Re-check')}
           </button>
         </div>
       </div>
 
       {/* Daily digest — DRAIS tells you what needs you (Phase D) */}
-      <DigestControl />
+      <DigestControl t={t} />
 
       {/* Overall score */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 flex items-center gap-6 flex-wrap">
         <div className="text-center">
           <div className={`text-6xl font-extrabold tabular-nums ${scoreColor}`}>{score ?? '—'}<span className="text-2xl font-bold">%</span></div>
           <div className={`mt-1 inline-block text-xs px-2.5 py-1 rounded-full font-semibold uppercase ${STATUS_STYLE[overall || 'unknown']?.badge}`}>
-            {overall === 'healthy' ? 'Healthy' : overall === 'degraded' ? 'Degraded' : overall === 'critical' ? 'Needs attention' : '…'}
+            {overall === 'healthy' ? t('attendanceIntel.health.healthy', 'Healthy') : overall === 'degraded' ? t('attendanceIntel.health.degraded', 'Degraded') : overall === 'critical' ? t('attendanceIntel.health.attention', 'Needs attention') : t('attendanceIntel.health.pending', '…')}
           </div>
         </div>
         <div className="flex-1 min-w-[220px]">
           {data?.recommendations?.length ? (
             <>
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Recommendations (worst first)</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">{t('attendanceIntel.health.recommendations', 'Recommendations (worst first)')}</p>
               <ul className="space-y-1">
                 {data.recommendations.map((r: string, i: number) => (
                   <li key={i} className="text-sm text-gray-700 dark:text-gray-200 flex items-start gap-1.5">
@@ -98,11 +102,11 @@ export default function AttendanceHealthPage() {
             </>
           ) : (
             <p className="text-sm text-gray-500 flex items-center gap-1.5">
-              <CheckCircle className="w-4 h-4 text-emerald-500" /> Everything is operating normally — no action needed.
+              <CheckCircle className="w-4 h-4 text-emerald-500" /> {t('attendanceIntel.health.allNormal', 'Everything is operating normally — no action needed.')}
             </p>
           )}
           {data?.generated_at && (
-            <p className="text-[11px] text-gray-400 mt-2">Checked {new Date(data.generated_at).toLocaleTimeString()}</p>
+            <p className="text-[11px] text-gray-400 mt-2">{t('attendanceIntel.health.checkedAt', { time: new Date(data.generated_at).toLocaleTimeString() }, 'Checked {{time}}')}</p>
           )}
         </div>
       </div>
@@ -143,7 +147,7 @@ export default function AttendanceHealthPage() {
 
 /** Daily digest control — mode + preview + send-now. DRAIS proactively tells
  *  admins what needs them instead of waiting to be opened (Phase D). */
-function DigestControl() {
+function DigestControl({ t }: { t: TFn }) {
   const [data, setData] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
@@ -159,7 +163,7 @@ function DigestControl() {
   const sendNow = async () => {
     setBusy(true);
     try { const r = await (await fetch('/api/attendance/digest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'send' }) })).json();
-      alert(r.success ? `Digest sent to ${r.sent} school(s).` : (r.error || 'Failed')); }
+      alert(r.success ? t('attendanceIntel.digest.sentToast', { n: r.sent }, 'Digest sent to {{n}} school(s).') : (r.error || t('attendanceIntel.digest.failed', 'Failed'))); }
     finally { setBusy(false); }
   };
 
@@ -169,23 +173,23 @@ function DigestControl() {
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Daily attendance digest</p>
-          <p className="text-xs text-gray-500">DRAIS notifies your admins each day about what needs attention — no one has to open a page.</p>
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('attendanceIntel.digest.title', 'Daily attendance digest')}</p>
+          <p className="text-xs text-gray-500">{t('attendanceIntel.digest.subtitle', 'DRAIS notifies your admins each day about what needs attention — no one has to open a page.')}</p>
         </div>
         <div className="flex items-center gap-2">
-          <select value={data.mode} onChange={(e) => setMode(e.target.value)} disabled={busy}
+          <select value={data.mode} onChange={(e) => setMode(e.target.value)} disabled={busy} aria-label={t('attendanceIntel.digest.title', 'Daily attendance digest')}
             className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200">
-            <option value="issues_only">Only when there are issues</option>
-            <option value="daily">Every day (incl. all-clear)</option>
-            <option value="off">Off</option>
+            <option value="issues_only">{t('attendanceIntel.digest.modeIssues', 'Only when there are issues')}</option>
+            <option value="daily">{t('attendanceIntel.digest.modeDaily', 'Every day (incl. all-clear)')}</option>
+            <option value="off">{t('attendanceIntel.digest.modeOff', 'Off')}</option>
           </select>
-          <button onClick={sendNow} disabled={busy} className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50">Send now</button>
+          <button onClick={sendNow} disabled={busy} className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50">{t('attendanceIntel.digest.sendNow', 'Send now')}</button>
         </div>
       </div>
       {p && (
         <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 border-t border-gray-100 dark:border-gray-700 pt-2">
           <span className="font-medium">{p.title}.</span>{' '}
-          {p.hasIssues ? `${p.items.length} item(s) would be sent.` : 'Nothing to send today.'}
+          {p.hasIssues ? t('attendanceIntel.digest.wouldSend', { n: p.items.length }, '{{n}} item(s) would be sent.') : t('attendanceIntel.digest.nothingToSend', 'Nothing to send today.')}
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Cpu, RefreshCw, Loader2, Wrench, Clock, UploadCloud, Radio, Activity } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const BAND_STYLE: Record<string, string> = {
   excellent: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
@@ -32,6 +33,7 @@ function SubBar({ icon, label, sub }: { icon: React.ReactNode; label: string; su
 }
 
 export default function DeviceIntelligence() {
+  const { t } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,18 +51,18 @@ export default function DeviceIntelligence() {
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30"><Cpu className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /></div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Device Intelligence</h1>
-            <p className="text-sm text-gray-500">Every biometric device's reliability, scored — so maintenance is planned, not reactive.</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('attendanceIntel.deviceIntel.title', 'Device Intelligence')}</h1>
+            <p className="text-sm text-gray-500">{t('attendanceIntel.deviceIntel.subtitle', "Every biometric device's reliability, scored — so maintenance is planned, not reactive.")}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {data?.fleet != null && <span className="text-sm text-gray-500">Fleet: <span className="font-bold text-gray-800 dark:text-gray-100">{data.fleet}%</span></span>}
-          <button onClick={load} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Re-check</button>
+          {data?.fleet != null && <span className="text-sm text-gray-500">{t('attendanceIntel.deviceIntel.fleet', 'Fleet:')} <span className="font-bold text-gray-800 dark:text-gray-100">{data.fleet}%</span></span>}
+          <button onClick={load} aria-label={t('attendanceIntel.deviceIntel.recheck', 'Re-check')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {t('attendanceIntel.deviceIntel.recheck', 'Re-check')}</button>
         </div>
       </div>
 
       {loading && !data && <div className="py-16 text-center"><Loader2 className="w-7 h-7 animate-spin text-indigo-600 inline" /></div>}
-      {data && devices.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No devices registered.</p>}
+      {data && devices.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t('attendanceIntel.deviceIntel.noDevices', 'No devices registered.')}</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {devices.map((d: any) => {
@@ -70,7 +72,7 @@ export default function DeviceIntelligence() {
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="min-w-0">
                   <p className="font-mono text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{d.device_name || d.sn}</p>
-                  <p className="text-[11px] text-gray-400">{d.firmware || 'firmware ?'} · {d.active_days_30} active days/30{d.is_online ? '' : ' · offline'}</p>
+                  <p className="text-[11px] text-gray-400">{d.firmware || t('attendanceIntel.deviceIntel.firmwareUnknown', 'firmware ?')} · {t('attendanceIntel.deviceIntel.activeDays', { n: d.active_days_30 }, '{{n}} active days/30')}{d.is_online ? '' : ` · ${t('attendanceIntel.deviceIntel.offline', 'offline')}`}</p>
                 </div>
                 <div className="text-right">
                   <div className={`text-2xl font-bold tabular-nums ${rep.overall >= 90 ? 'text-emerald-600 dark:text-emerald-400' : rep.overall >= 75 ? 'text-sky-600 dark:text-sky-400' : rep.overall >= 55 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{rep.overall}%</div>
@@ -78,10 +80,10 @@ export default function DeviceIntelligence() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                <SubBar icon={<Clock className="w-3 h-3" />} label="Clock" sub={rep.clock} />
-                <SubBar icon={<UploadCloud className="w-3 h-3" />} label="Upload" sub={rep.upload} />
-                <SubBar icon={<Radio className="w-3 h-3" />} label="Heartbeat" sub={rep.heartbeat} />
-                <SubBar icon={<Activity className="w-3 h-3" />} label="Activity" sub={rep.activity} />
+                <SubBar icon={<Clock className="w-3 h-3" />} label={t('attendanceIntel.deviceIntel.clock', 'Clock')} sub={rep.clock} />
+                <SubBar icon={<UploadCloud className="w-3 h-3" />} label={t('attendanceIntel.deviceIntel.upload', 'Upload')} sub={rep.upload} />
+                <SubBar icon={<Radio className="w-3 h-3" />} label={t('attendanceIntel.deviceIntel.heartbeat', 'Heartbeat')} sub={rep.heartbeat} />
+                <SubBar icon={<Activity className="w-3 h-3" />} label={t('attendanceIntel.deviceIntel.activity', 'Activity')} sub={rep.activity} />
               </div>
               {rep.recommendation && (
                 <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-2.5 py-2">

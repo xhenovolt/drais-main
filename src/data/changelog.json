@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T09:05:15.618Z",
-  "last_commit": "6b35352fd57247e5a46396e62dd671d6daac4e70",
+  "generated_at": "2026-07-25T09:18:32.090Z",
+  "last_commit": "e90ffb7416aebfa48de43d8f0f7607025a4bebda",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4343,7 +4343,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.103.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Bilingual Health/Device/Trends/Time-Health intelligence pages (Phase F pt2)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Bilingual Health/Device/Trends/Time-Health intelligence pages (Phase F pt2)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.102.0"
+  "app_version": "1.103.0"
 }
