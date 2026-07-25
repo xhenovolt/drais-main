@@ -93,6 +93,87 @@ export default function IdentityIntelligence() {
           </div>
         ))}
       </div>
+
+      {/* Duplicate people — guided merge (Phase B) */}
+      <DuplicatePeople />
+    </div>
+  );
+}
+
+/** Guided merge of duplicate person records — pick keeper, preview, merge. */
+function DuplicatePeople() {
+  const [groups, setGroups] = useState<any[] | null>(null);
+  const load = useCallback(async () => {
+    try { const j = await (await fetch('/api/attendance/person-merge', { cache: 'no-store' })).json(); setGroups(j.groups || []); }
+    catch { setGroups([]); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (!groups) return null;
+  if (groups.length === 0) return null;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1 flex items-center gap-1.5">
+        <GitMerge className="w-4 h-4 text-rose-500" /> Duplicate people
+        <span className="text-[11px] font-normal text-gray-400">({groups.length} name{groups.length === 1 ? '' : 's'} appear more than once — attendance is split)</span>
+      </p>
+      <p className="text-[11px] text-gray-400 mb-2">Pick the record to keep; the others merge into it (all attendance moves over) and are moved to Trash. Reversible + audited.</p>
+      <div className="space-y-2 max-h-96 overflow-y-auto">
+        {groups.map((g, i) => <DupGroup key={i} group={g} onMerged={load} />)}
+      </div>
+    </div>
+  );
+}
+
+function DupGroup({ group, onMerged }: { group: any; onMerged: () => void }) {
+  const withRole = group.members.filter((m: any) => m.role !== 'none');
+  const [keeper, setKeeper] = useState<number>(withRole[0]?.person_id ?? group.members[0]?.person_id);
+  const [preview, setPreview] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const losers = group.members.filter((m: any) => m.person_id !== keeper).map((m: any) => m.person_id);
+  const keeperMember = group.members.find((m: any) => m.person_id === keeper);
+
+  const doPreview = async () => {
+    setBusy(true);
+    try { const j = await (await fetch('/api/attendance/person-merge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'preview', keeper_person_id: keeper, loser_person_ids: losers }) })).json(); setPreview(j.success ? j : null); }
+    finally { setBusy(false); }
+  };
+  const doMerge = async () => {
+    if (!keeperMember || keeperMember.role === 'none') { alert('Keeper must be a real staff/learner record.'); return; }
+    if (!confirm(`Merge ${losers.length} duplicate(s) into ${group.name}? Attendance moves over; the duplicates go to Trash (restorable).`)) return;
+    setBusy(true);
+    try {
+      const j = await (await fetch('/api/attendance/person-merge', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'merge', keeper_role: keeperMember.role, keeper_ref_id: keeperMember.ref_id, keeper_person_id: keeper, loser_person_ids: losers }) })).json();
+      if (j.success) { alert(`Merged ${j.merged} duplicate(s); ${j.events} events moved.`); onMerged(); }
+      else alert(j.error || 'Failed');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-100 dark:border-gray-700 p-2.5">
+      <p className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">{group.name}</p>
+      <div className="space-y-1">
+        {group.members.map((m: any) => (
+          <label key={m.person_id} className="flex items-center justify-between text-xs cursor-pointer">
+            <span className="flex items-center gap-1.5">
+              <input type="radio" name={`keep-${group.name}`} checked={keeper === m.person_id} onChange={() => { setKeeper(m.person_id); setPreview(null); }} disabled={m.role === 'none'} />
+              <span className="text-gray-700 dark:text-gray-200">#{m.person_id}</span>
+              <span className={`text-[10px] px-1 rounded ${m.role === 'none' ? 'bg-gray-100 text-gray-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>{m.role}</span>
+            </span>
+            <span className="text-gray-400">{m.events} events · {m.enrollments} PIN(s)</span>
+          </label>
+        ))}
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        {preview ? <span className="text-[11px] text-indigo-600 dark:text-indigo-400">Merges {preview.losers} record(s): {preview.events} events, {preview.records} verdicts move in.</span> : <span className="text-[11px] text-gray-400">Keeper: #{keeper}</span>}
+        <div className="flex gap-1.5">
+          {!preview
+            ? <button onClick={doPreview} disabled={busy || losers.length === 0} className="text-[11px] px-2.5 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium disabled:opacity-50">Preview</button>
+            : <button onClick={doMerge} disabled={busy} className="text-[11px] px-2.5 py-1 rounded bg-rose-600 text-white font-medium disabled:opacity-50">{busy ? 'Merging…' : `Merge ${losers.length} in`}</button>}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T08:27:55.389Z",
-  "last_commit": "10e977cbcc0a4a67aa15f6d897d7ccb1403ff2d9",
+  "generated_at": "2026-07-25T08:41:14.555Z",
+  "last_commit": "eb998c007a6299a712a92fa2fe50bcddd125f090",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4304,7 +4304,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.100.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Guided person merge — founder-independence Phase B",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Guided person merge — founder-independence Phase B"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.99.0"
+  "app_version": "1.100.0"
 }
