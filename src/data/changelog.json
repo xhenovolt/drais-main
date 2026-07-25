@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T20:04:40.120Z",
-  "last_commit": "442a50c69691493851845db75828ddb86b77a6b9",
+  "generated_at": "2026-07-25T20:06:33.341Z",
+  "last_commit": "4eb57695286189524ffe3aab5d2412ddd2287e06",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4421,7 +4421,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.105.2",
+      "date": "2026-07-25",
+      "release_type": "patch",
+      "title": "Control Center architecture audit (Phase 0, audit-only)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Control Center architecture audit (Phase 0, audit-only)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.105.1"
+  "app_version": "1.105.2"
 }
