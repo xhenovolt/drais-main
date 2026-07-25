@@ -7,12 +7,20 @@ import AfricasTalking from "africastalking";
 // source (it leaks into git history). Set AFRICASTALKING_API_KEY /
 // AFRICASTALKING_USERNAME in the hosting env, matching the convention used
 // elsewhere in the codebase.
-const africasTalkingClient = AfricasTalking({
-  apiKey: process.env.AFRICASTALKING_API_KEY || '',
-  username: process.env.AFRICASTALKING_USERNAME || 'xhenovolt',
-});
-
-const sms = africasTalkingClient.SMS;
+//
+// The client is built LAZILY (not at module scope): the AfricasTalking
+// constructor throws if apiKey is empty, and at build time — during Next.js
+// page-data collection — the env var is absent, which would fail the build.
+// Constructing on first send keeps import side-effect-free.
+let smsClient: ReturnType<typeof AfricasTalking>['SMS'] | null = null;
+function getSms() {
+  if (smsClient) return smsClient;
+  const apiKey = process.env.AFRICASTALKING_API_KEY;
+  const username = process.env.AFRICASTALKING_USERNAME || 'xhenovolt';
+  if (!apiKey) throw new Error('SMS is not configured (AFRICASTALKING_API_KEY is not set).');
+  smsClient = AfricasTalking({ apiKey, username }).SMS;
+  return smsClient;
+}
 
 async function formatPhoneNumber(contact: string): Promise<string> {
   if (/^0\d{9}$/.test(contact)) {
@@ -34,7 +42,7 @@ async function sendSMS(to: string, message: string) {
   };
 
   try {
-    const response = await sms.send(options);
+    const response = await getSms().send(options);
     const recipients = response.SMSMessageData?.Recipients || [];
     if (recipients.length > 0 && recipients[0].status === 'Success') {
       return {

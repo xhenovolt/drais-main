@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T19:50:20.634Z",
-  "last_commit": "3f5827b38f40eebbc24cc2eb1f8734e9fdb0493c",
+  "generated_at": "2026-07-25T20:04:40.120Z",
+  "last_commit": "442a50c69691493851845db75828ddb86b77a6b9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4408,7 +4408,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.105.1",
+      "date": "2026-07-25",
+      "release_type": "patch",
+      "title": "Lazy-construct Africa's Talking client — build no longer fails when key unset",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Lazy-construct Africa's Talking client — build no longer fails when key unset"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.105.0"
+  "app_version": "1.105.1"
 }
