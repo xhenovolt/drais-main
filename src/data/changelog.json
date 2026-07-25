@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T08:05:41.255Z",
-  "last_commit": "29dfbb56c58b0d87ef2257eee288d9e9c036fec4",
+  "generated_at": "2026-07-25T08:18:15.316Z",
+  "last_commit": "d22e46e3fe3c0edb11ef39a5421ed90ef9a5e123",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4278,7 +4278,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.98.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Proactive daily digest — founder-independence Phase D",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Proactive daily digest — founder-independence Phase D"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.97.0"
+  "app_version": "1.98.0"
 }

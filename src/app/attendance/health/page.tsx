@@ -73,6 +73,9 @@ export default function AttendanceHealthPage() {
         </div>
       </div>
 
+      {/* Daily digest — DRAIS tells you what needs you (Phase D) */}
+      <DigestControl />
+
       {/* Overall score */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 flex items-center gap-6 flex-wrap">
         <div className="text-center">
@@ -134,6 +137,57 @@ export default function AttendanceHealthPage() {
           <div key={i} className="h-28 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Daily digest control — mode + preview + send-now. DRAIS proactively tells
+ *  admins what needs them instead of waiting to be opened (Phase D). */
+function DigestControl() {
+  const [data, setData] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    try { setData(await (await fetch('/api/attendance/digest', { cache: 'no-store' })).json()); } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const setMode = async (mode: string) => {
+    setBusy(true);
+    try { await fetch('/api/attendance/digest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode }) }); await load(); }
+    finally { setBusy(false); }
+  };
+  const sendNow = async () => {
+    setBusy(true);
+    try { const r = await (await fetch('/api/attendance/digest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'send' }) })).json();
+      alert(r.success ? `Digest sent to ${r.sent} school(s).` : (r.error || 'Failed')); }
+    finally { setBusy(false); }
+  };
+
+  if (!data) return null;
+  const p = data.preview;
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Daily attendance digest</p>
+          <p className="text-xs text-gray-500">DRAIS notifies your admins each day about what needs attention — no one has to open a page.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={data.mode} onChange={(e) => setMode(e.target.value)} disabled={busy}
+            className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200">
+            <option value="issues_only">Only when there are issues</option>
+            <option value="daily">Every day (incl. all-clear)</option>
+            <option value="off">Off</option>
+          </select>
+          <button onClick={sendNow} disabled={busy} className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50">Send now</button>
+        </div>
+      </div>
+      {p && (
+        <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 border-t border-gray-100 dark:border-gray-700 pt-2">
+          <span className="font-medium">{p.title}.</span>{' '}
+          {p.hasIssues ? `${p.items.length} item(s) would be sent.` : 'Nothing to send today.'}
+        </div>
+      )}
     </div>
   );
 }

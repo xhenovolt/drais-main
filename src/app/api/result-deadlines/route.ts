@@ -83,6 +83,10 @@ export async function GET(req: NextRequest) {
   // an intelligence page. Best-effort; never blocks the reminder dispatch.
   import('@/lib/attendance/intelligence-sweep')
     .then(m => m.sweepAllSchools())
+    // After the sweep populates fresh intelligence, push the daily digest so
+    // admins are TOLD what needs them (Founder-Independence Phase D) — no one
+    // has to open a page. In-app, deduped once per school per day.
+    .then(() => import('@/lib/attendance/digest').then(m => m.sendDailyDigests()))
     .catch(() => {});
   return dispatch(req);
 }
