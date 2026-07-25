@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getControlSession, controlAudit, clientIp, canManage } from '@/lib/control/auth';
 import { MODULE_CATALOG, isModuleCode, getSchoolModuleStatus, setSchoolModule } from '@/lib/school-modules';
+import { getPlanByCode, assignPlanToSchool, schoolUsage, usageAgainst } from '@/lib/control/subscriptions';
 
 export const runtime = 'nodejs';
 
@@ -46,10 +47,17 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
            ORDER BY e.punch_at DESC LIMIT 15`),
   ]);
 
+  // Plan + usage (P5) — the school's plan limits vs its current usage.
+  const plan = schools[0].subscription_plan ? await getPlanByCode(schools[0].subscription_plan).catch(() => null) : null;
+  const usage = await schoolUsage(schoolId).catch(() => null);
+  const planUsage = plan && usage ? usageAgainst(plan.limits, usage) : null;
+
   await controlAudit(user.id, 'viewed_school', `schools:${schoolId}`, { name: schools[0].name }, clientIp(req));
   return NextResponse.json({
     success: true,
     school: schools[0],
+    plan,
+    plan_usage: planUsage,
     devices,
     punches_24h: Number(punches24[0]?.n || 0),
     attendance_today: todayCounts,
@@ -78,6 +86,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await controlAudit(user.id, 'feature_toggled', `schools:${schoolId}`,
       { module: b.module_code, enabled: !!b.enabled }, clientIp(req));
     return NextResponse.json({ success: true });
+  }
+
+  // ── Assign a catalog subscription plan to this school (P5) ──
+  if (b?.action === 'assign_plan') {
+    const code = String(b.plan_code || '').trim();
+    if (!code) return NextResponse.json({ error: 'plan_code is required' }, { status: 400 });
+    const res = await assignPlanToSchool(schoolId, code, user.id, clientIp(req));
+    if (!res.ok) return NextResponse.json({ error: res.reason }, { status: 400 });
+    return NextResponse.json({ success: true, plan: res.plan });
   }
 
   // ── Suspend / activate a school (operate without its credentials) ──

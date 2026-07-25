@@ -44,6 +44,10 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
       {/* Subscription & lifecycle control — operate the school without its login */}
       <SubscriptionControl school={s} act={act} />
 
+      {/* Plan & usage (P5) — catalog plan + limits vs current usage */}
+      <PlanUsagePanel plan={data.plan} usage={data.plan_usage} act={act} />
+
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Tile label="Punches (24h)" value={data.punches_24h} />
         <Tile label="Staff today" value={`${sum('staff', 'present') + sum('staff', 'late')} in`} sub={`${sum('staff', 'late')} late · ${sum('staff', 'absent')} absent`} />
@@ -150,6 +154,43 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
       <p className="text-sm font-semibold text-slate-200 mb-2 flex items-center gap-1.5">{icon} {title}</p>
       {children}
     </div>
+  );
+}
+
+function PlanUsagePanel({ plan, usage, act }: { plan: any; usage: any[] | null; act: (b: any) => Promise<boolean> }) {
+  const { data } = useSWR<any>('/api/control-center/plans', fetcher);
+  const plans = data?.plans || [];
+  const shown = (usage || []).filter((u: any) => ['learners', 'staff', 'devices'].includes(u.key));
+  const fmt = (v: any) => (v == null ? '∞' : Number(v).toLocaleString());
+  return (
+    <Panel title="Plan & usage" icon={<CreditCard className="w-4 h-4" />}>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="text-xs text-slate-300">
+          Current plan: {plan ? <span className="font-semibold text-slate-100">{plan.name}</span> : <span className="text-amber-300">none / legacy</span>}
+        </span>
+        <select defaultValue="" onChange={(e) => { if (e.target.value) act({ action: 'assign_plan', plan_code: e.target.value }); }}
+          className="text-xs px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">
+          <option value="">Assign plan…</option>
+          {plans.map((p: any) => <option key={p.code} value={p.code}>{p.name}</option>)}
+        </select>
+      </div>
+      {!plan ? <p className="text-xs text-slate-500">Assign a catalog plan to enforce limits.</p> : shown.length === 0 ? <p className="text-xs text-slate-500">No usage data.</p> : (
+        <div className="space-y-2">
+          {shown.map((u: any) => (
+            <div key={u.key}>
+              <div className="flex items-center justify-between text-[11px] mb-0.5">
+                <span className="text-slate-400 capitalize">{u.key}</span>
+                <span className={u.over ? 'text-rose-400 font-semibold' : 'text-slate-300'}>{u.used.toLocaleString()} / {fmt(u.limit)}{u.over ? ' · OVER' : ''}</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${u.over ? 'bg-rose-500' : u.pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${u.unlimited ? 0 : u.pct}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="text-[10px] text-slate-500 mt-2">Assigning a plan is audited. Limits shown vs live usage; ∞ = unlimited.</p>
+    </Panel>
   );
 }
 

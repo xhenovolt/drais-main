@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T22:33:28.769Z",
-  "last_commit": "34d08ab108a327b757d5375045247a192c829c74",
+  "generated_at": "2026-07-25T22:55:09.622Z",
+  "last_commit": "8abd5a47e14240fef40ab72aeead443a282239ea",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4499,7 +4499,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.110.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Subscription plan engine — catalog + limits + usage (P5)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Subscription plan engine — catalog + limits + usage (P5)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.109.0"
+  "app_version": "1.110.0"
 }
