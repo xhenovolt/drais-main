@@ -545,8 +545,11 @@ async function upsertDevice(
          push_version = COALESCE(VALUES(push_version), push_version),
          last_seen = NOW(),
          is_online = TRUE,
-         status = 'active',
-         deleted_at = NULL,
+         -- A device the platform (Xhenvolt Control) has deliberately suspended
+         -- or retired must NOT be auto-resurrected by its own heartbeat; only a
+         -- normal 'active'/other device gets flipped back to active.
+         status = IF(status IN ('suspended','retired'), status, 'active'),
+         deleted_at = IF(status IN ('suspended','retired'), deleted_at, NULL),
          school_id = COALESCE(school_id, VALUES(school_id)),
          updated_at = CURRENT_TIMESTAMP`,
       [sn, ip, options, pushVer, schoolId],

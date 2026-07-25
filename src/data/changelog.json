@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T20:34:32.737Z",
-  "last_commit": "49019ec7dbe64b6a566df1dfa323db3076258188",
+  "generated_at": "2026-07-25T20:51:41.773Z",
+  "last_commit": "f475ff9d6f105bb1015de0c820b656a52d2426dc",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4447,7 +4447,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.107.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Platform device management — inventory, assign, lifecycle, timeline (P2)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Platform device management — inventory, assign, lifecycle, timeline (P2)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.106.0"
+  "app_version": "1.107.0"
 }
