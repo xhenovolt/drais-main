@@ -402,6 +402,24 @@ function CorrectIdentityModal({
     return () => { cancelled = true; clearTimeout(t); };
   }, [q, role, tab]);
 
+  // Preview the impact once a target is picked (Phase A — confirm on facts).
+  const [preview, setPreview] = useState<any>(null);
+  useEffect(() => {
+    if (tab !== 'reassign' || !picked?.id) { setPreview(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/attendance/identity-correction', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'preview', device_user_id: deviceUserId, new_role: role, new_ref_id: picked.id }),
+        });
+        const j = await res.json();
+        if (!cancelled) setPreview(res.ok ? j : null);
+      } catch { if (!cancelled) setPreview(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [tab, picked, role, deviceUserId]);
+
   const submit = useCallback(async () => {
     setBusy(true);
     try {
@@ -416,6 +434,18 @@ function CorrectIdentityModal({
     } catch { /* apiFetch toasts */ } finally { setBusy(false); }
   }, [tab, deviceUserId, role, newName, picked, reason, onCorrected]);
 
+  const undoLast = useCallback(async () => {
+    setBusy(true);
+    try {
+      const r = await apiFetch('/api/attendance/identity-correction', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'undo_correction', device_user_id: deviceUserId }),
+        successMessage: 'Last correction undone — events restored to the previous owner',
+      });
+      if (r) onCorrected();
+    } catch { /* toast */ } finally { setBusy(false); }
+  }, [deviceUserId, onCorrected]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -424,9 +454,9 @@ function CorrectIdentityModal({
           <h3 className="text-base font-semibold">Correct identity</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
-        <div className="text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
-          PIN <span className="font-mono font-bold">{deviceUserId}</span> currently maps to <span className="font-semibold">{currentName || 'someone'}</span>.
-          The attendance events stay; only who they belong to changes (audited).
+        <div className="text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 flex items-start justify-between gap-2">
+          <span>PIN <span className="font-mono font-bold">{deviceUserId}</span> currently maps to <span className="font-semibold">{currentName || 'someone'}</span>. The attendance events stay; only who they belong to changes (audited).</span>
+          <button onClick={undoLast} disabled={busy} title="Revert the most recent correction on this PIN" className="flex-shrink-0 text-[11px] px-2 py-0.5 rounded bg-white/70 dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 hover:bg-white font-medium disabled:opacity-50">Undo last</button>
         </div>
         <div className="flex gap-2">
           {(['reassign', 'create'] as const).map(t => (
@@ -462,7 +492,14 @@ function CorrectIdentityModal({
                 </button>
               ))}
             </div>
-            {picked && <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">Selected: {picked.name} — apply below.</p>}
+            {picked && !preview && <p className="mt-1 text-[11px] text-gray-400">Selected: {picked.name} — checking impact…</p>}
+            {picked && preview && (
+              <div className="mt-1.5 p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-[11px] text-indigo-800 dark:text-indigo-200">
+                This moves <span className="font-semibold">{preview.events} attendance event{preview.events === 1 ? '' : 's'}</span>
+                {preview.firstDate ? ` (${preview.firstDate}${preview.lastDate && preview.lastDate !== preview.firstDate ? ` → ${preview.lastDate}` : ''})` : ''} from{' '}
+                <span className="font-semibold">{preview.fromName || 'current owner'}</span> → <span className="font-semibold">{preview.toName || picked.name}</span>. Verdicts for both re-evaluate. Reversible with “Undo last”.
+              </div>
+            )}
             <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, for the audit trail)" className="w-full mt-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
           </div>
         ) : (

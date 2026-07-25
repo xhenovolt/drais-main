@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T07:57:07.281Z",
-  "last_commit": "d98444a296f5721a0bae3d66b7104deb9c94a497",
+  "generated_at": "2026-07-25T08:05:41.255Z",
+  "last_commit": "29dfbb56c58b0d87ef2257eee288d9e9c036fec4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4252,7 +4252,33 @@
         }
       ],
       "commit": "d98444a296"
+    },
+    {
+      "version": "1.96.2",
+      "date": "2026-07-25",
+      "release_type": "patch",
+      "title": "Attendance founder-independence audit (audit-only, no implementation)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Attendance founder-independence audit (audit-only, no implementation)"
+        }
+      ],
+      "commit": "29dfbb56c5"
+    },
+    {
+      "version": "1.97.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Identity correction preview + undo — founder-independence Phase A",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Identity correction preview + undo — founder-independence Phase A"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.96.2"
+  "app_version": "1.97.0"
 }

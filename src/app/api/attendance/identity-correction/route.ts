@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
-import { applyCorrection, planCorrection, reattributePerson } from '@/lib/biometric/identity-correction';
+import { applyCorrection, planCorrection, reattributePerson, previewCorrectionImpact, undoLastCorrection } from '@/lib/biometric/identity-correction';
 
 export const runtime = 'nodejs';
 
@@ -99,6 +99,27 @@ export async function POST(req: NextRequest) {
         studentId: role === 'student' ? refId : null, staffId: role === 'staff' ? refId : null,
       });
       return NextResponse.json({ success: true, created: { person_id: personId, role, ref_id: refId }, eventsReattributed: bf.affectedRows });
+    }
+
+    // ── Preview a correction before applying (Phase A) ──
+    if (body.action === 'preview') {
+      const enr = await enrollmentFor(session.schoolId, body);
+      if (!enr) return NextResponse.json({ error: 'No enrollment for this device user' }, { status: 404 });
+      const prev = await previewCorrectionImpact({
+        schoolId: session.schoolId, enrollmentId: enr.id,
+        newRoleType: body.new_role === 'student' ? 'student' : 'staff', newRoleRefId: Number(body.new_ref_id),
+      });
+      if (!prev.ok) return NextResponse.json({ error: prev.reason }, { status: 400 });
+      return NextResponse.json({ success: true, ...prev });
+    }
+
+    // ── Undo the last correction on this PIN's enrollment (Phase A) ──
+    if (body.action === 'undo_correction') {
+      const enr = await enrollmentFor(session.schoolId, body);
+      if (!enr) return NextResponse.json({ error: 'No enrollment for this device user' }, { status: 404 });
+      const res = await undoLastCorrection({ schoolId: session.schoolId, enrollmentId: enr.id, actorUserId: session.userId });
+      if (!res.ok) return NextResponse.json({ error: res.reason }, { status: 409 });
+      return NextResponse.json({ success: true, ...res });
     }
 
     // ── Move ALL of one person's attendance to another (person-level) ──

@@ -57,6 +57,108 @@ export interface CorrectionResult {
   eventsReattributed?: number; daysReevaluated?: number;
 }
 
+/**
+ * PREVIEW — what a correction of `pin`'s enrollment to `newPersonId` will move,
+ * BEFORE anything changes. Answers "how many events, whose name, over what
+ * span" so the operator confirms on facts (Phase A: preview parity).
+ */
+export async function previewCorrectionImpact(args: {
+  schoolId: number; enrollmentId: number; newRoleType: 'staff' | 'student'; newRoleRefId: number;
+}): Promise<{ ok: boolean; reason?: string; pin?: number; fromName?: string | null; toName?: string | null; events?: number; firstDate?: string | null; lastDate?: string | null }> {
+  const enr = (await query(
+    `SELECT be.id, be.pin_value, be.person_id, be.origin_device_sn,
+            TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS from_name
+       FROM biometric_enrollments be LEFT JOIN people p ON p.id = be.person_id
+      WHERE be.id = ? AND be.school_id = ? LIMIT 1`,
+    [args.enrollmentId, args.schoolId],
+  )) as any[];
+  if (!enr[0]) return { ok: false, reason: 'Enrollment not found' };
+  const pin = Number(enr[0].pin_value);
+
+  const roleTable = args.newRoleType === 'student' ? 'students' : 'staff';
+  const to = (await query(
+    `SELECT TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS to_name
+       FROM ${roleTable} r JOIN people p ON p.id = r.person_id
+      WHERE r.id = ? AND r.school_id = ? AND r.deleted_at IS NULL LIMIT 1`,
+    [args.newRoleRefId, args.schoolId],
+  )) as any[];
+  if (!to[0]) return { ok: false, reason: 'Target person not found or archived' };
+
+  const agg = (await query(
+    `SELECT COUNT(*) n, DATE(MIN(punch_at)) first_d, DATE(MAX(punch_at)) last_d
+       FROM attendance_raw_events
+      WHERE school_id = ? AND CAST(device_user_id AS CHAR) = ?
+        ${enr[0].origin_device_sn ? 'AND device_sn = ?' : ''}`,
+    enr[0].origin_device_sn ? [args.schoolId, String(pin), enr[0].origin_device_sn] : [args.schoolId, String(pin)],
+  )) as any[];
+
+  return {
+    ok: true, pin, fromName: enr[0].from_name || null, toName: to[0].to_name || null,
+    events: Number(agg[0]?.n || 0),
+    firstDate: agg[0]?.first_d ? String(agg[0].first_d).slice(0, 10) : null,
+    lastDate: agg[0]?.last_d ? String(agg[0].last_d).slice(0, 10) : null,
+  };
+}
+
+/**
+ * UNDO — revert the most recent correction on an enrollment back to its prior
+ * binding, using biometric_mapping_history (which stored old_person/role/ref).
+ * Events are re-attributed back and both people's verdicts re-evaluated. The
+ * undo itself is recorded (action 'undo_correction'), so it too is auditable.
+ * Guard: won't undo if the latest action is already an undo (no double-undo).
+ */
+export async function undoLastCorrection(args: {
+  schoolId: number; enrollmentId: number; actorUserId?: number | null;
+}): Promise<CorrectionResult> {
+  const { schoolId, enrollmentId } = args;
+  // Latest correction-type history row for this enrollment.
+  const hist = (await query(
+    `SELECT id, action, old_role_type, old_role_ref_id, old_person_id,
+            new_role_type, new_role_ref_id, new_person_id
+       FROM biometric_mapping_history
+      WHERE school_id = ? AND enrollment_id = ?
+        AND action IN ('reassign','identity_correction','person_reattribution')
+      ORDER BY id DESC LIMIT 1`,
+    [schoolId, enrollmentId],
+  )) as any[];
+  if (!hist[0]) return { ok: false, reason: 'No correction to undo for this enrollment' };
+  const h = hist[0];
+
+  // Was this correction already undone? (an undo row created after it)
+  const laterUndo = (await query(
+    `SELECT 1 FROM biometric_mapping_history
+      WHERE school_id = ? AND enrollment_id = ? AND action = 'undo_correction' AND id > ? LIMIT 1`,
+    [schoolId, enrollmentId, h.id],
+  )) as any[];
+  if (laterUndo.length) return { ok: false, reason: 'This correction was already undone' };
+  if (h.old_role_type == null || h.old_role_ref_id == null) {
+    return { ok: false, reason: 'Original binding not recorded — cannot auto-undo' };
+  }
+
+  // Revert = correct back to the OLD binding.
+  const res = await applyCorrection({
+    schoolId, enrollmentId,
+    newRoleType: h.old_role_type as 'staff' | 'student',
+    newRoleRefId: Number(h.old_role_ref_id),
+    reason: `undo of correction #${h.id}`,
+    actorUserId: args.actorUserId ?? null,
+  });
+  if (!res.ok) return res;
+
+  // Tag the undo explicitly so double-undo is prevented and the trail is clear.
+  try {
+    const { recordMappingHistory } = await import('@/lib/biometric/enrollment-service');
+    await recordMappingHistory({
+      schoolId, enrollmentId, deviceSn: null, pin: null, action: 'undo_correction' as any,
+      oldRoleType: h.new_role_type, oldRoleRefId: h.new_role_ref_id, oldPersonId: h.new_person_id,
+      newRoleType: h.old_role_type, newRoleRefId: h.old_role_ref_id, newPersonId: h.old_person_id,
+      reason: `reverted correction #${h.id}`, actorUserId: args.actorUserId ?? null,
+    });
+  } catch { /* best-effort */ }
+
+  return res;
+}
+
 export async function applyCorrection(args: {
   schoolId: number;
   enrollmentId: number;
