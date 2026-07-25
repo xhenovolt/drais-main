@@ -116,6 +116,51 @@ export default function RecoveryCenter() {
         })}
         {data && devices.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No devices registered for this school.</p>}
       </div>
+
+      {/* Historical repair — re-evaluate a past span (Phase E) */}
+      <HistoricalRepair />
+    </div>
+  );
+}
+
+/** Re-evaluate attendance for a past date range — rebuilds verdicts from the
+ *  immutable raw events. Replaces the founder's re-evaluation scripts. */
+function HistoricalRepair() {
+  const [from, setFrom] = useState(() => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
+  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [role, setRole] = useState<'' | 'staff' | 'student'>('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const run = async () => {
+    if (!confirm(`Re-evaluate attendance from ${from} to ${to}${role ? ` (${role})` : ''}? This rebuilds verdicts from the original punches — raw events are never changed.`)) return;
+    setBusy(true); setResult(null);
+    try {
+      const r = await fetch('/api/attendance/historical-repair', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'reevaluate_range', from, to, role: role || undefined }),
+      });
+      const j = await r.json();
+      setResult(j.success ? j : { error: j.error });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1 flex items-center gap-1.5">
+        <RefreshCw className="w-4 h-4 text-indigo-500" /> Historical repair — re-evaluate a past span
+      </p>
+      <p className="text-[11px] text-gray-400 mb-2">If verdicts for some past days look wrong (after a correction, a clock fix, or a merge), rebuild them from the original punches. Safe &amp; idempotent — raw events are never edited.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs text-gray-500">From <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="ml-1 px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm" /></label>
+        <label className="text-xs text-gray-500">To <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="ml-1 px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm" /></label>
+        <select value={role} onChange={(e) => setRole(e.target.value as any)} className="px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-600 dark:text-gray-300">
+          <option value="">Everyone</option><option value="staff">Staff</option><option value="student">Learners</option>
+        </select>
+        <button onClick={run} disabled={busy} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{busy ? 'Re-evaluating…' : 'Re-evaluate'}</button>
+      </div>
+      {result?.error && <p className="mt-2 text-xs text-rose-500">{result.error}</p>}
+      {result?.success && <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">Rebuilt {result.reevaluated} of {result.personDays} person-day verdict(s) for {result.from} → {result.to}.</p>}
     </div>
   );
 }

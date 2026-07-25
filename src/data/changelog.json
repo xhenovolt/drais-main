@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T08:41:14.555Z",
-  "last_commit": "eb998c007a6299a712a92fa2fe50bcddd125f090",
+  "generated_at": "2026-07-25T08:55:10.021Z",
+  "last_commit": "39ff43a7605a7a5e6d5a8a2310645ea97debabdc",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4317,7 +4317,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.101.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Historical repair — founder-independence Phase E",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Historical repair — founder-independence Phase E"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.100.0"
+  "app_version": "1.101.0"
 }
