@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T18:41:56.629Z",
-  "last_commit": "4fdf68bd495b054e7dda12a4b915bc98ff8c0589",
+  "generated_at": "2026-07-25T19:22:12.342Z",
+  "last_commit": "d43e38e9779a447c759dce5a5a8a74acd47d3d16",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4382,7 +4382,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.104.2",
+      "date": "2026-07-25",
+      "release_type": "patch",
+      "title": "Control Center hardening audit (audit-only)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Control Center hardening audit (audit-only)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.104.1"
+  "app_version": "1.104.2"
 }
