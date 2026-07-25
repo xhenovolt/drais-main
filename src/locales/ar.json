@@ -2220,7 +2220,17 @@
       "causeMidnight": "انقلاب منتصف الليل / إعادة ضبط الساعة",
       "causeRtc": "يُشتبه بعطل بطارية RTC",
       "causeLearning": "ما زال يتعلّم هذه المدرسة",
-      "causeNoPunches": "لا بصمات بعد اليوم"
+      "causeNoPunches": "لا بصمات بعد اليوم",
+      "causeAutoResolved": "الانحراف صُحِّح تلقائيًا بالسياسة",
+      "causeAutoIncomplete": "التصحيح التلقائي غير مكتمل",
+      "causeTrustedByPolicy": "موثوق حسب السياسة (غير مُصحَّح عمدًا)",
+      "causeManualReview": "مُعلَّم للمراجعة اليدوية",
+      "policyLabel": "سياسة الوقت",
+      "policyCorrectByDrift": "التصحيح حسب الانحراف",
+      "policyTrustDevice": "الوثوق بوقت الجهاز",
+      "policyManualReview": "مراجعة يدوية عند الانحراف",
+      "rawDrift": "انحراف ساعة الجهاز",
+      "resolvedBadge": "صُحِّح تلقائيًا"
     }
   }
 }

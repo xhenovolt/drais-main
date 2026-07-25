@@ -80,6 +80,18 @@ export function ensureTimeIntelligenceSchema(): Promise<void> {
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
       [],
     );
+
+    // Policy-aware drift columns on device_clock_health (additive; existing
+    // tables predate these). Best-effort — ignore "duplicate column" if a prior
+    // run already added them.
+    for (const col of [
+      `ADD COLUMN raw_drift_min INT DEFAULT NULL`,        // device clock's own drift (from ingest skew)
+      `ADD COLUMN residual_drift_min INT DEFAULT NULL`,   // drift still present in stored punch_at
+      `ADD COLUMN resolved_by_policy TINYINT NOT NULL DEFAULT 0`,
+      `ADD COLUMN policy VARCHAR(32) DEFAULT NULL`,       // active time policy at assessment
+    ]) {
+      await query(`ALTER TABLE device_clock_health ${col}`, []).catch(() => {});
+    }
   })();
   return ensured;
 }

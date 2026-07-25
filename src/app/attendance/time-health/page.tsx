@@ -33,12 +33,25 @@ const CAUSE_LABEL: Record<string, string> = {
   rtc_failure: 'RTC battery failure suspected',
   insufficient_history: 'Still learning this school',
   no_punches: 'No punches yet today',
+  // policy-aware causes
+  auto_resolved: 'Drift auto-corrected by policy',
+  auto_correct_incomplete: 'Auto-correction incomplete',
+  trusted_by_policy: 'Trusted per policy (uncorrected by design)',
+  manual_review_flagged: 'Flagged for manual review',
 };
 // Maps a device cause to its i18n key (CAUSE_LABEL stays the English fallback).
 const CAUSE_KEY: Record<string, string> = {
   normal: 'causeNormal', clock_drift_hours: 'causeDriftHours', timezone_mismatch_or_drift: 'causeTzDrift',
   clock_running_fast: 'causeFast', clock_running_slow: 'causeSlow', future_timestamps: 'causeFuture',
   midnight_rollover: 'causeMidnight', rtc_failure: 'causeRtc', insufficient_history: 'causeLearning', no_punches: 'causeNoPunches',
+  auto_resolved: 'causeAutoResolved', auto_correct_incomplete: 'causeAutoIncomplete',
+  trusted_by_policy: 'causeTrustedByPolicy', manual_review_flagged: 'causeManualReview',
+};
+// Active-policy → i18n key + English fallback for the header chip.
+const POLICY_LABEL: Record<string, { key: string; en: string }> = {
+  CORRECT_BY_DRIFT: { key: 'policyCorrectByDrift', en: 'Correct by drift' },
+  TRUST_DEVICE_TIME: { key: 'policyTrustDevice', en: 'Trust device time' },
+  MANUAL_REVIEW_IF_DRIFT: { key: 'policyManualReview', en: 'Manual review if drift' },
 };
 
 export default function TimeHealthPage() {
@@ -74,6 +87,12 @@ export default function TimeHealthPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('attendanceIntel.timeHealth.title', 'Attendance Time Health')}</h1>
             <p className="text-sm text-gray-500">{t('attendanceIntel.timeHealth.subtitle', "DRAIS checks every batch against this school's learned arrival pattern — drift is caught before wrong times are trusted.")}</p>
+            {data?.policy && POLICY_LABEL[data.policy] && (
+              <p className="text-[11px] text-gray-400 mt-1">
+                {t('attendanceIntel.timeHealth.policyLabel', 'Time policy')}:{' '}
+                <span className="font-medium text-indigo-600 dark:text-indigo-400">{t(`attendanceIntel.timeHealth.${POLICY_LABEL[data.policy].key}`, POLICY_LABEL[data.policy].en)}</span>
+              </p>
+            )}
           </div>
         </div>
         <button onClick={load} aria-label={t('attendanceIntel.timeHealth.recheck', 'Re-check')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {t('attendanceIntel.timeHealth.recheck', 'Re-check')}</button>
@@ -90,14 +109,15 @@ export default function TimeHealthPage() {
             const hist = historyFor(d.device_sn);
             const bad = d.status === 'anomaly';
             const review = d.status === 'review';
+            const resolved = !!d.resolvedByPolicy; // real device drift the policy already realigned
             return (
-              <div key={d.device_sn} className={`rounded-xl border bg-white dark:bg-gray-800 p-4 ${bad ? 'border-rose-300 dark:border-rose-800 ring-1 ring-rose-300 dark:ring-rose-800' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div key={d.device_sn} className={`rounded-xl border bg-white dark:bg-gray-800 p-4 ${bad ? 'border-rose-300 dark:border-rose-800 ring-1 ring-rose-300 dark:ring-rose-800' : resolved ? 'border-emerald-200 dark:border-emerald-800' : 'border-gray-200 dark:border-gray-700'}`}>
                 <div className="flex items-start justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    {bad ? <AlertTriangle className="w-5 h-5 text-rose-500" /> : review ? <Clock className="w-5 h-5 text-amber-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
+                    {bad ? <AlertTriangle className="w-5 h-5 text-rose-500" /> : review ? <Clock className="w-5 h-5 text-amber-500" /> : resolved ? <ShieldCheck className="w-5 h-5 text-emerald-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
                     <span className="font-mono text-sm font-semibold text-gray-800 dark:text-gray-100">{d.device_sn}</span>
                     <span className={`text-[11px] px-2 py-0.5 rounded font-semibold uppercase ${bad ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' : review ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
-                      {bad ? t('attendanceIntel.timeHealth.anomaly', 'Anomaly') : review ? t('attendanceIntel.timeHealth.review', 'Review') : t('attendanceIntel.timeHealth.trusted', 'Trusted')}
+                      {bad ? t('attendanceIntel.timeHealth.anomaly', 'Anomaly') : review ? t('attendanceIntel.timeHealth.review', 'Review') : resolved ? t('attendanceIntel.timeHealth.resolvedBadge', 'Auto-resolved') : t('attendanceIntel.timeHealth.trusted', 'Trusted')}
                     </span>
                   </div>
                   <div className="text-right">
@@ -106,9 +126,12 @@ export default function TimeHealthPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-3 text-sm">
                   <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.usualFirst', 'Usual first arrival')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(bl?.median_first_minute)} <span className="text-[11px] font-normal text-gray-400">({t('attendanceIntel.timeHealth.samplesD', { n: bl?.sample_days ?? 0 }, '{{n}}d')})</span></div></div>
                   <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.todayFirst', "Today's first arrival")}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(d.first_arrival_minute ?? null)}</div></div>
+                  {/* Raw device-clock drift — what the CLOCK did, independent of the policy. */}
+                  <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.rawDrift', 'Device clock drift')}</div><div className={`font-semibold ${d.rawDriftMin ? (resolved ? 'text-emerald-600' : 'text-amber-600') : 'text-gray-800 dark:text-gray-100'}`}>{d.rawDriftMin ? `${d.rawDriftMin > 0 ? '+' : ''}${Math.round(d.rawDriftMin / 60 * 10) / 10}h` : t('attendanceIntel.timeHealth.none', 'none')}</div></div>
+                  {/* Residual — what remains in the stored punches after the policy. */}
                   <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.estimatedOffset', 'Estimated offset')}</div><div className={`font-semibold ${d.offsetEstimateMin ? 'text-rose-600' : 'text-gray-800 dark:text-gray-100'}`}>{d.offsetEstimateMin ? `${d.offsetEstimateMin > 0 ? '+' : ''}${Math.round(d.offsetEstimateMin / 60 * 10) / 10}h` : t('attendanceIntel.timeHealth.none', 'none')}</div></div>
                   <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.drift30', '30-day drift (avg/max)')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{hist ? `${hist.avg_drift_min}m / ${hist.max_drift_min}m` : '—'}</div></div>
                 </div>

@@ -30,6 +30,10 @@ export interface BatchStats {
 
 export type DriftStatus = 'trusted' | 'review' | 'anomaly';
 
+/** Mirror of device-clock's policy union (imported as a type only, to keep this
+ *  module pure and free of the db-backed device-clock runtime). */
+export type TimePolicyKind = 'TRUST_DEVICE_TIME' | 'CORRECT_BY_DRIFT' | 'MANUAL_REVIEW_IF_DRIFT';
+
 export interface Assessment {
   confidence: number;                 // 0..100 — how believable the batch times are
   status: DriftStatus;
@@ -38,6 +42,90 @@ export interface Assessment {
   detail: string;
   recommendedShiftMin: number;        // apply to punch_at (usually -offset)
   driftConfidence: number;            // 0..100 — how sure we are it IS drift (for the warning copy)
+  // ── policy-aware layer (set by applyPolicy) ──
+  rawDriftMin?: number;               // the DEVICE clock's own drift (from ingest skew), signed
+  residualDriftMin?: number;          // drift still present in the stored (corrected) punch_at
+  resolvedByPolicy?: boolean;         // a real device drift that the policy already realigned
+  policy?: TimePolicyKind;            // the active time policy this verdict was read against
+}
+
+/** PURE: reinterpret a raw (punch_at-only) assessment in light of the school's
+ *  time policy and the device's own clock drift.
+ *
+ *  The base `assessBatch` verdict only sees `punch_at` (the stored, possibly
+ *  already-corrected instant). On its own it cannot tell:
+ *    • whether CORRECT_BY_DRIFT already resolved a real device drift, or
+ *    • that under TRUST_DEVICE_TIME the drift is kept ON PURPOSE.
+ *  This layer adds the device's raw drift + the policy and produces a verdict
+ *  that reflects what actually happened — no more "device wrong → shift it"
+ *  nags for drift the policy already handled or is meant to keep.
+ */
+export function applyPolicy(
+  base: Assessment,
+  ctx: { policy: TimePolicyKind; rawDriftMin: number; maxDriftMin: number },
+): Assessment {
+  const rawMin = Math.round(ctx.rawDriftMin);
+  const residualMin = base.offsetEstimateMin;               // 0 when the stored times are believable
+  const sig = Math.max(10, Math.round(ctx.maxDriftMin));    // "significant" device drift, floored at 10 min
+  const out: Assessment = {
+    ...base, rawDriftMin: rawMin, residualDriftMin: residualMin, policy: ctx.policy, resolvedByPolicy: false,
+  };
+
+  // Hard, policy-independent failures (dead RTC, future stamps) and the
+  // still-learning / empty states stand exactly as assessed.
+  if (['rtc_failure', 'future_timestamps', 'insufficient_history', 'no_punches'].includes(base.likelyCause)) {
+    return out;
+  }
+
+  const rawSignificant = Math.abs(rawMin) >= sig;
+  const residualClean = base.status === 'trusted';          // stored times sit within the school's own spread
+
+  if (ctx.policy === 'CORRECT_BY_DRIFT') {
+    if (rawSignificant && residualClean) {
+      // The previously-invisible good news: the device was off, the policy fixed it.
+      return {
+        ...out, status: 'trusted', confidence: Math.max(base.confidence, 90),
+        likelyCause: 'auto_resolved', resolvedByPolicy: true, recommendedShiftMin: 0, driftConfidence: 0,
+        detail: `The device clock was off by about ${fmtDrift(rawMin)}, but auto-correction (Correct by drift) already realigned these punches — no action needed.`,
+      };
+    }
+    if (!residualClean) {
+      // Auto-correction ran but did not fully land — point at the real remedy.
+      return {
+        ...out, likelyCause: 'auto_correct_incomplete',
+        detail: `Auto-correction ran but about ${fmtDrift(residualMin)} still remains in the stored times — the device's known offset is stale. Enable device auto-sync, or correct this batch.`,
+      };
+    }
+    return out; // device clean + stored clean → ordinary trusted
+  }
+
+  if (ctx.policy === 'TRUST_DEVICE_TIME') {
+    if (rawSignificant || !residualClean) {
+      // Drift is retained by design — inform, don't nag; no manual shift.
+      return {
+        ...out, status: base.status === 'anomaly' ? 'review' : base.status,
+        likelyCause: 'trusted_by_policy', recommendedShiftMin: 0,
+        detail: `The device clock looks off by about ${fmtDrift(rawMin || residualMin)}, but this school's policy is “trust device time”, so punches are kept as-is by design. Switch to “Correct by drift” if you want DRAIS to auto-correct.`,
+      };
+    }
+    return out;
+  }
+
+  // MANUAL_REVIEW_IF_DRIFT
+  if (rawSignificant || !residualClean) {
+    return {
+      ...out, status: 'review', likelyCause: 'manual_review_flagged',
+      detail: `Drift of about ${fmtDrift(residualMin || rawMin)} detected; this school's policy is manual review, so the times are kept pending your decision. Review & correct if they are wrong.`,
+    };
+  }
+  return out;
+}
+
+/** Human drift size: whole-hour when it snaps to hours, else minutes. */
+function fmtDrift(min: number): string {
+  const a = Math.abs(min);
+  if (a >= 55 && Math.abs(a - Math.round(a / 60) * 60) <= 12) return `${Math.round(a / 60)}h`;
+  return `${a} min`;
 }
 
 /* ── stats helpers (exported for baseline computation + tests) ─────────── */

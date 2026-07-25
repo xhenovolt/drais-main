@@ -2182,7 +2182,17 @@
       "causeMidnight": "Midnight rollover / clock reset",
       "causeRtc": "RTC battery failure suspected",
       "causeLearning": "Still learning this school",
-      "causeNoPunches": "No punches yet today"
+      "causeNoPunches": "No punches yet today",
+      "causeAutoResolved": "Drift auto-corrected by policy",
+      "causeAutoIncomplete": "Auto-correction incomplete",
+      "causeTrustedByPolicy": "Trusted per policy (uncorrected by design)",
+      "causeManualReview": "Flagged for manual review",
+      "policyLabel": "Time policy",
+      "policyCorrectByDrift": "Correct by drift",
+      "policyTrustDevice": "Trust device time",
+      "policyManualReview": "Manual review if drift",
+      "rawDrift": "Device clock drift",
+      "resolvedBadge": "Auto-resolved"
     }
   }
 }

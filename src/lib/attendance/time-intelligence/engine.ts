@@ -17,7 +17,7 @@
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
 import { ensureTimeIntelligenceSchema } from './schema';
-import { assessBatch, median, mad, percentile, type Baseline, type BatchStats, type Assessment } from './confidence';
+import { assessBatch, applyPolicy, median, mad, percentile, type Baseline, type BatchStats, type Assessment } from './confidence';
 
 const MIN_PUNCHES_FOR_DAY = 5; // fewer looks like a holiday/weekend — not a school day
 
@@ -130,19 +130,21 @@ export async function evaluateDeviceDay(schoolId: number, deviceSn: string, date
   const utcStart = new Date(Date.parse(`${date}T00:00:00Z`) - off * 60_000);
   const utcEnd = new Date(utcStart.getTime() + 86_400_000);
   const rows = (await query(
-    `SELECT punch_at, ingested_at FROM attendance_raw_events
+    `SELECT punch_at, ingested_at, clock_skew_seconds FROM attendance_raw_events
       WHERE school_id = ? AND device_sn = ? AND punch_at >= ? AND punch_at < ?`,
     [schoolId, deviceSn, utcStart, utcEnd],
-  )) as Array<{ punch_at: Date | string; ingested_at: Date | string | null }>;
+  )) as Array<{ punch_at: Date | string; ingested_at: Date | string | null; clock_skew_seconds: number | null }>;
 
   const nowMs = Date.now();
   const minutes: number[] = [];
+  const skews: number[] = []; // device clock − true time (sec, +ve = device ahead), recorded at ingest
   let futureCount = 0, maxFutureMinutes = 0, nearMidnight = 0, yearBad = false, outOfOrder = 0;
   let prevPunch = -Infinity;
   for (const r of rows) {
     const p = r.punch_at instanceof Date ? r.punch_at : new Date(r.punch_at);
     const m = minuteOfDay(p, off);
     minutes.push(m);
+    if (r.clock_skew_seconds != null && Number.isFinite(Number(r.clock_skew_seconds))) skews.push(Number(r.clock_skew_seconds));
     const ing = r.ingested_at ? new Date(r.ingested_at as any).getTime() : nowMs;
     if (p.getTime() > ing + 2 * 60_000 && p.getTime() > nowMs + 2 * 60_000) {
       futureCount++;
@@ -166,18 +168,31 @@ export async function evaluateDeviceDay(schoolId: number, deviceSn: string, date
 
   let baseline = await loadBaseline(schoolId, deviceSn);
   if (!baseline) baseline = await learnBaseline(schoolId, deviceSn);
-  const assessment = assessBatch(baseline, batch);
+
+  // Raw device drift (what the CLOCK did), from the skew recorded at ingest —
+  // independent of whatever landed in punch_at after the policy ran.
+  const rawDriftMin = skews.length ? Math.round(median(skews) / 60) : 0;
+  // Reinterpret the punch_at-only verdict in light of the policy + raw drift,
+  // so an already-auto-corrected drift reads as resolved (not "still wrong").
+  const assessment = applyPolicy(assessBatch(baseline, batch), {
+    policy: policy.policy, rawDriftMin, maxDriftMin: (policy.maxDriftSeconds ?? 120) / 60,
+  });
 
   await query(
     `INSERT INTO device_clock_health
-       (school_id, device_sn, local_date, confidence, status, offset_estimate_min, likely_cause, detail, batch_size, first_arrival_minute)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (school_id, device_sn, local_date, confidence, status, offset_estimate_min, likely_cause, detail, batch_size, first_arrival_minute,
+        raw_drift_min, residual_drift_min, resolved_by_policy, policy)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        confidence=VALUES(confidence), status=VALUES(status), offset_estimate_min=VALUES(offset_estimate_min),
        likely_cause=VALUES(likely_cause), detail=VALUES(detail), batch_size=VALUES(batch_size),
-       first_arrival_minute=VALUES(first_arrival_minute)`,
+       first_arrival_minute=VALUES(first_arrival_minute),
+       raw_drift_min=VALUES(raw_drift_min), residual_drift_min=VALUES(residual_drift_min),
+       resolved_by_policy=VALUES(resolved_by_policy), policy=VALUES(policy)`,
     [schoolId, deviceSn, date, assessment.confidence, assessment.status, assessment.offsetEstimateMin,
-      assessment.likelyCause, assessment.detail.slice(0, 250), batch.punchCount, batch.firstArrivalMinute],
+      assessment.likelyCause, assessment.detail.slice(0, 250), batch.punchCount, batch.firstArrivalMinute,
+      assessment.rawDriftMin ?? 0, assessment.residualDriftMin ?? assessment.offsetEstimateMin,
+      assessment.resolvedByPolicy ? 1 : 0, assessment.policy ?? policy.policy],
   );
 
   return { ...assessment, local_date: date, batch_size: batch.punchCount };
@@ -324,6 +339,7 @@ async function reevaluateAffected(schoolId: number, rows: any[], shiftMinutes: n
 
 export async function deviceHealthOverview(schoolId: number) {
   await ensureTimeIntelligenceSchema();
+  const policy = await resolveTimePolicy(schoolId);
   const today = await sweepToday(schoolId);
   const history = (await query(
     `SELECT device_sn,
@@ -349,5 +365,5 @@ export async function deviceHealthOverview(schoolId: number) {
       WHERE c.school_id = ? ORDER BY c.id DESC LIMIT 20`,
     [schoolId],
   )) as any[];
-  return { today, history, baselines, corrections };
+  return { today, history, baselines, corrections, policy: policy.policy };
 }

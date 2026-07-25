@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T19:22:12.342Z",
-  "last_commit": "d43e38e9779a447c759dce5a5a8a74acd47d3d16",
+  "generated_at": "2026-07-25T19:50:20.634Z",
+  "last_commit": "3f5827b38f40eebbc24cc2eb1f8734e9fdb0493c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4395,7 +4395,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.105.0",
+      "date": "2026-07-25",
+      "release_type": "minor",
+      "title": "Policy-aware Time Health — dual-drift + time-policy reinterpretation",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Policy-aware Time Health — dual-drift + time-policy reinterpretation"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.104.2"
+  "app_version": "1.105.0"
 }

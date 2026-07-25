@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assessBatch, median, mad, percentile, fmtMinute,
+  assessBatch, applyPolicy, median, mad, percentile, fmtMinute,
 } from '@/lib/attendance/time-intelligence/confidence';
 
 const baseline = (over = {}) => ({
@@ -121,5 +121,71 @@ describe('learning guards', () => {
     const a = assessBatch(baseline(), batch({ firstArrivalMinute: null, punchCount: 0 }));
     assert.equal(a.status, 'review');
     assert.equal(a.recommendedShiftMin, 0);
+  });
+});
+
+/* ── policy-aware layer (applyPolicy) ─────────────────────────────────── */
+describe('applyPolicy — Time Health reads the school time policy', () => {
+  // A base verdict where the STORED (punch_at) times look clean.
+  const clean = () => ({ confidence: 99, status: 'trusted', offsetEstimateMin: 0,
+    likelyCause: 'normal', detail: 'ok', recommendedShiftMin: 0, driftConfidence: 0 });
+  // A base verdict where the stored times are still off by a whole hour.
+  const drifted = () => ({ confidence: 8, status: 'anomaly', offsetEstimateMin: 300,
+    likelyCause: 'clock_drift_hours', detail: 'off by 5h', recommendedShiftMin: -300, driftConfidence: 95 });
+
+  it('CORRECT_BY_DRIFT: big device drift but clean stored times → auto-resolved (positive signal)', () => {
+    const a = applyPolicy(clean(), { policy: 'CORRECT_BY_DRIFT', rawDriftMin: 300, maxDriftMin: 2 });
+    assert.equal(a.resolvedByPolicy, true);
+    assert.equal(a.status, 'trusted');
+    assert.equal(a.likelyCause, 'auto_resolved');
+    assert.equal(a.recommendedShiftMin, 0);
+    assert.equal(a.rawDriftMin, 300);
+    assert.match(a.detail, /already realigned/i);
+  });
+
+  it('CORRECT_BY_DRIFT: drift left in stored times → auto-correction incomplete, still actionable', () => {
+    const a = applyPolicy(drifted(), { policy: 'CORRECT_BY_DRIFT', rawDriftMin: 300, maxDriftMin: 2 });
+    assert.equal(a.resolvedByPolicy, false);
+    assert.equal(a.status, 'anomaly');
+    assert.equal(a.likelyCause, 'auto_correct_incomplete');
+    assert.match(a.detail, /auto-sync|correct this batch/i);
+  });
+
+  it('CORRECT_BY_DRIFT: no device drift + clean stored → ordinary trusted, unchanged', () => {
+    const a = applyPolicy(clean(), { policy: 'CORRECT_BY_DRIFT', rawDriftMin: 1, maxDriftMin: 2 });
+    assert.equal(a.likelyCause, 'normal');
+    assert.equal(a.resolvedByPolicy, false);
+  });
+
+  it('TRUST_DEVICE_TIME: drift is kept by design → downgrade anomaly to review, no shift nag', () => {
+    const a = applyPolicy(drifted(), { policy: 'TRUST_DEVICE_TIME', rawDriftMin: 300, maxDriftMin: 2 });
+    assert.equal(a.status, 'review');
+    assert.equal(a.likelyCause, 'trusted_by_policy');
+    assert.equal(a.recommendedShiftMin, 0);
+    assert.match(a.detail, /trust device time|by design/i);
+  });
+
+  it('MANUAL_REVIEW_IF_DRIFT: drift → flagged for review, kept pending decision', () => {
+    const a = applyPolicy(drifted(), { policy: 'MANUAL_REVIEW_IF_DRIFT', rawDriftMin: 300, maxDriftMin: 2 });
+    assert.equal(a.status, 'review');
+    assert.equal(a.likelyCause, 'manual_review_flagged');
+  });
+
+  it('hard failures (RTC) stand under every policy', () => {
+    const rtc = { confidence: 2, status: 'anomaly', offsetEstimateMin: 0, likelyCause: 'rtc_failure',
+      detail: 'dead RTC', recommendedShiftMin: 0, driftConfidence: 97 };
+    for (const policy of ['CORRECT_BY_DRIFT', 'TRUST_DEVICE_TIME', 'MANUAL_REVIEW_IF_DRIFT']) {
+      const a = applyPolicy(rtc, { policy, rawDriftMin: 999, maxDriftMin: 2 });
+      assert.equal(a.likelyCause, 'rtc_failure');
+      assert.equal(a.status, 'anomaly');
+    }
+  });
+
+  it('still-learning is never reinterpreted', () => {
+    const learn = { confidence: 70, status: 'review', offsetEstimateMin: 0, likelyCause: 'insufficient_history',
+      detail: 'learning', recommendedShiftMin: 0, driftConfidence: 0 };
+    const a = applyPolicy(learn, { policy: 'CORRECT_BY_DRIFT', rawDriftMin: 300, maxDriftMin: 2 });
+    assert.equal(a.likelyCause, 'insufficient_history');
+    assert.equal(a.resolvedByPolicy, false);
   });
 });
