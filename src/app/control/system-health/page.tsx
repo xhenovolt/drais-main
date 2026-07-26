@@ -12,6 +12,7 @@ import Link from 'next/link';
 import {
   Activity, Database, MessageSquare, HardDrive, GitCommit, CheckCircle, AlertTriangle, AlertCircle, Info, ChevronRight,
 } from 'lucide-react';
+import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -71,7 +72,14 @@ export default function ControlSystemHealth() {
       {/* Per-school issue register */}
       {attention.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Schools needing attention</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-400 uppercase">Schools needing attention</p>
+            <ExportButtons filename="drais-health" rows={attention} columns={[
+              { key: 'name', label: 'School' }, { key: 'status', label: 'Status' },
+              { key: 'worst', label: 'Severity' },
+              { key: 'issues', label: 'Issues', value: (r) => (r.issues || []).map((i: any) => i.detail).join('; ') },
+            ]} />
+          </div>
           {attention.map((s: any) => (
             <Link key={s.id} href={`/control/schools/${s.id}`}
               className={`block rounded-xl border p-3 hover:border-indigo-600 transition-colors ${SEV_STYLE[s.worst]?.chip || 'bg-slate-900 border-slate-800'}`}>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T04:55:17.052Z",
-  "last_commit": "57aa521b5e297f73aec2091a05d6cb396457ac7a",
+  "generated_at": "2026-07-26T05:26:53.570Z",
+  "last_commit": "4bcbe8f8a8ef76b9a8d12bbdb4de3b56961621e3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4564,7 +4564,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.115.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "CSV export + print across all control routes",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "CSV export + print across all control routes"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.114.0"
+  "app_version": "1.115.0"
 }

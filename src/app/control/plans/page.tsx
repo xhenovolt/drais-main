@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import useSWR from 'swr';
 import { CreditCard, Loader2, Save, Plus, Copy, Trash2, X, Power } from 'lucide-react';
+import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 const LIMITS: Array<[string, string]> = [
@@ -54,7 +55,20 @@ export default function ControlPlans() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-400">{plans.length} plan{plans.length === 1 ? '' : 's'} · full edit, features, activate, duplicate, delete</p>
-        <button onClick={() => setDraft(blankDraft())} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium"><Plus className="w-3.5 h-3.5" /> New plan</button>
+        <div className="flex items-center gap-2">
+          <ExportButtons filename="drais-plans" rows={plans} columns={[
+            { key: 'code', label: 'Code' }, { key: 'name', label: 'Name' }, { key: 'tier', label: 'Tier' },
+            { key: 'is_active', label: 'Active', value: (r) => (r.is_active ? 'yes' : 'no') },
+            { key: 'schools', label: 'Schools' },
+            { key: 'learners', label: 'Learners', value: (r) => r.limits?.learners ?? '∞' },
+            { key: 'staff', label: 'Staff', value: (r) => r.limits?.staff ?? '∞' },
+            { key: 'devices', label: 'Devices', value: (r) => r.limits?.devices ?? '∞' },
+            { key: 'sms_monthly', label: 'SMS/mo', value: (r) => r.limits?.sms_monthly ?? '∞' },
+            { key: 'storage_mb', label: 'Storage MB', value: (r) => r.limits?.storage_mb ?? '∞' },
+            { key: 'features', label: 'Features', value: (r) => (r.features || []).join('; ') },
+          ]} />
+          <button onClick={() => setDraft(blankDraft())} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium"><Plus className="w-3.5 h-3.5" /> New plan</button>
+        </div>
       </div>
       {isLoading && <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>}
 

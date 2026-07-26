@@ -9,6 +9,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { HardDrive, Loader2, Search, History, X } from 'lucide-react';
+import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 const ago = (d: string | null) => {
@@ -80,6 +81,15 @@ export default function ControlDevices() {
             <option value="">All statuses</option>
             {['active', 'released', 'suspended', 'retired', 'inactive'].map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+          <ExportButtons filename="drais-devices" rows={devices} columns={[
+            { key: 'sn', label: 'Serial' }, { key: 'device_name', label: 'Name' },
+            { key: 'school_name', label: 'School', value: (r) => r.school_name || 'UNASSIGNED' },
+            { key: 'status', label: 'Status' }, { key: 'is_online', label: 'Online', value: (r) => (r.is_online ? 'yes' : 'no') },
+            { key: 'model_name', label: 'Model' }, { key: 'firmware_version', label: 'Firmware' },
+            { key: 'ip_address', label: 'IP', value: (r) => r.ip_address || r.lan_ip || '' },
+            { key: 'device_user_count', label: 'Users' }, { key: 'location', label: 'Location' },
+            { key: 'last_seen', label: 'Last seen' },
+          ]} />
         </div>
       </div>
 

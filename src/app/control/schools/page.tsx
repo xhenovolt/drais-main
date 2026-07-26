@@ -5,6 +5,7 @@ import React from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { School, HardDrive, Loader2 } from 'lucide-react';
+import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 const ago = (d: string | null) => {
@@ -24,9 +25,20 @@ export default function ControlSchools() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-400">{rows.length} school{rows.length === 1 ? '' : 's'} {showDeleted ? '(incl. deleted)' : 'on the platform'}</p>
-        <label className="flex items-center gap-1.5 text-xs text-slate-400">
-          <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} /> Show deleted
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-slate-400">
+            <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} /> Show deleted
+          </label>
+          <ExportButtons filename="drais-schools" rows={rows} columns={[
+            { key: 'name', label: 'School' }, { key: 'status', label: 'Status' },
+            { key: 'learners', label: 'Learners' }, { key: 'staff', label: 'Staff' },
+            { key: 'devices', label: 'Devices online', value: (r) => `${r.devices.online}/${r.devices.total}` },
+            { key: 'plan', label: 'Plan', value: (r) => r.subscription?.plan || '' },
+            { key: 'sub_status', label: 'Sub status', value: (r) => r.subscription?.status || '' },
+            { key: 'district', label: 'District' }, { key: 'country', label: 'Country' },
+            { key: 'last_sync', label: 'Last sync' },
+          ]} />
+        </div>
       </div>
       {isLoading && <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
