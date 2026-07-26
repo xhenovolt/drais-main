@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
     }
     const { schoolId: sessionSchoolId, userId: sessionUserId } = session;
 
+    // Plan-limit enforcement (safe by default — off unless enabled).
+    const { enforcePlanLimit } = await import('@/lib/control/plan-enforcement');
+    const staffGate = await enforcePlanLimit(sessionSchoolId, 'staff');
+    if (!staffGate.allowed) return NextResponse.json({ success: false, message: staffGate.reason }, { status: 403 });
+
     const formData = await req.formData();
     
     // Extract and validate all form data

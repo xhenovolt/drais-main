@@ -126,6 +126,10 @@ export async function runDeviceAction(args: {
     case 'assign': {
       const to = Number(args.toSchoolId);
       if (dev.school_id === to) return { ok: false, reason: 'Device already belongs to that school' };
+      // Respect the target school's plan device cap (safe by default — off unless enabled).
+      const { enforcePlanLimit } = await import('@/lib/control/plan-enforcement');
+      const gate = await enforcePlanLimit(to, 'devices');
+      if (!gate.allowed) return { ok: false, reason: gate.reason };
       if (dev.school_id == null) {
         // Never-owned device → direct claim (no prior enrollments to archive).
         await query(`UPDATE devices SET school_id = ?, status = 'active', updated_at = NOW() WHERE sn = ?`, [to, args.sn]);

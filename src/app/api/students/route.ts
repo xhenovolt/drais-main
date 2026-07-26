@@ -29,6 +29,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Missing required fields: first_name, last_name' }, { status: 400 });
     }
 
+    // Plan-limit enforcement (safe by default — off unless enabled). Blocks a
+    // new learner only when the school's plan cap is reached and enforcement is on.
+    const { enforcePlanLimit } = await import('@/lib/control/plan-enforcement');
+    const gate = await enforcePlanLimit(schoolId, 'learners');
+    if (!gate.allowed) return NextResponse.json({ success: false, message: gate.reason }, { status: 403 });
+
     connection = await getConnection();
     await connection.beginTransaction();
 
