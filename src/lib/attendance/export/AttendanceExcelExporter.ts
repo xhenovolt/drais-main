@@ -13,13 +13,14 @@ export class AttendanceExcelExporter {
     rows: ReadonlyArray<AttendancePresentationRow>,
     filename: string,
     columns: ReadonlyArray<AttendanceExportColumn> = AttendancePresentationModel.exportColumns(),
+    heading: ReadonlyArray<string> = [],
   ): Promise<void> {
     if (rows.length === 0) {
       return;
     }
 
     const XLSX = await import('xlsx');
-    const worksheet = this.buildWorksheet(XLSX, rows, columns);
+    const worksheet = this.buildWorksheet(XLSX, rows, columns, heading);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance');
     XLSX.writeFile(workbook, `${filename}.xlsx`);
@@ -29,8 +30,11 @@ export class AttendanceExcelExporter {
     XLSX: typeof import('xlsx'),
     rows: ReadonlyArray<AttendancePresentationRow>,
     columns: ReadonlyArray<AttendanceExportColumn>,
+    heading: ReadonlyArray<string> = [],
   ) {
+    const titleRows = heading.length ? [...heading.map((h) => [h]), ['']] : [];
     const matrix = [
+      ...titleRows,
       columns.map((column) => column.header),
       ...rows.map((row) => columns.map((column) => row[column.key] ?? '')),
     ];

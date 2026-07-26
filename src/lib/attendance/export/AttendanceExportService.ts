@@ -6,6 +6,8 @@ export interface AttendanceExportRequest {
   format: 'csv' | 'excel';
   filename: string;
   rows: ReadonlyArray<AttendancePresentationRow>;
+  /** Optional report title lines placed above the table (school, scope, dates). */
+  heading?: ReadonlyArray<string>;
 }
 
 function downloadCsv(csvContent: string, filename: string): void {
@@ -36,8 +38,9 @@ export class AttendanceExportService {
       return;
     }
 
+    const heading = request.heading ?? [];
     if (request.format === 'csv') {
-      downloadCsv(this.buildCsv(request.rows), request.filename);
+      downloadCsv(AttendanceCSVExporter.build(request.rows, AttendancePresentationModel.exportColumns(), heading), request.filename);
       return;
     }
 
@@ -45,6 +48,7 @@ export class AttendanceExportService {
       request.rows,
       request.filename,
       AttendancePresentationModel.exportColumns(),
+      heading,
     );
   }
 }

@@ -57,12 +57,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Search across full name (any order), staff number and position.
+    // LOWER() on both sides → case-insensitive regardless of column collation.
     const searchWhere = search
-      ? ` AND (CONCAT_WS(' ', p.first_name, p.other_name, p.last_name) LIKE ?
-           OR CONCAT_WS(' ', p.last_name, p.first_name) LIKE ?
-           OR s.staff_no LIKE ? OR s.position LIKE ?)`
+      ? ` AND (LOWER(CONCAT_WS(' ', p.first_name, p.other_name, p.last_name)) LIKE ?
+           OR LOWER(CONCAT_WS(' ', p.last_name, p.first_name)) LIKE ?
+           OR LOWER(s.staff_no) LIKE ? OR LOWER(s.position) LIKE ?)`
       : '';
-    const like = `%${search}%`;
+    const like = `%${search.toLowerCase()}%`;
     const searchParams2: any[] = search ? [like, like, like, like] : [];
 
     // Get basic staff data

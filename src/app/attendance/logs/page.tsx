@@ -12,6 +12,7 @@ import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
 import { AttendanceExportService } from '@/lib/attendance/export/AttendanceExportService';
+import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 
 // DERIVED attendance meaning (from the state engine), NOT the device's
 // raw IN/OUT field. This is what operators should trust.
@@ -567,6 +568,7 @@ export default function UnifiedAttendancePage() {
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [exportingFormat, setExportingFormat] = useState<'csv' | 'excel' | null>(null);
   const { events: liveEvents, connected: sseConnected } = useLiveFeed();
+  const { school } = useSchoolConfig();
   // Per-row selection for surgical deletes + intra-day timeframe filter.
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -755,10 +757,21 @@ export default function UnifiedAttendancePage() {
         showToast('error', 'No attendance rows to export for the current filters');
         return;
       }
+      const scope = tab === 'staff' ? 'Staff' : tab === 'learners' ? 'Learners' : tab === 'unmatched' ? 'Unmatched' : 'All';
+      const dateLabel = dateFrom
+        ? (dateTo && dateTo !== dateFrom ? `${dateFrom} to ${dateTo}` : dateFrom)
+        : 'All dates';
+      const heading = [
+        (school?.name || 'DRAIS') + ' — Attendance Report',
+        `Scope: ${scope}${search ? ` · Search: "${search}"` : ''}${deviceSn ? ` · Device: ${deviceSn}` : ''}`,
+        `Dates: ${dateLabel}`,
+        `Records: ${allRows.length.toLocaleString()} · Generated: ${new Date().toLocaleString()}`,
+      ];
       await AttendanceExportService.exportVisibleRows({
         format,
         filename: `attendance-logs-${tab}-${dateFrom || 'all-time'}${dateTo && dateTo !== dateFrom ? `_to_${dateTo}` : ''}`,
         rows: allRows,
+        heading,
       });
       showToast('success', `Exported ${allRows.length.toLocaleString()} ${format === 'excel' ? 'rows (Excel)' : 'rows (CSV)'}`);
     } catch (error) {
@@ -767,7 +780,7 @@ export default function UnifiedAttendancePage() {
     } finally {
       setExportingFormat(null);
     }
-  }, [params, pagination.total, dateFrom, dateTo, tab]);
+  }, [params, pagination.total, dateFrom, dateTo, tab, search, deviceSn, school?.name]);
 
   const handleClearLogs = async () => {
     setClearing(true);

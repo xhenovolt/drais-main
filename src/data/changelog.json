@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T18:53:44.155Z",
-  "last_commit": "0b9551674d6f668640a6c12acf05471330df236e",
+  "generated_at": "2026-07-26T19:12:40.736Z",
+  "last_commit": "2ced72004e132fc0147e600ef6f6cda0bb612202",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4798,7 +4798,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.128.1",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Export report heading + case-insensitive search",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Export report heading + case-insensitive search"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.128.0"
+  "app_version": "1.128.1"
 }

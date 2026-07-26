@@ -98,10 +98,12 @@ export async function GET(req: NextRequest) {
       conditions.push('(ar.matched = 0 OR ar.person_id IS NULL)');
     }
     if (search) {
+      // LOWER() on both sides → case-insensitive regardless of column collation
+      // (some name columns are stored with a case-sensitive collation).
       conditions.push(
-        `(ar.device_user_id LIKE ? OR ar.display_name LIKE ? OR p.first_name LIKE ? OR p.last_name LIKE ? OR dud.device_name LIKE ?)`,
+        `(LOWER(ar.device_user_id) LIKE ? OR LOWER(ar.display_name) LIKE ? OR LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR LOWER(dud.device_name) LIKE ?)`,
       );
-      const s = `%${search}%`;
+      const s = `%${search.toLowerCase()}%`;
       params.push(s, s, s, s, s);
     }
     if (classId) {
