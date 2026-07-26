@@ -29,10 +29,21 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
 
   // Control Center theme — no longer forced dark. Persisted per operator.
   const [theme, setTheme] = useState<'system' | 'light' | 'dark' | 'contrast'>('dark');
+  // 'system' is resolved to a concrete light/dark in JS so the CSS only needs
+  // light + contrast blocks (no media-query duplication).
+  const [resolved, setResolved] = useState<'light' | 'dark' | 'contrast'>('dark');
   useEffect(() => {
     const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('drais_control_theme')) as any;
     if (saved) setTheme(saved);
   }, []);
+  useEffect(() => {
+    if (theme !== 'system') { setResolved(theme); return; }
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => setResolved(mq.matches ? 'dark' : 'light');
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [theme]);
   const cycleTheme = useCallback(() => {
     setTheme((t) => {
       const order = ['system', 'light', 'dark', 'contrast'] as const;
@@ -70,32 +81,41 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
   if (state === 'anon') return null; // redirecting
 
   return (
-    <div data-theme={theme} className="ctl min-h-screen bg-slate-950 text-slate-100 control-print-area">
-      {/* Theme layer — remaps the dark slate palette for light / system /
-          high-contrast without rewriting every page. Dark = the classes as-is. */}
+    <div data-theme={resolved} className="ctl min-h-screen bg-slate-950 text-slate-100 control-print-area">
+      {/* Theme layer — remaps the dark slate palette for light / high-contrast
+          without rewriting every page. Dark = the classes as-is. */}
       <style>{`
-        .ctl[data-theme="light"], .ctl[data-theme="system"] { color-scheme: light; }
-        .ctl[data-theme="light"] { background:#f1f5f9 !important; }
+        /* ── LIGHT ───────────────────────────────────────────────────────── */
+        .ctl[data-theme="light"] { color-scheme: light; background:#f1f5f9 !important; }
         .ctl[data-theme="light"] [class*="bg-slate-950"] { background:#e2e8f0 !important; }
         .ctl[data-theme="light"] [class*="bg-slate-900"] { background:#ffffff !important; }
-        .ctl[data-theme="light"] [class*="bg-slate-800"] { background:#f1f5f9 !important; }
-        .ctl[data-theme="light"] [class*="text-slate-100"], .ctl[data-theme="light"] [class*="text-slate-200"], .ctl[data-theme="light"] [class*="text-slate-300"] { color:#1e293b !important; }
-        .ctl[data-theme="light"] [class*="text-slate-400"], .ctl[data-theme="light"] [class*="text-slate-500"], .ctl[data-theme="light"] [class*="text-slate-600"] { color:#64748b !important; }
-        .ctl[data-theme="light"] [class*="border-slate-700"], .ctl[data-theme="light"] [class*="border-slate-800"] { border-color:#e2e8f0 !important; }
-        @media (prefers-color-scheme: light) {
-          .ctl[data-theme="system"] { background:#f1f5f9 !important; }
-          .ctl[data-theme="system"] [class*="bg-slate-950"] { background:#e2e8f0 !important; }
-          .ctl[data-theme="system"] [class*="bg-slate-900"] { background:#ffffff !important; }
-          .ctl[data-theme="system"] [class*="bg-slate-800"] { background:#f1f5f9 !important; }
-          .ctl[data-theme="system"] [class*="text-slate-100"], .ctl[data-theme="system"] [class*="text-slate-200"], .ctl[data-theme="system"] [class*="text-slate-300"] { color:#1e293b !important; }
-          .ctl[data-theme="system"] [class*="text-slate-400"], .ctl[data-theme="system"] [class*="text-slate-500"], .ctl[data-theme="system"] [class*="text-slate-600"] { color:#64748b !important; }
-          .ctl[data-theme="system"] [class*="border-slate-700"], .ctl[data-theme="system"] [class*="border-slate-800"] { border-color:#e2e8f0 !important; }
-        }
-        .ctl[data-theme="contrast"] { background:#000 !important; color:#fff; }
+        .ctl[data-theme="light"] [class*="bg-slate-800"] { background:#eef2f7 !important; }
+        /* body / heading text */
+        .ctl[data-theme="light"] [class*="text-slate-100"],
+        .ctl[data-theme="light"] [class*="text-slate-200"],
+        .ctl[data-theme="light"] [class*="text-slate-300"] { color:#0f172a !important; }
+        /* muted / secondary text (kept readable, not pale) */
+        .ctl[data-theme="light"] [class*="text-slate-400"],
+        .ctl[data-theme="light"] [class*="text-slate-500"],
+        .ctl[data-theme="light"] [class*="text-slate-600"] { color:#475569 !important; }
+        /* coloured status text — darken the light -200/300/400 shades so chips
+           are legible on their pale tinted backgrounds (this was the invisible text) */
+        .ctl[data-theme="light"] [class*="text-emerald-2"], .ctl[data-theme="light"] [class*="text-emerald-3"], .ctl[data-theme="light"] [class*="text-emerald-4"] { color:#047857 !important; }
+        .ctl[data-theme="light"] [class*="text-rose-2"], .ctl[data-theme="light"] [class*="text-rose-3"], .ctl[data-theme="light"] [class*="text-rose-4"] { color:#be123c !important; }
+        .ctl[data-theme="light"] [class*="text-amber-2"], .ctl[data-theme="light"] [class*="text-amber-3"], .ctl[data-theme="light"] [class*="text-amber-4"] { color:#b45309 !important; }
+        .ctl[data-theme="light"] [class*="text-sky-2"], .ctl[data-theme="light"] [class*="text-sky-3"], .ctl[data-theme="light"] [class*="text-sky-4"] { color:#0369a1 !important; }
+        .ctl[data-theme="light"] [class*="text-indigo-2"], .ctl[data-theme="light"] [class*="text-indigo-3"], .ctl[data-theme="light"] [class*="text-indigo-4"] { color:#4338ca !important; }
+        .ctl[data-theme="light"] [class*="border-slate-7"], .ctl[data-theme="light"] [class*="border-slate-8"] { border-color:#e2e8f0 !important; }
+        .ctl[data-theme="light"] input, .ctl[data-theme="light"] select { background:#ffffff !important; color:#0f172a !important; border-color:#cbd5e1 !important; }
+        .ctl[data-theme="light"] ::placeholder { color:#94a3b8 !important; }
+
+        /* ── HIGH CONTRAST ───────────────────────────────────────────────── */
+        .ctl[data-theme="contrast"] { color-scheme: dark; background:#000 !important; color:#fff; }
         .ctl[data-theme="contrast"] [class*="bg-slate"] { background:#000 !important; }
         .ctl[data-theme="contrast"] [class*="text-slate"] { color:#fff !important; }
         .ctl[data-theme="contrast"] [class*="border-slate"] { border-color:#fff !important; }
-        .ctl[data-theme="contrast"] [class*="text-indigo"] { color:#a5b4fc !important; }
+        .ctl[data-theme="contrast"] [class*="text-indigo"] { color:#c7d2fe !important; }
+        .ctl[data-theme="contrast"] input, .ctl[data-theme="contrast"] select { background:#000 !important; color:#fff !important; border-color:#fff !important; }
       `}</style>
       {/* Print: drop the dark chrome to a clean white sheet so exports are legible. */}
       <style>{`

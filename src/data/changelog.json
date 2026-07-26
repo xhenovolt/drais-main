@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T05:43:21.764Z",
-  "last_commit": "cc3872cb86217cb928bca0716ee14463a6d80ecd",
+  "generated_at": "2026-07-26T06:11:00.244Z",
+  "last_commit": "86294477fad61e891ea19f7638981e350eb9c278",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4603,7 +4603,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.117.1",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Light theme legibility — darken coloured chip text, style inputs, resolve system in JS",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Light theme legibility — darken coloured chip text, style inputs, resolve system in JS"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.117.0"
+  "app_version": "1.117.1"
 }
