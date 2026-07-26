@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T20:35:02.413Z",
-  "last_commit": "cb2795040ceea636f8e52c820c7507ff0d6923da",
+  "generated_at": "2026-07-26T21:07:43.336Z",
+  "last_commit": "58a520fa9cf1d6cca7af85828f52f949dfc5ed6c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4889,7 +4889,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.133.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Platform business intelligence — MRR/revenue/plan-mix (Phase 24)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Platform business intelligence — MRR/revenue/plan-mix (Phase 24)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.132.0"
+  "app_version": "1.133.0"
 }
