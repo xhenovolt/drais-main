@@ -16,6 +16,7 @@ import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from 'nod
 import { promisify } from 'node:util';
 import type { NextRequest } from 'next/server';
 import { throttleDecision, recentFailures, recordLoginAttempt, clearFailures } from '@/lib/control/login-guard';
+import { generateTotpSecret, verifyTotp, otpauthUrl, generateRecoveryCodes, hashRecovery } from '@/lib/control/totp';
 
 const scrypt = promisify(_scrypt) as (pw: string, salt: string, len: number) => Promise<Buffer>;
 
@@ -58,6 +59,12 @@ export function ensureControlSchema(): Promise<void> {
          UNIQUE KEY uk_control_token (token_hash),
          KEY idx_user (user_id)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, []);
+    // Optional 2FA columns (additive; opt-in per operator).
+    for (const ddl of [
+      `ADD COLUMN totp_secret VARCHAR(64) DEFAULT NULL`,
+      `ADD COLUMN totp_enabled TINYINT NOT NULL DEFAULT 0`,
+      `ADD COLUMN totp_recovery JSON`,
+    ]) { await query(`ALTER TABLE control_users ${ddl}`, []).catch(() => {}); }
     await query(
       `CREATE TABLE IF NOT EXISTS control_audit_logs (
          id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -124,8 +131,8 @@ export async function createControlUser(args: {
 }
 
 export async function loginControl(
-  email: string, password: string, ip?: string | null, userAgent?: string | null,
-): Promise<{ ok: boolean; token?: string; user?: ControlUser; reason?: string; retryAfterSec?: number }> {
+  email: string, password: string, ip?: string | null, userAgent?: string | null, totp?: string,
+): Promise<{ ok: boolean; token?: string; user?: ControlUser; reason?: string; retryAfterSec?: number; needs2fa?: boolean }> {
   await ensureControlSchema();
   const normEmail = String(email || '').toLowerCase().trim();
 
@@ -138,7 +145,8 @@ export async function loginControl(
   }
 
   const rows = (await query(
-    `SELECT id, name, email, password_hash, role, status FROM control_users WHERE email = ? LIMIT 1`,
+    `SELECT id, name, email, password_hash, role, status, totp_secret, totp_enabled, totp_recovery
+       FROM control_users WHERE email = ? LIMIT 1`,
     [normEmail],
   )) as any[];
   const u = rows[0];
@@ -149,6 +157,27 @@ export async function loginControl(
     return u && u.status !== 'active' && ok
       ? { ok: false, reason: 'Account is disabled' }
       : { ok: false, reason: 'Invalid email or password' };
+  }
+
+  // Optional second factor (E-2): only enforced when the operator opted in.
+  if (Number(u.totp_enabled) === 1) {
+    const code = String(totp || '').trim();
+    if (!code) return { ok: false, needs2fa: true, reason: 'Enter your authenticator code' };
+    let passed = verifyTotp(u.totp_secret, code);
+    if (!passed) {
+      // Fall back to a one-time recovery code (consumed on use).
+      const recovery: string[] = (() => { try { return typeof u.totp_recovery === 'object' && u.totp_recovery ? u.totp_recovery : JSON.parse(u.totp_recovery || '[]'); } catch { return []; } })();
+      const h = hashRecovery(code);
+      if (recovery.includes(h)) {
+        passed = true;
+        await query(`UPDATE control_users SET totp_recovery = ? WHERE id = ?`, [JSON.stringify(recovery.filter((x) => x !== h)), u.id]).catch(() => {});
+        await controlAudit(u.id, 'twofactor_recovery_used', 'control_users', null, ip ?? null);
+      }
+    }
+    if (!passed) {
+      await recordLoginAttempt(normEmail, ip ?? null, false);
+      return { ok: false, needs2fa: true, reason: 'Invalid authenticator code' };
+    }
   }
 
   const token = randomBytes(48).toString('hex');
@@ -162,6 +191,50 @@ export async function loginControl(
   await clearFailures(normEmail); // reset the counter on a good login
   await controlAudit(u.id, 'login', 'session', null, ip);
   return { ok: true, token, user: { id: Number(u.id), name: u.name, email: u.email, role: u.role, status: u.status } };
+}
+
+/* ── optional 2FA (opt-in per operator) ───────────────────────────────── */
+
+export async function getTotpStatus(userId: number): Promise<{ enabled: boolean }> {
+  await ensureControlSchema();
+  const r = (await query(`SELECT totp_enabled FROM control_users WHERE id = ? LIMIT 1`, [userId]).catch(() => [])) as any[];
+  return { enabled: Number(r[0]?.totp_enabled) === 1 };
+}
+
+/** Step 1: generate + store a pending secret; return it + the otpauth URI. */
+export async function beginTotpEnrollment(userId: number, email: string): Promise<{ secret: string; otpauth: string }> {
+  await ensureControlSchema();
+  const secret = generateTotpSecret();
+  // Store as pending (secret set, still disabled) until a code confirms it.
+  await query(`UPDATE control_users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?`, [secret, userId]);
+  return { secret, otpauth: otpauthUrl(secret, email) };
+}
+
+/** Step 2: verify a code against the pending secret → enable + issue recovery codes. */
+export async function confirmTotpEnrollment(userId: number, code: string, ip?: string | null): Promise<{ ok: boolean; reason?: string; recovery?: string[] }> {
+  await ensureControlSchema();
+  const r = (await query(`SELECT totp_secret, totp_enabled FROM control_users WHERE id = ? LIMIT 1`, [userId]).catch(() => [])) as any[];
+  const secret = r[0]?.totp_secret;
+  if (!secret) return { ok: false, reason: 'Start 2FA setup first' };
+  if (!verifyTotp(secret, code)) return { ok: false, reason: 'That code did not match — check your authenticator time.' };
+  const recovery = generateRecoveryCodes();
+  await query(`UPDATE control_users SET totp_enabled = 1, totp_recovery = ? WHERE id = ?`,
+    [JSON.stringify(recovery.map(hashRecovery)), userId]);
+  await controlAudit(userId, 'twofactor_enabled', 'control_users', null, ip ?? null);
+  return { ok: true, recovery };
+}
+
+/** Disable 2FA — requires a current code (or recovery) to prevent hijack. */
+export async function disableTotp(userId: number, code: string, ip?: string | null): Promise<{ ok: boolean; reason?: string }> {
+  await ensureControlSchema();
+  const r = (await query(`SELECT totp_secret, totp_enabled, totp_recovery FROM control_users WHERE id = ? LIMIT 1`, [userId]).catch(() => [])) as any[];
+  if (Number(r[0]?.totp_enabled) !== 1) return { ok: true }; // already off
+  const recovery: string[] = (() => { try { return typeof r[0].totp_recovery === 'object' && r[0].totp_recovery ? r[0].totp_recovery : JSON.parse(r[0].totp_recovery || '[]'); } catch { return []; } })();
+  const okCode = verifyTotp(r[0].totp_secret, code) || recovery.includes(hashRecovery(code));
+  if (!okCode) return { ok: false, reason: 'Enter a valid code to disable 2FA' };
+  await query(`UPDATE control_users SET totp_enabled = 0, totp_secret = NULL, totp_recovery = NULL WHERE id = ?`, [userId]);
+  await controlAudit(userId, 'twofactor_disabled', 'control_users', null, ip ?? null);
+  return { ok: true };
 }
 
 export async function logoutControl(token: string): Promise<void> {

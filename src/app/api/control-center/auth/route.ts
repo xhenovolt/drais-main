@@ -34,14 +34,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => null);
   if (!b?.email || !b?.password) return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
-  const res = await loginControl(String(b.email), String(b.password), clientIp(req), req.headers.get('user-agent'));
+  const res = await loginControl(String(b.email), String(b.password), clientIp(req), req.headers.get('user-agent'), b.totp ? String(b.totp) : undefined);
   if (!res.ok) {
-    // Brute-force lockout → 429 with a Retry-After hint; bad creds → 401.
+    // Brute-force lockout → 429 with a Retry-After hint.
     if (res.retryAfterSec) {
       return NextResponse.json({ error: res.reason, retry_after: res.retryAfterSec }, {
         status: 429, headers: { 'Retry-After': String(res.retryAfterSec) },
       });
     }
+    // Password ok but a second factor is required/invalid → prompt for it.
+    if (res.needs2fa) return NextResponse.json({ error: res.reason, needs_2fa: true }, { status: 401 });
     return NextResponse.json({ error: res.reason }, { status: 401 });
   }
   const out = NextResponse.json({ success: true, user: { name: res.user!.name, email: res.user!.email, role: res.user!.role } });

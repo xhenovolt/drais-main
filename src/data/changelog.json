@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T07:07:00.692Z",
-  "last_commit": "c39616351d6415cc9738bc8e0d1df886dcc81aa6",
+  "generated_at": "2026-07-26T07:20:12.439Z",
+  "last_commit": "0d0408a723999d7ee3a8375f71ca65bf83be8cdf",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4668,7 +4668,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.121.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Optional TOTP 2FA, opt-in per operator (security Phase 10)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Optional TOTP 2FA, opt-in per operator (security Phase 10)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.120.0"
+  "app_version": "1.121.0"
 }

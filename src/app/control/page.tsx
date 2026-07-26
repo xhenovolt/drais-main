@@ -12,8 +12,9 @@ import { Shield, Loader2 } from 'lucide-react';
 export default function ControlEntry() {
   const router = useRouter();
   const [mode, setMode] = useState<'loading' | 'setup' | 'login'>('loading');
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm_password: '', bootstrap_secret: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm_password: '', bootstrap_secret: '', totp: '' });
   const [bootReq, setBootReq] = useState(false);
+  const [twoFa, setTwoFa] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +34,10 @@ export default function ControlEntry() {
         body: JSON.stringify(form),
       });
       const j = await r.json();
-      if (!r.ok) { setError(j.error || 'Failed'); return; }
+      if (!r.ok) {
+        if (j.needs_2fa) { setTwoFa(true); setError(form.totp ? (j.error || 'Invalid code') : null); return; }
+        setError(j.error || 'Failed'); return;
+      }
       router.replace('/control/dashboard');
     } finally { setBusy(false); }
   }, [mode, form, router]);
@@ -73,6 +77,14 @@ export default function ControlEntry() {
             <input value={form.bootstrap_secret} onChange={(e) => setForm({ ...form, bootstrap_secret: e.target.value })} placeholder="Bootstrap secret" type="password" className={input}
               onKeyDown={(e) => e.key === 'Enter' && submit()} />
             <p className="text-[11px] text-slate-500 mt-1">This deployment requires the CONTROL_BOOTSTRAP_SECRET to create the first operator.</p>
+          </div>
+        )}
+
+        {mode === 'login' && twoFa && (
+          <div>
+            <input value={form.totp} onChange={(e) => setForm({ ...form, totp: e.target.value })} placeholder="6-digit authenticator code" inputMode="numeric" className={input} autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && submit()} />
+            <p className="text-[11px] text-slate-500 mt-1">Enter the code from your authenticator app (or a recovery code).</p>
           </div>
         )}
 
