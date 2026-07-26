@@ -20,7 +20,7 @@ const CYCLES = ['monthly', 'termly', 'annual', 'one_time'];
 const money = (p: any, c: string) => (Number(p) > 0 ? `${c} ${Number(p).toLocaleString()}` : 'Custom / free');
 const perInstallment = (p: any, n: any) => Math.ceil((Number(p) || 0) / Math.max(1, Number(n) || 1));
 const blankDraft = () => ({ code: '', name: '', tier: 0, limits: {}, features: [], is_active: true,
-  price: 0, currency: 'UGX', billing_cycle: 'annual', installments: 1, deliverables: [], _isNew: true });
+  price: 0, installation_fee: 0, currency: 'UGX', billing_cycle: 'annual', installments: 1, deliverables: [], _isNew: true });
 
 export default function ControlPlans() {
   const { data, isLoading, mutate } = useSWR<any>('/api/control-center/plans', fetcher);
@@ -95,12 +95,15 @@ export default function ControlPlans() {
               </div>
             </div>
             {/* Price + billing cycle */}
-            <div className="flex items-baseline justify-between mb-2">
+            <div className="flex items-baseline justify-between mb-1">
               <span className="text-lg font-bold text-slate-100">{money(p.price, p.currency)}</span>
               <span className="text-[11px] text-slate-400">
                 / {p.billing_cycle}{p.installments > 1 && Number(p.price) > 0 ? ` · ${p.installments}× ${p.currency} ${perInstallment(p.price, p.installments).toLocaleString()}` : ''}
               </span>
             </div>
+            {Number(p.installation_fee) > 0 && (
+              <p className="text-[11px] text-amber-300/90 mb-2">+ {money(p.installation_fee, p.currency)} one-time installation (first invoice)</p>
+            )}
             <div className="grid grid-cols-5 gap-2">
               {LIMITS.map(([key, label]) => (
                 <div key={key} className="text-center">
@@ -153,8 +156,12 @@ export default function ControlPlans() {
             <div>
               <p className="text-[11px] text-slate-400 mb-1">Billing</p>
               <div className="grid grid-cols-4 gap-2">
-                <label className="text-[10px] text-slate-500 col-span-2">Price ({draft.currency})
+                <label className="text-[10px] text-slate-500 col-span-2">Subscription price ({draft.currency}) / cycle
                   <input type="number" value={draft.price ?? 0} onChange={e => setDraft((d: any) => ({ ...d, price: Number(e.target.value) }))}
+                    className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100" />
+                </label>
+                <label className="text-[10px] text-slate-500 col-span-2">Installation fee ({draft.currency}) — one-time
+                  <input type="number" value={draft.installation_fee ?? 0} onChange={e => setDraft((d: any) => ({ ...d, installation_fee: Number(e.target.value) }))}
                     className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100" />
                 </label>
                 <label className="text-[10px] text-slate-500">Currency

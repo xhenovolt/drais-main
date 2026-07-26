@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
       limits: b.limits && typeof b.limits === 'object' ? b.limits : {},
       features: Array.isArray(b.features) ? b.features.map(String) : [],
       is_active: b.is_active !== false,
-      price: Number(b.price) || 0, currency: b.currency ? String(b.currency) : 'UGX',
+      price: Number(b.price) || 0, installation_fee: Number(b.installation_fee) || 0,
+      currency: b.currency ? String(b.currency) : 'UGX',
       billing_cycle: b.billing_cycle, installments: Number(b.installments) || 1,
       deliverables: Array.isArray(b.deliverables) ? b.deliverables.map(String) : [],
     });

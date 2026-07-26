@@ -21,11 +21,19 @@ export const BILLING_CYCLES = ['monthly', 'termly', 'annual', 'one_time'] as con
 export type BillingCycle = typeof BILLING_CYCLES[number];
 
 export interface PlanBilling {
-  price: number;                 // full price for one billing cycle, in `currency`
+  installation_fee: number;      // ONE-TIME setup fee, billed on the school's first invoice only
+  price: number;                 // recurring subscription price for one billing cycle, in `currency`
   currency: string;              // e.g. 'UGX'
-  billing_cycle: BillingCycle;   // how often it's due
-  installments: number;          // how many payments the price may be split into (1 = pay in full)
+  billing_cycle: BillingCycle;   // how often the subscription is due
+  installments: number;          // how many payments the cycle price may be split into (1 = pay in full)
   deliverables: string[];        // what the school gets for this plan (commitments)
+}
+
+/** PURE: split an invoice into installation (first time only) + subscription. */
+export function invoiceAmounts(installationFee: number, subscriptionPrice: number, isFirstInvoice: boolean): { installation: number; subscription: number; total: number } {
+  const installation = isFirstInvoice ? Math.max(0, Math.round(Number(installationFee) || 0)) : 0;
+  const subscription = Math.max(0, Math.round(Number(subscriptionPrice) || 0));
+  return { installation, subscription, total: installation + subscription };
 }
 
 export interface SubscriptionPlan extends PlanBilling {
@@ -55,30 +63,30 @@ export function installmentAmount(price: number, installments: number): number {
 }
 
 /** Seed presets — null limit = unlimited. Custom is created ad-hoc by operators. */
-const b = (price: number, cycle: BillingCycle, installments: number, deliverables: string[]): PlanBilling =>
-  ({ price, currency: 'UGX', billing_cycle: cycle, installments, deliverables });
+const b = (installation: number, price: number, cycle: BillingCycle, installments: number, deliverables: string[]): PlanBilling =>
+  ({ installation_fee: installation, price, currency: 'UGX', billing_cycle: cycle, installments, deliverables });
 
 const PRESETS: SubscriptionPlan[] = [
   { code: 'starter', name: 'Starter', tier: 1, is_active: true,
     limits: { learners: 300, staff: 30, devices: 1, sms_monthly: 500, storage_mb: 2000 },
     features: ['attendance'],
-    ...b(1_200_000, 'annual', 3, ['1 biometric device', 'Attendance module', 'Email support']) },
+    ...b(800_000, 1_200_000, 'annual', 3, ['1 biometric device', 'Attendance module', 'Email support']) },
   { code: 'standard', name: 'Standard', tier: 2, is_active: true,
     limits: { learners: 800, staff: 80, devices: 2, sms_monthly: 2000, storage_mb: 5000 },
     features: ['attendance', 'finance', 'parent_portal'],
-    ...b(2_400_000, 'annual', 3, ['2 biometric devices', 'Attendance + Finance', 'Parent portal', 'Priority email support']) },
+    ...b(1_500_000, 2_400_000, 'annual', 3, ['2 biometric devices', 'Attendance + Finance', 'Parent portal', 'Priority email support']) },
   { code: 'professional', name: 'Professional', tier: 3, is_active: true,
     limits: { learners: 2000, staff: 200, devices: 5, sms_monthly: 10000, storage_mb: 20000 },
     features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics'],
-    ...b(4_800_000, 'annual', 3, ['5 devices', 'All standard + Tahfiz + Analytics', 'On-site setup', 'Phone support']) },
+    ...b(2_500_000, 4_800_000, 'annual', 3, ['5 devices', 'All standard + Tahfiz + Analytics', 'On-site setup', 'Phone support']) },
   { code: 'enterprise', name: 'Enterprise', tier: 4, is_active: true,
     limits: { learners: null, staff: null, devices: 20, sms_monthly: 50000, storage_mb: 100000 },
     features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics', 'hr'],
-    ...b(9_600_000, 'annual', 4, ['Up to 20 devices', 'All modules incl. HR', 'Dedicated account manager', 'SLA support']) },
+    ...b(5_000_000, 9_600_000, 'annual', 4, ['Up to 20 devices', 'All modules incl. HR', 'Dedicated account manager', 'SLA support']) },
   { code: 'government', name: 'Government', tier: 5, is_active: true,
     limits: { learners: null, staff: null, devices: null, sms_monthly: null, storage_mb: null },
     features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics', 'hr'],
-    ...b(0, 'annual', 1, ['Unlimited everything', 'Custom contract & pricing', 'Dedicated support']) },
+    ...b(0, 0, 'annual', 1, ['Unlimited everything', 'Custom contract & pricing', 'Dedicated support']) },
 ];
 
 let ensured: Promise<void> | null = null;
@@ -102,6 +110,7 @@ export function ensureSubscriptionPlansSchema(): Promise<void> {
     // Billing columns (additive — plans predate them).
     for (const ddl of [
       `ADD COLUMN price DECIMAL(14,2) NOT NULL DEFAULT 0`,
+      `ADD COLUMN installation_fee DECIMAL(14,2) NOT NULL DEFAULT 0`,
       `ADD COLUMN currency VARCHAR(8) NOT NULL DEFAULT 'UGX'`,
       `ADD COLUMN billing_cycle VARCHAR(16) NOT NULL DEFAULT 'annual'`,
       `ADD COLUMN installments INT NOT NULL DEFAULT 1`,
@@ -113,10 +122,10 @@ export function ensureSubscriptionPlansSchema(): Promise<void> {
     for (const p of PRESETS) {
       await query(
         `INSERT IGNORE INTO subscription_plans
-           (code, name, tier, limits, features, is_active, price, currency, billing_cycle, installments, deliverables)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
+           (code, name, tier, limits, features, is_active, price, installation_fee, currency, billing_cycle, installments, deliverables)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
         [p.code, p.name, p.tier, JSON.stringify(p.limits), JSON.stringify(p.features),
-         p.price, p.currency, p.billing_cycle, p.installments, JSON.stringify(p.deliverables)],
+         p.price, p.installation_fee, p.currency, p.billing_cycle, p.installments, JSON.stringify(p.deliverables)],
       ).catch(() => {});
     }
   })();
@@ -131,7 +140,7 @@ const parse = (v: any, fallback: any) => {
 const rowToPlan = (r: any): SubscriptionPlan => ({
   code: r.code, name: r.name, tier: Number(r.tier || 0),
   limits: parse(r.limits, {}), features: parse(r.features, []), is_active: !!Number(r.is_active),
-  price: Number(r.price || 0), currency: r.currency || 'UGX',
+  price: Number(r.price || 0), installation_fee: Number(r.installation_fee || 0), currency: r.currency || 'UGX',
   billing_cycle: (BILLING_CYCLES as readonly string[]).includes(r.billing_cycle) ? r.billing_cycle : 'annual',
   installments: Math.max(1, Number(r.installments || 1)), deliverables: parse(r.deliverables, []),
 });
@@ -151,22 +160,22 @@ export async function getPlanByCode(code: string): Promise<SubscriptionPlan | nu
 /** Create or update a plan (operator-authored). Returns the saved plan. */
 export async function upsertPlan(input: {
   code: string; name: string; tier?: number; limits?: PlanLimits; features?: string[]; is_active?: boolean;
-  price?: number; currency?: string; billing_cycle?: BillingCycle; installments?: number; deliverables?: string[];
+  price?: number; installation_fee?: number; currency?: string; billing_cycle?: BillingCycle; installments?: number; deliverables?: string[];
 }): Promise<SubscriptionPlan> {
   await ensureSubscriptionPlansSchema();
   const code = input.code.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
   const cycle = (BILLING_CYCLES as readonly string[]).includes(input.billing_cycle as string) ? input.billing_cycle! : 'annual';
   await query(
     `INSERT INTO subscription_plans
-       (code, name, tier, limits, features, is_active, price, currency, billing_cycle, installments, deliverables)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (code, name, tier, limits, features, is_active, price, installation_fee, currency, billing_cycle, installments, deliverables)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE name = VALUES(name), tier = VALUES(tier),
        limits = VALUES(limits), features = VALUES(features), is_active = VALUES(is_active),
-       price = VALUES(price), currency = VALUES(currency), billing_cycle = VALUES(billing_cycle),
-       installments = VALUES(installments), deliverables = VALUES(deliverables)`,
+       price = VALUES(price), installation_fee = VALUES(installation_fee), currency = VALUES(currency),
+       billing_cycle = VALUES(billing_cycle), installments = VALUES(installments), deliverables = VALUES(deliverables)`,
     [code, input.name.trim(), input.tier ?? 0, JSON.stringify(input.limits ?? {}),
      JSON.stringify(input.features ?? []), input.is_active === false ? 0 : 1,
-     Number(input.price) || 0, (input.currency || 'UGX').slice(0, 8), cycle,
+     Number(input.price) || 0, Number(input.installation_fee) || 0, (input.currency || 'UGX').slice(0, 8), cycle,
      Math.max(1, Number(input.installments) || 1), JSON.stringify(input.deliverables ?? [])],
   );
   return (await getPlanByCode(code))!;

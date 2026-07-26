@@ -62,3 +62,18 @@ describe('billing helpers', () => {
     assert.equal(installmentAmount(500, 0), 500);     // guard: min 1
   });
 });
+
+import { invoiceAmounts } from '@/lib/control/subscriptions';
+
+describe('invoiceAmounts (installation + subscription)', () => {
+  it('first invoice includes the one-time installation fee', () => {
+    assert.deepEqual(invoiceAmounts(800000, 1200000, true), { installation: 800000, subscription: 1200000, total: 2000000 });
+  });
+  it('later invoices bill subscription only', () => {
+    assert.deepEqual(invoiceAmounts(800000, 1200000, false), { installation: 0, subscription: 1200000, total: 1200000 });
+  });
+  it('handles zero installation / free plan', () => {
+    assert.deepEqual(invoiceAmounts(0, 0, true), { installation: 0, subscription: 0, total: 0 });
+    assert.deepEqual(invoiceAmounts(0, 500000, true), { installation: 0, subscription: 500000, total: 500000 });
+  });
+});

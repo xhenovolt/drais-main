@@ -12,7 +12,7 @@
  */
 import { query, getConnection } from '@/lib/db';
 import { controlAudit } from '@/lib/control/auth';
-import { getPlanByCode, billingCycleDays } from '@/lib/control/subscriptions';
+import { getPlanByCode, billingCycleDays, invoiceAmounts } from '@/lib/control/subscriptions';
 
 export type InvoiceStatus = 'issued' | 'paid' | 'overdue' | 'void';
 
@@ -38,6 +38,25 @@ export function computePeriod(cycleDays: number, fromISO: string): { start: stri
   if (cycleDays <= 0) return { start: fromISO, end: null }; // one_time
   const end = new Date(Date.parse(fromISO + 'T00:00:00Z') + cycleDays * 86_400_000).toISOString().slice(0, 10);
   return { start: fromISO, end };
+}
+
+/**
+ * PURE: how far access should extend given how much has been paid so far —
+ * so schools can pay in INSTALLMENTS and get proportional access, not
+ * all-or-nothing. The installation fee is covered FIRST; only money beyond it
+ * buys subscription time, pro-rata across the billing period.
+ */
+export function proratedAccessEnd(args: {
+  installationAmount: number; subscriptionAmount: number; totalPaid: number; periodStart: string; periodEnd: string | null;
+}): { newEnd: string | null; fraction: number } {
+  if (!args.periodEnd) return { newEnd: null, fraction: 0 }; // one_time: no time-based access
+  const paidTowardSub = Math.max(0, (Number(args.totalPaid) || 0) - (Number(args.installationAmount) || 0));
+  const sub = Number(args.subscriptionAmount) || 0;
+  const fraction = sub > 0 ? Math.min(1, paidTowardSub / sub) : (Number(args.totalPaid) >= Number(args.installationAmount) ? 1 : 0);
+  const startMs = Date.parse(args.periodStart + 'T00:00:00Z');
+  const endMs = Date.parse(args.periodEnd + 'T00:00:00Z');
+  const days = Math.round(((endMs - startMs) / 86_400_000) * fraction);
+  return { newEnd: new Date(startMs + days * 86_400_000).toISOString().slice(0, 10), fraction };
 }
 
 /* ── schema ───────────────────────────────────────────────────────────── */
@@ -81,6 +100,9 @@ export function ensureBillingSchema(): Promise<void> {
     // Gateway transaction id for idempotent webhook reconciliation (additive).
     await query(`ALTER TABLE platform_payments ADD COLUMN provider_ref VARCHAR(120) DEFAULT NULL`, []).catch(() => {});
     await query(`ALTER TABLE platform_payments ADD KEY idx_provider_ref (provider_ref)`, []).catch(() => {});
+    // Invoice line-item breakdown: one-time installation vs recurring subscription.
+    await query(`ALTER TABLE platform_invoices ADD COLUMN installation_amount DECIMAL(14,2) NOT NULL DEFAULT 0`, []).catch(() => {});
+    await query(`ALTER TABLE platform_invoices ADD COLUMN subscription_amount DECIMAL(14,2) NOT NULL DEFAULT 0`, []).catch(() => {});
   })();
   return ensured;
 }
@@ -139,14 +161,22 @@ export async function generateInvoice(args: {
   const startISO = startFrom.toISOString().slice(0, 10);
   const { start, end } = computePeriod(billingCycleDays(plan.billing_cycle), startISO);
 
+  // Installation fee is billed ONCE — on the school's first non-void invoice.
+  const priorRows = (await query(
+    `SELECT COUNT(*) n FROM platform_invoices WHERE school_id = ? AND voided = 0`, [args.schoolId],
+  ).catch(() => [{ n: 0 }])) as any[];
+  const isFirst = Number(priorRows[0]?.n || 0) === 0;
+  const amt = invoiceAmounts(plan.installation_fee, plan.price, isFirst);
+
   const res = (await query(
-    `INSERT INTO platform_invoices (school_id, plan_code, period_start, period_end, amount, currency, due_date, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [args.schoolId, code, start, end, plan.price, plan.currency, start, args.operatorId],
+    `INSERT INTO platform_invoices
+       (school_id, plan_code, period_start, period_end, amount, installation_amount, subscription_amount, currency, due_date, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [args.schoolId, code, start, end, amt.total, amt.installation, amt.subscription, plan.currency, start, args.operatorId],
   )) as any;
   const invoiceId = Number(res?.insertId || 0);
   await controlAudit(args.operatorId, 'invoice_generated', `schools:${args.schoolId}`,
-    { invoice_id: invoiceId, plan: code, amount: plan.price, currency: plan.currency, period_end: end }, args.ip ?? null);
+    { invoice_id: invoiceId, plan: code, total: amt.total, installation: amt.installation, subscription: amt.subscription, currency: plan.currency, period_end: end, first: isFirst }, args.ip ?? null);
   return { ok: true, invoiceId };
 }
 
@@ -172,26 +202,36 @@ export async function recordPayment(args: {
 
   const paid = await paidFor(args.invoiceId);
   const paidInFull = outstanding(Number(inv[0].amount), paid) <= 0;
+  if (paidInFull) await query(`UPDATE platform_invoices SET paid_at = NOW() WHERE id = ?`, [args.invoiceId]).catch(() => {});
+
+  // Progressive access: every payment (partial or full) buys pro-rata time, so a
+  // school paying in installments isn't locked out until the last shilling.
   let newEnd: string | null = null;
-  if (paidInFull) {
-    // Reconcile: mark paid + extend the school's access to the invoice period end.
-    await query(`UPDATE platform_invoices SET paid_at = NOW() WHERE id = ?`, [args.invoiceId]).catch(() => {});
-    newEnd = inv[0].period_end ? String(inv[0].period_end).slice(0, 10) : null;
-    if (newEnd) {
+  const periodEnd = inv[0].period_end ? String(inv[0].period_end).slice(0, 10) : null;
+  const periodStart = inv[0].period_start ? String(inv[0].period_start).slice(0, 10) : null;
+  if (periodEnd && periodStart) {
+    const installationAmount = Number(inv[0].installation_amount || 0);
+    // Legacy invoices predate the split → treat (amount − installation) as the subscription.
+    const subscriptionAmount = Number(inv[0].subscription_amount) || Math.max(0, Number(inv[0].amount) - installationAmount);
+    const grant = proratedAccessEnd({ installationAmount, subscriptionAmount, totalPaid: paid, periodStart, periodEnd });
+    newEnd = grant.newEnd;
+    if (newEnd && grant.fraction > 0) {
       await query(
         `UPDATE schools SET subscription_status = 'active',
                 subscription_end_date = GREATEST(COALESCE(subscription_end_date, '1970-01-01'), ?),
                 updated_at = NOW() WHERE id = ?`,
         [newEnd, inv[0].school_id],
       ).catch(() => {});
-      // Tell the school its payment landed and access is active (E-11).
       const { notifyTenantBilling } = await import('@/lib/control/dunning');
-      await notifyTenantBilling(inv[0].school_id, 'billing_renewed', 'Payment received — subscription active',
-        `Thank you — your payment was received and your DRAIS subscription is active until ${newEnd}.`, 'low').catch(() => {});
+      const msg = paidInFull
+        ? `Thank you — your payment was received in full and your DRAIS subscription is active until ${newEnd}.`
+        : `Payment received. Your DRAIS access is extended to ${newEnd}. Outstanding on this invoice: ${inv[0].currency} ${outstanding(Number(inv[0].amount), paid).toLocaleString()}.`;
+      await notifyTenantBilling(inv[0].school_id, paidInFull ? 'billing_renewed' : 'billing_partial',
+        paidInFull ? 'Payment received — subscription active' : 'Part-payment received — access extended', msg, 'low').catch(() => {});
     }
   }
   await controlAudit(args.operatorId, 'payment_recorded', `schools:${inv[0].school_id}`,
-    { invoice_id: args.invoiceId, amount, method: args.method, reference: args.reference, paid_in_full: paidInFull, new_end: newEnd }, args.ip ?? null);
+    { invoice_id: args.invoiceId, amount, method: args.method, reference: args.reference, paid_in_full: paidInFull, new_end: newEnd, total_paid: paid }, args.ip ?? null);
   return { ok: true, paidInFull, newEnd };
 }
 

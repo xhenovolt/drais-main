@@ -203,6 +203,7 @@ function BillingPanel({ schoolId, currency }: { schoolId: number; currency: stri
             <div key={i.id} className="flex items-center justify-between text-xs bg-slate-950/30 rounded-lg px-3 py-2">
               <span className="text-slate-300">
                 <span className="font-mono">#{i.id}</span> · {money(i.amount)}
+                {Number(i.installation_amount) > 0 && <span className="text-amber-300/90"> (incl. {money(i.installation_amount)} install)</span>}
                 <span className="text-slate-500"> · {i.period_start ? String(i.period_start).slice(0, 10) : '—'} → {i.period_end ? String(i.period_end).slice(0, 10) : 'one-time'}</span>
                 {i.outstanding > 0 && i.status !== 'void' && <span className="text-rose-400"> · owes {money(i.outstanding)}</span>}
               </span>
