@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T07:58:04.512Z",
-  "last_commit": "b5da569f3cb3f865d50692a80769ad97f909f866",
+  "generated_at": "2026-07-26T08:04:39.493Z",
+  "last_commit": "4d81c377745c8f64ec4a3566d5953ae349ac6e83",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4720,7 +4720,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.125.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Dunning + tenant billing comms (money Phase 14)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Dunning + tenant billing comms (money Phase 14)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.124.0"
+  "app_version": "1.125.0"
 }

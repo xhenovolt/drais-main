@@ -87,6 +87,9 @@ export async function GET(req: NextRequest) {
     // admins are TOLD what needs them (Founder-Independence Phase D) — no one
     // has to open a page. In-app, deduped once per school per day.
     .then(() => import('@/lib/attendance/digest').then(m => m.sendDailyDigests()))
+    // Billing dunning — warn schools before their subscription lapses and notify
+    // on expiry/suspension (Platform-OS Phase 14). Same single cron; no new one.
+    .then(() => import('@/lib/control/dunning').then(m => m.runDunningSweep()))
     .catch(() => {});
   return dispatch(req);
 }

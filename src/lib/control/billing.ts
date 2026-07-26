@@ -184,6 +184,10 @@ export async function recordPayment(args: {
                 updated_at = NOW() WHERE id = ?`,
         [newEnd, inv[0].school_id],
       ).catch(() => {});
+      // Tell the school its payment landed and access is active (E-11).
+      const { notifyTenantBilling } = await import('@/lib/control/dunning');
+      await notifyTenantBilling(inv[0].school_id, 'billing_renewed', 'Payment received — subscription active',
+        `Thank you — your payment was received and your DRAIS subscription is active until ${newEnd}.`, 'low').catch(() => {});
     }
   }
   await controlAudit(args.operatorId, 'payment_recorded', `schools:${inv[0].school_id}`,
