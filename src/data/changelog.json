@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T07:51:01.582Z",
-  "last_commit": "2043a59a60265be162f77286feb76b3ab17caf8f",
+  "generated_at": "2026-07-26T07:58:04.512Z",
+  "last_commit": "b5da569f3cb3f865d50692a80769ad97f909f866",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4707,7 +4707,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.124.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Payment-gateway webhook reconciliation (money Phase 12)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Payment-gateway webhook reconciliation (money Phase 12)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.123.0"
+  "app_version": "1.124.0"
 }

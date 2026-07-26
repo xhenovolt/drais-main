@@ -78,8 +78,18 @@ export function ensureBillingSchema(): Promise<void> {
          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
          KEY idx_invoice (invoice_id), KEY idx_school (school_id)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, []);
+    // Gateway transaction id for idempotent webhook reconciliation (additive).
+    await query(`ALTER TABLE platform_payments ADD COLUMN provider_ref VARCHAR(120) DEFAULT NULL`, []).catch(() => {});
+    await query(`ALTER TABLE platform_payments ADD KEY idx_provider_ref (provider_ref)`, []).catch(() => {});
   })();
   return ensured;
+}
+
+/** Has a gateway transaction already been recorded? (webhook idempotency) */
+export async function paymentExistsByProviderRef(providerRef: string): Promise<boolean> {
+  await ensureBillingSchema();
+  const r = (await query(`SELECT 1 FROM platform_payments WHERE provider_ref = ? LIMIT 1`, [providerRef]).catch(() => [])) as any[];
+  return r.length > 0;
 }
 
 /* ── reads ────────────────────────────────────────────────────────────── */
@@ -142,7 +152,8 @@ export async function generateInvoice(args: {
 
 /** Record a payment against an invoice; reconcile → extend access when fully paid. */
 export async function recordPayment(args: {
-  invoiceId: number; amount: number; method?: string; reference?: string; note?: string; operatorId: number; ip?: string | null;
+  invoiceId: number; amount: number; method?: string; reference?: string; note?: string;
+  operatorId: number | null; providerRef?: string | null; ip?: string | null;
 }): Promise<{ ok: boolean; reason?: string; paidInFull?: boolean; newEnd?: string | null }> {
   await ensureBillingSchema();
   const inv = (await query(`SELECT * FROM platform_invoices WHERE id = ? LIMIT 1`, [args.invoiceId]).catch(() => [])) as any[];
@@ -152,10 +163,11 @@ export async function recordPayment(args: {
   if (amount <= 0) return { ok: false, reason: 'Payment amount must be positive' };
 
   await query(
-    `INSERT INTO platform_payments (invoice_id, school_id, amount, currency, method, reference, note, recorded_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO platform_payments (invoice_id, school_id, amount, currency, method, reference, note, recorded_by, provider_ref)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [args.invoiceId, inv[0].school_id, amount, inv[0].currency, (args.method || 'manual').slice(0, 32),
-     (args.reference || '').slice(0, 120) || null, (args.note || '').slice(0, 255) || null, args.operatorId],
+     (args.reference || '').slice(0, 120) || null, (args.note || '').slice(0, 255) || null, args.operatorId,
+     (args.providerRef || '').slice(0, 120) || null],
   );
 
   const paid = await paidFor(args.invoiceId);
