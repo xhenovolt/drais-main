@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T19:12:40.736Z",
-  "last_commit": "2ced72004e132fc0147e600ef6f6cda0bb612202",
+  "generated_at": "2026-07-26T19:19:37.061Z",
+  "last_commit": "386bd7ecb3e1f39369a89e546bd2b8a4863f5cb2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4811,7 +4811,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.128.2",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Tighten list layout so search results sit up top (sticky filters, result count, empty state)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Tighten list layout so search results sit up top (sticky filters, result count, empty state)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.128.1"
+  "app_version": "1.128.2"
 }

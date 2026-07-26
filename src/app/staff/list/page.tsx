@@ -189,15 +189,17 @@ const StaffListPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-5">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               👥 {t('nav.staff.list')}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {staff.length} {t('people.staff')}
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {debouncedQuery || statusFilter || departmentFilter
+                ? `${staff.length} of ${allStaff.length} ${t('people.staff')}`
+                : `${staff.length} ${t('people.staff')}`}
             </p>
           </div>
           <button
@@ -218,8 +220,8 @@ const StaffListPage: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-lg mb-4 sticky top-2 z-10">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -278,6 +280,17 @@ const StaffListPage: React.FC = () => {
               <p className="text-red-500 text-lg font-medium mb-2">Failed to load staff data</p>
               <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Check your connection and try again</p>
               <button onClick={() => mutate()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Retry</button>
+            </div>
+          ) : staff.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-600 dark:text-gray-300 font-medium">
+                {debouncedQuery ? `No staff match “${debouncedQuery}”` : 'No staff to show'}
+              </p>
+              {(debouncedQuery || statusFilter || departmentFilter) && (
+                <button onClick={() => { setSearchQuery(''); setStatusFilter(''); setDepartmentFilter(''); }}
+                  className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Clear filters</button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
