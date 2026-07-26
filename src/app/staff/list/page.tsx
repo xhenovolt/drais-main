@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2, Wifi, Fingerprint } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
@@ -15,7 +15,8 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 const StaffListPage: React.FC = () => {
   const { t } = useI18n();
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');       // immediate input
+  const [debouncedQuery, setDebouncedQuery] = useState(''); // used for filtering
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
@@ -43,16 +44,22 @@ const StaffListPage: React.FC = () => {
   const allStaff = staffData?.data || [];
   const departments = departmentsData?.data || [];
 
-  // Filter staff on the client side
-  const staff = allStaff.filter((member: any) => {
+  // Debounce the search box so a large roster isn't re-filtered on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery.trim().toLowerCase()), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Filter on the client side — memoised so it only recomputes when the data or
+  // a (debounced) filter actually changes, not on every render/keystroke.
+  const staff = useMemo(() => allStaff.filter((member: any) => {
     const fullName = `${member.first_name} ${member.last_name} ${member.other_name || ''}`.toLowerCase();
-    const matchesSearch = !searchQuery || fullName.includes(searchQuery.toLowerCase()) || 
-                         (member.staff_no && member.staff_no.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = !debouncedQuery || fullName.includes(debouncedQuery) ||
+                         (member.staff_no && String(member.staff_no).toLowerCase().includes(debouncedQuery));
     const matchesStatus = !statusFilter || member.status === statusFilter;
     const matchesDepartment = !departmentFilter || member.department_id === parseInt(departmentFilter);
-    
     return matchesSearch && matchesStatus && matchesDepartment;
-  });
+  }), [allStaff, debouncedQuery, statusFilter, departmentFilter]);
 
   const handleViewDetails = (staffMember: any) => {
     router.push(`/staff/${staffMember.id}`);

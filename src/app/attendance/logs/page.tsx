@@ -552,7 +552,8 @@ export default function UnifiedAttendancePage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [deviceSn, setDeviceSn] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState('');          // debounced value used in the query
+  const [searchInput, setSearchInput] = useState(''); // immediate input value (no refetch per keystroke)
   const [assignTarget, setAssignTarget] = useState<string | null>(null);
   const [correctTarget, setCorrectTarget] = useState<{ deviceUserId: string; name: string | null } | null>(null);
   const [liveFeedOpen, setLiveFeedOpen] = useState(false); // collapsed — data first
@@ -579,6 +580,13 @@ export default function UnifiedAttendancePage() {
     afternoon: { label: 'Afternoon', from: '12:00', to: '16:59' },
     evening: { label: 'Evening', from: '17:00', to: '22:59' },
   };
+
+  // Debounce the search box → the server query (and its SWR key) only changes
+  // after the user pauses typing, so keystrokes no longer each round-trip.
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Datatable-style column sorting (server-side, whitelisted keys).
   const [sortBy, setSortBy] = useState<string>('time');
@@ -1029,8 +1037,8 @@ export default function UnifiedAttendancePage() {
           <div className="relative flex-1 min-w-36 max-w-56">
             <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
             <input
-              type="text" placeholder="Name or User ID…" value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              type="text" placeholder="Name or User ID…" value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
             />
           </div>

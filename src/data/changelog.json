@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T18:38:23.265Z",
-  "last_commit": "6b6c0ec82fb882d7fa292abb60cd46ae82b67bae",
+  "generated_at": "2026-07-26T18:45:24.163Z",
+  "last_commit": "1a50de5559cac84af2c32b9bf972240ca34fdc70",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4772,7 +4772,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.127.2",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Debounce search to stop per-keystroke lag",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Debounce search to stop per-keystroke lag"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.127.1"
+  "app_version": "1.127.2"
 }
