@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T06:45:04.945Z",
-  "last_commit": "3e864f85b36a96bda4f37bddb1b3729c5b0340e1",
+  "generated_at": "2026-07-26T06:58:38.845Z",
+  "last_commit": "370a7d38ffbd80d39baeb6387c622d46a6651baa",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4642,7 +4642,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.119.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Login brute-force guard + bootstrap secret (security Phase 8)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Login brute-force guard + bootstrap secret (security Phase 8)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.118.1"
+  "app_version": "1.119.0"
 }

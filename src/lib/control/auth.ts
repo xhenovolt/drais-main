@@ -15,6 +15,7 @@ import { query } from '@/lib/db';
 import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { NextRequest } from 'next/server';
+import { throttleDecision, recentFailures, recordLoginAttempt, clearFailures } from '@/lib/control/login-guard';
 
 const scrypt = promisify(_scrypt) as (pw: string, salt: string, len: number) => Promise<Buffer>;
 
@@ -124,17 +125,31 @@ export async function createControlUser(args: {
 
 export async function loginControl(
   email: string, password: string, ip?: string | null, userAgent?: string | null,
-): Promise<{ ok: boolean; token?: string; user?: ControlUser; reason?: string }> {
+): Promise<{ ok: boolean; token?: string; user?: ControlUser; reason?: string; retryAfterSec?: number }> {
   await ensureControlSchema();
+  const normEmail = String(email || '').toLowerCase().trim();
+
+  // Brute-force guard (E-1): block once too many recent failures pile up.
+  const { failures, secondsSinceLast } = await recentFailures(normEmail);
+  const gate = throttleDecision(failures, secondsSinceLast);
+  if (gate.blocked) {
+    await controlAudit(null, 'login_throttled', 'session', { email: normEmail, failures }, ip ?? null);
+    return { ok: false, reason: `Too many attempts. Try again in ${gate.retryAfterSec}s.`, retryAfterSec: gate.retryAfterSec };
+  }
+
   const rows = (await query(
     `SELECT id, name, email, password_hash, role, status FROM control_users WHERE email = ? LIMIT 1`,
-    [String(email || '').toLowerCase().trim()],
+    [normEmail],
   )) as any[];
   const u = rows[0];
   // Constant-shape failure: verify against a dummy hash when no user found.
   const ok = u ? await verifyPassword(password, u.password_hash) : (await verifyPassword(password, 'scrypt$00$00'), false);
-  if (!u || !ok) return { ok: false, reason: 'Invalid email or password' };
-  if (u.status !== 'active') return { ok: false, reason: 'Account is disabled' };
+  if (!u || !ok || u.status !== 'active') {
+    await recordLoginAttempt(normEmail, ip ?? null, false);
+    return u && u.status !== 'active' && ok
+      ? { ok: false, reason: 'Account is disabled' }
+      : { ok: false, reason: 'Invalid email or password' };
+  }
 
   const token = randomBytes(48).toString('hex');
   await query(
@@ -143,6 +158,8 @@ export async function loginControl(
     [u.id, hashToken(token), ip ?? null, (userAgent || '').slice(0, 250) || null, SESSION_HOURS],
   );
   await query(`UPDATE control_users SET last_login = NOW() WHERE id = ?`, [u.id]);
+  await recordLoginAttempt(normEmail, ip ?? null, true);
+  await clearFailures(normEmail); // reset the counter on a good login
   await controlAudit(u.id, 'login', 'session', null, ip);
   return { ok: true, token, user: { id: Number(u.id), name: u.name, email: u.email, role: u.role, status: u.status } };
 }

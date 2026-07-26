@@ -12,14 +12,15 @@ import { Shield, Loader2 } from 'lucide-react';
 export default function ControlEntry() {
   const router = useRouter();
   const [mode, setMode] = useState<'loading' | 'setup' | 'login'>('loading');
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm_password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm_password: '', bootstrap_secret: '' });
+  const [bootReq, setBootReq] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/control-center/auth', { cache: 'no-store' }).then(r => r.json()).then(j => {
       if (j.authenticated) router.replace('/control/dashboard');
-      else setMode(j.setup_required ? 'setup' : 'login');
+      else { setMode(j.setup_required ? 'setup' : 'login'); setBootReq(!!j.bootstrap_secret_required); }
     }).catch(() => setMode('login'));
   }, [router]);
 
@@ -66,6 +67,13 @@ export default function ControlEntry() {
         {mode === 'setup' && (
           <input value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} placeholder="Confirm password" type="password" className={input}
             onKeyDown={(e) => e.key === 'Enter' && submit()} />
+        )}
+        {mode === 'setup' && bootReq && (
+          <div>
+            <input value={form.bootstrap_secret} onChange={(e) => setForm({ ...form, bootstrap_secret: e.target.value })} placeholder="Bootstrap secret" type="password" className={input}
+              onKeyDown={(e) => e.key === 'Enter' && submit()} />
+            <p className="text-[11px] text-slate-500 mt-1">This deployment requires the CONTROL_BOOTSTRAP_SECRET to create the first operator.</p>
+          </div>
         )}
 
         {error && <p className="text-xs text-rose-400">{error}</p>}

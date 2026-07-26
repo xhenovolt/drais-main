@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
   ]);
   return NextResponse.json({
     success: true, setup_required: setupRequired, authenticated: !!user,
+    // When a bootstrap secret is configured, first-run setup must supply it.
+    bootstrap_secret_required: setupRequired && !!process.env.CONTROL_BOOTSTRAP_SECRET,
     user: user ? { name: user.name, email: user.email, role: user.role } : null,
   });
 }
@@ -33,7 +35,15 @@ export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => null);
   if (!b?.email || !b?.password) return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
   const res = await loginControl(String(b.email), String(b.password), clientIp(req), req.headers.get('user-agent'));
-  if (!res.ok) return NextResponse.json({ error: res.reason }, { status: 401 });
+  if (!res.ok) {
+    // Brute-force lockout → 429 with a Retry-After hint; bad creds → 401.
+    if (res.retryAfterSec) {
+      return NextResponse.json({ error: res.reason, retry_after: res.retryAfterSec }, {
+        status: 429, headers: { 'Retry-After': String(res.retryAfterSec) },
+      });
+    }
+    return NextResponse.json({ error: res.reason }, { status: 401 });
+  }
   const out = NextResponse.json({ success: true, user: { name: res.user!.name, email: res.user!.email, role: res.user!.role } });
   out.cookies.set(CONTROL_COOKIE, res.token!, cookieOpts);
   return out;
@@ -45,6 +55,13 @@ export async function PUT(req: NextRequest) {
   const b = await req.json().catch(() => null);
   if (!b?.name || !b?.email || !b?.password) return NextResponse.json({ error: 'Name, email and password are required' }, { status: 400 });
   if (b.password !== b.confirm_password) return NextResponse.json({ error: 'Passwords do not match' }, { status: 400 });
+  // Bootstrap gate (E-5): if a secret is configured, the first operator can only
+  // be created by someone who holds it — closes the "first to reach a fresh
+  // deployment claims God-mode" race. No secret set → unchanged behaviour.
+  const bootSecret = process.env.CONTROL_BOOTSTRAP_SECRET;
+  if (bootSecret && String(b.bootstrap_secret || '') !== bootSecret) {
+    return NextResponse.json({ error: 'Invalid or missing bootstrap secret' }, { status: 403 });
+  }
   const created = await createControlUser({
     name: String(b.name), email: String(b.email), password: String(b.password), role: 'XHENVOLT_SUPER_ADMIN',
   });
