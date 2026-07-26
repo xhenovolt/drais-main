@@ -291,6 +291,53 @@ export async function applyCorrection(
   return { correctionId: ins.insertId, affected: rows.length, reEvaluated };
 }
 
+/**
+ * SELECTIVE correction — shift only specific punches (by raw-event id) rather
+ * than the whole device batch. For when just some people's times are wrong
+ * (e.g. an AM/PM mix-up on a subset), not the whole device. Snapshots originals
+ * for undo (via the same `undoCorrection`), re-evaluates the affected
+ * person-days (both the old and the shifted date), and keeps
+ * `device_reported_time` verbatim.
+ */
+export async function correctPunches(
+  schoolId: number, ids: number[], shiftMinutes: number, userId?: number | null,
+): Promise<{ correctionId: number; affected: number; reEvaluated: number }> {
+  await ensureTimeIntelligenceSchema();
+  const cleanIds = [...new Set((ids || []).map(Number).filter((n) => Number.isFinite(n) && n > 0))];
+  if (!cleanIds.length || !Number.isFinite(shiftMinutes) || shiftMinutes === 0) {
+    return { correctionId: 0, affected: 0, reEvaluated: 0 };
+  }
+  const policy = await resolveTimePolicy(schoolId);
+  const off = policy.offsetMinutes;
+  const ph = cleanIds.map(() => '?').join(',');
+
+  const rows = (await query(
+    `SELECT id, person_id, role_type, punch_at, device_sn FROM attendance_raw_events
+      WHERE school_id = ? AND id IN (${ph})`,
+    [schoolId, ...cleanIds],
+  )) as any[];
+  if (!rows.length) return { correctionId: 0, affected: 0, reEvaluated: 0 };
+
+  const originals = rows.map((r) => ({ id: Number(r.id), punch_at: new Date(r.punch_at).toISOString() }));
+  const localDate = localDateStr(new Date(rows[0].punch_at), off);
+  const deviceSn = rows[0].device_sn || 'SELECTIVE';
+  const ins = (await query(
+    `INSERT INTO attendance_time_corrections
+       (school_id, device_sn, local_date, shift_minutes, affected_rows, original_times, source, applied_by)
+     VALUES (?, ?, ?, ?, ?, ?, 'selective', ?)`,
+    [schoolId, deviceSn, localDate, shiftMinutes, rows.length, JSON.stringify(originals), userId ?? null],
+  )) as unknown as { insertId: number };
+
+  await query(
+    `UPDATE attendance_raw_events SET punch_at = DATE_ADD(punch_at, INTERVAL ? MINUTE)
+      WHERE school_id = ? AND id IN (${ph})`,
+    [shiftMinutes, schoolId, ...cleanIds],
+  );
+
+  const reEvaluated = await reevaluateAffected(schoolId, rows, shiftMinutes, off);
+  return { correctionId: Number(ins?.insertId || 0), affected: rows.length, reEvaluated };
+}
+
 export async function undoCorrection(schoolId: number, correctionId: number, userId?: number | null): Promise<{ restored: number }> {
   await ensureTimeIntelligenceSchema();
   const rows = (await query(

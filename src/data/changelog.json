@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T18:45:24.163Z",
-  "last_commit": "1a50de5559cac84af2c32b9bf972240ca34fdc70",
+  "generated_at": "2026-07-26T18:53:44.155Z",
+  "last_commit": "0b9551674d6f668640a6c12acf05471330df236e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4785,7 +4785,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.128.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Selective per-punch time correction (not whole batch)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Selective per-punch time correction (not whole batch)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.127.2"
+  "app_version": "1.128.0"
 }

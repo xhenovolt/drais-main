@@ -825,6 +825,26 @@ export default function UnifiedAttendancePage() {
     });
   }, [logs]);
 
+  // Selective time correction — shift ONLY the selected punches (for when a
+  // subset of people have wrong times, e.g. an AM/PM mix-up, not the whole batch).
+  const [timeCorrecting, setTimeCorrecting] = useState(false);
+  const handleCorrectSelected = async (shiftMinutes: number, label: string) => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    if (!window.confirm(`Shift the time of ${ids.length} selected punch(es) by ${label}? Original device times are preserved and this is undoable from Time Health.`)) return;
+    setTimeCorrecting(true);
+    try {
+      const res = await apiFetch<any>('/api/attendance/time-health', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'correct_selected', ids, shift_minutes: shiftMinutes }),
+      });
+      showToast('success', `Corrected ${res?.affected ?? ids.length} punch(es) · ${res?.reEvaluated ?? 0} day-verdicts refreshed`);
+      setSelectedIds(new Set());
+      mutate();
+    } catch { /* apiFetch surfaces the error toast */ }
+    finally { setTimeCorrecting(false); }
+  };
+
   const handleDeleteSelected = async () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
@@ -1091,6 +1111,23 @@ export default function UnifiedAttendancePage() {
           {selectedIds.size > 0 && (
             <div className="w-full flex items-center gap-2 pt-1">
               <span className="text-xs text-gray-500 dark:text-gray-400">{selectedIds.size} selected</span>
+              {/* Selective time correction — fix only these punches' times */}
+              <span className="text-xs text-gray-400 hidden sm:inline">Correct time:</span>
+              <button onClick={() => handleCorrectSelected(12 * 60, '+12h (AM→PM)')} disabled={timeCorrecting}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50" title="Shift selected punches forward 12 hours (AM read as PM)">
+                {timeCorrecting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />} +12h
+              </button>
+              <button onClick={() => handleCorrectSelected(-12 * 60, '−12h (PM→AM)')} disabled={timeCorrecting}
+                className="px-2.5 py-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50" title="Shift selected punches back 12 hours">−12h</button>
+              <button onClick={() => {
+                const h = window.prompt('Shift the selected punches by how many hours? (e.g. 5, -3, 1.5)');
+                if (h == null) return;
+                const mins = Math.round(parseFloat(h) * 60);
+                if (!Number.isFinite(mins) || mins === 0) { showToast('error', 'Enter a non-zero number of hours'); return; }
+                handleCorrectSelected(mins, `${mins > 0 ? '+' : ''}${mins / 60}h`);
+              }} disabled={timeCorrecting}
+                className="px-2.5 py-1.5 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-300 text-xs font-medium disabled:opacity-50">Shift…</button>
+              <span className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5" />
               <button
                 onClick={handleDeleteSelected}
                 disabled={deleting}

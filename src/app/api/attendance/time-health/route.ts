@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import {
-  deviceHealthOverview, sweepToday, previewCorrection, applyCorrection, undoCorrection, learnBaseline,
+  deviceHealthOverview, sweepToday, previewCorrection, applyCorrection, undoCorrection, learnBaseline, correctPunches,
 } from '@/lib/attendance/time-intelligence/engine';
 import { fmtMinute } from '@/lib/attendance/time-intelligence/confidence';
 
@@ -79,6 +79,18 @@ export async function POST(req: NextRequest) {
         const id = Number(b.correction_id);
         if (!Number.isFinite(id)) return NextResponse.json({ error: 'correction_id is required' }, { status: 400 });
         const res = await undoCorrection(session.schoolId, id, session.userId);
+        return NextResponse.json({ success: true, ...res });
+      }
+      case 'correct_selected': {
+        // Shift only the selected punches (by raw-event id) — for when a subset
+        // of people have wrong times, not the whole device batch.
+        const shift = Number(b.shift_minutes);
+        const ids = Array.isArray(b.ids) ? b.ids.map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];
+        if (!ids.length || !Number.isFinite(shift) || shift === 0 || Math.abs(shift) > 24 * 60) {
+          return NextResponse.json({ error: 'ids[] and a sane non-zero shift_minutes are required' }, { status: 400 });
+        }
+        if (ids.length > 500) return NextResponse.json({ error: 'Max 500 punches per correction' }, { status: 400 });
+        const res = await correctPunches(session.schoolId, ids, shift, session.userId);
         return NextResponse.json({ success: true, ...res });
       }
       case 'relearn': {
