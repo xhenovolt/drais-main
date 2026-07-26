@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T19:19:37.061Z",
-  "last_commit": "386bd7ecb3e1f39369a89e546bd2b8a4863f5cb2",
+  "generated_at": "2026-07-26T19:40:45.047Z",
+  "last_commit": "08c9bbd6bce1c60871093fef876c8085dbcf5679",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4824,7 +4824,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.128.3",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Relevance-rank search so the match rises to the top",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Relevance-rank search so the match rises to the top"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.128.2"
+  "app_version": "1.128.3"
 }

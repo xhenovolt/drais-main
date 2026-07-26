@@ -50,16 +50,30 @@ const StaffListPage: React.FC = () => {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Filter on the client side — memoised so it only recomputes when the data or
-  // a (debounced) filter actually changes, not on every render/keystroke.
-  const staff = useMemo(() => allStaff.filter((member: any) => {
-    const fullName = `${member.first_name} ${member.last_name} ${member.other_name || ''}`.toLowerCase();
-    const matchesSearch = !debouncedQuery || fullName.includes(debouncedQuery) ||
-                         (member.staff_no && String(member.staff_no).toLowerCase().includes(debouncedQuery));
-    const matchesStatus = !statusFilter || member.status === statusFilter;
-    const matchesDepartment = !departmentFilter || member.department_id === parseInt(departmentFilter);
-    return matchesSearch && matchesStatus && matchesDepartment;
-  }), [allStaff, debouncedQuery, statusFilter, departmentFilter]);
+  // Filter + RELEVANCE-RANK on the client side. When searching, the best matches
+  // (exact → name starts-with → word starts-with → contains) rise to the TOP,
+  // instead of the match staying buried at its default (alphabetical) position.
+  const staff = useMemo(() => {
+    const q = debouncedQuery;
+    const nameOf = (m: any) => `${m.first_name} ${m.last_name} ${m.other_name || ''}`.replace(/\s+/g, ' ').trim().toLowerCase();
+    const filtered = allStaff.filter((member: any) => {
+      const fullName = nameOf(member);
+      const matchesSearch = !q || fullName.includes(q) || (member.staff_no && String(member.staff_no).toLowerCase().includes(q));
+      const matchesStatus = !statusFilter || member.status === statusFilter;
+      const matchesDepartment = !departmentFilter || member.department_id === parseInt(departmentFilter);
+      return matchesSearch && matchesStatus && matchesDepartment;
+    });
+    if (!q) return filtered;
+    const rank = (m: any) => {
+      const name = nameOf(m);
+      const no = String(m.staff_no || '').toLowerCase();
+      if (name === q || no === q) return 0;                                   // exact
+      if (name.startsWith(q) || no.startsWith(q)) return 1;                   // prefix
+      if (name.split(' ').some((w: string) => w.startsWith(q))) return 2;     // any word starts with
+      return 3;                                                               // contains
+    };
+    return [...filtered].sort((a, b) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b)));
+  }, [allStaff, debouncedQuery, statusFilter, departmentFilter]);
 
   const handleViewDetails = (staffMember: any) => {
     router.push(`/staff/${staffMember.id}`);
