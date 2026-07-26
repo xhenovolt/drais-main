@@ -6,7 +6,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { getControlSession, createControlUser, controlAudit, clientIp, canManage } from '@/lib/control/auth';
+import { getControlSession, createControlUser, controlAudit, clientIp } from '@/lib/control/auth';
+import { controlCan } from '@/lib/control/permissions';
 
 export const runtime = 'nodejs';
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user.role, 'operators.manage')) return NextResponse.json({ error: 'You do not have permission to manage operators' }, { status: 403 });
   const b = await req.json().catch(() => null);
   const role = ['XHENVOLT_SUPER_ADMIN', 'XHENVOLT_OPERATOR', 'XHENVOLT_VIEWER'].includes(b?.role) ? b.role : 'XHENVOLT_OPERATOR';
   const created = await createControlUser({

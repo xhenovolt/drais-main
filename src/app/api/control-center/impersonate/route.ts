@@ -12,7 +12,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { getControlSession, canManage, clientIp } from '@/lib/control/auth';
+import { getControlSession, clientIp } from '@/lib/control/auth';
+import { controlCan } from '@/lib/control/permissions';
 import { startImpersonation, endImpersonation } from '@/lib/control/impersonation';
 
 export const runtime = 'nodejs';
@@ -24,7 +25,7 @@ const readableOpts = { httpOnly: false, secure: process.env.NODE_ENV === 'produc
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user.role, 'impersonate')) return NextResponse.json({ error: 'You do not have permission to impersonate' }, { status: 403 });
 
   const b = await req.json().catch(() => null);
   const schoolId = Number(b?.school_id);

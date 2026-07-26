@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T07:20:12.439Z",
-  "last_commit": "0d0408a723999d7ee3a8375f71ca65bf83be8cdf",
+  "generated_at": "2026-07-26T07:30:01.068Z",
+  "last_commit": "4f8deb081b098e5513272fcbf1b9286479bdd749",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4681,7 +4681,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.122.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "RBAC least-privilege operators (security Phase 13)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "RBAC least-privilege operators (security Phase 13)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.121.0"
+  "app_version": "1.122.0"
 }

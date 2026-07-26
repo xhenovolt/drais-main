@@ -6,7 +6,8 @@
  * Read requires a control session; write/delete require canManage. Audited.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getControlSession, canManage, controlAudit, clientIp } from '@/lib/control/auth';
+import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { controlCan } from '@/lib/control/permissions';
 import { listPlans, upsertPlan, deletePlan } from '@/lib/control/subscriptions';
 import { MODULE_CATALOG } from '@/lib/school-modules';
 import { query } from '@/lib/db';
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user.role, 'plans.catalog')) return NextResponse.json({ error: 'You do not have permission to manage plans' }, { status: 403 });
 
   const b = await req.json().catch(() => null);
   if (!b?.code || !b?.name) return NextResponse.json({ error: 'code and name are required' }, { status: 400 });
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user.role, 'plans.catalog')) return NextResponse.json({ error: 'You do not have permission to manage plans' }, { status: 403 });
   const code = new URL(req.url).searchParams.get('code');
   if (!code) return NextResponse.json({ error: 'code is required' }, { status: 400 });
   const res = await deletePlan(code, user.id, clientIp(req));

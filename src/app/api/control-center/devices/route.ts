@@ -6,7 +6,8 @@
  * Read requires a control session; mutations require canManage. Audited.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getControlSession, canManage, clientIp } from '@/lib/control/auth';
+import { getControlSession, clientIp } from '@/lib/control/auth';
+import { controlCan } from '@/lib/control/permissions';
 import { listPlatformDevices, validateDeviceAction, runDeviceAction, type PlatformDeviceAction } from '@/lib/control/devices';
 import { query } from '@/lib/db';
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user.role, 'devices.manage')) return NextResponse.json({ error: 'You do not have permission to manage devices' }, { status: 403 });
 
   const b = await req.json().catch(() => null);
   const sn = String(b?.sn || '').trim();

@@ -6,7 +6,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { getControlSession, controlAudit, clientIp, canManage } from '@/lib/control/auth';
+import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { controlCan } from '@/lib/control/permissions';
 import { MODULE_CATALOG, isModuleCode, getSchoolModuleStatus, setSchoolModule } from '@/lib/school-modules';
 import { getPlanByCode, assignPlanToSchool, renewSchool, schoolUsage, usageAgainst } from '@/lib/control/subscriptions';
 import { schoolFootprint, hardDeleteSchool } from '@/lib/control/school-hard-delete';
@@ -78,10 +79,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
   const { id } = await ctx.params;
   const schoolId = Number(id);
   const b = await req.json().catch(() => null);
+  // RBAC (E-4): permanent delete needs its own permission; all other school
+  // mutations need schools.manage (operator+).
+  const need = b?.action === 'hard_delete' ? 'schools.hard_delete' : 'schools.manage';
+  if (!controlCan(user.role, need)) return NextResponse.json({ error: 'You do not have permission for this action' }, { status: 403 });
 
   if (b?.action === 'set_module') {
     if (!isModuleCode(b.module_code)) return NextResponse.json({ error: 'Unknown module code' }, { status: 400 });
