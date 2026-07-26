@@ -20,6 +20,7 @@ export const CONTROL_PERMISSIONS = {
   'schools.hard_delete':'Permanently delete a school and all its data',
   'devices.manage':     'Assign / release / suspend / retire devices',
   'plans.catalog':      'Create / edit / delete subscription plans',
+  'billing.manage':     'Generate invoices and record payments',
   'impersonate':        'Start and revoke school impersonations',
   'operators.manage':   'Create and manage Control Center operators',
 } as const;
@@ -29,7 +30,7 @@ const ALL = Object.keys(CONTROL_PERMISSIONS) as ControlPermission[];
 
 const ROLE_PERMISSIONS: Record<ControlRoleName, ControlPermission[]> = {
   XHENVOLT_SUPER_ADMIN: ALL,
-  XHENVOLT_OPERATOR: ['platform.view', 'schools.manage', 'devices.manage', 'impersonate'],
+  XHENVOLT_OPERATOR: ['platform.view', 'schools.manage', 'devices.manage', 'billing.manage', 'impersonate'],
   XHENVOLT_VIEWER: ['platform.view'],
 };
 

@@ -5,7 +5,7 @@ import { controlCan, permissionsFor } from '@/lib/control/permissions';
 
 describe('controlCan', () => {
   it('super-admin can do everything', () => {
-    for (const p of ['platform.view', 'schools.manage', 'schools.hard_delete', 'devices.manage', 'plans.catalog', 'impersonate', 'operators.manage']) {
+    for (const p of ['platform.view', 'schools.manage', 'schools.hard_delete', 'devices.manage', 'plans.catalog', 'billing.manage', 'impersonate', 'operators.manage']) {
       assert.equal(controlCan('XHENVOLT_SUPER_ADMIN', p), true, p);
     }
   });
@@ -14,6 +14,7 @@ describe('controlCan', () => {
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'schools.manage'), true);
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'devices.manage'), true);
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'impersonate'), true);
+    assert.equal(controlCan('XHENVOLT_OPERATOR', 'billing.manage'), true);
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'schools.hard_delete'), false);
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'plans.catalog'), false);
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'operators.manage'), false);

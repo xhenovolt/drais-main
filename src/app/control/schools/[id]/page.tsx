@@ -51,6 +51,10 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
       {/* Plan & usage (P5) — catalog plan + limits vs current usage */}
       <PlanUsagePanel plan={data.plan} usage={data.plan_usage} act={act} />
 
+      {/* Billing ledger (P11) — invoices + payments; payment extends access */}
+      <BillingPanel schoolId={s.id} currency={data.plan?.currency || 'UGX'} />
+
+
       {/* Lifecycle — archive / soft-delete / restore (data is never hard-deleted) */}
       <LifecycleControl school={s} act={act} />
 
@@ -161,6 +165,58 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
       <p className="text-sm font-semibold text-slate-200 mb-2 flex items-center gap-1.5">{icon} {title}</p>
       {children}
     </div>
+  );
+}
+
+function BillingPanel({ schoolId, currency }: { schoolId: number; currency: string }) {
+  const { data, mutate } = useSWR<any>(`/api/control-center/schools/${schoolId}/billing`, fetcher);
+  const [busy, setBusy] = useState(false);
+  const invoices = data?.invoices || [];
+  const outstanding = Number(data?.totalOutstanding || 0);
+  const money = (n: any) => `${currency} ${Number(n || 0).toLocaleString()}`;
+
+  const post = (body: any) => fetch(`/api/control-center/schools/${schoolId}/billing`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  }).then(r => r.json());
+
+  const act = async (body: any) => { setBusy(true); try { const j = await post(body); if (!j.success) alert(j.error || 'Failed'); await mutate(); return j; } finally { setBusy(false); } };
+  const pay = async (inv: any) => {
+    const amt = prompt(`Record a payment for invoice #${inv.id} (outstanding ${money(inv.outstanding)}).\nAmount:`, String(inv.outstanding));
+    if (amt == null) return;
+    const method = prompt('Method (e.g. mobile money, bank, cash):', 'mobile money') || 'manual';
+    const reference = prompt('Reference / transaction id (optional):') || '';
+    const j = await act({ action: 'record_payment', invoice_id: inv.id, amount: Number(amt), method, reference });
+    if (j?.success && j.paid_in_full) alert(`Paid in full — access extended to ${j.new_end || 'the period end'}.`);
+  };
+  const STATUS: Record<string, string> = { paid: 'bg-emerald-500/20 text-emerald-300', issued: 'bg-sky-500/20 text-sky-300', overdue: 'bg-rose-500/20 text-rose-300', void: 'bg-slate-600/40 text-slate-400' };
+
+  return (
+    <Panel title="Billing" icon={<CreditCard className="w-4 h-4" />}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-slate-400">Outstanding: <span className={outstanding > 0 ? 'text-rose-300 font-semibold' : 'text-emerald-300 font-semibold'}>{money(outstanding)}</span></span>
+        <button onClick={() => act({ action: 'generate_invoice' })} disabled={busy}
+          className="text-[11px] px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium disabled:opacity-50">Generate invoice</button>
+      </div>
+      {invoices.length === 0 ? <p className="text-xs text-slate-500">No invoices yet.</p> : (
+        <div className="space-y-1.5">
+          {invoices.map((i: any) => (
+            <div key={i.id} className="flex items-center justify-between text-xs bg-slate-950/30 rounded-lg px-3 py-2">
+              <span className="text-slate-300">
+                <span className="font-mono">#{i.id}</span> · {money(i.amount)}
+                <span className="text-slate-500"> · {i.period_start ? String(i.period_start).slice(0, 10) : '—'} → {i.period_end ? String(i.period_end).slice(0, 10) : 'one-time'}</span>
+                {i.outstanding > 0 && i.status !== 'void' && <span className="text-rose-400"> · owes {money(i.outstanding)}</span>}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold ${STATUS[i.status] || ''}`}>{i.status}</span>
+                {i.status !== 'paid' && i.status !== 'void' && <button onClick={() => pay(i)} disabled={busy} className="text-[11px] px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white disabled:opacity-50">Pay</button>}
+                {i.status !== 'paid' && i.status !== 'void' && <button onClick={() => confirm(`Void invoice #${i.id}?`) && act({ action: 'void_invoice', invoice_id: i.id })} disabled={busy} className="text-[11px] px-1.5 py-1 rounded bg-slate-800 hover:bg-rose-600/40 text-rose-300 disabled:opacity-50">Void</button>}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="text-[10px] text-slate-500 mt-2">Recording a full payment marks the invoice paid and extends the school's access to the invoice period end (which drives auto-suspend). Audited.</p>
+    </Panel>
   );
 }
 

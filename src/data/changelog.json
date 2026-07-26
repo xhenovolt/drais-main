@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T07:30:01.068Z",
-  "last_commit": "4f8deb081b098e5513272fcbf1b9286479bdd749",
+  "generated_at": "2026-07-26T07:51:01.582Z",
+  "last_commit": "2043a59a60265be162f77286feb76b3ab17caf8f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4694,7 +4694,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.123.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Billing ledger — invoices, payments, reconciliation (money Phase 11)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Billing ledger — invoices, payments, reconciliation (money Phase 11)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.122.0"
+  "app_version": "1.123.0"
 }
