@@ -255,6 +255,12 @@ function LifecycleControl({ school, act }: { school: any; act: (b: any) => Promi
 
   return (
     <Panel title="Lifecycle" icon={<Archive className="w-4 h-4" />}>
+      {/* Per-tenant data export (Phase 22) — operator-controlled backup / DR extract */}
+      <div className="flex items-center justify-between gap-2 mb-3 pb-3 border-b border-slate-800">
+        <span className="text-[11px] text-slate-500">Download this school's full dataset (every table) as a JSON backup. Audited.</span>
+        <a href={`/api/control-center/schools/${school.id}/export`}
+          className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 whitespace-nowrap">Export data</a>
+      </div>
       {deleted ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">

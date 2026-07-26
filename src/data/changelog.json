@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T20:16:45.995Z",
-  "last_commit": "5475b24f9cf7ed612abbf4a2dfed9c83a3c6f65c",
+  "generated_at": "2026-07-26T20:24:28.297Z",
+  "last_commit": "89d0e7274a12669f1ec0f020315872b0f3198e48",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4863,7 +4863,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.131.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Per-tenant data export (resilience Phase 22 / DR)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Per-tenant data export (resilience Phase 22 / DR)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.130.0"
+  "app_version": "1.131.0"
 }
