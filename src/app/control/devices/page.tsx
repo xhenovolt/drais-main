@@ -106,6 +106,13 @@ export default function ControlDevices() {
                       ? <span className="text-slate-300">{d.school_name}</span>
                       : <span className="text-amber-300 font-medium">UNASSIGNED</span>}
                   </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                    {d.firmware_version && <span>fw {d.firmware_version}</span>}
+                    {(d.ip_address || d.lan_ip) && <span>IP {d.ip_address || d.lan_ip}</span>}
+                    {d.device_user_count != null && <span>{Number(d.device_user_count).toLocaleString()} users</span>}
+                    {d.push_version && <span>push {d.push_version}</span>}
+                    {d.created_at && <span>reg {new Date(d.created_at).toLocaleDateString()}</span>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <button onClick={() => assign(d.sn)} disabled={!!busy}
@@ -127,7 +134,7 @@ export default function ControlDevices() {
                     <button onClick={() => confirm(`Retire ${d.sn} permanently?`) && act(d.sn, 'retire')} disabled={!!busy}
                       className="text-[11px] px-2.5 py-1 rounded bg-rose-600/80 hover:bg-rose-500 text-white font-medium disabled:opacity-50">{b('retire') ? '…' : 'Retire'}</button>
                   )}
-                  <button onClick={() => setTimelineSn(d.sn)} title="Ownership timeline"
+                  <button onClick={() => setTimelineSn(d.sn)} title="Device details & timeline"
                     className="text-[11px] p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"><History className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
@@ -144,15 +151,54 @@ export default function ControlDevices() {
 function TimelineDrawer({ sn, onClose }: { sn: string; onClose: () => void }) {
   const { data, isLoading } = useSWR<any>(`/api/control-center/devices/${encodeURIComponent(sn)}`, fetcher);
   const rows = data?.timeline || [];
+  const d = data?.device;
+  const field = (label: string, value: any) => (
+    <div><div className="text-[10px] text-slate-500 uppercase">{label}</div><div className="text-xs text-slate-200 break-words">{value ?? '—'}</div></div>
+  );
+  const when = (v: any) => (v ? new Date(v).toLocaleString() : '—');
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex justify-end" onClick={onClose}>
       <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full p-5 overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2"><History className="w-4 h-4 text-indigo-400" /> Ownership timeline · <span className="font-mono">{sn}</span></h2>
+          <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2"><History className="w-4 h-4 text-indigo-400" /> Device · <span className="font-mono">{sn}</span></h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-200"><X className="w-4 h-4" /></button>
         </div>
-        {isLoading && <div className="py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400 inline" /></div>}
-        {data && rows.length === 0 && <p className="text-sm text-slate-500 text-center py-8">No ownership events yet.</p>}
+        {isLoading && !data && <div className="py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400 inline" /></div>}
+
+        {d && (
+          <div className="mb-5">
+            {/* Live counts */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {[['Today', d.counts?.today_punches], ['Users', d.device_user_count ?? d.counts?.mapped_users], ['Pending cmds', d.counts?.pending_commands]].map(([l, v]) => (
+                <div key={l as string} className="bg-slate-950/50 rounded-lg p-2 text-center">
+                  <div className="text-lg font-bold text-slate-100 tabular-nums">{Number(v || 0).toLocaleString()}</div>
+                  <div className="text-[10px] text-slate-500">{l}</div>
+                </div>
+              ))}
+            </div>
+            {/* Full attribute grid */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {field('Name', d.device_name)}
+              {field('School', d.school_name || 'UNASSIGNED')}
+              {field('Status', d.status)}
+              {field('Online', d.is_online ? 'yes' : 'no')}
+              {field('Model', d.model_name)}
+              {field('Type', d.device_type)}
+              {field('Firmware', d.firmware_version)}
+              {field('Push', d.push_version)}
+              {field('IP', d.ip_address)}
+              {field('LAN IP', d.lan_ip)}
+              {field('Location', d.location)}
+              {field('Registered', when(d.created_at))}
+              {field('Last seen', when(d.last_seen))}
+              {field('Last activity', when(d.last_activity))}
+              {field('Last punch', when(d.last_punch_at))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Ownership timeline</p>
+        {data && rows.length === 0 && <p className="text-sm text-slate-500 py-4">No ownership events yet.</p>}
         <div className="space-y-2">
           {rows.map((t: any) => (
             <div key={t.id} className="border border-slate-800 rounded-lg p-3">

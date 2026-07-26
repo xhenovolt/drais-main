@@ -50,8 +50,9 @@ export async function listPlatformDevices(filter: PlatformDeviceFilter = {}) {
     const like = `%${filter.q}%`; params.push(like, like, like);
   }
   const rows = (await query(
-    `SELECT d.id, d.sn, d.device_name, d.model_name, d.location, d.status, d.school_id,
-            d.last_seen, d.firmware_version, d.push_version,
+    `SELECT d.id, d.sn, d.device_name, d.model_name, d.device_type, d.location, d.status, d.school_id,
+            d.last_seen, d.last_activity, d.firmware_version, d.push_version, d.ip_address, d.lan_ip,
+            d.device_user_count, d.created_at,
             (d.last_seen > DATE_SUB(NOW(), INTERVAL 2 MINUTE)) AS is_online,
             s.name AS school_name
        FROM devices d
@@ -61,6 +62,28 @@ export async function listPlatformDevices(filter: PlatformDeviceFilter = {}) {
     params,
   )) as any[];
   return rows.map(r => ({ ...r, is_online: !!Number(r.is_online) }));
+}
+
+/** Full detail for one device: the row + live counts + owner. */
+export async function deviceDetail(sn: string) {
+  const rows = (await query(
+    `SELECT d.*, (d.last_seen > DATE_SUB(NOW(), INTERVAL 2 MINUTE)) AS is_online, s.name AS school_name
+       FROM devices d LEFT JOIN schools s ON s.id = d.school_id WHERE d.sn = ? LIMIT 1`, [sn],
+  ).catch(() => [])) as any[];
+  const d = rows[0];
+  if (!d) return null;
+  const one = async (sql: string, p: any[]) => Number(((await query(sql, p).catch(() => [{}])) as any[])[0]?.n || 0);
+  const [todayPunches, pending, enrollments, lastPunch] = await Promise.all([
+    one(`SELECT COUNT(*) n FROM zk_attendance_logs WHERE device_sn = ? AND DATE(check_time) = CURDATE()`, [sn]),
+    one(`SELECT COUNT(*) n FROM zk_device_commands WHERE device_sn = ? AND status = 'pending'`, [sn]),
+    d.school_id ? one(`SELECT COUNT(*) n FROM biometric_enrollments WHERE school_id = ? AND status IN ('active','pending_capture')`, [d.school_id]) : Promise.resolve(0),
+    (async () => (((await query(`SELECT MAX(check_time) t FROM zk_attendance_logs WHERE device_sn = ?`, [sn]).catch(() => [{}])) as any[])[0]?.t ?? null))(),
+  ]);
+  return {
+    ...d, is_online: !!Number(d.is_online),
+    counts: { today_punches: todayPunches, pending_commands: pending, mapped_users: enrollments },
+    last_punch_at: lastPunch,
+  };
 }
 
 /** Ownership history for one device (newest first), with school names. */

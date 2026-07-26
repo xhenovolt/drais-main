@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T04:39:21.904Z",
-  "last_commit": "869b737802e5d43b4578f7d1a0b57a64cf41136a",
+  "generated_at": "2026-07-26T04:55:17.052Z",
+  "last_commit": "57aa521b5e297f73aec2091a05d6cb396457ac7a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4551,7 +4551,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.114.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Full device detail + richer inventory cards",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Full device detail + richer inventory cards"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.113.0"
+  "app_version": "1.114.0"
 }
