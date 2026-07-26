@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T06:11:00.244Z",
-  "last_commit": "86294477fad61e891ea19f7638981e350eb9c278",
+  "generated_at": "2026-07-26T06:27:19.409Z",
+  "last_commit": "61cba02d04e5681454981de969112985db74f568",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4616,7 +4616,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.118.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Plan billing (price/cycle/installments/deliverables) + renewal; fix light navbar",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Plan billing (price/cycle/installments/deliverables) + renewal; fix light navbar"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.117.1"
+  "app_version": "1.118.0"
 }

@@ -229,16 +229,27 @@ function PlanUsagePanel({ plan, usage, act }: { plan: any; usage: any[] | null; 
   const fmt = (v: any) => (v == null ? '∞' : Number(v).toLocaleString());
   return (
     <Panel title="Plan & usage" icon={<CreditCard className="w-4 h-4" />}>
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex items-center justify-between gap-2 mb-1">
         <span className="text-xs text-slate-300">
           Current plan: {plan ? <span className="font-semibold text-slate-100">{plan.name}</span> : <span className="text-amber-300">none / legacy</span>}
         </span>
-        <select defaultValue="" onChange={(e) => { if (e.target.value) act({ action: 'assign_plan', plan_code: e.target.value }); }}
-          className="text-xs px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">
-          <option value="">Assign plan…</option>
-          {plans.map((p: any) => <option key={p.code} value={p.code}>{p.name}</option>)}
-        </select>
+        <div className="flex items-center gap-1.5">
+          {plan && <button onClick={() => confirm(`Renew ${plan.name} for another ${plan.billing_cycle}?`) && act({ action: 'renew' })}
+            className="text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white font-medium">Renew</button>}
+          <select defaultValue="" onChange={(e) => { if (e.target.value) act({ action: 'assign_plan', plan_code: e.target.value }); }}
+            className="text-xs px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">
+            <option value="">Assign plan…</option>
+            {plans.map((p: any) => <option key={p.code} value={p.code}>{p.name}</option>)}
+          </select>
+        </div>
       </div>
+      {plan && (
+        <p className="text-[11px] text-slate-400 mb-3">
+          {Number(plan.price) > 0 ? `${plan.currency} ${Number(plan.price).toLocaleString()}` : 'Custom / free'} / {plan.billing_cycle}
+          {plan.installments > 1 && Number(plan.price) > 0 ? ` · ${plan.installments}× ${plan.currency} ${Math.ceil(plan.price / plan.installments).toLocaleString()}` : ''}
+          {' · '}Assigning or renewing sets the expiry that drives auto-suspend.
+        </p>
+      )}
       {!plan ? <p className="text-xs text-slate-500">Assign a catalog plan to enforce limits.</p> : shown.length === 0 ? <p className="text-xs text-slate-500">No usage data.</p> : (
         <div className="space-y-2">
           {shown.map((u: any) => (

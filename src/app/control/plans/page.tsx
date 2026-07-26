@@ -16,7 +16,11 @@ const LIMITS: Array<[string, string]> = [
   ['sms_monthly', 'SMS / mo'], ['storage_mb', 'Storage (MB)'],
 ];
 const fmt = (v: any) => (v == null || v === 0 ? '∞' : Number(v).toLocaleString());
-const blankDraft = () => ({ code: '', name: '', tier: 0, limits: {}, features: [], is_active: true, _isNew: true });
+const CYCLES = ['monthly', 'termly', 'annual', 'one_time'];
+const money = (p: any, c: string) => (Number(p) > 0 ? `${c} ${Number(p).toLocaleString()}` : 'Custom / free');
+const perInstallment = (p: any, n: any) => Math.ceil((Number(p) || 0) / Math.max(1, Number(n) || 1));
+const blankDraft = () => ({ code: '', name: '', tier: 0, limits: {}, features: [], is_active: true,
+  price: 0, currency: 'UGX', billing_cycle: 'annual', installments: 1, deliverables: [], _isNew: true });
 
 export default function ControlPlans() {
   const { data, isLoading, mutate } = useSWR<any>('/api/control-center/plans', fetcher);
@@ -90,6 +94,13 @@ export default function ControlPlans() {
                 <button onClick={() => del(p.code, p.schools)} disabled={busy} title="Delete" className="p-1.5 rounded bg-slate-800 hover:bg-rose-600/40 text-rose-400 disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
+            {/* Price + billing cycle */}
+            <div className="flex items-baseline justify-between mb-2">
+              <span className="text-lg font-bold text-slate-100">{money(p.price, p.currency)}</span>
+              <span className="text-[11px] text-slate-400">
+                / {p.billing_cycle}{p.installments > 1 && Number(p.price) > 0 ? ` · ${p.installments}× ${p.currency} ${perInstallment(p.price, p.installments).toLocaleString()}` : ''}
+              </span>
+            </div>
             <div className="grid grid-cols-5 gap-2">
               {LIMITS.map(([key, label]) => (
                 <div key={key} className="text-center">
@@ -98,8 +109,13 @@ export default function ControlPlans() {
                 </div>
               ))}
             </div>
+            {p.deliverables?.length > 0 && (
+              <ul className="mt-3 space-y-0.5">
+                {p.deliverables.map((d: string, i: number) => <li key={i} className="text-[11px] text-slate-400 flex gap-1.5"><span className="text-emerald-400">✓</span> {d}</li>)}
+              </ul>
+            )}
             {p.features?.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1">
+              <div className="mt-2 flex flex-wrap gap-1">
                 {p.features.map((f: string) => <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{f}</span>)}
               </div>
             )}
@@ -131,6 +147,49 @@ export default function ControlPlans() {
                 className={`mt-4 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-sm font-medium ${draft.is_active ? 'bg-emerald-600/80 text-white' : 'bg-slate-700 text-slate-300'}`}>
                 <Power className="w-3.5 h-3.5" /> {draft.is_active ? 'Active' : 'Inactive'}
               </button>
+            </div>
+
+            {/* Billing */}
+            <div>
+              <p className="text-[11px] text-slate-400 mb-1">Billing</p>
+              <div className="grid grid-cols-4 gap-2">
+                <label className="text-[10px] text-slate-500 col-span-2">Price ({draft.currency})
+                  <input type="number" value={draft.price ?? 0} onChange={e => setDraft((d: any) => ({ ...d, price: Number(e.target.value) }))}
+                    className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100" />
+                </label>
+                <label className="text-[10px] text-slate-500">Currency
+                  <input value={draft.currency} onChange={e => setDraft((d: any) => ({ ...d, currency: e.target.value.toUpperCase().slice(0, 8) }))}
+                    className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100" />
+                </label>
+                <label className="text-[10px] text-slate-500">Installments
+                  <input type="number" min={1} value={draft.installments ?? 1} onChange={e => setDraft((d: any) => ({ ...d, installments: Math.max(1, Number(e.target.value)) }))}
+                    className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100" />
+                </label>
+                <label className="text-[10px] text-slate-500 col-span-4">Billing cycle
+                  <select value={draft.billing_cycle} onChange={e => setDraft((d: any) => ({ ...d, billing_cycle: e.target.value }))}
+                    className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100">
+                    {CYCLES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </label>
+              </div>
+              {Number(draft.price) > 0 && draft.installments > 1 && (
+                <p className="text-[10px] text-slate-500 mt-1">{draft.installments} installments of ~{draft.currency} {perInstallment(draft.price, draft.installments).toLocaleString()} each, due every {draft.billing_cycle}.</p>
+              )}
+            </div>
+
+            {/* Deliverables */}
+            <div>
+              <p className="text-[11px] text-slate-400 mb-1">Deliverables (what the school gets)</p>
+              <div className="space-y-1">
+                {(draft.deliverables || []).map((d: string, i: number) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <input value={d} onChange={e => setDraft((dr: any) => ({ ...dr, deliverables: dr.deliverables.map((x: string, j: number) => j === i ? e.target.value : x) }))}
+                      className="flex-1 px-2 py-1 rounded bg-slate-950 border border-slate-700 text-xs text-slate-100" />
+                    <button onClick={() => setDraft((dr: any) => ({ ...dr, deliverables: dr.deliverables.filter((_: any, j: number) => j !== i) }))} className="text-rose-400 text-xs px-1">✕</button>
+                  </div>
+                ))}
+                <button onClick={() => setDraft((d: any) => ({ ...d, deliverables: [...(d.deliverables || []), ''] }))} className="text-[11px] text-indigo-300 hover:underline">+ Add deliverable</button>
+              </div>
             </div>
 
             <div>

@@ -39,3 +39,26 @@ describe('checkCanAdd', () => {
     assert.equal(checkCanAdd({}, 'staff', 999, 10).allowed, true);
   });
 });
+
+import { billingCycleDays, nextEndDate, installmentAmount } from '@/lib/control/subscriptions';
+
+describe('billing helpers', () => {
+  it('cycle → days', () => {
+    assert.equal(billingCycleDays('monthly'), 30);
+    assert.equal(billingCycleDays('termly'), 122);
+    assert.equal(billingCycleDays('annual'), 365);
+    assert.equal(billingCycleDays('one_time'), 0);
+  });
+  it('nextEndDate adds the cycle; one_time → null', () => {
+    const from = new Date('2026-01-01T00:00:00Z');
+    assert.equal(nextEndDate('annual', from), '2027-01-01');
+    assert.equal(nextEndDate('monthly', from), '2026-01-31');
+    assert.equal(nextEndDate('one_time', from), null);
+  });
+  it('installmentAmount splits and rounds up', () => {
+    assert.equal(installmentAmount(1200000, 3), 400000);
+    assert.equal(installmentAmount(1000, 3), 334);   // ceil
+    assert.equal(installmentAmount(500, 1), 500);
+    assert.equal(installmentAmount(500, 0), 500);     // guard: min 1
+  });
+});

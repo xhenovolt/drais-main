@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getControlSession, controlAudit, clientIp, canManage } from '@/lib/control/auth';
 import { MODULE_CATALOG, isModuleCode, getSchoolModuleStatus, setSchoolModule } from '@/lib/school-modules';
-import { getPlanByCode, assignPlanToSchool, schoolUsage, usageAgainst } from '@/lib/control/subscriptions';
+import { getPlanByCode, assignPlanToSchool, renewSchool, schoolUsage, usageAgainst } from '@/lib/control/subscriptions';
 import { schoolFootprint, hardDeleteSchool } from '@/lib/control/school-hard-delete';
 
 export const runtime = 'nodejs';
@@ -97,7 +97,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!code) return NextResponse.json({ error: 'plan_code is required' }, { status: 400 });
     const res = await assignPlanToSchool(schoolId, code, user.id, clientIp(req));
     if (!res.ok) return NextResponse.json({ error: res.reason }, { status: 400 });
-    return NextResponse.json({ success: true, plan: res.plan });
+    return NextResponse.json({ success: true, plan: res.plan, ends: (res as any).ends });
+  }
+
+  // ── Renew the current plan for another billing cycle (lifts auto-suspend) ──
+  if (b?.action === 'renew') {
+    const res = await renewSchool(schoolId, user.id, clientIp(req));
+    if (!res.ok) return NextResponse.json({ error: res.reason }, { status: 400 });
+    return NextResponse.json({ success: true, ends: res.ends });
   }
 
   // ── Suspend / activate a school (operate without its credentials) ──

@@ -86,7 +86,10 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
           without rewriting every page. Dark = the classes as-is. */}
       <style>{`
         /* ── LIGHT ───────────────────────────────────────────────────────── */
-        .ctl[data-theme="light"] { color-scheme: light; background:#f1f5f9 !important; }
+        /* Set the base colour too, not just the background: text with no explicit
+           colour class (e.g. the brand wordmark) inherits this instead of the
+           dark theme's light default. */
+        .ctl[data-theme="light"] { color-scheme: light; background:#f1f5f9 !important; color:#0f172a !important; }
         .ctl[data-theme="light"] [class*="bg-slate-950"] { background:#e2e8f0 !important; }
         .ctl[data-theme="light"] [class*="bg-slate-900"] { background:#ffffff !important; }
         .ctl[data-theme="light"] [class*="bg-slate-800"] { background:#eef2f7 !important; }

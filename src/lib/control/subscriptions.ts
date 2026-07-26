@@ -17,30 +17,68 @@ export interface PlanLimits {
   learners?: number | null; staff?: number | null; devices?: number | null;
   sms_monthly?: number | null; storage_mb?: number | null;
 }
-export interface SubscriptionPlan {
+export const BILLING_CYCLES = ['monthly', 'termly', 'annual', 'one_time'] as const;
+export type BillingCycle = typeof BILLING_CYCLES[number];
+
+export interface PlanBilling {
+  price: number;                 // full price for one billing cycle, in `currency`
+  currency: string;              // e.g. 'UGX'
+  billing_cycle: BillingCycle;   // how often it's due
+  installments: number;          // how many payments the price may be split into (1 = pay in full)
+  deliverables: string[];        // what the school gets for this plan (commitments)
+}
+
+export interface SubscriptionPlan extends PlanBilling {
   code: string; name: string; tier: number; limits: PlanLimits; features: string[]; is_active: boolean;
 }
 
 export const LIMIT_KEYS = ['learners', 'staff', 'devices', 'sms_monthly', 'storage_mb'] as const;
 export type LimitKey = typeof LIMIT_KEYS[number];
 
+/** PURE: days in a billing cycle (termly ≈ 122d/3 terms; annual = 365). */
+export function billingCycleDays(cycle: BillingCycle): number {
+  return cycle === 'monthly' ? 30 : cycle === 'termly' ? 122 : cycle === 'annual' ? 365 : 0;
+}
+
+/** PURE: the subscription end date for a cycle starting at `from` (one_time → null). */
+export function nextEndDate(cycle: BillingCycle, from: Date = new Date()): string | null {
+  const days = billingCycleDays(cycle);
+  if (days === 0) return null; // one_time: no expiry
+  const d = new Date(from.getTime() + days * 86_400_000);
+  return d.toISOString().slice(0, 10);
+}
+
+/** PURE: the per-installment amount (rounded up to the currency's unit). */
+export function installmentAmount(price: number, installments: number): number {
+  const n = Math.max(1, Math.floor(installments || 1));
+  return Math.ceil((Number(price) || 0) / n);
+}
+
 /** Seed presets — null limit = unlimited. Custom is created ad-hoc by operators. */
+const b = (price: number, cycle: BillingCycle, installments: number, deliverables: string[]): PlanBilling =>
+  ({ price, currency: 'UGX', billing_cycle: cycle, installments, deliverables });
+
 const PRESETS: SubscriptionPlan[] = [
   { code: 'starter', name: 'Starter', tier: 1, is_active: true,
     limits: { learners: 300, staff: 30, devices: 1, sms_monthly: 500, storage_mb: 2000 },
-    features: ['attendance'] },
+    features: ['attendance'],
+    ...b(1_200_000, 'annual', 3, ['1 biometric device', 'Attendance module', 'Email support']) },
   { code: 'standard', name: 'Standard', tier: 2, is_active: true,
     limits: { learners: 800, staff: 80, devices: 2, sms_monthly: 2000, storage_mb: 5000 },
-    features: ['attendance', 'finance', 'parent_portal'] },
+    features: ['attendance', 'finance', 'parent_portal'],
+    ...b(2_400_000, 'annual', 3, ['2 biometric devices', 'Attendance + Finance', 'Parent portal', 'Priority email support']) },
   { code: 'professional', name: 'Professional', tier: 3, is_active: true,
     limits: { learners: 2000, staff: 200, devices: 5, sms_monthly: 10000, storage_mb: 20000 },
-    features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics'] },
+    features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics'],
+    ...b(4_800_000, 'annual', 3, ['5 devices', 'All standard + Tahfiz + Analytics', 'On-site setup', 'Phone support']) },
   { code: 'enterprise', name: 'Enterprise', tier: 4, is_active: true,
     limits: { learners: null, staff: null, devices: 20, sms_monthly: 50000, storage_mb: 100000 },
-    features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics', 'hr'] },
+    features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics', 'hr'],
+    ...b(9_600_000, 'annual', 4, ['Up to 20 devices', 'All modules incl. HR', 'Dedicated account manager', 'SLA support']) },
   { code: 'government', name: 'Government', tier: 5, is_active: true,
     limits: { learners: null, staff: null, devices: null, sms_monthly: null, storage_mb: null },
-    features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics', 'hr'] },
+    features: ['attendance', 'finance', 'parent_portal', 'tahfiz', 'analytics', 'hr'],
+    ...b(0, 'annual', 1, ['Unlimited everything', 'Custom contract & pricing', 'Dedicated support']) },
 ];
 
 let ensured: Promise<void> | null = null;
@@ -61,12 +99,24 @@ export function ensureSubscriptionPlansSchema(): Promise<void> {
          UNIQUE KEY uk_plan_code (code)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, [],
     );
+    // Billing columns (additive — plans predate them).
+    for (const ddl of [
+      `ADD COLUMN price DECIMAL(14,2) NOT NULL DEFAULT 0`,
+      `ADD COLUMN currency VARCHAR(8) NOT NULL DEFAULT 'UGX'`,
+      `ADD COLUMN billing_cycle VARCHAR(16) NOT NULL DEFAULT 'annual'`,
+      `ADD COLUMN installments INT NOT NULL DEFAULT 1`,
+      `ADD COLUMN deliverables JSON`,
+    ]) {
+      await query(`ALTER TABLE subscription_plans ${ddl}`, []).catch(() => {});
+    }
     // Seed presets once (INSERT IGNORE keeps operator edits on re-run).
     for (const p of PRESETS) {
       await query(
-        `INSERT IGNORE INTO subscription_plans (code, name, tier, limits, features, is_active)
-         VALUES (?, ?, ?, ?, ?, 1)`,
-        [p.code, p.name, p.tier, JSON.stringify(p.limits), JSON.stringify(p.features)],
+        `INSERT IGNORE INTO subscription_plans
+           (code, name, tier, limits, features, is_active, price, currency, billing_cycle, installments, deliverables)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
+        [p.code, p.name, p.tier, JSON.stringify(p.limits), JSON.stringify(p.features),
+         p.price, p.currency, p.billing_cycle, p.installments, JSON.stringify(p.deliverables)],
       ).catch(() => {});
     }
   })();
@@ -81,6 +131,9 @@ const parse = (v: any, fallback: any) => {
 const rowToPlan = (r: any): SubscriptionPlan => ({
   code: r.code, name: r.name, tier: Number(r.tier || 0),
   limits: parse(r.limits, {}), features: parse(r.features, []), is_active: !!Number(r.is_active),
+  price: Number(r.price || 0), currency: r.currency || 'UGX',
+  billing_cycle: (BILLING_CYCLES as readonly string[]).includes(r.billing_cycle) ? r.billing_cycle : 'annual',
+  installments: Math.max(1, Number(r.installments || 1)), deliverables: parse(r.deliverables, []),
 });
 
 export async function listPlans(): Promise<SubscriptionPlan[]> {
@@ -98,16 +151,23 @@ export async function getPlanByCode(code: string): Promise<SubscriptionPlan | nu
 /** Create or update a plan (operator-authored). Returns the saved plan. */
 export async function upsertPlan(input: {
   code: string; name: string; tier?: number; limits?: PlanLimits; features?: string[]; is_active?: boolean;
+  price?: number; currency?: string; billing_cycle?: BillingCycle; installments?: number; deliverables?: string[];
 }): Promise<SubscriptionPlan> {
   await ensureSubscriptionPlansSchema();
   const code = input.code.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  const cycle = (BILLING_CYCLES as readonly string[]).includes(input.billing_cycle as string) ? input.billing_cycle! : 'annual';
   await query(
-    `INSERT INTO subscription_plans (code, name, tier, limits, features, is_active)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO subscription_plans
+       (code, name, tier, limits, features, is_active, price, currency, billing_cycle, installments, deliverables)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE name = VALUES(name), tier = VALUES(tier),
-       limits = VALUES(limits), features = VALUES(features), is_active = VALUES(is_active)`,
+       limits = VALUES(limits), features = VALUES(features), is_active = VALUES(is_active),
+       price = VALUES(price), currency = VALUES(currency), billing_cycle = VALUES(billing_cycle),
+       installments = VALUES(installments), deliverables = VALUES(deliverables)`,
     [code, input.name.trim(), input.tier ?? 0, JSON.stringify(input.limits ?? {}),
-     JSON.stringify(input.features ?? []), input.is_active === false ? 0 : 1],
+     JSON.stringify(input.features ?? []), input.is_active === false ? 0 : 1,
+     Number(input.price) || 0, (input.currency || 'UGX').slice(0, 8), cycle,
+     Math.max(1, Number(input.installments) || 1), JSON.stringify(input.deliverables ?? [])],
   );
   return (await getPlanByCode(code))!;
 }
@@ -129,13 +189,49 @@ export async function deletePlan(code: string, operatorId: number | null, ip?: s
   return { ok: true };
 }
 
-/** Assign a plan to a school (writes the plan code to schools.subscription_plan). */
+/**
+ * Assign a plan to a school. Also starts the billing clock: the subscription
+ * end date is set from the plan's billing cycle (annual → +365d, etc.), which
+ * is exactly what the session gate uses to AUTO-SUSPEND a school when it lapses.
+ * A one_time plan sets no expiry.
+ */
 export async function assignPlanToSchool(schoolId: number, code: string, operatorId: number | null, ip?: string | null) {
   const plan = await getPlanByCode(code);
   if (!plan) return { ok: false as const, reason: 'Unknown plan' };
-  await query(`UPDATE schools SET subscription_plan = ?, updated_at = NOW() WHERE id = ?`, [code, schoolId]);
-  await controlAudit(operatorId, 'plan_assigned', `schools:${schoolId}`, { plan: code, name: plan.name }, ip ?? null);
-  return { ok: true as const, plan };
+  const end = nextEndDate(plan.billing_cycle);
+  await query(
+    `UPDATE schools SET subscription_plan = ?, subscription_status = 'active',
+            subscription_end_date = ?, updated_at = NOW() WHERE id = ?`,
+    [code, end, schoolId],
+  );
+  await controlAudit(operatorId, 'plan_assigned', `schools:${schoolId}`,
+    { plan: code, name: plan.name, price: plan.price, currency: plan.currency, cycle: plan.billing_cycle, ends: end }, ip ?? null);
+  return { ok: true as const, plan, ends: end };
+}
+
+/**
+ * Renew a school's current plan for another billing cycle. Extends from the
+ * later of "today" or the current end date (so early renewals stack), and
+ * clears any expired/suspended state. This is the counterpart to auto-suspend.
+ */
+export async function renewSchool(schoolId: number, operatorId: number | null, ip?: string | null) {
+  const rows = (await query(
+    `SELECT subscription_plan, subscription_end_date FROM schools WHERE id = ? LIMIT 1`, [schoolId],
+  ).catch(() => [])) as any[];
+  const code = rows[0]?.subscription_plan;
+  if (!code) return { ok: false as const, reason: 'School has no plan assigned' };
+  const plan = await getPlanByCode(code);
+  if (!plan) return { ok: false as const, reason: 'Assigned plan no longer exists' };
+  const cur = rows[0]?.subscription_end_date ? new Date(rows[0].subscription_end_date) : null;
+  const from = cur && cur.getTime() > Date.now() ? cur : new Date(); // stack early renewals
+  const end = nextEndDate(plan.billing_cycle, from);
+  await query(
+    `UPDATE schools SET subscription_status = 'active', subscription_end_date = ?, updated_at = NOW() WHERE id = ?`,
+    [end, schoolId],
+  );
+  await controlAudit(operatorId, 'subscription_renewed', `schools:${schoolId}`,
+    { plan: code, cycle: plan.billing_cycle, new_end: end, price: plan.price, currency: plan.currency }, ip ?? null);
+  return { ok: true as const, ends: end, plan };
 }
 
 /** Current resource usage for a school (learners / staff / devices). */
