@@ -100,10 +100,51 @@ export default function ControlSystemHealth() {
         </div>
       )}
 
+      {/* Background jobs (Phase 18) */}
+      <JobsPanel />
+
       <p className="text-[11px] text-slate-500">
         Monitors: licence, attendance flow, device offline, clock drift, failed SMS, sync. Click a school for its full operations view.
         Release history: <Link href="/about" className="text-indigo-400 hover:underline">/about</Link>.
       </p>
+    </div>
+  );
+}
+
+/** Background job queue — status + a manual drain (runs on the single cron too). */
+function JobsPanel() {
+  const { data, mutate } = useSWR<any>('/api/control-center/jobs', fetcher, { refreshInterval: 60_000 });
+  const [busy, setBusy] = React.useState(false);
+  const jobs = data?.jobs || [];
+  const STATUS: Record<string, string> = {
+    done: 'bg-emerald-500/20 text-emerald-300', pending: 'bg-sky-500/20 text-sky-300',
+    running: 'bg-amber-500/20 text-amber-200', failed: 'bg-rose-500/20 text-rose-300',
+  };
+  const runNow = async () => {
+    setBusy(true);
+    try { await fetch('/api/control-center/jobs', { method: 'POST' }); await mutate(); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-slate-400 uppercase">Background jobs</p>
+        <button onClick={runNow} disabled={busy} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-50">{busy ? 'Running…' : 'Run due now'}</button>
+      </div>
+      {jobs.length === 0 ? <p className="text-xs text-slate-500">No jobs yet — periodic work is enqueued and drained on the daily cron.</p> : (
+        <div className="space-y-1 max-h-64 overflow-y-auto">
+          {jobs.map((j: any) => (
+            <div key={j.id} className="flex items-center justify-between text-xs">
+              <span className="text-slate-300"><span className="font-mono text-slate-500">#{j.id}</span> {j.type}
+                {j.attempts > 1 && <span className="text-slate-500"> · try {j.attempts}/{j.max_attempts}</span>}
+                {j.last_error && <span className="text-rose-400/80"> · {String(j.last_error).slice(0, 60)}</span>}
+              </span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold ${STATUS[j.status] || 'bg-slate-700 text-slate-300'}`}>{j.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="text-[10px] text-slate-500 mt-2">The single Vercel cron dispatches all due jobs (dunning + future work) with retry/backoff — no extra cron is ever added.</p>
     </div>
   );
 }

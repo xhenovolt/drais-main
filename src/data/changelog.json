@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T19:40:45.047Z",
-  "last_commit": "08c9bbd6bce1c60871093fef876c8085dbcf5679",
+  "generated_at": "2026-07-26T20:07:43.696Z",
+  "last_commit": "d1b4b20fd50ac54ab056d28da8c62887978d67f4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4837,7 +4837,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.129.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "In-DB job runner on the single cron (automation Phase 18)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "In-DB job runner on the single cron (automation Phase 18)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.128.3"
+  "app_version": "1.129.0"
 }

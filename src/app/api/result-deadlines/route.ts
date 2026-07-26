@@ -87,9 +87,19 @@ export async function GET(req: NextRequest) {
     // admins are TOLD what needs them (Founder-Independence Phase D) — no one
     // has to open a page. In-app, deduped once per school per day.
     .then(() => import('@/lib/attendance/digest').then(m => m.sendDailyDigests()))
-    // Billing dunning — warn schools before their subscription lapses and notify
-    // on expiry/suspension (Platform-OS Phase 14). Same single cron; no new one.
-    .then(() => import('@/lib/control/dunning').then(m => m.runDunningSweep()))
+    // Platform job runner (Phase 18) — the ONE cron dispatches all due background
+    // jobs (dunning + anything future phases enqueue) with retry/backoff. No new
+    // cron is ever added; periodic work is a `platform_jobs` row.
+    .then(async () => {
+      const [{ registerCoreHandlers }, jobs] = await Promise.all([
+        import('@/lib/control/job-handlers'),
+        import('@/lib/control/job-runner'),
+      ]);
+      registerCoreHandlers();
+      // Enqueue today's dunning (idempotent via dedup key), then drain due jobs.
+      await jobs.enqueueJob({ type: 'dunning', dedupKey: `dunning:${new Date().toISOString().slice(0, 10)}` });
+      await jobs.runDueJobs();
+    })
     .catch(() => {});
   return dispatch(req);
 }
