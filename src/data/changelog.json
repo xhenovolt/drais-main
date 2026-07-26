@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T18:16:29.842Z",
-  "last_commit": "be9a8a28b602b68d20ddd4f45e9ca1fd60c5b1b3",
+  "generated_at": "2026-07-26T18:38:23.265Z",
+  "last_commit": "6b6c0ec82fb882d7fa292abb60cd46ae82b67bae",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4759,7 +4759,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.127.1",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Restore scoped devices/list+summary (regression); export full filtered day",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Restore scoped devices/list+summary (regression); export full filtered day"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.127.0"
+  "app_version": "1.127.1"
 }

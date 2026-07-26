@@ -732,26 +732,34 @@ export default function UnifiedAttendancePage() {
   }, [deviceSn, devices, mutate]);
 
   const handleExport = useCallback(async (format: 'csv' | 'excel') => {
-    if (visiblePresentationRows.length === 0) {
-      showToast('error', 'No visible attendance rows to export');
-      return;
-    }
-
     setExportingFormat(format);
     try {
+      // Export the ENTIRE filtered set (every page for the current day/filters),
+      // not just the visible page. Fetch all rows with the same query, page 1,
+      // a high limit capped for safety.
+      const exportParams = new URLSearchParams(params);
+      exportParams.set('page', '1');
+      exportParams.set('limit', String(Math.min(50000, Math.max(pagination.total || 0, 1))));
+      const r = await fetch(`/api/attendance/history?${exportParams.toString()}`, { cache: 'no-store' });
+      const j = await r.json();
+      const allRows = (j?.data || []).map((log: any) => log.presentation).filter(Boolean);
+      if (allRows.length === 0) {
+        showToast('error', 'No attendance rows to export for the current filters');
+        return;
+      }
       await AttendanceExportService.exportVisibleRows({
         format,
-        filename: `attendance-logs-${tab}-${dateFrom || 'all-time'}-page-${page}`,
-        rows: visiblePresentationRows,
+        filename: `attendance-logs-${tab}-${dateFrom || 'all-time'}${dateTo && dateTo !== dateFrom ? `_to_${dateTo}` : ''}`,
+        rows: allRows,
       });
-      showToast('success', format === 'excel' ? 'Excel exported' : 'CSV exported');
+      showToast('success', `Exported ${allRows.length.toLocaleString()} ${format === 'excel' ? 'rows (Excel)' : 'rows (CSV)'}`);
     } catch (error) {
       console.error('[Attendance Logs] Export failed:', error);
       showToast('error', 'Failed to export attendance logs');
     } finally {
       setExportingFormat(null);
     }
-  }, [dateFrom, page, tab, visiblePresentationRows]);
+  }, [params, pagination.total, dateFrom, dateTo, tab]);
 
   const handleClearLogs = async () => {
     setClearing(true);

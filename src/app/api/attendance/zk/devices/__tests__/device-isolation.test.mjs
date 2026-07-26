@@ -33,19 +33,21 @@ describe('device tenant isolation — /api/attendance/zk/devices', () => {
   });
 });
 
-describe('retired unscoped device endpoints return 410', () => {
-  for (const p of [
-    'src/app/api/devices/list/route.ts',
-    'src/app/api/devices/summary/route.ts',
-    'src/app/api/attendance/zk/live/route.ts',
-  ]) {
-    it(`${p} is retired`, () => {
+describe('retired param-injectable endpoint returns 410', () => {
+  it('zk/live is retired (was param-scoped, default school 1)', () => {
+    const s = read('src/app/api/attendance/zk/live/route.ts');
+    assert.match(s, /status: 410/, 'must return 410 Gone');
+    assert.ok(!/from '@\/lib\/db'/.test(s) && !/\bquery\(/.test(s), 'retired endpoint must not query tenant data');
+  });
+});
+
+describe('restored device endpoints are authenticated + school-scoped', () => {
+  for (const p of ['src/app/api/devices/list/route.ts', 'src/app/api/devices/summary/route.ts']) {
+    it(`${p} scopes to the session school`, () => {
       const s = read(p);
-      assert.match(s, /status: 410/, 'must return 410 Gone');
-      // No DB access at all — the endpoint must not import or call the query layer
-      // (the descriptive comment may mention the old query; the code must not run one).
-      assert.ok(!/from '@\/lib\/db'/.test(s) && !/\bawait query\(|\bquery\(/.test(s),
-        'retired endpoint must not query tenant data');
+      assert.match(s, /getSessionSchoolId/, 'must authenticate');
+      assert.match(s, /school_id = \?/, 'must filter by school_id');
+      assert.match(s, /\[session\.schoolId\]/, 'must bind the session school');
     });
   }
 });
