@@ -92,6 +92,50 @@ export async function impersonationStatus(sessionToken: string | undefined): Pro
   return { impersonating: true, school: r.school, operating_as: r.operating_as, by_control_user: Number(r.impersonated_by_control_user) };
 }
 
+/** Every live impersonation across the platform — for the control kill-switch. */
+export async function listActiveImpersonations(): Promise<any[]> {
+  await ensureImpersonationColumn();
+  return (await query(
+    `SELECT s.id, s.school_id, sch.name AS school,
+            s.impersonated_by_control_user AS operator_id, cu.name AS operator,
+            COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.username, u.email) AS operating_as,
+            s.last_activity_at, s.expires_at, s.ip_address
+       FROM sessions s
+       LEFT JOIN schools sch ON sch.id = s.school_id
+       LEFT JOIN users u ON u.id = s.user_id
+       LEFT JOIN control_users cu ON cu.id = s.impersonated_by_control_user
+      WHERE s.impersonated_by_control_user IS NOT NULL AND s.is_active = TRUE AND s.expires_at > NOW()
+      ORDER BY s.expires_at ASC`,
+    [],
+  ).catch(() => [])) as any[];
+}
+
+/** Revoke one live impersonation session by id (kills the tenant access now). */
+export async function revokeImpersonation(sessionId: number, byControlUserId: number, ip?: string | null): Promise<{ ok: boolean; reason?: string }> {
+  await ensureImpersonationColumn();
+  const rows = (await query(
+    `SELECT school_id, impersonated_by_control_user FROM sessions
+      WHERE id = ? AND impersonated_by_control_user IS NOT NULL AND is_active = TRUE LIMIT 1`, [sessionId],
+  ).catch(() => [])) as any[];
+  if (!rows[0]) return { ok: false, reason: 'No active impersonation with that id' };
+  await query(`UPDATE sessions SET is_active = FALSE, logout_time = NOW() WHERE id = ?`, [sessionId]).catch(() => {});
+  await controlAudit(byControlUserId, 'impersonation_revoked', `schools:${rows[0].school_id}`,
+    { session_id: sessionId, was_by_control_user: Number(rows[0].impersonated_by_control_user) }, ip ?? null);
+  return { ok: true };
+}
+
+/** Kill switch — end EVERY live impersonation at once. Returns the count. */
+export async function revokeAllImpersonations(byControlUserId: number, ip?: string | null): Promise<number> {
+  await ensureImpersonationColumn();
+  const res = (await query(
+    `UPDATE sessions SET is_active = FALSE, logout_time = NOW()
+      WHERE impersonated_by_control_user IS NOT NULL AND is_active = TRUE AND expires_at > NOW()`, [],
+  ).catch(() => ({}))) as any;
+  const count = Number(res?.affectedRows || 0);
+  await controlAudit(byControlUserId, 'impersonation_revoked_all', 'sessions', { count }, ip ?? null);
+  return count;
+}
+
 export async function endImpersonation(sessionToken: string | undefined, ip?: string | null): Promise<void> {
   if (!sessionToken) return;
   await ensureImpersonationColumn();

@@ -1,9 +1,9 @@
 'use client';
 
 /** Control dashboard — the DRAIS platform at a glance. */
-import React from 'react';
+import React, { useState } from 'react';
 import useSWR from 'swr';
-import { School, Users, Briefcase, HardDrive, MessageSquare, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
+import { School, Users, Briefcase, HardDrive, MessageSquare, Activity, AlertTriangle, CheckCircle, UserCog, Ban } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -22,6 +22,7 @@ export default function ControlDashboard() {
   const healthy = data && data.problems?.length === 0;
   return (
     <div className="space-y-5">
+      <ImpersonationsPanel />
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {tiles.map(({ label, value, sub, icon: Icon }) => (
           <div key={label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
@@ -50,6 +51,51 @@ export default function ControlDashboard() {
           </ul>
         )}
         {data?.app_version && <p className="text-[11px] text-slate-500 mt-3">Platform version: v{data.app_version}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Live impersonations across the platform, with a per-session + all revoke. */
+function ImpersonationsPanel() {
+  const { data, mutate } = useSWR<any>('/api/control-center/impersonations', fetcher, { refreshInterval: 30_000 });
+  const [busy, setBusy] = useState(false);
+  const active = data?.active || [];
+  if (active.length === 0) return null;
+
+  const revoke = async (body: any) => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/control-center/impersonations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!j.success) alert(j.error || 'Revoke failed');
+      await mutate();
+    } finally { setBusy(false); }
+  };
+  const mins = (v: string) => Math.max(0, Math.round((new Date(v).getTime() - Date.now()) / 60000));
+
+  return (
+    <div className="rounded-xl border border-amber-700 bg-amber-500/10 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-semibold text-amber-200 flex items-center gap-1.5">
+          <UserCog className="w-4 h-4" /> {active.length} active impersonation{active.length === 1 ? '' : 's'}
+        </p>
+        <button onClick={() => confirm('End ALL active impersonations now?') && revoke({ all: true })} disabled={busy}
+          className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white font-semibold disabled:opacity-50">
+          <Ban className="w-3.5 h-3.5" /> Revoke all
+        </button>
+      </div>
+      <div className="space-y-1.5">
+        {active.map((s: any) => (
+          <div key={s.id} className="flex items-center justify-between text-xs bg-slate-950/30 rounded-lg px-3 py-2">
+            <span className="text-slate-200">
+              <span className="font-medium">{s.operator || `#${s.operator_id}`}</span> → <span className="font-medium">{s.school || `school ${s.school_id}`}</span>
+              <span className="text-slate-500"> as {s.operating_as} · {mins(s.expires_at)}m left{s.ip_address ? ` · ${s.ip_address}` : ''}</span>
+            </span>
+            <button onClick={() => revoke({ session_id: s.id })} disabled={busy}
+              className="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-rose-600/50 text-rose-300 disabled:opacity-50">Revoke</button>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T06:58:38.845Z",
-  "last_commit": "370a7d38ffbd80d39baeb6387c622d46a6651baa",
+  "generated_at": "2026-07-26T07:07:00.692Z",
+  "last_commit": "c39616351d6415cc9738bc8e0d1df886dcc81aa6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4655,7 +4655,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.120.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Impersonation kill-switch + active-session view (security Phase 9)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Impersonation kill-switch + active-session view (security Phase 9)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.119.0"
+  "app_version": "1.120.0"
 }
