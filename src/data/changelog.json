@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T03:59:51.775Z",
-  "last_commit": "5ef66ee3ae3bdf32c42deddc46f26ce41f949fdc",
+  "generated_at": "2026-07-26T04:39:21.904Z",
+  "last_commit": "869b737802e5d43b4578f7d1a0b57a64cf41136a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4538,7 +4538,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.113.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Opt-out module visibility — Control disable truly hides + gates (P-modules)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Opt-out module visibility — Control disable truly hides + gates (P-modules)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.112.0"
+  "app_version": "1.113.0"
 }

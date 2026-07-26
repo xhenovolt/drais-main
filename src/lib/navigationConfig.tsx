@@ -377,6 +377,7 @@ export function getNavigationItems(
     {
       key:   'attendance',
       label: 'Attendance',
+      requiredModules: ['attendance'],
       icon:  <UserCheck className="w-5 h-5" />,
       children: [
         { key: 'att-dashboard',      label: 'Dashboard',         icon: <UserCheck className="w-4 h-4" />,    href: '/attendance' },
@@ -478,6 +479,7 @@ export function getNavigationItems(
     {
       key:   'academics',
       label: t('nav.academics._', 'Academics'),
+      requiredModules: ['academics'],
       icon:  <GraduationCap className="w-5 h-5" />,
       children: [
         { key: 'workplans-ac', label: 'Workplans', icon: <Clipboard className="w-4 h-4" />, href: '/work-plans', requiredModules: ['work_plans'] },
@@ -524,6 +526,7 @@ export function getNavigationItems(
     {
       key:   'finance',
       label: 'Finance',
+      requiredModules: ['finance'],
       icon:  <Wallet className="w-5 h-5" />,
       children: [
         { key: 'finance-dashboard',  label: 'Overview',          icon: <DollarSign className="w-4 h-4" />,   href: '/finance' },

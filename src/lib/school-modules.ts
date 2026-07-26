@@ -10,25 +10,10 @@
  */
 import { query } from '@/lib/db';
 
-export const MODULE_CODES = [
-  'academics',
-  'finance',
-  'payroll',
-  'tahfiz',
-  'attendance',
-  'inventory',
-  'examinations',
-  'analytics',
-  'fingerprint_auth',
-  'intelligence',
-  'work_plans',
-] as const;
-
-export type ModuleCode = (typeof MODULE_CODES)[number];
-
-export function isModuleCode(v: unknown): v is ModuleCode {
-  return typeof v === 'string' && (MODULE_CODES as readonly string[]).includes(v);
-}
+// Pure code constants live in a client-safe module (no db import). Import for
+// internal use AND re-export so existing `@/lib/school-modules` imports work.
+import { MODULE_CODES, isModuleCode, type ModuleCode } from '@/lib/school-modules-codes';
+export { MODULE_CODES, isModuleCode, type ModuleCode };
 
 /**
  * Display metadata for each module. Used by the admin module-management
@@ -64,15 +49,15 @@ export const MODULE_CATALOG: readonly ModuleDescriptor[] = [
  * route gating).
  */
 export async function getEnabledModules(schoolId: number): Promise<Set<ModuleCode>> {
+  // OPT-OUT policy: every module is enabled for a school UNLESS Control has
+  // written an explicit disable (is_enabled = 0). So a school that has never
+  // been configured keeps everything — restricting is a deliberate action.
   const rows = (await query(
-    `SELECT module_code
-       FROM school_modules
-      WHERE school_id   = ?
-        AND is_enabled  = 1
-        AND (expires_at IS NULL OR expires_at > NOW())`,
+    `SELECT module_code FROM school_modules WHERE school_id = ? AND is_enabled = 0`,
     [schoolId],
   )) as Array<{ module_code: ModuleCode }>;
-  return new Set(rows.map(r => r.module_code));
+  const disabled = new Set(rows.map(r => r.module_code));
+  return new Set(MODULE_CODES.filter(c => !disabled.has(c)));
 }
 
 /**
@@ -84,17 +69,13 @@ export async function isModuleEnabled(
   schoolId: number,
   code:     ModuleCode,
 ): Promise<boolean> {
+  // OPT-OUT: enabled unless an explicit disable row exists for this module.
   const rows = (await query(
-    `SELECT 1
-       FROM school_modules
-      WHERE school_id   = ?
-        AND module_code = ?
-        AND is_enabled  = 1
-        AND (expires_at IS NULL OR expires_at > NOW())
-      LIMIT 1`,
+    `SELECT 1 FROM school_modules
+      WHERE school_id = ? AND module_code = ? AND is_enabled = 0 LIMIT 1`,
     [schoolId, code],
   )) as Array<{ '1': number }>;
-  return rows.length > 0;
+  return rows.length === 0;
 }
 
 /**
@@ -137,8 +118,10 @@ export async function getSchoolModuleStatus(schoolId: number): Promise<SchoolMod
       expiresAt: toIso(r.expires_at),
     });
   }
+  // OPT-OUT default: a module with no explicit row is ENABLED. Only an explicit
+  // is_enabled = 0 row (present in byCode) reports as disabled.
   return MODULE_CATALOG.map(d => byCode.get(d.code) ?? {
-    code: d.code, isEnabled: false, enabledAt: null, expiresAt: null,
+    code: d.code, isEnabled: true, enabledAt: null, expiresAt: null,
   });
 }
 

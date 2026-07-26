@@ -11,7 +11,8 @@
  */
 import useSWR from 'swr';
 import { useMemo } from 'react';
-import type { ModuleCode, ModuleDescriptor } from '@/lib/school-modules';
+import { MODULE_CODES, type ModuleCode } from '@/lib/school-modules-codes';
+import type { ModuleDescriptor } from '@/lib/school-modules';
 
 interface ModuleApiRow {
   code:       ModuleCode;
@@ -52,10 +53,13 @@ export function useEnabledModules(): UseEnabledModulesResult {
   );
 
   const enabled = useMemo(() => {
+    // OPT-OUT: until we know a school's disabled modules, assume ALL are
+    // enabled (show everything). The authoritative gate is server-side
+    // (requireModule); fail-open here just avoids hiding the sidebar on a
+    // slow/failed fetch. Once loaded, the set is "all except explicitly disabled".
+    if (!data?.modules) return new Set<ModuleCode>(MODULE_CODES);
     const set = new Set<ModuleCode>();
-    if (data?.modules) {
-      for (const m of data.modules) if (m.isEnabled) set.add(m.code);
-    }
+    for (const m of data.modules) if (m.isEnabled) set.add(m.code);
     return set;
   }, [data]);
 
