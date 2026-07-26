@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T06:27:19.409Z",
-  "last_commit": "61cba02d04e5681454981de969112985db74f568",
+  "generated_at": "2026-07-26T06:45:04.945Z",
+  "last_commit": "3e864f85b36a96bda4f37bddb1b3729c5b0340e1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4629,7 +4629,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.118.1",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Platform-OS enterprise audit (Phase 0, audit-only)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Platform-OS enterprise audit (Phase 0, audit-only)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.118.0"
+  "app_version": "1.118.1"
 }
