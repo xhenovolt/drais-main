@@ -30,14 +30,16 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get('end_date');
     const search = searchParams.get('search');
     const processed = searchParams.get('processed') || 'all';
-    const page = parseInt(searchParams.get('page', 10) || '1');
-    const limit = parseInt(searchParams.get('limit', 10) || '50');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = (page - 1) * limit;
 
     connection = await getConnection();
 
-    let whereClause = '1=1';
-    const params: any[] = [];
+    // TENANT ISOLATION: only this school's device logs (device_logs has no
+    // school_id, so scope via its device's owning school in dahua_devices).
+    let whereClause = 'dl.device_id IN (SELECT id FROM dahua_devices WHERE school_id = ?)';
+    const params: any[] = [schoolId];
 
     if (deviceId) {
       whereClause += ' AND dl.device_id = ?';
@@ -60,9 +62,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      whereClause += ' AND (dl.user_identifier LIKE ? OR dl.user_id IN (SELECT id FROM students WHERE first_name LIKE ? OR last_name LIKE ?))';
-      const searchPattern = `%${search}%`;
-      params.push(searchPattern, searchPattern, searchPattern);
+      // Student-name search is also school-scoped + case-insensitive.
+      whereClause += ' AND (LOWER(dl.user_identifier) LIKE ? OR dl.user_id IN (SELECT id FROM students WHERE school_id = ? AND (LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ?)))';
+      const searchPattern = `%${search.toLowerCase()}%`;
+      params.push(searchPattern, schoolId, searchPattern, searchPattern);
     }
 
     if (processed !== 'all') {
@@ -153,8 +156,9 @@ export async function POST(req: NextRequest) {
 
     connection = await getConnection();
 
-    let whereClause = '1=1';
-    const params: any[] = [];
+    // TENANT ISOLATION: only this school's device logs (scope via the device).
+    let whereClause = 'dl.device_id IN (SELECT id FROM dahua_devices WHERE school_id = ?)';
+    const params: any[] = [schoolId];
 
     if (device_id) {
       whereClause += ' AND dl.device_id = ?';

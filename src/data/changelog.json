@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T21:07:43.336Z",
-  "last_commit": "58a520fa9cf1d6cca7af85828f52f949dfc5ed6c",
+  "generated_at": "2026-07-26T21:20:59.110Z",
+  "last_commit": "f5bd9e2f2ad897b2c1dc8caed4992d4df9353622",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4902,7 +4902,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.133.1",
+      "date": "2026-07-26",
+      "release_type": "patch",
+      "title": "Close cross-tenant leak in attendance device-logs; add isolation CI guard",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Close cross-tenant leak in attendance device-logs; add isolation CI guard"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.133.0"
+  "app_version": "1.133.1"
 }
