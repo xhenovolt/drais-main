@@ -19,9 +19,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const schoolId = Number(id);
 
   const schools = (await query(
+    // No deleted_at filter — an operator must be able to view a soft-deleted /
+    // archived school in order to restore it.
     `SELECT id, name, short_code, status, subscription_plan, subscription_status,
-            subscription_end_date, district, country, email, phone, created_at
-       FROM schools WHERE id = ? AND deleted_at IS NULL LIMIT 1`, [schoolId],
+            subscription_end_date, district, country, email, phone, created_at, deleted_at
+       FROM schools WHERE id = ? LIMIT 1`, [schoolId],
   )) as any[];
   if (!schools[0]) return NextResponse.json({ error: 'School not found' }, { status: 404 });
 
@@ -106,6 +108,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await controlAudit(user.id, status === 'suspended' ? 'school_suspended' : 'school_activated', `schools:${schoolId}`,
       { from: before, to: status, reason: b.reason ?? null }, clientIp(req));
     return NextResponse.json({ success: true, status });
+  }
+
+  // ── Lifecycle: archive / soft-delete / restore (data is never hard-deleted) ──
+  if (b?.action === 'archive') {
+    await query(`UPDATE schools SET status = 'archived', updated_at = NOW() WHERE id = ?`, [schoolId]);
+    await controlAudit(user.id, 'school_archived', `schools:${schoolId}`, { reason: b.reason ?? null }, clientIp(req));
+    return NextResponse.json({ success: true, status: 'archived' });
+  }
+  if (b?.action === 'soft_delete') {
+    await query(`UPDATE schools SET deleted_at = NOW(), updated_at = NOW() WHERE id = ?`, [schoolId]);
+    await controlAudit(user.id, 'school_deleted', `schools:${schoolId}`, { reason: b.reason ?? null }, clientIp(req));
+    return NextResponse.json({ success: true, deleted: true });
+  }
+  if (b?.action === 'restore') {
+    await query(`UPDATE schools SET deleted_at = NULL, status = 'active', updated_at = NOW() WHERE id = ?`, [schoolId]);
+    await controlAudit(user.id, 'school_restored', `schools:${schoolId}`, null, clientIp(req));
+    return NextResponse.json({ success: true, status: 'active' });
   }
 
   // ── Subscription / license management ──

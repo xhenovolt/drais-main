@@ -17,23 +17,32 @@ const ago = (d: string | null) => {
 };
 
 export default function ControlSchools() {
-  const { data, isLoading } = useSWR<any>('/api/control-center/schools', fetcher);
+  const [showDeleted, setShowDeleted] = React.useState(false);
+  const { data, isLoading } = useSWR<any>(`/api/control-center/schools${showDeleted ? '?include_deleted=1' : ''}`, fetcher);
   const rows = data?.rows || [];
   return (
     <div className="space-y-3">
-      <p className="text-sm text-slate-400">{rows.length} school{rows.length === 1 ? '' : 's'} on the platform</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-400">{rows.length} school{rows.length === 1 ? '' : 's'} {showDeleted ? '(incl. deleted)' : 'on the platform'}</p>
+        <label className="flex items-center gap-1.5 text-xs text-slate-400">
+          <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} /> Show deleted
+        </label>
+      </div>
       {isLoading && <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {rows.map((s: any) => (
           <Link key={s.id} href={`/control/schools/${s.id}`}
-            className="block bg-slate-900 border border-slate-800 hover:border-indigo-600 rounded-xl p-4 transition-colors">
+            className={`block bg-slate-900 border rounded-xl p-4 transition-colors hover:border-indigo-600 ${s.deleted_at ? 'border-rose-900/60 opacity-70' : 'border-slate-800'}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <School className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                 <span className="font-semibold text-slate-100 truncate">{s.name}</span>
               </div>
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
-                s.status === 'active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>{s.status}</span>
+                s.deleted_at ? 'bg-rose-500/20 text-rose-300'
+                  : s.status === 'active' ? 'bg-emerald-500/20 text-emerald-300'
+                    : s.status === 'archived' ? 'bg-slate-600/40 text-slate-300'
+                      : 'bg-amber-500/20 text-amber-300'}`}>{s.deleted_at ? 'deleted' : s.status}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3 text-center">
               <div><div className="text-lg font-bold text-slate-100 tabular-nums">{s.learners.toLocaleString()}</div><div className="text-[10px] text-slate-500">learners</div></div>

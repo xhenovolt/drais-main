@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T03:44:07.526Z",
-  "last_commit": "bd48f044cb2eb599b70fa326952c5f5b0816b82c",
+  "generated_at": "2026-07-26T03:59:51.775Z",
+  "last_commit": "5ef66ee3ae3bdf32c42deddc46f26ce41f949fdc",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4525,7 +4525,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.112.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "School lifecycle — archive/delete/restore + enforce in session gate (P6)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "School lifecycle — archive/delete/restore + enforce in session gate (P6)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.111.0"
+  "app_version": "1.112.0"
 }

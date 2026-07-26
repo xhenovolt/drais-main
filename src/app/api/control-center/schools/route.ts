@@ -13,10 +13,12 @@ export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+  // ?include_deleted=1 also returns soft-deleted schools (so they can be restored).
+  const includeDeleted = new URL(req.url).searchParams.get('include_deleted') === '1';
   const schools = (await query(
     `SELECT s.id, s.name, s.short_code, s.status, s.subscription_plan, s.subscription_status,
-            s.district, s.country, s.created_at
-       FROM schools s WHERE s.deleted_at IS NULL ORDER BY s.name ASC`, [],
+            s.district, s.country, s.created_at, s.deleted_at
+       FROM schools s ${includeDeleted ? '' : 'WHERE s.deleted_at IS NULL'} ORDER BY s.name ASC`, [],
   )) as any[];
 
   const [counts, devs, lastSync, modules] = await Promise.all([
@@ -48,7 +50,7 @@ export async function GET(req: NextRequest) {
     success: true,
     rows: schools.map((s) => ({
       id: Number(s.id), name: s.name, short_code: s.short_code,
-      status: s.status || 'active',
+      status: s.status || 'active', deleted_at: s.deleted_at ?? null,
       subscription: { plan: s.subscription_plan, status: s.subscription_status },
       district: s.district, country: s.country, created_at: s.created_at,
       learners: Number((learnersBy.get(Number(s.id)) as any)?.learners || 0),

@@ -62,6 +62,7 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
         stf.id            AS staff_id,
         u.must_change_password,
         sc.status         AS school_status,
+        sc.id             AS school_row_id,
         sc.subscription_status   AS subscription_status,
         sc.subscription_end_date AS subscription_end_date,
         sc.trial_end_date        AS trial_end_date,
@@ -103,9 +104,16 @@ export async function getSessionSchoolId(request: NextRequest): Promise<SessionI
 
     const s = sessions[0];
 
-    // Block suspended schools on every protected request
-    if (s.school_status === 'suspended') {
-      console.warn(`[Auth] SCHOOL_SUSPENDED: school_id=${s.school_id} blocked — all requests rejected until reactivated`);
+    // Block a soft-deleted school: the session names a school_id but it no
+    // longer resolves to a live (non-deleted) row via the join above.
+    if (s.school_id && !s.school_row_id) {
+      console.warn(`[Auth] SCHOOL_DELETED: school_id=${s.school_id} blocked — school is soft-deleted`);
+      return null;
+    }
+
+    // Block suspended or archived schools on every protected request
+    if (s.school_status === 'suspended' || s.school_status === 'archived') {
+      console.warn(`[Auth] SCHOOL_${String(s.school_status).toUpperCase()}: school_id=${s.school_id} blocked — reactivate to restore access`);
       return null;
     }
 

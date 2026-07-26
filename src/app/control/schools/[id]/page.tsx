@@ -3,7 +3,7 @@
 /** School operations view — "is this school operating normally?" + feature flags. */
 import React, { use, useCallback, useState } from 'react';
 import useSWR from 'swr';
-import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity, Power, CalendarPlus, CreditCard, LogIn, Fingerprint } from 'lucide-react';
+import { HardDrive, Clock, MessageSquare, Loader2, ToggleLeft, ToggleRight, Activity, Power, CalendarPlus, CreditCard, LogIn, Fingerprint, Archive } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -37,7 +37,11 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex items-center gap-2">
           <OpenSchoolButton schoolId={s.id} />
-          <span className={`text-[11px] px-2 py-1 rounded font-semibold uppercase ${s.status === 'active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>{s.status}</span>
+          <span className={`text-[11px] px-2 py-1 rounded font-semibold uppercase ${
+            s.deleted_at ? 'bg-rose-500/20 text-rose-300'
+              : s.status === 'active' ? 'bg-emerald-500/20 text-emerald-300'
+                : s.status === 'archived' ? 'bg-slate-600/40 text-slate-300'
+                  : 'bg-amber-500/20 text-amber-300'}`}>{s.deleted_at ? 'deleted' : s.status}</span>
         </div>
       </div>
 
@@ -46,6 +50,9 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
 
       {/* Plan & usage (P5) — catalog plan + limits vs current usage */}
       <PlanUsagePanel plan={data.plan} usage={data.plan_usage} act={act} />
+
+      {/* Lifecycle — archive / soft-delete / restore (data is never hard-deleted) */}
+      <LifecycleControl school={s} act={act} />
 
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -154,6 +161,35 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
       <p className="text-sm font-semibold text-slate-200 mb-2 flex items-center gap-1.5">{icon} {title}</p>
       {children}
     </div>
+  );
+}
+
+function LifecycleControl({ school, act }: { school: any; act: (b: any) => Promise<boolean> }) {
+  const deleted = !!school.deleted_at;
+  const archived = school.status === 'archived';
+  const ask = (msg: string, action: string, reason = false) => async () => {
+    if (!confirm(msg)) return;
+    const body: any = { action };
+    if (reason) { const r = prompt('Reason (optional):') || undefined; if (r) body.reason = r; }
+    await act(body);
+  };
+  return (
+    <Panel title="Lifecycle" icon={<Archive className="w-4 h-4" />}>
+      {deleted ? (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-rose-300">Soft-deleted — hidden from the platform. All data is preserved and can be restored.</span>
+          <button onClick={ask('Restore this school to active?', 'restore')} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium">Restore</button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap">
+          {archived
+            ? <button onClick={ask('Un-archive (reactivate) this school?', 'restore')} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white font-medium">Un-archive</button>
+            : <button onClick={ask('Archive this school? It stays recoverable and its data is untouched, but it is marked inactive.', 'archive', true)} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-500 text-white font-medium">Archive</button>}
+          <button onClick={ask('Soft-delete this school? It disappears from the platform but ALL data is preserved and can be restored later.', 'soft_delete', true)} className="text-xs px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white font-medium">Delete</button>
+          <span className="text-[10px] text-slate-500">Archive = pause · Delete = hide (recoverable). Nothing is ever hard-deleted; every action is audited.</span>
+        </div>
+      )}
+    </Panel>
   );
 }
 
