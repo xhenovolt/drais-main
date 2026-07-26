@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T05:26:53.570Z",
-  "last_commit": "4bcbe8f8a8ef76b9a8d12bbdb4de3b56961621e3",
+  "generated_at": "2026-07-26T05:32:39.245Z",
+  "last_commit": "34b47da3052968eeb29478e1aa49a150f697b757",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4577,7 +4577,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.116.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Theming — light/system/dark/high-contrast (retire forced dark)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Theming — light/system/dark/high-contrast (retire forced dark)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.115.0"
+  "app_version": "1.116.0"
 }

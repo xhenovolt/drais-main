@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, LogOut, Loader2 } from 'lucide-react';
+import { Shield, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, LogOut, Loader2, Monitor, Sun, Moon, Contrast } from 'lucide-react';
 
 const NAV = [
   { href: '/control/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,6 +26,21 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
   const [state, setState] = useState<'loading' | 'anon' | 'authed'>('loading');
   const [user, setUser] = useState<any>(null);
+
+  // Control Center theme — no longer forced dark. Persisted per operator.
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark' | 'contrast'>('dark');
+  useEffect(() => {
+    const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('drais_control_theme')) as any;
+    if (saved) setTheme(saved);
+  }, []);
+  const cycleTheme = useCallback(() => {
+    setTheme((t) => {
+      const order = ['system', 'light', 'dark', 'contrast'] as const;
+      const next = order[(order.indexOf(t) + 1) % order.length];
+      try { localStorage.setItem('drais_control_theme', next); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
 
   const check = useCallback(async () => {
     try {
@@ -55,7 +70,33 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
   if (state === 'anon') return null; // redirecting
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 control-print-area">
+    <div data-theme={theme} className="ctl min-h-screen bg-slate-950 text-slate-100 control-print-area">
+      {/* Theme layer — remaps the dark slate palette for light / system /
+          high-contrast without rewriting every page. Dark = the classes as-is. */}
+      <style>{`
+        .ctl[data-theme="light"], .ctl[data-theme="system"] { color-scheme: light; }
+        .ctl[data-theme="light"] { background:#f1f5f9 !important; }
+        .ctl[data-theme="light"] [class*="bg-slate-950"] { background:#e2e8f0 !important; }
+        .ctl[data-theme="light"] [class*="bg-slate-900"] { background:#ffffff !important; }
+        .ctl[data-theme="light"] [class*="bg-slate-800"] { background:#f1f5f9 !important; }
+        .ctl[data-theme="light"] [class*="text-slate-100"], .ctl[data-theme="light"] [class*="text-slate-200"], .ctl[data-theme="light"] [class*="text-slate-300"] { color:#1e293b !important; }
+        .ctl[data-theme="light"] [class*="text-slate-400"], .ctl[data-theme="light"] [class*="text-slate-500"], .ctl[data-theme="light"] [class*="text-slate-600"] { color:#64748b !important; }
+        .ctl[data-theme="light"] [class*="border-slate-700"], .ctl[data-theme="light"] [class*="border-slate-800"] { border-color:#e2e8f0 !important; }
+        @media (prefers-color-scheme: light) {
+          .ctl[data-theme="system"] { background:#f1f5f9 !important; }
+          .ctl[data-theme="system"] [class*="bg-slate-950"] { background:#e2e8f0 !important; }
+          .ctl[data-theme="system"] [class*="bg-slate-900"] { background:#ffffff !important; }
+          .ctl[data-theme="system"] [class*="bg-slate-800"] { background:#f1f5f9 !important; }
+          .ctl[data-theme="system"] [class*="text-slate-100"], .ctl[data-theme="system"] [class*="text-slate-200"], .ctl[data-theme="system"] [class*="text-slate-300"] { color:#1e293b !important; }
+          .ctl[data-theme="system"] [class*="text-slate-400"], .ctl[data-theme="system"] [class*="text-slate-500"], .ctl[data-theme="system"] [class*="text-slate-600"] { color:#64748b !important; }
+          .ctl[data-theme="system"] [class*="border-slate-700"], .ctl[data-theme="system"] [class*="border-slate-800"] { border-color:#e2e8f0 !important; }
+        }
+        .ctl[data-theme="contrast"] { background:#000 !important; color:#fff; }
+        .ctl[data-theme="contrast"] [class*="bg-slate"] { background:#000 !important; }
+        .ctl[data-theme="contrast"] [class*="text-slate"] { color:#fff !important; }
+        .ctl[data-theme="contrast"] [class*="border-slate"] { border-color:#fff !important; }
+        .ctl[data-theme="contrast"] [class*="text-indigo"] { color:#a5b4fc !important; }
+      `}</style>
       {/* Print: drop the dark chrome to a clean white sheet so exports are legible. */}
       <style>{`
         @media print {
@@ -75,6 +116,11 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-400 hidden sm:inline">{user?.name} · <span className="text-slate-500">{user?.role?.replace('XHENVOLT_', '')}</span></span>
+            <button onClick={cycleTheme} title={`Theme: ${theme} (click to change)`}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs capitalize">
+              {theme === 'system' ? <Monitor className="w-3.5 h-3.5" /> : theme === 'light' ? <Sun className="w-3.5 h-3.5" /> : theme === 'contrast' ? <Contrast className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{theme}</span>
+            </button>
             <button onClick={logout} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs"><LogOut className="w-3.5 h-3.5" /> Sign out</button>
           </div>
         </div>
