@@ -40,6 +40,9 @@ export default function ControlSystemHealth() {
 
   return (
     <div className="space-y-4">
+      {/* Founder alerts — schools that newly turned critical (pushed, deduped) */}
+      <AlertsFeed />
+
       {/* Platform banner */}
       <div className={`rounded-xl p-4 border ${allClear ? 'bg-emerald-500/10 border-emerald-700' : 'bg-amber-500/10 border-amber-700'}`}>
         <p className="text-sm font-semibold flex items-center gap-1.5">
@@ -107,6 +110,37 @@ export default function ControlSystemHealth() {
         Monitors: licence, attendance flow, device offline, clock drift, failed SMS, sync. Click a school for its full operations view.
         Release history: <Link href="/about" className="text-indigo-400 hover:underline">/about</Link>.
       </p>
+    </div>
+  );
+}
+
+/** Founder alert feed — schools that newly turned critical, with acknowledge. */
+function AlertsFeed() {
+  const { data, mutate } = useSWR<any>('/api/control-center/alerts', fetcher, { refreshInterval: 60_000 });
+  const alerts = (data?.alerts || []).filter((a: any) => !a.acknowledged_at);
+  if (alerts.length === 0) return null;
+  const ack = async (id: number) => {
+    await fetch('/api/control-center/alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) });
+    await mutate();
+  };
+  return (
+    <div className="rounded-xl border border-rose-800 bg-rose-500/10 p-4">
+      <p className="text-sm font-semibold text-rose-200 flex items-center gap-1.5 mb-2">
+        <AlertCircle className="w-4 h-4" /> {alerts.length} platform alert{alerts.length === 1 ? '' : 's'}
+      </p>
+      <div className="space-y-1.5">
+        {alerts.map((a: any) => (
+          <div key={a.id} className="flex items-center justify-between gap-2 text-xs bg-slate-950/30 rounded-lg px-3 py-2">
+            <span className="text-slate-200">
+              {a.school_id
+                ? <Link href={`/control/schools/${a.school_id}`} className="hover:underline">{a.message}</Link>
+                : a.message}
+              <span className="text-slate-500"> · {new Date(a.created_at).toLocaleString()}</span>
+            </span>
+            <button onClick={() => ack(a.id)} className="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 whitespace-nowrap">Acknowledge</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T20:07:43.696Z",
-  "last_commit": "d1b4b20fd50ac54ab056d28da8c62887978d67f4",
+  "generated_at": "2026-07-26T20:16:45.995Z",
+  "last_commit": "5475b24f9cf7ed612abbf4a2dfed9c83a3c6f65c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4850,7 +4850,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.130.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Predictive health snapshots + founder alerting (automation Phase 17)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Predictive health snapshots + founder alerting (automation Phase 17)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.129.0"
+  "app_version": "1.130.0"
 }

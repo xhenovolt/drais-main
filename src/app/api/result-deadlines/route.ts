@@ -96,8 +96,10 @@ export async function GET(req: NextRequest) {
         import('@/lib/control/job-runner'),
       ]);
       registerCoreHandlers();
-      // Enqueue today's dunning (idempotent via dedup key), then drain due jobs.
-      await jobs.enqueueJob({ type: 'dunning', dedupKey: `dunning:${new Date().toISOString().slice(0, 10)}` });
+      // Enqueue today's periodic jobs (idempotent via dedup key), then drain.
+      const today = new Date().toISOString().slice(0, 10);
+      await jobs.enqueueJob({ type: 'dunning', dedupKey: `dunning:${today}` });
+      await jobs.enqueueJob({ type: 'platform_health', dedupKey: `platform_health:${today}` });
       await jobs.runDueJobs();
     })
     .catch(() => {});

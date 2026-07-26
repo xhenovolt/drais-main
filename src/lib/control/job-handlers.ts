@@ -20,4 +20,11 @@ export function registerCoreHandlers(): void {
     const { runDunningSweep } = await import('@/lib/control/dunning');
     return runDunningSweep();
   });
+
+  // Platform health — daily per-school score snapshot + founder alert on a
+  // school newly turning critical (Phase 17).
+  registerJobHandler('platform_health', async () => {
+    const { runHealthSnapshotJob } = await import('@/lib/control/health-history');
+    return runHealthSnapshotJob();
+  });
 }
