@@ -103,6 +103,9 @@ export default function ControlSystemHealth() {
         </div>
       )}
 
+      {/* Maintenance mode (Phase 23) */}
+      <MaintenancePanel />
+
       {/* Background jobs (Phase 18) */}
       <JobsPanel />
 
@@ -141,6 +144,39 @@ function AlertsFeed() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Platform maintenance mode — off / banner / read-only, for safe deploys. */
+function MaintenancePanel() {
+  const { data, mutate } = useSWR<any>('/api/control-center/maintenance', fetcher, { refreshInterval: 30_000 });
+  const [message, setMessage] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const mode = data?.mode || 'off';
+  React.useEffect(() => { if (data?.message != null) setMessage(data.message); }, [data?.message]);
+  const set = async (m: string) => {
+    setBusy(true);
+    try { await fetch('/api/control-center/maintenance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode: m, message }) }); await mutate(); }
+    finally { setBusy(false); }
+  };
+  const chip = (m: string, label: string, cls: string) => (
+    <button onClick={() => set(m)} disabled={busy}
+      className={`text-[11px] px-3 py-1.5 rounded-lg font-medium disabled:opacity-50 ${mode === m ? cls : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{label}</button>
+  );
+  return (
+    <div className={`rounded-xl border p-4 ${mode === 'off' ? 'border-slate-800 bg-slate-900' : 'border-amber-700 bg-amber-500/10'}`}>
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <p className="text-xs font-semibold text-slate-300 uppercase">Maintenance mode {mode !== 'off' && <span className="text-amber-300">· {mode.replace('_', '-')} ACTIVE</span>}</p>
+        <div className="flex items-center gap-1.5">
+          {chip('off', 'Off', 'bg-emerald-600 text-white')}
+          {chip('banner', 'Banner', 'bg-sky-600 text-white')}
+          {chip('read_only', 'Read-only', 'bg-rose-600 text-white')}
+        </div>
+      </div>
+      <input value={message} onChange={e => setMessage(e.target.value)} placeholder="Message shown to schools (e.g. Scheduled maintenance 9–10pm)"
+        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-sm text-slate-100" />
+      <p className="text-[10px] text-slate-500 mt-2">Banner shows a notice to all schools; Read-only also blocks tenant writes (Control Center stays fully operational). Use around risky deploys/migrations.</p>
     </div>
   );
 }

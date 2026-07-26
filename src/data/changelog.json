@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T20:24:28.297Z",
-  "last_commit": "89d0e7274a12669f1ec0f020315872b0f3198e48",
+  "generated_at": "2026-07-26T20:35:02.413Z",
+  "last_commit": "cb2795040ceea636f8e52c820c7507ff0d6923da",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4876,7 +4876,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.132.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Platform maintenance mode + deploy safety (resilience Phase 23)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Platform maintenance mode + deploy safety (resilience Phase 23)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.131.0"
+  "app_version": "1.132.0"
 }

@@ -85,6 +85,21 @@ export function withRoute<P = Record<string, string>>(
         await requirePermission(session.userId, session.schoolId, options.permission, session.isSuperAdmin);
       }
 
+      // Platform read-only maintenance (Phase 23): block tenant WRITES while a
+      // risky deploy/migration is in progress; reads still pass. Control Center
+      // routes don't use withRoute, so operators can always lift it. Cached 30s.
+      const method = (req.method || 'GET').toUpperCase();
+      if (method !== 'GET' && method !== 'HEAD') {
+        const { getMaintenance, isReadOnly } = await import('@/lib/control/platform-settings');
+        const m = await getMaintenance();
+        if (isReadOnly(m.mode)) {
+          return NextResponse.json(
+            { error: m.message || 'DRAIS is in read-only maintenance. Please try again shortly.' },
+            { status: 503, headers: { 'Retry-After': '120' } },
+          );
+        }
+      }
+
       let bodyCache: any; let bodyParsed = false;
       const ctx: RouteContext<P> = {
         req,

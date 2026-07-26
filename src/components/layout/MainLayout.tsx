@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { MobileDrawer } from './MobileDrawer';
 import { SubscriptionBanner } from './SubscriptionBanner';
+import MaintenanceBanner from './MaintenanceBanner';
 import { SchoolThemeApplier } from '@/components/theme/SchoolThemeApplier';
 import { useRouteValidator } from '@/hooks/useRouteValidator';
 
@@ -34,6 +35,8 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+      {/* Platform maintenance notice (Phase 23) — spans the full width on top. */}
+      <MaintenanceBanner />
       {/* Apply this school's brand theme (Phase 3) as the baseline for staff UI. */}
       <SchoolThemeApplier />
       {/* MOBILE DRAWER (full-screen, triggered by BottomNav "More") */}
