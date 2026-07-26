@@ -112,6 +112,23 @@ export async function upsertPlan(input: {
   return (await getPlanByCode(code))!;
 }
 
+/** How many (non-deleted) schools are currently on a plan code. */
+export async function schoolsOnPlan(code: string): Promise<number> {
+  const r = (await query(
+    `SELECT COUNT(*) n FROM schools WHERE subscription_plan = ? AND deleted_at IS NULL`, [code],
+  ).catch(() => [{ n: 0 }])) as any[];
+  return Number(r[0]?.n || 0);
+}
+
+/** Delete a plan. Refuses while any school is still assigned to it. */
+export async function deletePlan(code: string, operatorId: number | null, ip?: string | null): Promise<{ ok: boolean; reason?: string }> {
+  const inUse = await schoolsOnPlan(code);
+  if (inUse > 0) return { ok: false, reason: `${inUse} school(s) still on this plan — reassign them first` };
+  await query(`DELETE FROM subscription_plans WHERE code = ?`, [code]);
+  await controlAudit(operatorId, 'plan_deleted', `plans:${code}`, null, ip ?? null);
+  return { ok: true };
+}
+
 /** Assign a plan to a school (writes the plan code to schools.subscription_plan). */
 export async function assignPlanToSchool(schoolId: number, code: string, operatorId: number | null, ip?: string | null) {
   const plan = await getPlanByCode(code);

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-25T22:55:09.622Z",
-  "last_commit": "8abd5a47e14240fef40ab72aeead443a282239ea",
+  "generated_at": "2026-07-26T03:44:07.526Z",
+  "last_commit": "bd48f044cb2eb599b70fa326952c5f5b0816b82c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4512,7 +4512,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.111.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Full plan CRUD (create/edit/features/duplicate/delete) + fix dashboard NaN",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Full plan CRUD (create/edit/features/duplicate/delete) + fix dashboard NaN"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.110.0"
+  "app_version": "1.111.0"
 }

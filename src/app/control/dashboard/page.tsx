@@ -29,7 +29,7 @@ export default function ControlDashboard() {
               <span className="text-xs text-slate-400">{label}</span>
               <Icon className="w-4 h-4 text-indigo-400" />
             </div>
-            <div className="text-2xl font-bold text-slate-100 tabular-nums">{value != null ? Number(value).toLocaleString?.() ?? value : '—'}</div>
+            <div className="text-2xl font-bold text-slate-100 tabular-nums">{value == null ? '—' : typeof value === 'number' ? value.toLocaleString() : value}</div>
             <div className="text-[11px] text-slate-500">{sub}</div>
           </div>
         ))}
