@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/utils/database';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function POST(request: NextRequest) {
   const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   const schoolId = session.schoolId;
+
+  // Module gate: attendance must be enabled for this school (opt-out policy).
+  const moduleDenied = await checkModule(schoolId, 'attendance');
+  if (moduleDenied) return moduleDenied;
 
   try {
     const { class_id, date, action } = await request.json();

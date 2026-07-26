@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T21:20:59.110Z",
-  "last_commit": "f5bd9e2f2ad897b2c1dc8caed4992d4df9353622",
+  "generated_at": "2026-07-26T21:36:55.881Z",
+  "last_commit": "d0a154efff83433d4686762726a0d9b4a2b3f602",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4915,7 +4915,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.134.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Server-side module gate on front-door routes + coverage CI",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Server-side module gate on front-door routes + coverage CI"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.133.1"
+  "app_version": "1.134.0"
 }

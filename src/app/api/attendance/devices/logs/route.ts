@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * GET /api/attendance/devices/logs
@@ -20,6 +21,10 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const schoolId = session.schoolId;
+
+  // Module gate: attendance must be enabled for this school (opt-out policy).
+  const moduleDenied = await checkModule(schoolId, 'attendance');
+  if (moduleDenied) return moduleDenied;
 
   let connection;
   try {
@@ -142,6 +147,10 @@ export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const schoolId = session.schoolId;
+
+  // Module gate: attendance must be enabled for this school (opt-out policy).
+  const moduleDenied = await checkModule(schoolId, 'attendance');
+  if (moduleDenied) return moduleDenied;
 
   let connection;
   try {

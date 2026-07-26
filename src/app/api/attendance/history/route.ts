@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
 import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
@@ -22,6 +23,11 @@ export async function GET(req: NextRequest) {
   }
 
   const { schoolId } = session;
+
+  // Module gate: attendance must be enabled for this school (opt-out policy).
+  const moduleDenied = await checkModule(schoolId, 'attendance');
+  if (moduleDenied) return moduleDenied;
+
   const url = new URL(req.url);
   const tab = url.searchParams.get('tab') || 'all';
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));

@@ -24,6 +24,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 import { buildDetailReport, type AttendanceStatus } from '@/lib/attendance/report-builder';
 
 export const runtime = 'nodejs';
@@ -55,6 +56,10 @@ export async function GET(req: NextRequest) {
     session.isSuperAdmin && Number.isFinite(schoolIdRaw) && schoolIdRaw > 0
       ? schoolIdRaw
       : session.schoolId;
+
+  // Module gate: attendance must be enabled for the target school (opt-out policy).
+  const moduleDenied = await checkModule(schoolId, 'attendance');
+  if (moduleDenied) return moduleDenied;
 
   const roleParam = url.searchParams.get('role');
   const roleType =

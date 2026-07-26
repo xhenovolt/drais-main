@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/utils/database';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
 
 function escapeCsv(value: string): string {
@@ -14,6 +15,10 @@ export async function GET(request: NextRequest) {
   const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const schoolId = session.schoolId;
+
+  // Module gate: attendance must be enabled for this school (opt-out policy).
+  const moduleDenied = await checkModule(schoolId, 'attendance');
+  if (moduleDenied) return moduleDenied;
 
   try {
     const { searchParams } = new URL(request.url);
