@@ -173,12 +173,41 @@ function LifecycleControl({ school, act }: { school: any; act: (b: any) => Promi
     if (reason) { const r = prompt('Reason (optional):') || undefined; if (r) body.reason = r; }
     await act(body);
   };
+  const post = (body: any) => fetch(`/api/control-center/schools/${school.id}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  }).then(r => r.json());
+
+  const hardDelete = async () => {
+    const fp = await post({ action: 'footprint' });
+    const f = fp?.footprint || { learners: 0, staff: 0, events: 0, devices: 0 };
+    const typed = prompt(
+      `⚠ PERMANENT DELETE — this ERASES ALL DATA for "${school.name}" ` +
+      `(${f.learners} learners, ${f.staff} staff, ${f.events} attendance events, ${f.devices} devices) ` +
+      `across every table. This CANNOT be undone.\n\nType the school name exactly to confirm:`);
+    if (typed == null) return;
+    const real = f.learners >= 20 || f.staff >= 20 || f.events >= 500;
+    let force = false;
+    if (real) {
+      if (!confirm(`This school holds real data. Are you ABSOLUTELY sure you want to force-permanently-delete it?`)) return;
+      force = true;
+    }
+    const j = await post({ action: 'hard_delete', confirm_name: typed, force });
+    if (j?.success) { alert(`Permanently deleted — ${j.totalRows} rows across ${j.tables} tables.`); window.location.href = '/control/schools'; }
+    else alert(j?.error || 'Delete failed');
+  };
+
   return (
     <Panel title="Lifecycle" icon={<Archive className="w-4 h-4" />}>
       {deleted ? (
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-rose-300">Soft-deleted — hidden from the platform. All data is preserved and can be restored.</span>
-          <button onClick={ask('Restore this school to active?', 'restore')} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium">Restore</button>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-rose-300">Soft-deleted — hidden from the platform. All data is preserved and can be restored.</span>
+            <button onClick={ask('Restore this school to active?', 'restore')} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium">Restore</button>
+          </div>
+          <div className="border-t border-slate-800 pt-3 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-slate-500">Danger zone — permanently erase this school and all its data. Irreversible; type the name to confirm.</span>
+            <button onClick={hardDelete} className="text-xs px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white font-semibold whitespace-nowrap">Permanently delete</button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center gap-2 flex-wrap">

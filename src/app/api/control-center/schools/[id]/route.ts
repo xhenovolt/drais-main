@@ -9,6 +9,7 @@ import { query } from '@/lib/db';
 import { getControlSession, controlAudit, clientIp, canManage } from '@/lib/control/auth';
 import { MODULE_CATALOG, isModuleCode, getSchoolModuleStatus, setSchoolModule } from '@/lib/school-modules';
 import { getPlanByCode, assignPlanToSchool, schoolUsage, usageAgainst } from '@/lib/control/subscriptions';
+import { schoolFootprint, hardDeleteSchool } from '@/lib/control/school-hard-delete';
 
 export const runtime = 'nodejs';
 
@@ -125,6 +126,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await query(`UPDATE schools SET deleted_at = NULL, status = 'active', updated_at = NOW() WHERE id = ?`, [schoolId]);
     await controlAudit(user.id, 'school_restored', `schools:${schoolId}`, null, clientIp(req));
     return NextResponse.json({ success: true, status: 'active' });
+  }
+
+  // ── Permanent (hard) delete — irreversible; heavily guarded ──
+  if (b?.action === 'footprint') {
+    return NextResponse.json({ success: true, footprint: await schoolFootprint(schoolId) });
+  }
+  if (b?.action === 'hard_delete') {
+    const res = await hardDeleteSchool({
+      schoolId, confirmName: String(b.confirm_name || ''), force: b.force === true,
+      operatorId: user.id, ip: clientIp(req),
+    });
+    if (!res.ok) return NextResponse.json({ error: res.reason }, { status: 400 });
+    return NextResponse.json({ success: true, ...res });
   }
 
   // ── Subscription / license management ──

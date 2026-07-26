@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T05:32:39.245Z",
-  "last_commit": "34b47da3052968eeb29478e1aa49a150f697b757",
+  "generated_at": "2026-07-26T05:43:21.764Z",
+  "last_commit": "cc3872cb86217cb928bca0716ee14463a6d80ecd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4590,7 +4590,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.117.0",
+      "date": "2026-07-26",
+      "release_type": "minor",
+      "title": "Guarded permanent (hard) delete for schools",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Guarded permanent (hard) delete for schools"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.116.0"
+  "app_version": "1.117.0"
 }
