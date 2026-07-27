@@ -17,7 +17,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     await archiveEntity({
-      code:      'student',
+      entity:    'student',
       id:        Number(id),
       schoolId:  session.schoolId,
       userId:    session.userId,

@@ -50,25 +50,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   switch (action) {
     case 'suspend': {
-      await query('UPDATE users SET is_active = FALSE WHERE id = ? AND school_id = ?', [targetId, session.schoolId]);
-      await logAudit({ schoolId: session.schoolId, userId: session.userId, action: AuditAction.SUSPENDED_STAFF, entityType: 'user', entityId: targetId });
+      // Temporary hold — account can't sign in, but it's meant to be lifted.
+      await query("UPDATE users SET is_active = FALSE, status = 'suspended' WHERE id = ? AND school_id = ?", [targetId, session.schoolId]);
+      await query('UPDATE sessions SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE', [targetId]);
+      await logAudit({ schoolId: session.schoolId, userId: session.userId, action: AuditAction.SUSPENDED_STAFF, entityType: 'user', entityId: targetId, details: { account_status: 'suspended' } });
       return NextResponse.json({ success: true, message: 'User suspended' });
     }
 
     case 'activate': {
-      await query('UPDATE users SET is_active = TRUE WHERE id = ? AND school_id = ?', [targetId, session.schoolId]);
-      await logAudit({ schoolId: session.schoolId, userId: session.userId, action: AuditAction.ACTIVATED_STAFF, entityType: 'user', entityId: targetId, details: { action: 'activated' } });
+      await query("UPDATE users SET is_active = TRUE, status = 'active' WHERE id = ? AND school_id = ?", [targetId, session.schoolId]);
+      await logAudit({ schoolId: session.schoolId, userId: session.userId, action: AuditAction.ACTIVATED_STAFF, entityType: 'user', entityId: targetId, details: { account_status: 'active' } });
       return NextResponse.json({ success: true, message: 'User activated' });
     }
 
     case 'deactivate': {
-      await query('UPDATE users SET is_active = FALSE WHERE id = ? AND school_id = ?', [targetId, session.schoolId]);
+      // Offboarding — account disabled + all sessions terminated.
+      await query("UPDATE users SET is_active = FALSE, status = 'deactivated' WHERE id = ? AND school_id = ?", [targetId, session.schoolId]);
       // Invalidate all active sessions for this user
       await query(
         'UPDATE sessions SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE',
         [targetId]
       );
-      await logAudit({ schoolId: session.schoolId, userId: session.userId, action: AuditAction.DISABLED_STAFF_ACCOUNT, entityType: 'user', entityId: targetId, details: { action: 'deactivated', sessions_terminated: true } });
+      await logAudit({ schoolId: session.schoolId, userId: session.userId, action: AuditAction.DISABLED_STAFF_ACCOUNT, entityType: 'user', entityId: targetId, details: { account_status: 'deactivated', sessions_terminated: true } });
       return NextResponse.json({ success: true, message: 'User deactivated and sessions terminated' });
     }
 
@@ -112,7 +115,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   try {
     await archiveEntity({
-      code:    'user',
+      entity:  'user',
       id:      targetId,
       schoolId: session.schoolId,
       userId:  session.userId,

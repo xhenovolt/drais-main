@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         COALESCE(u.last_name, '')  AS last_name,
         u.email,
         u.is_active,
+        u.status AS raw_status,
         u.is_verified,
         COALESCE(u.must_change_password, 0) AS must_change_password,
         u.last_login_at,
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
         AND (? = '' OR LOWER(CONCAT(u.first_name, ' ', u.last_name, ' ', u.email)) LIKE LOWER(?))
       GROUP BY
         u.id, u.school_id, u.first_name, u.last_name, u.email,
-        u.is_active, u.is_verified, u.must_change_password,
+        u.is_active, u.status, u.is_verified, u.must_change_password,
         u.last_login_at, u.created_at,
         d.name, d.id,
         mgr_s.first_name, mgr_s.last_name, mgr_p.first_name, mgr_p.last_name,
@@ -92,14 +93,27 @@ export async function GET(request: NextRequest) {
     is_online:   !!u.is_online,
     must_change_password: !!u.must_change_password,
     manager_name: u.manager_name?.trim() || null,
+    // Lifecycle account state (persistent, separate from online): trust the
+    // status column when it holds a real lifecycle value, else derive from
+    // access history (legacy rows where status was never maintained).
+    account_status: (() => {
+      if (u.is_active) return 'active';
+      const s = String(u.raw_status || '').toLowerCase();
+      if (s === 'suspended' || s === 'deactivated' || s === 'pending') return s;
+      return u.last_login_at ? 'deactivated' : 'pending';
+    })(),
   }));
 
   // Client-side-style post-filters (role, department, status) applied server-side
   if (roleFilter)   users = users.filter(u => u.roles.some((r: string) => r.toLowerCase() === roleFilter.toLowerCase()));
   if (deptFilter)   users = users.filter(u => String(u.department_id) === deptFilter);
-  if (statusFilter === 'active')   users = users.filter(u => u.is_active);
-  if (statusFilter === 'inactive') users = users.filter(u => !u.is_active);
-  if (statusFilter === 'online')   users = users.filter(u => u.is_online);
+  if (['active', 'suspended', 'deactivated', 'pending'].includes(statusFilter)) {
+    users = users.filter(u => u.account_status === statusFilter);
+  } else if (statusFilter === 'inactive') {
+    users = users.filter(u => !u.is_active);
+  } else if (statusFilter === 'online') {
+    users = users.filter(u => u.is_online);
+  }
 
   // ── CSV export (P3): standardized, metadata-headed, self-auditing ──────────
   if (searchParams.get('format') === 'csv') {
@@ -110,7 +124,7 @@ export async function GET(request: NextRequest) {
         { key: 'name', label: 'Name', value: (u: any) => [u.first_name, u.last_name].filter(Boolean).join(' ') },
         { key: 'email', label: 'Email' },
         { key: 'roles', label: 'Roles', value: (u: any) => (u.roles || []).join('; ') },
-        { key: 'status', label: 'Account', value: (u: any) => u.is_active ? 'active' : 'inactive' },
+        { key: 'status', label: 'Account', value: (u: any) => u.account_status },
         { key: 'is_verified', label: 'Verified', value: (u: any) => u.is_verified ? 'yes' : 'no' },
         { key: 'is_online', label: 'Online now', value: (u: any) => u.is_online ? 'yes' : 'no' },
         { key: 'last_login_at', label: 'Last login', value: (u: any) => u.last_login_at ? String(u.last_login_at).slice(0, 19).replace('T', ' ') : 'never' },

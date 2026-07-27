@@ -26,6 +26,7 @@ interface UserRow {
   last_name: string;
   email: string;
   is_active: boolean;
+  account_status?: string; // active | suspended | deactivated | pending
   is_verified: boolean;
   is_online: boolean;
   must_change_password: boolean;
@@ -440,8 +441,8 @@ export default function AdminUsersPage() {
     if (q && !`${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(q)) return false;
     if (roleF   && !u.roles.some(r => r.toLowerCase() === roleF.toLowerCase())) return false;
     if (deptF   && String(u.department_id) !== deptF) return false;
-    // ACCOUNT status (persistent) — deliberately separate from ONLINE.
-    const acct = u.is_active ? 'active' : (u.last_login_at ? 'inactive' : 'pending');
+    // ACCOUNT status (persistent lifecycle) — deliberately separate from ONLINE.
+    const acct = (u as any).account_status || (u.is_active ? 'active' : 'deactivated');
     if (statusF && statusF !== acct) return false;
     // ONLINE = a live session right now. An active account is normally OFFLINE.
     if (onlineOnly && !(onlineMap.get(u.id) ?? u.is_online)) return false;
@@ -450,17 +451,19 @@ export default function AdminUsersPage() {
 
   const onlineCount = filtered.filter(u => onlineMap.get(u.id) ?? u.is_online).length;
 
-  // Account-status breakdown across ALL users, kept strictly separate from
+  // Account-lifecycle breakdown across ALL users, kept strictly separate from
   // "online now" (a transient session state, not an account state).
   const stats = (() => {
-    let active = 0, inactive = 0, pending = 0;
+    let active = 0, suspended = 0, deactivated = 0, pending = 0;
     for (const u of users) {
-      if (u.is_active) active++;
-      else if (u.last_login_at) inactive++;   // deactivated: had access, now off
-      else pending++;                          // invited / never activated
+      const s = (u as any).account_status || (u.is_active ? 'active' : 'deactivated');
+      if (s === 'active') active++;
+      else if (s === 'suspended') suspended++;
+      else if (s === 'pending') pending++;
+      else deactivated++;
     }
     return {
-      total: users.length, active, inactive, pending,
+      total: users.length, active, suspended, deactivated, pending,
       online: users.filter(u => onlineMap.get(u.id) ?? u.is_online).length,
     };
   })();
@@ -507,13 +510,14 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* ── Account status vs Online — two SEPARATE axes ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      {/* ── Account lifecycle vs Online — SEPARATE axes ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {([
           { label: 'Total users', value: stats.total, tone: 'text-gray-900 dark:text-white', hint: null },
-          { label: 'Active accounts', value: stats.active, tone: 'text-emerald-600 dark:text-emerald-400', hint: 'can sign in' },
+          { label: 'Active', value: stats.active, tone: 'text-emerald-600 dark:text-emerald-400', hint: 'can sign in' },
           { label: 'Online now', value: stats.online, tone: 'text-sky-600 dark:text-sky-400', hint: 'live session' },
-          { label: 'Inactive', value: stats.inactive, tone: 'text-amber-600 dark:text-amber-400', hint: 'deactivated' },
+          { label: 'Suspended', value: stats.suspended, tone: 'text-orange-600 dark:text-orange-400', hint: 'temporary hold' },
+          { label: 'Deactivated', value: stats.deactivated, tone: 'text-rose-600 dark:text-rose-400', hint: 'offboarded' },
           { label: 'Pending', value: stats.pending, tone: 'text-slate-500', hint: 'never signed in' },
         ] as const).map(s => (
           <div key={s.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2">
@@ -563,7 +567,8 @@ export default function AdminUsersPage() {
             className="appearance-none pl-3 pr-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">All accounts</option>
             <option value="active">Active</option>
-            <option value="inactive">Inactive (deactivated)</option>
+            <option value="suspended">Suspended (temporary)</option>
+            <option value="deactivated">Deactivated (offboarded)</option>
             <option value="pending">Pending (never signed in)</option>
           </select>
           <ChevronDown className="absolute right-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -594,7 +599,7 @@ export default function AdminUsersPage() {
           <thead className="bg-gray-50 dark:bg-gray-800/60">
             <tr>
               {['Name', 'Email', 'Roles', 'Department', 'Manager',
-                'Active', 'Verified', 'Online', 'Device', 'Duration',
+                'Account', 'Verified', 'Online', 'Device', 'Duration',
                 'IP', 'Last Login', 'Joined', ''].map(h => (
                 <th key={h}
                   className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">
@@ -658,12 +663,18 @@ export default function AdminUsersPage() {
                     {user.manager_name || <span className="text-gray-400">—</span>}
                   </td>
 
-                  {/* Active */}
+                  {/* Account status (lifecycle) */}
                   <td className="px-3 py-2.5 text-center">
-                    {user.is_active
-                      ? <span className="w-2 h-2 bg-emerald-500 rounded-full inline-block" title="Active" />
-                      : <span className="w-2 h-2 bg-red-400 rounded-full inline-block" title="Inactive" />
-                    }
+                    {(() => {
+                      const s = user.account_status || (user.is_active ? 'active' : 'deactivated');
+                      const tone: Record<string, string> = {
+                        active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+                        suspended: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+                        deactivated: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+                        pending: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+                      };
+                      return <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${tone[s] || tone.deactivated}`}>{s}</span>;
+                    })()}
                   </td>
 
                   {/* Verified */}

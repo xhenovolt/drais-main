@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T23:03:19.467Z",
-  "last_commit": "a5b065b674d0c1712154d1779345e1516cc9bba5",
+  "generated_at": "2026-07-27T23:15:05.725Z",
+  "last_commit": "6d94664d2d16fda9962f587a159057816433495b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5331,7 +5331,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.148.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Suspended vs deactivated lifecycle states + fix broken archiveEntity soft-delete (P4)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Suspended vs deactivated lifecycle states + fix broken archiveEntity soft-delete (P4)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.147.2"
+  "app_version": "1.148.0"
 }
