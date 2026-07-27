@@ -755,6 +755,7 @@ export default function UnifiedAttendancePage() {
       const exportParams = new URLSearchParams(params);
       exportParams.set('page', '1');
       exportParams.set('limit', String(Math.min(50000, Math.max(pagination.total || 0, 1))));
+      exportParams.set('export', format); // marks this pull as an audited export (P2)
       const r = await fetch(`/api/attendance/history?${exportParams.toString()}`, { cache: 'no-store' });
       const j = await r.json();
       const allRows = (j?.data || []).map((log: any) => log.presentation).filter(Boolean);

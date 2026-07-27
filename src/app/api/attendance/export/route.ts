@@ -4,6 +4,7 @@ import { executeQuery } from '@/utils/database';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 function escapeCsv(value: string): string {
   if (/[",\n]/.test(value)) {
@@ -88,6 +89,15 @@ export async function GET(request: NextRequest) {
         formatter.formatNullable(row.notes),
       ].map((value) => escapeCsv(String(value))).join(','))
     ].join('\n');
+
+    // Accountability (P2): record the class-CSV export.
+    void logAudit({
+      schoolId, userId: (session as any).userId ?? null,
+      action: AuditAction.EXPORTED_ATTENDANCE, entityType: 'attendance',
+      details: { format: 'csv', scope: 'class', class_id: classId, date, rows: data.length },
+      ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || null,
+      userAgent: request.headers.get('user-agent'),
+    });
 
     // Return CSV file
     return new NextResponse(csvContent, {

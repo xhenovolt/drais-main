@@ -7,6 +7,7 @@ import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attend
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
 import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
 import { scoreRecord } from '@/lib/attendance/confidence-scoring';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -295,6 +296,27 @@ export async function GET(req: NextRequest) {
       ...row,
       presentation: AttendancePresentationModel.fromHistoryRow(row, formatter),
     }));
+
+    // Accountability (P2): a data EXPORT is a distinct, auditable event. The
+    // logs page marks an export pull with ?export=csv|excel; we record WHO
+    // exported WHAT scope (dates/tab/device/search) and HOW MANY rows — the
+    // server is authoritative, so this can't be skipped by the client.
+    const exportFormat = url.searchParams.get('export');
+    if (exportFormat) {
+      void logAudit({
+        schoolId,
+        userId: (session as any).userId ?? null,
+        action: AuditAction.EXPORTED_ATTENDANCE,
+        entityType: 'attendance',
+        details: {
+          format: exportFormat, scope: tab,
+          date_from: dateFrom || null, date_to: dateTo || null,
+          device_sn: deviceSn || null, search: search || null, rows: total,
+        },
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+        userAgent: req.headers.get('user-agent'),
+      });
+    }
 
     return NextResponse.json({
       success: true,

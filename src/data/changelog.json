@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T20:31:40.617Z",
-  "last_commit": "57969fd9fc4c3e514ea7a46e07223ef7fbde667e",
+  "generated_at": "2026-07-27T20:41:12.191Z",
+  "last_commit": "19fc8dcf4e23e08918b49772eeb3eb8710a8af7b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5188,7 +5188,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.141.3",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Attendance exports now emit an audit event (P2 — who exported what, when, where)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Attendance exports now emit an audit event (P2 — who exported what, when, where)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.141.2"
+  "app_version": "1.141.3"
 }
