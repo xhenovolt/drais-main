@@ -6,7 +6,7 @@ import {
   Trash2, Archive, RotateCcw, AlertTriangle, Loader2, Search,
   Inbox, X, ShieldAlert,
 } from 'lucide-react';
-import { showToast } from '@/lib/toast';
+import { showToast, confirmAction } from '@/lib/toast';
 
 interface CatalogEntry {
   code:        string;
@@ -86,6 +86,93 @@ export default function TrashPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<TrashRow | null>(null);
 
+  // ── Bulk selection + bulk purge/restore ──────────────────────────────────
+  const rows = data?.items ?? [];
+  const keyOf = (r: { entity: string; id: number }) => `${r.entity}:${r.id}`;
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulk, setBulk] = useState<null | { verb: string; done: number; total: number }>(null);
+  // Reset selection whenever the visible slice changes (keys would go stale).
+  useEffect(() => { setSelected(new Set()); }, [entity, page, search]);
+
+  const allChecked = rows.length > 0 && rows.every(r => selected.has(keyOf(r)));
+  const toggleAll = () => setSelected(allChecked ? new Set() : new Set(rows.map(keyOf)));
+  const toggleOne = (r: TrashRow) => setSelected(prev => {
+    const n = new Set(prev); const k = keyOf(r); n.has(k) ? n.delete(k) : n.add(k); return n;
+  });
+
+  // Fetch EVERY trashed row (all pages) for a category or the whole bin.
+  const fetchAllRows = useCallback(async (entityFilter: string | null): Promise<TrashRow[]> => {
+    const out: TrashRow[] = [];
+    for (let p = 1; p <= 500; p++) {
+      const sp = new URLSearchParams();
+      if (entityFilter) sp.set('entity', entityFilter);
+      sp.set('page', String(p)); sp.set('limit', '200');
+      const res = await fetch(`/api/admin/trash?${sp}`, { credentials: 'same-origin' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      const items: TrashRow[] = json.items ?? [];
+      out.push(...items);
+      if (items.length === 0 || out.length >= (json.total ?? 0)) break;
+    }
+    return out;
+  }, []);
+
+  // One purge per row (reuses the dependency-gated endpoint), chunked with
+  // progress. Blocked (dependency) rows are counted + reported, never dropped.
+  const bulkPurge = useCallback(async (targets: TrashRow[], noun: string) => {
+    if (targets.length === 0) return;
+    const ok = await confirmAction(
+      '⚠️ Permanently delete',
+      `Permanently delete ${targets.length} ${noun}? This CANNOT be undone. Items with blocking dependencies are skipped.`,
+      'Delete Forever',
+    );
+    if (!ok) return;
+    setBulk({ verb: 'Purging', done: 0, total: targets.length });
+    let purged = 0, blocked = 0, failed = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const r = targets[i];
+      try {
+        const res = await fetch('/api/admin/trash/purge', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entity: r.entity, id: r.id, confirmation: true }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok) purged++;
+        else if (json?.code === 'DEPENDENCIES_PRESENT') blocked++;
+        else failed++;
+      } catch { failed++; }
+      setBulk({ verb: 'Purging', done: i + 1, total: targets.length });
+    }
+    setBulk(null); setSelected(new Set());
+    showToast(blocked || failed ? 'warning' : 'success',
+      `Purged ${purged}${blocked ? `, ${blocked} blocked by dependencies` : ''}${failed ? `, ${failed} failed` : ''}`);
+    mutate();
+  }, [mutate]);
+
+  const bulkRestore = useCallback(async (targets: TrashRow[]) => {
+    if (targets.length === 0) return;
+    setBulk({ verb: 'Restoring', done: 0, total: targets.length });
+    let ok = 0, failed = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const r = targets[i];
+      try {
+        const res = await fetch('/api/admin/trash/restore', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entity: r.entity, id: r.id }),
+        });
+        if (res.ok) ok++; else failed++;
+      } catch { failed++; }
+      setBulk({ verb: 'Restoring', done: i + 1, total: targets.length });
+    }
+    setBulk(null); setSelected(new Set());
+    showToast(failed ? 'warning' : 'success', `Restored ${ok}${failed ? `, ${failed} failed` : ''}`);
+    mutate();
+  }, [mutate]);
+
+  const selectedRows = () => rows.filter(r => selected.has(keyOf(r)));
+  const purgeCategory = async () => bulkPurge(await fetchAllRows(entity), entity ? `${entity} item(s)` : 'item(s)');
+  const purgeEverything = async () => bulkPurge(await fetchAllRows(null), 'items across ALL categories');
+
   async function handleRestore(row: TrashRow) {
     const key = `${row.entity}:${row.id}`;
     setBusyId(key);
@@ -149,6 +236,45 @@ export default function TrashPage() {
         />
       </div>
 
+      {/* Bulk actions */}
+      {data && (data.items?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {bulk ? (
+            <span className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <Loader2 className="w-4 h-4 animate-spin" /> {bulk.verb} {bulk.done}/{bulk.total}…
+            </span>
+          ) : (
+            <>
+              {selected.size > 0 && (
+                <>
+                  <span className="text-xs text-slate-500">{selected.size} selected</span>
+                  <button
+                    onClick={() => bulkRestore(selectedRows())}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                  ><RotateCcw className="w-3.5 h-3.5" /> Restore selected</button>
+                  <button
+                    onClick={() => bulkPurge(selectedRows(), 'selected item(s)')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded bg-rose-600 text-white hover:bg-rose-700"
+                  ><Trash2 className="w-3.5 h-3.5" /> Purge selected ({selected.size})</button>
+                  <span className="mx-1 h-4 w-px bg-slate-300 dark:bg-slate-600" />
+                </>
+              )}
+              {entity ? (
+                <button
+                  onClick={purgeCategory}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded border border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                ><Trash2 className="w-3.5 h-3.5" /> Purge all {data.catalog?.find(c => c.code === entity)?.pluralLabel ?? 'items'} ({data.total})</button>
+              ) : (
+                <button
+                  onClick={purgeEverything}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded bg-rose-700 text-white hover:bg-rose-800"
+                ><ShieldAlert className="w-3.5 h-3.5" /> Purge everything ({data.total})</button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {error && (() => {
         const status = (error as any)?.status as number | undefined;
         const message = error instanceof Error ? error.message : 'Failed to load trash';
@@ -196,6 +322,9 @@ export default function TrashPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800 text-left text-xs uppercase tracking-wider text-slate-500">
                 <tr>
+                  <th className="px-3 py-2 w-8">
+                    <input type="checkbox" checked={allChecked} onChange={toggleAll} aria-label="Select all on this page" />
+                  </th>
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2">Archived on</th>
@@ -208,7 +337,10 @@ export default function TrashPage() {
                 {data.items.map(row => {
                   const key = `${row.entity}:${row.id}`;
                   return (
-                    <tr key={key} className="border-t border-slate-200 dark:border-slate-700">
+                    <tr key={key} className={`border-t border-slate-200 dark:border-slate-700 ${selected.has(key) ? 'bg-rose-50/40 dark:bg-rose-950/20' : ''}`}>
+                      <td className="px-3 py-2">
+                        <input type="checkbox" checked={selected.has(key)} onChange={() => toggleOne(row)} aria-label={`Select ${row.label}`} />
+                      </td>
                       <td className="px-3 py-2">
                         <div className="font-medium">{row.label}</div>
                         {row.subtitle && (

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T19:14:20.943Z",
-  "last_commit": "faa81ace4ed4d50c97748520795301d8d85c2f96",
+  "generated_at": "2026-07-27T19:27:04.345Z",
+  "last_commit": "25f872e9a74ad3de6546ac5ccb98c0a4b8cfc3b1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5136,7 +5136,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.140.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Bulk select + Purge Selected / Purge Category / Purge Everything (and bulk Restore)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Bulk select + Purge Selected / Purge Category / Purge Everything (and bulk Restore)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.139.0"
+  "app_version": "1.140.0"
 }
