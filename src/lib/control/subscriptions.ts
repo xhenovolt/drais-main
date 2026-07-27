@@ -12,6 +12,7 @@
  */
 import { query } from '@/lib/db';
 import { controlAudit } from '@/lib/control/auth';
+import { getSetting, setSetting } from '@/lib/control/platform-settings';
 
 export interface PlanLimits {
   learners?: number | null; staff?: number | null; devices?: number | null;
@@ -118,15 +119,27 @@ export function ensureSubscriptionPlansSchema(): Promise<void> {
     ]) {
       await query(`ALTER TABLE subscription_plans ${ddl}`, []).catch(() => {});
     }
-    // Seed presets once (INSERT IGNORE keeps operator edits on re-run).
-    for (const p of PRESETS) {
-      await query(
-        `INSERT IGNORE INTO subscription_plans
-           (code, name, tier, limits, features, is_active, price, installation_fee, currency, billing_cycle, installments, deliverables)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
-        [p.code, p.name, p.tier, JSON.stringify(p.limits), JSON.stringify(p.features),
-         p.price, p.installation_fee, p.currency, p.billing_cycle, p.installments, JSON.stringify(p.deliverables)],
-      ).catch(() => {});
+    // Seed presets ONLY on first-ever bootstrap. Serverless re-runs this ensure
+    // on every cold start; an unconditional INSERT IGNORE would resurrect any
+    // preset an operator deleted (the "Starter keeps coming back" bug). Once the
+    // catalog exists, the operator owns it — deletions must stick.
+    const seeded = await getSetting('plans_seeded').catch(() => null);
+    if (!seeded) {
+      const existing = (await query(`SELECT COUNT(*) AS n FROM subscription_plans`, []).catch(() => [{ n: 0 }])) as any[];
+      // Only seed when the table is genuinely empty. A non-empty table means the
+      // platform is already bootstrapped (existing installs) — just mark it.
+      if (Number(existing[0]?.n || 0) === 0) {
+        for (const p of PRESETS) {
+          await query(
+            `INSERT IGNORE INTO subscription_plans
+               (code, name, tier, limits, features, is_active, price, installation_fee, currency, billing_cycle, installments, deliverables)
+             VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+            [p.code, p.name, p.tier, JSON.stringify(p.limits), JSON.stringify(p.features),
+             p.price, p.installation_fee, p.currency, p.billing_cycle, p.installments, JSON.stringify(p.deliverables)],
+          ).catch(() => {});
+        }
+      }
+      await setSetting('plans_seeded', '1').catch(() => {});
     }
   })();
   return ensured;

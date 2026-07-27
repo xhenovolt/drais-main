@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T03:08:11.464Z",
-  "last_commit": "32d18899ae1089b4cda5b0408ac6b957213f2f72",
+  "generated_at": "2026-07-27T03:17:51.391Z",
+  "last_commit": "2404bb24fe0e4594d964e90bea167d2409110df9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4980,7 +4980,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.135.1",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Deleted plans no longer resurrect on cold start; lead plan cards with the installation fee",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Deleted plans no longer resurrect on cold start; lead plan cards with the installation fee"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.135.0"
+  "app_version": "1.135.1"
 }
