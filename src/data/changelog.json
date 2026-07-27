@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T18:01:56.598Z",
-  "last_commit": "b61d96a9f22f0a64cdd18cea0d8b91ab0d053748",
+  "generated_at": "2026-07-27T18:45:51.955Z",
+  "last_commit": "06d6a6a68b3038b03417cb221756f5780c873aee",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5097,7 +5097,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.138.1",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Guarantee Delete Forever physically removes the row (atomic + verified)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Guarantee Delete Forever physically removes the row (atomic + verified)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.138.0"
+  "app_version": "1.138.1"
 }

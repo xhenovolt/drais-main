@@ -22,7 +22,7 @@ export async function DELETE(req: NextRequest) {
   let id: number;
   try {
     const body = await req.json();
-    id = parseInt(String(body.id, 10), 10);
+    id = parseInt(String(body.id), 10);
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -48,29 +48,63 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Cascade delete child tables in FK order
-    await conn.execute('DELETE FROM student_ledger        WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM finance_payments      WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM fee_assignment_log    WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_fee_items     WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM fee_invoices          WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM fee_payments          WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM enrollment_programs   WHERE enrollment_id IN (SELECT id FROM enrollments WHERE student_id = ?)', [id]);
-    await conn.execute('DELETE FROM enrollments           WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_contacts      WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_documents     WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_fingerprints  WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_profiles      WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_parents       WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_requirements  WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_additional_info WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM student_history       WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM device_user_mappings  WHERE user_id = ? AND user_type = "student"', [id]);
-    await conn.execute('DELETE FROM fingerprints          WHERE student_id = ?', [id]);
-    await conn.execute('DELETE FROM students              WHERE id = ? AND school_id = ?', [id, schoolId]);
+    // Atomic hard-delete: child rows + the student row, all-or-nothing, so a
+    // half-run can never leave a stranded/undeleted student. This is a REAL
+    // `DELETE FROM students` (physical row removal), never a soft-delete.
+    await conn.beginTransaction();
 
-    return NextResponse.json({ success: true, message: 'Student permanently deleted.' });
+    // Child-table deletes are TOLERANT of plumbing differences: a table that
+    // doesn't exist (or a renamed column) for a given deployment must never
+    // block the actual student-row removal. Any OTHER error still aborts.
+    const delChild = async (sql: string) => {
+      try {
+        await conn.execute(sql, [id]);
+      } catch (e: any) {
+        if (e?.errno === 1146 /* no such table */ || e?.errno === 1054 /* unknown column */) return;
+        throw e;
+      }
+    };
+
+    for (const sql of [
+      'DELETE FROM student_ledger          WHERE student_id = ?',
+      'DELETE FROM finance_payments        WHERE student_id = ?',
+      'DELETE FROM fee_assignment_log      WHERE student_id = ?',
+      'DELETE FROM student_fee_items       WHERE student_id = ?',
+      'DELETE FROM fee_invoices            WHERE student_id = ?',
+      'DELETE FROM fee_payments            WHERE student_id = ?',
+      'DELETE FROM learner_fees            WHERE student_id = ?',
+      'DELETE FROM student_attendance      WHERE student_id = ?',
+      'DELETE FROM results                 WHERE student_id = ?',
+      'DELETE FROM enrollment_programs     WHERE enrollment_id IN (SELECT id FROM enrollments WHERE student_id = ?)',
+      'DELETE FROM enrollments             WHERE student_id = ?',
+      'DELETE FROM student_contacts        WHERE student_id = ?',
+      'DELETE FROM student_documents       WHERE student_id = ?',
+      'DELETE FROM student_fingerprints    WHERE student_id = ?',
+      'DELETE FROM student_profiles        WHERE student_id = ?',
+      'DELETE FROM student_parents         WHERE student_id = ?',
+      'DELETE FROM student_requirements    WHERE student_id = ?',
+      'DELETE FROM student_additional_info WHERE student_id = ?',
+      'DELETE FROM student_history         WHERE student_id = ?',
+      'DELETE FROM device_user_mappings    WHERE user_id = ? AND user_type = "student"',
+      'DELETE FROM fingerprints            WHERE student_id = ?',
+    ]) {
+      await delChild(sql);
+    }
+
+    // The row removal itself MUST succeed and MUST affect a row.
+    const [res]: any = await conn.execute(
+      'DELETE FROM students WHERE id = ? AND school_id = ?',
+      [id, schoolId],
+    );
+    if (!res || Number(res.affectedRows) < 1) {
+      await conn.rollback();
+      return NextResponse.json({ error: 'Row was not removed — nothing deleted' }, { status: 500 });
+    }
+
+    await conn.commit();
+    return NextResponse.json({ success: true, message: 'Student permanently deleted.', affectedRows: Number(res.affectedRows) });
   } catch (error: any) {
+    try { await conn.rollback(); } catch { /* ignore */ }
     console.error('Permanent delete error:', error);
     return NextResponse.json({ error: 'Failed to permanently delete student', detail: error.message }, { status: 500 });
   } finally {
