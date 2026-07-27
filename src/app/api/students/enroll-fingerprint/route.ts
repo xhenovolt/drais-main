@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { allocatePin, PinExhaustedError } from '@/lib/biometric/pin-allocator';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { setCaptureStatusByPin } from '@/lib/biometric/enrollment-service';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -148,6 +149,15 @@ export async function POST(req: NextRequest) {
     }
 
     const safeName = zkName(studentRows[0].first_name, studentRows[0].last_name);
+
+    // Accountability (P2): biometric enrollment is a sensitive change — record it.
+    void logAudit({
+      schoolId: session.schoolId, userId: (session as any).userId ?? null,
+      action: AuditAction.BIOMETRIC_ENROLLED, entityType: 'student', entityId: Number(student_id),
+      details: { device_sn, student_name: safeName },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    });
 
     // ── 3. Check existing zk_user_mapping for this student + device ──
     const mappingRows = await query(

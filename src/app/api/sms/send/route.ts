@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendSMS, logSMSActivity } from '@/lib/africastalking';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getCommSettings } from '@/lib/comm/settings';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,6 +61,21 @@ export async function POST(req: NextRequest) {
       recipient_name,
       smsResult.messageId
     );
+
+    // Accountability (P2) + usage foundation (P5): who sent what, to whom, how
+    // many segments, at what cost.
+    void logAudit({
+      schoolId: session.schoolId, userId: (session as any).userId ?? null,
+      action: AuditAction.SMS_SENT, entityType: 'sms',
+      details: {
+        recipient: phone, recipient_name: recipient_name || null,
+        segments: Math.max(1, Math.ceil((message?.length || 0) / 160)),
+        length: message?.length || 0, success: smsResult.success,
+        message_id: smsResult.messageId || null, cost: smsResult.cost ?? null,
+      },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    });
 
     if (smsResult.success) {
       return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 import { 
   parseDahuaRawData, 
   generateMockDahuaData,
@@ -146,6 +147,15 @@ export async function POST(req: NextRequest) {
         sync_interval_minutes, late_threshold_minutes
       ]
     );
+
+    // Accountability (P2): record the device registration.
+    void logAudit({
+      schoolId, userId: (session as any).userId ?? null,
+      action: AuditAction.DEVICE_REGISTERED, entityType: 'device', entityId: (result as any).insertId,
+      details: { device_name, device_code: device_code || null, ip_address, device_type },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    });
 
     return NextResponse.json({
       success: true,
