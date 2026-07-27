@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
  * POST /api/students/restore — bring soft-deleted learner(s) back from Trash.
@@ -37,6 +38,13 @@ export async function POST(req: NextRequest) {
         WHERE school_id = ? AND deleted_at IS NOT NULL AND id IN (${placeholders})`,
       [userId ?? null, schoolId, ...ids],
     );
+    void logAudit({
+      schoolId, userId: userId ?? null, action: AuditAction.RESTORED_STUDENT,
+      entityType: 'student', entityId: ids.length === 1 ? ids[0] : null,
+      details: { ids, restored: res.affectedRows ?? 0 },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    });
     return NextResponse.json({ success: true, restored: res.affectedRows ?? 0 });
   } catch (error: any) {
     console.error('Restore error:', error);

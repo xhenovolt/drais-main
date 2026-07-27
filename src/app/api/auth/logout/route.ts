@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 const SESSION_COOKIE_NAME = 'drais_session';
 
@@ -14,10 +15,22 @@ export async function POST(request: NextRequest) {
     // Invalidate session in database if token exists
     if (sessionToken) {
       try {
+        // Resolve the actor BEFORE invalidating, so logout is attributable (P2).
+        const who = (await query(
+          `SELECT user_id, school_id FROM sessions WHERE session_token = ? LIMIT 1`, [sessionToken],
+        ).catch(() => [])) as any[];
         await query(
           `UPDATE sessions SET is_active = FALSE, updated_at = NOW() WHERE session_token = ?`,
           [sessionToken]
         );
+        if (who[0]?.user_id) {
+          void logAudit({
+            schoolId: Number(who[0].school_id) || 0, userId: Number(who[0].user_id),
+            action: AuditAction.LOGOUT, entityType: 'user', entityId: Number(who[0].user_id),
+            ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || null,
+            userAgent: request.headers.get('user-agent'),
+          });
+        }
       } catch (dbError) {
         // Log but don't fail - we still want to clear the cookie
         console.error('Failed to invalidate session in database:', dbError);

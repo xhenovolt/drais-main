@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { query } from '@/lib/db';
+import { logAudit, AuditAction } from '@/lib/audit';
 import { getSubscriptionInfo } from '@/lib/subscription';
 import { randomBytes } from 'crypto';
 
@@ -128,10 +129,18 @@ export async function POST(request: NextRequest) {
         [user.id]
       ).catch(() => {}); // Don't fail if this fails
 
+      // Accountability (P2): record the failed sign-in with the actor + origin.
+      void logAudit({
+        schoolId: Number(user.schoolId) || 0, userId: user.id,
+        action: AuditAction.LOGIN_FAILED, entityType: 'user', entityId: user.id,
+        details: { email: String(email).toLowerCase(), reason: 'bad_password' },
+        ip: getClientIp(request), userAgent: request.headers.get('user-agent'),
+      });
+
       return NextResponse.json(
-        { 
-          success: false, 
-          error: { 
+        {
+          success: false,
+          error: {
             message: 'Invalid email or password',
             code: 'INVALID_CREDENTIALS'
           }
@@ -220,6 +229,14 @@ export async function POST(request: NextRequest) {
       `UPDATE users SET last_login_at = NOW(), failed_login_attempts = 0 WHERE id = ?`,
       [user.id]
     ).catch(() => {}); // Don't fail if this fails
+
+    // Accountability (P2): record the successful sign-in.
+    void logAudit({
+      schoolId: Number(user.schoolId) || 0, userId: user.id,
+      action: AuditAction.LOGIN, entityType: 'user', entityId: user.id,
+      details: { email: String(email).toLowerCase() },
+      ip: ipAddress, userAgent,
+    });
 
     // Get user roles and permissions
     const roles = await query(

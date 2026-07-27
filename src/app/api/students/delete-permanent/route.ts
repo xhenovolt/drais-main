@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
  * DELETE /api/students/delete-permanent
@@ -102,6 +103,13 @@ export async function DELETE(req: NextRequest) {
     }
 
     await conn.commit();
+    void logAudit({
+      schoolId, userId: (session as any).userId ?? null, action: AuditAction.PURGED_STUDENT,
+      entityType: 'student', entityId: id,
+      details: { hard_delete: true },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    });
     return NextResponse.json({ success: true, message: 'Student permanently deleted.', affectedRows: Number(res.affectedRows) });
   } catch (error: any) {
     try { await conn.rollback(); } catch { /* ignore */ }

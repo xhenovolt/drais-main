@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T20:41:12.191Z",
-  "last_commit": "19fc8dcf4e23e08918b49772eeb3eb8710a8af7b",
+  "generated_at": "2026-07-27T20:46:10.783Z",
+  "last_commit": "d74e6669bf165028262feb5bfa873b10fa0263f0",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5201,7 +5201,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.141.4",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Auth events (login/logout/failed) + student restore/purge now audited (P2)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Auth events (login/logout/failed) + student restore/purge now audited (P2)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.141.3"
+  "app_version": "1.141.4"
 }
