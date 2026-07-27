@@ -96,12 +96,18 @@ export async function GET(req: NextRequest) {
     // matched with that role. Unmatched/NULL-role punches belong solely to
     // the Unmatched tab (the old COALESCE defaults dumped every unmatched
     // punch into Learners AND counted it under Staff).
+    //
+    // The tab clause is kept SEPARATE from the base filters (dates, device,
+    // search, …) so the tab-count badges can be computed under the same base
+    // filters WITHOUT the tab selector — otherwise a badge would advertise
+    // e.g. 172 all-time unmatched while the filtered list shows none.
+    let tabWhere = '';
     if (tab === 'learners' || userType === 'student') {
-      conditions.push("ar.role_type = 'student' AND ar.matched = 1");
+      tabWhere = "ar.role_type = 'student' AND ar.matched = 1";
     } else if (tab === 'staff' || userType === 'staff') {
-      conditions.push("ar.role_type = 'staff' AND ar.matched = 1");
+      tabWhere = "ar.role_type = 'staff' AND ar.matched = 1";
     } else if (tab === 'unmatched') {
-      conditions.push('(ar.matched = 0 OR ar.person_id IS NULL)');
+      tabWhere = '(ar.matched = 0 OR ar.person_id IS NULL)';
     }
     if (search) {
       // LOWER() on both sides → case-insensitive regardless of column collation
@@ -140,7 +146,10 @@ export async function GET(req: NextRequest) {
       conditions.push(`ar.derived_event IN ('ARRIVED','ARRIVED_EARLY')`);
     }
 
-    const where = conditions.join(' AND ');
+    // Base filters (everything except the tab selector) drive the badge counts;
+    // the list + its total also apply the tab clause on top.
+    const baseWhere = conditions.join(' AND ');
+    const where = tabWhere ? `${baseWhere} AND ${tabWhere}` : baseWhere;
 
     // Sortable columns (datatable-style header arrows). Whitelisted only —
     // never interpolate user input into ORDER BY.
@@ -182,8 +191,8 @@ export async function GET(req: NextRequest) {
          ON dud.school_id = ar.school_id
         AND dud.device_sn = ar.device_sn
         AND dud.device_user_id = CAST(ar.device_user_id AS CHAR)
-       WHERE ar.school_id = ?`,
-      [schoolId],
+       WHERE ${baseWhere}`,
+      params,
     );
 
     const rows = await query(

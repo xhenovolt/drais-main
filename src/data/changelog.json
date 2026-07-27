@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-26T21:36:55.881Z",
-  "last_commit": "d0a154efff83433d4686762726a0d9b4a2b3f602",
+  "generated_at": "2026-07-27T02:30:59.134Z",
+  "last_commit": "cc0cac30b88f60349cb0d4b09f5f8ad71b7490c8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4928,7 +4928,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.134.1",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Tab-count badges now honor active filters (unmatched no longer shows a phantom count)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Tab-count badges now honor active filters (unmatched no longer shows a phantom count)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.134.0"
+  "app_version": "1.134.1"
 }
