@@ -11,7 +11,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Users, RefreshCw, Search, ChevronDown, Shield, X,
   MoreVertical, Power, Trash2, Lock, UserCheck, UserX,
-  Monitor, Smartphone, Wifi, WifiOff, Copy, Check, UserPlus, Loader2,
+  Monitor, Smartphone, Wifi, WifiOff, Copy, Check, UserPlus, Loader2, Download,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { apiFetch } from '@/lib/apiClient';
@@ -486,6 +486,18 @@ export default function AdminUsersPage() {
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
             <UserPlus className="w-4 h-4" />
             Add User
+          </button>
+          <button
+            onClick={() => {
+              const p = new URLSearchParams({ format: 'csv' });
+              if (search) p.set('search', search);
+              if (roleF) p.set('role', roleF);
+              if (statusF) p.set('status', statusF);
+              window.open(`/api/admin/users?${p}`, '_blank');
+            }}
+            title="Export the current view to CSV (audited)"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+            <Download className="w-4 h-4" /> Export
           </button>
           <button onClick={fetchUsers} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">

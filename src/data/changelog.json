@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T22:58:23.755Z",
-  "last_commit": "f58fa6bb9bc0368c1e09db6651411d6b850aed8a",
+  "generated_at": "2026-07-27T23:01:38.900Z",
+  "last_commit": "3565bad3b646c9a18639959bb82651c47e56820f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5305,7 +5305,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.147.1",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Staff/users Export buttons + audit device-logs export (P3 complete)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Staff/users Export buttons + audit device-logs export (P3 complete)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.147.0"
+  "app_version": "1.147.1"
 }

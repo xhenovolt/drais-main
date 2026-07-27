@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 import { checkModule } from '@/lib/auth/requireModule';
 
 /**
@@ -235,6 +236,15 @@ export async function POST(req: NextRequest) {
         ];
         csvRows.push(row.map(v => `"${v || ''}"`).join(','));
       }
+
+      // Accountability (P2/P3): audit the device-logs export.
+      void logAudit({
+        schoolId, userId: (session as any).userId ?? null,
+        action: AuditAction.EXPORTED_DEVICE_LOGS, entityType: 'device',
+        details: { rows: (logs as any[]).length },
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+        userAgent: req.headers.get('user-agent'),
+      });
 
       return new NextResponse(csvRows.join('\n'), {
         headers: {

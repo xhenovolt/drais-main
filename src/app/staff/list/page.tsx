@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2, Wifi, Fingerprint } from 'lucide-react';
+import { Search, Filter, Plus, Users, Mail, Phone, Edit, Trash2, MoreVertical, Loader2, Wifi, Fingerprint, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { useRouter } from 'next/navigation';
@@ -223,6 +223,17 @@ const StaffListPage: React.FC = () => {
           >
             <Wifi className="w-5 h-5" />
             Sync Device
+          </button>
+          <button
+            onClick={() => {
+              const p = new URLSearchParams({ format: 'csv' });
+              if (searchQuery.trim()) p.set('search', searchQuery.trim());
+              window.open(`/api/staff?${p}`, '_blank');
+            }}
+            title="Export the staff list to CSV (audited)"
+            className="rounded-lg px-4 py-3 flex items-center gap-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <Download className="w-5 h-5" /> Export
           </button>
           <button
             onClick={() => setShowAddModal(true)}
