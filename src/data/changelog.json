@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T02:30:59.134Z",
-  "last_commit": "cc0cac30b88f60349cb0d4b09f5f8ad71b7490c8",
+  "generated_at": "2026-07-27T02:36:22.568Z",
+  "last_commit": "755ecb440574ebdf39ac0bc13492d1f0995eda0c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4941,7 +4941,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.134.2",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Quick date ranges no longer shift back a day in EAT (Today showed yesterday)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Quick date ranges no longer shift back a day in EAT (Today showed yesterday)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.134.1"
+  "app_version": "1.134.2"
 }

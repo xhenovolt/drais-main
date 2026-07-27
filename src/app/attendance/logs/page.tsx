@@ -130,7 +130,11 @@ const fetcher2 = (url: string) => fetch(url).then(r => r.json());
 /** School-local quick date ranges (browser tz == school tz for on-site
  *  operators; the API converts through the school-configured offset). */
 function quickRange(kind: string): { from: string; to: string } {
-  const d = (x: Date) => x.toISOString().slice(0, 10);
+  // Format from LOCAL calendar components — NOT toISOString(), which converts
+  // to UTC and rolls a local-midnight Date back a day for any tz east of UTC
+  // (e.g. EAT +03:00 turned "today" into yesterday for on-site operators).
+  const d = (x: Date) =>
+    `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const shift = (base: Date, days: number) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
