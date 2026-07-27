@@ -15,10 +15,10 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { $getRoot, $getSelection } from 'lexical';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart as RechartsPieChart, Cell, LineChart, Line } from 'recharts';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// jspdf + html2canvas are dynamically imported inside the export handlers
+// (below) to keep these heavy libs out of the eager build/client graph.
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
+// xlsx dynamically imported inside exportToExcel (below).
 import ModuleIntroCard from '@/components/onboarding/ModuleIntroCard';
 import HelpButton from '@/components/onboarding/HelpButton';
 
@@ -230,6 +230,8 @@ const ReportsPage: React.FC = () => {
         setIsExporting(false);
         return;
       }
+      const html2canvas = (await import('html2canvas')).default;
+      const { default: jsPDF } = await import('jspdf');
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -249,9 +251,10 @@ const ReportsPage: React.FC = () => {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!reportData) return;
 
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
     
     // Students sheet

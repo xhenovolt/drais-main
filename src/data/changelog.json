@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T08:51:18.609Z",
-  "last_commit": "c5ede65ac21853942c247720675b5b0ed0f56b9c",
+  "generated_at": "2026-07-27T09:17:20.828Z",
+  "last_commit": "39dc97f0d43008dd15a8ce18c7aeeaad656b8120",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5058,7 +5058,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.137.4",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Lazy-load xlsx/jspdf/html2canvas so they leave the eager client bundles",
+      "changes": [
+        {
+          "category": "PERFORMANCE",
+          "description": "Lazy-load xlsx/jspdf/html2canvas so they leave the eager client bundles"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.137.3"
+  "app_version": "1.137.4"
 }

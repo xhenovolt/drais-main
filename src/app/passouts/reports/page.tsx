@@ -2,7 +2,7 @@
 
 /** Pass-out & visitation reports — tabbed datasets with Excel + PDF export. */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
+// xlsx dynamically imported in exportExcel (below) — keeps it out of the eager graph.
 import { BarChart3, Loader2, Download, Printer } from 'lucide-react';
 
 const TABS: { key: string; label: string }[] = [
@@ -29,8 +29,9 @@ export default function PassoutReportsPage() {
 
   const label = useMemo(() => TABS.find((t) => t.key === tab)?.label || tab, [tab]);
 
-  const exportExcel = useCallback(() => {
+  const exportExcel = useCallback(async () => {
     if (!data?.rows.length) return;
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(data.rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, label.slice(0, 28));

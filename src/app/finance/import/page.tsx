@@ -7,7 +7,7 @@
  * through /api/finance/import/* (canonical payment path).
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
+// xlsx dynamically imported in the file reader (below) — keeps it out of the eager graph.
 import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 
@@ -61,8 +61,9 @@ export default function FinanceImportPage() {
   const onFile = useCallback((file: File) => {
     setError(null);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        const XLSX = await import('xlsx');
         const wb = XLSX.read(e.target?.result, { type: 'binary' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: '' });

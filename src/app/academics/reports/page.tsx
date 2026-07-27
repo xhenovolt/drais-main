@@ -3,9 +3,8 @@
 import React, { useEffect, useMemo, useState, createContext, useContext, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image'; // kept for possible legacy use
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
+// html2canvas + jspdf + xlsx are dynamically imported inside the export
+// handlers below, to keep these heavy libs out of the eager build/client graph.
 import PromotionSummaryNotification from '@/components/academics/PromotionSummaryNotification';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
@@ -1138,6 +1137,8 @@ const ReportsPage = () => {
     }
 
     try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
       // Use html2canvas to capture the report area
       const canvas = await html2canvas(reportArea, {
         scale: 3, // Increase scale for high-resolution rendering
@@ -1164,8 +1165,9 @@ const ReportsPage = () => {
   };
 
   // Export reports to Excel
-  const exportToExcel = (): void => {
+  const exportToExcel = async (): Promise<void> => {
     const currentInitials = hydrateTeacherInitialsFromDom();
+    const XLSX = await import('xlsx');
     const workbook = XLSX.utils.book_new();
     Object.values(classGroupsWithPositions).forEach((classGroup: ClassGroup) => {
       const worksheetData: (string | number)[][] = [

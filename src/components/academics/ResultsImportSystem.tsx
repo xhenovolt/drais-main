@@ -4,7 +4,7 @@ import { Upload, FileText, AlertCircle, CheckCircle, Download, Eye, ArrowRight, 
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Progress } from '@/components/ui/loading/Progress';
-import * as XLSX from 'xlsx';
+// xlsx dynamically imported where used (below) — keeps it out of the eager graph.
 import { EntityTypeahead, type TypeaheadOption } from './EntityTypeahead';
 import { toast } from 'react-hot-toast';
 
@@ -183,6 +183,7 @@ export default function ResultsImportSystem() {
       let rows: any[][] = [];
 
       if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
+        const XLSX = await import('xlsx');
         const workbook = XLSX.read(arrayBuffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
@@ -341,7 +342,8 @@ export default function ResultsImportSystem() {
     }
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await import('xlsx');
     const headers = ['Student No', 'First Name', 'Last Name'];
     subjects.slice(0, 5).forEach(subject => {
       headers.push(subject.name);

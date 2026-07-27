@@ -18,7 +18,7 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { fetcher } from '@/utils/fetcher';
-import jsPDF from 'jspdf';
+// jspdf dynamically imported in handlePrint (below) — keeps it out of the eager graph.
 import autoTable from 'jspdf-autotable';
 import { motion, AnimatePresence } from 'framer-motion';
 import PhotoEditorModal from './PhotoEditorModal'; // <-- new import
@@ -1156,6 +1156,7 @@ export const StudentTable: React.FC = () => {
         return;
       }
 
+      const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF('landscape', 'mm', 'a4');
       
       // Add header

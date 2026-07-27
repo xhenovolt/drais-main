@@ -4,9 +4,9 @@ import { Dialog, Transition, Listbox, Tab } from '@headlessui/react';
 import { X, ChevronsUpDown, Check, Loader2, Save, Table, RefreshCw, Edit3 } from 'lucide-react';
 import { useTranslation } from 'next-i18next';
 import { createPortal } from 'react-dom';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
+// jspdf + xlsx are dynamically imported inside the export handlers below to
+// keep these heavy libs out of the eager build/client graph. (html2canvas was
+// imported but unused — removed.)
 import { toast } from 'react-hot-toast';
 
 const API_BASE = '/api';
@@ -983,6 +983,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
 
   // Export to PDF
   const exportToPDF = async (scope: 'learner' | 'class' | 'school', data: any[]) => {
+    const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF('l', 'pt');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -1067,7 +1068,8 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
   };
 
   // Export to Excel
-  const exportToExcel = (scope: 'learner' | 'class' | 'school', data: any[]) => {
+  const exportToExcel = async (scope: 'learner' | 'class' | 'school', data: any[]) => {
+    const XLSX = await import('xlsx');
     if (!data || data.length === 0) {
       toast.error('No data to export');
       return;

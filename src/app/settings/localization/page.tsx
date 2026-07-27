@@ -7,7 +7,7 @@
  * school clicks Apply), plus CSV/Excel import with a dry-run preview.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
+// xlsx dynamically imported in onFile (below) — keeps it out of the eager graph.
 import { toast } from 'react-hot-toast';
 import { Languages, Download, Sparkles, Upload, Loader2, Check, BarChart3, ListTree } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -143,6 +143,7 @@ export default function LocalizationPage() {
   // ── Import from CSV/Excel ───────────────────────────────────────────────────
   const onFile = useCallback(async (file: File) => {
     const buf = await file.arrayBuffer();
+    const XLSX = await import('xlsx');
     const wb = XLSX.read(buf, { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
