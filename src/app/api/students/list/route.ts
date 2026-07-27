@@ -37,10 +37,12 @@ export async function GET(req: NextRequest) {
     // Query parameters
     const search = req.nextUrl.searchParams.get('search') || '';
     const status = req.nextUrl.searchParams.get('status') || '';
-    const view = req.nextUrl.searchParams.get('view') || 'all'; // all | enrolled | admitted
+    const view = req.nextUrl.searchParams.get('view') || 'all'; // all | enrolled | admitted | trash
 
-    // Build base WHERE clause (NO enrollment dependency)
-    let whereClause = 's.school_id = ? AND s.deleted_at IS NULL';
+    // Build base WHERE clause (NO enrollment dependency). The Trash view shows
+    // ONLY soft-deleted learners; every other view hides them.
+    const deletedCond = view === 'trash' ? 's.deleted_at IS NOT NULL' : 's.deleted_at IS NULL';
+    let whereClause = `s.school_id = ? AND ${deletedCond}`;
     const params: any[] = [schoolId];
 
     // Apply search filter (works independently of enrollment)
@@ -83,6 +85,8 @@ export async function GET(req: NextRequest) {
         s.admission_no,
         s.status,
         s.admission_date,
+        s.deleted_at,
+        s.delete_reason,
         p.first_name,
         p.last_name,
         p.other_name,
@@ -105,7 +109,7 @@ export async function GET(req: NextRequest) {
     }
 
     selectQuery += ` WHERE ${whereClause}
-      ORDER BY p.first_name ASC, p.last_name ASC`;
+      ORDER BY ${view === 'trash' ? 's.deleted_at DESC' : 'p.first_name ASC, p.last_name ASC'}`;
 
     const [rows]: any = await conn.execute(selectQuery, params);
 

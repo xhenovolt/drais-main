@@ -1652,6 +1652,11 @@ export default function StudentsListPage() {
             <Zap className="w-4 h-4" />
           </Link>
 
+          <Link href="/students/trash" title="Trash — soft-deleted learners (restore / delete forever)"
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition-colors">
+            <Trash2 className="w-4 h-4" />
+          </Link>
+
           {/* Show Fees toggle — enrolled only */}
           {activeTab === 'enrolled' && (
             <button

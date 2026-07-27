@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T17:50:47.964Z",
-  "last_commit": "860e7a3ffb9d603c5bfe945520ef73dd55ae2e81",
+  "generated_at": "2026-07-27T18:01:56.598Z",
+  "last_commit": "b61d96a9f22f0a64cdd18cea0d8b91ab0d053748",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5084,7 +5084,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.138.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Trash view — see, restore, or permanently delete soft-deleted learners",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Trash view — see, restore, or permanently delete soft-deleted learners"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.137.5"
+  "app_version": "1.138.0"
 }
