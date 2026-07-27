@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T19:52:26.321Z",
-  "last_commit": "1951592343566b9418218055daa3d29bed67435c",
+  "generated_at": "2026-07-27T20:31:40.617Z",
+  "last_commit": "57969fd9fc4c3e514ea7a46e07223ef7fbde667e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5175,7 +5175,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.141.2",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "V1 LTS audit + remove stale transpiled academics/reports/page.js duplicate",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "V1 LTS audit + remove stale transpiled academics/reports/page.js duplicate"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.141.1"
+  "app_version": "1.141.2"
 }
