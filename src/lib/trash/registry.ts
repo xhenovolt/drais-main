@@ -286,7 +286,7 @@ export const ENTITY_REGISTRY: readonly EntityDescriptor[] = [
     primaryKey:     'id',
     schoolIdColumn: 'school_id',
     displaySelect: `
-      e.id, e.name AS label, e.exam_date AS subtitle,
+      e.id, e.name AS label, e.date AS subtitle,
       e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by
     `,
     searchPredicate: (term) => ({

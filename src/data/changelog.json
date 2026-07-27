@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T18:45:51.955Z",
-  "last_commit": "06d6a6a68b3038b03417cb221756f5780c873aee",
+  "generated_at": "2026-07-27T19:00:18.404Z",
+  "last_commit": "7021d0e7ee1ef7566e599c6783c4f0a3bcaf3ce1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5110,7 +5110,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.138.2",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "System-wide /admin/trash crashed on load (bad exam column) — now works + resilient",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "System-wide /admin/trash crashed on load (bad exam column) — now works + resilient"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.138.1"
+  "app_version": "1.138.2"
 }

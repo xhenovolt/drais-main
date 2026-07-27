@@ -322,6 +322,7 @@ export async function listTrash(args: ListArgs): Promise<{
   let total = 0;
 
   for (const d of descriptors) {
+   try {
     const schoolFilter = d.schoolIdColumn
       ? `AND e.${d.schoolIdColumn} = ?`
       : '';
@@ -396,6 +397,12 @@ export async function listTrash(args: ListArgs): Promise<{
         restoredBefore: r.restored_at !== null,
       });
     }
+   } catch (err) {
+    // RESILIENCE: a single misconfigured descriptor (e.g. a bad column) must
+    // NEVER 500 the whole Trash — that once made the entire /admin/trash page
+    // appear empty/broken. Skip the offending entity, keep the rest usable.
+    console.error(`[trash] listTrash skipped entity '${d.code}':`, (err as Error)?.message);
+   }
   }
 
   // Sort cross-entity by deletedAt desc for the unified view.
