@@ -3,7 +3,10 @@
   "milestones": [
     {
       "version": "0.0.0036",
-      "period": { "from": "2026-04-21", "to": "2026-05-10" },
+      "period": {
+        "from": "2026-04-21",
+        "to": "2026-05-10"
+      },
       "milestone_title": "Reports Kitchen Foundation",
       "summary": "DRAIS was re-initialized around the DRCE report-card engine — templates, bindings, totals, teacher initials and the marks migration engine.",
       "significance": "Report cards became DRAIS's first product identity: schools could design, compute and print their own documents instead of using fixed layouts.",
@@ -31,7 +34,10 @@
     },
     {
       "version": "0.0.0036",
-      "period": { "from": "2026-05-23", "to": "2026-05-26" },
+      "period": {
+        "from": "2026-05-23",
+        "to": "2026-05-26"
+      },
       "milestone_title": "Security Hardening — the RBAC Era",
       "summary": "A granular permission catalog with a sync engine, wildcard support and a permission-tree UI; 44+ finance routes and payroll gated behind requirePermission.",
       "significance": "DRAIS stopped trusting roles implicitly. Every sensitive operation became an explicit, auditable permission — the prerequisite for multi-school trust.",
@@ -57,7 +63,10 @@
     },
     {
       "version": "0.0.0036",
-      "period": { "from": "2026-05-26", "to": "2026-05-28" },
+      "period": {
+        "from": "2026-05-26",
+        "to": "2026-05-28"
+      },
       "milestone_title": "Parent Communication System",
       "summary": "Bulk SMS broadcast, scheduled deadline reminders, and the isolated Parent Portal: identity, OTP-verified learner linking, gated read surfaces and a dedicated UI shell.",
       "significance": "Parents became first-class users. DRAIS moved from an internal school tool to a school–home communication platform.",
@@ -83,7 +92,10 @@
     },
     {
       "version": "0.0.0052",
-      "period": { "from": "2026-05-31", "to": "2026-06-10" },
+      "period": {
+        "from": "2026-05-31",
+        "to": "2026-06-10"
+      },
       "milestone_title": "Biometric Attendance Foundation",
       "summary": "ZKTeco ADMS push ingestion with instant parent SMS, per-school working hours, orphan fingerprint claiming, fuzzy PIN mapping and holiday awareness.",
       "significance": "DRAIS moved from recording attendance to sensing it — punches flow in live from devices, and parents know within seconds.",
@@ -109,7 +121,10 @@
     },
     {
       "version": "0.0.0083",
-      "period": { "from": "2026-06-01", "to": "2026-06-22" },
+      "period": {
+        "from": "2026-06-01",
+        "to": "2026-06-22"
+      },
       "milestone_title": "Document Trust & Anti-Forgery",
       "summary": "Signature blocks, QR/barcodes as first-class DRCE shapes, public verification URLs bound to each document, and parent-downloadable report PDFs.",
       "significance": "A DRAIS report card became verifiable by anyone with a phone — forged documents die at the QR scan.",
@@ -132,7 +147,10 @@
     },
     {
       "version": "1.48.2",
-      "period": { "from": "2026-06-03", "to": "2026-06-29" },
+      "period": {
+        "from": "2026-06-03",
+        "to": "2026-06-29"
+      },
       "milestone_title": "Multi-Platform Era",
       "summary": "Electron desktop packaging for Windows, Android APK via Capacitor + nodejs-mobile, and a cross-platform CI release pipeline. Semver baseline (1.0.0) established mid-era.",
       "significance": "DRAIS escaped the browser: schools with unstable internet got a desktop app; the field got an installable APK.",
@@ -156,7 +174,10 @@
     },
     {
       "version": "1.70.3",
-      "period": { "from": "2026-06-30", "to": "2026-07-08" },
+      "period": {
+        "from": "2026-06-30",
+        "to": "2026-07-08"
+      },
       "milestone_title": "Design System & Theming Integrity",
       "summary": "Tailwind v4 token migration, dark-mode binding fixed at the root, and a full dark-broken sweep across every component.",
       "significance": "The product started looking like one system instead of many pages — and dark mode became a first-class citizen.",
@@ -176,7 +197,10 @@
     },
     {
       "version": "1.80.65",
-      "period": { "from": "2026-07-10", "to": "2026-07-18" },
+      "period": {
+        "from": "2026-07-10",
+        "to": "2026-07-18"
+      },
       "milestone_title": "Grading Integrity — Division Forensics",
       "summary": "Forensic investigation and phased repair of aggregate/division computation: the singular/plural spread bug, the contributing-subjects policy (ICT/IRE/electives never count), and the nursery grade rule.",
       "significance": "Report-card numbers became provably correct — verified against every class, with a verify:divisions gate for future grading changes.",
@@ -197,7 +221,10 @@
     },
     {
       "version": "1.80.97",
-      "period": { "from": "2026-07-15", "to": "2026-07-22" },
+      "period": {
+        "from": "2026-07-15",
+        "to": "2026-07-22"
+      },
       "milestone_title": "Attendance Time Authority & Identity Reconciliation",
       "summary": "The TCP-pull forensic redesign: DeviceWallTime canonical module, staged acquisitions with validation, the device-control wizard with operator time-check, the identity-matching engine (auto/review tiers), and per-weekday arrival rules.",
       "significance": "Attendance stopped depending on the device clock being right or PINs being pre-mapped — time and identity both became verified, correctable layers.",
@@ -221,7 +248,10 @@
     },
     {
       "version": "1.80.102",
-      "period": { "from": "2026-07-01", "to": "2026-07-23" },
+      "period": {
+        "from": "2026-07-01",
+        "to": "2026-07-23"
+      },
       "milestone_title": "Learner Movement & Gate Security (Passout Intelligence)",
       "summary": "From the biometric pass-out foundation and guardian visitation cards to full movement management: identity-verified creation, configurable approvals, AUTHORIZED/NOT-AUTHORIZED gate verdicts, exit-triggered parent SMS and return tracking.",
       "significance": "The school gate became a verified checkpoint: no learner leaves without identity, authorization and a truthful parent notification.",
@@ -246,7 +276,10 @@
     },
     {
       "version": "1.82.0",
-      "period": { "from": "2026-07-23", "to": "2026-07-23" },
+      "period": {
+        "from": "2026-07-23",
+        "to": "2026-07-23"
+      },
       "milestone_title": "Operational Intelligence Era",
       "summary": "The Attendance Intelligence Program: self-healing Time Intelligence (drift detection, assisted correction, undo), the ten-check Health Center with an overall score, and the Digital Twin tracing every punch through ten lifecycle stages.",
       "significance": "DRAIS began monitoring, explaining and repairing itself — the founder-independence turn.",
@@ -271,7 +304,10 @@
     },
     {
       "version": "1.83.0",
-      "period": { "from": "2026-07-23", "to": "2026-07-23" },
+      "period": {
+        "from": "2026-07-23",
+        "to": "2026-07-23"
+      },
       "milestone_title": "Institutional Memory Foundation",
       "summary": "The About / System Information module: permanent release history generated from git on every commit, and this Product Evolution layer explaining why each era existed.",
       "significance": "DRAIS can now explain its own evolution without depending on founder memory — every future employee can answer 'what is this version and why does it exist?' from inside the product.",
@@ -288,6 +324,273 @@
       ],
       "related_commits": [
         "v1.83.0 feat(about): About / System Information module"
+      ]
+    },
+    {
+      "version": "1.85.0",
+      "period": {
+        "from": "2026-07-23",
+        "to": "2026-07-23"
+      },
+      "milestone_title": "Attendance Intelligence Engine",
+      "summary": "Attendance stopped being a raw punch log and became an intelligence system: per-record confidence scoring, automatic recovery, pattern and trend analytics, device reputation, identity-mapping health, and an explanation engine that lets every number justify itself.",
+      "significance": "The system now reasons about its own attendance data — scoring reliability, recovering gaps, and flagging anomalies proactively — so staff trust the figures without the founder verifying them by hand.",
+      "key_capabilities": [
+        "Per-record confidence scoring (Phase 3)",
+        "Automatic Attendance Recovery Center (Phase 5)",
+        "Attendance pattern & trend analytics (Phase 6)",
+        "Device reputation scoring (Phase 7)",
+        "Identity mapping health + suggestions (Phase 8)",
+        "Explanation Engine — every number can justify itself (Phases 9 & 10)",
+        "Daily absence finalization with whole-school-outage guard",
+        "Self-scaling person intelligence that separates roster noise and self-heals"
+      ],
+      "architectural_changes": [
+        "Attendance events kept immutable and audited; corrections layered on top",
+        "Self-feeding intelligence sweep removes the founder-dependence bottleneck"
+      ],
+      "business_impact": [
+        "Schools trust attendance figures without founder review",
+        "Anomalies and gaps surface proactively instead of being discovered late"
+      ],
+      "related_commits": [
+        "v1.85.0 Per-record confidence scoring (Phase 3)",
+        "v1.86.0 Automatic Attendance Recovery (Phase 5)",
+        "v1.87.0 Attendance Pattern Analytics (Phase 6)",
+        "v1.88.0 Device Intelligence (Phase 7)",
+        "v1.89.0 Identity Intelligence (Phase 8)",
+        "v1.90.0 Explanation Engine + Founder Independence (Phases 9 & 10)",
+        "v1.91.0 Person Attendance Intelligence + daily absence finalization",
+        "v1.92.0 Self-scaling person intelligence",
+        "v1.93.0 Attendance Intelligence strip on both dashboards"
+      ]
+    },
+    {
+      "version": "1.97.0",
+      "period": {
+        "from": "2026-07-24",
+        "to": "2026-07-25"
+      },
+      "milestone_title": "Founder-Independence — Guided Data Repair",
+      "summary": "A suite of guided, reversible tools that let ordinary staff fix the data problems that used to require the founder: correcting identities with preview and undo, merging duplicate people, cleaning rosters in bulk, and repairing historical records — all audited, all bilingual.",
+      "significance": "The founder was the single point of failure for data correction. These phases hand that power to schools safely: every fix previews before it commits, can be undone, and is recorded.",
+      "key_capabilities": [
+        "Identity correction with live preview + undo (Phase A)",
+        "Guided person merge (Phase B)",
+        "Bulk roster hygiene (Phase C)",
+        "Proactive daily digest (Phase D)",
+        "Historical repair (Phase E)",
+        "Fully bilingual Recovery Center + Identity/Health/Device/Trends pages (Phase F)",
+        "WithRoute robustness wrapper adopted across founder-independence routes (Phase G)"
+      ],
+      "architectural_changes": [
+        "Identity correction derives from attendance while keeping events immutable + audited",
+        "WithRoute wrapper standardizes loading/error resilience on critical routes"
+      ],
+      "business_impact": [
+        "Schools self-serve data repair; the founder is no longer a bottleneck",
+        "English + Arabic parity across the intelligence surface"
+      ],
+      "related_commits": [
+        "v1.94.0 Identity correction from attendance — immutable, audited",
+        "v1.97.0 Identity correction preview + undo (Phase A)",
+        "v1.98.0 Proactive daily digest (Phase D)",
+        "v1.99.0 Bulk roster hygiene (Phase C)",
+        "v1.100.0 Guided person merge (Phase B)",
+        "v1.101.0 Historical repair (Phase E)",
+        "v1.102.0–v1.103.0 Bilingual Recovery Center + intelligence pages (Phase F)",
+        "v1.104.0 WithRoute robustness wrapper (Phase G)"
+      ]
+    },
+    {
+      "version": "1.84.0",
+      "period": {
+        "from": "2026-07-23",
+        "to": "2026-07-26"
+      },
+      "milestone_title": "DRAIS Control Center — the Platform-OS",
+      "summary": "An isolated Xhenvolt control plane to operate every school without their login: secure audited impersonation, platform-wide device inventory and lifecycle, live activity, cross-school health monitors, a subscription plan engine, and school lifecycle (archive / delete / restore).",
+      "significance": "DRAIS became a multi-tenant platform operated from one place. Xhenvolt can run, monitor, provision and support schools centrally — the foundation of DRAIS-as-a-service.",
+      "key_capabilities": [
+        "Isolated control plane with its own authentication (Phase 1)",
+        "Tenant isolation + platform-only ownership (P1)",
+        "Secure, audited \"enter any school\" impersonation",
+        "Platform device management — inventory, assign, lifecycle, timeline (P2)",
+        "Live recent-activity read without impersonation (P3)",
+        "Platform Health Center — cross-school proactive monitors (P4)",
+        "Subscription plan engine + full CRUD (P5)",
+        "School lifecycle — archive / delete / restore enforced in the session gate (P6)",
+        "Opt-out module visibility — a disabled module truly hides and gates"
+      ],
+      "architectural_changes": [
+        "control_* tables + drais_control cookie, fully isolated from tenant auth",
+        "Cross-tenant leak fixes hardened by an isolation CI guard"
+      ],
+      "business_impact": [
+        "Xhenvolt can centrally operate, monitor and support every school",
+        "The seed of DRAIS-as-a-service (subscriptions, provisioning, support)"
+      ],
+      "related_commits": [
+        "v1.84.0 DRAIS Control Center — isolated control plane v1",
+        "v1.95.0 Subscription + suspend/activate",
+        "v1.96.0 Enter any school — secure audited impersonation",
+        "v1.106.0 Tenant isolation + platform-only ownership (P1)",
+        "v1.107.0 Platform device management (P2)",
+        "v1.108.0 Live recent-activity read (P3)",
+        "v1.109.0 Platform Health Center (P4)",
+        "v1.110.0–v1.111.0 Subscription plan engine + CRUD (P5)",
+        "v1.112.0 School lifecycle (P6)",
+        "v1.113.0 Opt-out module visibility",
+        "v1.115.0 CSV export + print across control routes"
+      ]
+    },
+    {
+      "version": "1.116.0",
+      "period": {
+        "from": "2026-07-26",
+        "to": "2026-07-26"
+      },
+      "milestone_title": "Theming Integrity & Platform Security",
+      "summary": "Retired forced dark mode for real light / system / dark / high-contrast theming, and hardened the platform security surface: login brute-force guard, impersonation kill-switch with active-session view, optional TOTP 2FA, and least-privilege RBAC for operators.",
+      "significance": "Made the platform safe to operate at scale — operators get only the access they need, sessions can be killed on demand, sign-in resists brute force, and the interface is legible in every theme.",
+      "key_capabilities": [
+        "Light / system / dark / high-contrast theming (forced dark retired)",
+        "Login brute-force guard + bootstrap secret (security Phase 8)",
+        "Impersonation kill-switch + active-session view (security Phase 9)",
+        "Optional TOTP 2FA, opt-in per operator (security Phase 10)",
+        "RBAC least-privilege operators (security Phase 13)",
+        "Guarded permanent (hard) delete for schools"
+      ],
+      "architectural_changes": [
+        "dark bound to .dark via @custom-variant; theme resolved in JS",
+        "Coloured chip text darkened for light-theme legibility"
+      ],
+      "business_impact": [
+        "Operator access is least-privilege and auditable",
+        "Safe multi-operator support with revocable sessions and 2FA"
+      ],
+      "related_commits": [
+        "v1.116.0 Theming — light/system/dark/high-contrast",
+        "v1.117.0 Guarded permanent (hard) delete for schools",
+        "v1.119.0 Login brute-force guard + bootstrap secret (Phase 8)",
+        "v1.120.0 Impersonation kill-switch + active-session view (Phase 9)",
+        "v1.121.0 Optional TOTP 2FA (Phase 10)",
+        "v1.122.0 RBAC least-privilege operators (Phase 13)"
+      ]
+    },
+    {
+      "version": "1.123.0",
+      "period": {
+        "from": "2026-07-26",
+        "to": "2026-07-26"
+      },
+      "milestone_title": "Money — Billing, Dunning & Business Intelligence",
+      "summary": "Turned subscriptions into real money operations: an invoice / payment ledger with reconciliation, payment-gateway webhook reconciliation, dunning and billing communications, plan-limit enforcement, installation / installment billing, and platform business intelligence (MRR, revenue, plan mix).",
+      "significance": "DRAIS could now charge, collect, reconcile and report revenue reliably — the commercial backbone of the platform.",
+      "key_capabilities": [
+        "Billing ledger — invoices, payments, reconciliation (money Phase 11)",
+        "Payment-gateway webhook reconciliation (money Phase 12)",
+        "Dunning + tenant billing comms (money Phase 14)",
+        "Plan-limit enforcement, safe by default (money Phase 15)",
+        "Installation fee + pro-rata installment billing",
+        "In-DB job runner on the single cron (automation Phase 18)",
+        "Predictive health snapshots + founder alerting (automation Phase 17)",
+        "Per-tenant data export for disaster recovery (resilience Phase 22)",
+        "Platform maintenance mode + deploy safety (resilience Phase 23)",
+        "Platform BI — MRR / revenue / plan-mix (Phase 24)"
+      ],
+      "architectural_changes": [
+        "Single-cron in-DB job runner drives recurring platform automation",
+        "Per-tenant export underpins disaster recovery"
+      ],
+      "business_impact": [
+        "Reliable revenue collection, reconciliation and dunning",
+        "Visibility into MRR, revenue and plan mix for decision-making"
+      ],
+      "related_commits": [
+        "v1.118.0 Plan billing (price/cycle/installments/deliverables) + renewal",
+        "v1.123.0 Billing ledger (Phase 11)",
+        "v1.124.0 Payment-gateway webhook reconciliation (Phase 12)",
+        "v1.125.0 Dunning + tenant billing comms (Phase 14)",
+        "v1.126.0 Plan-limit enforcement (Phase 15)",
+        "v1.127.0 Installation fee + installment billing",
+        "v1.129.0 In-DB job runner (Phase 18)",
+        "v1.130.0 Predictive health snapshots + alerting (Phase 17)",
+        "v1.131.0 Per-tenant data export (Phase 22 / DR)",
+        "v1.132.0 Maintenance mode + deploy safety (Phase 23)",
+        "v1.133.0 Platform business intelligence (Phase 24)"
+      ]
+    },
+    {
+      "version": "1.134.0",
+      "period": {
+        "from": "2026-07-26",
+        "to": "2026-07-27"
+      },
+      "milestone_title": "Correctness, Scale, Trash & Disaster Recovery",
+      "summary": "A hardening sweep for correctness and scale: killed the UTC off-by-one in East-Africa dates, added server-side pagination and search on platform lists, one-click school provisioning, an external API v1, bounded the Vercel build memory, and a complete Trash system (see / restore / permanently delete, 26-entity coverage, bulk purge, a verifier).",
+      "significance": "Removed the last classes of silent bugs — timezone drift, unbounded lists, orphaned soft-deletes — and made deletion recoverable and auditable across every entity.",
+      "key_capabilities": [
+        "Tz-safe date helpers — kill the UTC off-by-one in EAT (Today no longer shows yesterday)",
+        "Server-side pagination + search on platform lists (scale hardening, P21)",
+        "One-click school provisioning wizard (P20)",
+        "External API v1 discovery endpoint (P25)",
+        "Trash view — see, restore, or permanently delete soft-deleted records",
+        "26-entity Trash coverage + a verifier so it can't silently break",
+        "Bulk select + Purge Selected / Category / Everything (and bulk Restore)",
+        "Lazy-loaded xlsx / jspdf / html2canvas out of the eager client bundles"
+      ],
+      "architectural_changes": [
+        "Bounded the Vercel build heap so RSS stays under the 8GB builder",
+        "Front-door module gates + coverage CI; cross-tenant isolation CI guard"
+      ],
+      "business_impact": [
+        "Deletion is recoverable and auditable everywhere",
+        "The platform scales to many schools; dates are correct in EAT"
+      ],
+      "related_commits": [
+        "v1.134.0 Server-side module gate + coverage CI; tz-safe dates",
+        "v1.135.0 Paginate + server-side search the platform lists (P21)",
+        "v1.136.0 One-click school provisioning wizard (P20)",
+        "v1.137.0 External API v1 discovery (P25) + build-heap fixes + lazy bundles",
+        "v1.138.0 Trash view — see/restore/permanently delete",
+        "v1.139.0 26-entity Trash coverage + verifier",
+        "v1.140.0 Bulk purge / restore"
+      ]
+    },
+    {
+      "version": "1.141.0",
+      "period": {
+        "from": "2026-07-27",
+        "to": "2026-07-27"
+      },
+      "milestone_title": "V1 LTS — Production Hardening",
+      "summary": "The V1 Long-Term-Support hardening: a complete audit trail (who did what, when, where — including every export), standardized self-auditing CSV / Excel exports across the app, a clear user lifecycle (account status vs online session; suspended vs deactivated), and an SMS Financial Control Center with per-school allocation and hard money / quota enforcement.",
+      "significance": "Makes DRAIS boring, predictable and founder-independent for the long haul — every meaningful action is accountable, every export is traceable, and SMS spend can neither silently overrun nor cross tenants.",
+      "key_capabilities": [
+        "Audit trail across login / logout / failed-login, student lifecycle, SMS, biometric, device, settings, and every export (P2)",
+        "Standardized metadata-headed CSV exports for attendance / staff / users / audit-logs / device-logs, each emitting an audit event (P3)",
+        "User lifecycle — account status separate from online session; suspended vs deactivated (P4)",
+        "SMS economics — provider balance, per-school allocation & usage (P5)",
+        "Schools see the SMS they have left; hard block when money or quota runs out (never silent)"
+      ],
+      "architectural_changes": [
+        "Central logAudit catalog (src/lib/audit.ts) as the single audit surface",
+        "Shared serverCsv builder for consistent, metadata-headed exports",
+        "sms_allocations table + usage derived from audited SMS_SENT events"
+      ],
+      "business_impact": [
+        "Full accountability — \"who did what, when, where\" is answerable in-app",
+        "Every export is traceable; SMS spend is controlled per school and never fails silently"
+      ],
+      "related_commits": [
+        "v1.141.2 V1 LTS audit + remove stale transpiled duplicate",
+        "v1.141.3–v1.141.5 Attendance/auth/student/SMS/biometric/device audit (P2)",
+        "v1.142.0–v1.143.0 Standardized CSV exports — audit-logs, staff, users (P3)",
+        "v1.144.0 Separate account status from online session (P4)",
+        "v1.145.0–v1.146.0 SMS economics engine + Financial Control Center (P5)",
+        "v1.147.0 Schools see SMS left + hard block on money/quota out",
+        "v1.148.0 Suspended vs deactivated lifecycle + archiveEntity soft-delete fix (P4)"
       ]
     }
   ]

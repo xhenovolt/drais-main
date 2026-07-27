@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T23:15:05.725Z",
-  "last_commit": "6d94664d2d16fda9962f587a159057816433495b",
+  "generated_at": "2026-07-27T23:40:46.961Z",
+  "last_commit": "23fe3feab78f11b565ff1e741c985f67bc090090",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5344,7 +5344,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.149.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Backfill product-evolution milestones 1.84→1.148 + sticky section nav",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Backfill product-evolution milestones 1.84→1.148 + sticky section nav"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.148.0"
+  "app_version": "1.149.0"
 }

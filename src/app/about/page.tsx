@@ -12,7 +12,7 @@
  * Design: enterprise-boring on purpose. No animations, no hero art.
  * This page is the seed of the future DRAIS Control Center.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
   Info, ChevronDown, ChevronRight, CheckCircle, AlertTriangle,
@@ -60,11 +60,43 @@ const TYPE_STYLE: Record<string, string> = {
 const fmtDate = (d: string) =>
   new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
+/** In-page sections — drive the sticky side/top navigation and scrollspy. */
+const SECTIONS: Array<{ id: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
+  { id: 'overview',  label: 'Overview',          Icon: Package },
+  { id: 'evolution', label: 'Product evolution',  Icon: MilestoneIcon },
+  { id: 'history',   label: 'Release history',    Icon: GitCommit },
+  { id: 'system',    label: 'System information',  Icon: Server },
+];
+
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Highlights the section currently in view; returns its id. */
+function useScrollSpy(ids: string[]): string {
+  const [active, setActive] = useState(ids[0]);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]) setActive(visible[0].target.id);
+      },
+      { rootMargin: '-15% 0px -70% 0px', threshold: [0, 0.25, 0.5, 1] },
+    );
+    ids.forEach((id) => { const el = document.getElementById(id); if (el) obs.observe(el); });
+    return () => obs.disconnect();
+  }, [ids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  return active;
+}
+
 export default function AboutPage() {
   const releases = (changelog.releases as Release[]).slice().reverse(); // newest first
   const current = releases.find((r) => r.version === APP_VERSION) || releases[0];
   const [openMinor, setOpenMinor] = useState<string | null>(null);
   const [showTech, setShowTech] = useState<Record<string, boolean>>({});
+  const active = useScrollSpy(SECTIONS.map((s) => s.id));
 
   // System status from the Health Center (auth-gated; hidden if unavailable).
   const { data: health } = useSWR<any>('/api/attendance/health',
@@ -82,9 +114,63 @@ export default function AboutPage() {
     return [...map.entries()];
   }, [releases]);
 
+  // Map each minor series → its milestone from the curated related_commits
+  // (authoritative), not date overlap — the eras were built in a compressed
+  // burst with interleaved version numbers, so dates can't separate them.
+  const milestoneBySeries = useMemo(() => {
+    const map = new Map<string, Milestone>();
+    for (const m of MILESTONES) {
+      const keys = new Set<string>([m.version.split('.').slice(0, 2).join('.')]);
+      for (const rc of m.related_commits) {
+        const re = /(\d+)\.(\d+)\.\d+/g;
+        let x: RegExpExecArray | null;
+        while ((x = re.exec(rc))) keys.add(`${x[1]}.${x[2]}`);
+      }
+      for (const k of keys) if (!map.has(k)) map.set(k, m);
+    }
+    return map;
+  }, []);
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      {/* ── Section 1 · Identity ── */}
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      {/* Mobile · sticky horizontal section nav */}
+      <nav className="lg:hidden sticky top-0 z-10 -mx-4 px-4 py-2 mb-4 bg-gray-50/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+        <div className="flex gap-1.5 w-max">
+          {SECTIONS.map(({ id, label, Icon }) => (
+            <button key={id} onClick={() => scrollToSection(id)}
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full whitespace-nowrap transition-colors ${
+                active === id
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
+              }`}>
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <div className="lg:grid lg:grid-cols-[190px_1fr] lg:gap-8">
+        {/* Desktop · sticky mini-sidebar */}
+        <aside className="hidden lg:block">
+          <nav className="sticky top-6 space-y-0.5">
+            <p className="text-[11px] font-semibold text-gray-400 uppercase px-3 mb-2">On this page</p>
+            {SECTIONS.map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => scrollToSection(id)}
+                className={`w-full flex items-center gap-2 text-sm px-3 py-2 rounded-lg text-left transition-colors ${
+                  active === id
+                    ? 'bg-indigo-50 dark:bg-indigo-900/25 text-indigo-700 dark:text-indigo-300 font-medium'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}>
+                <Icon className={`w-4 h-4 flex-shrink-0 ${active === id ? 'text-indigo-500' : 'text-gray-400'}`} /> {label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Content column */}
+        <div className="space-y-6 min-w-0">
+      {/* ── Section · Overview (identity + current release + changes) ── */}
+      <section id="overview" className="scroll-mt-20 space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
@@ -123,14 +209,18 @@ export default function AboutPage() {
         </div>
       )}
 
-      {/* ── Section 3b · Product evolution (milestone layer) ── */}
-      <ProductEvolution />
+      </section>
+
+      {/* ── Section · Product evolution (milestone layer) ── */}
+      <section id="evolution" className="scroll-mt-20">
+        <ProductEvolution />
+      </section>
 
       {/* ── Section 4 · Release history — grouped for schools, not a raw
              commit dump. Each series shows its meaning (milestone), a
              category summary and the NOTABLE changes; the full technical
              commit list stays available behind a toggle (Layer 1 intact). */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <section id="history" className="scroll-mt-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1.5"><Info className="w-4 h-4" /> Release history</h2>
         <p className="text-[11px] text-gray-400 mb-3">{releases.length} recorded releases, grouped so the evolution is readable — full technical detail is one click away in each group.</p>
         <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -138,9 +228,8 @@ export default function AboutPage() {
             const open = openMinor === key;
             const isCurrent = current && current.version.startsWith(key + '.');
             // The story of this series: matching milestone + category counts.
-            const from = rels[rels.length - 1].date, to = rels[0].date;
-            const milestone = MILESTONES.find((m) =>
-              m.version.startsWith(key + '.') || (m.period.from <= to && m.period.to >= from));
+            const from = rels[rels.length - 1].date;
+            const milestone = milestoneBySeries.get(key);
             const counts: Record<string, number> = {};
             for (const r of rels) for (const c of r.changes) counts[c.category] = (counts[c.category] || 0) + 1;
             const notable = rels.filter((r) =>
@@ -207,10 +296,10 @@ export default function AboutPage() {
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* ── Section 5 · System information ── */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      {/* ── Section · System information ── */}
+      <section id="system" className="scroll-mt-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3 flex items-center gap-1.5"><Server className="w-4 h-4" /> System information</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           <div><div className="text-[11px] text-gray-400">Application</div><div className="font-medium text-gray-800 dark:text-gray-100">DRAIS v{APP_VERSION}</div></div>
@@ -233,7 +322,9 @@ export default function AboutPage() {
         <p className="text-[11px] text-gray-400 mt-4 flex items-center gap-1.5">
           <Shield className="w-3.5 h-3.5" /> This page shows product information only — no credentials, endpoints or infrastructure details are exposed.
         </p>
-      </div>
+      </section>
+        </div>{/* /content column */}
+      </div>{/* /grid */}
     </div>
   );
 }
