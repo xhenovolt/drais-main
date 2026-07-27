@@ -339,6 +339,100 @@ export const ENTITY_REGISTRY: readonly EntityDescriptor[] = [
     ],
     permissions: DEFAULT_PERMS,
   },
+
+  // ── Coverage entities (make Trash comprehensive — no invisible black holes).
+  //    All verified via `npm run trash:verify`. `_tail` = the standard delete
+  //    metadata every one of these tables carries.
+  {
+    code: 'contact', label: 'Contact', pluralLabel: 'Contacts', tableName: 'contacts',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), '') AS label, NULL AS subtitle,
+      e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    displayJoins: 'LEFT JOIN people p ON p.id = e.person_id',
+    searchPredicate: (t) => ({ sql: '(p.first_name LIKE ? OR p.last_name LIKE ?)', params: [`%${t}%`, `%${t}%`] }),
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'inventory_item', label: 'Inventory Item', pluralLabel: 'Inventory Items', tableName: 'inventory_items',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, e.name AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    searchPredicate: (t) => ({ sql: 'e.name LIKE ?', params: [`%${t}%`] }),
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'store', label: 'Store', pluralLabel: 'Stores', tableName: 'stores',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, e.name AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    searchPredicate: (t) => ({ sql: 'e.name LIKE ?', params: [`%${t}%`] }),
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'payroll_definition', label: 'Payroll Definition', pluralLabel: 'Payroll Definitions', tableName: 'payroll_definitions',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, e.name AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    searchPredicate: (t) => ({ sql: 'e.name LIKE ?', params: [`%${t}%`] }),
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'document', label: 'Document', pluralLabel: 'Documents', tableName: 'documents',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Document #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'notification', label: 'Notification', pluralLabel: 'Notifications', tableName: 'notifications',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Notification #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'workplan', label: 'Work Plan', pluralLabel: 'Work Plans', tableName: 'workplans',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Work plan #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'expenditure', label: 'Expenditure', pluralLabel: 'Expenditures', tableName: 'expenditures',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Expenditure #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'waiver', label: 'Waiver / Discount', pluralLabel: 'Waivers & Discounts', tableName: 'waivers_discounts',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Waiver #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'promotion', label: 'Promotion', pluralLabel: 'Promotions', tableName: 'promotions',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Promotion #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'device', label: 'Device', pluralLabel: 'Devices', tableName: 'devices',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Device #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'biometric_device', label: 'Biometric Device', pluralLabel: 'Biometric Devices', tableName: 'biometric_devices',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Biometric device #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'tahfiz_result', label: 'Tahfiz Result', pluralLabel: 'Tahfiz Results', tableName: 'tahfiz_results',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Tahfiz result #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
+  {
+    code: 'salary_payment', label: 'Salary Payment', pluralLabel: 'Salary Payments', tableName: 'salary_payments',
+    primaryKey: 'id', schoolIdColumn: 'school_id',
+    displaySelect: `e.id, CONCAT('Salary payment #', e.id) AS label, NULL AS subtitle, e.deleted_at, e.deleted_by, e.delete_reason, e.restored_at, e.restored_by`,
+    dependencies: [], permissions: DEFAULT_PERMS,
+  },
 ] as const;
 
 const REGISTRY_BY_CODE: Record<string, EntityDescriptor> = Object.fromEntries(

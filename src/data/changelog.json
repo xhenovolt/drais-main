@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T19:00:18.404Z",
-  "last_commit": "7021d0e7ee1ef7566e599c6783c4f0a3bcaf3ce1",
+  "generated_at": "2026-07-27T19:14:20.943Z",
+  "last_commit": "faa81ace4ed4d50c97748520795301d8d85c2f96",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5123,7 +5123,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.139.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Make Trash boring — 26-entity coverage + a verifier so it can't silently break",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Make Trash boring — 26-entity coverage + a verifier so it can't silently break"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.138.2"
+  "app_version": "1.139.0"
 }
