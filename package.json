@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "1.137.0",
+  "version": "1.137.1",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -32,7 +32,7 @@
     "db:local:init": "node scripts/db/local-init.mjs",
     "db:local:verify": "node scripts/db/local-verify.mjs",
     "setup:tidb": "bash scripts/setup-tidb.sh",
-    "vercel-build": "NODE_OPTIONS=--max_old_space_size=4096 npm run build",
+    "vercel-build": "NODE_OPTIONS=--max_old_space_size=7168 npm run build",
     "vercel-api": "next start",
     "build:electron": "next build && node scripts/postbuild-electron.mjs",
     "electron:dev": "npm run build:electron && electron .",

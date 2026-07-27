@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T03:28:42.565Z",
-  "last_commit": "26b5192d4a626ac4e807da4e2450a6b63b64348c",
+  "generated_at": "2026-07-27T08:17:03.237Z",
+  "last_commit": "10350a4a50c6a944d6c6ab4949729aa59ef08511",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5019,7 +5019,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.137.1",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Raise Vercel build heap cap to 7168 to stop the compile-phase OOM (SIGKILL)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Raise Vercel build heap cap to 7168 to stop the compile-phase OOM (SIGKILL)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.137.0"
+  "app_version": "1.137.1"
 }
