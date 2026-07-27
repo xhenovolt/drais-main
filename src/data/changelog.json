@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T23:01:38.900Z",
-  "last_commit": "3565bad3b646c9a18639959bb82651c47e56820f",
+  "generated_at": "2026-07-27T23:03:19.467Z",
+  "last_commit": "a5b065b674d0c1712154d1779345e1516cc9bba5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5318,7 +5318,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.147.2",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "School settings changes now audited (SETTINGS_CHANGED)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "School settings changes now audited (SETTINGS_CHANGED)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.147.1"
+  "app_version": "1.147.2"
 }

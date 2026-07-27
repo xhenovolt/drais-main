@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { invalidateSchoolCache } from '@/lib/schoolDB';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 import { getSessionSchoolId } from '@/lib/auth';
 /**
@@ -160,6 +161,18 @@ export async function PUT(req: NextRequest) {
 
     // Invalidate cache so all routes pick up new school info
     invalidateSchoolCache(schoolId);
+
+    // Accountability (P2): record the settings change + what areas were touched.
+    void logAudit({
+      schoolId, userId: (session as any).userId ?? null,
+      action: AuditAction.SETTINGS_CHANGED, entityType: 'settings',
+      details: {
+        school_fields: body?.school ? Object.keys(body.school) : [],
+        categories: body?.settings ? Object.keys(body.settings) : [],
+      },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    });
 
     return NextResponse.json({
       success: true,
