@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T22:40:55.358Z",
-  "last_commit": "169529c14c7b548e2b447ec4cb84f8a0dcae75c9",
+  "generated_at": "2026-07-27T22:58:23.755Z",
+  "last_commit": "f58fa6bb9bc0368c1e09db6651411d6b850aed8a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5292,7 +5292,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.147.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Schools see SMS left + hard block on money/quota out; fix build heap OOM (2560)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Schools see SMS left + hard block on money/quota out; fix build heap OOM (2560)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.146.0"
+  "app_version": "1.147.0"
 }

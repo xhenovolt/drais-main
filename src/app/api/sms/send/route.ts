@@ -3,7 +3,7 @@ import { sendSMS, logSMSActivity } from '@/lib/africastalking';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getCommSettings } from '@/lib/comm/settings';
 import { logAudit, AuditAction } from '@/lib/audit';
-import { getSchoolSmsPosition } from '@/lib/control/sms-economics';
+import { getSchoolSmsPosition, getProviderBalanceCached } from '@/lib/control/sms-economics';
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,6 +51,18 @@ export async function POST(req: NextRequest) {
         error: `SMS allocation exhausted (${pos.used}/${pos.quota} used). Ask the platform administrator to top up this school's allocation.`,
         code: 'SMS_QUOTA_EXCEEDED',
       }, { status: 403 });
+    }
+
+    // Money enforcement: if the platform provider balance can't cover even one
+    // SMS, block LOUDLY (never let a send fail silently downstream).
+    const bal = await getProviderBalanceCached().catch(() => null);
+    const unitCost = Number(process.env.SMS_UNIT_COST_UGX || 32);
+    if (bal && bal.ok && bal.amount < unitCost) {
+      return NextResponse.json({
+        success: false,
+        error: 'The platform SMS balance is depleted — messages cannot be sent until the administrator tops up the SMS account.',
+        code: 'SMS_BALANCE_DEPLETED',
+      }, { status: 503 });
     }
     // Sender ID is OPTIONAL and never forced: use the explicit short_code from
     // the request, else the school's configured sender_id (only if set). If

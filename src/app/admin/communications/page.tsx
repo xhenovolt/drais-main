@@ -33,6 +33,7 @@ export default function CommunicationsAdminPage() {
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('nav.communication._')}</h1>
           <p className="text-xs text-slate-400">Event-driven SMS, templates, and automation rules.</p>
         </div>
+        <SmsQuotaBadge />
       </div>
 
       <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
@@ -49,6 +50,30 @@ export default function CommunicationsAdminPage() {
       {tab === 'rules'     && <RulesPanel />}
       {tab === 'log'       && <DispatchLogPanel />}
     </div>
+  );
+}
+
+/** The school's own SMS position — so they always see how many they have left. */
+function SmsQuotaBadge() {
+  const { data } = useSWR<any>('/api/sms/quota', fetcher, { refreshInterval: 60_000 });
+  if (!data?.success) return null;
+  const nf = (n: any) => Number(n || 0).toLocaleString();
+  const blocked = data.can_send === false;
+  const label = data.quota == null
+    ? (blocked ? 'SMS unavailable' : 'SMS: unlimited')
+    : `${nf(data.remaining ?? 0)} SMS left`;
+  const tone = blocked
+    ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
+    : (data.quota != null && data.remaining != null && data.remaining < 50)
+      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+  return (
+    <span className={`ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${tone}`}
+      title={blocked
+        ? (data.reason === 'PLATFORM_BALANCE_DEPLETED' ? 'Platform SMS balance depleted — top-up required' : 'This school\'s SMS allocation is exhausted')
+        : (data.quota != null ? `${nf(data.used)} used of ${nf(data.quota)} allocated` : 'No allocation cap set')}>
+      <MessageSquare className="w-3.5 h-3.5" /> {label}
+    </span>
   );
 }
 

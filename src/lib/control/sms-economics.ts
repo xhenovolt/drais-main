@@ -75,6 +75,16 @@ export async function fetchProviderBalance(): Promise<{ ok: boolean; currency: s
   }
 }
 
+// Short-lived cache so the send path can check "is the money over?" on every
+// message without an Africa's Talking round-trip each time.
+let _balCache: { at: number; val: Awaited<ReturnType<typeof fetchProviderBalance>> } | null = null;
+export async function getProviderBalanceCached(ttlMs = 60_000): Promise<Awaited<ReturnType<typeof fetchProviderBalance>>> {
+  if (_balCache && Date.now() - _balCache.at < ttlMs) return _balCache.val;
+  const val = await fetchProviderBalance();
+  if (val.ok) _balCache = { at: Date.now(), val }; // only cache good reads
+  return val;
+}
+
 /** Per-school SMS usage (segments) from the SMS_SENT audit events. */
 export async function getUsageBySchool(): Promise<Record<number, { segments: number; sends: number }>> {
   const rows = (await query(
