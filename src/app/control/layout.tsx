@@ -9,13 +9,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast } from 'lucide-react';
+import { Shield, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare } from 'lucide-react';
 
 const NAV = [
   { href: '/control/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/control/schools', label: 'Schools', icon: School },
   { href: '/control/devices', label: 'Devices', icon: HardDrive },
   { href: '/control/plans', label: 'Plans', icon: CreditCard },
+  { href: '/control/sms', label: 'SMS', icon: MessageSquare },
   { href: '/control/bi', label: 'Business', icon: TrendingUp },
   { href: '/control/system-health', label: 'System Health', icon: Activity },
   { href: '/control/operators', label: 'Operators', icon: Users },

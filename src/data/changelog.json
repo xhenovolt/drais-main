@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T22:38:28.746Z",
-  "last_commit": "1f064f70f023b33831fadc0b427be02a002da02e",
+  "generated_at": "2026-07-27T22:40:55.358Z",
+  "last_commit": "169529c14c7b548e2b447ec4cb84f8a0dcae75c9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5279,7 +5279,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.146.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "SMS Financial Control Center page + allocation + send-path enforcement (P5)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "SMS Financial Control Center page + allocation + send-path enforcement (P5)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.145.0"
+  "app_version": "1.146.0"
 }

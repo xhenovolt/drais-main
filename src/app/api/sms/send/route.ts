@@ -3,6 +3,7 @@ import { sendSMS, logSMSActivity } from '@/lib/africastalking';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getCommSettings } from '@/lib/comm/settings';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { getSchoolSmsPosition } from '@/lib/control/sms-economics';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,6 +40,17 @@ export async function POST(req: NextRequest) {
     const cs = await getCommSettings(session.schoolId).catch(() => null);
     if (cs && !cs.smsEnabled) {
       return NextResponse.json({ success: false, error: 'SMS is disabled for this school by the platform administrator.' }, { status: 403 });
+    }
+
+    // P5 allocation enforcement: a school can't consume beyond its SMS quota
+    // (uncapped when no allocation is set). Prevents one school burning another's.
+    const pos = await getSchoolSmsPosition(session.schoolId).catch(() => null);
+    if (pos && pos.quota != null && pos.remaining <= 0) {
+      return NextResponse.json({
+        success: false,
+        error: `SMS allocation exhausted (${pos.used}/${pos.quota} used). Ask the platform administrator to top up this school's allocation.`,
+        code: 'SMS_QUOTA_EXCEEDED',
+      }, { status: 403 });
     }
     // Sender ID is OPTIONAL and never forced: use the explicit short_code from
     // the request, else the school's configured sender_id (only if set). If
