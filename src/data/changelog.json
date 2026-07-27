@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T03:17:51.391Z",
-  "last_commit": "2404bb24fe0e4594d964e90bea167d2409110df9",
+  "generated_at": "2026-07-27T03:24:29.737Z",
+  "last_commit": "17948377dee136e9bb78d1c537c4ac82dae56d02",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4993,7 +4993,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.136.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "One-click school provisioning wizard (P20)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "One-click school provisioning wizard (P20)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.135.1"
+  "app_version": "1.136.0"
 }

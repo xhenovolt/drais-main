@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { School, HardDrive, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { School, HardDrive, Loader2, Search, ChevronLeft, ChevronRight, Plus, Copy, Check, X } from 'lucide-react';
 import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
@@ -33,9 +33,10 @@ export default function ControlSchools() {
   const params = new URLSearchParams({ page: String(page), limit: '25' });
   if (showDeleted) params.set('include_deleted', '1');
   if (q) params.set('q', q);
-  const { data, isLoading } = useSWR<any>(`/api/control-center/schools?${params}`, fetcher, { keepPreviousData: true });
+  const { data, isLoading, mutate } = useSWR<any>(`/api/control-center/schools?${params}`, fetcher, { keepPreviousData: true });
   const rows = data?.rows || [];
   const pg = data?.pagination || { page: 1, total: 0, totalPages: 1, limit: 25 };
+  const [wizard, setWizard] = useState(false);
 
   return (
     <div className="space-y-3">
@@ -53,6 +54,10 @@ export default function ControlSchools() {
           <p className="text-sm text-slate-400 whitespace-nowrap">{Number(pg.total).toLocaleString()} school{pg.total === 1 ? '' : 's'} {showDeleted ? '(incl. deleted)' : ''}</p>
         </div>
         <div className="flex items-center gap-3">
+          <button onClick={() => setWizard(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium">
+            <Plus className="w-3.5 h-3.5" /> New school
+          </button>
           <label className="flex items-center gap-1.5 text-xs text-slate-400">
             <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} /> Show deleted
           </label>
@@ -123,6 +128,118 @@ export default function ControlSchools() {
           onClick={() => setPage((p) => p + 1)}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
         >Next <ChevronRight className="w-3.5 h-3.5" /></button>
+      </div>
+
+      {wizard && <ProvisionWizard onClose={() => setWizard(false)} onProvisioned={() => mutate()} />}
+    </div>
+  );
+}
+
+/** One-click new-school provisioning (P20). */
+function ProvisionWizard({ onClose, onProvisioned }: { onClose: () => void; onProvisioned: () => void }) {
+  const { data: plansData } = useSWR<any>('/api/control-center/plans', fetcher);
+  const plans = plansData?.plans || plansData?.rows || [];
+  const [form, setForm] = useState({ name: '', adminName: '', adminEmail: '', adminPhone: '', planCode: '', shortCode: '', district: '', country: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<{ school_id: number; admin_email: string; temp_password: string; plan: string | null } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    setBusy(true); setError(null);
+    try {
+      const r = await fetch('/api/control-center/schools/provision', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form),
+      });
+      const j = await r.json();
+      if (!j.success) { setError(j.error || 'Provisioning failed'); return; }
+      setDone(j);
+      onProvisioned();
+    } catch (e: any) {
+      setError(e?.message || 'Provisioning failed');
+    } finally { setBusy(false); }
+  };
+
+  const field = (key: keyof typeof form, label: string, opts: { type?: string; required?: boolean; placeholder?: string } = {}) => (
+    <label className="text-[11px] text-slate-400 block">
+      {label}{opts.required && <span className="text-rose-400"> *</span>}
+      <input
+        type={opts.type || 'text'} value={form[key]} placeholder={opts.placeholder}
+        onChange={(e) => set(key, e.target.value)}
+        className="mt-0.5 w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-100"
+      />
+    </label>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800">
+          <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2"><School className="w-4 h-4 text-indigo-400" /> Provision a new school</h2>
+          <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 text-slate-400"><X className="w-4 h-4" /></button>
+        </div>
+
+        {done ? (
+          <div className="p-5 space-y-4">
+            <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium"><Check className="w-4 h-4" /> School #{done.school_id} created{done.plan ? ` on the ${done.plan} plan` : ''}.</div>
+            <p className="text-xs text-slate-400">Share these first-login credentials with the school. They&apos;ll be required to set a new password on first sign-in.</p>
+            <div className="bg-slate-800/70 rounded-lg p-3 space-y-1.5 text-sm">
+              <div className="flex justify-between gap-2"><span className="text-slate-500">Email</span><span className="text-slate-200 font-mono">{done.admin_email}</span></div>
+              <div className="flex justify-between gap-2 items-center">
+                <span className="text-slate-500">Temp password</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-slate-100 font-mono font-semibold tracking-wide">{done.temp_password}</span>
+                  <button
+                    onClick={() => { navigator.clipboard?.writeText(`${done.admin_email} / ${done.temp_password}`); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+                    className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300" title="Copy email + password">
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </span>
+              </div>
+            </div>
+            <p className="text-[11px] text-amber-300/90">This password is shown once — copy it now.</p>
+            <div className="flex justify-end gap-2">
+              <a href={`/control/schools/${done.school_id}`} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs">Open school</a>
+              <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">Done</button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 space-y-3">
+            {field('name', 'School name', { required: true, placeholder: 'e.g. Kampala Modern High' })}
+            <div className="grid grid-cols-2 gap-3">
+              {field('shortCode', 'Short code', { placeholder: 'KMH' })}
+              <label className="text-[11px] text-slate-400 block">
+                Plan
+                <select value={form.planCode} onChange={(e) => set('planCode', e.target.value)}
+                  className="mt-0.5 w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-100">
+                  <option value="">Trial (no plan)</option>
+                  {plans.map((p: any) => <option key={p.code} value={p.code}>{p.name}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {field('district', 'District')}
+              {field('country', 'Country', { placeholder: 'Uganda' })}
+            </div>
+            <div className="border-t border-slate-800 pt-3 mt-1">
+              <p className="text-[11px] text-slate-500 mb-2 uppercase tracking-wide">First admin (school owner)</p>
+              {field('adminName', 'Full name', { required: true, placeholder: 'Jane Doe' })}
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {field('adminEmail', 'Email', { required: true, type: 'email', placeholder: 'admin@school.ug' })}
+                {field('adminPhone', 'Phone')}
+              </div>
+            </div>
+            {error && <p className="text-xs text-rose-400">{error}</p>}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">Cancel</button>
+              <button onClick={submit} disabled={busy}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium disabled:opacity-50">
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Provision school
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
