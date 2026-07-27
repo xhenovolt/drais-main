@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T22:05:29.984Z",
-  "last_commit": "9dea1b25d4f7016228787b034b30ad4a82045a3c",
+  "generated_at": "2026-07-27T22:25:39.014Z",
+  "last_commit": "06146fdaad6fa9f0d9f4bf96701f0c55bc3060fb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5253,7 +5253,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.144.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Separate ACCOUNT status from ONLINE session; lifecycle stats (P4)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Separate ACCOUNT status from ONLINE session; lifecycle stats (P4)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.143.0"
+  "app_version": "1.144.0"
 }

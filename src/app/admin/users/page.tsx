@@ -318,6 +318,7 @@ export default function AdminUsersPage() {
   const [roleF,     setRoleF]     = useState('');
   const [deptF,     setDeptF]     = useState('');
   const [statusF,   setStatusF]   = useState('');
+  const [onlineOnly, setOnlineOnly] = useState(false); // SESSION filter, separate from account status
 
   // Online-status incremental update map
   const [onlineMap,  setOnlineMap]  = useState<Map<number, boolean>>(new Map());
@@ -439,13 +440,30 @@ export default function AdminUsersPage() {
     if (q && !`${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(q)) return false;
     if (roleF   && !u.roles.some(r => r.toLowerCase() === roleF.toLowerCase())) return false;
     if (deptF   && String(u.department_id) !== deptF) return false;
-    if (statusF === 'active'   && !u.is_active) return false;
-    if (statusF === 'inactive' && u.is_active)  return false;
-    if (statusF === 'online'   && !onlineMap.get(u.id)) return false;
+    // ACCOUNT status (persistent) — deliberately separate from ONLINE.
+    const acct = u.is_active ? 'active' : (u.last_login_at ? 'inactive' : 'pending');
+    if (statusF && statusF !== acct) return false;
+    // ONLINE = a live session right now. An active account is normally OFFLINE.
+    if (onlineOnly && !(onlineMap.get(u.id) ?? u.is_online)) return false;
     return true;
   });
 
-  const onlineCount = filtered.filter(u => onlineMap.get(u.id)).length;
+  const onlineCount = filtered.filter(u => onlineMap.get(u.id) ?? u.is_online).length;
+
+  // Account-status breakdown across ALL users, kept strictly separate from
+  // "online now" (a transient session state, not an account state).
+  const stats = (() => {
+    let active = 0, inactive = 0, pending = 0;
+    for (const u of users) {
+      if (u.is_active) active++;
+      else if (u.last_login_at) inactive++;   // deactivated: had access, now off
+      else pending++;                          // invited / never activated
+    }
+    return {
+      total: users.length, active, inactive, pending,
+      online: users.filter(u => onlineMap.get(u.id) ?? u.is_online).length,
+    };
+  })();
 
   const [showAddUser, setShowAddUser] = useState(false);
 
@@ -476,6 +494,26 @@ export default function AdminUsersPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Account status vs Online — two SEPARATE axes ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        {([
+          { label: 'Total users', value: stats.total, tone: 'text-gray-900 dark:text-white', hint: null },
+          { label: 'Active accounts', value: stats.active, tone: 'text-emerald-600 dark:text-emerald-400', hint: 'can sign in' },
+          { label: 'Online now', value: stats.online, tone: 'text-sky-600 dark:text-sky-400', hint: 'live session' },
+          { label: 'Inactive', value: stats.inactive, tone: 'text-amber-600 dark:text-amber-400', hint: 'deactivated' },
+          { label: 'Pending', value: stats.pending, tone: 'text-slate-500', hint: 'never signed in' },
+        ] as const).map(s => (
+          <div key={s.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2">
+            <div className={`text-lg font-bold tabular-nums ${s.tone}`}>{s.value}</div>
+            <div className="text-[11px] text-gray-500">{s.label}{s.hint ? ` · ${s.hint}` : ''}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-gray-400 -mt-2">
+        An <b>active account</b> can authenticate — it is usually <b>offline</b> unless the person is signed in right now.
+        “Online” means a live session in the last 2 minutes; it is a session state, not an account state.
+      </p>
 
       {/* ── Filters ── */}
       <div className="flex flex-wrap gap-2">
@@ -509,14 +547,26 @@ export default function AdminUsersPage() {
 
         <div className="relative">
           <select value={statusF} onChange={e => setStatusF(e.target.value)}
+            title="Account status — whether the account can authenticate (persistent)"
             className="appearance-none pl-3 pr-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Status</option>
+            <option value="">All accounts</option>
             <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="online">Online now</option>
+            <option value="inactive">Inactive (deactivated)</option>
+            <option value="pending">Pending (never signed in)</option>
           </select>
           <ChevronDown className="absolute right-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
+
+        {/* Online is a SEPARATE axis (session state), not an account status. */}
+        <button
+          onClick={() => setOnlineOnly(v => !v)}
+          title="Show only users with a live session right now"
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
+            onlineOnly
+              ? 'border-sky-400 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300'
+              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>
+          <Wifi className="w-4 h-4" /> Online now
+        </button>
       </div>
 
       {/* ── Error ── */}
