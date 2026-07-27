@@ -36,9 +36,17 @@ const controlActor = (operatorId: number | null, schoolId: number | null): Trans
   userId: operatorId, schoolId: schoolId ?? 0, ip: null, userAgent: 'xhenvolt-control', fromSuperAdmin: true,
 });
 
-export interface PlatformDeviceFilter { q?: string; schoolId?: number | 'unassigned' | null; status?: string | null }
+export interface PlatformDeviceFilter {
+  q?: string; schoolId?: number | 'unassigned' | null; status?: string | null;
+  /** Bounded slice (P21). Omit for the legacy unbounded list. */
+  limit?: number; offset?: number;
+}
 
-/** Every device across every school, with owner name + computed online flag. */
+/**
+ * Every device (across every school) matching the filter, with owner name +
+ * computed online flag. Returns { rows, total }; when `limit` is given the
+ * query is bounded (P21 scale hardening) and `total` reflects the full match.
+ */
 export async function listPlatformDevices(filter: PlatformDeviceFilter = {}) {
   const cond: string[] = ['d.deleted_at IS NULL'];
   const params: any[] = [];
@@ -49,6 +57,13 @@ export async function listPlatformDevices(filter: PlatformDeviceFilter = {}) {
     cond.push('(d.sn LIKE ? OR d.device_name LIKE ? OR d.location LIKE ?)');
     const like = `%${filter.q}%`; params.push(like, like, like);
   }
+  const where = cond.join(' AND ');
+
+  const countRows = (await query(`SELECT COUNT(*) AS total FROM devices d WHERE ${where}`, params)) as any[];
+  const total = Number(countRows[0]?.total || 0);
+
+  const bounded = Number.isFinite(filter.limit as number) && (filter.limit as number) > 0;
+  const pageClause = bounded ? `LIMIT ${Math.floor(filter.limit as number)} OFFSET ${Math.max(0, Math.floor(filter.offset || 0))}` : '';
   const rows = (await query(
     `SELECT d.id, d.sn, d.device_name, d.model_name, d.device_type, d.location, d.status, d.school_id,
             d.last_seen, d.last_activity, d.firmware_version, d.push_version, d.ip_address, d.lan_ip,
@@ -57,11 +72,12 @@ export async function listPlatformDevices(filter: PlatformDeviceFilter = {}) {
             s.name AS school_name
        FROM devices d
        LEFT JOIN schools s ON s.id = d.school_id
-      WHERE ${cond.join(' AND ')}
-      ORDER BY (d.school_id IS NULL) DESC, d.last_seen DESC`,
+      WHERE ${where}
+      ORDER BY (d.school_id IS NULL) DESC, d.last_seen DESC
+      ${pageClause}`,
     params,
   )) as any[];
-  return rows.map(r => ({ ...r, is_online: !!Number(r.is_online) }));
+  return { rows: rows.map(r => ({ ...r, is_online: !!Number(r.is_online) })), total };
 }
 
 /** Full detail for one device: the row + live counts + owner. */

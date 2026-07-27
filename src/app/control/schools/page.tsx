@@ -1,10 +1,10 @@
 'use client';
 
 /** All schools with operational vitals — click through for the operations view. */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { School, HardDrive, Loader2 } from 'lucide-react';
+import { School, HardDrive, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
@@ -18,13 +18,40 @@ const ago = (d: string | null) => {
 };
 
 export default function ControlSchools() {
-  const [showDeleted, setShowDeleted] = React.useState(false);
-  const { data, isLoading } = useSWR<any>(`/api/control-center/schools${showDeleted ? '?include_deleted=1' : ''}`, fetcher);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [page, setPage] = useState(1);
+  const [input, setInput] = useState('');
+  const [q, setQ] = useState('');
+
+  // Debounce search → one query on pause; any filter change resets to page 1.
+  useEffect(() => {
+    const t = setTimeout(() => { setQ(input.trim()); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [input]);
+  useEffect(() => { setPage(1); }, [showDeleted]);
+
+  const params = new URLSearchParams({ page: String(page), limit: '25' });
+  if (showDeleted) params.set('include_deleted', '1');
+  if (q) params.set('q', q);
+  const { data, isLoading } = useSWR<any>(`/api/control-center/schools?${params}`, fetcher, { keepPreviousData: true });
   const rows = data?.rows || [];
+  const pg = data?.pagination || { page: 1, total: 0, totalPages: 1, limit: 25 };
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-400">{rows.length} school{rows.length === 1 ? '' : 's'} {showDeleted ? '(incl. deleted)' : 'on the platform'}</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Search name, code, district…"
+              className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 w-64 max-w-full"
+            />
+          </div>
+          <p className="text-sm text-slate-400 whitespace-nowrap">{Number(pg.total).toLocaleString()} school{pg.total === 1 ? '' : 's'} {showDeleted ? '(incl. deleted)' : ''}</p>
+        </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-1.5 text-xs text-slate-400">
             <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} /> Show deleted
@@ -79,6 +106,23 @@ export default function ControlSchools() {
             )}
           </Link>
         ))}
+      </div>
+      {!isLoading && rows.length === 0 && (
+        <p className="py-12 text-center text-slate-500 text-sm">No schools match your search.</p>
+      )}
+      {/* Pager */}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          disabled={pg.page <= 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
+        ><ChevronLeft className="w-3.5 h-3.5" /> Prev</button>
+        <span className="text-xs text-slate-500">Page {pg.page} of {pg.totalPages}</span>
+        <button
+          disabled={pg.page >= pg.totalPages}
+          onClick={() => setPage((p) => p + 1)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
+        >Next <ChevronRight className="w-3.5 h-3.5" /></button>
       </div>
     </div>
   );

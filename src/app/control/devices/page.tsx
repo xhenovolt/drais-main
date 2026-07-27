@@ -6,9 +6,9 @@
  * release / reassign, suspend / activate / retire, and read its ownership
  * timeline. Ownership lives here now, not at the school level.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { HardDrive, Loader2, Search, History, X } from 'lucide-react';
+import { HardDrive, Loader2, Search, History, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
@@ -31,14 +31,18 @@ const STATUS_STYLE: Record<string, string> = {
 export default function ControlDevices() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
   const [busy, setBusy] = useState<string | null>(null);
   const [timelineSn, setTimelineSn] = useState<string | null>(null);
-  const params = new URLSearchParams();
+  // Any filter change resets to the first page.
+  useEffect(() => { setPage(1); }, [q, status]);
+  const params = new URLSearchParams({ page: String(page), limit: '50' });
   if (q) params.set('q', q);
   if (status) params.set('status', status);
-  const { data, isLoading, mutate } = useSWR<any>(`/api/control-center/devices?${params}`, fetcher);
+  const { data, isLoading, mutate } = useSWR<any>(`/api/control-center/devices?${params}`, fetcher, { keepPreviousData: true });
   const devices = data?.devices || [];
   const schools = data?.schools || [];
+  const pg = data?.pagination || { page: 1, total: 0, totalPages: 1, limit: 50 };
   const unassigned = useMemo(() => devices.filter((d: any) => d.school_id == null).length, [devices]);
 
   const act = useCallback(async (sn: string, action: string, extra: Record<string, unknown> = {}) => {
@@ -67,8 +71,8 @@ export default function ControlDevices() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-slate-400">
-          {devices.length} device{devices.length === 1 ? '' : 's'} on the platform
-          {unassigned > 0 && <span className="ml-2 text-amber-300">· {unassigned} unassigned</span>}
+          {Number(pg.total).toLocaleString()} device{pg.total === 1 ? '' : 's'} on the platform
+          {unassigned > 0 && <span className="ml-2 text-amber-300">· {unassigned} unassigned on this page</span>}
         </p>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -152,6 +156,23 @@ export default function ControlDevices() {
           );
         })}
       </div>
+
+      {/* Pager */}
+      {pg.total > 0 && (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            disabled={pg.page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
+          ><ChevronLeft className="w-3.5 h-3.5" /> Prev</button>
+          <span className="text-xs text-slate-500">Page {pg.page} of {pg.totalPages}</span>
+          <button
+            disabled={pg.page >= pg.totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
+          >Next <ChevronRight className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
 
       {timelineSn && <TimelineDrawer sn={timelineSn} onClose={() => setTimelineSn(null)} />}
     </div>

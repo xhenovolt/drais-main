@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
 import { listPlatformDevices, validateDeviceAction, runDeviceAction, type PlatformDeviceAction } from '@/lib/control/devices';
+import { parsePageParams, totalPages } from '@/lib/control/pagination';
 import { query } from '@/lib/db';
 
 export const runtime = 'nodejs';
@@ -19,15 +20,20 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const schoolParam = url.searchParams.get('school');
-  const devices = await listPlatformDevices({
+  const { page, limit, offset } = parsePageParams(url.searchParams.get('page'), url.searchParams.get('limit'), { defaultLimit: 50, maxLimit: 200 });
+  const { rows: devices, total } = await listPlatformDevices({
     q: url.searchParams.get('q') || undefined,
     schoolId: schoolParam === 'unassigned' ? 'unassigned' : schoolParam ? Number(schoolParam) : null,
     status: url.searchParams.get('status') || null,
-  }).catch(() => []);
+    limit, offset,
+  }).catch(() => ({ rows: [] as any[], total: 0 }));
   const schools = (await query(
     `SELECT id, name FROM schools WHERE deleted_at IS NULL ORDER BY name ASC`, [],
   ).catch(() => [])) as any[];
-  return NextResponse.json({ success: true, devices, schools, count: devices.length });
+  return NextResponse.json({
+    success: true, devices, schools, count: devices.length,
+    pagination: { page, limit, total, totalPages: totalPages(total, limit) },
+  });
 }
 
 export async function POST(req: NextRequest) {

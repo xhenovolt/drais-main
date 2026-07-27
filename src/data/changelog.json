@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T02:55:40.741Z",
-  "last_commit": "4ce35409439fe2c4a23aad32c3516caf3bed9e38",
+  "generated_at": "2026-07-27T03:08:11.464Z",
+  "last_commit": "32d18899ae1089b4cda5b0408ac6b957213f2f72",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4967,7 +4967,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.135.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Paginate + server-side search the platform lists (scale hardening, P21)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Paginate + server-side search the platform lists (scale hardening, P21)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.134.3"
+  "app_version": "1.135.0"
 }
