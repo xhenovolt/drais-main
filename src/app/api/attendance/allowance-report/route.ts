@@ -12,6 +12,7 @@
  *   Departure Time, Attendance Status, Allowance Eligibility
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getSessionSchoolId } from '@/lib/auth';
 import { buildAllowanceReport } from '@/lib/attendance/allowance';
 
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const url = new URL(req.url);
-  const date = url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+  const date = url.searchParams.get('date') || schoolLocalToday();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: 'date must be YYYY-MM-DD' }, { status: 400 });
   }

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -87,7 +88,7 @@ const statusConfig = {
 };
 
 export const AttendanceSystem: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(toLocalDateStr());
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStream, setSelectedStream] = useState('');
   const [searchQuery, setSearchQuery] = useState('');

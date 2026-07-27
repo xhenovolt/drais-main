@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { emit } from '@/lib/comm';
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const studentId = fingerprintResult[0].student_id;
-    const attendanceDate = date || new Date().toISOString().split('T')[0];
+    const attendanceDate = date || schoolLocalToday();
 
     // Update last used timestamp
     await connection.execute(

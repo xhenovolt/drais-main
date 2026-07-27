@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import {
   Users, UserCheck, Briefcase, AlertTriangle, Activity,
   Search, RefreshCw, ChevronLeft, ChevronRight,
@@ -616,7 +617,7 @@ export default function UnifiedAttendancePage() {
   const [derivedFilter, setDerivedFilter] = useState<'' | 'late' | 'early' | 'ontime'>('');
   const [showAllowance, setShowAllowance] = useState(false);
   const [allowanceFilter, setAllowanceFilter] = useState<'all' | 'eligible' | 'rejected'>('all');
-  const allowanceDate = dateFrom || new Date().toISOString().slice(0, 10);
+  const allowanceDate = dateFrom || toLocalDateStr();
   const { data: allowanceData, isLoading: allowanceLoading } = useSWR<any>(
     showAllowance ? `/api/attendance/allowance-report?date=${allowanceDate}` : null,
     fetcher2,
@@ -1010,7 +1011,7 @@ export default function UnifiedAttendancePage() {
             onChange={(e) => {
               const tf = e.target.value as typeof timeframe; setTimeframe(tf); setPage(1);
               if (tf !== 'all' && !dateFrom && !dateTo) {
-                const today = new Date().toISOString().slice(0, 10);
+                const today = toLocalDateStr();
                 setDateFrom(today); setDateTo(today); setDatePreset('today');
               }
             }}

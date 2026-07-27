@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { TahfizPlan, TahfizRecord } from '@/types/tahfiz';
 
 export default function TahfizProgressPage() {
   const [plans, setPlans] = useState<TahfizPlan[]>([]);
   const [records, setRecords] = useState<TahfizRecord[]>([]);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(toLocalDateStr());
   const [loading, setLoading] = useState(false);
 
   // Fetch plans for selected date

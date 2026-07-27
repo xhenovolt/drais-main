@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Use provided date or default to today
-    const today = date || new Date().toISOString().split('T')[0];
+    const today = date || schoolLocalToday();
     const currentTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
 
     // Get database connection
@@ -200,7 +201,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const student_id = searchParams.get('student_id');
   const class_id = searchParams.get('class_id');
-  const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const date = searchParams.get('date') || schoolLocalToday();
 
   if (!student_id || !class_id) {
     return NextResponse.json(

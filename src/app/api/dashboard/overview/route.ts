@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getDashboardAttendanceCounts } from '@/lib/attendance/dashboard-counts';
 
@@ -16,11 +17,11 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
-    const from = searchParams.get('from') || new Date().toISOString().split('T')[0];
-    const to = searchParams.get('to') || new Date().toISOString().split('T')[0];
+    const from = searchParams.get('from') || schoolLocalToday();
+    const to = searchParams.get('to') || schoolLocalToday();
 
     // Get today's date for current metrics
-    const today = new Date().toISOString().split('T')[0];
+    const today = schoolLocalToday();
 
     // Use direct database connection for complex queries with better performance
     connection = await getConnection();

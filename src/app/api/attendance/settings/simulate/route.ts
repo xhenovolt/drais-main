@@ -10,6 +10,7 @@
  * Returns: { rule, events: [{time, type, label, detail}], day: {status, ...} }
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { evaluate, deriveEvents, type AttendanceRule } from '@/lib/attendance/rule-evaluator';
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
   const role = body?.role === 'teachers' ? 'teachers' : 'students';
   const times: string[] = Array.isArray(body?.times) ? body.times.filter((t: any) => /^\d{1,2}:\d{2}$/.test(String(t))) : [];
   if (times.length === 0) return NextResponse.json({ error: 'Provide times[] like ["08:42","16:50"]' }, { status: 400 });
-  const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(body?.date) ? body.date : new Date().toISOString().slice(0, 10);
+  const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(body?.date) ? body.date : schoolLocalToday();
 
   // Load the school's active rule for the role — the SAME query the
   // engine uses, so the sandbox reflects exactly what runs in production.

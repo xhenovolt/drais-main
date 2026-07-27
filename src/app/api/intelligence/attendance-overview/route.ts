@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
     const totalScanned = n(scannedRow.scanned);
 
     // ── Today's distinct students ─────────────────────────────────────────
-    const today = new Date().toISOString().split('T')[0];
+    const today = schoolLocalToday();
     const [[todayRow]] = await connection.execute(
       `SELECT COUNT(DISTINCT student_id) AS today_count
        FROM zk_attendance_logs

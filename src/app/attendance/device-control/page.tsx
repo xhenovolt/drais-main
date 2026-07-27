@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -162,7 +163,7 @@ interface WizardState {
 }
 
 const PAGE_SIZE = 50;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => toLocalDateStr();
 
 export default function DeviceControlPage() {
   const [deviceSn, setDeviceSn] = useState('');

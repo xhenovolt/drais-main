@@ -12,6 +12,7 @@
  *   2. Relay  — DRAIS cloud + relay agent on school LAN → WebSocket bridge
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
@@ -828,10 +829,10 @@ export async function POST(req: NextRequest) {
         // Determine date filter boundaries (device timestamps are local time,
         // so we compare against the ISO date prefix rather than a UTC boundary).
         const filterFrom = mode === 'today'
-          ? new Date().toISOString().slice(0, 10)
+          ? schoolLocalToday()
           : mode === 'range' ? (dateFrom ?? null) : null;
         const filterTo = mode === 'today'
-          ? new Date().toISOString().slice(0, 10)
+          ? schoolLocalToday()
           : mode === 'range' ? (dateTo ?? null)   : null;
 
         const zk = await getConnection(ip, port);

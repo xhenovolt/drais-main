@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Rocket, X } from 'lucide-react';
 import Link from 'next/link';
@@ -32,7 +33,7 @@ export default function SetupChecklist() {
   const { data: studentsData } = useSWR('/api/students/full?limit=1', fetcher, { revalidateOnFocus: false });
   const { data: classData }    = useSWR('/api/classes?limit=1',  fetcher, { revalidateOnFocus: false });
   const { data: attendData }   = useSWR(
-    `/api/attendance?date=${new Date().toISOString().split('T')[0]}&limit=1`,
+    `/api/attendance?date=${toLocalDateStr()}&limit=1`,
     fetcher,
     { revalidateOnFocus: false }
   );

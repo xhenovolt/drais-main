@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getDashboardAttendanceCounts } from '@/lib/attendance/dashboard-counts';
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { schoolId } = session;
   const url = new URL(req.url);
-  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const date = url.searchParams.get('date') || schoolLocalToday();
 
   try {
     // Device stats (school-scoped)

@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { UserCheck, Calendar, AlertCircle } from 'lucide-react';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
@@ -13,7 +14,7 @@ interface AttendanceTodayProps {
 const AttendanceToday: React.FC<AttendanceTodayProps> = ({ schoolId }) => {
   const { lang } = useI18n();
   const isAr = lang === 'ar';
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   const { data: attendanceData, isLoading, error } = useSWR(
     schoolId ? `/api/attendance/stats?school_id=${schoolId}&date=${today}` : null,

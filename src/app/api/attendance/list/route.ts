@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const classId = searchParams.get('class_id');
     const streamId = searchParams.get('stream_id');
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const date = searchParams.get('date') || schoolLocalToday();
 
     connection = await getConnection();
     let where = 'WHERE e.status = "active" AND s.school_id = ? AND s.deleted_at IS NULL';

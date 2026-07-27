@@ -6,6 +6,7 @@
  * heavy actions route to Device Control, the safe one (queue retry) runs here.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import {
   LifeBuoy, RefreshCw, AlertTriangle, CheckCircle, Clock, ArrowRight, Loader2, ListRestart,
 } from 'lucide-react';
@@ -128,8 +129,8 @@ export default function RecoveryCenter() {
 /** Re-evaluate attendance for a past date range — rebuilds verdicts from the
  *  immutable raw events. Replaces the founder's re-evaluation scripts. */
 function HistoricalRepair({ t }: { t: (k: string, v?: any, f?: string) => string }) {
-  const [from, setFrom] = useState(() => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [from, setFrom] = useState(() => toLocalDateStr(new Date(Date.now() - 7 * 86400000)));
+  const [to, setTo] = useState(() => toLocalDateStr());
   const [role, setRole] = useState<'' | 'staff' | 'student'>('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);

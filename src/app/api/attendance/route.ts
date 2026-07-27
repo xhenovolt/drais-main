@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const date = searchParams.get('date') || schoolLocalToday();
     const classId = searchParams.get('class_id');
     const status = searchParams.get('status');
 

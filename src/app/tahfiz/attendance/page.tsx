@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, Clock, Users, Check, X, 
@@ -21,7 +22,7 @@ interface AttendanceRecord {
 export default function TahfizAttendance() {
   const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(toLocalDateStr());
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);

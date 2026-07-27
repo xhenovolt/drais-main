@@ -9,6 +9,7 @@
  * "where did it break?" at a glance.
  */
 import React, { useCallback, useEffect, useState, Suspense } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { useSearchParams } from 'next/navigation';
 import {
   GitBranch, Search, Loader2, CheckCircle, AlertTriangle, XCircle, Info, MinusCircle, RefreshCw,
@@ -35,7 +36,7 @@ const DOT: Record<string, string> = {
 function TracePageInner() {
   const params = useSearchParams();
   const [q, setQ] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(toLocalDateStr());
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [trace, setTrace] = useState<any>(null);

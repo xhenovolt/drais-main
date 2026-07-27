@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T02:36:22.568Z",
-  "last_commit": "755ecb440574ebdf39ac0bc13492d1f0995eda0c",
+  "generated_at": "2026-07-27T02:55:40.741Z",
+  "last_commit": "4ce35409439fe2c4a23aad32c3516caf3bed9e38",
   "releases": [
     {
       "version": "0.0.0049",
@@ -4954,7 +4954,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.134.3",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Tz-safe date helpers across attendance/dashboard (kill the UTC off-by-one)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Tz-safe date helpers across attendance/dashboard (kill the UTC off-by-one)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.134.2"
+  "app_version": "1.134.3"
 }

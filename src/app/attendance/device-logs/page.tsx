@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import clsx from 'clsx';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -143,7 +144,7 @@ const TAB_CONFIG: { key: Tab; label: string; icon: React.ReactNode; desc: string
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DeviceObservabilityPage() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   const [tab, setTab]             = useState<Tab>('raw');
   const [page, setPage]           = useState(1);

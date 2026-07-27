@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -7,7 +8,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 export const AttendanceManager: React.FC = () => {
   const [classId, setClassId] = useState('');
   const [streamId, setStreamId] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => toLocalDateStr());
   const { data, mutate } = useSWR(
     `/api/attendance/list?class_id=${classId}&stream_id=${streamId}&date=${date}`,
     fetcher

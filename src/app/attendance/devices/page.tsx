@@ -12,6 +12,7 @@ import {
   LogOut, LogIn, Archive,
 } from 'lucide-react';
 import { showToast, confirmAction } from '@/lib/toast';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { apiFetch } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import DeviceReconciliationModal from '@/components/attendance/DeviceReconciliationModal';
@@ -401,7 +402,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [showPullDialog, setShowPullDialog] = useState(false);
   const [pullMode, setPullMode] = useState<'today' | 'full' | 'range'>('today');
   const [pullDateFrom, setPullDateFrom] = useState('');
-  const [pullDateTo, setPullDateTo] = useState(new Date().toISOString().slice(0, 10));
+  const [pullDateTo, setPullDateTo] = useState(toLocalDateStr());
   const [pullStage, setPullStage] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [pullResult, setPullResult] = useState<any>(null);
 

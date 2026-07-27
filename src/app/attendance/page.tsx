@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { toLocalDateStr } from '@/lib/datetime/local-date';
 import {
   UserCheck, Users, Briefcase, Fingerprint, Activity, Clock,
   Wifi, WifiOff, Server, AlertTriangle, TrendingUp, Radio,
@@ -60,7 +61,7 @@ function useLiveFeed() {
 // ── Dashboard Page ─────────────────────────────────────────────────────────
 export default function AttendanceDashboard() {
   const { t } = useI18n();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
   const [date, setDate] = useState(today);
   const [liveFeedOpen, setLiveFeedOpen] = useState(true);
 

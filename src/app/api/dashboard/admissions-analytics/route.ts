@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     const connection = await getConnection();
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = schoolLocalToday();
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         .toISOString()
         .split('T')[0];

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('class_id');
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const date = searchParams.get('date') || schoolLocalToday();
 
     if (!classId) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });

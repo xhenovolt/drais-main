@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const limit = parseInt(searchParams.get('limit', 10) || '50', 10);
 
     // Default to last 30 days if no dates provided
-    const today = new Date().toISOString().split('T')[0];
+    const today = schoolLocalToday();
     const defaultStartDate = new Date();
     defaultStartDate.setDate(defaultStartDate.getDate() - 30);
     

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
       const ms = startMs + ((h * 60 + m) * 60 + (endOfMinute ? 59 : 0)) * 1000;
       return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
     };
-    const defaultDay = () => dateFrom || dateTo || new Date().toISOString().slice(0, 10);
+    const defaultDay = () => dateFrom || dateTo || schoolLocalToday();
 
     if (timeFrom && hhmm.test(timeFrom)) {
       conditions.push('ar.punch_at >= ?');

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 
@@ -255,7 +256,7 @@ export async function GET(req: NextRequest) {
         urgency:     n(cls.rate_pct) < 40 ? 'critical' : 'high',
         affected_count: n(cls.absent_today),
         affected_entities: [{ id: cls.class_id, label: cls.class_name, meta: `${cls.rate_pct}% attendance` }],
-        action_url:            `/attendance?class_id=${cls.class_id}&date=${new Date().toISOString().split('T')[0]}&status=absent`,
+        action_url:            `/attendance?class_id=${cls.class_id}&date=${schoolLocalToday()}&status=absent`,
         auto_action_available: false,
       });
     }
@@ -273,7 +274,7 @@ export async function GET(req: NextRequest) {
         urgency:     latePct > 15 ? 'high' : 'medium',
         affected_count:    lateTotal,
         affected_entities: [{ id: 'late', label: `${lateTotal} late students`, meta: `${latePct.toFixed(1)}% of school` }],
-        action_url:            `/attendance?date=${new Date().toISOString().split('T')[0]}&status=late`,
+        action_url:            `/attendance?date=${schoolLocalToday()}&status=late`,
         auto_action_available: false,
       });
     }
