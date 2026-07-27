@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T03:24:29.737Z",
-  "last_commit": "17948377dee136e9bb78d1c537c4ac82dae56d02",
+  "generated_at": "2026-07-27T03:28:42.565Z",
+  "last_commit": "26b5192d4a626ac4e807da4e2450a6b63b64348c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5006,7 +5006,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.137.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "External API v1 discovery endpoint + fix session-middleware blocking it (P25)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "External API v1 discovery endpoint + fix session-middleware blocking it (P25)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.136.0"
+  "app_version": "1.137.0"
 }

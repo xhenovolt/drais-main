@@ -37,6 +37,10 @@ const PUBLIC_ROUTES = [
   '/api/internal',
   // JETON external control channel — authenticated via x-api-key + x-api-secret headers
   '/api/control',
+  // External Platform API v1 — authenticated per-route via requirePlatformAuth
+  // (Bearer key.secret), NOT the session cookie. Session-gating it here would
+  // 401 every external consumer before their key is ever checked.
+  '/api/platform',
   // DRAIS Control Center (Xhenvolt internal console) — its OWN isolated auth
   // (control_users/control_sessions + drais_control cookie), enforced inside
   // /api/control-center routes. School sessions are neither required nor used.
