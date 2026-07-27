@@ -4,7 +4,7 @@
  * Paginated audit trail table — Admin only.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Shield, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
+import { Shield, ChevronLeft, ChevronRight, RefreshCw, Search, Download } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AuditLog {
@@ -93,12 +93,25 @@ export default function AuditLogsPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => fetchLogs(pagination.page)}
-          className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const p = new URLSearchParams({ format: 'csv' });
+              if (actionFilter.trim()) p.set('action', actionFilter.trim());
+              window.open(`/api/admin/audit-logs?${p}`, '_blank');
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            title="Export the current filter to CSV (audited)"
+          >
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <button
+            onClick={() => fetchLogs(pagination.page)}
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}

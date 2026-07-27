@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T21:00:10.133Z",
-  "last_commit": "a33e74478f758f2379429e54cc2290dc60f0bc17",
+  "generated_at": "2026-07-27T22:02:37.648Z",
+  "last_commit": "88224d91736a6399e310f73b5a3270ebc0a0d1a0",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5227,7 +5227,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.142.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Standardized server CSV helper + audited audit-log export (P3)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Standardized server CSV helper + audited audit-log export (P3)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.141.5"
+  "app_version": "1.142.0"
 }
