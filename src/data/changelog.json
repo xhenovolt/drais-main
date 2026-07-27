@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T19:42:37.724Z",
-  "last_commit": "9c1a7babe140ee679198e4bced15eb83339249fb",
+  "generated_at": "2026-07-27T19:52:26.321Z",
+  "last_commit": "1951592343566b9418218055daa3d29bed67435c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5162,7 +5162,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.141.1",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Plan tombstones — a deleted plan can NEVER be re-seeded (kills Starter resurrection)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Plan tombstones — a deleted plan can NEVER be re-seeded (kills Starter resurrection)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.141.0"
+  "app_version": "1.141.1"
 }

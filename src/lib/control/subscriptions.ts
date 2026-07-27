@@ -90,6 +90,31 @@ const PRESETS: SubscriptionPlan[] = [
     ...b(0, 0, 'annual', 1, ['Unlimited everything', 'Custom contract & pricing', 'Dedicated support']) },
 ];
 
+/**
+ * PLAN TOMBSTONES — the definitive "stay deleted" mechanism.
+ *
+ * A preset an operator deletes goes into a persistent tombstone set. The seeder
+ * NEVER recreates a tombstoned code — no matter how many times it runs, on which
+ * cold start, from which code version. This is what finally kills the "Starter
+ * keeps coming back" bug for good. Manually (re)creating a plan clears its
+ * tombstone, so operator intent always wins over the guard.
+ */
+async function getDeletedPlanCodes(): Promise<string[]> {
+  try {
+    const raw = await getSetting('deleted_plan_codes');
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.map(String) : [];
+  } catch { return []; }
+}
+async function tombstonePlanCode(code: string): Promise<void> {
+  const cur = await getDeletedPlanCodes();
+  if (!cur.includes(code)) await setSetting('deleted_plan_codes', JSON.stringify([...cur, code])).catch(() => {});
+}
+async function untombstonePlanCode(code: string): Promise<void> {
+  const cur = await getDeletedPlanCodes();
+  if (cur.includes(code)) await setSetting('deleted_plan_codes', JSON.stringify(cur.filter(c => c !== code))).catch(() => {});
+}
+
 let ensured: Promise<void> | null = null;
 export function ensureSubscriptionPlansSchema(): Promise<void> {
   if (ensured) return ensured;
@@ -129,7 +154,11 @@ export function ensureSubscriptionPlansSchema(): Promise<void> {
       // Only seed when the table is genuinely empty. A non-empty table means the
       // platform is already bootstrapped (existing installs) — just mark it.
       if (Number(existing[0]?.n || 0) === 0) {
+        // NEVER resurrect a tombstoned (operator-deleted) preset, even on a
+        // fresh bootstrap — the last line of defence against "it came back".
+        const tomb = await getDeletedPlanCodes();
         for (const p of PRESETS) {
+          if (tomb.includes(p.code)) continue;
           await query(
             `INSERT IGNORE INTO subscription_plans
                (code, name, tier, limits, features, is_active, price, installation_fee, currency, billing_cycle, installments, deliverables)
@@ -191,6 +220,7 @@ export async function upsertPlan(input: {
      Number(input.price) || 0, Number(input.installation_fee) || 0, (input.currency || 'UGX').slice(0, 8), cycle,
      Math.max(1, Number(input.installments) || 1), JSON.stringify(input.deliverables ?? [])],
   );
+  await untombstonePlanCode(code); // operator explicitly (re)created it — lift any tombstone
   return (await getPlanByCode(code))!;
 }
 
@@ -207,6 +237,7 @@ export async function deletePlan(code: string, operatorId: number | null, ip?: s
   const inUse = await schoolsOnPlan(code);
   if (inUse > 0) return { ok: false, reason: `${inUse} school(s) still on this plan — reassign them first` };
   await query(`DELETE FROM subscription_plans WHERE code = ?`, [code]);
+  await tombstonePlanCode(code); // stays dead: the seeder can never bring it back
   await controlAudit(operatorId, 'plan_deleted', `plans:${code}`, null, ip ?? null);
   return { ok: true };
 }
