@@ -17,6 +17,24 @@ const ago = (d: string | null) => {
   return `${Math.round(min / 1440)}d ago`;
 };
 
+const DAY = 86_400_000;
+/** At-a-glance subscription timing so operators never open a school just to see
+ *  when it renews — the lever that makes the console scale to thousands. */
+function subInfo(sub: any): null | { pct: number; daysLeft: number; label: string; tone: 'ok' | 'warn' | 'danger' | 'expired'; isTrial: boolean; end: number } {
+  const endRaw = sub?.end || sub?.trial_end;
+  if (!endRaw) return null; // one-time / unset — no countdown to show
+  const end = new Date(endRaw).getTime();
+  if (Number.isNaN(end)) return null;
+  const now = Date.now();
+  const startMs = sub?.start && !Number.isNaN(new Date(sub.start).getTime()) ? new Date(sub.start).getTime() : end - 30 * DAY;
+  const total = Math.max(1, end - startMs);
+  const pct = Math.min(100, Math.max(0, Math.round(((now - startMs) / total) * 100)));
+  const daysLeft = Math.ceil((end - now) / DAY);
+  const tone = daysLeft < 0 ? 'expired' : daysLeft <= 7 ? 'danger' : daysLeft <= 30 ? 'warn' : 'ok';
+  const label = daysLeft < 0 ? `expired ${Math.abs(daysLeft)}d ago` : daysLeft === 0 ? 'expires today' : `${daysLeft}d left`;
+  return { pct, daysLeft, label, tone, isTrial: !sub?.end && !!sub?.trial_end, end };
+}
+
 export default function ControlSchools() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [page, setPage] = useState(1);
@@ -102,6 +120,23 @@ export default function ControlSchools() {
               <span>Sub: {s.subscription.plan || '—'} ({s.subscription.status || '—'})</span>
               <span>Last sync: {ago(s.last_sync)}</span>
             </div>
+            {(() => {
+              const si = subInfo(s.subscription);
+              if (!si) return null;
+              const bar = si.tone === 'expired' ? 'bg-rose-600' : si.tone === 'danger' ? 'bg-rose-500' : si.tone === 'warn' ? 'bg-amber-500' : 'bg-emerald-500';
+              const txt = si.tone === 'expired' ? 'text-rose-400' : si.tone === 'danger' ? 'text-rose-300' : si.tone === 'warn' ? 'text-amber-300' : 'text-emerald-300';
+              return (
+                <div className="mt-2" title={`${si.isTrial ? 'Trial' : 'Subscription'} ends ${new Date(si.end).toLocaleDateString()}`}>
+                  <div className="flex items-center justify-between text-[10px] mb-0.5">
+                    <span className="text-slate-500">{si.isTrial ? 'Trial' : 'Subscription'}</span>
+                    <span className={txt}>{si.label}{si.tone !== 'expired' && ` · ${new Date(si.end).toLocaleDateString()}`}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-full ${bar} rounded-full transition-all`} style={{ width: `${si.tone === 'expired' ? 100 : si.pct}%` }} />
+                  </div>
+                </div>
+              );
+            })()}
             {s.modules.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {s.modules.map((m: string) => (

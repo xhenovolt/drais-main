@@ -171,6 +171,8 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
 function BillingPanel({ schoolId, currency }: { schoolId: number; currency: string }) {
   const { data, mutate } = useSWR<any>(`/api/control-center/schools/${schoolId}/billing`, fetcher);
   const [busy, setBusy] = useState(false);
+  const [payTarget, setPayTarget] = useState<any>(null);
+  const [flash, setFlash] = useState<string | null>(null);
   const invoices = data?.invoices || [];
   const outstanding = Number(data?.totalOutstanding || 0);
   const money = (n: any) => `${currency} ${Number(n || 0).toLocaleString()}`;
@@ -179,19 +181,17 @@ function BillingPanel({ schoolId, currency }: { schoolId: number; currency: stri
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
   }).then(r => r.json());
 
-  const act = async (body: any) => { setBusy(true); try { const j = await post(body); if (!j.success) alert(j.error || 'Failed'); await mutate(); return j; } finally { setBusy(false); } };
-  const pay = async (inv: any) => {
-    const amt = prompt(`Record a payment for invoice #${inv.id} (outstanding ${money(inv.outstanding)}).\nAmount:`, String(inv.outstanding));
-    if (amt == null) return;
-    const method = prompt('Method (e.g. mobile money, bank, cash):', 'mobile money') || 'manual';
-    const reference = prompt('Reference / transaction id (optional):') || '';
-    const j = await act({ action: 'record_payment', invoice_id: inv.id, amount: Number(amt), method, reference });
-    if (j?.success && j.paid_in_full) alert(`Paid in full — access extended to ${j.new_end || 'the period end'}.`);
-  };
+  const act = async (body: any) => { setBusy(true); try { const j = await post(body); if (!j.success) setFlash(j.error || 'Failed'); await mutate(); return j; } finally { setBusy(false); } };
   const STATUS: Record<string, string> = { paid: 'bg-emerald-500/20 text-emerald-300', issued: 'bg-sky-500/20 text-sky-300', overdue: 'bg-rose-500/20 text-rose-300', void: 'bg-slate-600/40 text-slate-400' };
 
   return (
     <Panel title="Billing" icon={<CreditCard className="w-4 h-4" />}>
+      {flash && (
+        <div className="mb-2 flex items-start gap-2 text-[11px] rounded-lg bg-slate-800/70 border border-slate-700 px-2.5 py-1.5 text-slate-200">
+          <span className="flex-1">{flash}</span>
+          <button onClick={() => setFlash(null)} className="text-slate-500 hover:text-slate-300">✕</button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-slate-400">Outstanding: <span className={outstanding > 0 ? 'text-rose-300 font-semibold' : 'text-emerald-300 font-semibold'}>{money(outstanding)}</span></span>
         <button onClick={() => act({ action: 'generate_invoice' })} disabled={busy}
@@ -209,7 +209,7 @@ function BillingPanel({ schoolId, currency }: { schoolId: number; currency: stri
               </span>
               <span className="flex items-center gap-1.5">
                 <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold ${STATUS[i.status] || ''}`}>{i.status}</span>
-                {i.status !== 'paid' && i.status !== 'void' && <button onClick={() => pay(i)} disabled={busy} className="text-[11px] px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white disabled:opacity-50">Pay</button>}
+                {i.status !== 'paid' && i.status !== 'void' && <button onClick={() => setPayTarget(i)} disabled={busy} className="text-[11px] px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white disabled:opacity-50">Pay</button>}
                 {i.status !== 'paid' && i.status !== 'void' && <button onClick={() => confirm(`Void invoice #${i.id}?`) && act({ action: 'void_invoice', invoice_id: i.id })} disabled={busy} className="text-[11px] px-1.5 py-1 rounded bg-slate-800 hover:bg-rose-600/40 text-rose-300 disabled:opacity-50">Void</button>}
               </span>
             </div>
@@ -217,7 +217,95 @@ function BillingPanel({ schoolId, currency }: { schoolId: number; currency: stri
         </div>
       )}
       <p className="text-[10px] text-slate-500 mt-2">Recording a full payment marks the invoice paid and extends the school's access to the invoice period end (which drives auto-suspend). Audited.</p>
+
+      {payTarget && (
+        <PaymentModal
+          invoice={payTarget}
+          currency={currency}
+          schoolId={schoolId}
+          onClose={() => setPayTarget(null)}
+          onDone={(msg) => { setPayTarget(null); setFlash(msg); mutate(); }}
+        />
+      )}
     </Panel>
+  );
+}
+
+/** One modal that collects the whole payment (amount + method + reference) and
+ *  finalises in a single confirm — no more three stacked browser prompts. */
+function PaymentModal({ invoice, currency, schoolId, onClose, onDone }: {
+  invoice: any; currency: string; schoolId: number;
+  onClose: () => void; onDone: (msg: string) => void;
+}) {
+  const outstanding = Number(invoice.outstanding || 0);
+  const money = (n: any) => `${currency} ${Number(n || 0).toLocaleString()}`;
+  const [amount, setAmount] = useState<string>(String(outstanding));
+  const [method, setMethod] = useState('mobile money');
+  const [reference, setReference] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const amt = Number(amount);
+  const valid = Number.isFinite(amt) && amt > 0;
+
+  const submit = async () => {
+    if (!valid) { setError('Enter a valid amount greater than 0.'); return; }
+    setBusy(true); setError(null);
+    try {
+      const r = await fetch(`/api/control-center/schools/${schoolId}/billing`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'record_payment', invoice_id: invoice.id, amount: amt, method, reference }),
+      });
+      const j = await r.json();
+      if (!j.success) { setError(j.error || 'Payment failed'); return; }
+      onDone(j.paid_in_full
+        ? `Invoice #${invoice.id} paid in full — access extended to ${j.new_end || 'the period end'}.`
+        : `Recorded ${money(amt)} on invoice #${invoice.id}. ${money(Math.max(0, outstanding - amt))} still outstanding.`);
+    } catch (e: any) {
+      setError(e?.message || 'Payment failed');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <h3 className="text-sm font-semibold text-slate-100">Record payment · invoice #{invoice.id}</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none">✕</button>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-400">Outstanding <span className="text-rose-300 font-semibold">{money(outstanding)}</span></p>
+          <label className="block text-[11px] text-slate-400">Amount ({currency})
+            <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus
+              className="mt-0.5 w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-100" />
+          </label>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setAmount(String(outstanding))}
+              className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700">Full ({money(outstanding)})</button>
+            <button type="button" onClick={() => setAmount(String(Math.round(outstanding / 2)))}
+              className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700">Half</button>
+          </div>
+          <label className="block text-[11px] text-slate-400">Method
+            <select value={method} onChange={(e) => setMethod(e.target.value)}
+              className="mt-0.5 w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-100">
+              {['mobile money', 'bank', 'cash', 'cheque', 'other'].map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+          <label className="block text-[11px] text-slate-400">Reference / transaction id (optional)
+            <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. MPESA QA1B2C3"
+              className="mt-0.5 w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-100" />
+          </label>
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-800">
+          <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">Cancel</button>
+          <button onClick={submit} disabled={busy || !valid}
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-50">
+            {busy ? 'Recording…' : `Record ${money(valid ? amt : 0)}`}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

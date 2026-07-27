@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T19:27:04.345Z",
-  "last_commit": "25f872e9a74ad3de6546ac5ccb98c0a4b8cfc3b1",
+  "generated_at": "2026-07-27T19:42:37.724Z",
+  "last_commit": "9c1a7babe140ee679198e4bced15eb83339249fb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5149,7 +5149,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.141.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "Unified payment modal (no browser prompts) + at-a-glance subscription countdown on schools list",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Unified payment modal (no browser prompts) + at-a-glance subscription countdown on schools list"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.140.0"
+  "app_version": "1.141.0"
 }

@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
 
   const schools = (await query(
     `SELECT s.id, s.name, s.short_code, s.status, s.subscription_plan, s.subscription_status,
+            s.subscription_start_date, s.subscription_end_date, s.trial_end_date,
             s.district, s.country, s.created_at, s.deleted_at
        FROM schools s ${where}
       ORDER BY s.name ASC
@@ -74,7 +75,12 @@ export async function GET(req: NextRequest) {
     rows: schools.map((s) => ({
       id: Number(s.id), name: s.name, short_code: s.short_code,
       status: s.status || 'active', deleted_at: s.deleted_at ?? null,
-      subscription: { plan: s.subscription_plan, status: s.subscription_status },
+      subscription: {
+        plan: s.subscription_plan, status: s.subscription_status,
+        start: s.subscription_start_date ?? null,
+        end: s.subscription_end_date ?? null,
+        trial_end: s.trial_end_date ?? null,
+      },
       district: s.district, country: s.country, created_at: s.created_at,
       learners: Number((learnersBy.get(Number(s.id)) as any)?.learners || 0),
       staff: Number((staffBy.get(Number(s.id)) as any)?.staff || 0),
