@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T22:25:39.014Z",
-  "last_commit": "06146fdaad6fa9f0d9f4bf96701f0c55bc3060fb",
+  "generated_at": "2026-07-27T22:38:28.746Z",
+  "last_commit": "1f064f70f023b33831fadc0b427be02a002da02e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5266,7 +5266,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.145.0",
+      "date": "2026-07-27",
+      "release_type": "minor",
+      "title": "SMS economics engine — provider balance + per-school allocation/usage (P5)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "SMS economics engine — provider balance + per-school allocation/usage (P5)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.144.0"
+  "app_version": "1.145.0"
 }
