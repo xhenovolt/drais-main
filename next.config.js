@@ -73,6 +73,14 @@ const nextConfig = {
       config.optimization.sideEffects = false;
     }
 
+    // R1 (build-memory): Next emits full `source-map` for the PRODUCTION
+    // server compile by default. Turning it off for production (both server +
+    // client) trims map-emission memory; only affects stack-trace readability,
+    // never runtime behaviour, fully reversible. Dev keeps its fast maps.
+    if (!dev) {
+      config.devtool = false;
+    }
+
     return config;
   },
 

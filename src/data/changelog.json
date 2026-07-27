@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T08:21:37.423Z",
-  "last_commit": "4fa44a818452234e7ba53dc0a0e01c157e04a125",
+  "generated_at": "2026-07-27T08:51:18.609Z",
+  "last_commit": "c5ede65ac21853942c247720675b5b0ed0f56b9c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5045,7 +5045,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.137.3",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Bound build heap to 2048 (RSS under the 8GB builder) + drop prod source maps",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Bound build heap to 2048 (RSS under the 8GB builder) + drop prod source maps"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.137.2"
+  "app_version": "1.137.3"
 }
