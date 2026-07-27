@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { buildCsv, csvResponse } from '@/lib/export/serverCsv';
 
 /**
  * GET /api/admin/users
@@ -99,6 +100,36 @@ export async function GET(request: NextRequest) {
   if (statusFilter === 'active')   users = users.filter(u => u.is_active);
   if (statusFilter === 'inactive') users = users.filter(u => !u.is_active);
   if (statusFilter === 'online')   users = users.filter(u => u.is_online);
+
+  // ── CSV export (P3): standardized, metadata-headed, self-auditing ──────────
+  if (searchParams.get('format') === 'csv') {
+    const sch = (await query('SELECT name FROM schools WHERE id = ? LIMIT 1', [session.schoolId]).catch(() => [])) as any[];
+    const me = (await query('SELECT CONCAT(first_name, " ", last_name) AS nm, email FROM users WHERE id = ? LIMIT 1', [session.userId]).catch(() => [])) as any[];
+    const csv = buildCsv(
+      [
+        { key: 'name', label: 'Name', value: (u: any) => [u.first_name, u.last_name].filter(Boolean).join(' ') },
+        { key: 'email', label: 'Email' },
+        { key: 'roles', label: 'Roles', value: (u: any) => (u.roles || []).join('; ') },
+        { key: 'status', label: 'Account', value: (u: any) => u.is_active ? 'active' : 'inactive' },
+        { key: 'is_verified', label: 'Verified', value: (u: any) => u.is_verified ? 'yes' : 'no' },
+        { key: 'is_online', label: 'Online now', value: (u: any) => u.is_online ? 'yes' : 'no' },
+        { key: 'last_login_at', label: 'Last login', value: (u: any) => u.last_login_at ? String(u.last_login_at).slice(0, 19).replace('T', ' ') : 'never' },
+      ],
+      users,
+      {
+        title: 'DRAIS User Management Export', schoolName: sch[0]?.name ?? null,
+        generatedBy: me[0]?.nm?.trim() || me[0]?.email || null,
+        scope: [search && `search=${search}`, roleFilter && `role=${roleFilter}`, statusFilter && `status=${statusFilter}`].filter(Boolean).join(', ') || 'all',
+      },
+    );
+    void logAudit({
+      schoolId: session.schoolId, userId: session.userId, action: AuditAction.EXPORTED_USERS,
+      entityType: 'user', details: { rows: users.length },
+      ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || null,
+      userAgent: request.headers.get('user-agent'),
+    });
+    return csvResponse(`users-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }
 
   return NextResponse.json({ success: true, message: 'Users loaded', data: users, total: users.length });
 }

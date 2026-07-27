@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnection } from '@/lib/db';
+import { getConnection, query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { buildCsv, csvResponse } from '@/lib/export/serverCsv';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -65,6 +66,41 @@ export async function GET(req: NextRequest) {
       : '';
     const like = `%${search.toLowerCase()}%`;
     const searchParams2: any[] = search ? [like, like, like, like] : [];
+
+    // ── CSV export (P3): standardized, metadata-headed, self-auditing ─────────
+    if (searchParams.get('format') === 'csv') {
+      const rows = (await query(
+        `SELECT s.staff_no, p.first_name, p.other_name, p.last_name, s.position, s.status,
+                p.gender, p.phone, p.email, s.hire_date
+           FROM staff s JOIN people p ON s.person_id = p.id
+          WHERE s.school_id = ? AND s.deleted_at IS NULL${searchWhere}
+          ORDER BY p.first_name, p.last_name`,
+        [schoolId, ...searchParams2],
+      )) as any[];
+      const sch = (await query('SELECT name FROM schools WHERE id = ? LIMIT 1', [schoolId]).catch(() => [])) as any[];
+      const me = (await query('SELECT CONCAT(first_name, " ", last_name) AS nm, email FROM users WHERE id = ? LIMIT 1', [session.userId]).catch(() => [])) as any[];
+      const csv = buildCsv(
+        [
+          { key: 'staff_no', label: 'Staff No' },
+          { key: 'name', label: 'Name', value: (r: any) => [r.first_name, r.other_name, r.last_name].filter(Boolean).join(' ') },
+          { key: 'position', label: 'Position' },
+          { key: 'status', label: 'Status' },
+          { key: 'gender', label: 'Gender' },
+          { key: 'phone', label: 'Phone' },
+          { key: 'email', label: 'Email' },
+          { key: 'hire_date', label: 'Hire date', value: (r: any) => r.hire_date ? String(r.hire_date).slice(0, 10) : '' },
+        ],
+        rows,
+        { title: 'DRAIS Staff Export', schoolName: sch[0]?.name ?? null, generatedBy: me[0]?.nm?.trim() || me[0]?.email || null, scope: search ? `search=${search}` : 'all' },
+      );
+      void logAudit({
+        schoolId, userId: session.userId, action: AuditAction.EXPORTED_STAFF,
+        entityType: 'staff', details: { rows: rows.length, search: search || null },
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+        userAgent: req.headers.get('user-agent'),
+      });
+      return csvResponse(`staff-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    }
 
     // Get basic staff data
     let sql = `
