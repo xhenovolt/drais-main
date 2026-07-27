@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-27T09:17:20.828Z",
-  "last_commit": "39dc97f0d43008dd15a8ce18c7aeeaad656b8120",
+  "generated_at": "2026-07-27T17:50:47.964Z",
+  "last_commit": "860e7a3ffb9d603c5bfe945520ef73dd55ae2e81",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5071,7 +5071,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.137.5",
+      "date": "2026-07-27",
+      "release_type": "patch",
+      "title": "Chunk bulk duplicate-merge so schools clear large double-imports without timeout (SP-1)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Chunk bulk duplicate-merge so schools clear large double-imports without timeout (SP-1)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.137.4"
+  "app_version": "1.137.5"
 }

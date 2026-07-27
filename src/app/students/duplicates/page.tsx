@@ -61,6 +61,7 @@ export default function DuplicatesPage() {
   const [selectedPrimary, setSelectedPrimary] = useState<Map<number, number>>(new Map()); // groupId -> primaryStudentId
   const [merging, setMerging] = useState<Set<number>>(new Set()); // group_ids being merged
   const [bulkMerging, setBulkMerging] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
   const [purging, setPurging] = useState(false);
 
   const fetchDuplicates = useCallback(async () => {
@@ -169,32 +170,45 @@ export default function DuplicatesPage() {
 
     if (!result.isConfirmed) return;
 
+    const groups = data.groups.map(g => {
+      const primaryId = selectedPrimary.get(g.group_id) || g.students[0].id;
+      return {
+        primary_id: primaryId,
+        secondary_ids: g.students.filter(s => s.id !== primaryId).map(s => s.id),
+      };
+    });
+
+    // Chunk the merge so a large double-import (100s of groups) never exceeds a
+    // single serverless function's time budget. Each chunk is its own request;
+    // chunks commit independently, so a mid-run failure keeps prior progress and
+    // the admin can simply re-run to finish (merged dups drop out of the rescan).
+    const CHUNK = 10;
     setBulkMerging(true);
+    setBulkProgress({ done: 0, total: groups.length });
+    let merged = 0, failed = 0;
     try {
-      const groups = data.groups.map(g => {
-        const primaryId = selectedPrimary.get(g.group_id) || g.students[0].id;
-        return {
-          primary_id: primaryId,
-          secondary_ids: g.students.filter(s => s.id !== primaryId).map(s => s.id),
-        };
-      });
-
-      const res = await apiFetch<any>('/api/students/duplicates/merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups }),
-        successMessage: `Merged ${totalDups} duplicates across ${totalGroups} groups`,
-      });
-
-      if (res.total_failed > 0) {
-        showToast('warning', `${res.total_merged} merged, ${res.total_failed} failed`);
+      for (let i = 0; i < groups.length; i += CHUNK) {
+        const chunk = groups.slice(i, i + CHUNK);
+        try {
+          const res = await apiFetch<any>('/api/students/duplicates/merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groups: chunk }),
+            silent: true,
+          });
+          merged += res.total_merged || 0;
+          failed += res.total_failed || 0;
+        } catch {
+          failed += chunk.length; // whole chunk failed — keep going with the rest
+        }
+        setBulkProgress({ done: Math.min(i + CHUNK, groups.length), total: groups.length });
       }
-
+      showToast(failed > 0 ? 'warning' : 'success',
+        `Merged ${merged} group(s)${failed > 0 ? `, ${failed} failed — re-run to retry` : ` (${totalDups} duplicates removed)`}`);
       fetchDuplicates();
-    } catch {
-      // handled by apiFetch
     } finally {
       setBulkMerging(false);
+      setBulkProgress(null);
     }
   };
 
@@ -323,7 +337,9 @@ export default function DuplicatesPage() {
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-orange-600 text-white hover:from-red-500 hover:to-orange-500 transition-all disabled:opacity-50"
             >
               {bulkMerging ? <Loader className="w-4 h-4 animate-spin" /> : <Merge className="w-4 h-4" />}
-              Merge All ({data.total_duplicates - data.total_groups} duplicates)
+              {bulkMerging && bulkProgress
+                ? `Merging ${bulkProgress.done}/${bulkProgress.total} groups…`
+                : `Merge All (${data.total_duplicates - data.total_groups} duplicates)`}
             </button>
             <button
               onClick={purgeAll}
