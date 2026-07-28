@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
     provider: {
       ok: balance.ok, currency: balance.currency, amount: balance.amount, raw: balance.raw,
       error: balance.error ?? null,
+      source: balance.source ?? null,
+      source_school_id: balance.sourceSchoolId ?? null,
       estimated_sms: balance.ok ? estimatedSms(balance.amount, costPerSms) : null,
       unit_cost: costPerSms,
     },

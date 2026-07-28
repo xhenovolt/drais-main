@@ -46,7 +46,9 @@ export default function ControlSms() {
           <div className="text-2xl font-bold text-slate-100 tabular-nums">
             {provider?.ok ? `${provider.currency} ${nf(provider.amount)}` : (isLoading ? '…' : '—')}
           </div>
-          <div className="text-[11px] text-slate-500">Africa&apos;s Talking (platform)</div>
+          <div className="text-[11px] text-slate-500">
+            Africa&apos;s Talking{provider?.source === 'school' ? ` · via school #${provider.source_school_id} credentials` : ' (platform)'}
+          </div>
           {provider && !provider.ok && <div className="text-[11px] text-rose-400 mt-1">{provider.error}</div>}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">

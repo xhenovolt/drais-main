@@ -54,11 +54,40 @@ function ensureSchema(): Promise<void> {
   return ensured;
 }
 
+/**
+ * Resolve the Africa's Talking credentials to read the account balance with.
+ * Prefers platform env vars, but falls back to any school's configured
+ * credentials in comm_settings — the balance is account-wide, so a configured
+ * tenant (e.g. City Parents) surfaces the same platform balance. This keeps the
+ * Control Center working even when the platform env vars aren't set in its
+ * runtime, without ever requiring the operator to re-enter the key.
+ */
+export async function resolveProviderCreds(): Promise<{ username: string; apiKey: string; source: 'env' | 'school'; schoolId?: number } | null> {
+  const envUser = process.env.AFRICASTALKING_USERNAME || process.env.AT_USERNAME;
+  const envKey = process.env.AFRICASTALKING_API_KEY || process.env.AT_API_KEY;
+  if (envUser && envKey) return { username: envUser, apiKey: envKey, source: 'env' };
+
+  // Fall back to a school that already has working AT credentials configured.
+  const rows = (await query(
+    `SELECT school_id, provider_username, provider_api_key
+       FROM comm_settings
+      WHERE provider_username IS NOT NULL AND provider_username <> ''
+        AND provider_api_key  IS NOT NULL AND provider_api_key  <> ''
+      ORDER BY school_id ASC
+      LIMIT 1`,
+  ).catch(() => [])) as any[];
+  const r = rows[0];
+  if (r?.provider_username && r?.provider_api_key) {
+    return { username: String(r.provider_username), apiKey: String(r.provider_api_key), source: 'school', schoolId: Number(r.school_id) };
+  }
+  return null;
+}
+
 /** Live provider balance from Africa's Talking (platform account). */
-export async function fetchProviderBalance(): Promise<{ ok: boolean; currency: string; amount: number; raw: string | null; error?: string }> {
-  const username = process.env.AFRICASTALKING_USERNAME || process.env.AT_USERNAME;
-  const apiKey = process.env.AFRICASTALKING_API_KEY || process.env.AT_API_KEY;
-  if (!username || !apiKey) return { ok: false, currency: '', amount: 0, raw: null, error: 'Provider credentials not configured' };
+export async function fetchProviderBalance(): Promise<{ ok: boolean; currency: string; amount: number; raw: string | null; source?: 'env' | 'school'; sourceSchoolId?: number; error?: string }> {
+  const creds = await resolveProviderCreds();
+  if (!creds) return { ok: false, currency: '', amount: 0, raw: null, error: 'Provider credentials not configured' };
+  const { username, apiKey, source, schoolId } = creds;
   try {
     const isSandbox = username === 'sandbox';
     const host = isSandbox ? 'https://api.sandbox.africastalking.com' : 'https://api.africastalking.com';
@@ -69,7 +98,7 @@ export async function fetchProviderBalance(): Promise<{ ok: boolean; currency: s
     const j = await res.json();
     const raw: string | null = j?.UserData?.balance ?? null;
     const { currency, amount } = parseBalance(raw);
-    return { ok: true, currency, amount, raw };
+    return { ok: true, currency, amount, raw, source, sourceSchoolId: schoolId };
   } catch (e: any) {
     return { ok: false, currency: '', amount: 0, raw: null, error: e?.message || 'Provider request failed' };
   }
