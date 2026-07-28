@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T19:45:35.604Z",
-  "last_commit": "ea3926db4b4fc093b3066ee025b4c5d1a3c9edfd",
+  "generated_at": "2026-07-28T20:13:12.407Z",
+  "last_commit": "0a967b635483092441d94b5c999ef2bc98bb9fd1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5565,7 +5565,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.155.0",
+      "date": "2026-07-28",
+      "release_type": "minor",
+      "title": "Stage A of finance consolidation — fee_item_id FK, sync-fees dedup, broken payroll wallet fix",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Stage A of finance consolidation — fee_item_id FK, sync-fees dedup, broken payroll wallet fix"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.154.1"
+  "app_version": "1.155.0"
 }

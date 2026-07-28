@@ -1,5 +1,20 @@
+/**
+ * POST /api/finance/sync-fees
+ *
+ * Finance Consolidation Plan, Stage A: this route used to be an independent,
+ * hand-rolled reimplementation of "create missing fee items for students" —
+ * hardcoded default amounts (Tuition/Development/Registration) baked
+ * directly into inline SQL, targeting class via `enrollments` rather than
+ * `students.class_id` (a genuine correctness risk: the two duplicate
+ * implementations could disagree about a student's class if those ever
+ * diverged). It is now a thin wrapper over the SAME function `init-fees`
+ * already calls (`initializeFeesSystem`, src/lib/fees.ts) — one
+ * implementation, not two silently-different ones. The route/URL is kept
+ * for any existing callers; the behaviour it now performs is identical to
+ * POST /api/finance/init-fees.
+ */
 import { NextRequest, NextResponse } from 'next/server';
-import { query, withTransaction } from '@/lib/db';
+import { initializeFeesSystem } from '@/lib/fees';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 
@@ -7,79 +22,18 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
-    const schoolId = session.schoolId;
+    await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
-    // Step 1: Get active students without fee items
-    const missingStudents = await query(`
-      SELECT DISTINCT 
-        s.id as student_id,
-        s.school_id,
-        e.class_id,
-        e.term_id
-      FROM students s
-      JOIN enrollments e ON s.id = e.student_id 
-      LEFT JOIN student_fee_items f ON s.id = f.student_id AND e.term_id = f.term_id
-      WHERE s.school_id = ? 
-      AND s.status = 'active'
-      AND e.status = 'active'
-      AND f.id IS NULL
-    `, [schoolId]);
-
-    // Step 2: Get or create fee structures
-    await withTransaction(async (conn) => {
-      for (const student of missingStudents) {
-        // Get fee structure for student's class
-        const [structures] = (await conn.query(`
-          SELECT item, amount
-          FROM fee_structures
-          WHERE school_id = ? AND class_id = ? AND term_id = ?
-        `, [schoolId, student.class_id, student.term_id])) as [Array<{ item: string; amount: number }>, unknown];
-
-        // If no structure exists, create default structure
-        if (!structures.length) {
-          await conn.query(`
-            INSERT INTO fee_structures (school_id, class_id, term_id, item, amount)
-            VALUES 
-              (?, ?, ?, 'Tuition', 500000),
-              (?, ?, ?, 'Development', 100000),
-              (?, ?, ?, 'Registration', 50000)
-          `, [
-            schoolId, student.class_id, student.term_id,
-            schoolId, student.class_id, student.term_id,
-            schoolId, student.class_id, student.term_id
-          ]);
-        }
-
-        // Create fee items for student
-        const feesToInsert = structures.length ? structures : [
-          { item: 'Tuition', amount: 500000 },
-          { item: 'Development', amount: 100000 },
-          { item: 'Registration', amount: 50000 }
-        ];
-
-        for (const fee of feesToInsert) {
-          await conn.query(`
-            INSERT INTO student_fee_items 
-              (student_id, term_id, item, amount, discount, paid)
-            VALUES (?, ?, ?, ?, 0, 0)
-            ON DUPLICATE KEY UPDATE 
-              amount = VALUES(amount)
-          `, [student.student_id, student.term_id, fee.item, fee.amount]);
-        }
-      }
-    });
-
+    const result = await initializeFeesSystem(session.schoolId);
     return NextResponse.json({
       success: true,
-      message: `Synchronized fees for ${missingStudents.length} students`
+      message: `Synchronized fees: ${result.newItemsCount} new items created for ${result.studentsCount} students`,
+      ...result,
     });
-
   } catch (error: any) {
     console.error('Fee sync error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to synchronize fees',
-      details: error.message 
+    return NextResponse.json({
+      error: error.message || 'Failed to synchronize fees',
     }, { status: 500 });
   }
 }

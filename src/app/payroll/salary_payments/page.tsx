@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 
 const API_SALARY_PAYMENTS = '/api/salary_payments';
 const API_STAFF_LIST = '/api/staff/list';
-const API_WALLETS = '/api/wallets';
+const API_WALLETS = '/api/finance/wallets'; // was '/api/wallets' — that route doesn't exist; this page's wallet dropdown never populated
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 type SalaryPayment = {

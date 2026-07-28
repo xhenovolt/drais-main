@@ -368,7 +368,10 @@ export async function generateBills(
         if (billedThisRun.has(key) || alreadyBilled(ctx.studentId, line.name)) { skipped++; continue; }
         billedThisRun.add(key);
         // Snapshot the adjusted breakdown: balance (generated) = amount - discount - waived.
-        toInsert.push([ctx.studentId, termId, line.name, line.amount, line.discount, line.waived]);
+        // fee_item_id (Finance Consolidation Stage A) — the FK back to the
+        // catalog this line actually came from, alongside the legacy `item`
+        // text column (kept for any code still matching by name).
+        toInsert.push([ctx.studentId, termId, line.name, line.amount, line.discount, line.waived, line.fee_item_id ?? null]);
         // Mirror the net charge into the ledger so balance (SUM debit-credit) is
         // correct. Only newly-inserted lines get a debit → no double-charging on
         // re-run (student_fee_items de-dup above gates this).
@@ -383,9 +386,9 @@ export async function generateBills(
   if (opts.commit && toInsert.length) {
     for (let i = 0; i < toInsert.length; i += 500) {
       const slice = toInsert.slice(i, i + 500);
-      const ph = slice.map(() => '(?, ?, ?, ?, ?, ?, 0)').join(', ');
+      const ph = slice.map(() => '(?, ?, ?, ?, ?, ?, 0, ?)').join(', ');
       await query(
-        `INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, waived, paid) VALUES ${ph}`,
+        `INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, waived, paid, fee_item_id) VALUES ${ph}`,
         slice.flat(),
       );
     }
