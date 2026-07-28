@@ -16,6 +16,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import {
   deviceHealthOverview, sweepToday, previewCorrection, applyCorrection, undoCorrection, learnBaseline, correctPunches,
+  listPunchesForDate,
 } from '@/lib/attendance/time-intelligence/engine';
 import { fmtMinute } from '@/lib/attendance/time-intelligence/confidence';
 
@@ -25,7 +26,15 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   try {
-    if (new URL(req.url).searchParams.get('banner')) {
+    const params = new URL(req.url).searchParams;
+    if (params.get('punches')) {
+      const deviceSn = params.get('device_sn');
+      const date = params.get('date');
+      if (!deviceSn || !date) return NextResponse.json({ error: 'device_sn and date are required' }, { status: 400 });
+      const punches = await listPunchesForDate(session.schoolId, deviceSn, date);
+      return NextResponse.json({ success: true, punches });
+    }
+    if (params.get('banner')) {
       const today = await sweepToday(session.schoolId);
       const worst = today.filter(t => t.status === 'anomaly').sort((a, b) => a.confidence - b.confidence)[0] || null;
       // Compact per-device list for inline badges (logs page + dashboard).

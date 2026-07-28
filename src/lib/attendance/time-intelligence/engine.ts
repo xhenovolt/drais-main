@@ -220,6 +220,35 @@ export async function sweepToday(schoolId: number): Promise<Array<Assessment & {
 
 export interface CorrectionPreviewRow { id: number; name: string | null; before: string; after: string; }
 
+export interface DevicePunchRow { id: number; person_id: number | null; name: string | null; time: string; }
+
+/**
+ * Full (untruncated) list of a device's punches for one local day — for the
+ * per-person selective-correction UI. Unlike previewCorrection's `sample`
+ * (capped at 12, for a quick glance), this returns every row so an operator
+ * can pick exactly which people's punches were actually wrong when only some
+ * of a batch is corrupted, not the whole device.
+ */
+export async function listPunchesForDate(
+  schoolId: number, deviceSn: string, date: string,
+): Promise<DevicePunchRow[]> {
+  const policy = await resolveTimePolicy(schoolId);
+  const off = policy.offsetMinutes;
+  const utcStart = new Date(Date.parse(`${date}T00:00:00Z`) - off * 60_000);
+  const utcEnd = new Date(utcStart.getTime() + 86_400_000);
+  const rows = (await query(
+    `SELECT id, person_id, display_name, punch_at FROM attendance_raw_events
+      WHERE school_id = ? AND device_sn = ? AND punch_at >= ? AND punch_at < ?
+      ORDER BY punch_at ASC`,
+    [schoolId, deviceSn, utcStart, utcEnd],
+  )) as any[];
+  const fmt = (d: Date) => new Date(d.getTime() + off * 60_000).toISOString().slice(11, 16);
+  return rows.map((r) => ({
+    id: Number(r.id), person_id: r.person_id != null ? Number(r.person_id) : null,
+    name: r.display_name ?? null, time: fmt(new Date(r.punch_at)),
+  }));
+}
+
 export async function previewCorrection(
   schoolId: number, deviceSn: string, date: string, shiftMinutes: number,
 ): Promise<{ affected: number; sample: CorrectionPreviewRow[] }> {

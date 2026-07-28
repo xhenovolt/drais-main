@@ -205,6 +205,36 @@ export default function TimeHealthPage() {
 
 /* ── Assisted correction: question → preview → apply ─────────────────── */
 function CorrectionModal({ fix, onClose, onDone, t }: { fix: any; onClose: () => void; onDone: () => void; t: TFn }) {
+  const [mode, setMode] = useState<'batch' | 'selective'>('batch');
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-5 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendanceIntel.timeHealth.correctBatch', { sn: fix.device_sn }, 'Correct times — {{sn}}')}</h2>
+        </div>
+
+        {/* Scope toggle — most drift affects the whole device, but sometimes
+            only a handful of people were mis-scanned (e.g. an AM/PM mixup on a
+            few punches) while the rest of the batch is genuinely fine. */}
+        <div className="flex gap-1 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-900/50 text-sm">
+          <button onClick={() => setMode('batch')} className={`flex-1 px-3 py-1.5 rounded-md font-medium ${mode === 'batch' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+            {t('attendanceIntel.timeHealth.scopeAll', 'All arrivals')}
+          </button>
+          <button onClick={() => setMode('selective')} className={`flex-1 px-3 py-1.5 rounded-md font-medium ${mode === 'selective' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+            {t('attendanceIntel.timeHealth.scopeSelect', 'Select people…')}
+          </button>
+        </div>
+
+        {mode === 'batch'
+          ? <BatchCorrectionPanel fix={fix} t={t} onClose={onClose} onDone={onDone} />
+          : <SelectivePanel fix={fix} t={t} onClose={onClose} onDone={onDone} />}
+      </div>
+    </div>
+  );
+}
+
+function BatchCorrectionPanel({ fix, onClose, onDone, t }: { fix: any; onClose: () => void; onDone: () => void; t: TFn }) {
   // Ask the operator the natural question; derive the shift from the answer.
   const suggested = fix.todayFirst != null && fix.suggestedShift
     ? fmtMin(fix.todayFirst + fix.suggestedShift) : fmtMin(fix.baselineFirst);
@@ -238,45 +268,167 @@ function CorrectionModal({ fix, onClose, onDone, t }: { fix: any; onClose: () =>
   }, [fix, shiftMinutes, onDone]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-5 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendanceIntel.timeHealth.correctBatch', { sn: fix.device_sn }, 'Correct batch times — {{sn}}')}</h2>
-        <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
-          <p>{t('attendanceIntel.timeHealth.usuallyBegin', { time: fmtMin(fix.baselineFirst) }, 'First arrivals usually begin around {{time}}.')}</p>
-          <p>{t('attendanceIntel.timeHealth.todayRecorded', { time: fmtMin(fix.todayFirst) }, "Today's first recorded arrival is {{time}}.")}</p>
-        </div>
-        <label className="block text-sm text-gray-700 dark:text-gray-200">
-          {t('attendanceIntel.timeHealth.whatTime', 'What time did the first arrivals actually begin today?')}
-          <input type="time" aria-label={t('attendanceIntel.timeHealth.whatTime', 'What time did the first arrivals actually begin today?')} value={actualFirst} onChange={(e) => { setActualFirst(e.target.value); setPreview(null); }}
-            className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
-        </label>
-        <p className="text-xs text-gray-500">{t('attendanceIntel.timeHealth.correctionShift', { desc: `${shiftMinutes > 0 ? '+' : ''}${Math.floor(Math.abs(shiftMinutes) / 60)}h ${Math.abs(shiftMinutes) % 60}m ${shiftMinutes < 0 ? t('attendanceIntel.timeHealth.shiftBack', 'back') : t('attendanceIntel.timeHealth.shiftForward', 'forward')}` }, 'Correction: shift the entire batch {{desc}}.')}</p>
-
-        {preview && (
-          <div className="max-h-44 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-500"><tr><th className="px-2 py-1.5 text-left">{t('attendanceIntel.timeHealth.person', 'Person')}</th><th className="px-2 py-1.5">{t('attendanceIntel.timeHealth.before', 'Before')}</th><th className="px-2 py-1.5">{t('attendanceIntel.timeHealth.after', 'After')}</th></tr></thead>
-              <tbody>
-                {preview.sample.map((r: any) => (
-                  <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700/50">
-                    <td className="px-2 py-1 truncate max-w-[160px]">{r.name || `#${r.id}`}</td>
-                    <td className="px-2 py-1 text-center text-rose-500 line-through">{r.before}</td>
-                    <td className="px-2 py-1 text-center font-semibold text-emerald-600">{r.after}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="px-2 py-1.5 text-gray-400">{t('attendanceIntel.timeHealth.punchesCorrected', { n: preview.affected }, '{{n}} punches will be corrected. Undo is available afterwards.')}</p>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500">{t('attendanceIntel.timeHealth.cancel', 'Cancel')}</button>
-          {!preview
-            ? <button onClick={doPreview} disabled={busy || shiftMinutes === 0} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{t('attendanceIntel.timeHealth.preview', 'Preview')}</button>
-            : <button onClick={doApply} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-50">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{t('attendanceIntel.timeHealth.applyCorrection', 'Apply correction')}</button>}
-        </div>
+    <>
+      <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
+        <p>{t('attendanceIntel.timeHealth.usuallyBegin', { time: fmtMin(fix.baselineFirst) }, 'First arrivals usually begin around {{time}}.')}</p>
+        <p>{t('attendanceIntel.timeHealth.todayRecorded', { time: fmtMin(fix.todayFirst) }, "Today's first recorded arrival is {{time}}.")}</p>
       </div>
-    </div>
+      <label className="block text-sm text-gray-700 dark:text-gray-200">
+        {t('attendanceIntel.timeHealth.whatTime', 'What time did the first arrivals actually begin today?')}
+        <input type="time" aria-label={t('attendanceIntel.timeHealth.whatTime', 'What time did the first arrivals actually begin today?')} value={actualFirst} onChange={(e) => { setActualFirst(e.target.value); setPreview(null); }}
+          className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+      </label>
+      <p className="text-xs text-gray-500">{t('attendanceIntel.timeHealth.correctionShift', { desc: `${shiftMinutes > 0 ? '+' : ''}${Math.floor(Math.abs(shiftMinutes) / 60)}h ${Math.abs(shiftMinutes) % 60}m ${shiftMinutes < 0 ? t('attendanceIntel.timeHealth.shiftBack', 'back') : t('attendanceIntel.timeHealth.shiftForward', 'forward')}` }, 'Correction: shift the entire batch {{desc}}.')}</p>
+
+      {preview && (
+        <div className="max-h-44 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-500"><tr><th className="px-2 py-1.5 text-left">{t('attendanceIntel.timeHealth.person', 'Person')}</th><th className="px-2 py-1.5">{t('attendanceIntel.timeHealth.before', 'Before')}</th><th className="px-2 py-1.5">{t('attendanceIntel.timeHealth.after', 'After')}</th></tr></thead>
+            <tbody>
+              {preview.sample.map((r: any) => (
+                <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700/50">
+                  <td className="px-2 py-1 truncate max-w-[160px]">{r.name || `#${r.id}`}</td>
+                  <td className="px-2 py-1 text-center text-rose-500 line-through">{r.before}</td>
+                  <td className="px-2 py-1 text-center font-semibold text-emerald-600">{r.after}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="px-2 py-1.5 text-gray-400">{t('attendanceIntel.timeHealth.punchesCorrected', { n: preview.affected }, '{{n}} punches will be corrected. Undo is available afterwards.')}</p>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500">{t('attendanceIntel.timeHealth.cancel', 'Cancel')}</button>
+        {!preview
+          ? <button onClick={doPreview} disabled={busy || shiftMinutes === 0} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{t('attendanceIntel.timeHealth.preview', 'Preview')}</button>
+          : <button onClick={doApply} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-50">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{t('attendanceIntel.timeHealth.applyCorrection', 'Apply correction')}</button>}
+      </div>
+    </>
+  );
+}
+
+/** Add signed minutes to an "HH:MM" string, wrapping within the day (display only). */
+function shiftHHMM(hhmm: string, minutes: number): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = (((h * 60 + m + minutes) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Selective correction — pick exactly which people's punches were wrong
+ * (e.g. only a few learners got mis-scanned) and shift only those, leaving
+ * the rest of the device's batch untouched. Backed by the existing
+ * correct_selected API action; the only new surface is this UI.
+ */
+function SelectivePanel({ fix, onClose, onDone, t }: { fix: any; onClose: () => void; onDone: () => void; t: TFn }) {
+  const [punches, setPunches] = useState<Array<{ id: number; name: string | null; time: string }> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [sign, setSign] = useState<1 | -1>(1);
+  const [hh, setHh] = useState('0');
+  const [mm, setMm] = useState('0');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/attendance/time-health?punches=1&device_sn=${encodeURIComponent(fix.device_sn)}&date=${encodeURIComponent(fix.date)}`, { cache: 'no-store' });
+        const j = await r.json();
+        if (!cancelled) setPunches(j.success ? j.punches : []);
+      } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [fix.device_sn, fix.date]);
+
+  const shiftMinutes = sign * ((Number(hh) || 0) * 60 + (Number(mm) || 0));
+
+  const toggle = (id: number) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const selectAll = () => setSelected(new Set((punches || []).map((p) => p.id)));
+  const selectNone = () => setSelected(new Set());
+
+  const doApply = useCallback(async () => {
+    if (!selected.size || shiftMinutes === 0) return;
+    setBusy(true);
+    try {
+      const r = await fetch('/api/attendance/time-health', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'correct_selected', ids: [...selected], shift_minutes: shiftMinutes }),
+      });
+      const j = await r.json();
+      if (j.success) {
+        toast.success(t('attendanceIntel.timeHealth.correctedToast', { affected: j.affected, days: j.reEvaluated }, 'Corrected {{affected}} punches · {{days}} day-verdicts refreshed'));
+        onDone();
+      } else toast.error(j.error || t('attendanceIntel.timeHealth.applyFailed', 'Apply failed'));
+    } finally { setBusy(false); }
+  }, [selected, shiftMinutes, onDone, t]);
+
+  return (
+    <>
+      <p className="text-sm text-gray-600 dark:text-gray-300">
+        {t('attendanceIntel.timeHealth.selectiveIntro', 'Tick the people whose time is wrong, set the correction, then apply — everyone else stays untouched.')}
+      </p>
+
+      {loading && <div className="py-6 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-600 inline" /></div>}
+
+      {!loading && punches && punches.length === 0 && (
+        <p className="text-sm text-gray-400 py-4 text-center">{t('attendanceIntel.timeHealth.noPunchesForDay', 'No punches found for this device on this day.')}</p>
+      )}
+
+      {!loading && punches && punches.length > 0 && (
+        <>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">{t('attendanceIntel.timeHealth.selectedCount', { n: selected.size, total: punches.length }, '{{n}} of {{total}} selected')}</span>
+            <div className="flex gap-3">
+              <button onClick={selectAll} className="text-indigo-600 dark:text-indigo-400 hover:underline">{t('attendanceIntel.timeHealth.selectAll', 'Select all')}</button>
+              <button onClick={selectNone} className="text-indigo-600 dark:text-indigo-400 hover:underline">{t('attendanceIntel.timeHealth.selectNone', 'Select none')}</button>
+            </div>
+          </div>
+
+          <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700/50">
+            {punches.map((p) => {
+              const isSel = selected.has(p.id);
+              return (
+                <label key={p.id} className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm cursor-pointer ${isSel ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <input type="checkbox" checked={isSel} onChange={() => toggle(p.id)} className="accent-indigo-600 flex-shrink-0" />
+                    <span className="truncate">{p.name || `#${p.id}`}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs">
+                    <span className={isSel && shiftMinutes !== 0 ? 'text-rose-500 line-through' : 'text-gray-600 dark:text-gray-300'}>{p.time}</span>
+                    {isSel && shiftMinutes !== 0 && <span className="text-emerald-600 font-semibold">{shiftHHMM(p.time, shiftMinutes)}</span>}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-600 dark:text-gray-300">{t('attendanceIntel.timeHealth.shiftSelectedBy', 'Shift selected by')}</span>
+            <select value={sign} onChange={(e) => setSign(Number(e.target.value) as 1 | -1)} className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700">
+              <option value={1}>+</option>
+              <option value={-1}>−</option>
+            </select>
+            <input type="number" min={0} value={hh} onChange={(e) => setHh(e.target.value)} className="w-16 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-center" />
+            <span className="text-gray-500">{t('attendanceIntel.timeHealth.hoursAbbr', 'h')}</span>
+            <input type="number" min={0} max={59} value={mm} onChange={(e) => setMm(e.target.value)} className="w-16 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-center" />
+            <span className="text-gray-500">{t('attendanceIntel.timeHealth.minutesAbbr', 'm')}</span>
+          </div>
+        </>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500">{t('attendanceIntel.timeHealth.cancel', 'Cancel')}</button>
+        <button onClick={doApply} disabled={busy || !selected.size || shiftMinutes === 0} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-50">
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}{t('attendanceIntel.timeHealth.applyToSelected', { n: selected.size }, 'Apply to {{n}} selected')}
+        </button>
+      </div>
+    </>
   );
 }

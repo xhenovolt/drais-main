@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T14:23:24.126Z",
-  "last_commit": "63bb4a28c0ae11c71acc77c7918ceee5a78926f9",
+  "generated_at": "2026-07-28T15:18:17.881Z",
+  "last_commit": "b64843dd9e0eb9b7c177d65fb1869bcf5820fa93",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5474,7 +5474,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.152.0",
+      "date": "2026-07-28",
+      "release_type": "minor",
+      "title": "Correct clock drift for a select group of people, not just the whole device batch",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Correct clock drift for a select group of people, not just the whole device batch"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.151.2"
+  "app_version": "1.152.0"
 }
