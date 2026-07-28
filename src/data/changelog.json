@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T03:18:12.457Z",
-  "last_commit": "97e9f7dbe2de7fbab3cab22618ad424084a619e9",
+  "generated_at": "2026-07-28T08:27:24.178Z",
+  "last_commit": "caca5b64fc367685f64bc3b1e888db7568c0cff3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5370,7 +5370,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.149.2",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Raise build heap cap 2560->3584 to clear the recurring compile-phase OOM",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Raise build heap cap 2560->3584 to clear the recurring compile-phase OOM"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.149.1"
+  "app_version": "1.149.2"
 }
