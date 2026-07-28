@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T19:44:05.169Z",
-  "last_commit": "8f51c9a53aa1b80e04604c17c1f973513a0faa5f",
+  "generated_at": "2026-07-28T19:45:35.604Z",
+  "last_commit": "ea3926db4b4fc093b3066ee025b4c5d1a3c9edfd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5552,7 +5552,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.154.1",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Consolidation plan for the 3 fee-item systems + 4 ledger tables (no schema changes yet)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Consolidation plan for the 3 fee-item systems + 4 ledger tables (no schema changes yet)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.154.0"
+  "app_version": "1.154.1"
 }
