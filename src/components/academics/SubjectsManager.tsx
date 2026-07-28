@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { t } from '@/lib/i18n';
-import { Search, ChevronLeft, ChevronRight, RefreshCw, Loader2, Plus, Edit2, Trash2, Settings } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, RefreshCw, Loader2, Plus, Edit2, Trash2, Settings, ArrowUpDown } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
@@ -481,6 +481,14 @@ export const SubjectsManager: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-3">
+          <a
+            href="/academics/subjects/order"
+            className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 transition-all text-sm font-medium text-gray-700 dark:text-gray-200"
+            title="Set the order subjects appear on report cards"
+          >
+            <ArrowUpDown className="w-4 h-4" />
+            Report Order
+          </a>
           <button
             onClick={load}
             disabled={loading}
@@ -489,7 +497,7 @@ export const SubjectsManager: React.FC = () => {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             {loading ? 'Loading...' : 'Refresh'}
           </button>
-          
+
           <button 
             onClick={openAddModal} 
             className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105 flex items-center gap-2"

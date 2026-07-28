@@ -8,7 +8,7 @@ import {
   resolveTableHeaderCellStyle,
   resolveTableDataCellStyle,
 } from '@/lib/drce/styleResolver';
-import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
+import { isElectiveResultRow, groupResultRowsByCategory } from '@/lib/drce/subjectClassification';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
 import { buildTotalsRowCellContent, detectNumericColumnIds, buildAcademicSummaryItems } from '@/lib/drce/totalsCalculator';
 import { resolveLocalizedLabel } from '@/lib/drce/arabic';
@@ -93,12 +93,7 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
 
   const allResults = ctx.results ?? [];
   const subjectFilter = section.subjectFilter ?? 'all';
-
-  const isFilteredSubject = (r: any): boolean => {
-    const type = (r.subjectType ?? 'primary').toLowerCase();
-    const isIRE = isReligiousEducationSubject(String(r.subjectName || ''));
-    return !isIRE && type !== 'primary' && type !== 'core' && type !== 'theology' && type !== 'islamic' && type !== 'religion';
-  };
+  const isFilteredSubject = isElectiveResultRow;
 
   let results = subjectFilter === 'all'
     ? allResults
@@ -190,6 +185,66 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
     setEditingCell(null);
   };
 
+  // One subject row's <tr>. `i` is the row's index in the (unfiltered-by-
+  // group) `results` array — the identity edits/handleCellBlur key on —
+  // never a position within a group, so grouping never breaks cell editing.
+  const renderResultRow = (row: Record<string, any>, i: number) => (
+    <tr key={i}>
+      {visibleCols.map(col => {
+        let cellValue = resolveBinding(col.binding, ctx, row as unknown as Record<string, unknown>);
+
+        const cellContentEdits = (section as any).__cellContentEdits;
+        if (cellContentEdits) {
+          const edit = cellContentEdits.find((e: any) =>
+            e.targetId === section.id &&
+            e.columnId === col.id &&
+            e.rowIndex === i
+          );
+          if (edit) {
+            cellValue = edit.payload.content;
+          }
+        }
+
+        const isEditable = col.contentEditable === true
+          || (!!onCellChange && col.binding === 'result.initials')
+          || (renderCtx?.editMode === true && col.binding === 'result.initials');
+
+        return (
+          <td
+            key={col.id}
+            style={{
+              ...resolveTableDataCellStyle(style, col.align, col.style),
+              cursor: isEditable ? 'text' : 'default',
+            }}
+            contentEditable={isEditable}
+            suppressContentEditableWarning={isEditable}
+            onBlur={isEditable ? (e) => handleCellBlur(e, col.id, i) : undefined}
+            onFocus={() => isEditable && setEditingCell({ col: col.id, row: i })}
+          >
+            {cellValue}
+          </td>
+        );
+      })}
+    </tr>
+  );
+
+  // Reporting Architecture Phase 2 — grouped layout. Partitions rows into
+  // Core / Elective bands using the SAME classification `isFilteredSubject`
+  // already applies for the subjectFilter feature (subject_type + IRE) — no
+  // new schema, no hardcoded subject list. Order WITHIN each band is
+  // whatever the snapshot already resolved (Phase 1's configurable order);
+  // grouping only partitions, never re-sorts.
+  const groupLabels = section.groupLabels ?? {};
+  const groupRowStyle: React.CSSProperties = {
+    fontWeight: 700, fontSize: '0.85em', letterSpacing: '0.02em',
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+  };
+  const renderGroupHeaderRow = (label: string) => (
+    <tr key={`group-${label}`} style={groupRowStyle}>
+      <td colSpan={visibleCols.length} style={{ padding: '4px 8px' }}>{label}</td>
+    </tr>
+  );
+
   return (
     <>
     <table style={{
@@ -236,50 +291,25 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
         </tr>
       </thead>
       <tbody>
-        {results.map((row, i) => (
-          <tr key={i}>
-            {visibleCols.map(col => {
-              let cellValue = resolveBinding(col.binding, ctx, row as unknown as Record<string, unknown>);
-              
-              // Apply cell content edits from overrides
-              const cellContentEdits = (section as any).__cellContentEdits;
-              if (cellContentEdits) {
-                const edit = cellContentEdits.find((e: any) => 
-                  e.targetId === section.id && 
-                  e.columnId === col.id && 
-                  e.rowIndex === i
-                );
-                if (edit) {
-                  cellValue = edit.payload.content;
-                }
-              }
-              
-              // Editable when a column explicitly opts in via contentEditable
-              // or when editMode is enabled for a DRCE report and the binding is
-              // the editable initials fallback field.
-              const isEditable = col.contentEditable === true
-                || (!!onCellChange && col.binding === 'result.initials')
-                || (renderCtx?.editMode === true && col.binding === 'result.initials');
-              
-              return (
-                <td
-                  key={col.id}
-                  style={{
-                    ...resolveTableDataCellStyle(style, col.align, col.style),
-                    cursor: isEditable ? 'text' : 'default',
-                  }}
-                  contentEditable={isEditable}
-                  suppressContentEditableWarning={isEditable}
-                  onBlur={isEditable ? (e) => handleCellBlur(e, col.id, i) : undefined}
-                  onFocus={() => isEditable && setEditingCell({ col: col.id, row: i })}
-                >
-                  {cellValue}
-                </td>
-              );
-            })}
-          </tr>
-        ))}
-        
+        {section.layoutMode === 'grouped' ? (() => {
+          // Partition indexed {row, i} pairs, not bare rows, so each row's
+          // ORIGINAL position in `results` survives grouping — that index is
+          // the identity handleCellBlur/edits key on.
+          const { core: coreRows, elective: electiveRows } = groupResultRowsByCategory(
+            results.map((row, i) => ({ row, i, subjectType: row.subjectType, subjectName: row.subjectName })),
+          );
+          const coreLabel = resolveLocalizedLabel(language, groupLabels.core ?? 'Core Subjects', groupLabels.coreAr);
+          const electiveLabel = resolveLocalizedLabel(language, groupLabels.elective ?? 'Electives', groupLabels.electiveAr);
+          return (
+            <>
+              {coreRows.length > 0 && renderGroupHeaderRow(coreLabel)}
+              {coreRows.map(({ row, i }) => renderResultRow(row, i))}
+              {electiveRows.length > 0 && renderGroupHeaderRow(electiveLabel)}
+              {electiveRows.map(({ row, i }) => renderResultRow(row, i))}
+            </>
+          );
+        })() : results.map((row, i) => renderResultRow(row, i))}
+
         {/* Grand Total Row */}
         {totalsEnabled && (
           <tr style={{

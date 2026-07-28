@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T17:13:36.062Z",
-  "last_commit": "e8808a4a0feac3a5bd7b80ad015df6ebab650f28",
+  "generated_at": "2026-07-28T19:44:05.169Z",
+  "last_commit": "8f51c9a53aa1b80e04604c17c1f973513a0faa5f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5539,7 +5539,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.154.0",
+      "date": "2026-07-28",
+      "release_type": "minor",
+      "title": "Configurable subject ordering + grouped results-table layout (Reporting Architecture Phase 1+2)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Configurable subject ordering + grouped results-table layout (Reporting Architecture Phase 1+2)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.153.2"
+  "app_version": "1.154.0"
 }

@@ -612,6 +612,23 @@ export interface DRCEResultsTableSection extends DRCESectionBase {
   subjectFilter?: 'all' | 'primary' | 'secondary';
   /** Configuration for displaying totals/average rows */
   totalsConfig?: DRCEResultsTableTotalsConfig;
+  /**
+   * Reporting Architecture Phase 2 — layout mode. 'standard' (default): one
+   * row per subject, unchanged. 'grouped': subjects are banded into Core and
+   * Elective groups (reusing the same subject_type/IRE classification the
+   * contributing-subjects filter already uses — no new schema, no
+   * hardcoded subject list) with a labelled divider row between bands.
+   * Subject order WITHIN each band is whatever the snapshot already
+   * resolved (Reporting Phase 1's configurable order) — grouping only
+   * partitions, it never re-sorts.
+   */
+  layoutMode?: 'standard' | 'grouped';
+  /** Band labels for layoutMode: 'grouped'. Not hardcoded text in the
+   *  renderer — schools can rename the bands (e.g. "Compulsory"/"Optional"). */
+  groupLabels?: {
+    core?: string; coreAr?: string;
+    elective?: string; electiveAr?: string;
+  };
 }
 
 export interface DRCEDivisionThreshold {

@@ -67,6 +67,8 @@ import {
   type CommentResolutionCtx,
 } from '@/lib/drce/commentEngine';
 import { listOverallCommentRules } from '@/lib/drce/overallComments.server';
+import { orderSubjects, type SubjectOrderRule } from '@/lib/reports/subjectOrder';
+import { listSubjectOrderRules } from '@/lib/reports/subjectOrder.server';
 import {
   applyGradingScale,
   buildDefaultConfig,
@@ -230,7 +232,18 @@ export async function generateSnapshot(
       overallCommentRules = [];
     }
 
-    const { classes, audit } = buildClasses(rows, numerals, language, commentRules, overallCommentRules);
+    // Reporting Architecture Phase 1 — configurable subject order. Best-effort:
+    // a school with no rules configured falls back to alphabetical (never raw
+    // database-id order — see subjectOrder.ts), so this is purely additive.
+    let subjectOrderRules: SubjectOrderRule[] = [];
+    try {
+      subjectOrderRules = await listSubjectOrderRules(ctx.schoolId);
+    } catch {
+      subjectOrderRules = [];
+    }
+    const resolvedResultTypeId = resultType?.resultTypeId ?? input.resultTypeId ?? null;
+
+    const { classes, audit } = buildClasses(rows, numerals, language, commentRules, overallCommentRules, subjectOrderRules, resolvedResultTypeId);
 
     // Phase E — enrich each class with its class teacher (if assigned).
     // The lookup uses the snapshot's termId + each classId; failures
@@ -588,6 +601,8 @@ function buildClasses(
   language: 'en' | 'ar',
   commentRules: CommentRule[] = [],
   overallCommentRules: CommentBankRule[] = [],
+  subjectOrderRules: SubjectOrderRule[] = [],
+  resultTypeId: number | null = null,
 ): { classes: SnapshotClass[]; audit?: Record<number, Record<number, import('./types').SnapshotStudentAudit>> } {
   // Classes -> Students -> Results, all keyed by id for deterministic iteration.
   const classMap = new Map<number, {
@@ -733,11 +748,17 @@ function buildClasses(
   // Materialize, sort deterministically, rank.
   const out: SnapshotClass[] = [];
   for (const cls of [...classMap.values()].sort((a, b) => a.classId - b.classId)) {
-    const subjects = [...cls.subjects.values()].sort((a, b) => a.id - b.id);
+    // Reporting Architecture Phase 1 — configurable order (school/class/exam
+    // specific, most-specific-wins), replacing raw database-id ordering.
+    // Unconfigured schools fall back to alphabetical, never silent id-order.
+    const subjects = orderSubjects([...cls.subjects.values()], subjectOrderRules, cls.classId, resultTypeId);
 
     const students: SnapshotStudent[] = [];
     for (const stu of cls.students.values()) {
-      const results = [...stu.results.values()].sort((a, b) => a.subjectId - b.subjectId);
+      const results = orderSubjects(
+        [...stu.results.values()].map((r) => ({ id: r.subjectId, name: r.subjectName, _r: r })),
+        subjectOrderRules, cls.classId, resultTypeId,
+      ).map((x) => x._r);
       stu.info.results = results;
       students.push(stu.info);
     }
