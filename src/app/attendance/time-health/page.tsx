@@ -235,17 +235,48 @@ function CorrectionModal({ fix, onClose, onDone, t }: { fix: any; onClose: () =>
 }
 
 function BatchCorrectionPanel({ fix, onClose, onDone, t }: { fix: any; onClose: () => void; onDone: () => void; t: TFn }) {
+  // `fix.todayFirst` (from the health sweep) is null whenever the day's
+  // stats haven't captured a first-arrival minute — which is exactly the
+  // case for a manual, non-anomaly-triggered open. Without SOME reference
+  // point the shift can never be computed, so Preview stayed permanently
+  // disabled. Fall back to the earliest punch actually on file for this
+  // device+date (same source the selective panel uses) so the button works
+  // regardless of what the automated sweep did or didn't detect.
+  const [todayFirst, setTodayFirst] = useState<number | null>(fix.todayFirst ?? null);
+  useEffect(() => {
+    if (fix.todayFirst != null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/attendance/time-health?punches=1&device_sn=${encodeURIComponent(fix.device_sn)}&date=${encodeURIComponent(fix.date)}`, { cache: 'no-store' });
+        const j = await r.json();
+        const first = j.success && j.punches?.length ? j.punches[0].time : null; // already sorted by punch_at ASC
+        if (!cancelled && first) {
+          const [h, m] = first.split(':').map(Number);
+          setTodayFirst(h * 60 + m);
+        }
+      } catch { /* leave null — Preview stays disabled if truly no data */ }
+    })();
+    return () => { cancelled = true; };
+  }, [fix.device_sn, fix.date, fix.todayFirst]);
+
   // Ask the operator the natural question; derive the shift from the answer.
-  const suggested = fix.todayFirst != null && fix.suggestedShift
-    ? fmtMin(fix.todayFirst + fix.suggestedShift) : fmtMin(fix.baselineFirst);
+  const suggested = todayFirst != null && fix.suggestedShift
+    ? fmtMin(todayFirst + fix.suggestedShift) : fmtMin(fix.baselineFirst ?? todayFirst);
   const [actualFirst, setActualFirst] = useState(suggested === '—' ? '' : suggested);
+  useEffect(() => {
+    // Once the fallback first-arrival resolves, seed the input if the
+    // operator hasn't typed anything yet.
+    if (actualFirst === '' && suggested !== '—') setActualFirst(suggested);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggested]);
   const [preview, setPreview] = useState<any>(null);
   const [busy, setBusy] = useState(false);
 
   const shiftMinutes = (() => {
-    if (!/^\d{2}:\d{2}$/.test(actualFirst) || fix.todayFirst == null) return fix.suggestedShift || 0;
+    if (!/^\d{2}:\d{2}$/.test(actualFirst) || todayFirst == null) return fix.suggestedShift || 0;
     const [h, m] = actualFirst.split(':').map(Number);
-    return h * 60 + m - fix.todayFirst;
+    return h * 60 + m - todayFirst;
   })();
 
   const doPreview = useCallback(async () => {
@@ -271,7 +302,7 @@ function BatchCorrectionPanel({ fix, onClose, onDone, t }: { fix: any; onClose: 
     <>
       <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
         <p>{t('attendanceIntel.timeHealth.usuallyBegin', { time: fmtMin(fix.baselineFirst) }, 'First arrivals usually begin around {{time}}.')}</p>
-        <p>{t('attendanceIntel.timeHealth.todayRecorded', { time: fmtMin(fix.todayFirst) }, "Today's first recorded arrival is {{time}}.")}</p>
+        <p>{t('attendanceIntel.timeHealth.todayRecorded', { time: fmtMin(todayFirst) }, "Today's first recorded arrival is {{time}}.")}</p>
       </div>
       <label className="block text-sm text-gray-700 dark:text-gray-200">
         {t('attendanceIntel.timeHealth.whatTime', 'What time did the first arrivals actually begin today?')}

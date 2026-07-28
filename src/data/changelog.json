@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T15:18:17.881Z",
-  "last_commit": "b64843dd9e0eb9b7c177d65fb1869bcf5820fa93",
+  "generated_at": "2026-07-28T15:57:19.439Z",
+  "last_commit": "4e7e46b897c5336fb080a48cf86b8e501ddafc99",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5487,7 +5487,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.152.1",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Preview button was permanently disabled on manual correction opens",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Preview button was permanently disabled on manual correction opens"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.152.0"
+  "app_version": "1.152.1"
 }
