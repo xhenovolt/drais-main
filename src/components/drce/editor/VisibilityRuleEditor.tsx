@@ -40,6 +40,7 @@ const OPS: { value: CompareOp; label: string; unary?: boolean }[] = [
   { value: 'ends_with',    label: 'ends with' },
   { value: 'in',           label: 'in list' },
   { value: 'not_in',       label: 'not in list' },
+  { value: 'between',      label: 'between' },
   { value: 'empty',        label: 'is empty', unary: true },
   { value: 'not_empty',    label: 'is not empty', unary: true },
 ];
@@ -47,11 +48,20 @@ const OPS: { value: CompareOp; label: string; unary?: boolean }[] = [
 interface Props {
   value:    VisibilityRule | null | undefined;
   onChange: (next: VisibilityRule | null) => void;
+  /** Override the binding catalogue offered in the field dropdown. Omit to
+   *  use the live DRCEDataContext catalogue (useAvailableBindings) — the
+   *  original, section-visibility use case. Callers with a different, flatter
+   *  binding root (e.g. the Intelligent Comment Engine's academic-summary
+   *  context) pass their own list so the SAME nested AND/OR/NOT editor works
+   *  against a different set of fields. */
+  bindings?: ReturnType<typeof useAvailableBindings>;
 }
 
-export function VisibilityRuleEditor({ value, onChange }: Props) {
-  // Hoist the binding catalogue once for the whole tree — every leaf shares it.
-  const bindings = useAvailableBindings();
+export function VisibilityRuleEditor({ value, onChange, bindings: bindingsOverride }: Props) {
+  // Hook must run unconditionally (Rules of Hooks); the override, when given,
+  // simply wins over its result.
+  const liveBindings = useAvailableBindings();
+  const bindings = bindingsOverride ?? liveBindings;
 
   if (!value) {
     return (
@@ -248,7 +258,11 @@ function LeafEditor({
               type="text"
               value={literalToInput(right?.kind === 'literal' ? right.value : '')}
               onChange={e => setRight(parseInputLiteral(e.target.value, node.op))}
-              placeholder={node.op === 'in' || node.op === 'not_in' ? 'a, b, c' : 'value'}
+              placeholder={
+                node.op === 'in' || node.op === 'not_in' ? 'a, b, c'
+                : node.op === 'between' ? 'min, max'
+                : 'value'
+              }
               className="text-[11px] px-1.5 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 w-[110px]"
             />
           )}
@@ -276,6 +290,10 @@ function literalToInput(v: RuleLiteral | undefined): string {
 function parseInputLiteral(raw: string, op: CompareOp): RuleLiteral {
   if (op === 'in' || op === 'not_in') {
     return raw.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (op === 'between') {
+    const parts = raw.split(',').map(s => Number(s.trim()));
+    return [parts[0] ?? 0, parts[1] ?? 0];
   }
   const trimmed = raw.trim();
   if (trimmed === 'true')  return true;

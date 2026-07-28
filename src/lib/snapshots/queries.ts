@@ -70,6 +70,7 @@ export interface RawResultRow {
   subject_type:     string | null;
   academic_type:    string | null;
   score:            string | number | null;
+  grade:            string | null;
   remarks:          string | null;
   teacher_initials: string | null;
   teacher_name:     string | null;

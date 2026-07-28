@@ -62,6 +62,12 @@ import {
 import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import { listCommentRules } from '@/lib/drce/reportComments.server';
 import {
+  resolveAllOverallComments,
+  type CommentBankRule,
+  type CommentResolutionCtx,
+} from '@/lib/drce/commentEngine';
+import { listOverallCommentRules } from '@/lib/drce/overallComments.server';
+import {
   applyGradingScale,
   buildDefaultConfig,
   defaultComments,
@@ -213,7 +219,18 @@ export async function generateSnapshot(
       commentRules = [];
     }
 
-    const { classes, audit } = buildClasses(rows, numerals, language, commentRules);
+    // Phase II — Intelligent Overall-Comment Engine. Same best-effort
+    // philosophy: a missing table or query failure leaves rules empty and
+    // every student gets the unchanged static defaultComments() text, so
+    // schools that haven't configured rules see zero behaviour change.
+    let overallCommentRules: CommentBankRule[] = [];
+    try {
+      overallCommentRules = await listOverallCommentRules(ctx.schoolId);
+    } catch {
+      overallCommentRules = [];
+    }
+
+    const { classes, audit } = buildClasses(rows, numerals, language, commentRules, overallCommentRules);
 
     // Phase E — enrich each class with its class teacher (if assigned).
     // The lookup uses the snapshot's termId + each classId; failures
@@ -542,11 +559,35 @@ async function enrichWithCAFE(
 
 // ─── Internal helpers ───────────────────────────────────────────────────────
 
+/**
+ * Compute a student's aggregate + division (or nursery overall grade) from
+ * their contributing (principal/core, IRE-excluded) subject results. Single
+ * source used by BOTH the intelligent overall-comment resolution and the
+ * audit map below — Phase 0 of the Report Engine Patch Program flagged this
+ * as computed independently in two places; this removes that duplication.
+ */
+function computeStudentAggregateDivision(
+  stuResults: SnapshotResult[],
+  subjects: SnapshotSubject[],
+  isNursery: boolean,
+): { aggregate: number | null; division: string | null; grades: string[] } {
+  const contributing = getContributingAssessmentResults(stuResults, subjects);
+  if (isNursery) {
+    const nurseryGrades = contributing.map((r) => gradeForScore(r.score ?? 0, true));
+    return { aggregate: null, division: getNurseryOverallGrade(nurseryGrades) || null, grades: nurseryGrades };
+  }
+  const grades = contributing.map((r) => r.grade).filter((g): g is string => !!g);
+  const aggregate = computeAggregateFromGrades(grades);
+  const division = computeDivision(aggregate, DEFAULT_DIVISION_CONFIG);
+  return { aggregate, division, grades };
+}
+
 function buildClasses(
   rows: RawResultRow[],
   numerals: 'arabic' | 'western',
   language: 'en' | 'ar',
   commentRules: CommentRule[] = [],
+  overallCommentRules: CommentBankRule[] = [],
 ): { classes: SnapshotClass[]; audit?: Record<number, Record<number, import('./types').SnapshotStudentAudit>> } {
   // Classes -> Students -> Results, all keyed by id for deterministic iteration.
   const classMap = new Map<number, {
@@ -705,6 +746,7 @@ function buildClasses(
     rankStudents(students, 'numeric');
 
     // Now that totals/positions exist, fill in display strings.
+    const isNursery = isNurseryClassName(cls.className);
     for (const stu of students) {
       stu.displayTotal    = formatScoreForDisplay(stu.total, numerals);
       stu.displayAverage  = formatScoreForDisplay(stu.average, numerals);
@@ -712,6 +754,29 @@ function buildClasses(
         ? `${toArabicNumerals(stu.position)}/${toArabicNumerals(stu.totalInClass)}`
         : `${stu.position}/${stu.totalInClass}`;
       stu.remarks         = deriveOverallRemark(stu.average, language);
+
+      // Phase II — Intelligent Overall-Comment Engine. Resolved ONCE here
+      // (positions/totals now known) and frozen into the snapshot, exactly
+      // like the static comments it replaces — a report printed today reads
+      // the same next year even if the comment bank changes later.
+      const { aggregate, division } = computeStudentAggregateDivision(stu.results, subjects, isNursery);
+      if (overallCommentRules.length) {
+        try {
+          const resolutionCtx: CommentResolutionCtx = {
+            average: stu.average, total: stu.total,
+            totalPossible: subjects.length * 100,
+            percentage: subjects.length > 0 ? (stu.total / (subjects.length * 100)) * 100 : 0,
+            position: stu.position || null, totalInClass: stu.totalInClass || null,
+            aggregate, division,
+            overallGrade: division,
+            subjects: stu.results.map((r) => ({ id: r.subjectId, name: r.subjectName, score: r.score, grade: r.grade })),
+          };
+          stu.comments = resolveAllOverallComments(overallCommentRules, resolutionCtx, stu.comments, language);
+        } catch {
+          // Best-effort — any resolution failure leaves the existing
+          // (static-default) comments untouched rather than breaking generation.
+        }
+      }
     }
 
     out.push({

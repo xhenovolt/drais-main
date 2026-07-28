@@ -9,11 +9,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, Plus, Loader2, Trash2, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { resolveComment } from '@/lib/drce/reportComments';
+import { OverallCommentsPanel } from '@/components/drce/OverallCommentsPanel';
 
 const SCOPES = ['global', 'program', 'class', 'subject', 'grade', 'score', 'competency', 'class_teacher'];
 const blank = { scope: 'grade', grade_code: '', min_score: '', max_score: '', competency_level: '', comment_text: '', language: 'en', priority: 100, is_active: true };
 
 export default function ReportCommentsPage() {
+  const [tab, setTab] = useState<'overall' | 'subject'>('overall');
   const [rules, setRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<any | null>(null);
@@ -50,18 +52,33 @@ export default function ReportCommentsPage() {
     { grade: preview.grade || null, score: preview.score === '' ? null : Number(preview.score) },
   ).text, [rules, preview]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (tab === 'subject' && loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30"><MessageSquareText className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /></div>
-          <div><h1 className="text-xl font-bold text-gray-900 dark:text-white">Report Comments</h1><p className="text-sm text-gray-500 dark:text-gray-400">Rules that fill the result-table comment column. Most specific match wins.</p></div>
+          <div><h1 className="text-xl font-bold text-gray-900 dark:text-white">Report Comments</h1><p className="text-sm text-gray-500 dark:text-gray-400">Intelligent, school-configurable comment rules — no hardcoded phrases.</p></div>
         </div>
-        <button onClick={() => setModal({ ...blank })} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"><Plus className="w-4 h-4" /> New rule</button>
+        {tab === 'subject' && (
+          <button onClick={() => setModal({ ...blank })} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"><Plus className="w-4 h-4" /> New rule</button>
+        )}
       </div>
 
+      {/* Tab switcher */}
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        <button onClick={() => setTab('overall')} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === 'overall' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+          Overall report comments <span className="text-[10px] text-gray-400 font-normal">(Class Teacher / DOS / Headteacher)</span>
+        </button>
+        <button onClick={() => setTab('subject')} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === 'subject' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+          Per-subject comments
+        </button>
+      </div>
+
+      {tab === 'overall' && <OverallCommentsPanel />}
+
+      {tab === 'subject' && <>
       {/* Live preview */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
         <p className="text-xs font-medium text-gray-500 mb-2">Preview — what comment a result would get</p>
@@ -116,6 +133,7 @@ export default function ReportCommentsPage() {
           </div>
         </div>
       )}
+      </>}
     </div>
   );
 }

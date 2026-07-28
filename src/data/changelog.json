@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T10:45:29.051Z",
-  "last_commit": "bbe103afe594cd39ece85c0482c83c5a727d6258",
+  "generated_at": "2026-07-28T11:11:20.405Z",
+  "last_commit": "a537e99fbfd777572516fc093a3e18f8ea22e400",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5435,7 +5435,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.151.0",
+      "date": "2026-07-28",
+      "release_type": "minor",
+      "title": "Intelligent Report Comment Engine — rule-driven Class Teacher/DOS/Headteacher comments (Phase II)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Intelligent Report Comment Engine — rule-driven Class Teacher/DOS/Headteacher comments (Phase II)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.150.3"
+  "app_version": "1.151.0"
 }

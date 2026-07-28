@@ -38,6 +38,7 @@ export type CompareOp =
   | 'contains' | 'not_contains'
   | 'starts_with' | 'ends_with'
   | 'in' | 'not_in'         // right.value is an array
+  | 'between'               // right.value is [min, max], inclusive
   | 'empty' | 'not_empty';  // unary — right is ignored
 
 export type RuleLiteral = string | number | boolean | null | Array<string | number>;
@@ -62,16 +63,7 @@ export type VisibilityRule = RuleLeaf | RuleGroup;
  * legacy sections stay rendered.
  */
 export function evaluateRule(rule: VisibilityRule | null | undefined, ctx: DRCEDataContext): boolean {
-  if (!rule) return true;
-  if (rule.kind === 'group') {
-    const kids = rule.children ?? [];
-    if (!kids.length) return true;
-    let result: boolean;
-    if (rule.op === 'OR') result = kids.some(c => evaluateRule(c, ctx));
-    else                  result = kids.every(c => evaluateRule(c, ctx));
-    return rule.negate ? !result : result;
-  }
-  return evaluateLeaf(rule, ctx);
+  return evaluateRuleTree(rule, (path) => resolvePath(path, ctx));
 }
 
 function resolvePath(path: string, ctx: DRCEDataContext): unknown {
@@ -88,8 +80,32 @@ function resolvePath(path: string, ctx: DRCEDataContext): unknown {
   return getByPath(root, path.trim());
 }
 
-function evaluateLeaf(leaf: RuleLeaf, ctx: DRCEDataContext): boolean {
-  const left = resolvePath(leaf.left, ctx);
+/**
+ * Generic rule-tree evaluator, decoupled from DRCEDataContext. Any caller
+ * that has its own flat data shape (e.g. the comment engine's per-student
+ * academic summary) supplies its own `resolve(path)` function and reuses this
+ * exact AND/OR/nested/negate/operator semantics — one proven implementation,
+ * two binding roots. `evaluateRule` above is the DRCEDataContext-bound
+ * specialization used by section visibility.
+ */
+export function evaluateRuleTree(
+  rule: VisibilityRule | null | undefined,
+  resolve: (path: string) => unknown,
+): boolean {
+  if (!rule) return true;
+  if (rule.kind === 'group') {
+    const kids = rule.children ?? [];
+    if (!kids.length) return true;
+    let result: boolean;
+    if (rule.op === 'OR') result = kids.some(c => evaluateRuleTree(c, resolve));
+    else                  result = kids.every(c => evaluateRuleTree(c, resolve));
+    return rule.negate ? !result : result;
+  }
+  return evaluateLeafTree(rule, resolve);
+}
+
+function evaluateLeafTree(leaf: RuleLeaf, resolve: (path: string) => unknown): boolean {
+  const left = resolve(leaf.left);
   const op = leaf.op;
 
   if (op === 'empty')     return isEmpty(left);
@@ -100,7 +116,7 @@ function evaluateLeaf(leaf: RuleLeaf, ctx: DRCEDataContext): boolean {
       ? undefined
       : leaf.right.kind === 'literal'
         ? leaf.right.value
-        : resolvePath(leaf.right.path, ctx);
+        : resolve(leaf.right.path);
 
   switch (op) {
     case '==':           return looseEq(left, rightRaw);
@@ -115,8 +131,17 @@ function evaluateLeaf(leaf: RuleLeaf, ctx: DRCEDataContext): boolean {
     case 'ends_with':    return strCmp(left, rightRaw, (a, b) => a.endsWith(b));
     case 'in':           return inList(left, rightRaw);
     case 'not_in':       return !inList(left, rightRaw);
+    case 'between':      return betweenCmp(left, rightRaw);
     default:             return true;
   }
+}
+
+function betweenCmp(a: unknown, range: unknown): boolean {
+  if (!Array.isArray(range) || range.length !== 2) return false;
+  const na = typeof a === 'number' ? a : parseFloat(String(a));
+  const lo = Number(range[0]), hi = Number(range[1]);
+  if (!Number.isFinite(na) || !Number.isFinite(lo) || !Number.isFinite(hi)) return false;
+  return na >= Math.min(lo, hi) && na <= Math.max(lo, hi);
 }
 
 function isEmpty(v: unknown): boolean {
