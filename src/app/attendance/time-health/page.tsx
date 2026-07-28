@@ -10,7 +10,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Clock, Loader2, AlertTriangle, CheckCircle, RefreshCw, Undo2, ShieldCheck, Brain,
+  Clock, Loader2, AlertTriangle, CheckCircle, RefreshCw, Undo2, ShieldCheck, Brain, Wrench,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -152,6 +152,21 @@ export default function TimeHealthPage() {
                     >{t('attendanceIntel.timeHealth.reviewCorrect', 'Review & correct…')}</button>
                   </div>
                 )}
+
+                {/* Manual override — ALWAYS available, regardless of what DRAIS's own
+                    detection says. Automated "Trusted" is a best-effort read of a
+                    device's own clock; it can be wrong (a device can misreport time
+                    in a way that still looks self-consistent). This is the human's own
+                    button — no need to wait for or trust an anomaly flag to use it. */}
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-[11px] text-gray-400">
+                    {t('attendanceIntel.timeHealth.manualNote', "Don't wait for DRAIS to flag a problem — correct any device's time yourself, any time.")}
+                  </p>
+                  <button
+                    onClick={() => setFix({ device_sn: d.device_sn, date: d.local_date, suggestedShift: d.recommendedShiftMin || 0, baselineFirst: bl?.median_first_minute ?? null, todayFirst: d.first_arrival_minute })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium"
+                  ><Wrench className="w-3.5 h-3.5" /> {t('attendanceIntel.timeHealth.manualCorrect', 'Correct manually…')}</button>
+                </div>
               </div>
             );
           })}

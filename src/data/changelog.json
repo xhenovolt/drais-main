@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T11:23:03.451Z",
-  "last_commit": "9f842147d1df0583aec64e3440a182aa5a608897",
+  "generated_at": "2026-07-28T14:23:24.126Z",
+  "last_commit": "63bb4a28c0ae11c71acc77c7918ceee5a78926f9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5461,7 +5461,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.151.2",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Always-available manual clock correction, independent of automated verdict",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Always-available manual clock correction, independent of automated verdict"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.151.1"
+  "app_version": "1.151.2"
 }

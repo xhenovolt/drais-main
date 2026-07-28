@@ -2148,6 +2148,8 @@
       "wrongTimestamps": "⚠ The system believes today's timestamps are wrong ({{conf}}% drift confidence). No corrections have been applied.",
       "suggestedShift": "Suggested: shift the whole batch {{h}} hours. Also correct the clock on the device itself so tomorrow doesn’t repeat this.",
       "reviewCorrect": "Review & correct…",
+      "manualNote": "Don't wait for DRAIS to flag a problem — correct any device's time yourself, any time.",
+      "manualCorrect": "Correct manually…",
       "correctionHistory": "Correction history (undoable)",
       "undo": "Undo",
       "undone": "undone",
