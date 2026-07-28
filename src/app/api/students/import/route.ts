@@ -10,11 +10,16 @@
  *   create-class   → quick-create a missing class inline
  *   create-stream  → quick-create a missing stream inline
  *
- * Import options (formData booleans, all default true except feesOnly):
- *   updateExisting  — update fields on matched students
+ * Import options (formData booleans, all default true except feesOnly & reassignClass):
+ *   updateExisting  — update fields on matched students (name, demographics,
+ *                     registration number, fees) — NEVER inserts a duplicate
  *   createNew       — create students that had no match
  *   feesOnly        — ONLY update fees_balance, skip all student creation/update
  *   enrollNew       — auto-enroll newly created students
+ *   reassignClass   — opt-in (default FALSE): allow moving an already-enrolled
+ *                     matched student to a different class/stream. When off, an
+ *                     existing active enrollment is PRESERVED, never overridden;
+ *                     a matched student with no active enrollment still gets one.
  *
  * Matching priority (strict order):
  *   1. admission_no  → EXACT_MATCH
@@ -915,7 +920,12 @@ export async function POST(request: NextRequest) {
   const createNew      = formData.get('createNew')      !== 'false';
   const feesOnly       = formData.get('feesOnly')       === 'true';
   const enrollNew      = formData.get('enrollNew')      !== 'false';
-  const importOptions  = { updateExisting, createNew, feesOnly, enrollNew };
+  // Opt-in ("unless otherwise specified"): allow an import to MOVE a matched
+  // student who ALREADY has an active enrollment into a different class/stream.
+  // Default OFF — an import must never silently override an existing enrollment;
+  // it only fills a gap when a matched student has no active enrollment.
+  const reassignClass  = formData.get('reassignClass')  === 'true';
+  const importOptions  = { updateExisting, createNew, feesOnly, enrollNew, reassignClass };
 
   // Retry mode: only specific rows
   const retryRaw = formData.get('retryIndices') as string | null;
@@ -938,6 +948,7 @@ export async function POST(request: NextRequest) {
       let conn: any;
       const stats = {
         imported: 0, updated: 0, skipped: 0, failed: 0,
+        enrollmentsPreserved: 0,
         errors: [] as string[], failedRows: [] as number[],
       };
 
@@ -1104,6 +1115,28 @@ export async function POST(request: NextRequest) {
                     ], schoolId,
                   );
 
+                  // Registration number: adopt the number the import supplies
+                  // when it differs from what's on file — but NEVER take a number
+                  // another student already holds (would break uniqueness). If it
+                  // clashes we keep the existing number and record a warning.
+                  if (regNo && (matched.admission_no ?? null) !== regNo) {
+                    const [clash] = await conn.execute(
+                      `SELECT id FROM students
+                         WHERE school_id = ? AND admission_no = ? AND id <> ? AND deleted_at IS NULL
+                         LIMIT 1`,
+                      [schoolId, regNo, matched.id],
+                    ) as any[];
+                    if ((clash as any[]).length === 0) {
+                      await execTenant(conn,
+                        `UPDATE students SET admission_no = ?, is_external_reg = 1, updated_at = CURRENT_TIMESTAMP
+                           WHERE id = ? AND school_id = ?`,
+                        [regNo, matched.id, schoolId], schoolId,
+                      );
+                    } else {
+                      stats.errors.push(`Row ${rowNum}: reg no "${regNo}" already belongs to another student — kept existing number`);
+                    }
+                  }
+
                 } else if (action === 'create') {
                   // CREATE — person → student → enrollment (rolled back together on failure)
                   const year       = new Date().getFullYear();
@@ -1175,38 +1208,69 @@ export async function POST(request: NextRequest) {
 
                 } // end 'create'
 
-                // ── UPDATE ENROLLMENT (existing student) ─────────────────────
+                // ── ENROLLMENT (existing student) — NEVER OVERRIDE BY DEFAULT ─
+                // An import must not silently move an already-enrolled student to
+                // a different class. So for a matched student we only:
+                //   • fill a GAP — create an enrollment when they have no active
+                //     one (this isn't an override); or
+                //   • REASSIGN their existing enrollment ONLY when the operator
+                //     explicitly opted in via reassignClass ("unless otherwise
+                //     specified"). Otherwise the existing enrollment is preserved.
                 if ((action === 'update') && studentId && cm.classIdx !== -1 && row[cm.classIdx]) {
-                  let resolvedClassId = classId;
-                  if (!resolvedClassId && className) {
-                    const [cr3] = await conn.execute(
-                      'INSERT INTO classes (school_id, name) VALUES (?, ?)', [schoolId, className],
-                    ) as any[];
-                    resolvedClassId = (cr3 as any).insertId;
-                    classMap.set(classNameLower!, resolvedClassId);
-                    streamsByClass.set(resolvedClassId, new Map());
-                  }
-                  if (resolvedClassId) {
-                    let streamId: number | null = null;
-                    if (cm.sectionIdx !== -1 && row[cm.sectionIdx]) {
-                      const strName  = String(row[cm.sectionIdx]).trim();
-                      const strLower = strName.toLowerCase();
-                      streamId = streamsByClass.get(resolvedClassId)?.get(strLower) ?? null;
-                      if (!streamId) {
-                        const [sr4] = await conn.execute(
-                          'INSERT INTO streams (school_id, class_id, name) VALUES (?, ?, ?)',
-                          [schoolId, resolvedClassId, strName],
-                        ) as any[];
-                        streamId = (sr4 as any).insertId;
-                        if (!streamsByClass.has(resolvedClassId)) streamsByClass.set(resolvedClassId, new Map());
-                        streamsByClass.get(resolvedClassId)!.set(strLower, streamId!);
+                  const [activeRows] = await conn.execute(
+                    `SELECT id FROM enrollments
+                       WHERE student_id = ? AND school_id = ? AND status = 'active' AND deleted_at IS NULL
+                       ORDER BY id DESC LIMIT 1`,
+                    [studentId, schoolId],
+                  ) as any[];
+                  const activeEnrId: number | null = (activeRows as any[])[0]?.id ?? null;
+
+                  if (activeEnrId && !reassignClass) {
+                    // Preserve the existing enrollment exactly as it is.
+                    stats.enrollmentsPreserved++;
+                  } else {
+                    let resolvedClassId = classId;
+                    if (!resolvedClassId && className) {
+                      const [cr3] = await conn.execute(
+                        'INSERT INTO classes (school_id, name) VALUES (?, ?)', [schoolId, className],
+                      ) as any[];
+                      resolvedClassId = (cr3 as any).insertId;
+                      classMap.set(classNameLower!, resolvedClassId);
+                      streamsByClass.set(resolvedClassId, new Map());
+                    }
+                    if (resolvedClassId) {
+                      let streamId: number | null = null;
+                      if (cm.sectionIdx !== -1 && row[cm.sectionIdx]) {
+                        const strName  = String(row[cm.sectionIdx]).trim();
+                        const strLower = strName.toLowerCase();
+                        streamId = streamsByClass.get(resolvedClassId)?.get(strLower) ?? null;
+                        if (!streamId) {
+                          const [sr4] = await conn.execute(
+                            'INSERT INTO streams (school_id, class_id, name) VALUES (?, ?, ?)',
+                            [schoolId, resolvedClassId, strName],
+                          ) as any[];
+                          streamId = (sr4 as any).insertId;
+                          if (!streamsByClass.has(resolvedClassId)) streamsByClass.set(resolvedClassId, new Map());
+                          streamsByClass.get(resolvedClassId)!.set(strLower, streamId!);
+                        }
+                      }
+                      if (activeEnrId) {
+                        // Explicit opt-in reassignment of the existing enrollment.
+                        await execTenant(conn,
+                          `UPDATE enrollments SET class_id = ?, stream_id = ?, updated_at = CURRENT_TIMESTAMP
+                             WHERE id = ? AND school_id = ?`,
+                          [resolvedClassId, streamId, activeEnrId, schoolId], schoolId,
+                        );
+                      } else {
+                        // Fill the gap — the matched student had no active enrollment.
+                        await execTenant(conn,
+                          `INSERT INTO enrollments (school_id, student_id, class_id, stream_id, academic_year_id, term_id, status)
+                           VALUES (?, ?, ?, ?, ?, ?, 'active')
+                           ON DUPLICATE KEY UPDATE class_id = VALUES(class_id), stream_id = VALUES(stream_id)`,
+                          [schoolId, studentId, resolvedClassId, streamId, yearId, termId], schoolId,
+                        );
                       }
                     }
-                    await execTenant(conn,
-                      `UPDATE enrollments SET class_id = ?, stream_id = ?, updated_at = CURRENT_TIMESTAMP
-                       WHERE student_id = ? AND school_id = ? AND status = 'active'`,
-                      [resolvedClassId, streamId, studentId, schoolId], schoolId,
-                    );
                   }
                 }
 
@@ -1318,8 +1382,9 @@ export async function POST(request: NextRequest) {
           failed:     stats.failed,
           errors:     stats.errors.slice(0, 100),
           failedRows: stats.failedRows,
+          enrollmentsPreserved: stats.enrollmentsPreserved,
           total:      importRows.length,
-          message:    `Import complete: ${stats.imported} created, ${stats.updated} updated, ${stats.skipped} skipped, ${stats.failed} failed${integrityNote}`,
+          message:    `Import complete: ${stats.imported} created, ${stats.updated} updated, ${stats.skipped} skipped, ${stats.failed} failed${stats.enrollmentsPreserved ? `, ${stats.enrollmentsPreserved} existing enrollment${stats.enrollmentsPreserved === 1 ? '' : 's'} preserved` : ''}${integrityNote}`,
           session_id: sessionId,
         });
 

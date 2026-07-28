@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T08:27:24.178Z",
-  "last_commit": "caca5b64fc367685f64bc3b1e888db7568c0cff3",
+  "generated_at": "2026-07-28T08:45:05.878Z",
+  "last_commit": "49dcd5acae93a4a777a22418b2b4bc74ce51cd78",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5383,7 +5383,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.150.0",
+      "date": "2026-07-28",
+      "release_type": "minor",
+      "title": "Student import never overrides existing enrollments; updates reg no + fees on matches",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Student import never overrides existing enrollments; updates reg no + fees on matches"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.149.2"
+  "app_version": "1.150.0"
 }

@@ -63,6 +63,7 @@ interface ImportOptions {
   createNew: boolean;
   feesOnly: boolean;
   enrollNew: boolean;
+  reassignClass: boolean;
 }
 
 interface ImportResult {
@@ -129,6 +130,7 @@ export default function BulkImportPage() {
     createNew: true,
     feesOnly: false,
     enrollNew: true,
+    reassignClass: false,
   });
   const [sessionId, setSessionId]         = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -334,6 +336,7 @@ export default function BulkImportPage() {
       fd.append('createNew',      String(importOptions.createNew));
       fd.append('feesOnly',       String(importOptions.feesOnly));
       fd.append('enrollNew',      String(importOptions.enrollNew));
+      fd.append('reassignClass',  String(importOptions.reassignClass));
       if (Object.values(columnMapping).some(v => v)) {
         fd.append('columnMapping', JSON.stringify(columnMapping));
       }
@@ -716,6 +719,26 @@ export default function BulkImportPage() {
                     <p className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Auto-enroll new students</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       New students will be enrolled in the class from the file. If enrollment fails, the student creation is rolled back.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Reassign class for already-enrolled matches (opt-in) */}
+                <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  importOptions.reassignClass && !importOptions.feesOnly
+                    ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                }`}>
+                  <input type="checkbox"
+                    checked={importOptions.reassignClass && !importOptions.feesOnly}
+                    onChange={e => setImportOptions(o => ({ ...o, reassignClass: e.target.checked }))}
+                    disabled={importOptions.feesOnly}
+                    className="mt-0.5 accent-rose-600"
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Move already-enrolled students to the file&apos;s class</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Off by default: a student who already has an active enrollment keeps it — the import updates their details, registration number and fees but never overrides their class. Turn this on to also reassign matched students to the class/stream in the file.
                     </p>
                   </div>
                 </label>
