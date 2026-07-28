@@ -209,15 +209,18 @@ function CorrectionModal({ fix, onClose, onDone, t }: { fix: any; onClose: () =>
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-5 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
+      <div
+        className="bg-white dark:bg-gray-800 rounded-xl p-5 w-full max-w-md flex flex-col max-h-[85vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendanceIntel.timeHealth.correctBatch', { sn: fix.device_sn }, 'Correct times — {{sn}}')}</h2>
         </div>
 
         {/* Scope toggle — most drift affects the whole device, but sometimes
             only a handful of people were mis-scanned (e.g. an AM/PM mixup on a
             few punches) while the rest of the batch is genuinely fine. */}
-        <div className="flex gap-1 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-900/50 text-sm">
+        <div className="flex gap-1 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-900/50 text-sm mt-3 flex-shrink-0">
           <button onClick={() => setMode('batch')} className={`flex-1 px-3 py-1.5 rounded-md font-medium ${mode === 'batch' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
             {t('attendanceIntel.timeHealth.scopeAll', 'All arrivals')}
           </button>
@@ -226,9 +229,15 @@ function CorrectionModal({ fix, onClose, onDone, t }: { fix: any; onClose: () =>
           </button>
         </div>
 
-        {mode === 'batch'
-          ? <BatchCorrectionPanel fix={fix} t={t} onClose={onClose} onDone={onDone} />
-          : <SelectivePanel fix={fix} t={t} onClose={onClose} onDone={onDone} />}
+        {/* The panel body scrolls internally — the header/toggle above and
+            the Cancel/Apply buttons each panel renders at its own end stay
+            reachable no matter how long the "select people" list gets
+            (39+ rows is common on a genuinely bad device-day). */}
+        <div className="mt-3 space-y-3 overflow-y-auto min-h-0">
+          {mode === 'batch'
+            ? <BatchCorrectionPanel fix={fix} t={t} onClose={onClose} onDone={onDone} />
+            : <SelectivePanel fix={fix} t={t} onClose={onClose} onDone={onDone} />}
+        </div>
       </div>
     </div>
   );
@@ -458,7 +467,7 @@ function SelectivePanel({ fix, onClose, onDone, t }: { fix: any; onClose: () => 
               <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">
                 {t('attendanceIntel.timeHealth.previousLateWarn', "The people below currently show as arriving late last night — that's very likely today's early arrival, mis-clocked. Tick them and shift forward to move them onto today.")}
               </p>
-              <div className="mt-1.5 rounded-md border border-amber-200 dark:border-amber-800 divide-y divide-amber-100 dark:divide-amber-900/50 bg-white dark:bg-gray-800">
+              <div className="mt-1.5 max-h-52 overflow-y-auto rounded-md border border-amber-200 dark:border-amber-800 divide-y divide-amber-100 dark:divide-amber-900/50 bg-white dark:bg-gray-800">
                 {punches.filter((p) => p.bucket === 'previous_late').map((p) => (
                   <PunchRow key={p.id} p={p} selected={selected.has(p.id)} shiftMinutes={shiftMinutes} onToggle={toggle} t={t} />
                 ))}

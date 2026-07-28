@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T17:07:19.081Z",
-  "last_commit": "ecc0f1e52bd8656daca189c4ebf21f8a5741b053",
+  "generated_at": "2026-07-28T17:13:36.062Z",
+  "last_commit": "e8808a4a0feac3a5bd7b80ad015df6ebab650f28",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5526,7 +5526,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.153.2",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Correction modal no longer overflows the viewport on the select-people tab",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Correction modal no longer overflows the viewport on the select-people tab"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.153.1"
+  "app_version": "1.153.2"
 }
