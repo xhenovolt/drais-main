@@ -5,8 +5,61 @@
  * Utilities for calculating totals and averages in DRCE report tables
  */
 
-import type { DRCEColumn, DRCEDataContext, DRCEResultsTableTotalsConfig } from './schema';
+import type { DRCEColumn, DRCEDataContext, DRCEResultsTableTotalsConfig, DRCEAcademicSummaryConfig } from './schema';
 import { resolveBinding } from './bindingResolver';
+
+/** Values feeding the consolidated academic-standing summary (Phase I). */
+export interface AcademicSummaryValues {
+  totalObtained: number;
+  totalPossible: number;
+  percentage: number;
+  averageScore: number;
+  aggregate?: number | null;
+  division?: string | null;
+  position?: string | null;
+}
+
+/**
+ * Build the enabled academic-summary line items from config + live values.
+ * Pure and deterministic — no hardcoded data, only labels. An item is emitted
+ * only when its flag is on AND (for aggregate/division/position) a value exists,
+ * so nursery/early-years reports without aggregates simply omit those lines.
+ */
+export function buildAcademicSummaryItems(
+  cfg: DRCEAcademicSummaryConfig | undefined,
+  v: AcademicSummaryValues,
+  language: 'en' | 'ar' = 'en',
+): Array<{ key: string; label: string; value: string }> {
+  const on = (flag: boolean | undefined, dflt: boolean) => flag ?? dflt;
+  const L = cfg?.labels ?? {};
+  const ar = language === 'ar';
+  const fmt = (n: number) => (Number.isFinite(n) ? (n % 1 === 0 ? String(n) : n.toFixed(1)) : '0');
+  const present = (s: unknown) => s != null && String(s).trim() !== '';
+  const items: Array<{ key: string; label: string; value: string }> = [];
+
+  if (on(cfg?.showTotalMarks, true)) {
+    const value = on(cfg?.showTotalPossible, false) && v.totalPossible > 0
+      ? `${fmt(v.totalObtained)} / ${fmt(v.totalPossible)}`
+      : fmt(v.totalObtained);
+    items.push({ key: 'total', label: L.total ?? (ar ? 'المجموع' : 'Total'), value });
+  }
+  if (on(cfg?.showPercentage, true)) {
+    items.push({ key: 'percentage', label: L.percentage ?? (ar ? 'النسبة' : 'Percentage'), value: `${v.percentage.toFixed(1)}%` });
+  }
+  if (on(cfg?.showAverage, true)) {
+    items.push({ key: 'average', label: L.average ?? (ar ? 'المعدل' : 'Average'), value: fmt(v.averageScore) });
+  }
+  if (on(cfg?.showAggregate, true) && v.aggregate != null) {
+    items.push({ key: 'aggregate', label: L.aggregate ?? (ar ? 'المجموع الكلي' : 'Aggregate'), value: String(v.aggregate) });
+  }
+  if (on(cfg?.showDivision, true) && present(v.division)) {
+    items.push({ key: 'division', label: L.division ?? (ar ? 'الشعبة' : 'Division'), value: String(v.division) });
+  }
+  if (on(cfg?.showPosition, false) && present(v.position)) {
+    items.push({ key: 'position', label: L.position ?? (ar ? 'الترتيب' : 'Position'), value: String(v.position) });
+  }
+  return items;
+}
 
 interface TotalsColumnLike {
   id: string;

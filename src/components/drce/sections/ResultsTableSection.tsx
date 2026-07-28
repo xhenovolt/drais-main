@@ -10,7 +10,7 @@ import {
 } from '@/lib/drce/styleResolver';
 import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
-import { buildTotalsRowCellContent, detectNumericColumnIds } from '@/lib/drce/totalsCalculator';
+import { buildTotalsRowCellContent, detectNumericColumnIds, buildAcademicSummaryItems } from '@/lib/drce/totalsCalculator';
 import { resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 function calculateTotals(
@@ -141,6 +141,24 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
   const percentage = totalPossible > 0 ? (totalObtained / totalPossible) * 100 : 0;
   const averageScore = results.length > 0 ? totalObtained / results.length : 0;
 
+  // Phase I — consolidated academic-standing summary beneath the table. Pulls
+  // aggregate/division/position from the snapshot assessment (previously
+  // disconnected from the total) alongside the computed totals. Additive and
+  // per-item configurable; skipped for empty tables.
+  const summaryCfg = totalsConfig?.academicSummary;
+  const summaryEnabled = totalsEnabled && results.length > 0 && (summaryCfg?.enabled ?? true);
+  const summaryItems = summaryEnabled
+    ? buildAcademicSummaryItems(summaryCfg, {
+        totalObtained, totalPossible, percentage, averageScore,
+        aggregate: (ctx.assessment as any)?.aggregates ?? null,
+        division:  (ctx.assessment as any)?.division ?? null,
+        position:  (ctx.assessment as any)?.position ?? null,
+      }, language)
+    : [];
+  const summaryLayout = summaryCfg?.layout ?? 'stacked';
+  const summaryJustify = summaryCfg?.align === 'left' ? 'flex-start'
+    : summaryCfg?.align === 'center' ? 'center' : 'flex-end';
+
   // Validate subject totals
   const validationErrors: string[] = [];
   results.forEach((result, index) => {
@@ -173,6 +191,7 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
   };
 
   return (
+    <>
     <table style={{
       ...tableStyle,
       pageBreakInside: 'avoid',
@@ -304,5 +323,28 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
         )}
       </tbody>
     </table>
+    {summaryItems.length > 0 && (
+      <div
+        dir={isRTL ? 'rtl' : 'ltr'}
+        style={{
+          display: 'flex',
+          flexDirection: summaryLayout === 'inline' ? 'row' : 'column',
+          flexWrap: 'wrap',
+          gap: summaryLayout === 'inline' ? 16 : 2,
+          justifyContent: summaryJustify,
+          marginTop: 6,
+          pageBreakInside: 'avoid',
+          fontSize: 12,
+        }}
+      >
+        {summaryItems.map(item => (
+          <div key={item.key} style={{ display: 'flex', gap: 4, whiteSpace: 'nowrap' }}>
+            <span style={{ fontWeight: 700 }}>{item.label}:</span>
+            <span>{item.value}</span>
+          </div>
+        ))}
+      </div>
+    )}
+    </>
   );
 }

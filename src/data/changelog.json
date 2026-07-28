@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T09:17:21.433Z",
-  "last_commit": "fbe4473a866e99f7badef7379248cc4b2e478d1b",
+  "generated_at": "2026-07-28T10:45:29.051Z",
+  "last_commit": "bbe103afe594cd39ece85c0482c83c5a727d6258",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5422,7 +5422,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.150.3",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Consolidated academic-standing summary under results table (Phase I)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Consolidated academic-standing summary under results table (Phase I)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.150.2"
+  "app_version": "1.150.3"
 }

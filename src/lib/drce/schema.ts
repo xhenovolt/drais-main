@@ -574,6 +574,34 @@ export interface DRCEResultsTableTotalsConfig {
   sumColumnIds: string[];
   /** Style for the totals row */
   rowStyle?: DRCEColumnStyle;
+  /** Phase I — consolidated academic-standing summary rendered beneath the
+   *  results table. Additive and fully optional; when omitted a sensible
+   *  default block is shown from whatever summary data is available. */
+  academicSummary?: DRCEAcademicSummaryConfig;
+}
+
+/**
+ * Consolidated academic summary (Total / %, Average, Aggregate, Division,
+ * Position) shown directly under the results table so a learner's overall
+ * standing is readable in one place. Every field is optional; values come from
+ * the snapshot data context (never hardcoded) and each line is toggleable.
+ */
+export interface DRCEAcademicSummaryConfig {
+  /** Master toggle for the block (default: true when data is present). */
+  enabled?: boolean;
+  /** Stacked = one line each; inline = chips on a row. Default 'stacked'. */
+  layout?: 'stacked' | 'inline';
+  /** Horizontal alignment of the block. Default 'right'. */
+  align?: 'left' | 'center' | 'right';
+  showTotalMarks?: boolean;    // default true
+  showTotalPossible?: boolean; // default false (renders "obtained / possible")
+  showPercentage?: boolean;    // default true
+  showAverage?: boolean;       // default true
+  showAggregate?: boolean;     // default true  (hidden when no aggregate)
+  showDivision?: boolean;      // default true  (hidden when no division)
+  showPosition?: boolean;      // default false
+  /** Optional per-item label overrides (else sensible EN/AR defaults). */
+  labels?: Partial<Record<'total' | 'totalPossible' | 'percentage' | 'average' | 'aggregate' | 'division' | 'position', string>>;
 }
 
 export interface DRCEResultsTableSection extends DRCESectionBase {
