@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T11:11:20.405Z",
-  "last_commit": "a537e99fbfd777572516fc093a3e18f8ea22e400",
+  "generated_at": "2026-07-28T11:23:03.451Z",
+  "last_commit": "9f842147d1df0583aec64e3440a182aa5a608897",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5448,7 +5448,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.151.1",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Phase III Albayan academic intelligence + integrity audit (read-only)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Phase III Albayan academic intelligence + integrity audit (read-only)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.151.0"
+  "app_version": "1.151.1"
 }
