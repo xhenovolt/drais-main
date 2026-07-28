@@ -5,7 +5,7 @@
 // and as the seed for migration from old report_templates format.
 // ============================================================================
 
-import type { DRCEDocument, DRCETheme, DRCEWatermark, DRCEGradeRow } from './schema';
+import type { DRCEDocument, DRCETheme, DRCEWatermark, DRCEGradeRow, DRCESignatureSection } from './schema';
 
 // ─── Shared defaults ─────────────────────────────────────────────────────────
 
@@ -821,6 +821,43 @@ export const BUILT_IN_DOCUMENTS: DRCEDocument[] = [
   // NORTHGATE_OFFICIAL_DOCUMENT is NOT in built-ins — it is school_id-scoped
   // and seeded via scripts/seed-northgate-official-template.mjs
 ];
+
+/**
+ * A professional "signed by" panel for the foot of a report card. Headteacher +
+ * Class Teacher by default, each with a signing line, role label and date line.
+ * Names are left blank so paper-signed reports work out of the box; schools can
+ * bind names/scanned signatures or toggle the block off in the DRCE editor.
+ */
+export function defaultSignatureSection(order: number): DRCESignatureSection {
+  return {
+    id: 'section-signatures',
+    type: 'signature_block',
+    visible: true,
+    order,
+    signatories: [
+      { id: 'sig-head',  roleLabel: 'HEADTEACHER',   name: '', showDate: true },
+      { id: 'sig-class', roleLabel: 'CLASS TEACHER', name: '', showDate: true },
+    ],
+    style: {
+      perRow: 2, gap: 32, lineColor: '#111', lineThickness: 1,
+      signatureHeight: 48, imageFit: 'contain',
+      labelColor: '#444', labelFontSize: 10, labelWeight: 700,
+      nameColor: '#111', nameFontSize: 12,
+      padding: '8px 0', background: 'transparent',
+      showDateLabel: true, dateLabel: 'Date:',
+    },
+  };
+}
+
+// Every built-in report document ends with a signature block (Issue 3 — reports
+// must carry professional signature areas). Idempotent + deterministic (static
+// ids, order derived from existing sections); skips any doc that already has one.
+for (const doc of BUILT_IN_DOCUMENTS) {
+  if (!doc.sections.some(s => s.type === 'signature_block')) {
+    const maxOrder = doc.sections.reduce((m, s) => Math.max(m, s.order ?? 0), 0);
+    doc.sections.push(defaultSignatureSection(maxOrder + 1));
+  }
+}
 
 /** Find a built-in document by its DB id or template_key */
 export function getBuiltInDocument(idOrKey: number | string): DRCEDocument | undefined {

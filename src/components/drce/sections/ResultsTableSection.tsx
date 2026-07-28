@@ -10,7 +10,7 @@ import {
 } from '@/lib/drce/styleResolver';
 import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
-import { buildTotalsRowCellContent } from '@/lib/drce/totalsCalculator';
+import { buildTotalsRowCellContent, detectNumericColumnIds } from '@/lib/drce/totalsCalculator';
 import { resolveLocalizedLabel } from '@/lib/drce/arabic';
 
 function calculateTotals(
@@ -120,10 +120,15 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
 
   const totalsConfig = section.totalsConfig;
   const totalsEnabled = totalsConfig?.enabled ?? true;  // Default to TRUE - always show totals
-  const sumColumnIds = (totalsConfig?.sumColumnIds && totalsConfig.sumColumnIds.length > 0
-    ? totalsConfig.sumColumnIds
-    : visibleCols.filter(c => c.id.toLowerCase().includes('score') || c.id.toLowerCase().includes('total')).map(c => c.id));
-  const totalColumns = visibleCols.filter(col => sumColumnIds.includes(col.id));
+  // Which columns to sum: honour an explicit admin selection; otherwise detect
+  // the columns that actually carry numeric data. This fixes totals rendering
+  // blank for tables whose mark columns aren't named "score"/"total"
+  // (e.g. eot/bot/mot/exam/marks) — the old id-substring guess found nothing.
+  const configuredSumIds = totalsConfig?.sumColumnIds?.filter(Boolean) ?? [];
+  const summableColumnIds = configuredSumIds.length > 0
+    ? configuredSumIds
+    : detectNumericColumnIds(visibleCols, results, ctx);
+  const totalColumns = visibleCols.filter(col => summableColumnIds.includes(col.id));
   const totals = calculateTotals(results, totalColumns, ctx);
   const averages = totalsConfig?.showAverage !== false ? calculateAverages(results, totalColumns, ctx) : {};
 
@@ -270,6 +275,7 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
                 column: col,
                 totals,
                 totalsConfig,
+                summableColumnIds,
                 totalObtained,
                 totalPossible,
                 percentage,

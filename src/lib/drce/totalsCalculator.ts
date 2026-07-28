@@ -55,6 +55,10 @@ export function generateDefaultTotalsConfig(
     labelColumnId,
     labelText: 'TOTAL',
     sumColumnIds,
+    showTotalObtained: true,
+    showTotalPossible: true,
+    showPercentage: true,
+    showGrandGrade: false,
     showAverage: options?.showAverage ?? true,
     averageLabelColumnId: labelColumnId,
     averageLabelText: 'AVERAGE',
@@ -126,10 +130,42 @@ export function calculateColumnAverages(
   return averages;
 }
 
+/**
+ * Detect which columns are summable by inspecting the ACTUAL data, not the
+ * column id/header. A column is summable when every non-empty value its binding
+ * resolves to (across all result rows) parses as a finite number. This is robust
+ * to any naming convention — eot/bot/mot/exam/marks/final all work — and it
+ * correctly excludes grade-label, subject-name and remark columns (non-numeric).
+ */
+export function detectNumericColumnIds(
+  columns: TotalsColumnLike[],
+  results: Array<Record<string, any>>,
+  ctx: DRCEDataContext,
+): string[] {
+  const ids: string[] = [];
+  for (const col of columns) {
+    if (!col.binding) continue;
+    let numeric = 0;
+    let nonEmpty = 0;
+    for (const row of results) {
+      const v = resolveBinding(col.binding, ctx, row);
+      if (v === null || v === undefined || String(v).trim() === '') continue;
+      nonEmpty++;
+      if (!isNaN(parseFloat(String(v)))) numeric++;
+    }
+    if (nonEmpty > 0 && numeric === nonEmpty) ids.push(col.id);
+  }
+  return ids;
+}
+
 export function buildTotalsRowCellContent(options: {
   column: TotalsColumnLike;
   totals: Record<string, number>;
   totalsConfig?: DRCEResultsTableTotalsConfig;
+  /** Authoritative set of columns that carry a sum. When provided it wins over
+   *  any id/header heuristic — this is the resolved (configured or auto-detected)
+   *  summable set from the renderer. */
+  summableColumnIds?: string[];
   totalObtained: number;
   totalPossible: number;
   percentage: number;
@@ -170,14 +206,22 @@ export function buildTotalsRowCellContent(options: {
     return '';  // Subject/name column in totals row is blank
   }
 
-  // For columns marked in sumColumnIds, always show the sum
-  if (totalsConfig?.sumColumnIds?.includes(column.id)) {
+  // A column shows its sum iff it is in the resolved summable set. When the
+  // renderer passes summableColumnIds (configured OR auto-detected from the
+  // data), that is authoritative — no id/header guessing. Falls back to the
+  // stored sumColumnIds only when no set is supplied (older callers).
+  const inSummable = options.summableColumnIds
+    ? options.summableColumnIds.includes(column.id)
+    : (totalsConfig?.sumColumnIds?.includes(column.id) ?? false);
+  if (inSummable) {
     const value = totals[column.id] ?? 0;
     return value % 1 === 0 ? String(value) : value.toFixed(1);
   }
 
-  // Fallback: if header looks like a score/total column, try to display sum from totals
-  if (header.includes('score') || header.includes('mark') || header.includes('total') || header.includes('eot')) {
+  // Legacy fallback (only when the caller supplied no summable set at all):
+  // guess from the header text so pre-existing callers keep working.
+  if (!options.summableColumnIds &&
+      (header.includes('score') || header.includes('mark') || header.includes('total') || header.includes('eot'))) {
     const value = totals[column.id];
     if (typeof value === 'number') {
       return value % 1 === 0 ? String(value) : value.toFixed(1);

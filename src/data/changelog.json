@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T08:56:47.139Z",
-  "last_commit": "171cb5eaf03c57e061b083a2728e96cf48e409b9",
+  "generated_at": "2026-07-28T09:17:21.433Z",
+  "last_commit": "fbe4473a866e99f7badef7379248cc4b2e478d1b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5396,7 +5396,33 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.150.1",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Phase 0 report-engine hardening audit (totals/comments/signatures/validation)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Phase 0 report-engine hardening audit (totals/comments/signatures/validation)"
+        }
+      ],
+      "commit": "fbe4473a86"
+    },
+    {
+      "version": "1.150.2",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Totals render for any mark-column naming; default signature blocks; remove stale renderer twin",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Totals render for any mark-column naming; default signature blocks; remove stale renderer twin"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.150.1"
+  "app_version": "1.150.2"
 }
