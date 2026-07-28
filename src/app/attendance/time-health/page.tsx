@@ -339,11 +339,16 @@ function BatchCorrectionPanel({ fix, onClose, onDone, t }: { fix: any; onClose: 
   );
 }
 
-/** Add signed minutes to an "HH:MM" string, wrapping within the day (display only). */
-function shiftHHMM(hhmm: string, minutes: number): string {
+/** Add signed minutes to an "HH:MM" string. Returns the wrapped time-of-day
+ *  plus whether the shift pushed it into the next/previous calendar day —
+ *  the actual attendance_date follows automatically on apply (the engine
+ *  re-evaluates both the old and new date), this is just for the preview. */
+function shiftHHMM(hhmm: string, minutes: number): { time: string; dayDelta: -1 | 0 | 1 } {
   const [h, m] = hhmm.split(':').map(Number);
-  const total = (((h * 60 + m + minutes) % 1440) + 1440) % 1440;
-  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  const raw = h * 60 + m + minutes;
+  const dayDelta = raw < 0 ? -1 : raw >= 1440 ? 1 : 0;
+  const total = ((raw % 1440) + 1440) % 1440;
+  return { time: `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`, dayDelta };
 }
 
 /**
@@ -352,8 +357,34 @@ function shiftHHMM(hhmm: string, minutes: number): string {
  * the rest of the device's batch untouched. Backed by the existing
  * correct_selected API action; the only new surface is this UI.
  */
+type Punch = { id: number; name: string | null; time: string; bucket: 'today' | 'previous_late' };
+
+function PunchRow({ p, selected, shiftMinutes, onToggle, t }: {
+  p: Punch; selected: boolean; shiftMinutes: number; onToggle: (id: number) => void; t: TFn;
+}) {
+  const after = selected && shiftMinutes !== 0 ? shiftHHMM(p.time, shiftMinutes) : null;
+  return (
+    <label className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm cursor-pointer ${selected ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
+      <span className="flex items-center gap-2 min-w-0">
+        <input type="checkbox" checked={selected} onChange={() => onToggle(p.id)} className="accent-indigo-600 flex-shrink-0" />
+        <span className="truncate">{p.name || `#${p.id}`}</span>
+      </span>
+      <span className="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs">
+        <span className={after ? 'text-rose-500 line-through' : 'text-gray-600 dark:text-gray-300'}>{p.time}</span>
+        {after && (
+          <span className="text-emerald-600 font-semibold">
+            {after.time}
+            {after.dayDelta === 1 && <span className="ml-1 text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-400">{t('attendanceIntel.timeHealth.movesToToday', '→ today')}</span>}
+            {after.dayDelta === -1 && <span className="ml-1 text-[10px] font-semibold uppercase text-amber-600">{t('attendanceIntel.timeHealth.movesToPrevDay', '→ prev. day')}</span>}
+          </span>
+        )}
+      </span>
+    </label>
+  );
+}
+
 function SelectivePanel({ fix, onClose, onDone, t }: { fix: any; onClose: () => void; onDone: () => void; t: TFn }) {
-  const [punches, setPunches] = useState<Array<{ id: number; name: string | null; time: string }> | null>(null);
+  const [punches, setPunches] = useState<Punch[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [sign, setSign] = useState<1 | -1>(1);
@@ -422,22 +453,28 @@ function SelectivePanel({ fix, onClose, onDone, t }: { fix: any; onClose: () => 
             </div>
           </div>
 
-          <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700/50">
-            {punches.map((p) => {
-              const isSel = selected.has(p.id);
-              return (
-                <label key={p.id} className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm cursor-pointer ${isSel ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
-                  <span className="flex items-center gap-2 min-w-0">
-                    <input type="checkbox" checked={isSel} onChange={() => toggle(p.id)} className="accent-indigo-600 flex-shrink-0" />
-                    <span className="truncate">{p.name || `#${p.id}`}</span>
-                  </span>
-                  <span className="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs">
-                    <span className={isSel && shiftMinutes !== 0 ? 'text-rose-500 line-through' : 'text-gray-600 dark:text-gray-300'}>{p.time}</span>
-                    {isSel && shiftMinutes !== 0 && <span className="text-emerald-600 font-semibold">{shiftHHMM(p.time, shiftMinutes)}</span>}
-                  </span>
-                </label>
-              );
-            })}
+          {punches.some((p) => p.bucket === 'previous_late') && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-2.5">
+              <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">
+                {t('attendanceIntel.timeHealth.previousLateWarn', "The people below currently show as arriving late last night — that's very likely today's early arrival, mis-clocked. Tick them and shift forward to move them onto today.")}
+              </p>
+              <div className="mt-1.5 rounded-md border border-amber-200 dark:border-amber-800 divide-y divide-amber-100 dark:divide-amber-900/50 bg-white dark:bg-gray-800">
+                {punches.filter((p) => p.bucket === 'previous_late').map((p) => (
+                  <PunchRow key={p.id} p={p} selected={selected.has(p.id)} shiftMinutes={shiftMinutes} onToggle={toggle} t={t} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            {punches.some((p) => p.bucket === 'previous_late') && (
+              <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1">{t('attendanceIntel.timeHealth.todayGroup', 'Today')}</p>
+            )}
+            <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700/50">
+              {punches.filter((p) => p.bucket === 'today').map((p) => (
+                <PunchRow key={p.id} p={p} selected={selected.has(p.id)} shiftMinutes={shiftMinutes} onToggle={toggle} t={t} />
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 text-sm">

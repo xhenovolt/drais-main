@@ -220,33 +220,49 @@ export async function sweepToday(schoolId: number): Promise<Array<Assessment & {
 
 export interface CorrectionPreviewRow { id: number; name: string | null; before: string; after: string; }
 
-export interface DevicePunchRow { id: number; person_id: number | null; name: string | null; time: string; }
+export interface DevicePunchRow {
+  id: number; person_id: number | null; name: string | null; time: string;
+  /** 'today' = within the requested local day. 'previous_late' = late-night
+   *  punches on the PRECEDING local day (default: from 18:00) — the classic
+   *  shape of a mis-clocked early-morning arrival that got stamped as "last
+   *  night" instead of rolling into today. Surfaced alongside 'today' so an
+   *  operator can select them together and shift them forward across
+   *  midnight into the correct day in one action. */
+  bucket: 'today' | 'previous_late';
+}
 
 /**
- * Full (untruncated) list of a device's punches for one local day — for the
- * per-person selective-correction UI. Unlike previewCorrection's `sample`
- * (capped at 12, for a quick glance), this returns every row so an operator
- * can pick exactly which people's punches were actually wrong when only some
- * of a batch is corrupted, not the whole device.
+ * Full (untruncated) list of a device's punches for one local day, PLUS the
+ * preceding day's late-night stragglers — for the per-person
+ * selective-correction UI. Unlike previewCorrection's `sample` (capped at 12,
+ * for a quick glance), this returns every row so an operator can pick exactly
+ * which people's punches were actually wrong when only some of a batch is
+ * corrupted, not the whole device — including people whose bad punch landed
+ * on the WRONG calendar day because the shift needed crosses midnight.
  */
 export async function listPunchesForDate(
-  schoolId: number, deviceSn: string, date: string,
+  schoolId: number, deviceSn: string, date: string, previousLateFromHour = 18,
 ): Promise<DevicePunchRow[]> {
   const policy = await resolveTimePolicy(schoolId);
   const off = policy.offsetMinutes;
   const utcStart = new Date(Date.parse(`${date}T00:00:00Z`) - off * 60_000);
   const utcEnd = new Date(utcStart.getTime() + 86_400_000);
+  const prevLateStart = new Date(utcStart.getTime() - 86_400_000 + previousLateFromHour * 3_600_000);
   const rows = (await query(
     `SELECT id, person_id, display_name, punch_at FROM attendance_raw_events
       WHERE school_id = ? AND device_sn = ? AND punch_at >= ? AND punch_at < ?
       ORDER BY punch_at ASC`,
-    [schoolId, deviceSn, utcStart, utcEnd],
+    [schoolId, deviceSn, prevLateStart, utcEnd],
   )) as any[];
   const fmt = (d: Date) => new Date(d.getTime() + off * 60_000).toISOString().slice(11, 16);
-  return rows.map((r) => ({
-    id: Number(r.id), person_id: r.person_id != null ? Number(r.person_id) : null,
-    name: r.display_name ?? null, time: fmt(new Date(r.punch_at)),
-  }));
+  return rows.map((r) => {
+    const p = new Date(r.punch_at);
+    return {
+      id: Number(r.id), person_id: r.person_id != null ? Number(r.person_id) : null,
+      name: r.display_name ?? null, time: fmt(p),
+      bucket: p < utcStart ? 'previous_late' : 'today',
+    } as DevicePunchRow;
+  });
 }
 
 export async function previewCorrection(
