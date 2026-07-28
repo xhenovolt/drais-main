@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T16:23:05.250Z",
-  "last_commit": "10b3900c11f00646580a10929fe3099b75da2fd7",
+  "generated_at": "2026-07-28T17:07:19.081Z",
+  "last_commit": "ecc0f1e52bd8656daca189c4ebf21f8a5741b053",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5513,7 +5513,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.153.1",
+      "date": "2026-07-28",
+      "release_type": "patch",
+      "title": "Cap how far behind a device clock can read before it stops being blindly trusted as offline backlog",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Cap how far behind a device clock can read before it stops being blindly trusted as offline backlog"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.153.0"
+  "app_version": "1.153.1"
 }

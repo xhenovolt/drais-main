@@ -77,6 +77,21 @@ export interface TimePolicy {
   maxDriftSeconds: number;
   correctOfflineBacklog: boolean;
   displayRawAndCorrected: boolean;
+  /**
+   * Cap, in seconds, on how far "behind" real time a device clock may read
+   * before `correctOfflineBacklog` stops applying automatically. A device
+   * genuinely offline for a few hours and catching up on reconnect is normal
+   * and should be trusted; a device that reads hours-to-a-day behind while
+   * demonstrably online (this same ingest pass) is not offline — its clock
+   * is simply wrong in the other direction from the fast-clock case, and
+   * blindly trusting it caused a real incident: within one JIPRA batch, some
+   * punches read a plausible few minutes/hours behind while others in the
+   * SAME short window read up to ~14 hours behind — the device's clock is
+   * unstable, not offline. Default 8h covers a school closed overnight
+   * without a device restart; beyond that, don't guess — flag for review,
+   * exactly like an implausibly-fast reading already does.
+   */
+  maxOfflineBacklogSeconds: number;
 }
 
 const DEFAULT_POLICY: Omit<TimePolicy, 'schoolId'> = {
@@ -87,6 +102,7 @@ const DEFAULT_POLICY: Omit<TimePolicy, 'schoolId'> = {
   maxDriftSeconds: 120,
   correctOfflineBacklog: true,
   displayRawAndCorrected: false,
+  maxOfflineBacklogSeconds: 8 * 3600,
 };
 
 const policyCache = new Map<number, { p: TimePolicy; exp: number }>();
@@ -99,7 +115,8 @@ export async function resolveTimePolicy(schoolId: number): Promise<TimePolicy> {
   try {
     const rows = (await query(
       `SELECT school_timezone, utc_offset_minutes, device_time_policy, auto_sync_device_time,
-              max_allowed_drift_seconds, correct_offline_backlog, display_raw_and_corrected_time
+              max_allowed_drift_seconds, correct_offline_backlog, display_raw_and_corrected_time,
+              max_offline_backlog_seconds
          FROM attendance_time_policy WHERE school_id = ? LIMIT 1`,
       [schoolId],
     )) as any[];
@@ -114,6 +131,7 @@ export async function resolveTimePolicy(schoolId: number): Promise<TimePolicy> {
         maxDriftSeconds: Number(r.max_allowed_drift_seconds ?? 120),
         correctOfflineBacklog: !!r.correct_offline_backlog,
         displayRawAndCorrected: !!r.display_raw_and_corrected_time,
+        maxOfflineBacklogSeconds: Number(r.max_offline_backlog_seconds ?? DEFAULT_POLICY.maxOfflineBacklogSeconds),
       };
     }
   } catch { /* table not migrated yet → defaults */ }
@@ -248,12 +266,28 @@ export function decidePunchTime(
     default: {
       // Trust the device UNLESS the punch is in the FUTURE (impossible →
       // fast clock). Past/within-tolerance is trusted (preserves real
-      // backlog). A behind-clock past punch beyond max is flagged 'review'
-      // unless the school allows trusting backlog.
+      // backlog).
       if (skewMs <= maxDriftMs) {
         const behindBeyondMax = skewMs < -maxDriftMs;
-        const confidence = behindBeyondMax ? (policy.correctOfflineBacklog ? 'high' : 'review') : 'high';
-        return trustDevice(confidence, driftExceeds);
+        if (!behindBeyondMax) return trustDevice('high', driftExceeds);
+
+        // Behind-tolerance: genuinely offline-then-reconnected devices catch
+        // up looking "behind" — that's normal and, within a plausible window,
+        // trusted per policy. But "behind" has no upper bound by itself, and
+        // blindly trusting ANY magnitude is exactly what let a live incident
+        // through: within one ingest batch, the SAME device produced both a
+        // plausible few-minutes/hours-behind reading AND one behind by ~14h,
+        // and both were trusted as "high confidence" backlog. A device that
+        // far behind, while demonstrably online enough to be delivering this
+        // very punch, is not "catching up" — its clock is simply wrong, just
+        // in the opposite direction from the future-dated case below. Cap
+        // auto-trust at maxOfflineBacklogSeconds; beyond it, don't guess —
+        // flag for review exactly like an implausible future timestamp does.
+        const withinPlausibleBacklog = Math.abs(skewMs) <= policy.maxOfflineBacklogSeconds * 1000;
+        if (withinPlausibleBacklog) {
+          return trustDevice(policy.correctOfflineBacklog ? 'high' : 'review', driftExceeds);
+        }
+        return trustDevice('review', true);
       }
       // Future/ahead → recover the real instant via the learned offset (stable
       // across re-sends), else fall back to server-now on the first faulty punch.
