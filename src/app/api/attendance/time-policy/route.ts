@@ -14,7 +14,7 @@ import { clearTimePolicyCache } from '@/lib/attendance/device-clock';
 
 export const runtime = 'nodejs';
 
-const POLICIES = ['TRUST_DEVICE_TIME', 'TRUST_SERVER_RECEIVE_TIME', 'CORRECT_BY_DRIFT', 'MANUAL_REVIEW_IF_DRIFT'];
+const POLICIES = ['TRUST_DEVICE_TIME', 'TRUST_SERVER_RECEIVE_TIME', 'CORRECT_BY_DRIFT', 'MANUAL_REVIEW_IF_DRIFT', 'ADAPTIVE_DRIFT_NO_MEMORY'];
 
 const DEFAULTS = {
   school_timezone: 'Africa/Kampala',

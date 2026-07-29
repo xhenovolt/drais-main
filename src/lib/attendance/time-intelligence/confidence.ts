@@ -32,7 +32,7 @@ export type DriftStatus = 'trusted' | 'review' | 'anomaly';
 
 /** Mirror of device-clock's policy union (imported as a type only, to keep this
  *  module pure and free of the db-backed device-clock runtime). */
-export type TimePolicyKind = 'TRUST_DEVICE_TIME' | 'CORRECT_BY_DRIFT' | 'MANUAL_REVIEW_IF_DRIFT';
+export type TimePolicyKind = 'TRUST_DEVICE_TIME' | 'CORRECT_BY_DRIFT' | 'MANUAL_REVIEW_IF_DRIFT' | 'ADAPTIVE_DRIFT_NO_MEMORY';
 
 export interface Assessment {
   confidence: number;                 // 0..100 — how believable the batch times are
@@ -80,20 +80,25 @@ export function applyPolicy(
   const rawSignificant = Math.abs(rawMin) >= sig;
   const residualClean = base.status === 'trusted';          // stored times sit within the school's own spread
 
-  if (ctx.policy === 'CORRECT_BY_DRIFT') {
+  if (ctx.policy === 'CORRECT_BY_DRIFT' || ctx.policy === 'ADAPTIVE_DRIFT_NO_MEMORY') {
+    const adaptive = ctx.policy === 'ADAPTIVE_DRIFT_NO_MEMORY';
     if (rawSignificant && residualClean) {
       // The previously-invisible good news: the device was off, the policy fixed it.
       return {
         ...out, status: 'trusted', confidence: Math.max(base.confidence, 90),
         likelyCause: 'auto_resolved', resolvedByPolicy: true, recommendedShiftMin: 0, driftConfidence: 0,
-        detail: `The device clock was off by about ${fmtDrift(rawMin)}, but auto-correction (Correct by drift) already realigned these punches — no action needed.`,
+        detail: adaptive
+          ? `The device clock was off by about ${fmtDrift(rawMin)}, but this batch's own reading was used to realign these punches — no reliance on a remembered offset, so no action needed.`
+          : `The device clock was off by about ${fmtDrift(rawMin)}, but auto-correction (Correct by drift) already realigned these punches — no action needed.`,
       };
     }
     if (!residualClean) {
       // Auto-correction ran but did not fully land — point at the real remedy.
       return {
         ...out, likelyCause: 'auto_correct_incomplete',
-        detail: `Auto-correction ran but about ${fmtDrift(residualMin)} still remains in the stored times — the device's known offset is stale. Enable device auto-sync, or correct this batch.`,
+        detail: adaptive
+          ? `About ${fmtDrift(residualMin)} still remains in the stored times — this device's clock is unstable enough that no fresh same-batch reading was available to correct it confidently. Correct this batch manually, or check the device's RTC battery.`
+          : `Auto-correction ran but about ${fmtDrift(residualMin)} still remains in the stored times — the device's known offset is stale. Enable device auto-sync, or correct this batch.`,
       };
     }
     return out; // device clean + stored clean → ordinary trusted

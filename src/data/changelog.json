@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T15:10:29.292Z",
-  "last_commit": "6fc009712e9024968108f3076e74e4bb1c77cd84",
+  "generated_at": "2026-07-29T15:10:59.510Z",
+  "last_commit": "eb773c80f3b01ac455dfde4f039a6b9357f473dc",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5708,7 +5708,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.163.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "New Adaptive (unstable clock) policy for devices with a failing RTC, e.g. JIPRA",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "New Adaptive (unstable clock) policy for devices with a failing RTC, e.g. JIPRA"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.162.0"
+  "app_version": "1.163.0"
 }

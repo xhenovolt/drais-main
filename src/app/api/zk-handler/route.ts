@@ -1569,7 +1569,15 @@ export async function POST(req: NextRequest) {
         records.map((r) => r.CHECKTIME),
         deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes,
       );
-      const deviceClockOffset = batchOffsetSeconds ?? deviceCtx.clockOffsetSeconds;
+      // ADAPTIVE_DRIFT_NO_MEMORY (a device with a failing RTC that JUMPS
+      // between unrelated readings, not smooth drift) never falls back to
+      // the persisted devices.clock_offset_seconds — that memory can be
+      // hours-to-days stale by the time the clock has already jumped to a
+      // different state. Only a fresh, same-batch measurement is trusted;
+      // otherwise the punch is left for decidePunchTime's own safe
+      // fallback (server-now) rather than guessing from stale memory.
+      const deviceClockOffset = batchOffsetSeconds
+        ?? (timePolicy.policy === 'ADAPTIVE_DRIFT_NO_MEMORY' ? null : deviceCtx.clockOffsetSeconds);
       if (batchOffsetSeconds != null) persistDeviceClockOffset(sn, batchOffsetSeconds).catch(() => {});
       let anyMatchedEvaluated = false; // did any matched punch reach the engine?
 

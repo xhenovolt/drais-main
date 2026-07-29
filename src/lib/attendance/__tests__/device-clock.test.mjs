@@ -174,3 +174,38 @@ describe('decidePunchTime — other policies unaffected by the CORRECT_BY_DRIFT 
     assert.equal(result.timeConfidence, 'review');
   });
 });
+
+describe('decidePunchTime — ADAPTIVE_DRIFT_NO_MEMORY (failing-RTC devices, e.g. JIPRA)', () => {
+  // A device whose clock JUMPS between unrelated readings (confirmed live:
+  // skew held at -17992s for hours, then +154s, then +17992s, then +21600s
+  // — a failing-battery signature, not smooth crystal drift) must never be
+  // corrected off a "remembered" offset from a previous, possibly
+  // now-irrelevant, clock state. decidePunchTime's own correction mechanics
+  // are identical to CORRECT_BY_DRIFT — the difference is enforced by the
+  // CALLER (zk-handler/zk-tcp), which must pass null instead of the
+  // persisted devices.clock_offset_seconds when this policy is active.
+  it('corrects a future/ahead punch identically to CORRECT_BY_DRIFT when a fresh offset IS supplied', () => {
+    const policy = basePolicy({ policy: 'ADAPTIVE_DRIFT_NO_MEMORY' });
+    const freshOffsetSeconds = 6 * 3600;
+    const result = decidePunchTime(deviceStringFor(NOW, freshOffsetSeconds), freshOffsetSeconds, policy, null, NOW);
+    assert.equal(result.timeConfidence, 'corrected');
+    assert.ok(Math.abs(result.punchInstant.getTime() - NOW) < 5000);
+  });
+
+  it('falls back to server-now (never a stale memory) when no fresh offset is available', () => {
+    const policy = basePolicy({ policy: 'ADAPTIVE_DRIFT_NO_MEMORY' });
+    // Caller passes null — no batch-median measurement was possible this
+    // ingest, and this policy must not substitute the persisted scalar.
+    const result = decidePunchTime(deviceStringFor(NOW, 6 * 3600), null, policy, null, NOW);
+    assert.equal(result.timeConfidence, 'corrected');
+    assert.equal(result.timeSource, 'server');
+    assert.equal(result.punchInstant.getTime(), NOW);
+  });
+
+  it('still trusts a within-tolerance device reading verbatim, same as CORRECT_BY_DRIFT', () => {
+    const policy = basePolicy({ policy: 'ADAPTIVE_DRIFT_NO_MEMORY' });
+    const result = decidePunchTime(deviceStringFor(NOW, 30), null, policy, null, NOW);
+    assert.equal(result.timeConfidence, 'high');
+    assert.equal(result.corrected, false);
+  });
+});

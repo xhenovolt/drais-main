@@ -135,7 +135,10 @@ async function buildJoinedAttendance(
     }),
     effectiveOffsetMinutesForBatch,
   );
-  const storedOffsetSeconds = batchOffsetSeconds ?? deviceCtx.clockOffsetSeconds;
+  // ADAPTIVE_DRIFT_NO_MEMORY never falls back to persisted memory — see
+  // the matching comment in zk-handler/route.ts.
+  const storedOffsetSeconds = batchOffsetSeconds
+    ?? (timePolicy.policy === 'ADAPTIVE_DRIFT_NO_MEMORY' ? null : deviceCtx.clockOffsetSeconds);
   if (batchOffsetSeconds != null && resolvedSn) persistDeviceClockOffset(resolvedSn, batchOffsetSeconds).catch(() => {});
 
   const out: any[] = [];
@@ -961,7 +964,10 @@ export async function POST(req: NextRequest) {
           }),
           effectiveOffsetMinutesForBatch,
         );
-        const storedOffsetSeconds = batchOffsetSeconds ?? deviceCtx.clockOffsetSeconds;
+        // ADAPTIVE_DRIFT_NO_MEMORY never falls back to persisted memory —
+        // see the matching comment in zk-handler/route.ts.
+        const storedOffsetSeconds = batchOffsetSeconds
+          ?? (timePolicy.policy === 'ADAPTIVE_DRIFT_NO_MEMORY' ? null : deviceCtx.clockOffsetSeconds);
         if (batchOffsetSeconds != null && (resolvedSn || device_sn)) {
           persistDeviceClockOffset(resolvedSn || device_sn, batchOffsetSeconds).catch(() => {});
         }

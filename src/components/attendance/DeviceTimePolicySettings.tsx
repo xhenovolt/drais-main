@@ -23,6 +23,7 @@ const POLICY_OPTS = [
   { v: 'TRUST_DEVICE_TIME', label: 'Trust device time', hint: 'Store exactly what the device reports. Never correct. Use only if every device clock is reliable.' },
   { v: 'TRUST_SERVER_RECEIVE_TIME', label: 'Trust server time', hint: 'Stamp every punch with the moment DRAIS received it. Accurate for realtime, wrong for offline backlog.' },
   { v: 'MANUAL_REVIEW_IF_DRIFT', label: 'Flag for review', hint: 'Keep device time but flag punches that drift beyond the limit for a human to check.' },
+  { v: 'ADAPTIVE_DRIFT_NO_MEMORY', label: 'Adaptive (unstable clock)', hint: 'For a device with a failing RTC battery whose clock jumps between unrelated readings instead of drifting smoothly. Never trusts a remembered offset from an earlier batch — only ever corrects using fresh evidence from the current batch of punches; if there isn’t enough yet, keeps the safe fallback instead of guessing from stale memory.' },
 ];
 
 const TZ_PRESETS = [

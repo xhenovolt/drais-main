@@ -223,4 +223,19 @@ describe('applyPolicy — Time Health reads the school time policy', () => {
     assert.equal(a.likelyCause, 'insufficient_history');
     assert.equal(a.resolvedByPolicy, false);
   });
+
+  it('ADAPTIVE_DRIFT_NO_MEMORY: big device drift but clean stored times → auto-resolved, same as CORRECT_BY_DRIFT', () => {
+    const a = applyPolicy(clean(), { policy: 'ADAPTIVE_DRIFT_NO_MEMORY', rawDriftMin: 360, maxDriftMin: 2 });
+    assert.equal(a.resolvedByPolicy, true);
+    assert.equal(a.status, 'trusted');
+    assert.equal(a.likelyCause, 'auto_resolved');
+    assert.match(a.detail, /this batch's own reading/i);
+  });
+
+  it('ADAPTIVE_DRIFT_NO_MEMORY: drift left in stored times → incomplete, but message points at the RTC, not "enable auto-sync"', () => {
+    const a = applyPolicy(drifted(), { policy: 'ADAPTIVE_DRIFT_NO_MEMORY', rawDriftMin: 360, maxDriftMin: 2 });
+    assert.equal(a.resolvedByPolicy, false);
+    assert.equal(a.likelyCause, 'auto_correct_incomplete');
+    assert.match(a.detail, /RTC battery|unstable/i);
+  });
 });

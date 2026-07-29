@@ -66,7 +66,26 @@ export type DeviceTimePolicyKind =
   | 'TRUST_DEVICE_TIME'          // store device wall-clock as-is (minus tz); never override, never auto-sync
   | 'TRUST_SERVER_RECEIVE_TIME'  // always stamp punch_at = server receive instant
   | 'CORRECT_BY_DRIFT'           // trust device unless future/ahead; recover real instant via learned offset
-  | 'MANUAL_REVIEW_IF_DRIFT';    // keep device time but flag for review when drift exceeds max
+  | 'MANUAL_REVIEW_IF_DRIFT'     // keep device time but flag for review when drift exceeds max
+  /**
+   * For a device with a FAILING RTC — one whose clock doesn't drift
+   * smoothly but jumps between unrelated readings over time (confirmed
+   * live on a JIPRA device: skew held at -17992s for hours, then jumped to
+   * +154s, then to +17992s, then to +21600s — a failing-battery signature,
+   * not ordinary crystal drift). CORRECT_BY_DRIFT's fallback to
+   * devices.clock_offset_seconds (a single value "remembered" across
+   * ingests) is exactly wrong here: that memory can be hours or days
+   * stale by the time the clock has already jumped to a different state.
+   * This policy corrects identically to CORRECT_BY_DRIFT EXCEPT it never
+   * consults that historical memory — only a fresh, same-batch
+   * measurement is ever trusted (enforced by the ingest routes, which
+   * pass `null` instead of the persisted offset when no batch-median is
+   * available for this policy). Insufficient same-batch evidence falls
+   * back to server-now (the same "first faulty punch" safety net
+   * CORRECT_BY_DRIFT already uses) rather than guessing from a
+   * potentially-stale memory.
+   */
+  | 'ADAPTIVE_DRIFT_NO_MEMORY';
 
 export interface TimePolicy {
   schoolId: number;
@@ -263,6 +282,7 @@ export function decidePunchTime(
       return trustDevice(driftExceeds ? 'review' : 'high', driftExceeds && policy.autoSyncDeviceTime);
 
     case 'CORRECT_BY_DRIFT':
+    case 'ADAPTIVE_DRIFT_NO_MEMORY':
     default: {
       // Trust the device UNLESS the punch is in the FUTURE (impossible →
       // fast clock). Past/within-tolerance is trusted (preserves real
