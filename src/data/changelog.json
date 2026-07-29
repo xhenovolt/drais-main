@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T17:58:50.334Z",
-  "last_commit": "dbc4ccc4ec67bb96b46e16a55f4b3b12e6b26ac5",
+  "generated_at": "2026-07-29T18:24:30.096Z",
+  "last_commit": "5f260ebfbe40100756597617c0e1b781f3c1ef0e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5747,7 +5747,33 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.164.2",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "Restore CRLF line endings in reports/list/route.ts",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Restore CRLF line endings in reports/list/route.ts"
+        }
+      ],
+      "commit": "5f260ebfbe"
+    },
+    {
+      "version": "1.165.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Close the admission-number duplicate race (SP-1) — merged 108 dupes, DB now enforces uniqueness, retry on collision",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Close the admission-number duplicate race (SP-1) — merged 108 dupes, DB now enforces uniqueness, retry on collision"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.164.2"
+  "app_version": "1.165.0"
 }

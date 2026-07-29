@@ -221,25 +221,45 @@ export async function POST(req: NextRequest) {
       );
       const newPersonId = personResult.insertId;
       
-      // Generate sequential admission number if not provided
+      // Generate sequential admission number if not provided. Reading
+      // MAX(...)+1 then inserting is a classic TOCTOU race — two concurrent
+      // admits can compute the same next_seq before either commits. This
+      // produced 108 duplicate learners in a double-import (SP-1). The
+      // database now enforces uk_student_school_admission (school_id,
+      // admission_no, active rows only), so a collision is impossible to
+      // silently corrupt into duplicate data — but it DOES throw ER_DUP_ENTRY,
+      // so an auto-generated number retries with a freshly recomputed
+      // sequence; an explicitly user-supplied admission_no is never retried
+      // (a real duplicate there is a genuine input error, not a race).
+      const autoGenerate = !body.admission_no;
       let admission_no = body.admission_no;
-      if (!admission_no) {
-        // Get the next sequence number using the same connection (in transaction)
-        const [seqResult]: any = await connection.execute(
-          `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(admission_no, '/', -2), '/', 1) AS UNSIGNED)), 0) + 1 as next_seq
-           FROM students
-           WHERE school_id = ? AND admission_no IS NOT NULL AND admission_no LIKE 'XHN/%'`,
-          [schoolId]
-        );
-        const nextSeq = seqResult[0]?.next_seq || 1;
-        admission_no = formatAdmissionNumber(nextSeq, schoolId);
+      let studentResult: any;
+      const MAX_ADMISSION_NO_ATTEMPTS = 5;
+      for (let attempt = 1; ; attempt++) {
+        if (autoGenerate) {
+          // Get the next sequence number using the same connection (in transaction)
+          const [seqResult]: any = await connection.execute(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(admission_no, '/', -2), '/', 1) AS UNSIGNED)), 0) + 1 as next_seq
+             FROM students
+             WHERE school_id = ? AND admission_no IS NOT NULL AND admission_no LIKE 'XHN/%'`,
+            [schoolId]
+          );
+          const nextSeq = seqResult[0]?.next_seq || 1;
+          admission_no = formatAdmissionNumber(nextSeq, schoolId);
+        }
+        try {
+          // Insert student — let the DB assign id via AUTO_INCREMENT
+          [studentResult] = await connection.execute(
+            'INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [schoolId, newPersonId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
+          );
+          break;
+        } catch (err: any) {
+          const isAdmissionNoCollision = err?.code === 'ER_DUP_ENTRY' && String(err?.sqlMessage || '').includes('uk_student_school_admission');
+          if (isAdmissionNoCollision && autoGenerate && attempt < MAX_ADMISSION_NO_ATTEMPTS) continue;
+          throw err;
+        }
       }
-      
-      // Insert student — let the DB assign id via AUTO_INCREMENT
-      const [studentResult]: any = await connection.execute(
-        'INSERT INTO students (school_id, person_id, admission_no, village_id, admission_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [schoolId, newPersonId, admission_no, safe(body.village_id), safe(body.admission_date), safe(body.status) || 'active', safe(body.notes)]
-      );
       const newStudentId = studentResult.insertId;
       
       // Insert enrollment

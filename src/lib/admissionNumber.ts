@@ -42,7 +42,11 @@ export async function isAdmissionNumberUnique(
 ): Promise<boolean> {
   const connection = await getConnection();
   try {
-    let sql = 'SELECT COUNT(*) as count FROM students WHERE school_id = ? AND admission_no = ?';
+    // Only ACTIVE students block reuse of a number — matches the DB's own
+    // uk_student_school_admission constraint (a generated column that's
+    // NULL for soft-deleted rows), so a withdrawn/merged student's old
+    // number can legitimately be reassigned.
+    let sql = 'SELECT COUNT(*) as count FROM students WHERE school_id = ? AND admission_no = ? AND deleted_at IS NULL';
     const params: any[] = [schoolId, admissionNo];
 
     if (excludeStudentId) {
