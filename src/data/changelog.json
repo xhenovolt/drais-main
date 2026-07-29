@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T03:13:23.014Z",
-  "last_commit": "468e7a83bc726f7e965a45958f510acca274e8d7",
+  "generated_at": "2026-07-29T11:41:35.711Z",
+  "last_commit": "80ad092e8ea87595f366859b8c4079ded5d504b9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5591,7 +5591,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.156.1",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "Grouped results-table layout was unreachable from the editor UI",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Grouped results-table layout was unreachable from the editor UI"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.156.0"
+  "app_version": "1.156.1"
 }

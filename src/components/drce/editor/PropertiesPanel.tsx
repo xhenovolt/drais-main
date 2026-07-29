@@ -1214,6 +1214,52 @@ function ResultsTablePanel({ section, onMutate }: {
           />
         </Row>
       </PanelSection>
+      <PanelSection title="Layout">
+        <Row label="Subject layout">
+          <SelectInput
+            value={section.layoutMode ?? 'standard'}
+            onChange={v => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'layoutMode', value: v })}
+            options={[
+              { label: 'Standard — one list', value: 'standard' },
+              { label: 'Grouped — Core / Electives bands', value: 'grouped' },
+            ]}
+          />
+        </Row>
+        {section.layoutMode === 'grouped' && (
+          <>
+            <Row label="Core band label">
+              <TextInput
+                value={section.groupLabels?.core ?? 'Core Subjects'}
+                onChange={v => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'groupLabels.core', value: v })}
+                placeholder="Core Subjects"
+              />
+            </Row>
+            <Row label="Core band label (Arabic)">
+              <TextInput
+                value={section.groupLabels?.coreAr ?? ''}
+                onChange={v => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'groupLabels.coreAr', value: v })}
+                placeholder="المواد الأساسية"
+                dir="rtl"
+              />
+            </Row>
+            <Row label="Elective band label">
+              <TextInput
+                value={section.groupLabels?.elective ?? 'Electives'}
+                onChange={v => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'groupLabels.elective', value: v })}
+                placeholder="Electives"
+              />
+            </Row>
+            <Row label="Elective band label (Arabic)">
+              <TextInput
+                value={section.groupLabels?.electiveAr ?? ''}
+                onChange={v => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'groupLabels.electiveAr', value: v })}
+                placeholder="المواد الاختيارية"
+                dir="rtl"
+              />
+            </Row>
+          </>
+        )}
+      </PanelSection>
       <PanelSection title="Columns">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sortedCols.map(c => c.id)} strategy={verticalListSortingStrategy}>
