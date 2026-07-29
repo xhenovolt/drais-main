@@ -421,7 +421,7 @@ export async function loadAdjustmentsByStudent(
   if (!studentIds.length) return out;
   const rows = (await query(
     `SELECT * FROM learner_fee_adjustments
-      WHERE school_id = ? AND status = 'approved'
+      WHERE school_id = ? AND status = 'approved' AND deleted_at IS NULL
         AND student_id IN (${studentIds.map(() => '?').join(',')})
         AND (term_id IS NULL ${termId ? 'OR term_id = ?' : ''})
         AND (effective_from IS NULL OR effective_from <= CURDATE())
@@ -438,10 +438,14 @@ export async function loadAdjustmentsByStudent(
 }
 
 export async function listAdjustments(schoolId: number, studentId?: number) {
-  const sql = `SELECT a.*, fi.name AS fee_item_name
+  const sql = `SELECT a.*, fi.name AS fee_item_name,
+                      p.first_name, p.last_name, s.admission_no, t.name AS term_name
                  FROM learner_fee_adjustments a
                  LEFT JOIN fee_items fi ON fi.id = a.fee_item_id
-                WHERE a.school_id = ?${studentId ? ' AND a.student_id = ?' : ''}
+                 LEFT JOIN students s ON s.id = a.student_id
+                 LEFT JOIN people p ON p.id = s.person_id
+                 LEFT JOIN terms t ON t.id = a.term_id
+                WHERE a.school_id = ? AND a.deleted_at IS NULL${studentId ? ' AND a.student_id = ?' : ''}
                 ORDER BY a.created_at DESC`;
   return query(sql, studentId ? [schoolId, studentId] : [schoolId]) as Promise<any[]>;
 }
@@ -461,18 +465,96 @@ export async function createAdjustment(schoolId: number, b: any, userId?: number
 
 export async function setAdjustmentStatus(
   schoolId: number, id: number, status: 'approved' | 'rejected' | 'pending', userId?: number | null,
+  rejectionReason?: string | null,
 ): Promise<void> {
+  const rows = (await query(
+    `SELECT student_id, fee_item_id, term_id FROM learner_fee_adjustments WHERE id=? AND school_id=? LIMIT 1`,
+    [id, schoolId],
+  )) as Array<{ student_id: number; fee_item_id: number | null; term_id: number | null }>;
+  if (!rows.length) return;
+  const { student_id, fee_item_id, term_id } = rows[0];
+
   if (status === 'approved') {
     await query(
-      `UPDATE learner_fee_adjustments SET status='approved', approved_by=?, approved_at=CURRENT_TIMESTAMP
+      `UPDATE learner_fee_adjustments SET status='approved', approved_by=?, approved_at=CURRENT_TIMESTAMP, rejection_reason=NULL
         WHERE id=? AND school_id=?`, [userId ?? null, id, schoolId]);
+  } else if (status === 'rejected') {
+    await query(
+      `UPDATE learner_fee_adjustments SET status='rejected', rejection_reason=? WHERE id=? AND school_id=?`,
+      [rejectionReason ?? null, id, schoolId]);
   } else {
     await query(`UPDATE learner_fee_adjustments SET status=? WHERE id=? AND school_id=?`, [status, id, schoolId]);
   }
+
+  // A status change (approved ⇄ rejected/pending) changes what
+  // loadAdjustmentsByStudent sees, so any ALREADY-GENERATED bill for this
+  // student/fee item must be re-priced now — not just on the next
+  // generateBills() run, which may be a term away.
+  await repriceApprovedAdjustments(schoolId, student_id, fee_item_id, term_id).catch(() => {});
 }
 
-export async function deleteAdjustment(schoolId: number, id: number): Promise<void> {
-  await query(`DELETE FROM learner_fee_adjustments WHERE id=? AND school_id=?`, [id, schoolId]);
+export async function deleteAdjustment(schoolId: number, id: number, userId?: number | null, reason?: string | null): Promise<void> {
+  const rows = (await query(
+    `SELECT student_id, fee_item_id, term_id FROM learner_fee_adjustments WHERE id=? AND school_id=? LIMIT 1`,
+    [id, schoolId],
+  )) as Array<{ student_id: number; fee_item_id: number | null; term_id: number | null }>;
+  if (!rows.length) return;
+  const { student_id, fee_item_id, term_id } = rows[0];
+
+  await query(
+    `UPDATE learner_fee_adjustments SET deleted_at=CURRENT_TIMESTAMP, deleted_by=?, delete_reason=? WHERE id=? AND school_id=?`,
+    [userId ?? null, reason ?? null, id, schoolId],
+  );
+  await repriceApprovedAdjustments(schoolId, student_id, fee_item_id, term_id).catch(() => {});
+}
+
+/**
+ * Re-apply the CURRENT set of approved adjustments to already-generated
+ * student_fee_items rows for one student (+ optionally scoped to one fee
+ * item / term) — reuses the exact same pure applyAdjustments() math
+ * generateBills() uses, so an approval/rejection/deletion takes effect on
+ * bills that already exist, not only on the next bill run.
+ *
+ * KNOWN LIMITATION: an 'override' adjustment replaces student_fee_items.amount
+ * outright (by design — see applyAdjustments). If that override is later
+ * removed, this cannot recover the true original base amount (it isn't
+ * stored separately), so the item is left at the override's value pending
+ * a manual fix. This is strictly better than today (overrides currently
+ * have NO retroactive effect at all), not a new risk.
+ */
+export async function repriceApprovedAdjustments(
+  schoolId: number, studentId: number, feeItemId: number | null, termId: number | null,
+): Promise<{ updated: number }> {
+  const where = ['student_id = ?', '(deleted_at IS NULL)'];
+  const params: any[] = [studentId];
+  if (feeItemId != null) { where.push('fee_item_id = ?'); params.push(feeItemId); }
+  if (termId != null) { where.push('term_id = ?'); params.push(termId); }
+
+  const rows = (await query(
+    `SELECT id, amount, fee_item_id, term_id FROM student_fee_items WHERE ${where.join(' AND ')}`,
+    params,
+  )) as Array<{ id: number; amount: number; fee_item_id: number | null; term_id: number | null }>;
+  if (!rows.length) return { updated: 0 };
+
+  let updated = 0;
+  for (const row of rows) {
+    if (row.fee_item_id == null) continue; // can't attribute adjustments without the canonical fee_item link
+    const adjMap = await loadAdjustmentsByStudent(schoolId, [studentId], row.term_id);
+    const byItem = adjMap.get(studentId);
+    const adjs = [...(byItem?.get(row.fee_item_id) || []), ...(byItem?.get(0) || [])];
+    const applied = applyAdjustments(Number(row.amount), adjs);
+    // Mirrors exactly what generateBills() itself writes (amount, discount,
+    // waived only) — "outstanding" is computed live everywhere in this
+    // codebase (amount - discount - waived [- paid]), never stored; adding
+    // a stored `balance` here would just be a second, driftable copy of a
+    // value the rest of the app already recomputes on every read.
+    await query(
+      `UPDATE student_fee_items SET amount = ?, discount = ?, waived = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [applied.amount, applied.discount, applied.waived, row.id],
+    );
+    updated++;
+  }
+  return { updated };
 }
 
 // ── Entry-clearance engine (Phase 5) ──

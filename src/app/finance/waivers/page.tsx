@@ -1,8 +1,13 @@
 'use client';
 
 /**
- * Waivers & discounts — request a waiver/discount on a learner's fees, then
- * approve (applies `waived` to the fee item) or reject. Uses /api/finance/waivers.
+ * Waivers & discounts — request a waiver/discount/override on a learner's
+ * fees, then approve or reject. Uses /api/finance/fee-rules/adjustments
+ * (learner_fee_adjustments) — the canonical system per the Finance
+ * Consolidation Plan Stage C. The old /api/finance/waivers +
+ * waivers_discounts table is retired (410); approving here re-prices any
+ * already-generated bill immediately (see repriceApprovedAdjustments in
+ * src/lib/finance/feeRules.ts), not just future bill runs.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Percent, Plus, Loader2, Search, CheckCircle, XCircle, X } from 'lucide-react';
@@ -14,6 +19,21 @@ const STATUS_TONE: Record<string, string> = {
   rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
 };
+
+const ADJUSTMENT_TYPES = [
+  { value: 'waiver', label: 'Full waiver' },
+  { value: 'percent_discount', label: 'Percentage discount' },
+  { value: 'fixed_discount', label: 'Fixed amount discount' },
+  { value: 'override', label: 'Override (set exact amount)' },
+];
+
+function describeAdjustment(w: any, format: (n: number) => string): string {
+  if (w.adjustment_type === 'waiver') return 'Full waiver';
+  if (w.adjustment_type === 'percent_discount') return `${w.value}% off`;
+  if (w.adjustment_type === 'fixed_discount') return `${format(w.value)} off`;
+  if (w.adjustment_type === 'override') return `Override → ${format(w.value)}`;
+  return String(w.adjustment_type);
+}
 
 export default function WaiversPage() {
   const { format } = useCurrency();
@@ -27,11 +47,11 @@ export default function WaiversPage() {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [terms, setTerms] = useState<any[]>([]);
-  const [form, setForm] = useState<any>({ student_id: null, student_name: '', term_id: '', amount: 0, discount_type: 'fixed', waiver_type: 'partial', reason: '' });
+  const [form, setForm] = useState<any>({ student_id: null, student_name: '', term_id: '', value: 0, adjustment_type: 'percent_discount', reason: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch('/api/finance/waivers', { cache: 'no-store' }); const j = await r.json(); setRows(j.data || []); }
+    try { const r = await fetch('/api/finance/fee-rules/adjustments', { cache: 'no-store' }); const j = await r.json(); setRows(j.adjustments || []); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -47,14 +67,18 @@ export default function WaiversPage() {
 
   const create = useCallback(async () => {
     setError(null);
-    if (!form.student_id || !form.term_id || !(form.amount > 0) || !form.reason.trim()) { setError('Learner, term, amount and reason are required'); return; }
+    const needsValue = form.adjustment_type !== 'waiver';
+    if (!form.student_id || !form.term_id || (needsValue && !(form.value > 0)) || !form.reason.trim()) { setError('Learner, term, amount and reason are required'); return; }
     setBusy(true);
     try {
-      const r = await fetch('/api/finance/waivers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form) });
+      const r = await fetch('/api/finance/fee-rules/adjustments', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ student_id: form.student_id, term_id: form.term_id, adjustment_type: form.adjustment_type, value: form.value, reason: form.reason }),
+      });
       const j = await r.json();
       if (!r.ok) { setError(j.error || 'Failed'); return; }
-      toast.success('Waiver requested');
-      setShow(false); setForm({ student_id: null, student_name: '', term_id: '', amount: 0, discount_type: 'fixed', waiver_type: 'partial', reason: '' }); setQ('');
+      toast.success('Adjustment requested');
+      setShow(false); setForm({ student_id: null, student_name: '', term_id: '', value: 0, adjustment_type: 'percent_discount', reason: '' }); setQ('');
       load();
     } finally { setBusy(false); }
   }, [form, load]);
@@ -62,10 +86,10 @@ export default function WaiversPage() {
   const decide = useCallback(async (id: number, status: 'approved' | 'rejected') => {
     let rejection_reason = '';
     if (status === 'rejected') { rejection_reason = prompt('Reason for rejection?') || ''; }
-    const r = await fetch('/api/finance/waivers', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, status, rejection_reason }) });
+    const r = await fetch(`/api/finance/fee-rules/adjustments/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status, rejection_reason }) });
     const j = await r.json();
     if (!r.ok) { toast.error(j.error || 'Failed'); return; }
-    toast.success(`Waiver ${status}`);
+    toast.success(`Adjustment ${status}`);
     load();
   }, [load]);
 
@@ -76,24 +100,24 @@ export default function WaiversPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30"><Percent className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /></div>
-          <div><h1 className="text-xl font-bold text-gray-900 dark:text-white">Waivers & Discounts</h1><p className="text-sm text-gray-500 dark:text-gray-400">Request, approve or reject fee waivers.</p></div>
+          <div><h1 className="text-xl font-bold text-gray-900 dark:text-white">Waivers & Discounts</h1><p className="text-sm text-gray-500 dark:text-gray-400">Request, approve or reject fee waivers, discounts, and overrides.</p></div>
         </div>
-        <button onClick={() => setShow(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"><Plus className="w-4 h-4" /> Request waiver</button>
+        <button onClick={() => setShow(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"><Plus className="w-4 h-4" /> Request adjustment</button>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-500">
-            <tr><th className="px-4 py-2 text-left">Learner</th><th className="px-4 py-2 text-left">Term</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-left">Reason</th><th className="px-4 py-2 text-left">Status</th><th className="px-4 py-2"></th></tr>
+            <tr><th className="px-4 py-2 text-left">Learner</th><th className="px-4 py-2 text-left">Term</th><th className="px-4 py-2 text-right">Adjustment</th><th className="px-4 py-2 text-left">Reason</th><th className="px-4 py-2 text-left">Status</th><th className="px-4 py-2"></th></tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No waivers yet.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No adjustments yet.</td></tr>}
             {rows.map((w) => (
               <tr key={w.id} className="border-t border-gray-100 dark:border-gray-700/50">
                 <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">{[w.first_name, w.last_name].filter(Boolean).join(' ') || `#${w.student_id}`}<span className="block text-[11px] text-gray-400 font-mono">{w.admission_no}</span></td>
                 <td className="px-4 py-2 text-gray-500">{w.term_name || '—'}</td>
-                <td className="px-4 py-2 text-right">{w.discount_type === 'percentage' ? `${w.amount}%` : format(w.amount)}</td>
-                <td className="px-4 py-2 text-xs text-gray-500">{w.reason}</td>
+                <td className="px-4 py-2 text-right">{describeAdjustment(w, format)}</td>
+                <td className="px-4 py-2 text-xs text-gray-500">{w.reason}{w.rejection_reason ? <span className="block text-red-500">Rejected: {w.rejection_reason}</span> : null}</td>
                 <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_TONE[w.status] || ''}`}>{w.status}</span></td>
                 <td className="px-4 py-2 text-right whitespace-nowrap">
                   {w.status === 'pending' && (
@@ -112,7 +136,7 @@ export default function WaiversPage() {
       {show && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShow(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h2 className="text-base font-semibold text-gray-900 dark:text-white">Request waiver</h2><button onClick={() => setShow(false)}><X className="w-5 h-5 text-gray-400" /></button></div>
+            <div className="flex items-center justify-between"><h2 className="text-base font-semibold text-gray-900 dark:text-white">Request adjustment</h2><button onClick={() => setShow(false)}><X className="w-5 h-5 text-gray-400" /></button></div>
             <div className="relative">
               {form.student_id ? (
                 <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm"><span>{form.student_name}</span><button onClick={() => setForm({ ...form, student_id: null, student_name: '' })} className="text-xs text-indigo-600">change</button></div>
@@ -132,8 +156,12 @@ export default function WaiversPage() {
               {terms.map((t: any) => <option key={t.id} value={t.id}>{t.name || `Term ${t.id}`}</option>)}
             </select>
             <div className="grid grid-cols-2 gap-2">
-              <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"><option value="fixed">Fixed amount</option><option value="percentage">Percentage</option></select>
-              <input type="number" placeholder={form.discount_type === 'percentage' ? '% off' : 'Amount'} value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+              <select value={form.adjustment_type} onChange={(e) => setForm({ ...form, adjustment_type: e.target.value })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm">
+                {ADJUSTMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              {form.adjustment_type !== 'waiver' && (
+                <input type="number" placeholder={form.adjustment_type === 'percent_discount' ? '% off' : 'Amount'} value={form.value || ''} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+              )}
             </div>
             <textarea placeholder="Reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm resize-none" />
             {error && <p className="text-xs text-red-600">{error}</p>}

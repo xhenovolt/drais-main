@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T18:42:29.828Z",
-  "last_commit": "4f41445f02d2edf169421e129238e4d53474c33e",
+  "generated_at": "2026-07-29T19:20:07.519Z",
+  "last_commit": "e808ae4d36020fcbc9d79b00bc3c52cc77a4ef12",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5786,7 +5786,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.167.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Consolidate waivers/discounts onto learner_fee_adjustments (Stage C) — retroactive re-pricing, retire duplicate table",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Consolidate waivers/discounts onto learner_fee_adjustments (Stage C) — retroactive re-pricing, retire duplicate table"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.166.0"
+  "app_version": "1.167.0"
 }

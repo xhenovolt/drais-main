@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ruleMatchesLearner, evaluateBill, computeClearance, isChannelAllowed } from '../feeRules.ts';
+import { ruleMatchesLearner, evaluateBill, computeClearance, isChannelAllowed, applyAdjustments } from '../feeRules.ts';
 
 const ctx = (over) => ({
   studentId: 1, classId: 1, classLevel: null, streamId: null, programId: null,
@@ -105,4 +105,61 @@ test('evaluateBill priority: lower number wins, tie prefers explicit amount', ()
   const { lines } = evaluateBill(items, rulesByItem, ctx());
   assert.equal(lines[0].amount, 180000);
   assert.equal(lines[0].rule_id, 2);
+});
+
+// ── applyAdjustments (Finance Consolidation Stage C) ──
+// The single source of truth for waiver/discount/override math, shared by
+// generateBills() AND repriceApprovedAdjustments() (re-pricing already-
+// generated bills when an adjustment is approved/rejected/deleted) — so a
+// bug here would silently affect both new and already-billed students.
+
+test('applyAdjustments: no adjustments leaves the base untouched', () => {
+  const r = applyAdjustments(100000, []);
+  assert.deepEqual(r, { amount: 100000, discount: 0, waived: 0, final: 100000, notes: [] });
+});
+
+test('applyAdjustments: a full waiver zeroes the final amount but keeps amount as the base', () => {
+  const r = applyAdjustments(100000, [{ adjustment_type: 'waiver', tag: 'bursary' }]);
+  assert.equal(r.amount, 100000);
+  assert.equal(r.waived, 100000);
+  assert.equal(r.discount, 0);
+  assert.equal(r.final, 0);
+});
+
+test('applyAdjustments: percent_discount computes off the base and caps at the base', () => {
+  const r = applyAdjustments(100000, [{ adjustment_type: 'percent_discount', value: 30 }]);
+  assert.equal(r.discount, 30000);
+  assert.equal(r.final, 70000);
+  const overCapped = applyAdjustments(100000, [{ adjustment_type: 'percent_discount', value: 150 }]);
+  assert.equal(overCapped.discount, 100000); // capped — never a negative final
+  assert.equal(overCapped.final, 0);
+});
+
+test('applyAdjustments: fixed_discount subtracts a flat amount, multiple discounts stack', () => {
+  const r = applyAdjustments(100000, [
+    { adjustment_type: 'fixed_discount', value: 10000 },
+    { adjustment_type: 'fixed_discount', value: 5000 },
+  ]);
+  assert.equal(r.discount, 15000);
+  assert.equal(r.final, 85000);
+});
+
+test('applyAdjustments: override replaces the amount outright, ignoring the base and any other adjustments', () => {
+  const r = applyAdjustments(100000, [
+    { adjustment_type: 'override', value: 42000 },
+    { adjustment_type: 'fixed_discount', value: 10000 }, // must be ignored — override wins
+  ]);
+  assert.equal(r.amount, 42000);
+  assert.equal(r.discount, 0);
+  assert.equal(r.waived, 0);
+  assert.equal(r.final, 42000);
+});
+
+test('applyAdjustments: waiver takes precedence over discounts when both are present', () => {
+  const r = applyAdjustments(100000, [
+    { adjustment_type: 'waiver' },
+    { adjustment_type: 'percent_discount', value: 50 },
+  ]);
+  assert.equal(r.waived, 100000);
+  assert.equal(r.final, 0);
 });
