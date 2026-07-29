@@ -90,8 +90,8 @@ export async function GET(req: NextRequest) {
             AND cs2.subject_id = cr.subject_id
             AND COALESCE(cs2.display_on_report, 1) = 1
             AND (cs2.status IS NULL OR cs2.status = 'active')
-            AND (cs2.valid_from IS NULL OR cs2.valid_from <= CURRENT_TIMESTAMP)
-            AND (cs2.valid_to IS NULL OR cs2.valid_to > CURRENT_TIMESTAMP)
+            AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURRENT_TIMESTAMP))
+            AND (cs2.valid_to IS NULL OR cs2.valid_to > COALESCE(t.start_date, CURRENT_TIMESTAMP))
         ) AS teacher_name,
         (
           SELECT GROUP_CONCAT(
@@ -112,8 +112,8 @@ export async function GET(req: NextRequest) {
             AND cs2.subject_id = cr.subject_id
             AND COALESCE(cs2.display_on_report, 1) = 1
             AND (cs2.status IS NULL OR cs2.status = 'active')
-            AND (cs2.valid_from IS NULL OR cs2.valid_from <= CURRENT_TIMESTAMP)
-            AND (cs2.valid_to IS NULL OR cs2.valid_to > CURRENT_TIMESTAMP)
+            AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURRENT_TIMESTAMP))
+            AND (cs2.valid_to IS NULL OR cs2.valid_to > COALESCE(t.start_date, CURRENT_TIMESTAMP))
         ) AS teacher_initials,
         rt.name as result_type_name,
         t.name as term_name,

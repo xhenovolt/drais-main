@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T16:05:57.678Z",
-  "last_commit": "4cde3b85db7e4f466fb8dc872a26a9b726f152c2",
+  "generated_at": "2026-07-29T17:57:40.731Z",
+  "last_commit": "9a196bd4299b889d3a00257dfd1930172dde1a31",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5734,7 +5734,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.164.1",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "Teacher attribution now uses the result's own term start date, not today",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Teacher attribution now uses the result's own term start date, not today"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.164.0"
+  "app_version": "1.164.1"
 }
