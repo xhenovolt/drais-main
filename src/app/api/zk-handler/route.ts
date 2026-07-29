@@ -10,7 +10,7 @@ import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { captureDeviceUserDirectory } from '@/lib/biometric/device-directory';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent, evaluatePunch, evaluateDay } from '@/lib/attendance/engine';
-import { decidePunchTime, queueDeviceTimeSync, getDeviceTimeContext, resolveTimePolicy } from '@/lib/attendance/device-clock';
+import { decidePunchTime, queueDeviceTimeSync, getDeviceTimeContext, resolveTimePolicy, measureBatchOffsetSeconds, persistDeviceClockOffset } from '@/lib/attendance/device-clock';
 import { backfillAttendanceRawEventsForMapping } from '@/lib/attendance/raw-event-backfill';
 import {
   recordTemplate,
@@ -1559,7 +1559,18 @@ export async function POST(req: NextRequest) {
       // DRAIS may push a time-sync command to the device at all.
       const timePolicy = await resolveTimePolicy(schoolId);
       const deviceCtx = await getDeviceTimeContext(sn);
-      const deviceClockOffset = deviceCtx.clockOffsetSeconds;
+      // Prefer THIS batch's own measured drift over the last value that
+      // happened to get persisted — a device's real drift moves (RTC crawl,
+      // a reset, a battery swap), so correcting against a stale scalar
+      // corrects the wrong amount (e.g. still applying an old 5h offset when
+      // the device is actually only 2-3h off today). Falls back to the
+      // last-known offset when the batch is too small to trust a median.
+      const batchOffsetSeconds = measureBatchOffsetSeconds(
+        records.map((r) => r.CHECKTIME),
+        deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes,
+      );
+      const deviceClockOffset = batchOffsetSeconds ?? deviceCtx.clockOffsetSeconds;
+      if (batchOffsetSeconds != null) persistDeviceClockOffset(sn, batchOffsetSeconds).catch(() => {});
       let anyMatchedEvaluated = false; // did any matched punch reach the engine?
 
       for (let i = 0; i < records.length; i++) {

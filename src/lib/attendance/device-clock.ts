@@ -322,6 +322,54 @@ export async function getDeviceClockOffset(deviceSn: string): Promise<number | n
   return (await getDeviceTimeContext(deviceSn)).clockOffsetSeconds;
 }
 
+/**
+ * Measure THIS batch's own clock offset directly from its CHECKTIME strings,
+ * as the median skew (device wall-clock vs server-now) across the batch.
+ *
+ * A device's real drift is not a constant to memorize once — a coin-cell RTC
+ * crawls, gets reset, or gets swapped, so the same device can be ~5h off one
+ * week and ~2h off the next. Correcting every future/ahead batch against
+ * `devices.clock_offset_seconds` — a single scalar last measured whenever
+ * `queueDeviceTimeSync` happened to run — blindly re-applies whatever drift
+ * was true THEN, not what's true in THIS batch. The median of the batch's
+ * own skews is that batch's own ground truth (robust to a few noisy/
+ * out-of-order records) and should be preferred whenever the batch is large
+ * enough to trust.
+ */
+export function measureBatchOffsetSeconds(
+  checkTimes: Array<string | null | undefined>,
+  offsetMin: number,
+  nowMs = Date.now(),
+): number | null {
+  const skews: number[] = [];
+  for (const raw of checkTimes) {
+    if (!raw) continue;
+    const normalized = normalizeDeviceDateTime(raw) ?? raw;
+    const deviceWallMs = Date.parse(`${normalized.replace(' ', 'T')}Z`);
+    if (!Number.isFinite(deviceWallMs)) continue;
+    const deviceInstantMs = deviceWallMs - offsetMin * 60_000;
+    skews.push(Math.round((deviceInstantMs - nowMs) / 1000));
+  }
+  if (skews.length < 3) return null; // too few to trust a median over the stored value
+  skews.sort((a, b) => a - b);
+  const m = Math.floor(skews.length / 2);
+  return skews.length % 2 ? skews[m] : Math.round((skews[m - 1] + skews[m]) / 2);
+}
+
+/**
+ * Persist a freshly-measured clock offset unconditionally — decoupled from
+ * `autoSyncDeviceTime` (which only gates whether DRAIS may push a SET
+ * DateTime command to the physical device). Whether or not a school has
+ * opted into resyncing the device itself, DRAIS should always keep its OWN
+ * record of the device's current drift fresh, since that record is what
+ * every subsequent single-punch correction (outside a batch) is based on.
+ */
+export async function persistDeviceClockOffset(deviceSn: string, offsetSeconds: number): Promise<void> {
+  try {
+    await query(`UPDATE devices SET clock_offset_seconds = ? WHERE sn = ?`, [Math.round(offsetSeconds), deviceSn]);
+  } catch { /* best-effort — never disrupt ingest */ }
+}
+
 /** Read per-device time context: learned drift + optional tz override. */
 export async function getDeviceTimeContext(
   deviceSn: string,

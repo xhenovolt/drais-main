@@ -17,7 +17,7 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { recordRawEvent } from '@/lib/attendance/engine';
-import { decidePunchTime, getDeviceTimeContext, resolveTimePolicy } from '@/lib/attendance/device-clock';
+import { decidePunchTime, getDeviceTimeContext, resolveTimePolicy, measureBatchOffsetSeconds, persistDeviceClockOffset } from '@/lib/attendance/device-clock';
 import { normalizeDeviceDateTime } from '@/lib/attendance/adms-protocol';
 import { beginAcquisition, stageRecords, finishAcquisition } from '@/lib/attendance/acquisition/service';
 import { wallFromZkRecordTime, wallDate, decodeZkPackedTime, type DeviceWallTime } from '@/lib/attendance/acquisition/wall-time';
@@ -120,7 +120,20 @@ async function buildJoinedAttendance(
 
   const timePolicy = await resolveTimePolicy(session.schoolId);
   const deviceCtx = await getDeviceTimeContext(resolvedSn || '');
-  const storedOffsetSeconds = deviceCtx.clockOffsetSeconds;
+  const effectiveOffsetMinutesForBatch = clockOffsetMinutes || (deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes);
+  // Prefer THIS pull's own measured drift over a possibly stale persisted
+  // scalar — a device's real drift moves over time (RTC crawl, reset,
+  // battery swap), so correcting against an old measurement corrects the
+  // wrong amount (e.g. still applying 5h when today it's only 2-3h).
+  const batchOffsetSeconds = measureBatchOffsetSeconds(
+    limited.map((rec: any) => {
+      const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
+      return normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
+    }),
+    effectiveOffsetMinutesForBatch,
+  );
+  const storedOffsetSeconds = batchOffsetSeconds ?? deviceCtx.clockOffsetSeconds;
+  if (batchOffsetSeconds != null && resolvedSn) persistDeviceClockOffset(resolvedSn, batchOffsetSeconds).catch(() => {});
 
   const out: any[] = [];
   for (const rec of limited) {
@@ -903,7 +916,20 @@ export async function POST(req: NextRequest) {
 
         const timePolicy = await resolveTimePolicy(session.schoolId);
         const deviceCtx = await getDeviceTimeContext(resolvedSn || device_sn || '');
-        const storedOffsetSeconds = deviceCtx.clockOffsetSeconds;
+        const effectiveOffsetMinutesForBatch = clockOffsetMinutes || (deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes);
+        // Prefer THIS pull's own measured drift over a possibly stale
+        // persisted scalar — see measureBatchOffsetSeconds doc for why.
+        const batchOffsetSeconds = measureBatchOffsetSeconds(
+          filtered.map((rec: any) => {
+            const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
+            return normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
+          }),
+          effectiveOffsetMinutesForBatch,
+        );
+        const storedOffsetSeconds = batchOffsetSeconds ?? deviceCtx.clockOffsetSeconds;
+        if (batchOffsetSeconds != null && (resolvedSn || device_sn)) {
+          persistDeviceClockOffset(resolvedSn || device_sn, batchOffsetSeconds).catch(() => {});
+        }
 
         for (const rec of filtered) {
           const pin  = String(rec.deviceUserId ?? '');

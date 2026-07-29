@@ -10,7 +10,7 @@
 // Run with: npx tsx --test src/lib/attendance/__tests__/device-clock.test.mjs
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { decidePunchTime } from '../device-clock.ts';
+import { decidePunchTime, measureBatchOffsetSeconds } from '../device-clock.ts';
 
 const basePolicy = (overrides = {}) => ({
   schoolId: 1,
@@ -98,6 +98,58 @@ describe('decidePunchTime — CORRECT_BY_DRIFT', () => {
     const result = decidePunchTime(deviceStringFor(NOW, 5 * 3600), null, policy, null, NOW);
     assert.equal(result.timeConfidence, 'corrected');
     assert.equal(result.punchInstant.getTime(), NOW);
+  });
+});
+
+describe('measureBatchOffsetSeconds — drift is measured fresh per batch, not memorized once', () => {
+  // Reported: CORRECT_BY_DRIFT kept applying a stale ~5h correction even on
+  // days the device was only actually 2-3h off — because the correction used
+  // `devices.clock_offset_seconds`, a single scalar only refreshed when a
+  // resync got queued (itself gated on auto_sync_device_time, off by
+  // default). A device's real drift moves (RTC crawl, reset, battery swap);
+  // this batch-median measurement is meant to replace that stale scalar with
+  // today's own ground truth.
+  it('measures the median skew directly from a batch of device timestamps', () => {
+    const checkTimes = [0, 1, 2, 3, 4].map((i) => deviceStringFor(NOW, 2 * 3600 + i)); // ~2h ahead
+    const measured = measureBatchOffsetSeconds(checkTimes, 180, NOW);
+    assert.ok(Math.abs(measured - 2 * 3600) <= 5, `expected ~2h, got ${measured}s`);
+  });
+
+  it('is robust to a few noisy outliers via the median', () => {
+    const checkTimes = [
+      deviceStringFor(NOW, 3 * 3600), deviceStringFor(NOW, 3 * 3600 + 2), deviceStringFor(NOW, 3 * 3600 - 1),
+      deviceStringFor(NOW, 3 * 3600 + 1), deviceStringFor(NOW, 30 * 3600), // one wild outlier
+    ];
+    const measured = measureBatchOffsetSeconds(checkTimes, 180, NOW);
+    assert.ok(Math.abs(measured - 3 * 3600) <= 5, `outlier should not skew the median, got ${measured}s`);
+  });
+
+  it('refuses to guess from too small a batch (fewer than 3 records)', () => {
+    const checkTimes = [deviceStringFor(NOW, 3600), deviceStringFor(NOW, 3600 + 2)];
+    assert.equal(measureBatchOffsetSeconds(checkTimes, 180, NOW), null);
+  });
+
+  it('ignores unparseable entries and still measures from the rest', () => {
+    const checkTimes = ['not-a-date', deviceStringFor(NOW, 3600), deviceStringFor(NOW, 3600 + 1), deviceStringFor(NOW, 3600 - 1), null, undefined];
+    const measured = measureBatchOffsetSeconds(checkTimes, 180, NOW);
+    assert.ok(Math.abs(measured - 3600) <= 5, `expected ~1h, got ${measured}s`);
+  });
+
+  it("today's batch-measured drift (not yesterday's stale stored offset) is what gets applied", () => {
+    // Yesterday the device was 5h fast and that offset got persisted. Today
+    // it has settled to 2h fast. Correction must reflect TODAY's batch, not
+    // the persisted 5h value.
+    const staleStoredOffsetSeconds = 5 * 3600;
+    const todaysCheckTimes = [0, 1, 2, 3].map((i) => deviceStringFor(NOW, 2 * 3600 + i));
+    const todaysMeasured = measureBatchOffsetSeconds(todaysCheckTimes, 180, NOW);
+    assert.notEqual(todaysMeasured, staleStoredOffsetSeconds);
+
+    const policy = basePolicy();
+    const usingStale = decidePunchTime(deviceStringFor(NOW, 2 * 3600), staleStoredOffsetSeconds, policy, null, NOW);
+    const usingFresh = decidePunchTime(deviceStringFor(NOW, 2 * 3600), todaysMeasured, policy, null, NOW);
+    // The stale 5h correction overshoots real "now"; the fresh measurement lands on it.
+    assert.ok(Math.abs(usingFresh.punchInstant.getTime() - NOW) < 5000);
+    assert.ok(Math.abs(usingStale.punchInstant.getTime() - NOW) > 3600 * 2500);
   });
 });
 

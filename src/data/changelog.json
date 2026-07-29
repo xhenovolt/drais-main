@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T12:16:29.469Z",
-  "last_commit": "2e8bbfd9f34994ae471b9855fa4a84025500e1a3",
+  "generated_at": "2026-07-29T12:27:44.096Z",
+  "last_commit": "4d02abfa4ac324f61dde198e9dc4d8e6c69eca55",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5630,7 +5630,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.158.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "CORRECT_BY_DRIFT now measures each batch's own drift instead of a stale memorized offset",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "CORRECT_BY_DRIFT now measures each batch's own drift instead of a stale memorized offset"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.157.0"
+  "app_version": "1.158.0"
 }
