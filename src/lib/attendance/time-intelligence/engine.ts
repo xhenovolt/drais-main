@@ -348,6 +348,97 @@ export async function sampleDevicePunches(
   };
 }
 
+export interface HistoricalDayAnalysis {
+  date: string;
+  rowCount: number;
+  /** Distinct skew clusters found in this day's stored clock_skew_seconds,
+   *  sorted largest-first. A healthy/smoothly-drifting day has exactly one. */
+  bands: Array<{ skewSeconds: number; count: number }>;
+  stable: boolean;
+  /** Rounded hours for the dominant band, only populated when it covers at
+   *  least half the day's rows — a plain "not stable" split. Ambiguous days
+   *  (no clear majority band) get null: worth a human's eyes, not a guess. */
+  suggestedDriftHours: number | null;
+}
+
+const HISTORY_BAND_GAP_SECONDS = 1800; // 30 min — wider than this within a sorted run means a genuine jump, not noise.
+
+/**
+ * PURE: cluster one day's raw clock_skew_seconds values into distinct
+ * "bands" — a sorted run splits wherever consecutive values are more than
+ * `gapSeconds` apart. A smoothly-drifting clock produces exactly one band;
+ * a clock that jumped mid-day (RTC failure signature) produces several.
+ * Exported standalone so the clustering rule itself is unit-testable
+ * without a database.
+ */
+export function clusterSkewBands(
+  skews: number[], gapSeconds = HISTORY_BAND_GAP_SECONDS,
+): Array<{ skewSeconds: number; count: number }> {
+  if (!skews.length) return [];
+  const sorted = [...skews].sort((a, b) => a - b);
+  const clusters: number[][] = [];
+  let current: number[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] - sorted[i - 1] > gapSeconds) { clusters.push(current); current = []; }
+    current.push(sorted[i]);
+  }
+  clusters.push(current);
+  return clusters
+    .map((c) => ({ skewSeconds: Math.round(c.reduce((a, b) => a + b, 0) / c.length), count: c.length }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * PURE: turn one day's clustered bands into the day-level verdict —
+ * stable/unstable and a suggested correction, if there's a clear majority.
+ */
+export function summarizeDayBands(bands: Array<{ skewSeconds: number; count: number }>, totalRows: number): {
+  stable: boolean; suggestedDriftHours: number | null;
+} {
+  const stable = bands.length <= 1;
+  const suggestedDriftHours = !stable && bands[0].count >= totalRows / 2
+    ? Math.round(bands[0].skewSeconds / 3600) : null;
+  return { stable, suggestedDriftHours };
+}
+
+/**
+ * Analyze ALREADY-STORED punches for a device over a trailing window, day by
+ * day, to find days whose clock_skew_seconds splits into multiple distinct
+ * clusters — the stored signature of a clock that jumped mid-day (the
+ * pattern diagnosed live on JIPRA's device) rather than drifted smoothly.
+ * Purely diagnostic: flags candidates and suggests an hours value for
+ * previewRecomputeFromDeviceTime/applyRecomputeFromDeviceTime to try — it
+ * never writes anything itself.
+ */
+export async function analyzeDeviceHistory(
+  schoolId: number, deviceSn: string, days = 30,
+): Promise<HistoricalDayAnalysis[]> {
+  const policy = await resolveTimePolicy(schoolId);
+  const off = policy.offsetMinutes;
+  const rows = (await query(
+    `SELECT punch_at, clock_skew_seconds FROM attendance_raw_events
+      WHERE school_id = ? AND device_sn = ? AND clock_skew_seconds IS NOT NULL
+        AND punch_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      ORDER BY punch_at ASC`,
+    [schoolId, deviceSn, Math.max(1, Math.min(90, days))],
+  )) as Array<{ punch_at: Date | string; clock_skew_seconds: number }>;
+
+  const byDay = new Map<string, number[]>();
+  for (const r of rows) {
+    const d = localDateStr(new Date(r.punch_at), off);
+    if (!byDay.has(d)) byDay.set(d, []);
+    byDay.get(d)!.push(Number(r.clock_skew_seconds));
+  }
+
+  const out: HistoricalDayAnalysis[] = [];
+  for (const [date, skews] of byDay) {
+    const bands = clusterSkewBands(skews);
+    const { stable, suggestedDriftHours } = summarizeDayBands(bands, skews.length);
+    out.push({ date, rowCount: skews.length, bands, stable, suggestedDriftHours });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function previewCorrection(
   schoolId: number, deviceSn: string, date: string, shiftMinutes: number,
 ): Promise<{ affected: number; sample: CorrectionPreviewRow[] }> {

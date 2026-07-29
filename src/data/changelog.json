@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T15:10:59.510Z",
-  "last_commit": "eb773c80f3b01ac455dfde4f039a6b9357f473dc",
+  "generated_at": "2026-07-29T16:05:57.678Z",
+  "last_commit": "4cde3b85db7e4f466fb8dc872a26a9b726f152c2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5721,7 +5721,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.164.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Analyze historical data — detect clock jump patterns in already-stored punches",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Analyze historical data — detect clock jump patterns in already-stored punches"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.163.0"
+  "app_version": "1.164.0"
 }

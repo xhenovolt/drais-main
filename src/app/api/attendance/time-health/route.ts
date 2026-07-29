@@ -17,6 +17,7 @@ import { requirePermission } from '@/lib/rbac';
 import {
   deviceHealthOverview, sweepToday, previewCorrection, applyCorrection, undoCorrection, learnBaseline, correctPunches,
   listPunchesForDate, sampleDevicePunches, previewRecomputeFromDeviceTime, applyRecomputeFromDeviceTime,
+  analyzeDeviceHistory,
 } from '@/lib/attendance/time-intelligence/engine';
 import { fmtMinute } from '@/lib/attendance/time-intelligence/confidence';
 
@@ -41,6 +42,17 @@ export async function GET(req: NextRequest) {
       const n = Math.min(25, Math.max(1, parseInt(params.get('n') || '10', 10) || 10));
       const sample = await sampleDevicePunches(session.schoolId, deviceSn, date, n);
       return NextResponse.json({ success: true, ...sample });
+    }
+    if (params.get('analyze')) {
+      const deviceSn = params.get('device_sn');
+      if (!deviceSn) return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
+      const days = Math.min(90, Math.max(1, parseInt(params.get('days') || '30', 10) || 30));
+      const analysis = await analyzeDeviceHistory(session.schoolId, deviceSn, days);
+      const unstable = analysis.filter((d) => !d.stable);
+      return NextResponse.json({
+        success: true, days_analyzed: analysis.length, stable_days: analysis.length - unstable.length,
+        unstable_days: unstable,
+      });
     }
     if (params.get('banner')) {
       const today = await sweepToday(session.schoolId);
