@@ -390,6 +390,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [editForm, setEditForm] = useState({
     device_name: device.device_name || '',
     location: device.location || '',
+    role_label: device.role_label || '',
   });
   const [saving, setSaving] = useState(false);
   const [syncState, setSyncState] = useState<'idle' | 'pending' | 'sent' | 'acknowledged' | 'failed'>('idle');
@@ -717,6 +718,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
           id: device.id,
           device_name: editForm.device_name || null,
           location: editForm.location || null,
+          role_label: editForm.role_label || null,
         }),
         successMessage: 'Device updated',
       });
@@ -993,6 +995,9 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
             <input type="text" placeholder="Location" value={editForm.location}
               onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
               className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900" />
+            <input type="text" placeholder="Role (e.g. Gate Verification)" value={editForm.role_label}
+              onChange={(e) => setEditForm({ ...editForm, role_label: e.target.value })}
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900" />
             <div className="flex gap-2">
               <button onClick={handleSaveEdit} disabled={saving}
                 className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-blue-600 text-white rounded-lg text-xs">
@@ -1021,6 +1026,12 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                   <Settings className="w-4 h-4 shrink-0" />
                   <span className="text-xs">{device.location}</span>
+                </div>
+              )}
+              {device.role_label && (
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <ClipboardList className="w-4 h-4 shrink-0" />
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium">{device.role_label}</span>
                 </div>
               )}
               {device.model && (
@@ -1089,6 +1100,23 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 <span>Today: <strong>{device.today_punches || 0}</strong> punches</span>
                 <span>Pending: <strong>{device.pending_commands || 0}</strong> cmds</span>
               </div>
+
+              {/* Template deployment readiness (Phase 4/5 — central
+                  biometric identity). Reads template_distributions via
+                  Push Templates' own machinery, never a separate counter. */}
+              {Number(device.templates_total || 0) > 0 && (
+                <div className="flex items-center gap-2 text-xs pt-0.5">
+                  <Fingerprint className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span className="text-gray-500">Templates: <strong className="text-gray-800 dark:text-gray-200">{device.templates_loaded}/{device.templates_total}</strong></span>
+                  <span className={`px-1.5 py-0.5 rounded font-medium ${
+                    device.template_sync_status === 'healthy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    : device.template_sync_status === 'attention' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
+                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                  }`}>
+                    {device.template_sync_status === 'healthy' ? 'Healthy' : device.template_sync_status === 'attention' ? `${device.templates_failed} failed` : 'Syncing'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Out-of-sync alert strip */}
@@ -1250,7 +1278,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 icon={<Edit2 className="w-4 h-4" />}
                 label="Edit Device"
                 color="gray"
-                onClick={() => { setEditForm({ device_name: device.device_name || '', location: device.location || '' }); setEditing(true); }}
+                onClick={() => { setEditForm({ device_name: device.device_name || '', location: device.location || '', role_label: device.role_label || '' }); setEditing(true); }}
               />
               {/* Delete */}
               <ActionIcon

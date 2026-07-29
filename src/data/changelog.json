@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T13:36:52.995Z",
-  "last_commit": "aef72ac422b33ab183e217d562a03870aa96a658",
+  "generated_at": "2026-07-29T13:51:28.600Z",
+  "last_commit": "16033644a41cc9a904c09b606e35097dfa1600c1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5669,7 +5669,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.160.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Device role label + template deployment readiness (Templates X/Y, sync status) on the Devices page",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Device role label + template deployment readiness (Templates X/Y, sync status) on the Devices page"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.159.1"
+  "app_version": "1.160.0"
 }

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const devices = await query(
       `SELECT
          d.id, d.sn AS serial_number, d.device_name, d.model_name AS model, d.firmware_version,
-         d.location, d.ip_address, d.status, d.push_version, d.school_id,
+         d.location, d.ip_address, d.status, d.push_version, d.school_id, d.role_label,
          d.last_seen AS last_heartbeat, d.last_activity, d.created_at AS registered_at,
          CASE
            WHEN d.last_seen > DATE_SUB(NOW(), INTERVAL 2 MINUTE) THEN 'online'
@@ -52,6 +52,25 @@ export async function GET(req: NextRequest) {
          (SELECT COUNT(*) FROM biometric_enrollments be
            WHERE be.school_id = d.school_id
              AND be.status IN ('active','pending_capture')) AS mapped_users,
+         -- Template deployment readiness (Phase 4 — devices as deployment
+         -- targets): how many of this school's stored fingerprint
+         -- templates are actually loaded on THIS device vs. how many
+         -- should be. Reuses template_distributions (Phase 5's Push
+         -- Templates feature) rather than a separate counter.
+         (SELECT COUNT(*) FROM biometric_templates bt
+           JOIN biometric_enrollments be2 ON be2.id = bt.enrollment_id
+          WHERE be2.school_id = d.school_id
+            AND be2.status IN ('active','pending_capture')) AS templates_total,
+         (SELECT COUNT(*) FROM template_distributions td
+           JOIN biometric_templates bt2 ON bt2.id = td.template_id
+           JOIN biometric_enrollments be3 ON be3.id = bt2.enrollment_id
+          WHERE be3.school_id = d.school_id AND td.device_sn = d.sn
+            AND td.status = 'loaded') AS templates_loaded,
+         (SELECT COUNT(*) FROM template_distributions td
+           JOIN biometric_templates bt3 ON bt3.id = td.template_id
+           JOIN biometric_enrollments be4 ON be4.id = bt3.enrollment_id
+          WHERE be4.school_id = d.school_id AND td.device_sn = d.sn
+            AND td.status = 'failed') AS templates_failed,
          ss.sync_status
        FROM devices d
        LEFT JOIN device_sync_state ss ON ss.device_sn = d.sn
@@ -69,6 +88,14 @@ export async function GET(req: NextRequest) {
         : null;
       // never_synced when no run exists at all.
       if (!dv.inventory_status) dv.inventory_status = 'never_synced';
+
+      // Template synchronization status: 'attention' if anything failed,
+      // 'syncing' if some templates are still queued, else 'healthy'
+      // (including the trivial case of nothing to deploy at all).
+      const failed = Number(dv.templates_failed || 0);
+      const loaded = Number(dv.templates_loaded || 0);
+      const total = Number(dv.templates_total || 0);
+      dv.template_sync_status = failed > 0 ? 'attention' : loaded < total ? 'syncing' : 'healthy';
     }
 
     // Fallback: if no registered devices, discover from recent ADMS traffic —
@@ -121,7 +148,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, device_name, location, model, status } = body;
+    const { id, device_name, location, model, status, role_label } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Device ID required' }, { status: 400 });
@@ -142,9 +169,10 @@ export async function PUT(req: NextRequest) {
          location = COALESCE(?, location),
          model_name = COALESCE(?, model_name),
          status = COALESCE(?, status),
+         role_label = COALESCE(?, role_label),
          updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND school_id = ?`,
-      [device_name || null, location || null, model || null, status || null, id, session.schoolId],
+      [device_name || null, location || null, model || null, status || null, role_label || null, id, session.schoolId],
     );
 
     await logAudit({
@@ -153,7 +181,7 @@ export async function PUT(req: NextRequest) {
       action: AuditAction.UPDATED_STAFF, // closest available
       entityType: 'device',
       entityId: id,
-      details: { device_name, location, model, status },
+      details: { device_name, location, model, status, role_label },
       ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
     });
 
