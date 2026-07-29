@@ -73,6 +73,41 @@ describe('whole-hour drift (the JIPRA case)', () => {
   });
 });
 
+describe('contaminated baseline — tolerance must be capped (live JIPRA incident)', () => {
+  // Reported live: "Usual first arrival 05:25 (14d)" / "Today's first arrival
+  // 08:43" (a 3h18m gap) still scored 92% confidence / "Auto-resolved" — the
+  // school's learned mad_minutes had itself been inflated to 128 by earlier,
+  // uncorrected clock-drift days baked into the baseline history, so the
+  // tolerance band (3×MAD) had widened enough to swallow the very deviation
+  // it should have caught. Exact real numbers from device_clock_health /
+  // attendance_time_baselines below.
+  const contaminated = baseline({ median_first_minute: 325, mad_minutes: 128, sample_days: 14 });
+
+  it('a 3h18m deviation is NOT silently trusted, no matter how wide the learned MAD is', () => {
+    const a = assessBatch(contaminated, batch({ firstArrivalMinute: 523 }));
+    assert.equal(a.status, 'anomaly');
+    assert.ok(a.confidence < 50, `confidence ${a.confidence} should be low, not a false "resolved"`);
+  });
+
+  it('the effective tolerance never exceeds the sane ceiling regardless of mad_minutes', () => {
+    // A deviation just OVER the cap must fail; just under must still pass —
+    // proves the cap is a hard ceiling, not merely a coincidental result.
+    const justOver = assessBatch(contaminated, batch({ firstArrivalMinute: 325 + 91 }));
+    const justUnder = assessBatch(contaminated, batch({ firstArrivalMinute: 325 + 89 }));
+    assert.equal(justOver.status, 'anomaly');
+    assert.equal(justUnder.status, 'trusted');
+  });
+
+  it('a genuinely tight baseline (small MAD) is unaffected by the cap', () => {
+    const tight = baseline({ median_first_minute: 325, mad_minutes: 12, sample_days: 40 });
+    // 3×12=36 tolerance; 40 min off is outside it — still correctly flagged
+    // (not silently trusted), well under the 90-min cap so the cap plays no
+    // role here at all — a true baseline result, unaffected by this fix.
+    const a = assessBatch(tight, batch({ firstArrivalMinute: 325 + 40 }));
+    assert.notEqual(a.status, 'trusted');
+  });
+});
+
 describe('other failure shapes', () => {
   it('future timestamps → device running fast, low confidence', () => {
     const a = assessBatch(baseline(), batch({ futureCount: 60, maxFutureMinutes: 300 }));

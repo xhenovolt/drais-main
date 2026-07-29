@@ -51,6 +51,21 @@ export async function learnBaseline(schoolId: number, deviceSn: string, windowDa
     [schoolId, deviceSn, windowDays],
   )) as Array<{ punch_at: Date | string }>;
 
+  // Days DRAIS itself already flagged as anomalous — excluded from the
+  // learning set below. Without this, a day the clock was genuinely broken
+  // teaches the baseline that its own corruption IS "normal", widening
+  // mad_minutes until future occurrences of the SAME fault fall back inside
+  // "tolerance" and get silently trusted again — the exact failure mode a
+  // live incident exposed (a 3h+ deviation still scored 92%/"resolved"
+  // because the baseline's own spread had already absorbed it).
+  const anomalyDays = new Set(
+    (await query(
+      `SELECT local_date FROM device_clock_health WHERE school_id = ? AND device_sn = ? AND status = 'anomaly'`,
+      [schoolId, deviceSn],
+    ).catch(() => []) as Array<{ local_date: Date | string }>)
+      .map((r) => localDateStr(r.local_date instanceof Date ? r.local_date : new Date(r.local_date), 0)),
+  );
+
   // Group punches by school-local day.
   const byDay = new Map<string, number[]>();
   for (const r of rows) {
@@ -60,12 +75,13 @@ export async function learnBaseline(schoolId: number, deviceSn: string, windowDa
     byDay.get(key)!.push(minuteOfDay(d, off));
   }
 
-  // Working days only (enough punches), excluding today (it may be the anomaly).
+  // Working days only (enough punches), excluding today (it may be the
+  // anomaly) and any day already flagged anomalous.
   const today = localDateStr(new Date(), off);
   const firsts: number[] = [];
   const dailyCounts: number[] = [];
   for (const [day, mins] of byDay) {
-    if (day === today || mins.length < MIN_PUNCHES_FOR_DAY) continue;
+    if (day === today || anomalyDays.has(day) || mins.length < MIN_PUNCHES_FOR_DAY) continue;
     const f = firstArrivalOf(mins);
     if (f != null) { firsts.push(f); dailyCounts.push(mins.length); }
   }

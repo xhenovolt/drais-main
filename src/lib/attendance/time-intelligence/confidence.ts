@@ -180,11 +180,23 @@ export function assessBatch(baseline: Baseline | null, batch: BatchStats): Asses
 
   const diff = batch.firstArrivalMinute - baseline.median_first_minute; // +ve = later than usual
   const absd = Math.abs(diff);
-  const tolerance = Math.max(20, 3 * (baseline.mad_minutes || 10));
+  // Cap the MAD-derived spread at MAX_TOLERANCE_MIN. A baseline learned over a
+  // window that included genuine clock-drift days (before this engine
+  // existed, or before a device's fault was caught) can carry an inflated
+  // mad_minutes — the drift itself gets absorbed into "normal", which is
+  // precisely how a live incident scored a 3h+ deviation as 92%/"resolved":
+  // the tolerance band had already widened to cover it. learnBaseline() now
+  // also excludes days flagged 'anomaly' going forward, but this cap is the
+  // backstop for baselines computed before that existed, or for any residual
+  // contamination — "normal" can never legitimately mean "anywhere from
+  // midnight to 11am".
+  const MAX_TOLERANCE_MIN = 90;
+  const cappedMad = Math.min(baseline.mad_minutes || 10, MAX_TOLERANCE_MIN);
+  const tolerance = Math.min(MAX_TOLERANCE_MIN, Math.max(20, 3 * cappedMad));
 
   // Normal day: first arrival within the school's own historical spread.
   if (absd <= tolerance) {
-    const conf = absd <= Math.max(10, baseline.mad_minutes || 10) ? 99 : 92;
+    const conf = absd <= Math.max(10, cappedMad) ? 99 : 92;
     return verdict(conf, 'trusted', 0, 'normal',
       `First arrival ${fmtMinute(batch.firstArrivalMinute)} vs usual ${fmtMinute(baseline.median_first_minute)} (±${tolerance} min tolerance).`, 0, 0);
   }

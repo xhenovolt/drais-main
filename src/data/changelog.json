@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T11:50:40.850Z",
-  "last_commit": "9fd9ac69d17b96a534244e881c177d8ba8de2b4a",
+  "generated_at": "2026-07-29T12:16:29.469Z",
+  "last_commit": "2e8bbfd9f34994ae471b9855fa4a84025500e1a3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5617,7 +5617,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.157.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Stop contaminated baselines from masking real clock-drift + add one-click correct-to-usual button",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Stop contaminated baselines from masking real clock-drift + add one-click correct-to-usual button"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.156.2"
+  "app_version": "1.157.0"
 }

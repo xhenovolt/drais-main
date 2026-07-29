@@ -22,6 +22,12 @@ const fmtMin = (m: number | null | undefined) => {
   const mm = ((Math.round(m) % 1440) + 1440) % 1440;
   return `${String(Math.floor(mm / 60)).padStart(2, '0')}:${String(mm % 60).padStart(2, '0')}`;
 };
+const fmtDuration = (absMin: number) => {
+  const h = Math.floor(absMin / 60);
+  const m = Math.round(absMin % 60);
+  if (h <= 0) return `${m}m`;
+  return m > 0 ? `${h}h${m}m` : `${h}h`;
+};
 const CAUSE_LABEL: Record<string, string> = {
   normal: 'Clock normal',
   clock_drift_hours: 'Clock off by whole hours',
@@ -110,6 +116,14 @@ export default function TimeHealthPage() {
             const bad = d.status === 'anomaly';
             const review = d.status === 'review';
             const resolved = !!d.resolvedByPolicy; // real device drift the policy already realigned
+            // Computed directly from the two raw numbers already on this card —
+            // deliberately independent of d.status/d.confidence. A verdict can
+            // (rarely) be wrong; a learner's actual arrival time next to the
+            // school's own usual pattern cannot lie. Shown regardless of what
+            // the server-side score says, so a gap is never hidden.
+            const deviationMin = bl?.median_first_minute != null && d.first_arrival_minute != null
+              ? d.first_arrival_minute - bl.median_first_minute : null;
+            const deviationSignificant = deviationMin != null && Math.abs(deviationMin) > 30;
             return (
               <div key={d.device_sn} className={`rounded-xl border bg-white dark:bg-gray-800 p-4 ${bad ? 'border-rose-300 dark:border-rose-800 ring-1 ring-rose-300 dark:ring-rose-800' : resolved ? 'border-emerald-200 dark:border-emerald-800' : 'border-gray-200 dark:border-gray-700'}`}>
                 <div className="flex items-start justify-between flex-wrap gap-2">
@@ -137,6 +151,30 @@ export default function TimeHealthPage() {
                 </div>
 
                 <p className="text-xs text-gray-500 mt-2">{causeLabel(d.likelyCause)}: {d.detail}</p>
+
+                {/* Always-visible arrival-gap callout — computed straight from
+                    "usual" vs "today", never from d.status/d.confidence. A
+                    verdict can (rarely) mis-score a day; this cannot, since it
+                    only compares two numbers already shown on this card. */}
+                {deviationSignificant && (
+                  <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                      {t('attendanceIntel.timeHealth.arrivalGap', {
+                        today: fmtMin(d.first_arrival_minute), usual: fmtMin(bl?.median_first_minute),
+                        dir: deviationMin! > 0 ? t('attendanceIntel.timeHealth.later', 'later') : t('attendanceIntel.timeHealth.earlier', 'earlier'),
+                        gap: fmtDuration(Math.abs(deviationMin!)),
+                      }, "Today's first arrival ({{today}}) is {{gap}} {{dir}} than usual ({{usual}}).")}
+                    </p>
+                    <button
+                      onClick={() => setFix({
+                        device_sn: d.device_sn, date: d.local_date,
+                        suggestedShift: bl?.median_first_minute != null ? bl.median_first_minute - d.first_arrival_minute : 0,
+                        baselineFirst: bl?.median_first_minute ?? null, todayFirst: d.first_arrival_minute,
+                      })}
+                      className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium"
+                    ><Wrench className="w-3.5 h-3.5" /> {t('attendanceIntel.timeHealth.correctToUsual', { time: fmtMin(bl?.median_first_minute) }, 'Correct to usual first arrival ({{time}})')}</button>
+                  </div>
+                )}
 
                 {bad && d.recommendedShiftMin !== 0 && (
                   <div className="mt-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800">
