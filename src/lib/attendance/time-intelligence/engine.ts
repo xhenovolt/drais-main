@@ -121,7 +121,7 @@ async function loadBaseline(schoolId: number, deviceSn: string): Promise<Baselin
 
 /* ── Phase 1/2: assess one device-day ─────────────────────────────────── */
 
-export async function evaluateDeviceDay(schoolId: number, deviceSn: string, dateStr?: string): Promise<Assessment & { local_date: string; batch_size: number }> {
+export async function evaluateDeviceDay(schoolId: number, deviceSn: string, dateStr?: string): Promise<Assessment & { local_date: string; batch_size: number; first_arrival_minute: number | null }> {
   await ensureTimeIntelligenceSchema();
   const policy = await resolveTimePolicy(schoolId);
   const off = policy.offsetMinutes;
@@ -195,11 +195,11 @@ export async function evaluateDeviceDay(schoolId: number, deviceSn: string, date
       assessment.resolvedByPolicy ? 1 : 0, assessment.policy ?? policy.policy],
   );
 
-  return { ...assessment, local_date: date, batch_size: batch.punchCount };
+  return { ...assessment, local_date: date, batch_size: batch.punchCount, first_arrival_minute: batch.firstArrivalMinute };
 }
 
 /** Evaluate every device that has punches today for this school. */
-export async function sweepToday(schoolId: number): Promise<Array<Assessment & { device_sn: string; local_date: string; batch_size: number }>> {
+export async function sweepToday(schoolId: number): Promise<Array<Assessment & { device_sn: string; local_date: string; batch_size: number; first_arrival_minute: number | null }>> {
   const policy = await resolveTimePolicy(schoolId);
   const off = policy.offsetMinutes;
   const date = localDateStr(new Date(), off);

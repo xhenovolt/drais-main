@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T11:41:35.711Z",
-  "last_commit": "80ad092e8ea87595f366859b8c4079ded5d504b9",
+  "generated_at": "2026-07-29T11:50:40.850Z",
+  "last_commit": "9fd9ac69d17b96a534244e881c177d8ba8de2b4a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5604,7 +5604,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.156.2",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "Today's first arrival always showed blank — field computed and saved to DB but never returned by the API",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Today's first arrival always showed blank — field computed and saved to DB but never returned by the API"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.156.1"
+  "app_version": "1.156.2"
 }
