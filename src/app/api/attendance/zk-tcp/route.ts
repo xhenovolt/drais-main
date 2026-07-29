@@ -22,6 +22,9 @@ import { normalizeDeviceDateTime } from '@/lib/attendance/adms-protocol';
 import { beginAcquisition, stageRecords, finishAcquisition } from '@/lib/attendance/acquisition/service';
 import { wallFromZkRecordTime, wallDate, decodeZkPackedTime, type DeviceWallTime } from '@/lib/attendance/acquisition/wall-time';
 import { validateAcquisition } from '@/lib/attendance/acquisition/validate';
+import {
+  recordTemplate, queueDistributionsForSchool, lookupEnrollmentForCapture, completeEnrollmentCapture,
+} from '@/lib/biometric/template-service';
 
 /** Probe the device's own wall clock (CMD_GET_TIME=201). Best-effort. */
 async function probeDeviceWallTime(zk: any): Promise<DeviceWallTime | null> {
@@ -688,6 +691,37 @@ export async function POST(req: NextRequest) {
             [session.schoolId, studentId, deviceId, fingerPosition, hand, templateBase64, result.length],
           );
 
+          // Also promote into the canonical biometric_templates store — this
+          // is what BiometricEnrollmentPanel's "Push fingerprints" and the
+          // Devices page's "Push Templates" read from (docs/audits/
+          // BIOMETRIC_CENTRALIZATION_AUDIT.md). Without this, a fingerprint
+          // captured through this TCP path would sit only in the legacy,
+          // student-only table and could never be pushed onto another
+          // device — exactly the "two unreconciled template stores" gap
+          // the audit flagged. `finger` here is already the device's own
+          // 0-9 FID (same convention as biometric_templates.finger_index),
+          // so no hand/position remapping is needed.
+          let templateId: number | null = null;
+          try {
+            const enrollment = await lookupEnrollmentForCapture(session.schoolId, Number(pin));
+            if (enrollment) {
+              const t = await recordTemplate({
+                enrollmentId: enrollment.enrollmentId,
+                fingerIndex: finger,
+                templateBytes: Buffer.from(templateBase64, 'base64'),
+                templateSize: result.length,
+                capturedDeviceSn: device_sn ?? null,
+              });
+              templateId = t.templateId;
+              if (templateId) {
+                await completeEnrollmentCapture(enrollment.enrollmentId);
+                await queueDistributionsForSchool(templateId, session.schoolId, device_sn ?? null);
+              }
+            }
+          } catch (err) {
+            console.warn('[zk-tcp save_template] canonical promotion failed', err);
+          }
+
           return NextResponse.json({
             success: true,
             message: `Template saved for student ${studentId} (${hand} ${fingerPosition})`,
@@ -696,6 +730,7 @@ export async function POST(req: NextRequest) {
             fingerPosition,
             hand,
             templateSize: result.length,
+            templateId,
           });
         }
 

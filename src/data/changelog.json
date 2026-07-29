@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T13:20:10.461Z",
-  "last_commit": "3f3f2fe4dfbf204323ea551e09bfdde7090d00c9",
+  "generated_at": "2026-07-29T13:36:52.995Z",
+  "last_commit": "aef72ac422b33ab183e217d562a03870aa96a658",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5656,7 +5656,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.159.1",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "TCP save_template now also promotes into canonical biometric_templates (was legacy-only, silently unpushable)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "TCP save_template now also promotes into canonical biometric_templates (was legacy-only, silently unpushable)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.159.0"
+  "app_version": "1.159.1"
 }

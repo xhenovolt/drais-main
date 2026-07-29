@@ -155,5 +155,57 @@ be broken. Concretely, reusing what's already there:
 6. **Separately**: reconcile `student_fingerprints` (legacy TCP store) into `biometric_templates` so TCP-enrolled users become push-eligible too — this is the one piece that's a genuine data-migration task, not just new UI/API surface.
 7. **Separately, lower priority**: a device-model capability table (does this SN/model support `FINGERTMP`?) before any fleet-wide push ships, so a push isn't silently sent to a device that can't accept it.
 
+---
+
+## Update — Phase 5 shipped (v1.159.0); follow-up items 6 & 7 re-scoped after checking production data
+
+Items 1-5 above were implemented as described: `syncTemplatesToDevice`/
+`previewTemplatePush` now take a `PushScope` (all / role / selected /
+modified-since / diff-only — diff-only reuses the existing reconciliation
+engine's `DRAIS_TEMPLATE_NOT_ON_DEVICE` finding), a preview + execute + report
+API trio exists at `/api/attendance/devices/[id]/push-templates`, a "Push
+Templates" button + modal is live on the Devices page, and the audit trail
+routes through the existing `device_directory_audit` table rather than a new
+mechanism. `reconcileTemplateDistributions` was also extended to flip
+distributions to `'failed'` (previously only the success/`'loaded'` path was
+reconciled — a permanently-rejected command left its row stuck at `'queued'`
+forever, invisible to any report).
+
+**Item 6 (reconcile legacy `student_fingerprints`) was re-scoped after
+checking live production data**, not built as originally planned:
+
+- `SELECT COUNT(*)` against production TiDB: `student_fingerprints` = **0
+  rows**, `biometric_devices` = **0 rows**, `fingerprints` (another
+  candidate legacy table) = **0 rows**. There is nothing to migrate — every
+  real fingerprint in production (450 rows) already lives in the canonical
+  `biometric_templates` table.
+- The real risk was therefore not stale data but a **live code path that
+  could still create new divergence**: `zk-tcp/route.ts`'s `save_template`
+  action (the direct TCP capture-and-save flow) wrote ONLY into legacy
+  `student_fingerprints`, never into `biometric_templates` — so any future
+  enrollment through that specific action would silently never become
+  push-eligible. This is now fixed at the source (dual-write, mirroring the
+  pattern `api/biometric/orphans/route.ts`'s claim flow already uses:
+  keep the legacy write for backward compatibility, add
+  `recordTemplate()` + `queueDistributionsForSchool()` +
+  `completeEnrollmentCapture()` for canonical promotion) rather than adding
+  a backfill script for data that doesn't exist. `finger` in that code path
+  is already the device's native 0-9 FID — the same convention as
+  `biometric_templates.finger_index` — so no hand/position remapping was
+  needed, unlike the `orphans` claim flow which has to reconstruct
+  hand/position from a bare FID for the legacy table's own columns.
+
+**Item 7 (device-model capability table) was deferred, not built**: `SELECT
+DISTINCT model_name FROM devices` against production returns a single row —
+`NULL`. Every device in production has an empty `model_name`. A capability
+table keyed on model name would have nothing to match against and could not
+be exercised or verified against real data. Building it now would be
+speculative scaffolding rather than a working feature. This should be
+revisited once device inventory actually captures `model_name` (e.g. via
+`zk.getInfo()`, which DRAIS already calls and could persist) — at that point
+a small `device_model_capabilities` reference table (model_name →
+supports_fingertmp_push, notes) is a cheap, additive lookup for the existing
+preview endpoint to consult.
+
 None of this requires re-architecting the template store, the distribution
 table, or the command queue — they were already built for exactly this.
