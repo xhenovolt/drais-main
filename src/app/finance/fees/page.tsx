@@ -1,19 +1,15 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  CreditCard, 
-  Plus, 
-  Search, 
-  Filter,
-  Download,
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  CreditCard,
+  Plus,
+  Search,
   Upload,
   Eye,
   Edit,
   Trash2,
   DollarSign,
   Users,
-  Calendar,
   CheckCircle,
   AlertCircle,
   Clock
@@ -26,6 +22,7 @@ import NewBadge from '@/components/ui/NewBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { useCurrency } from '@/hooks/useCurrency';
 import FeeItemModal from '@/components/finance/FeeItemModal';
+import Pagination from '@/components/ui/Pagination';
 
 interface FeeItem {
   id: number;
@@ -45,18 +42,37 @@ interface FeeItem {
   term_name: string;
 }
 
+const PAGE_SIZE = 50;
+
+/**
+ * This page used to fetch EVERY student_fee_items row for the whole school
+ * (no LIMIT server-side) and render each one as a separately-timed
+ * <motion.tr> (delay: index * 0.05) — for any school with real fee history
+ * that's thousands of rows and, past a couple hundred, a multi-second
+ * stacked animation queue. Both are gone: the API is paginated + the
+ * summary stats are a single aggregate query instead of a client-side sum
+ * over the whole table, and rows render plainly (no per-row animation).
+ */
 const FeesPage: React.FC = () => {
   const { t } = useI18n();
   const { format } = useCurrency();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'structure' | 'students' | 'templates'>('students');
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [termFilter, setTermFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
   const [modalItem, setModalItem] = useState<FeeItem | null | undefined>(undefined); // undefined=closed, null=new, item=edit
 
-  const clearFilters = () => { setSearchQuery(''); setClassFilter(''); setTermFilter(''); setStatusFilter(''); };
+  // Debounce free-text search so every keystroke doesn't refetch.
+  useEffect(() => {
+    const t = setTimeout(() => { setSearchQuery(searchInput); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const clearFilters = () => { setSearchInput(''); setSearchQuery(''); setClassFilter(''); setTermFilter(''); setStatusFilter(''); setPage(1); };
 
   const handleDelete = async (item: FeeItem) => {
     if (!confirm(`Delete fee item "${item.item}" for ${item.student_name}? This cannot be undone.`)) return;
@@ -69,32 +85,33 @@ const FeesPage: React.FC = () => {
     } catch { toast.error('Delete failed'); }
   };
 
-  // Fetch fee items
+  const { data: classesData } = useSWR('/api/classes', swrFetcher);
+  const classes = (classesData as any)?.data || [];
+  const { data: termsData } = useSWR('/api/terms', swrFetcher);
+  const terms = (termsData as any)?.data || [];
+
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('limit', String(PAGE_SIZE));
+  if (classFilter) params.set('class_id', classFilter);
+  if (termFilter) params.set('term_id', termFilter);
+  if (statusFilter) params.set('status', statusFilter);
+  if (searchQuery) params.set('q', searchQuery);
+
   const { data: feesData, isLoading, mutate } = useSWR(
-    `/api/finance/fees${classFilter ? `?class_id=${classFilter}` : ''}${termFilter ? `${classFilter ? '&' : '?'}term_id=${termFilter}` : ''}`,
+    `/api/finance/fees?${params.toString()}`,
     swrFetcher,
-    { refreshInterval: 30000 }
+    { refreshInterval: 60000 }
   );
 
   const feeItems: FeeItem[] = feesData?.data || [];
+  const pagination = feesData?.pagination || { page: 1, limit: PAGE_SIZE, total: 0, pages: 1 };
+  const summary = feesData?.summary || { total_amount: 0, total_paid: 0, total_balance: 0, overdue_count: 0 };
 
-  // Filter items based on search and status
-  const filteredItems = feeItems.filter(item => {
-    const matchesSearch = !searchQuery || 
-      item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.admission_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.item.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = !statusFilter || item.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  // Calculate summary stats
-  const totalAmount = filteredItems.reduce((sum, item) => sum + item.amount, 0);
-  const totalPaid = filteredItems.reduce((sum, item) => sum + item.paid, 0);
-  const totalBalance = filteredItems.reduce((sum, item) => sum + item.balance, 0);
-  const overdueCount = filteredItems.filter(item => item.status === 'overdue').length;
+  const totalAmount = useMemo(() => Number(summary.total_amount) || 0, [summary]);
+  const totalPaid = useMemo(() => Number(summary.total_paid) || 0, [summary]);
+  const totalBalance = useMemo(() => Number(summary.total_balance) || 0, [summary]);
+  const overdueCount = useMemo(() => Number(summary.overdue_count) || 0, [summary]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -126,7 +143,7 @@ const FeesPage: React.FC = () => {
               <NewBadge size="sm" animated />
             </div>
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredItems.length} fee items • {format(totalBalance)} outstanding
+              {pagination.total} fee items • {format(totalBalance)} outstanding
             </p>
           </div>
 
@@ -144,88 +161,53 @@ const FeesPage: React.FC = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg"
-          >
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Total Fees
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {format(totalAmount)}
-                </p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Fees</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{format(totalAmount)}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-white" />
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg"
-          >
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Paid
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {format(totalPaid)}
-                </p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Paid</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{format(totalPaid)}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
                 <CheckCircle className="w-6 h-6 text-white" />
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg"
-          >
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Outstanding
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {format(totalBalance)}
-                </p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Outstanding</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{format(totalBalance)}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
                 <Clock className="w-6 h-6 text-white" />
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg"
-          >
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Overdue
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {overdueCount}
-                </p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Overdue</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{overdueCount}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center">
                 <AlertCircle className="w-6 h-6 text-white" />
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -264,15 +246,15 @@ const FeesPage: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Search students..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                     className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All Status</option>
@@ -283,12 +265,22 @@ const FeesPage: React.FC = () => {
                     <option value="waived">Waived</option>
                   </select>
 
-                  <select className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500">
+                  <select
+                    value={classFilter}
+                    onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
+                    className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
                     <option value="">All Classes</option>
+                    {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
 
-                  <select className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500">
+                  <select
+                    value={termFilter}
+                    onChange={(e) => { setTermFilter(e.target.value); setPage(1); }}
+                    className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
                     <option value="">All Terms</option>
+                    {terms.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
 
                   <button onClick={clearFilters} className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
@@ -301,27 +293,13 @@ const FeesPage: React.FC = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-slate-700">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Student
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Fee Item
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Paid
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Balance
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Item</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -332,7 +310,7 @@ const FeesPage: React.FC = () => {
                             <p className="text-gray-500">Loading fee items...</p>
                           </td>
                         </tr>
-                      ) : filteredItems.length === 0 ? (
+                      ) : feeItems.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="px-6 py-12 text-center">
                             <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -340,41 +318,21 @@ const FeesPage: React.FC = () => {
                           </td>
                         </tr>
                       ) : (
-                        filteredItems.map((item, index) => (
-                          <motion.tr
-                            key={item.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                          >
+                        feeItems.map((item) => (
+                          <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
                             <td className="px-6 py-4">
                               <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {item.student_name}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {item.admission_no} • {item.class_name}
-                                </div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">{item.student_name}</div>
+                                <div className="text-xs text-gray-500">{item.admission_no} • {item.class_name}</div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm text-gray-900 dark:text-white">
-                                {item.item}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {item.term_name}
-                              </div>
+                              <div className="text-sm text-gray-900 dark:text-white">{item.item}</div>
+                              <div className="text-xs text-gray-500">{item.term_name}</div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                              {format(item.amount)}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                              {format(item.paid)}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                              {format(item.balance)}
-                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{format(item.amount)}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{format(item.paid)}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{format(item.balance)}</td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
                                 {getStatusIcon(item.status)}
@@ -391,12 +349,22 @@ const FeesPage: React.FC = () => {
                                 </button>
                               </div>
                             </td>
-                          </motion.tr>
+                          </tr>
                         ))
                       )}
                     </tbody>
                   </table>
                 </div>
+
+                {pagination.total > pagination.limit && (
+                  <Pagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={pagination.limit}
+                  />
+                )}
               </div>
             )}
 

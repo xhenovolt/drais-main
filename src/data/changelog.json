@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T19:20:07.519Z",
-  "last_commit": "e808ae4d36020fcbc9d79b00bc3c52cc77a4ef12",
+  "generated_at": "2026-07-29T19:27:11.129Z",
+  "last_commit": "3cc66426a77e0d14986322bc79a34397573444d9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5799,7 +5799,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.167.1",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "/finance/fees page freeze — unpaginated full-table fetch + per-row animation",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "/finance/fees page freeze — unpaginated full-table fetch + per-row animation"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.167.0"
+  "app_version": "1.167.1"
 }

@@ -21,11 +21,73 @@ export async function GET(req: NextRequest) {
     const classId = searchParams.get('class_id');
     const termId = searchParams.get('term_id');
     const studentId = searchParams.get('student_id');
+    const statusFilter = searchParams.get('status');
+    const search = searchParams.get('q');
+    // This route previously returned EVERY student_fee_items row for the
+    // whole school with no LIMIT — for any school with real history this
+    // is thousands of rows shipped + rendered at once, which is what was
+    // freezing the /finance/fees page (compounded by a per-row animation
+    // on the client — fixed there too). Paginated like every other list
+    // route in this codebase.
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+    const offset = (page - 1) * limit;
 
     connection = await getConnection();
 
-    let sql = `
-      SELECT 
+    const baseFrom = `
+      FROM student_fee_items sfi
+      JOIN students s ON sfi.student_id = s.id
+      JOIN people p ON s.person_id = p.id
+      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      LEFT JOIN classes c ON e.class_id = c.id
+      LEFT JOIN terms t ON sfi.term_id = t.id
+      WHERE s.school_id = ?
+    `;
+    const params: any[] = [schoolId];
+    let filters = '';
+
+    // Mirrors FinanceService.computeFeeItemStatus() exactly — the UI shows
+    // and filters by the COMPUTED status, not the raw stored sfi.status
+    // column (which isn't kept in sync on every payment), so filtering on
+    // the raw column would silently disagree with what the table displays.
+    const COMPUTED_STATUS_SQL = `(
+      CASE
+        WHEN sfi.waived >= sfi.amount THEN 'waived'
+        WHEN sfi.paid >= (sfi.amount - sfi.discount - sfi.waived) THEN 'paid'
+        WHEN sfi.paid > 0 AND sfi.paid < (sfi.amount - sfi.discount - sfi.waived) THEN 'partial'
+        WHEN sfi.due_date IS NOT NULL AND sfi.due_date < CURDATE() THEN 'overdue'
+        ELSE 'pending'
+      END
+    )`;
+
+    if (classId) { filters += ' AND c.id = ?'; params.push(parseInt(classId, 10)); }
+    if (termId) { filters += ' AND sfi.term_id = ?'; params.push(parseInt(termId, 10)); }
+    if (studentId) { filters += ' AND sfi.student_id = ?'; params.push(parseInt(studentId, 10)); }
+    if (statusFilter) { filters += ` AND ${COMPUTED_STATUS_SQL} = ?`; params.push(statusFilter); }
+    if (search) {
+      filters += ' AND (p.first_name LIKE ? OR p.last_name LIKE ? OR s.admission_no LIKE ? OR sfi.item LIKE ?)';
+      const like = `%${search}%`;
+      params.push(like, like, like, like);
+    }
+
+    const [countRows]: any = await connection.execute(`SELECT COUNT(*) AS total ${baseFrom}${filters}`, params);
+    const total = Number(countRows?.[0]?.total || 0);
+
+    // Aggregate stats over the FULL filtered set (not just this page) — one
+    // cheap SUM query rather than shipping every row to compute it client-side.
+    const [summaryRows]: any = await connection.execute(
+      `SELECT COALESCE(SUM(sfi.amount),0) AS total_amount,
+              COALESCE(SUM(sfi.paid),0) AS total_paid,
+              COALESCE(SUM(sfi.amount - sfi.discount - sfi.waived - sfi.paid),0) AS total_balance,
+              SUM(CASE WHEN ${COMPUTED_STATUS_SQL} = 'overdue' THEN 1 ELSE 0 END) AS overdue_count
+       ${baseFrom}${filters}`,
+      params,
+    );
+    const summary = summaryRows?.[0] || { total_amount: 0, total_paid: 0, total_balance: 0, overdue_count: 0 };
+
+    const sql = `
+      SELECT
         sfi.id,
         sfi.student_id,
         sfi.term_id,
@@ -42,33 +104,10 @@ export async function GET(req: NextRequest) {
         s.admission_no,
         c.name as class_name,
         t.name as term_name
-      FROM student_fee_items sfi
-      JOIN students s ON sfi.student_id = s.id
-      JOIN people p ON s.person_id = p.id
-      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
-      LEFT JOIN classes c ON e.class_id = c.id
-      LEFT JOIN terms t ON sfi.term_id = t.id
-      WHERE s.school_id = ?
+      ${baseFrom}${filters}
+      ORDER BY sfi.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
     `;
-
-    const params = [schoolId];
-
-    if (classId) {
-      sql += ' AND c.id = ?';
-      params.push(parseInt(classId, 10));
-    }
-
-    if (termId) {
-      sql += ' AND sfi.term_id = ?';
-      params.push(parseInt(termId, 10));
-    }
-
-    if (studentId) {
-      sql += ' AND sfi.student_id = ?';
-      params.push(parseInt(studentId, 10));
-    }
-
-    sql += ' ORDER BY sfi.created_at DESC';
 
     const [feeItems] = await connection.execute(sql, params);
 
@@ -77,7 +116,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: enhancedItems
+      data: enhancedItems,
+      pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
+      summary,
     });
 
   } catch (error: any) {
