@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T14:01:30.581Z",
-  "last_commit": "22a74def0532f6b0a35792424082e5b7fde4a9ad",
+  "generated_at": "2026-07-29T15:10:29.292Z",
+  "last_commit": "6fc009712e9024968108f3076e74e4bb1c77cd84",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5695,7 +5695,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.162.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Recompute-from-raw correction for devices with inconsistent same-day drift",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Recompute-from-raw correction for devices with inconsistent same-day drift"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.161.0"
+  "app_version": "1.162.0"
 }

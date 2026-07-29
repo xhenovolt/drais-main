@@ -420,6 +420,99 @@ export async function applyCorrection(
 }
 
 /**
+ * Recompute-from-raw correction — unlike applyCorrection (which ADDS a shift
+ * to whatever punch_at currently holds), this recomputes punch_at fresh from
+ * device_reported_time every time: punch_at = raw_digits − tz_offset −
+ * driftHours. It is therefore idempotent and immune to compounding, which
+ * matters when a device's drift was measured inconsistently across the day
+ * (confirmed live: the SAME device's batches this session measured skew of
+ * +6h in one ingest and a different value in another — applyCorrection's
+ * additive shift would stack on top of that mixed state and make the
+ * already-wrong subset worse, not better). Selects rows by `ingested_at`
+ * (server receipt time — always reliable) rather than the current, possibly
+ * wrong, `punch_at`, so every punch actually received today is included
+ * regardless of how badly its stored time already drifted.
+ */
+export async function previewRecomputeFromDeviceTime(
+  schoolId: number, deviceSn: string, date: string, driftHours: number,
+): Promise<{ affected: number; sample: CorrectionPreviewRow[] }> {
+  const policy = await resolveTimePolicy(schoolId);
+  const off = policy.offsetMinutes;
+  const utcStart = new Date(Date.parse(`${date}T00:00:00Z`) - off * 60_000);
+  const utcEnd = new Date(utcStart.getTime() + 86_400_000);
+  const rows = (await query(
+    `SELECT id, display_name, punch_at, device_reported_time FROM attendance_raw_events
+      WHERE school_id = ? AND device_sn = ? AND ingested_at >= ? AND ingested_at < ?
+        AND device_reported_time IS NOT NULL
+      ORDER BY device_reported_time ASC`,
+    [schoolId, deviceSn, utcStart, utcEnd],
+  )) as any[];
+  const fmtLocal = (ms: number) => new Date(ms + off * 60_000).toISOString().slice(11, 16);
+  const recompute = (r: any) => new Date(r.device_reported_time).getTime() - off * 60_000 - driftHours * 3_600_000;
+  return {
+    affected: rows.length,
+    sample: rows.slice(0, 12).map((r) => ({
+      id: Number(r.id), name: r.display_name ?? null,
+      before: fmtLocal(new Date(r.punch_at).getTime()), after: fmtLocal(recompute(r)),
+    })),
+  };
+}
+
+export async function applyRecomputeFromDeviceTime(
+  schoolId: number, deviceSn: string, date: string, driftHours: number,
+  userId?: number | null, source: 'assisted' | 'manual' = 'assisted',
+): Promise<{ correctionId: number; affected: number; reEvaluated: number }> {
+  await ensureTimeIntelligenceSchema();
+  const policy = await resolveTimePolicy(schoolId);
+  const off = policy.offsetMinutes;
+  const utcStart = new Date(Date.parse(`${date}T00:00:00Z`) - off * 60_000);
+  const utcEnd = new Date(utcStart.getTime() + 86_400_000);
+
+  const rows = (await query(
+    `SELECT id, person_id, role_type, punch_at, device_reported_time FROM attendance_raw_events
+      WHERE school_id = ? AND device_sn = ? AND ingested_at >= ? AND ingested_at < ?
+        AND device_reported_time IS NOT NULL`,
+    [schoolId, deviceSn, utcStart, utcEnd],
+  )) as any[];
+  if (!rows.length) return { correctionId: 0, affected: 0, reEvaluated: 0 };
+
+  const recompute = (r: any) => new Date(r.device_reported_time).getTime() - off * 60_000 - driftHours * 3_600_000;
+  const originals = rows.map((r) => ({ id: Number(r.id), punch_at: new Date(r.punch_at).toISOString() }));
+  // Representative shift — used ONLY so undo's re-evaluation step knows which
+  // second date-bucket to also re-check; the actual restore uses the
+  // `originals` snapshot above, never this number.
+  const repShiftMinutes = Math.round(
+    rows.reduce((sum, r) => sum + (recompute(r) - new Date(r.punch_at).getTime()) / 60_000, 0) / rows.length,
+  );
+
+  const ins = (await query(
+    `INSERT INTO attendance_time_corrections
+       (school_id, device_sn, local_date, shift_minutes, affected_rows, original_times, source, applied_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [schoolId, deviceSn, date, repShiftMinutes, rows.length, JSON.stringify(originals), source, userId ?? null],
+  )) as unknown as { insertId: number };
+
+  for (const r of rows) {
+    await query(
+      `UPDATE attendance_raw_events SET punch_at = ?, clock_skew_seconds = ? WHERE id = ? AND school_id = ?`,
+      [new Date(recompute(r)), driftHours * 3600, Number(r.id), schoolId],
+    );
+  }
+
+  const reEvaluated = await reevaluateAffected(schoolId, rows, repShiftMinutes, off);
+
+  await query(
+    `UPDATE device_clock_health SET corrected = 1, confidence = 90, status = 'trusted',
+            detail = CONCAT('Recomputed from raw device time, ', ?, 'h drift, by admin')
+      WHERE school_id = ? AND device_sn = ? AND local_date = ?`,
+    [driftHours, schoolId, deviceSn, date],
+  ).catch(() => {});
+  learnBaseline(schoolId, deviceSn).catch(() => {});
+
+  return { correctionId: Number(ins.insertId), affected: rows.length, reEvaluated };
+}
+
+/**
  * SELECTIVE correction — shift only specific punches (by raw-event id) rather
  * than the whole device batch. For when just some people's times are wrong
  * (e.g. an AM/PM mix-up on a subset), not the whole device. Snapshots originals

@@ -16,7 +16,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import {
   deviceHealthOverview, sweepToday, previewCorrection, applyCorrection, undoCorrection, learnBaseline, correctPunches,
-  listPunchesForDate, sampleDevicePunches,
+  listPunchesForDate, sampleDevicePunches, previewRecomputeFromDeviceTime, applyRecomputeFromDeviceTime,
 } from '@/lib/attendance/time-intelligence/engine';
 import { fmtMinute } from '@/lib/attendance/time-intelligence/confidence';
 
@@ -90,6 +90,26 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'device_sn, date and a sane shift_minutes are required' }, { status: 400 });
         }
         const res = await applyCorrection(session.schoolId, String(b.device_sn), String(b.date), shift, session.userId, 'assisted');
+        return NextResponse.json({ success: true, ...res });
+      }
+      case 'preview_recompute': {
+        // Recompute-from-raw: unlike 'preview' (which shifts whatever's
+        // currently stored), this recomputes fresh from device_reported_time
+        // — the safe option when the day's drift wasn't measured uniformly
+        // (see recomputeFromDeviceTime's doc in engine.ts).
+        const hours = Number(b.drift_hours);
+        if (!b.device_sn || !b.date || !Number.isFinite(hours) || hours === 0) {
+          return NextResponse.json({ error: 'device_sn, date and non-zero drift_hours are required' }, { status: 400 });
+        }
+        const res = await previewRecomputeFromDeviceTime(session.schoolId, String(b.device_sn), String(b.date), hours);
+        return NextResponse.json({ success: true, ...res });
+      }
+      case 'apply_recompute': {
+        const hours = Number(b.drift_hours);
+        if (!b.device_sn || !b.date || !Number.isFinite(hours) || hours === 0 || Math.abs(hours) > 24) {
+          return NextResponse.json({ error: 'device_sn, date and a sane drift_hours are required' }, { status: 400 });
+        }
+        const res = await applyRecomputeFromDeviceTime(session.schoolId, String(b.device_sn), String(b.date), hours, session.userId, 'assisted');
         return NextResponse.json({ success: true, ...res });
       }
       case 'undo': {
