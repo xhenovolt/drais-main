@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "1.165.0",
+  "version": "1.166.0",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -22,6 +22,7 @@
     "verify:divisions": "node scripts/db/verify-snapshot-divisions.mjs",
     "test:ingestion": "npx tsx --test src/lib/ingestion/__tests__/*.test.mjs",
     "test:attendance": "npx tsx --test src/lib/attendance/__tests__/*.test.mjs",
+    "test:notifications": "npx tsx --test src/lib/notifications/__tests__/*.test.mjs",
     "gate": "node scripts/phase-stability-gate.mjs",
     "zip": "node scripts/zip-project.mjs",
     "import:schema": "node scripts/import-schema.js",

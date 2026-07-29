@@ -233,15 +233,44 @@ async function resolveGuardian(studentPersonId: number): Promise<RecipientResolu
   return pr.map(r => ({ phone: r.phone ?? null, email: r.email ?? null, name: r.name ?? 'Guardian' }));
 }
 
+/** PURE: parse a comma/newline/semicolon-separated phone list, ignoring
+ *  blanks and duplicates — shared by both broadcast sources below. */
+export function parsePhoneList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(/[,;\n]/)) {
+    const phone = part.trim();
+    if (!phone || seen.has(phone)) continue;
+    seen.add(phone);
+    out.push(phone);
+  }
+  return out;
+}
+
 async function resolveSchoolBroadcast(
-  _schoolId: number,
-  _role: 'staff_room' | 'admin',
+  schoolId: number,
+  role: 'staff_room' | 'admin',
 ): Promise<RecipientResolution[]> {
-  // Broadcast recipient list is configured per school in
-  // school_settings (Phase 5.5). For v1 this returns empty — a policy
-  // configured with target_role='staff_room' simply produces no rows
-  // until that config layer ships.
-  return [];
+  // Per this file's own architecture comment: staff_room reads
+  // comm_settings.staff_room_phones, admin reads school_settings'
+  // 'admin_phones' key — both a simple operator-entered phone list, no
+  // per-person identity needed for a broadcast line.
+  let raw: string | null = null;
+  if (role === 'staff_room') {
+    const rows = (await query(
+      'SELECT staff_room_phones FROM comm_settings WHERE school_id = ? LIMIT 1',
+      [schoolId],
+    ).catch(() => [])) as Array<{ staff_room_phones: string | null }>;
+    raw = rows[0]?.staff_room_phones ?? null;
+  } else {
+    const rows = (await query(
+      "SELECT value_text FROM school_settings WHERE school_id = ? AND key_name = 'admin_phones' LIMIT 1",
+      [schoolId],
+    ).catch(() => [])) as Array<{ value_text: string | null }>;
+    raw = rows[0]?.value_text ?? null;
+  }
+  return parsePhoneList(raw).map((phone) => ({ phone, email: null, name: role === 'staff_room' ? 'Staff room' : 'Admin' }));
 }
 
 interface SubjectMeta { name: string; firstName: string; school: string; }

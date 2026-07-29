@@ -169,6 +169,8 @@ export default function NotificationPoliciesPage() {
         </button>
       </div>
 
+      <BroadcastRecipients />
+
       {creating && (
         <form
           onSubmit={submitNew}
@@ -367,5 +369,70 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
       <div className="mt-0.5">{children}</div>
     </label>
+  );
+}
+
+/**
+ * A 'staff_room' or 'admin' target_role policy above has always been
+ * creatable — it just silently produced zero recipients, with no error
+ * and no way to configure who that even means. This is the missing
+ * config surface for both.
+ */
+function BroadcastRecipients() {
+  const { data, mutate } = useSWR<{ staff_room_phones: string[]; admin_phones: string[] }>(
+    '/api/admin/notification-policies/broadcast-recipients', fetcher,
+  );
+  const [staffRoom, setStaffRoom] = useState('');
+  const [admin, setAdmin] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (data) { setStaffRoom(data.staff_room_phones.join(', ')); setAdmin(data.admin_phones.join(', ')); }
+  }, [data]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch('/api/admin/notification-policies/broadcast-recipients', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_room_phones: staffRoom, admin_phones: admin }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Save failed');
+      toast.success('Broadcast recipients saved');
+      await mutate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 text-left">
+        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
+          <MessageSquare className="w-4 h-4 text-indigo-500" /> Broadcast recipients (staff room / admin)
+        </span>
+        <span className="text-xs text-indigo-600 dark:text-indigo-400">{open ? 'Hide' : 'Configure'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            A policy targeting "staff_room" or "admin" sends here — comma-separated phone numbers, no per-person setup needed.
+          </p>
+          <Row>
+            <Field label="Staff room phone(s)">
+              <input className={inputCls} value={staffRoom} onChange={e => setStaffRoom(e.target.value)} placeholder="e.g. 0700111222, 0700333444" />
+            </Field>
+            <Field label="Admin phone(s)">
+              <input className={inputCls} value={admin} onChange={e => setAdmin(e.target.value)} placeholder="e.g. 0700555666" />
+            </Field>
+          </Row>
+          <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50">
+            <Save className="w-3.5 h-3.5" /> {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

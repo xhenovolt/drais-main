@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T18:24:30.096Z",
-  "last_commit": "5f260ebfbe40100756597617c0e1b781f3c1ef0e",
+  "generated_at": "2026-07-29T18:42:29.828Z",
+  "last_commit": "4f41445f02d2edf169421e129238e4d53474c33e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5773,7 +5773,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.166.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Staff_room/admin broadcast SMS recipients now configurable (was silently dead)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Staff_room/admin broadcast SMS recipients now configurable (was silently dead)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.165.0"
+  "app_version": "1.166.0"
 }
