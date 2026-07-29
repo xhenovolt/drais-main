@@ -16,7 +16,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import {
   deviceHealthOverview, sweepToday, previewCorrection, applyCorrection, undoCorrection, learnBaseline, correctPunches,
-  listPunchesForDate,
+  listPunchesForDate, sampleDevicePunches,
 } from '@/lib/attendance/time-intelligence/engine';
 import { fmtMinute } from '@/lib/attendance/time-intelligence/confidence';
 
@@ -33,6 +33,14 @@ export async function GET(req: NextRequest) {
       if (!deviceSn || !date) return NextResponse.json({ error: 'device_sn and date are required' }, { status: 400 });
       const punches = await listPunchesForDate(session.schoolId, deviceSn, date);
       return NextResponse.json({ success: true, punches });
+    }
+    if (params.get('sample')) {
+      const deviceSn = params.get('device_sn');
+      const date = params.get('date');
+      if (!deviceSn || !date) return NextResponse.json({ error: 'device_sn and date are required' }, { status: 400 });
+      const n = Math.min(25, Math.max(1, parseInt(params.get('n') || '10', 10) || 10));
+      const sample = await sampleDevicePunches(session.schoolId, deviceSn, date, n);
+      return NextResponse.json({ success: true, ...sample });
     }
     if (params.get('banner')) {
       const today = await sweepToday(session.schoolId);

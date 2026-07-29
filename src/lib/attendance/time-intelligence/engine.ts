@@ -281,6 +281,73 @@ export async function listPunchesForDate(
   });
 }
 
+export interface DeviceTimeSampleRow {
+  id: number;
+  name: string | null;
+  /** The device's own raw wall-clock reading at punch time, verbatim —
+   *  never re-offset, never corrected. What the device's screen actually
+   *  showed. */
+  device_time: string;
+  /** DRAIS's stored (possibly policy-corrected) instant, in school-local
+   *  wall-clock. What attendance actually reports today. */
+  drais_time: string;
+  /** device clock − real time, seconds (from ingest). null pre-dates the
+   *  clock-authority columns. */
+  skew_seconds: number | null;
+  time_source: string | null;
+}
+
+/**
+ * The first and last N punches of a device's local day, with the device's
+ * OWN raw reported time next to DRAIS's stored (corrected) time — so an
+ * operator can SEE the actual drift instead of inferring it only from an
+ * aggregate confidence score. Reported live: Time Health showed a verdict
+ * but never the underlying evidence, forcing corrections to be made
+ * "blindly from the UI".
+ *
+ * device_reported_time is stored as the device's raw wall-clock digits
+ * (see device-clock.ts's formatWallEpoch — a naive string, not a real UTC
+ * instant), so it's read back with the UTC getters verbatim; punch_at IS a
+ * real instant and is rendered in school-local wall-clock like every other
+ * time on this page.
+ */
+export async function sampleDevicePunches(
+  schoolId: number, deviceSn: string, date: string, n = 10,
+): Promise<{ first: DeviceTimeSampleRow[]; last: DeviceTimeSampleRow[]; total: number }> {
+  const policy = await resolveTimePolicy(schoolId);
+  const off = policy.offsetMinutes;
+  const utcStart = new Date(Date.parse(`${date}T00:00:00Z`) - off * 60_000);
+  const utcEnd = new Date(utcStart.getTime() + 86_400_000);
+  const rows = (await query(
+    `SELECT id, display_name, punch_at, device_reported_time, clock_skew_seconds, time_source
+       FROM attendance_raw_events
+      WHERE school_id = ? AND device_sn = ? AND punch_at >= ? AND punch_at < ?
+      ORDER BY punch_at ASC`,
+    [schoolId, deviceSn, utcStart, utcEnd],
+  )) as any[];
+
+  const fmtLocal = (d: Date) => new Date(d.getTime() + off * 60_000).toISOString().slice(11, 16);
+  const fmtDeviceRaw = (d: Date | string | null): string => {
+    if (!d) return '—';
+    const dd = d instanceof Date ? d : new Date(d);
+    if (!Number.isFinite(dd.getTime())) return '—';
+    return `${String(dd.getUTCHours()).padStart(2, '0')}:${String(dd.getUTCMinutes()).padStart(2, '0')}`;
+  };
+  const toRow = (r: any): DeviceTimeSampleRow => ({
+    id: Number(r.id), name: r.display_name ?? null,
+    device_time: fmtDeviceRaw(r.device_reported_time),
+    drais_time: fmtLocal(new Date(r.punch_at)),
+    skew_seconds: r.clock_skew_seconds != null ? Number(r.clock_skew_seconds) : null,
+    time_source: r.time_source ?? null,
+  });
+
+  return {
+    first: rows.slice(0, n).map(toRow),
+    last: rows.length > n ? rows.slice(-n).map(toRow) : [],
+    total: rows.length,
+  };
+}
+
 export async function previewCorrection(
   schoolId: number, deviceSn: string, date: string, shiftMinutes: number,
 ): Promise<{ affected: number; sample: CorrectionPreviewRow[] }> {

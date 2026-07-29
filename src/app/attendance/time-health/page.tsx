@@ -152,6 +152,12 @@ export default function TimeHealthPage() {
 
                 <p className="text-xs text-gray-500 mt-2">{causeLabel(d.likelyCause)}: {d.detail}</p>
 
+                {/* Evidence, not just a verdict — the actual device-reported
+                    time next to DRAIS's stored time for the first/last
+                    punches, so a correction is never made "blindly from the
+                    UI" off a confidence score alone. */}
+                <DeviceTimeEvidence deviceSn={d.device_sn} date={d.local_date} t={t} />
+
                 {/* Always-visible arrival-gap callout — computed straight from
                     "usual" vs "today", never from d.status/d.confidence. A
                     verdict can (rarely) mis-score a day; this cannot, since it
@@ -237,6 +243,64 @@ export default function TimeHealthPage() {
       </p>
 
       {fix && <CorrectionModal fix={fix} t={t} onClose={() => setFix(null)} onDone={() => { setFix(null); load(); }} />}
+    </div>
+  );
+}
+
+/* ── Device time vs DRAIS time — the raw evidence behind a verdict ────── */
+function DeviceTimeEvidence({ deviceSn, date, t }: { deviceSn: string; date: string; t: TFn }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sample, setSample] = useState<{ first: any[]; last: any[]; total: number } | null>(null);
+
+  const reveal = useCallback(async () => {
+    setOpen((o) => !o);
+    if (sample || !deviceSn || !date) return;
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/attendance/time-health?sample=1&device_sn=${encodeURIComponent(deviceSn)}&date=${encodeURIComponent(date)}`, { cache: 'no-store' });
+      const j = await r.json();
+      if (j.success) setSample({ first: j.first || [], last: j.last || [], total: j.total || 0 });
+    } finally { setLoading(false); }
+  }, [deviceSn, date, sample]);
+
+  const Table = ({ rows, label }: { rows: any[]; label: string }) => rows.length === 0 ? null : (
+    <div>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">{label}</p>
+      <div className="space-y-0.5">
+        {rows.map((r) => (
+          <div key={r.id} className="grid grid-cols-4 gap-2 text-[11px] items-center">
+            <span className="truncate text-gray-600 dark:text-gray-300">{r.name || '—'}</span>
+            <span className="font-mono text-gray-800 dark:text-gray-100" title="What the device itself reported">{r.device_time}</span>
+            <span className="font-mono text-gray-500" title="What DRAIS stored (may be policy-corrected)">{r.drais_time}</span>
+            <span className={`font-mono ${r.skew_seconds && Math.abs(r.skew_seconds) > 300 ? 'text-rose-500' : 'text-gray-400'}`}>
+              {r.skew_seconds != null ? `${r.skew_seconds > 0 ? '+' : ''}${Math.round(r.skew_seconds / 60)}m` : '—'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mt-2">
+      <button onClick={reveal} className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+        {open ? t('attendanceIntel.timeHealth.hideEvidence', 'Hide device vs DRAIS time') : t('attendanceIntel.timeHealth.showEvidence', 'Show device vs DRAIS time (first/last punches)')}
+      </button>
+      {open && sample && (
+        <div className="mt-2 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 space-y-2">
+          <div className="grid grid-cols-4 gap-2 text-[10px] font-semibold text-gray-400 uppercase">
+            <span>{t('attendanceIntel.timeHealth.person', 'Person')}</span>
+            <span>{t('attendanceIntel.timeHealth.deviceTime', 'Device time')}</span>
+            <span>{t('attendanceIntel.timeHealth.draisTime', 'DRAIS time')}</span>
+            <span>{t('attendanceIntel.timeHealth.skew', 'Skew')}</span>
+          </div>
+          <Table rows={sample.first} label={t('attendanceIntel.timeHealth.firstPunches', { n: sample.first.length }, 'First {{n}}')} />
+          <Table rows={sample.last} label={t('attendanceIntel.timeHealth.lastPunches', { n: sample.last.length }, 'Last {{n}}')} />
+          {sample.total === 0 && <p className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.noPunches', 'No device punches today yet.')}</p>}
+        </div>
+      )}
     </div>
   );
 }
