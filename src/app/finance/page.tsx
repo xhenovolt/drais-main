@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Wallet, CreditCard, Receipt, FileText, TrendingDown, Users, Percent, BarChart3, Loader } from 'lucide-react';
+import { Wallet, CreditCard, Receipt, FileText, TrendingDown, Users, Percent, Loader } from 'lucide-react';
 import { apiFetch } from '@/lib/apiClient';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
@@ -12,7 +12,10 @@ function useModules(t: (k: string) => string) {
     { href: '/finance/payments',      label: t('finance.payments'),        desc: t('finance.receipt'),       icon: Receipt,     accent: 'emerald' },
     { href: '/finance/fees',          label: t('finance.fees'),            desc: t('orgUnits.class'),        icon: CreditCard,  accent: 'sky' },
     { href: '/finance/wallets',       label: t('orgUnits.school'),         desc: t('finance.feesStatement'), icon: Wallet,      accent: 'amber' },
-    { href: '/finance/ledger',        label: t('finance.feesStatement'),   desc: t('common.archived'),       icon: BarChart3,   accent: 'slate' },
+    // '/finance/ledger' removed (Finance Consolidation Stage B) — it duplicated
+    // this exact nav slot under the identical label as ledger-v2 and was
+    // self-marked "archived" in its own description. Page file kept, just no
+    // longer advertised in the hub.
     { href: '/finance/waivers',       label: t('finance.discount'),        desc: t('finance.discount'),      icon: Percent,     accent: 'rose' },
     { href: '/finance/expenditures',  label: t('finance.expenses'),        desc: t('finance.expenses'),      icon: TrendingDown, accent: 'orange' },
   ];

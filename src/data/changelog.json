@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-28T20:13:12.407Z",
-  "last_commit": "0a967b635483092441d94b5c999ef2bc98bb9fd1",
+  "generated_at": "2026-07-29T03:13:23.014Z",
+  "last_commit": "468e7a83bc726f7e965a45958f510acca274e8d7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5578,7 +5578,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.156.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Stage B — fixed active undercounting bug in older parent fees route, backfilled fee_item_id, cleaned up duplicate nav entry",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Stage B — fixed active undercounting bug in older parent fees route, backfilled fee_item_id, cleaned up duplicate nav entry"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.155.0"
+  "app_version": "1.156.0"
 }
