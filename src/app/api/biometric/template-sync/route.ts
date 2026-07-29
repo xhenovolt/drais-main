@@ -69,7 +69,8 @@ export async function POST(req: NextRequest) {
   try {
     const res = await syncTemplatesToDevice({
       schoolId: session.schoolId, deviceSn: String(b.device_sn),
-      personId: b.person_id ? Number(b.person_id) : null, actorUserId: session.userId,
+      scope: b.person_id ? { type: 'selected', personIds: [Number(b.person_id)] } : { type: 'all' },
+      actorUserId: session.userId,
     });
     return NextResponse.json({ success: true, ...res });
   } catch (e: any) {

@@ -16,6 +16,7 @@ import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { apiFetch } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import DeviceReconciliationModal from '@/components/attendance/DeviceReconciliationModal';
+import PushTemplatesModal from '@/components/attendance/PushTemplatesModal';
 
 function formatTimeAgo(seconds: number): string {
   if (seconds <= 0) return 'just now';
@@ -318,6 +319,8 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [editing, setEditing] = useState(false);
   // Phase 3 — Reconciliation Center modal.
   const [showReconcile, setShowReconcile] = useState(false);
+  // Phase 5 — Push Templates (central biometric identity deployment).
+  const [showPushTemplates, setShowPushTemplates] = useState(false);
   // ── Automatic count polling ──────────────────────────────────────
   // Each machine's user count refreshes on its own while this page is
   // open: a fast count read (getInfo, ~2s) on mount and every 60s,
@@ -788,6 +791,22 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
             sn={device.serial_number}
             deviceName={device.device_name}
             onClose={() => { setShowReconcile(false); onMutate(); }}
+          />
+        )}
+
+        {/* Phase 5 — Push Templates: deploy stored fingerprint templates
+            to this device without re-enrollment (central biometric identity). */}
+        <button
+          onClick={() => setShowPushTemplates(true)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+        >
+          <Send className="w-4 h-4" /> Push Templates
+        </button>
+        {showPushTemplates && (
+          <PushTemplatesModal
+            sn={device.serial_number}
+            deviceName={device.device_name}
+            onClose={() => { setShowPushTemplates(false); onMutate(); }}
           />
         )}
 

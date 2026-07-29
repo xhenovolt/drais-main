@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T12:27:44.096Z",
-  "last_commit": "4d02abfa4ac324f61dde198e9dc4d8e6c69eca55",
+  "generated_at": "2026-07-29T13:20:10.461Z",
+  "last_commit": "3f3f2fe4dfbf204323ea551e09bfdde7090d00c9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5643,7 +5643,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.159.0",
+      "date": "2026-07-29",
+      "release_type": "minor",
+      "title": "Enterprise Push Templates — scoped bulk deployment of stored fingerprints to any device",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Enterprise Push Templates — scoped bulk deployment of stored fingerprints to any device"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.158.0"
+  "app_version": "1.159.0"
 }
