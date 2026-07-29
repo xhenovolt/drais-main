@@ -71,49 +71,42 @@ export async function GET(request: NextRequest) {
 
     const [students] = await connection.execute(studentsSql, studentsParams);
 
-    // Get per-student assigned fee items, with amount derived from the
-    // referenced fee_structures row (the canonical source).
-    //   student_fee_items   → assignment
-    //   fee_structures      → item definition + amount
-    //   fee_payments        → recorded payments (sum of amount per fee_item)
-    //   waivers_discounts   → approved waivers/discounts
+    // Get per-student assigned fee items. amount/discount/waived/paid are
+    // read DIRECTLY off student_fee_items — they are already the
+    // authoritative, live values (generateBills() writes amount/discount/
+    // waived at bill time; recordPayment's per-item allocation keeps paid
+    // in sync on every payment; repriceApprovedAdjustments keeps discount/
+    // waived in sync on every waiver approval/rejection). balance is a
+    // STORED GENERATED column (amount - discount - waived - paid) — never
+    // written by the app, always correct.
     //
-    // Historical note: an earlier MVP query referenced fs.total_amount and
-    // a fsi (fee_structure_items) table that never existed. We now
-    // compute expected from fs.amount and aggregate payments/waivers
-    // server-side per row.
+    // BUG FIXED: this previously joined sfi.fee_structure_id → the OLD V1
+    // fee_structures table to derive "amount", and separately summed the
+    // DEPRECATED fee_payments / retired waivers_discounts tables for
+    // paid/waived. But the canonical billing engine (generateBills(), Fee
+    // Rules) never populates fee_structure_id — every modern student_fee_
+    // items row has fee_item_id instead (confirmed live: 16,579 rows with
+    // fee_item_id set and real amounts, 0 rows with fee_structure_id set).
+    // So this query's join NEVER matched anything for any student billed
+    // the current way, and both amount and paid/waived silently computed
+    // to 0 — "0s" on the page despite real fees having been charged.
     let feeItemsSql = `
       SELECT
-        sfi.id                 AS fee_item_id,
+        sfi.id                  AS fee_item_id,
         sfi.student_id,
         sfi.term_id,
-        sfi.fee_structure_id,
-        sfi.status             AS fee_status,
+        sfi.fee_item_id         AS canonical_fee_item_id,
+        sfi.status              AS fee_status,
         sfi.due_date,
-        fs.item                AS item,
-        fs.amount              AS amount,
-        COALESCE(p.paid, 0)    AS paid,
-        COALESCE(p.discount, 0) AS discount,
-        COALESCE(w.waived, 0)  AS waived,
-        t.name                 AS term_name
+        sfi.item                AS item,
+        sfi.amount              AS amount,
+        sfi.paid                AS paid,
+        sfi.discount            AS discount,
+        sfi.waived              AS waived,
+        t.name                  AS term_name
       FROM student_fee_items sfi
       JOIN students s_inner    ON sfi.student_id     = s_inner.id
-      LEFT JOIN fee_structures fs ON sfi.fee_structure_id = fs.id
       LEFT JOIN terms t        ON sfi.term_id        = t.id
-      LEFT JOIN (
-        SELECT fee_item_id,
-               SUM(amount)            AS paid,
-               SUM(discount_applied)  AS discount
-          FROM fee_payments
-         WHERE payment_status = 'completed'
-         GROUP BY fee_item_id
-      ) p ON p.fee_item_id = sfi.id
-      LEFT JOIN (
-        SELECT fee_item_id, SUM(amount) AS waived
-          FROM waivers_discounts
-         WHERE status = 'approved'
-         GROUP BY fee_item_id
-      ) w ON w.fee_item_id = sfi.id
       WHERE s_inner.school_id = ?
     `;
 

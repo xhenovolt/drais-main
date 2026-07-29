@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T19:28:00.475Z",
-  "last_commit": "b150ebec30133b39a5a12f0269b55d56e1cc61a2",
+  "generated_at": "2026-07-29T19:36:06.894Z",
+  "last_commit": "72d4d19c7db8051c779a3c90315f6d1a165fff3f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5812,7 +5812,33 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.167.2",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "Restore CRLF line endings in finance/fees/page.tsx",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Restore CRLF line endings in finance/fees/page.tsx"
+        }
+      ],
+      "commit": "72d4d19c7d"
+    },
+    {
+      "version": "1.167.3",
+      "date": "2026-07-29",
+      "release_type": "patch",
+      "title": "Learners-fees showed 0 for every student billed via the modern engine — joined a dead V1 table",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Learners-fees showed 0 for every student billed via the modern engine — joined a dead V1 table"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.167.2"
+  "app_version": "1.167.3"
 }
