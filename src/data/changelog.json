@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T15:41:39.214Z",
-  "last_commit": "e3d3372695a62d6b0ede44d99f8ab3fa910b986e",
+  "generated_at": "2026-07-30T15:58:25.953Z",
+  "last_commit": "91bf389eb06a79c93ad307fb0d988a96f8e2d2d6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5877,7 +5877,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.169.2",
+      "date": "2026-07-30",
+      "release_type": "patch",
+      "title": "fix Vercel build OOM structurally: drop dead dashboard.bak routes, lazy-load recharts off the two hottest pages",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "fix Vercel build OOM structurally: drop dead dashboard.bak routes, lazy-load recharts off the two hottest pages"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.169.1"
+  "app_version": "1.169.2"
 }
