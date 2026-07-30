@@ -16,15 +16,19 @@ import {
   Fingerprint,
 } from 'lucide-react';
 import useSWR from 'swr';
+import dynamic from 'next/dynamic';
 import { fetcher } from '@/utils/fetcher';
 import Link from 'next/link';
 import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
-import AttendanceInsights from '@/components/dashboard/AttendanceInsights';
 import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
 import IntelligenceStrip from '@/components/attendance/IntelligenceStrip';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/components/i18n/I18nProvider';
+
+// Pulls in recharts (PieChart) — this is the main /dashboard route every
+// user hits on login, so keep the chart lib out of its server compile pass.
+const AttendanceInsights = dynamic(() => import('@/components/dashboard/AttendanceInsights'), { ssr: false });
 
 // ─── Signal type helpers ──────────────────────────────────────────────────
 const SIGNAL_STYLES: Record<string, { bg: string; border: string; text: string; icon: React.ReactNode }> = {
