@@ -73,7 +73,19 @@ export async function previewRuleLearners(schoolId: number, rule: FeeRule, sampl
 
 // ── Fee item CRUD ──
 export async function listFeeItems(schoolId: number) {
-  return query(`SELECT * FROM fee_items WHERE school_id = ? ORDER BY category, name`, [schoolId]) as Promise<any[]>;
+  // rule_count surfaces, right on the item list, the thing that was
+  // previously invisible without opening Fee Rules per item: a fee with
+  // ZERO rules applies to NOBODY (see listRules/evaluateBill) — silently
+  // inert, not "applies to everyone". An operator needs to see that at a
+  // glance, not discover it by noticing nobody got billed.
+  return query(
+    `SELECT fi.*,
+            (SELECT COUNT(*) FROM fee_eligibility_rules r WHERE r.fee_item_id = fi.id) AS rule_count
+       FROM fee_items fi
+      WHERE fi.school_id = ?
+      ORDER BY fi.category, fi.name`,
+    [schoolId],
+  ) as Promise<any[]>;
 }
 export async function createFeeItem(schoolId: number, b: any, userId?: number | null): Promise<number> {
   const res = (await query(
@@ -120,6 +132,31 @@ export async function createRule(schoolId: number, b: any, userId?: number | nul
   )) as unknown as { insertId: number };
   return res.insertId;
 }
+const RULE_COLUMNS = [
+  'name', 'applies_to', 'class_ids', 'level_min', 'level_max', 'gender', 'boarding',
+  'stream_id', 'program_id', 'is_candidate', 'is_new_entrant', 'term_id', 'academic_year_id',
+  'amount', 'priority', 'is_active', 'notes',
+] as const;
+
+/** Partial update — only columns present in `b` are touched, so a caller
+ *  can patch just e.g. { priority } without re-sending the whole rule. */
+export async function updateRule(schoolId: number, id: number, b: any): Promise<void> {
+  const sets: string[] = []; const params: any[] = [];
+  for (const c of RULE_COLUMNS) {
+    if (!(c in b)) continue;
+    sets.push(`${c} = ?`);
+    if (c === 'class_ids') params.push(b.class_ids ? JSON.stringify(b.class_ids) : null);
+    else if (c === 'is_candidate') params.push(b.is_candidate ? 1 : null);
+    else if (c === 'is_new_entrant') params.push(b.is_new_entrant == null ? null : (b.is_new_entrant ? 1 : 0));
+    else if (c === 'is_active') params.push(b.is_active === false ? 0 : 1);
+    else if (c === 'amount') params.push(b.amount != null && b.amount !== '' ? Number(b.amount) : null);
+    else params.push(b[c] === '' ? null : b[c]);
+  }
+  if (!sets.length) return;
+  params.push(id, schoolId);
+  await query(`UPDATE fee_eligibility_rules SET ${sets.join(', ')} WHERE id = ? AND school_id = ?`, params);
+}
+
 export async function deleteRule(schoolId: number, id: number): Promise<void> {
   await query(`DELETE FROM fee_eligibility_rules WHERE id = ? AND school_id = ?`, [id, schoolId]);
 }

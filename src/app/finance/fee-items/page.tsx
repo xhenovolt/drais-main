@@ -6,7 +6,7 @@
  * which learners each item applies to.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Tag, Plus, Loader2, Edit, Trash2, X } from 'lucide-react';
+import { Tag, Plus, Loader2, Edit, Trash2, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useCurrency } from '@/hooks/useCurrency';
 
@@ -67,10 +67,10 @@ export default function FeeItemsPage() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-500">
-            <tr><th className="px-4 py-2 text-left">Name</th><th className="px-4 py-2 text-left">Category</th><th className="px-4 py-2 text-right">Default</th><th className="px-4 py-2 text-left">Frequency</th><th className="px-4 py-2 text-left">Flags</th><th className="px-4 py-2"></th></tr>
+            <tr><th className="px-4 py-2 text-left">Name</th><th className="px-4 py-2 text-left">Category</th><th className="px-4 py-2 text-right">Default</th><th className="px-4 py-2 text-left">Frequency</th><th className="px-4 py-2 text-left">Flags</th><th className="px-4 py-2 text-left">Scope</th><th className="px-4 py-2"></th></tr>
           </thead>
           <tbody>
-            {items.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No fee items yet.</td></tr>}
+            {items.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No fee items yet.</td></tr>}
             {items.map((it) => (
               <tr key={it.id} className={`border-t border-gray-100 dark:border-gray-700/50 ${!it.is_active ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">{it.name}{it.code && <span className="ml-1 text-[11px] text-gray-400 font-mono">{it.code}</span>}</td>
@@ -78,6 +78,22 @@ export default function FeeItemsPage() {
                 <td className="px-4 py-2 text-right">{format(it.default_amount)}</td>
                 <td className="px-4 py-2 capitalize text-gray-500">{it.frequency}</td>
                 <td className="px-4 py-2 text-[11px] text-gray-500">{it.mandatory ? 'mandatory' : 'optional'}{!it.is_active ? ' · inactive' : ''}</td>
+                <td className="px-4 py-2">
+                  {/* Class/gender/boarding/term scope lives on Fee Rules, not
+                      here — but WHETHER it has any at all was previously
+                      invisible without opening that page per item. Zero
+                      rules means this fee is charged to nobody, not
+                      everyone (see evaluateBill/listRules). */}
+                  {Number(it.rule_count) > 0 ? (
+                    <a href={`/finance/fee-rules?item=${it.id}`} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100">
+                      <SlidersHorizontal className="w-3 h-3" /> {it.rule_count} rule{Number(it.rule_count) === 1 ? '' : 's'}
+                    </a>
+                  ) : (
+                    <a href={`/finance/fee-rules?item=${it.id}`} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100" title="No rules — this fee is not charged to anyone yet">
+                      <AlertTriangle className="w-3 h-3" /> No rules
+                    </a>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right whitespace-nowrap">
                   <button onClick={() => setModal({ ...it, mandatory: !!it.mandatory, optional: !!it.optional, is_active: !!it.is_active })} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
                   <button onClick={() => del(it)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>

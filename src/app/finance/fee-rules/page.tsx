@@ -6,7 +6,8 @@
  * affected learners before saving. Rules are ORed; conditions within a rule ANDed.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SlidersHorizontal, Plus, Loader2, Trash2, Users } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { SlidersHorizontal, Plus, Loader2, Trash2, Users, Edit, X, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useCurrency } from '@/hooks/useCurrency';
 
@@ -14,12 +15,14 @@ const emptyRule = { name: '', class_ids: [] as number[], gender: '', boarding: '
 
 export default function FeeRulesPage() {
   const { format } = useCurrency();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [terms, setTerms] = useState<any[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [rules, setRules] = useState<any[]>([]);
   const [draft, setDraft] = useState({ ...emptyRule });
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [preview, setPreview] = useState<{ count: number; learners: any[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,9 +37,15 @@ export default function FeeRulesPage() {
       setItems(i.items || []);
       setClasses(c.data || []);
       setTerms(t.data || []);
-      if ((i.items || []).length) setSelected(i.items[0].id);
+      // Deep link from Fee Items' "Scope" badge (?item=<id>) — otherwise
+      // default to the first item, as before.
+      const fromUrl = Number(searchParams.get('item'));
+      const items_: any[] = i.items || [];
+      if (fromUrl && items_.some((it) => it.id === fromUrl)) setSelected(fromUrl);
+      else if (items_.length) setSelected(items_[0].id);
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadRules = useCallback(async (itemId: number) => {
@@ -54,7 +63,7 @@ export default function FeeRulesPage() {
     boarding: draft.boarding || null,
     term_id: draft.term_id ? Number(draft.term_id) : null,
     amount: draft.amount === '' ? null : Number(draft.amount),
-    priority: draft.priority,
+    priority: Number(draft.priority) || 100,
   }), [draft, selected]);
 
   const runPreview = useCallback(async () => {
@@ -63,21 +72,38 @@ export default function FeeRulesPage() {
     finally { setBusy(false); }
   }, [draftPayload]);
 
+  const resetDraft = useCallback(() => { setDraft({ ...emptyRule }); setEditingId(null); setPreview(null); }, []);
+
   const saveRule = useCallback(async () => {
     setBusy(true);
     try {
-      const r = await fetch('/api/finance/fee-rules/rules', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draftPayload) });
+      const editing = editingId != null;
+      const r = await fetch(`/api/finance/fee-rules/rules${editing ? `/${editingId}` : ''}`, {
+        method: editing ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draftPayload),
+      });
       const j = await r.json();
       if (!r.ok) { toast.error(j.error || 'Failed'); return; }
-      toast.success('Rule added'); setDraft({ ...emptyRule }); setPreview(null); if (selected) loadRules(selected);
+      toast.success(editing ? 'Rule updated' : 'Rule added');
+      resetDraft(); if (selected) loadRules(selected);
     } finally { setBusy(false); }
-  }, [draftPayload, selected, loadRules]);
+  }, [draftPayload, editingId, selected, loadRules, resetDraft]);
+
+  const editRule = useCallback((r: any) => {
+    const classIds = r.class_ids ? JSON.parse(typeof r.class_ids === 'string' ? r.class_ids : JSON.stringify(r.class_ids)) : [];
+    setDraft({
+      name: r.name || '', class_ids: classIds || [], gender: r.gender || '', boarding: r.boarding || '',
+      term_id: r.term_id ? String(r.term_id) : '', amount: r.amount != null ? String(r.amount) : '', priority: r.priority ?? 100,
+    });
+    setEditingId(r.id);
+    setPreview(null);
+  }, []);
 
   const delRule = useCallback(async (id: number) => {
     if (!confirm('Delete this rule?')) return;
     await fetch(`/api/finance/fee-rules/rules/${id}`, { method: 'DELETE' });
+    if (editingId === id) resetDraft();
     if (selected) loadRules(selected);
-  }, [selected, loadRules]);
+  }, [selected, loadRules, editingId, resetDraft]);
 
   const toggleClass = (id: number) => setDraft((d) => ({ ...d, class_ids: d.class_ids.includes(id) ? d.class_ids.filter((x) => x !== id) : [...d.class_ids, id] }));
   const classNameOf = (id: number) => classes.find((c) => c.id === id)?.name || `#${id}`;
@@ -91,6 +117,7 @@ export default function FeeRulesPage() {
     r.gender ? `gender: ${r.gender}` : null,
     r.boarding ? r.boarding : null,
     r.term_id ? `term ${r.term_id}` : null,
+    `priority ${r.priority ?? 100}`,
   ].filter(Boolean).join(' · ') || 'all learners';
 
   return (
@@ -102,7 +129,7 @@ export default function FeeRulesPage() {
 
       <div className="flex flex-wrap gap-2">
         {items.map((i) => (
-          <button key={i.id} onClick={() => { setSelected(i.id); setPreview(null); setDraft({ ...emptyRule }); }} className={`px-3 py-1.5 rounded-full text-sm font-medium border ${selected === i.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600'}`}>{i.name}</button>
+          <button key={i.id} onClick={() => { setSelected(i.id); resetDraft(); }} className={`px-3 py-1.5 rounded-full text-sm font-medium border ${selected === i.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600'}`}>{i.name}</button>
         ))}
       </div>
 
@@ -112,9 +139,12 @@ export default function FeeRulesPage() {
         {rules.length === 0 ? <p className="text-xs text-gray-400">No rules — this fee applies to nobody yet. Add one below.</p> : (
           <ul className="divide-y divide-gray-100 dark:divide-gray-700/50">
             {rules.map((r) => (
-              <li key={r.id} className="py-2 flex items-center justify-between text-sm">
+              <li key={r.id} className={`py-2 flex items-center justify-between text-sm ${editingId === r.id ? 'bg-indigo-50 dark:bg-indigo-900/10 -mx-4 px-4' : ''}`}>
                 <span className="text-gray-700 dark:text-gray-300">{r.name || 'Rule'} <span className="text-xs text-gray-400">— {describe(r)}{r.amount != null ? ` · ${format(r.amount)}` : ''}</span></span>
-                <button onClick={() => delRule(r.id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                <span className="flex items-center gap-1">
+                  <button onClick={() => editRule(r)} className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded" title="Edit this rule"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => delRule(r.id)} className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded" title="Delete this rule"><Trash2 className="w-4 h-4" /></button>
+                </span>
               </li>
             ))}
           </ul>
@@ -123,7 +153,10 @@ export default function FeeRulesPage() {
 
       {/* Rule builder */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Add a rule</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{editingId != null ? 'Edit rule' : 'Add a rule'}</h2>
+          {editingId != null && <button onClick={resetDraft} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /> Cancel edit</button>}
+        </div>
         <input placeholder="Label (e.g. P1–P3 tuition)" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
         <div>
           <p className="text-xs text-gray-500 mb-1">Classes (leave empty for any)</p>
@@ -139,9 +172,18 @@ export default function FeeRulesPage() {
           <select value={draft.term_id} onChange={(e) => setDraft({ ...draft, term_id: e.target.value })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"><option value="">Any term</option>{terms.map((t) => <option key={t.id} value={t.id}>{t.name || `Term ${t.id}`}</option>)}</select>
           <input type="number" placeholder={`Amount (def ${item?.default_amount ?? 0})`} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
         </div>
+        <div>
+          <label className="flex items-center gap-2 text-xs text-gray-500">
+            Priority
+            <input type="number" value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: Number(e.target.value) || 100 })} className="w-24 px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+            <span>lower runs first — when two rules both match a learner, the lowest priority number wins.</span>
+          </label>
+        </div>
         <div className="flex items-center gap-2">
           <button onClick={runPreview} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm font-medium disabled:opacity-50"><Users className="w-4 h-4" /> Preview affected learners</button>
-          <button onClick={saveRule} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"><Plus className="w-4 h-4" /> Add rule</button>
+          <button onClick={saveRule} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            {editingId != null ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {editingId != null ? 'Save changes' : 'Add rule'}
+          </button>
         </div>
         {preview && (
           <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 p-3 text-sm">

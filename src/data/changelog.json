@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T19:36:06.894Z",
-  "last_commit": "72d4d19c7db8051c779a3c90315f6d1a165fff3f",
+  "generated_at": "2026-07-30T03:06:15.503Z",
+  "last_commit": "84e0360391d71a8b5376c91b0dd5f410de332278",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5838,7 +5838,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.168.0",
+      "date": "2026-07-30",
+      "release_type": "minor",
+      "title": "Fee Items shows rule scope at a glance; Fee Rules supports editing existing rules + priority",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Fee Items shows rule scope at a glance; Fee Rules supports editing existing rules + priority"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.167.3"
+  "app_version": "1.168.0"
 }
