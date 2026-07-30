@@ -1,5 +1,8 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// jspdf (~29MB unpacked incl. autotable) is dynamically imported inside the
+// two generate* functions below instead of statically here — this file is
+// pulled into finance/dashboard and the parent portal, neither of which
+// needs a PDF library in their server/static compile pass.
+import type { jsPDF as JsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 
 // Extend jsPDF type to include autoTable
@@ -122,7 +125,8 @@ export async function generateQRCode(data: string): Promise<string> {
 /**
  * Generate professional A4 receipt with QR code
  */
-export async function generateProfessionalReceipt(data: ReceiptData): Promise<jsPDF> {
+export async function generateProfessionalReceipt(data: ReceiptData): Promise<JsPDF> {
+  const [{ jsPDF }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
   const doc = new jsPDF();
   const { schoolInfo, payment, student, items, footer } = data;
   
@@ -295,7 +299,8 @@ export async function generateProfessionalReceipt(data: ReceiptData): Promise<js
 /**
  * Generate professional A4 invoice
  */
-export async function generateProfessionalInvoice(data: ReceiptData): Promise<jsPDF> {
+export async function generateProfessionalInvoice(data: ReceiptData): Promise<JsPDF> {
+  const [{ jsPDF }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
   const doc = new jsPDF();
   const { schoolInfo, payment, student, items, balance } = data;
   

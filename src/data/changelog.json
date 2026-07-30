@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T15:59:01.135Z",
-  "last_commit": "757ef276f0ddb869397013b85923c4df9699503b",
+  "generated_at": "2026-07-30T16:13:32.603Z",
+  "last_commit": "595c72e901b1988c5daf6625441918e7018a3381",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5890,7 +5890,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.169.3",
+      "date": "2026-07-30",
+      "release_type": "patch",
+      "title": "Lazy-load recharts out of the two hottest dashboard pages",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Lazy-load recharts out of the two hottest dashboard pages"
+        }
+      ],
+      "commit": "595c72e901"
     }
   ],
-  "app_version": "1.169.3"
+  "app_version": "1.169.4"
 }
