@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T15:16:25.169Z",
-  "last_commit": "df79fbcd8dd970d02598a893ccd3d49e348b5b86",
+  "generated_at": "2026-07-30T15:41:39.214Z",
+  "last_commit": "e3d3372695a62d6b0ede44d99f8ab3fa910b986e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5864,7 +5864,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.169.1",
+      "date": "2026-07-30",
+      "release_type": "patch",
+      "title": "show actual fee-item scope (class names etc) inline instead of a bare rule-count badge",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "show actual fee-item scope (class names etc) inline instead of a bare rule-count badge"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.169.0"
+  "app_version": "1.169.1"
 }

@@ -78,14 +78,35 @@ export async function listFeeItems(schoolId: number) {
   // ZERO rules applies to NOBODY (see listRules/evaluateBill) — silently
   // inert, not "applies to everyone". An operator needs to see that at a
   // glance, not discover it by noticing nobody got billed.
-  return query(
+  //
+  // Also attach the raw rules themselves (class_ids/gender/boarding/etc) so
+  // the Fee Items list can show the ACTUAL scope (e.g. "P3–P6 · Day") inline
+  // instead of forcing a trip to Fee Rules just to see who a fee applies to.
+  // Per-school rule count is small (a handful per item), so one extra batched
+  // query here is cheap next to the item list itself.
+  const items = (await query(
     `SELECT fi.*,
             (SELECT COUNT(*) FROM fee_eligibility_rules r WHERE r.fee_item_id = fi.id) AS rule_count
        FROM fee_items fi
       WHERE fi.school_id = ?
       ORDER BY fi.category, fi.name`,
     [schoolId],
-  ) as Promise<any[]>;
+  )) as any[];
+  if (!items.length) return items;
+
+  const rules = (await query(
+    `SELECT id, fee_item_id, name, class_ids, level_min, level_max, gender, boarding, term_id, amount, priority, is_active
+       FROM fee_eligibility_rules WHERE school_id = ? ORDER BY priority, id`,
+    [schoolId],
+  )) as any[];
+  const rulesByItem = new Map<number, any[]>();
+  for (const r of rules) {
+    const a = rulesByItem.get(r.fee_item_id) || [];
+    a.push(r);
+    rulesByItem.set(r.fee_item_id, a);
+  }
+  for (const it of items) it.rules = rulesByItem.get(it.id) || [];
+  return items;
 }
 export async function createFeeItem(schoolId: number, b: any, userId?: number | null): Promise<number> {
   const res = (await query(

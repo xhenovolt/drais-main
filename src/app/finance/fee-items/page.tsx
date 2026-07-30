@@ -17,6 +17,7 @@ const blank = { name: '', code: '', category: 'tuition', default_amount: 0, freq
 export default function FeeItemsPage() {
   const { format } = useCurrency();
   const [items, setItems] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<any | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,10 +25,41 @@ export default function FeeItemsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch('/api/finance/fee-rules/items', { cache: 'no-store' }); const j = await r.json(); setItems(j.items || []); }
-    finally { setLoading(false); }
+    try {
+      const [r, c] = await Promise.all([
+        fetch('/api/finance/fee-rules/items', { cache: 'no-store' }),
+        fetch('/api/classes', { cache: 'no-store' }).catch(() => null),
+      ]);
+      const j = await r.json();
+      setItems(j.items || []);
+      if (c) { const cj = await c.json().catch(() => ({})); setClasses(cj.data || []); }
+    } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const classNameOf = (id: number) => classes.find((c) => c.id === id)?.name || `#${id}`;
+
+  // Same "how does this rule read" logic as Fee Rules' describe() — a fee
+  // item can have several ORed rules, so this is a per-rule one-liner, not a
+  // single scalar. Kept here (not imported) since it's tiny and Fee Rules'
+  // version also needs `terms` for its own text, which the item list has no
+  // use for.
+  const describeRule = (r: any) => {
+    const classIds = r.class_ids ? (typeof r.class_ids === 'string' ? JSON.parse(r.class_ids) : r.class_ids) : [];
+    return [
+      classIds?.length ? classIds.map(classNameOf).join(', ') : null,
+      r.level_min != null || r.level_max != null ? `level ${r.level_min ?? ''}–${r.level_max ?? ''}` : null,
+      r.gender || null,
+      r.boarding || null,
+    ].filter(Boolean).join(' · ') || 'all learners';
+  };
+
+  const scopeSummary = (it: any) => {
+    const rules = (it.rules || []).filter((r: any) => Number(r.is_active) !== 0);
+    if (!rules.length) return null;
+    if (rules.length === 1) return describeRule(rules[0]);
+    return rules.map(describeRule).join('; ');
+  };
 
   const save = useCallback(async () => {
     setError(null);
@@ -78,15 +110,18 @@ export default function FeeItemsPage() {
                 <td className="px-4 py-2 text-right">{format(it.default_amount)}</td>
                 <td className="px-4 py-2 capitalize text-gray-500">{it.frequency}</td>
                 <td className="px-4 py-2 text-[11px] text-gray-500">{it.mandatory ? 'mandatory' : 'optional'}{!it.is_active ? ' · inactive' : ''}</td>
-                <td className="px-4 py-2">
-                  {/* Class/gender/boarding/term scope lives on Fee Rules, not
-                      here — but WHETHER it has any at all was previously
-                      invisible without opening that page per item. Zero
-                      rules means this fee is charged to nobody, not
-                      everyone (see evaluateBill/listRules). */}
+                <td className="px-4 py-2 max-w-[220px]">
+                  {/* Rules (class/gender/boarding/level/term) are edited on
+                      Fee Rules, but the ACTUAL scope is resolved and shown
+                      right here now — not just a count you have to click
+                      through to decode. Zero rules means this fee is
+                      charged to nobody, not everyone (see evaluateBill). */}
                   {Number(it.rule_count) > 0 ? (
-                    <a href={`/finance/fee-rules?item=${it.id}`} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100">
-                      <SlidersHorizontal className="w-3 h-3" /> {it.rule_count} rule{Number(it.rule_count) === 1 ? '' : 's'}
+                    <a href={`/finance/fee-rules?item=${it.id}`} className="block group" title="Edit scope in Fee Rules">
+                      <span className="text-xs text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{scopeSummary(it)}</span>
+                      <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400">
+                        <SlidersHorizontal className="w-3 h-3" /> {it.rule_count} rule{Number(it.rule_count) === 1 ? '' : 's'}
+                      </span>
                     </a>
                   ) : (
                     <a href={`/finance/fee-rules?item=${it.id}`} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100" title="No rules — this fee is not charged to anyone yet">
@@ -122,6 +157,29 @@ export default function FeeItemsPage() {
               <label className="flex items-center gap-1"><input type="checkbox" checked={modal.optional} onChange={(e) => setModal({ ...modal, optional: e.target.checked, mandatory: e.target.checked ? false : modal.mandatory })} /> Optional</label>
               <label className="flex items-center gap-1"><input type="checkbox" checked={modal.is_active} onChange={(e) => setModal({ ...modal, is_active: e.target.checked })} /> Active</label>
             </div>
+
+            {/* Who this fee is charged to (class/gender/boarding/level/term)
+                is defined by rules, edited on Fee Rules — but it needs to be
+                visible from right here, not just discoverable by clicking
+                away and losing this form's context. */}
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Who pays this fee (scope)</p>
+              {modal.id ? (
+                Number(modal.rule_count) > 0 ? (
+                  <p className="text-xs text-gray-700 dark:text-gray-300">{scopeSummary(modal)}</p>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> No rules yet — this fee is charged to nobody.</p>
+                )
+              ) : (
+                <p className="text-xs text-gray-400">Save this item first, then set who it applies to on Fee Rules.</p>
+              )}
+              {modal.id && (
+                <a href={`/finance/fee-rules?item=${modal.id}`} className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+                  <SlidersHorizontal className="w-3.5 h-3.5" /> {Number(modal.rule_count) > 0 ? 'Edit scope' : 'Add scope'} on Fee Rules →
+                </a>
+              )}
+            </div>
+
             {error && <p className="text-xs text-red-600">{error}</p>}
             <div className="flex justify-end gap-2 pt-1"><button onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500">Cancel</button><button onClick={save} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save</button></div>
           </div>
