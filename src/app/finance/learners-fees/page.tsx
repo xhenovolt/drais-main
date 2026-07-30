@@ -69,12 +69,19 @@ const LearnersFeesPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const rowsPerPage = 20;
 
-  // Fetch learners fees data
-  const { data, isLoading, mutate, error } = useSWR<{ data: LearnerFees[], meta: Meta }>(
-    `/api/finance/learners-fees?${classFilter ? `class_id=${classFilter}` : ''}${sectionFilter ? `&section_id=${sectionFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${termFilter ? `&term_id=${termFilter}` : ''}${yearFilter ? `&year=${yearFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`,
+  // This route used to compute and ship every student's fee summary for the
+  // whole school on every 60s poll — same shape of bug that froze
+  // /finance/fees. `status` is computed server-side from aggregated fee
+  // items, so it's classified across the full set there, but only one page
+  // is ever sent to the browser.
+  const filterQuery = `${classFilter ? `&class_id=${classFilter}` : ''}${sectionFilter ? `&section_id=${sectionFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}${termFilter ? `&term_id=${termFilter}` : ''}${yearFilter ? `&year=${yearFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`;
+  const { data, isLoading, mutate, error } = useSWR<{ data: LearnerFees[], meta: Meta, pagination: { page: number; limit: number; total: number; pages: number } }>(
+    `/api/finance/learners-fees?page=${page}&limit=${rowsPerPage}${filterQuery}`,
     swrFetcher,
     { refreshInterval: 60000 }
   );
+
+  React.useEffect(() => { setPage(1); }, [classFilter, sectionFilter, statusFilter, termFilter, yearFilter, searchQuery]);
 
   // Fetch classes for filter
   const { data: classesData } = useSWR('/api/classes', swrFetcher);
@@ -88,25 +95,25 @@ const LearnersFeesPage: React.FC = () => {
   const { data: termsData } = useSWR('/api/terms', swrFetcher);
   const terms = (termsData as any)?.data || [];
 
-  // Filter and paginate learners
-  const learners = data?.data || [];
+  // Server now paginates and returns the meta/pagination alongside the page.
+  const paginatedLearners = data?.data || [];
   const meta = data?.meta;
-
-  const totalPages = Math.ceil((learners.length || 0) / rowsPerPage);
-  const paginatedLearners = learners.slice(
-    (page - 1) * rowsPerPage,
-    page * rowsPerPage
-  );
+  const totalPages = data?.pagination?.pages || 1;
 
   const handleViewDetails = (learner: LearnerFees) => {
     setSelectedLearner(learner);
     setShowDetailsModal(true);
   };
 
-  const handleExport = () => {
-    // Create CSV export
+  const handleExport = async () => {
+    // Export needs the full filtered set, not just the current page — pull
+    // it as a single bounded request instead of relying on paginated state.
+    const res = await fetch(`/api/finance/learners-fees?page=1&limit=5000${filterQuery}`);
+    const json = await res.json();
+    const allLearners: LearnerFees[] = json?.data || [];
+
     const headers = ['Admission No', 'Name', 'Class', 'Expected', 'Paid', 'Balance', 'Status'];
-    const rows = learners.map(l => [
+    const rows = allLearners.map(l => [
       l.admission_no,
       l.full_name,
       l.class_name,
@@ -115,7 +122,7 @@ const LearnersFeesPage: React.FC = () => {
       l.balance.toString(),
       l.status
     ]);
-    
+
     const csvContent = [
       headers.join(','),
       ...rows.map(row => row.join(','))
@@ -423,7 +430,7 @@ const LearnersFeesPage: React.FC = () => {
                 </button>
               </div>
             </div>
-          ) : learners.length === 0 ? (
+          ) : paginatedLearners.length === 0 ? (
             <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -473,7 +480,7 @@ const LearnersFeesPage: React.FC = () => {
                         key={learner.student_id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.03 }}
+                        transition={{ delay: Math.min(index, 20) * 0.03 }}
                         className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                       >
                         <td className="px-6 py-4">
@@ -549,7 +556,7 @@ const LearnersFeesPage: React.FC = () => {
                     currentPage={page}
                     totalPages={totalPages}
                     onPageChange={setPage}
-                    totalItems={learners.length}
+                    totalItems={data?.pagination?.total ?? paginatedLearners.length}
                     itemsPerPage={rowsPerPage}
                   />
                 </div>

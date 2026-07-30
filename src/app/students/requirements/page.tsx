@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Filter, CheckSquare, Plus, Settings, Eye, School } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,20 +8,39 @@ import { fetcher } from '@/utils/fetcher';
 import { toast } from 'react-hot-toast';
 import AddRequirementModal from '@/components/students/AddRequirementModal';
 import ClassRequirementsManager from '@/components/students/ClassRequirementsManager';
+import Pagination from '@/components/ui/Pagination';
 
 const RequirementsPage: React.FC = () => {
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [termFilter, setTermFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showClassManager, setShowClassManager] = useState(false);
 
-  // Fetch requirements data
+  // Debounce free-text search instead of re-filtering thousands of rows
+  // client-side on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+  useEffect(() => { setPage(1); }, [termFilter, classFilter, statusFilter]);
+
+  // This route previously fetched EVERY requirement row for EVERY student in
+  // the school (no LIMIT), on a 30s poll, filtered client-side — the same
+  // shape of bug that froze /finance/fees. class_id was already being SENT
+  // by the filter dropdown below but silently ignored server-side (never
+  // filtered anything) — fixed alongside adding pagination + server search.
   const { data: requirementsData, isLoading, mutate } = useSWR(
-    `/api/students/requirements?school_id=${schoolId}${termFilter ? `&term_id=${termFilter}` : ''}${classFilter ? `&class_id=${classFilter}` : ''}`,
+    `/api/students/requirements?school_id=${schoolId}&page=${page}&limit=50` +
+    (termFilter ? `&term_id=${termFilter}` : '') +
+    (classFilter ? `&class_id=${classFilter}` : '') +
+    (statusFilter ? `&status=${statusFilter}` : '') +
+    (debouncedSearch ? `&q=${encodeURIComponent(debouncedSearch)}` : ''),
     fetcher,
     { refreshInterval: 30000 }
   );
@@ -36,26 +55,11 @@ const RequirementsPage: React.FC = () => {
     fetcher
   );
 
-  const requirements = requirementsData?.data || [];
+  const filteredRequirements = requirementsData?.data || [];
+  const pagination = requirementsData?.pagination;
   const terms = termsData?.data || [];
   const classes = classesData?.data || [];
   const classRequirements = classRequirementsData?.data || [];
-
-  // Debounced search function
-  const filteredRequirements = useMemo(() => {
-    return requirements.filter((req: any) => {
-      const fullName = `${req.first_name} ${req.last_name}`.toLowerCase();
-      const matchesSearch = !searchQuery || 
-        fullName.includes(searchQuery.toLowerCase()) ||
-        req.requirement_name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = !statusFilter || 
-        (statusFilter === 'brought' && req.brought) ||
-        (statusFilter === 'not_brought' && !req.brought);
-      
-      return matchesSearch && matchesStatus;
-    });
-  }, [requirements, searchQuery, statusFilter]);
 
   const handleStatusUpdate = async (requirementId: number, brought: boolean) => {
     try {
@@ -89,7 +93,7 @@ const RequirementsPage: React.FC = () => {
               📋 Student Requirements
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredRequirements.length} requirement records • {classRequirements.length} class requirements
+              {pagination?.total ?? filteredRequirements.length} requirement records • {classRequirements.length} class requirements
             </p>
           </div>
           <div className="flex gap-3">
@@ -191,7 +195,7 @@ const RequirementsPage: React.FC = () => {
                   key={req.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: Math.min(index, 20) * 0.05 }}
                   className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -284,7 +288,7 @@ const RequirementsPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        transition={{ delay: index * 0.05 }}
+                        transition={{ delay: Math.min(index, 20) * 0.05 }}
                         className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                       >
                         <td className="px-6 py-4">
@@ -353,6 +357,16 @@ const RequirementsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {pagination && pagination.pages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            onPageChange={setPage}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+          />
+        )}
       </div>
 
       {/* Modals */}

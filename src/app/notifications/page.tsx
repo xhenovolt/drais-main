@@ -189,7 +189,7 @@ const NotificationsPage: React.FC = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: index * 0.02 }}
+                    transition={{ delay: Math.min(index, 20) * 0.02 }}
                     className={`bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border-2 ${
                       !notification.is_read 
                         ? 'border-blue-200 dark:border-blue-800' 

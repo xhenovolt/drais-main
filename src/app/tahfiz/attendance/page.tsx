@@ -208,7 +208,7 @@ export default function TahfizAttendance() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20 }}
-                      transition={{ delay: index * 0.1 }}
+                      transition={{ delay: Math.min(index, 20) * 0.1 }}
                       className="border-b border-slate-100 hover:bg-muted/50 transition-colors"
                     >
                       <td className="p-4">

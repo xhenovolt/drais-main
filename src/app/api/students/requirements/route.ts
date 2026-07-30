@@ -17,11 +17,49 @@ export async function GET(req: NextRequest) {
     // school_id derived from session below
     const termId = searchParams.get('term_id');
     const studentId = searchParams.get('student_id');
+    // class_id was already being SENT by the page's filter dropdown but
+    // silently ignored here — never actually filtered anything.
+    const classId = searchParams.get('class_id');
+    const status = searchParams.get('status'); // 'brought' | 'not_brought'
+    const search = searchParams.get('q');
+    // No LIMIT at all previously — every requirement row for every student
+    // in the school, on a 30s poll, filtered client-side. Same shape of bug
+    // that froze /finance/fees. Paginated + filters moved server-side.
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+    const offset = (page - 1) * limit;
 
     connection = await getConnection();
 
-    let sql = `
-      SELECT 
+    const baseFrom = `
+      FROM student_requirements sr
+      JOIN students s ON sr.student_id = s.id
+      JOIN people p ON s.person_id = p.id
+      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      LEFT JOIN classes c ON e.class_id = c.id
+      LEFT JOIN terms t ON sr.term_id = t.id
+      LEFT JOIN requirements_master rm ON sr.requirement_id = rm.id
+      WHERE s.school_id = ?
+    `;
+    const params: any[] = [schoolId];
+    let filters = '';
+
+    if (termId) { filters += ' AND sr.term_id = ?'; params.push(parseInt(termId, 10)); }
+    if (studentId) { filters += ' AND sr.student_id = ?'; params.push(parseInt(studentId, 10)); }
+    if (classId) { filters += ' AND c.id = ?'; params.push(parseInt(classId, 10)); }
+    if (status === 'brought') filters += ' AND sr.brought = 1';
+    else if (status === 'not_brought') filters += ' AND (sr.brought = 0 OR sr.brought IS NULL)';
+    if (search) {
+      filters += ' AND (p.first_name LIKE ? OR p.last_name LIKE ? OR rm.name LIKE ?)';
+      const like = `%${search}%`;
+      params.push(like, like, like);
+    }
+
+    const [countRows]: any = await connection.execute(`SELECT COUNT(*) AS total ${baseFrom}${filters}`, params);
+    const total = Number(countRows?.[0]?.total || 0);
+
+    const sql = `
+      SELECT
         sr.id,
         sr.student_id,
         sr.term_id,
@@ -35,35 +73,17 @@ export async function GET(req: NextRequest) {
         t.name as term_name,
         rm.name as requirement_name,
         rm.description as requirement_description
-      FROM student_requirements sr
-      JOIN students s ON sr.student_id = s.id
-      JOIN people p ON s.person_id = p.id
-      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
-      LEFT JOIN classes c ON e.class_id = c.id
-      LEFT JOIN terms t ON sr.term_id = t.id
-      LEFT JOIN requirements_master rm ON sr.requirement_id = rm.id
-      WHERE s.school_id = ?
+      ${baseFrom}${filters}
+      ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC, t.name
+      LIMIT ${limit} OFFSET ${offset}
     `;
-
-    const params = [schoolId];
-
-    if (termId) {
-      sql += ' AND sr.term_id = ?';
-      params.push(parseInt(termId, 10));
-    }
-
-    if (studentId) {
-      sql += ' AND sr.student_id = ?';
-      params.push(parseInt(studentId, 10));
-    }
-
-    sql += ' ORDER BY COALESCE(p.last_name, \'\') ASC, COALESCE(p.first_name, \'\') ASC, t.name';
 
     const [rows] = await connection.execute(sql, params);
 
     return NextResponse.json({
       success: true,
-      data: rows
+      data: rows,
+      pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
     });
 
   } catch (error: any) {

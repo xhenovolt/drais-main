@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
 import { fetcher } from "@/utils/fetcher";
 import { useRouter, useSearchParams } from "next/navigation";
+import Pagination from "@/components/ui/Pagination";
 
 const AcademicHistoryPage: React.FC = () => {
   const router = useRouter();
@@ -16,15 +17,35 @@ const AcademicHistoryPage: React.FC = () => {
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [page, setPage] = useState(1);
 
   // Use URL student ID if provided, otherwise use selected student
   const effectiveStudentId = studentIdFromUrl || selectedStudent;
 
-  // Fetch academic history data
+  // Debounce free-text search instead of re-filtering every row client-side
+  // on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+  useEffect(() => { setPage(1); }, [viewMode, effectiveStudentId]);
+
+  // Without a student selected, this previously fetched EVERY class_results
+  // row for EVERY student in the whole school (every subject × every term ×
+  // every student — no LIMIT at all), on a 30s poll, then grouped client-
+  // side into cards. Same shape of bug that froze /finance/fees, at a much
+  // larger scale. Fixed: "browse all" now asks the server for a compact,
+  // paginated per-student SUMMARY (grid) or a paginated slice of individual
+  // result rows (list) — never a whole-school dump. Selecting one student
+  // still fetches their full detail (already scoped, already safe).
+  const historyQuery = effectiveStudentId
+    ? `student_id=${effectiveStudentId}`
+    : `view=${viewMode}&page=${page}&limit=${viewMode === "list" ? 50 : 24}${debouncedSearch ? `&q=${encodeURIComponent(debouncedSearch)}` : ""}`;
   const { data: historyData, isLoading } = useSWR(
-    `/api/students/history?school_id=${schoolId}${effectiveStudentId ? `&student_id=${effectiveStudentId}` : ""}`,
+    `/api/students/history?school_id=${schoolId}&${historyQuery}`,
     fetcher,
     { refreshInterval: 30000 }
   );
@@ -33,30 +54,33 @@ const AcademicHistoryPage: React.FC = () => {
   const { data: studentsData } = useSWR(`/api/students/full?school_id=${schoolId}`, fetcher);
 
   const academicResults = historyData?.data?.academic_results || [];
+  const studentSummaries = historyData?.data?.student_summaries || [];
   const studentHistory = historyData?.data?.student_history || [];
   const students = studentsData?.data || [];
+  const pagination = historyData?.pagination;
 
-  // Group results by student
-  const groupedResults = academicResults.reduce((acc: any, result: any) => {
-    const key = result.student_id;
-    if (!acc[key]) {
-      acc[key] = {
-        student: {
-          id: result.student_id,
-          name: `${result.first_name} ${result.last_name}`,
-          admission_no: result.admission_no,
-        },
-        results: [],
-      };
-    }
-    acc[key].results.push(result);
-    return acc;
-  }, {});
-
-  // Filter based on search
-  const filteredResults = Object.values(groupedResults).filter((group: any) => {
-    return !searchQuery || group.student.name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  // When a specific student IS selected, academic_results is that one
+  // student's full detail — group it into a single "card" so the existing
+  // per-student detail rendering below keeps working unchanged.
+  const filteredResults = effectiveStudentId
+    ? Object.values(
+        academicResults.reduce((acc: any, result: any) => {
+          const key = result.student_id;
+          if (!acc[key]) {
+            acc[key] = {
+              student: { id: result.student_id, name: `${result.first_name} ${result.last_name}`, admission_no: result.admission_no },
+              results: [],
+            };
+          }
+          acc[key].results.push(result);
+          return acc;
+        }, {}),
+      )
+    : studentSummaries.map((sum: any) => ({
+        student: { id: sum.student_id, name: `${sum.first_name} ${sum.last_name}`, admission_no: sum.admission_no },
+        result_count: Number(sum.result_count) || 0,
+        average_score: sum.average_score != null ? Number(sum.average_score) : 0,
+      }));
 
   const calculateAverage = (results: any[]) => {
     if (results.length === 0) return 0;
@@ -87,7 +111,7 @@ const AcademicHistoryPage: React.FC = () => {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               📚 Academic History
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">{filteredResults.length} student records</p>
+            <p className="text-gray-600 dark:text-gray-400">{pagination?.total ?? filteredResults.length} student records</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -167,7 +191,7 @@ const AcademicHistoryPage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: Math.min(index, 20) * 0.05 }}
                   className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   {/* Student Header */}
@@ -184,41 +208,45 @@ const AcademicHistoryPage: React.FC = () => {
                   {/* Performance Summary */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{group.results.length}</div>
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{group.results ? group.results.length : group.result_count}</div>
                       <div className="text-xs text-blue-600 dark:text-blue-400">Results</div>
                     </div>
                     <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {calculateAverage(group.results)}%
+                        {group.results ? calculateAverage(group.results) : group.average_score}%
                       </div>
                       <div className="text-xs text-green-600 dark:text-green-400">Average</div>
                     </div>
                   </div>
 
-                  {/* Recent Results */}
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm">Recent Results:</h4>
-                    {group.results.slice(0, 3).map((result: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700 rounded-lg"
-                      >
-                        <div>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {result.subject_name}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                            {result.term_name}
+                  {/* Recent Results — only available once a specific student
+                      is selected (full detail); the "browse all students"
+                      summary intentionally doesn't carry individual rows. */}
+                  {group.results && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm">Recent Results:</h4>
+                      {group.results.slice(0, 3).map((result: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700 rounded-lg"
+                        >
+                          <div>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {result.subject_name}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                              {result.term_name}
+                            </span>
+                          </div>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getGradeColor(result.score || 0)}`}
+                          >
+                            {result.score || 0}%
                           </span>
                         </div>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getGradeColor(result.score || 0)}`}
-                        >
-                          {result.score || 0}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* View Details Button */}
                   <button
@@ -266,7 +294,7 @@ const AcademicHistoryPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        transition={{ delay: index * 0.02 }}
+                        transition={{ delay: Math.min(index, 20) * 0.02 }}
                         className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                       >
                         <td className="px-6 py-4">
@@ -332,6 +360,16 @@ const AcademicHistoryPage: React.FC = () => {
               )}
             </div>
           </div>
+        )}
+
+        {!effectiveStudentId && pagination && pagination.pages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            onPageChange={setPage}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+          />
         )}
       </div>
     </div>

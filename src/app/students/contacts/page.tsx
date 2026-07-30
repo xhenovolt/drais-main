@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Plus, Phone, Mail, User, Users, Heart, Edit2, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,35 +7,36 @@ import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import AddContactModal from '@/components/students/AddContactModal';
 import ContactsListModal from '@/components/students/ContactsListModal';
+import Pagination from '@/components/ui/Pagination';
 
 const ContactsPage: React.FC = () => {
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showContactsList, setShowContactsList] = useState(false);
 
-  // Fetch contacts data
+  // Debounce free-text search instead of re-filtering thousands of rows
+  // client-side on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // This route previously fetched EVERY contact for EVERY student in the
+  // school (no LIMIT), on a 30s poll, filtered client-side — the same shape
+  // of bug that froze /finance/fees. Paginated + search moved server-side.
   const { data: contactsData, isLoading, mutate } = useSWR(
-    `/api/students/contacts?school_id=${schoolId}`,
+    `/api/students/contacts?school_id=${schoolId}&page=${page}&limit=50${debouncedSearch ? `&q=${encodeURIComponent(debouncedSearch)}` : ''}`,
     fetcher,
     { refreshInterval: 30000 }
   );
 
-  const contacts = contactsData?.data || [];
-
-  // Filter contacts based on search
-  const filteredContacts = contacts.filter((contact: any) => {
-    const studentName = `${contact.student_first_name} ${contact.student_last_name}`.toLowerCase();
-    const contactName = `${contact.contact_first_name} ${contact.contact_last_name}`.toLowerCase();
-    const searchTerm = searchQuery.toLowerCase();
-    
-    return !searchQuery || 
-      studentName.includes(searchTerm) ||
-      contactName.includes(searchTerm) ||
-      contact.relationship?.toLowerCase().includes(searchTerm);
-  });
+  const filteredContacts = contactsData?.data || [];
+  const pagination = contactsData?.pagination;
 
   const getRelationshipIcon = (relationship: string) => {
     switch (relationship?.toLowerCase()) {
@@ -60,7 +61,7 @@ const ContactsPage: React.FC = () => {
               📞 Student Contacts
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredContacts.length} contact records
+              {pagination?.total ?? filteredContacts.length} contact records
             </p>
           </div>
           <button
@@ -101,7 +102,7 @@ const ContactsPage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: Math.min(index, 20) * 0.05 }}
                   className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
                   onClick={() => {
                     setSelectedStudent({
@@ -231,6 +232,16 @@ const ContactsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {pagination && pagination.pages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            onPageChange={setPage}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+          />
+        )}
       </div>
 
       {/* Add Contact Modal */}

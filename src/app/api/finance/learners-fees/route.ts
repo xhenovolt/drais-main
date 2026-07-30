@@ -24,6 +24,17 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    // Status is computed per-student from aggregated fee items, so it can't
+    // be pushed into the SQL WHERE clause — the full filtered/classified
+    // set is still built server-side (cheap: raw rows, not DOM), but only a
+    // page of it is ever sent to the browser. This route used to ship every
+    // student's computed fee summary in one response on every load — same
+    // shape of bug that froze /finance/fees.
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    // Capped high enough to cover a full-school CSV export (largest schools
+    // observed run ~1,245 students) in one request, while still bounding
+    // the response for pathological inputs.
+    const limit = Math.min(5000, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
 
     connection = await getConnection();
 
@@ -232,7 +243,8 @@ export async function GET(request: NextRequest) {
       };
     }).filter(Boolean);
 
-    // Calculate summary meta
+    // Calculate summary meta over the FULL filtered set (school-wide totals),
+    // before slicing to a page for the response body.
     const meta = {
       total_learners: learnersWithFees.length,
       total_expected: learnersWithFees.reduce((sum, l: any) => sum + (l.total_expected || 0), 0),
@@ -244,10 +256,15 @@ export async function GET(request: NextRequest) {
       undefined_count: learnersWithFees.filter((l: any) => l.status === 'Undefined').length,
     };
 
+    const total = learnersWithFees.length;
+    const offset = (page - 1) * limit;
+    const pageData = learnersWithFees.slice(offset, offset + limit);
+
     return NextResponse.json({
       success: true,
-      data: learnersWithFees,
-      meta
+      data: pageData,
+      meta,
+      pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
     });
 
   } catch (error: any) {

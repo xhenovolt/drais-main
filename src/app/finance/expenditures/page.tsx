@@ -169,7 +169,7 @@ export default function ExpendituresPage() {
               ) : entries.length === 0 ? (
                 <tr><td colSpan={7} className="px-6 py-12 text-center"><DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" /><p className="text-gray-500">No expenditures found</p></td></tr>
               ) : entries.map((item, index) => (
-                <motion.tr key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.02 }} className="hover:bg-gray-50 dark:hover:bg-slate-700">
+                <motion.tr key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 20) * 0.02 }} className="hover:bg-gray-50 dark:hover:bg-slate-700">
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{item.expense_date}</td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{item.category_name}</td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{item.description}</td>

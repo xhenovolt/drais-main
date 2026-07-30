@@ -49,7 +49,7 @@ export default function TahfizOverview() {
               key={stat.label}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              transition={{ delay: Math.min(index, 20) * 0.1 }}
               className="glass-surface rounded-2xl p-6 shadow-lg"
             >
               <div className="flex items-center justify-between">
@@ -74,7 +74,7 @@ export default function TahfizOverview() {
                 key={action.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: Math.min(index, 20) * 0.1 }}
               >
                 <Link href={action.href}>
                   <div className="glass-surface rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer">

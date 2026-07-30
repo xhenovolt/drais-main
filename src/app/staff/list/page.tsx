@@ -11,6 +11,7 @@ import AddStaffModal from '@/components/staff/AddStaffModal';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 import StaffBiometricModal from '@/components/staff/StaffBiometricModal';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import Pagination from '@/components/ui/Pagination';
 
 const StaffListPage: React.FC = () => {
   const { t } = useI18n();
@@ -19,6 +20,7 @@ const StaffListPage: React.FC = () => {
   const [debouncedQuery, setDebouncedQuery] = useState(''); // used for filtering
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [page, setPage] = useState(1);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -30,9 +32,17 @@ const StaffListPage: React.FC = () => {
   const [deviceIdValue, setDeviceIdValue] = useState('');
   const [isUpdatingDeviceId, setIsUpdatingDeviceId] = useState(false);
 
-  // Fetch staff data using the corrected API endpoint
+  // Fetch staff data using the corrected API endpoint. This route had no
+  // LIMIT at all — every staff member for the school, in one response on
+  // every 30s poll — same shape of bug that froze /finance/fees. Search,
+  // status and department filters now run server-side; the response is
+  // paginated.
+  const staffQuery = new URLSearchParams({ page: String(page), limit: '50' });
+  if (debouncedQuery) staffQuery.set('search', debouncedQuery);
+  if (statusFilter) staffQuery.set('status', statusFilter);
+  if (departmentFilter) staffQuery.set('department_id', departmentFilter);
   const { data: staffData, isLoading, error: staffError, mutate } = useSWR(
-    `/api/staff/full`,
+    `/api/staff/full?${staffQuery.toString()}`,
     { refreshInterval: 30000 }
   );
 
@@ -42,6 +52,7 @@ const StaffListPage: React.FC = () => {
   );
 
   const allStaff = staffData?.data || [];
+  const pagination = staffData?.pagination;
   const departments = departmentsData?.data || [];
 
   // Debounce the search box so a large roster isn't re-filtered on every keystroke.
@@ -50,20 +61,17 @@ const StaffListPage: React.FC = () => {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Filter + RELEVANCE-RANK on the client side. When searching, the best matches
-  // (exact → name starts-with → word starts-with → contains) rise to the TOP,
-  // instead of the match staying buried at its default (alphabetical) position.
+  // Reset to page 1 whenever a filter changes.
+  useEffect(() => { setPage(1); }, [debouncedQuery, statusFilter, departmentFilter]);
+
+  // RELEVANCE-RANK the current (already server-filtered) page. When
+  // searching, the best matches (exact → name starts-with → word starts-with
+  // → contains) rise to the TOP, instead of staying at their default
+  // (alphabetical) position.
   const staff = useMemo(() => {
     const q = debouncedQuery;
     const nameOf = (m: any) => `${m.first_name} ${m.last_name} ${m.other_name || ''}`.replace(/\s+/g, ' ').trim().toLowerCase();
-    const filtered = allStaff.filter((member: any) => {
-      const fullName = nameOf(member);
-      const matchesSearch = !q || fullName.includes(q) || (member.staff_no && String(member.staff_no).toLowerCase().includes(q));
-      const matchesStatus = !statusFilter || member.status === statusFilter;
-      const matchesDepartment = !departmentFilter || member.department_id === parseInt(departmentFilter);
-      return matchesSearch && matchesStatus && matchesDepartment;
-    });
-    if (!q) return filtered;
+    if (!q) return allStaff;
     const rank = (m: any) => {
       const name = nameOf(m);
       const no = String(m.staff_no || '').toLowerCase();
@@ -72,8 +80,8 @@ const StaffListPage: React.FC = () => {
       if (name.split(' ').some((w: string) => w.startsWith(q))) return 2;     // any word starts with
       return 3;                                                               // contains
     };
-    return [...filtered].sort((a, b) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b)));
-  }, [allStaff, debouncedQuery, statusFilter, departmentFilter]);
+    return [...allStaff].sort((a: any, b: any) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b)));
+  }, [allStaff, debouncedQuery]);
 
   const handleViewDetails = (staffMember: any) => {
     router.push(`/staff/${staffMember.id}`);
@@ -211,9 +219,7 @@ const StaffListPage: React.FC = () => {
               👥 {t('nav.staff.list')}
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {debouncedQuery || statusFilter || departmentFilter
-                ? `${staff.length} of ${allStaff.length} ${t('people.staff')}`
-                : `${staff.length} ${t('people.staff')}`}
+              {pagination?.total ?? staff.length} {t('people.staff')}
             </p>
           </div>
           <button
@@ -353,7 +359,7 @@ const StaffListPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        transition={{ delay: index * 0.05 }}
+                        transition={{ delay: Math.min(index, 20) * 0.05 }}
                         className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                         onClick={() => handleViewDetails(member)}
                       >
@@ -519,6 +525,16 @@ const StaffListPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {pagination && pagination.pages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            onPageChange={setPage}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+          />
+        )}
       </div>
 
       {/* Add Staff Modal */}

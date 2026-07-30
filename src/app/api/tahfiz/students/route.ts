@@ -19,6 +19,13 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const group = searchParams.get('group');
     const search = searchParams.get('search');
+    // This route had filters but NO limit at all — every tahfiz student in
+    // the school, with several aggregated subquery joins per row, fetched
+    // in one response on every load. Same shape of bug that froze
+    // /finance/fees. Paginated like every other list route in this sweep.
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+    const offset = (page - 1) * limit;
 
     connection = await getConnection();
 
@@ -148,14 +155,20 @@ export async function GET(req: NextRequest) {
       params.push(`%${search}%`, `%${search}%`);
     }
 
+    // Count against the exact same filtered query (wrapped, so the complex
+    // FROM/JOIN/WHERE above doesn't need duplicating).
+    const [countRows]: any = await connection.execute(`SELECT COUNT(*) AS total FROM (${sql}) x`, params);
+    const total = Number(countRows?.[0]?.total || 0);
+
     // IMPORTANT: Sort alphabetically by full name
-    sql += ' ORDER BY p.first_name ASC, p.last_name ASC, p.other_name ASC';
+    sql += ` ORDER BY p.first_name ASC, p.last_name ASC, p.other_name ASC LIMIT ${limit} OFFSET ${offset}`;
 
     const [students] = await connection.execute(sql, params);
 
     return NextResponse.json({
       success: true,
-      data: students
+      data: students,
+      pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
     });
 
   } catch (error: any) {

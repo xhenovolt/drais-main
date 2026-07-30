@@ -325,7 +325,7 @@ const PaymentsPage: React.FC = () => {
                       key={payment.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                      transition={{ delay: Math.min(index, 20) * 0.05 }}
                       className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                     >
                       <td className="px-6 py-4">

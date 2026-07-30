@@ -277,7 +277,7 @@ export default function TahfizGroups() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: Math.min(index, 20) * 0.1 }}
                 className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
               >
                 <div className="flex items-start justify-between mb-4">
@@ -372,7 +372,7 @@ export default function TahfizGroups() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${group.progress || 0}%` }}
-                      transition={{ delay: index * 0.1 + 0.3, duration: 0.8 }}
+                      transition={{ delay: Math.min(index, 20) * 0.1 + 0.3, duration: 0.8 }}
                       className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full"
                     />
                   </div>

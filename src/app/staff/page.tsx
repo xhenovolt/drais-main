@@ -104,7 +104,7 @@ const StaffOverviewPage: React.FC = () => {
               key={card.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              transition={{ delay: Math.min(index, 20) * 0.1 }}
               className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <div className="flex items-center justify-between">

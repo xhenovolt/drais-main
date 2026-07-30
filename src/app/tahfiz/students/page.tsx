@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Plus, Search, Filter, Eye, Edit, UserPlus, 
@@ -11,6 +11,7 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { StudentWizard } from '@/components/students/StudentWizard';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import Pagination from '@/components/ui/Pagination';
 
 interface TahfizStudent {
   name: string;
@@ -48,34 +49,45 @@ function TahfizStudentsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
+  const [page, setPage] = useState(1);
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? 0;
-  
+
   // Add state for StudentWizard modal
   const [showStudentWizard, setShowStudentWizard] = useState(false);
-  
+
   const { showToast } = useToast();
 
-  // Fetch Tahfiz students
-  const { data: students = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['tahfiz-students', schoolId, filterStatus, filterGroup, searchTerm],
+  // Fetch Tahfiz students. This route had filters but NO limit at all —
+  // every tahfiz student in the school, with several aggregated subquery
+  // joins per row, in one response. Same shape of bug that froze
+  // /finance/fees. Paginated server-side now; reset to page 1 on any
+  // filter change.
+  const { data: pageData, isLoading, error, refetch } = useQuery({
+    queryKey: ['tahfiz-students', schoolId, filterStatus, filterGroup, searchTerm, page],
     queryFn: async () => {
       const params = new URLSearchParams({
         school_id: schoolId.toString(),
+        page: String(page),
+        limit: '50',
         ...(filterStatus !== 'all' && { status: filterStatus }),
         ...(filterGroup !== 'all' && { group: filterGroup }),
         ...(searchTerm && { search: searchTerm })
       });
-      
+
       const response = await fetch(`/api/tahfiz/students?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch Tahfiz students');
       }
       const data = await response.json();
-      return data.data as TahfizStudent[];
+      return { items: data.data as TahfizStudent[], pagination: data.pagination };
     },
     refetchInterval: 300000, // Refetch every 5 minutes
   });
+  const students = pageData?.items ?? [];
+  const pagination = pageData?.pagination;
+
+  useEffect(() => { setPage(1); }, [filterStatus, filterGroup, searchTerm]);
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -87,14 +99,10 @@ function TahfizStudentsContent() {
     return `px-3 py-1 rounded-full text-xs font-medium border ${styles[status as keyof typeof styles] || styles.active}`;
   };
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.admission_no.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
-    const matchesGroup = filterGroup === 'all' || student.group_name === filterGroup || 
-                        (filterGroup === 'no_group' && !student.group_name);
-    return matchesSearch && matchesStatus && matchesGroup;
-  });
+  // Search/status/group are already applied server-side (and the response
+  // is now paginated), so re-filtering here would silently only search
+  // within the current page. `students` is already the right set to render.
+  const filteredStudents = students;
 
   // Get unique groups for filter
   const availableGroups = Array.from(new Set(students.map(s => s.group_name).filter(Boolean)));
@@ -137,13 +145,14 @@ function TahfizStudentsContent() {
             <h1 className="text-3xl font-bold text-foreground">{`${t('tahfiz.tahfiz')} — ${t('people.students')}`}</h1>
             <p className="text-muted-foreground mt-1">Manage students enrolled in Tahfiz programs</p>
             
-            {/* Summary Stats */}
+            {/* Summary Stats: Total is the school-wide count; the rest are
+                per-page now that this list is paginated. */}
             {students.length > 0 && (
               <div className="flex items-center gap-4 mt-3 text-sm">
-                <span className="text-muted-foreground">Total: <span className="font-semibold">{students.length}</span></span>
-                <span className="text-emerald-600">Active: <span className="font-semibold">{students.filter(s => s.status === 'active').length}</span></span>
-                <span className="text-blue-600">With Groups: <span className="font-semibold">{students.filter(s => s.group_name).length}</span></span>
-                <span className="text-purple-600">Completed Portions: <span className="font-semibold">{students.reduce((sum, s) => sum + s.completed_portions, 0)}</span></span>
+                <span className="text-muted-foreground">Total: <span className="font-semibold">{pagination?.total ?? students.length}</span></span>
+                <span className="text-emerald-600">Active (this page): <span className="font-semibold">{students.filter(s => s.status === 'active').length}</span></span>
+                <span className="text-blue-600">With Groups (this page): <span className="font-semibold">{students.filter(s => s.group_name).length}</span></span>
+                <span className="text-purple-600">Completed Portions (this page): <span className="font-semibold">{students.reduce((sum, s) => sum + s.completed_portions, 0)}</span></span>
               </div>
             )}
           </div>
@@ -212,7 +221,7 @@ function TahfizStudentsContent() {
             {/* Results Count */}
             <div className="flex items-center justify-center bg-muted rounded-xl px-4 py-3">
               <span className="text-sm text-muted-foreground">
-                Showing {filteredStudents.length} of {students.length}
+                Showing {filteredStudents.length} of {pagination?.total ?? students.length}
               </span>
             </div>
           </div>
@@ -260,7 +269,7 @@ function TahfizStudentsContent() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: Math.min(index, 20) * 0.05 }}
                 className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
               >
                 <div className="flex items-start justify-between mb-4">
@@ -327,7 +336,7 @@ function TahfizStudentsContent() {
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${getCompletionPercentage(student.completed_verses, student.total_verses)}%` }}
-                        transition={{ delay: index * 0.05 + 0.3, duration: 0.8 }}
+                        transition={{ delay: Math.min(index, 20) * 0.05 + 0.3, duration: 0.8 }}
                         className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full"
                       />
                     </div>
@@ -372,6 +381,16 @@ function TahfizStudentsContent() {
             ))}
           </AnimatePresence>
         </div>
+
+        {pagination && pagination.pages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            onPageChange={setPage}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+          />
+        )}
 
         {/* Loading State */}
         {isLoading && (

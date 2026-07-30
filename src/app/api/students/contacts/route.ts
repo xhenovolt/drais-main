@@ -16,11 +16,43 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
     const studentId = searchParams.get('student_id');
+    const search = searchParams.get('q');
+    // This route previously fetched EVERY contact for EVERY student in the
+    // school with no LIMIT, on a 30s poll, filtered client-side — the same
+    // shape of bug that froze /finance/fees (thousands of rows shipped +
+    // held in memory + re-filtered on every keystroke). Paginated + search
+    // moved server-side, same pattern as that fix.
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+    const offset = (page - 1) * limit;
 
     connection = await getConnection();
 
-    let sql = `
-      SELECT 
+    const baseFrom = `
+      FROM student_contacts sc
+      JOIN contacts c ON sc.contact_id = c.id
+      JOIN people cp ON c.person_id = cp.id
+      JOIN students s ON sc.student_id = s.id
+      JOIN people sp ON s.person_id = sp.id
+      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      LEFT JOIN classes cl ON e.class_id = cl.id
+      WHERE s.school_id = ?
+    `;
+    const params: any[] = [schoolId];
+    let filters = '';
+
+    if (studentId) { filters += ' AND sc.student_id = ?'; params.push(parseInt(studentId, 10)); }
+    if (search) {
+      filters += ' AND (sp.first_name LIKE ? OR sp.last_name LIKE ? OR cp.first_name LIKE ? OR cp.last_name LIKE ? OR sc.relationship LIKE ?)';
+      const like = `%${search}%`;
+      params.push(like, like, like, like, like);
+    }
+
+    const [countRows]: any = await connection.execute(`SELECT COUNT(*) AS total ${baseFrom}${filters}`, params);
+    const total = Number(countRows?.[0]?.total || 0);
+
+    const sql = `
+      SELECT
         sc.student_id,
         sc.contact_id,
         sc.relationship,
@@ -38,30 +70,17 @@ export async function GET(req: NextRequest) {
         sp.last_name as student_last_name,
         s.admission_no,
         cl.name as class_name
-      FROM student_contacts sc
-      JOIN contacts c ON sc.contact_id = c.id
-      JOIN people cp ON c.person_id = cp.id
-      JOIN students s ON sc.student_id = s.id
-      JOIN people sp ON s.person_id = sp.id
-      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
-      LEFT JOIN classes cl ON e.class_id = cl.id
-      WHERE s.school_id = ?
+      ${baseFrom}${filters}
+      ORDER BY COALESCE(sp.last_name, '') ASC, COALESCE(sp.first_name, '') ASC, sc.is_primary DESC
+      LIMIT ${limit} OFFSET ${offset}
     `;
-
-    const params = [schoolId];
-
-    if (studentId) {
-      sql += ' AND sc.student_id = ?';
-      params.push(parseInt(studentId, 10));
-    }
-
-    sql += ' ORDER BY COALESCE(sp.last_name, \'\') ASC, COALESCE(sp.first_name, \'\') ASC, sc.is_primary DESC';
 
     const [rows] = await connection.execute(sql, params);
 
     return NextResponse.json({
       success: true,
-      data: rows
+      data: rows,
+      pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
     });
 
   } catch (error: any) {

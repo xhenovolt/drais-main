@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T03:06:15.503Z",
-  "last_commit": "84e0360391d71a8b5376c91b0dd5f410de332278",
+  "generated_at": "2026-07-30T15:16:25.169Z",
+  "last_commit": "df79fbcd8dd970d02598a893ccd3d49e348b5b86",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5851,7 +5851,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.169.0",
+      "date": "2026-07-30",
+      "release_type": "minor",
+      "title": "fix browser-freezing list pages: cap animation delays + paginate unbounded API routes",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "fix browser-freezing list pages: cap animation delays + paginate unbounded API routes"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.168.0"
+  "app_version": "1.169.0"
 }

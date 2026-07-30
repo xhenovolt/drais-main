@@ -197,7 +197,7 @@ const WorkPlansPage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: Math.min(index, 20) * 0.05 }}
                   className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
