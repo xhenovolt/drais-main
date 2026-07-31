@@ -6,7 +6,6 @@ import { toast } from 'react-hot-toast';
 import { Dialog, Transition, Listbox } from '@headlessui/react';
 import { motion } from 'framer-motion';
 import { Check, ChevronDown, Loader2, Plus, Edit2, Save, X, RefreshCw, FileDown, Upload, Edit3 } from 'lucide-react';
-import autoTable from 'jspdf-autotable';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
 // Helper function for translations with fallback

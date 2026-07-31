@@ -4,8 +4,7 @@ import { Dialog, Transition, Listbox } from '@headlessui/react';
 import { X, ChevronsUpDown, Check, Loader2, Upload, Camera, User, AlertCircle, Image as ImageIcon, Download, BookOpen, ChevronDown } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Swal from 'sweetalert2';
-// jspdf dynamically imported where used (below) — keeps it out of the eager graph.
-import autoTable from 'jspdf-autotable';
+// jspdf + jspdf-autotable dynamically imported where used (below) — keeps them out of the eager graph.
 import { toast } from 'react-hot-toast';
 
 const API_BASE = '/api';
@@ -356,7 +355,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
         console.warn('Could not fetch school config, using defaults:', err);
       }
 
-      const { default: jsPDF } = await import('jspdf');
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
       const doc = new jsPDF('portrait', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();

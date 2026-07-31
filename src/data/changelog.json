@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31T15:06:55.849Z",
-  "last_commit": "b00dead0d975fd199bc797b04ef713c81f5d4622",
+  "generated_at": "2026-07-31T15:32:00.711Z",
+  "last_commit": "8193806c179b4daa54f741e99fafaaaa946f2312",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5968,7 +5968,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.171.2",
+      "date": "2026-07-31",
+      "release_type": "patch",
+      "title": "remove 71 unused packages (tiptap/fullcalendar/chart.js), lazy-load remaining jspdf-autotable, drop heap cap to 2560",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "remove 71 unused packages (tiptap/fullcalendar/chart.js), lazy-load remaining jspdf-autotable, drop heap cap to 2560"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.171.1"
+  "app_version": "1.171.2"
 }
