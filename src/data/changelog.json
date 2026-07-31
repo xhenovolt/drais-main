@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31T15:32:00.711Z",
-  "last_commit": "8193806c179b4daa54f741e99fafaaaa946f2312",
+  "generated_at": "2026-07-31T16:23:04.861Z",
+  "last_commit": "989576ca5aaef1ebf6946e83fa4d28a113359a0c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5981,7 +5981,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.171.3",
+      "date": "2026-07-31",
+      "release_type": "patch",
+      "title": "remove 6 more dead deps (next-pwa, jotai, json2csv, formidable, ug-locale, yup)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "remove 6 more dead deps (next-pwa, jotai, json2csv, formidable, ug-locale, yup)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.171.2"
+  "app_version": "1.171.3"
 }
