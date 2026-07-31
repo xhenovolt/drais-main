@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31T10:16:00.542Z",
-  "last_commit": "d719a004967fe3d3a0311f466a0afa3c48ed1bdf",
+  "generated_at": "2026-07-31T14:58:35.552Z",
+  "last_commit": "04688608425344c0d467ab45643f76e6cf4c548f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5942,7 +5942,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.171.0",
+      "date": "2026-07-31",
+      "release_type": "minor",
+      "title": "add First Arrival Health: per-school date-rollover resilience layer, read-only, never auto-corrects",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "add First Arrival Health: per-school date-rollover resilience layer, read-only, never auto-corrects"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.170.1"
+  "app_version": "1.171.0"
 }

@@ -22,16 +22,16 @@ import { assessBatch, applyPolicy, median, mad, percentile, type Baseline, type 
 const MIN_PUNCHES_FOR_DAY = 5; // fewer looks like a holiday/weekend — not a school day
 
 /** Minute-of-day (school-local) for a UTC instant. */
-const minuteOfDay = (utc: Date, offsetMin: number): number => {
+export const minuteOfDay = (utc: Date, offsetMin: number): number => {
   const l = new Date(utc.getTime() + offsetMin * 60_000);
   return l.getUTCHours() * 60 + l.getUTCMinutes();
 };
-const localDateStr = (utc: Date, offsetMin: number): string =>
+export const localDateStr = (utc: Date, offsetMin: number): string =>
   new Date(utc.getTime() + offsetMin * 60_000).toISOString().slice(0, 10);
 
 /** Robust "first arrival": the 3rd earliest punch minute of the day (one or
  *  two stray night punches can't fake an early opening). */
-function firstArrivalOf(minutes: number[]): number | null {
+export function firstArrivalOf(minutes: number[]): number | null {
   if (minutes.length < 3) return minutes.length ? Math.min(...minutes) : null;
   return [...minutes].sort((a, b) => a - b)[2];
 }

@@ -11,6 +11,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Clock, Loader2, AlertTriangle, CheckCircle, RefreshCw, Undo2, ShieldCheck, Brain, Wrench, History, X, Search,
+  Users, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
@@ -67,6 +68,7 @@ export default function TimeHealthPage() {
   const [loading, setLoading] = useState(true);
   const [fix, setFix] = useState<any>(null); // { device_sn, date, suggestedShift, baselineFirst, todayFirst }
   const [analyze, setAnalyze] = useState<any>(null); // { device_sn }
+  const [showAnchors, setShowAnchors] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +108,101 @@ export default function TimeHealthPage() {
       </div>
 
       {loading && !data && <div className="py-16 text-center"><Loader2 className="w-7 h-7 animate-spin text-indigo-600 inline" /></div>}
+
+      {/* First Arrival Health — permanent, per-school indicator. Never
+          hidden behind an anomaly check: this is the "is this a normal
+          morning?" read, every day, regardless of what it finds. Analysis
+          only — it can never move or rewrite a single attendance record;
+          any real correction still goes through the per-device Review &
+          correct / Correct manually flow below. */}
+      {data?.firstArrivalHealth && (() => {
+        const fah = data.firstArrivalHealth;
+        const fahBad = fah.status === 'anomaly';
+        const fahReview = fah.status === 'review';
+        const sim = fah.shiftSimulation;
+        return (
+          <div className={`rounded-xl border bg-white dark:bg-gray-800 p-4 ${fahBad ? 'border-rose-300 dark:border-rose-800 ring-1 ring-rose-300 dark:ring-rose-800' : fahReview ? 'border-amber-300 dark:border-amber-800' : 'border-gray-200 dark:border-gray-700'}`}>
+            <div className="flex items-start justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                {fahBad ? <AlertTriangle className="w-5 h-5 text-rose-500" /> : fahReview ? <Clock className="w-5 h-5 text-amber-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
+                <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">{t('attendanceIntel.timeHealth.firstArrivalHealth', 'First Arrival Health')}</span>
+                <span className={`text-[11px] px-2 py-0.5 rounded font-semibold uppercase ${fahBad ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' : fahReview ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
+                  {fahBad ? t('attendanceIntel.timeHealth.anomaly', 'Anomaly') : fahReview ? t('attendanceIntel.timeHealth.review', 'Review') : t('attendanceIntel.timeHealth.trusted', 'Trusted')}
+                </span>
+              </div>
+              <div className="text-right">
+                <div className={`text-2xl font-bold ${fah.confidence >= 80 ? 'text-emerald-600' : fah.confidence >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>{fah.confidence}%</div>
+                <div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.timeConfidence', 'time confidence')}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-sm">
+              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.historicalExpectation', 'Historical expectation')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(fah.anchorCohort?.[0] ? Math.round(fah.anchorCohort.reduce((s: number, a: any) => s + a.median_arrival_minute, 0) / fah.anchorCohort.length) : null)} <span className="text-[11px] font-normal text-gray-400">({fah.evidence.cohortSize} {t('attendanceIntel.timeHealth.anchors', 'anchors')})</span></div></div>
+              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.observedPattern', "Today's observed pattern")}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(fah.observedFirstArrivalMinute)}</div></div>
+              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.anchorsPresent', 'Usual arrivers present')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fah.evidence.cohortSize - fah.evidence.missingCount}/{fah.evidence.cohortSize} <span className="text-[11px] font-normal text-gray-400">({fah.evidence.matchPct}%)</span></div></div>
+              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.deviceClockStatus', 'Device clock status')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{(fah.evidence.deviceClockStatus || []).filter((d: any) => d.status === 'anomaly').length > 0 ? `${(fah.evidence.deviceClockStatus || []).filter((d: any) => d.status === 'anomaly').length} anomaly` : 'healthy'}</div></div>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-2">{fah.recommendation}</p>
+            <p className="text-[11px] text-gray-400 mt-1">{t('attendanceIntel.timeHealth.evidenceLine', { days: fah.evidence.daysAnalyzed, sync: fah.evidence.lastSyncAt ? new Date(fah.evidence.lastSyncAt).toLocaleTimeString() : '—' }, '{{days}} days of history analyzed · last sync {{sync}}')}</p>
+
+            {/* Concrete evidence, always shown — the ACTUAL raw first-arrival
+                records behind the verdict above, never just a bare score.
+                This stays visible whether the day is trusted or flagged;
+                hiding it once things "look fine" is exactly the ambiguity
+                this panel exists to remove. */}
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
+              <p className="text-[11px] font-medium text-gray-500 mb-1.5">{t('attendanceIntel.timeHealth.earliestRecords', "Today's earliest records (evidence)")}</p>
+              {fah.todaysEarliestPunches?.length > 0 ? (
+                <ul className="divide-y divide-gray-100 dark:divide-gray-700/50 text-xs">
+                  {fah.todaysEarliestPunches.map((p: any) => (
+                    <li key={p.id} className="py-1 flex items-center justify-between">
+                      <span className="text-gray-700 dark:text-gray-300">{p.display_name || (p.person_id ? `#${p.person_id}` : t('attendanceIntel.timeHealth.unknownPerson', 'Unknown'))}</span>
+                      <span className="font-mono text-gray-400">{fmtMin(p.minute)} <span className="text-gray-300 dark:text-gray-600">· {p.device_sn || '—'}</span></span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-400">{t('attendanceIntel.timeHealth.noPunches', 'No device punches today yet.')}</p>
+              )}
+            </div>
+
+            {/* Hypothetical previous-day-shift — advisory only. Never
+                applied automatically; the operator still uses the
+                existing per-device Review & correct / Correct manually
+                buttons below to act on it, if they agree. */}
+            {sim && (
+              <div className="mt-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800">
+                <p className="text-sm text-rose-800 dark:text-rose-200 font-medium flex items-center gap-1.5"><Brain className="w-4 h-4" /> {t('attendanceIntel.timeHealth.rolloverSuspected', "Today's earliest records look like previous-day stragglers, not genuine arrivals.")}</p>
+                <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">
+                  {t('attendanceIntel.timeHealth.simulationEvidence', { cur: sim.confidenceCurrent, shifted: sim.confidenceShifted }, 'As currently dated: {{cur}}% confidence. Interpreted as belonging to the prior day: {{shifted}}% confidence.')}
+                </p>
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1">{t('attendanceIntel.timeHealth.simulationNote', 'This is a simulation only — nothing has been changed. Review the affected device(s) below and correct manually if you agree.')}</p>
+              </div>
+            )}
+
+            {/* Who's missing / present — explainability, not a bare score. */}
+            {fah.anchorsToday?.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
+                <button onClick={() => setShowAnchors((v) => !v)} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                  <Users className="w-3.5 h-3.5" /> {t('attendanceIntel.timeHealth.showAnchors', { n: fah.anchorsToday.length }, 'Baseline population ({{n}} usual early arrivers)')}
+                  {showAnchors ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+                {showAnchors && (
+                  <ul className="mt-2 divide-y divide-gray-100 dark:divide-gray-700/50 text-xs">
+                    {fah.anchorsToday.map((a: any) => (
+                      <li key={a.person_id} className="py-1.5 flex items-center justify-between">
+                        <span className="text-gray-700 dark:text-gray-300">{a.display_name || `#${a.person_id}`}</span>
+                        <span className="text-gray-400">{t('attendanceIntel.timeHealth.usualVsToday', { usual: fmtMin(a.expectedMinute), today: a.present ? fmtMin(a.observedMinute) : '—' }, 'usual {{usual}} · today {{today}}')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Today's device verdicts */}
       {data?.today && (

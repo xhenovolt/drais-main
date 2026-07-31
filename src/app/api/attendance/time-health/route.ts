@@ -20,6 +20,7 @@ import {
   analyzeDeviceHistory,
 } from '@/lib/attendance/time-intelligence/engine';
 import { fmtMinute } from '@/lib/attendance/time-intelligence/confidence';
+import { assessFirstArrivalHealth } from '@/lib/attendance/time-intelligence/firstArrivalHealth';
 
 export const runtime = 'nodejs';
 
@@ -65,7 +66,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, anomaly: worst, devices });
     }
     const overview = await deviceHealthOverview(session.schoolId);
-    return NextResponse.json({ success: true, ...overview, fmt: undefined });
+    // First Arrival Health — per-school resilience layer, deliberately
+    // separate from the per-device engine above (see firstArrivalHealth.ts).
+    // Best-effort: any failure here must never break the existing device
+    // cards the page already depends on.
+    const firstArrivalHealth = await assessFirstArrivalHealth(session.schoolId).catch((e) => {
+      console.error('First Arrival Health assessment failed:', e);
+      return null;
+    });
+    return NextResponse.json({ success: true, ...overview, firstArrivalHealth, fmt: undefined });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Failed' }, { status: 500 });
   }
