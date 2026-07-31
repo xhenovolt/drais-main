@@ -11,11 +11,24 @@
  * than the full DRCEDataContext, since resolution happens at SNAPSHOT
  * GENERATION time, before a render context exists).
  *
- * Resolution is deterministic and pure: same rules + same ctx -> same text,
- * every time. Comments are resolved ONCE at generation time and frozen into
- * the snapshot (RENDER_LAYERS.md invariant: snapshot payload is immutable) —
- * exactly like the static comments they replace, so a report printed today
- * reads the same next year even if the comment bank changes later.
+ * Resolution is deterministic and pure GIVEN a rule set + ctx: same rules +
+ * same ctx -> same text, every time.
+ *
+ * Resolution happens TWICE, deliberately:
+ *  1. At snapshot generation (src/lib/snapshots/generator.ts), using ALL of
+ *     the school's rules (template-unaware) — this frozen value is the
+ *     fallback/default baseline, matching the immutability invariant for
+ *     every other snapshot field.
+ *  2. At render/print time (src/lib/snapshots/print-state.ts), using only
+ *     the rules scoped to the ACTUAL template being rendered (ruleId's
+ *     `templateId` null-or-match), with the frozen value from (1) as the
+ *     fallback if none match. This is a DELIBERATE, DOCUMENTED EXCEPTION to
+ *     RENDER_LAYERS.md's "render is pure, no I/O" / "snapshot reproduces the
+ *     same bytes" invariants — see RENDER_LAYERS.md's "Overall-comment
+ *     resolution" section for the tradeoff this accepts: reprinting the same
+ *     report card can show different overall-comment wording if the
+ *     school's comment bank changes between prints. Every other field on
+ *     the report remains fully frozen/immutable as before.
  */
 import { evaluateRuleTree, type VisibilityRule } from './visibility';
 import { getByPath } from './bindingResolver';
@@ -29,6 +42,11 @@ export interface CommentBankRule {
   id?: number;
   schoolId?: number;
   role: CommentRole;
+  /** Null/undefined = applies to every template. Set = only considered when
+   *  resolving comments for that specific dvcf_documents id, so a school can
+   *  give different templates different comment logic without duplicating
+   *  or reconfiguring the whole rule set each time they switch templates. */
+  templateId?: number | null;
   /** Required when role === 'custom' — the binding key under comments.custom.<key>. */
   customKey?: string | null;
   /** 'replace' rules compete for the BASE text (highest priority match wins).

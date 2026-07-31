@@ -35,6 +35,7 @@ import { type PersistedOverride } from '@/lib/drce/overrides';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
 import { resolveActiveTemplateId } from '@/lib/snapshots/active-template';
 import { buildSnapshotRenderState } from '@/lib/snapshots/print-state';
+import type { CommentBankRule } from '@/lib/drce/commentEngine';
 
 interface PageProps {
   params: Promise<{ type: string; snapshotId: string }>;
@@ -52,6 +53,12 @@ interface State {
   /** Per-learner verify URLs keyed by studentDbId — for QR shapes
    *  bound to `student.verificationUrl`. */
   verifyByStudent: Record<number, string>;
+  /** Overall-comment rules scoped to the active template, fetched fresh on
+   *  every load (staff session only — parent/verify-token visitors have no
+   *  session to fetch these with, so they always see the frozen snapshot
+   *  values). Empty in those modes, which is a safe no-op for
+   *  buildSnapshotRenderState. */
+  overallCommentRules: CommentBankRule[];
 }
 
 const DEFAULT_DRCE_BY_TYPE: Record<SnapshotType, string> = {
@@ -64,7 +71,7 @@ export default function PrintSnapshotPage({ params }: PageProps) {
   const { type, snapshotId } = use(params);
   const [state, setState] = useState<State>({
     snapshot: null, document: null, overrides: [], error: null, loaded: false,
-    verifyByStudent: {},
+    verifyByStudent: {}, overallCommentRules: [],
   });
 
   // Read URL params on the client. We avoid Next's searchParams prop so the
@@ -126,7 +133,14 @@ export default function PrintSnapshotPage({ params }: PageProps) {
           fallbackTemplateId,
         });
 
-        const [snapRes, ovRes, docRes] = await Promise.all([
+        // Overall-comment rules need a STAFF session (getSessionSchoolId) —
+        // parent-portal and public verify-token visitors have no such
+        // cookie, so skip the fetch there and let comments fall back to
+        // whatever was frozen into the snapshot (same as before this
+        // existed), rather than firing a 401 every load.
+        const canFetchCommentRules = !verifyToken && !isParent && /^\d+$/.test(templateId);
+
+        const [snapRes, ovRes, docRes, commentRulesRes] = await Promise.all([
           fetch(snapUrl),
           fetch(ovUrl),
           // DRCE built-in templates resolve via /api/drce/builtin/<id>
@@ -136,6 +150,9 @@ export default function PrintSnapshotPage({ params }: PageProps) {
           /^\d+$/.test(templateId)
             ? fetch(`/api/dvcf/documents/${encodeURIComponent(templateId)}`)
             : fetch(`/api/drce/builtin/${encodeURIComponent(templateId)}`),
+          canFetchCommentRules
+            ? fetch(`/api/report-comments/overall?template_id=${encodeURIComponent(templateId)}`).catch(() => null)
+            : Promise.resolve(null),
         ]);
         if (cancelled) return;
 
@@ -151,6 +168,12 @@ export default function PrintSnapshotPage({ params }: PageProps) {
         const docJson = await docRes.json();
         const document = (docJson.document ?? docJson) as DRCEDocument;
         if (!document) throw new Error('Template payload missing');
+
+        let overallCommentRules: CommentBankRule[] = [];
+        if (commentRulesRes?.ok) {
+          const crJson = await commentRulesRes.json().catch(() => ({}));
+          overallCommentRules = Array.isArray(crJson.rules) ? crJson.rules : [];
+        }
 
         // Phase L1 — mint verification URLs in parallel: one snapshot-
         // level URL + one per visible student. The mint endpoint
@@ -198,7 +221,7 @@ export default function PrintSnapshotPage({ params }: PageProps) {
 
         setState({
           snapshot, document, overrides, error: null, loaded: true,
-          verifyUrl: snapshotVerifyUrl, verifyByStudent,
+          verifyUrl: snapshotVerifyUrl, verifyByStudent, overallCommentRules,
         });
       } catch (e: any) {
         if (cancelled) return;
@@ -252,6 +275,7 @@ export default function PrintSnapshotPage({ params }: PageProps) {
           snapshotUrl: state.verifyUrl,
           studentUrl:  state.verifyByStudent[stu.studentDbId],
         },
+        overallCommentRules: state.overallCommentRules,
         renderCtx: {
           school: state.snapshot!.meta.branding
             ? {

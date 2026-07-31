@@ -19,7 +19,12 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  return NextResponse.json({ success: true, rules: await listOverallCommentRules(session.schoolId) });
+  // ?template_id=<id> narrows to rules that apply to that specific template
+  // (unscoped + matching) — used at render time. Omitted entirely for the
+  // admin panel, which manages the full set across every template.
+  const templateIdParam = req.nextUrl.searchParams.get('template_id');
+  const templateId = templateIdParam != null && /^\d+$/.test(templateIdParam) ? Number(templateIdParam) : undefined;
+  return NextResponse.json({ success: true, rules: await listOverallCommentRules(session.schoolId, templateId) });
 }
 
 export async function POST(req: NextRequest) {

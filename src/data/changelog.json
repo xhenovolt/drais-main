@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T16:13:32.603Z",
-  "last_commit": "595c72e901b1988c5daf6625441918e7018a3381",
+  "generated_at": "2026-07-31T09:58:25.227Z",
+  "last_commit": "519dccfb1b75e961189221d245b5a40cff7d3366",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5903,7 +5903,33 @@
         }
       ],
       "commit": "595c72e901"
+    },
+    {
+      "version": "1.169.4",
+      "date": "2026-07-30",
+      "release_type": "patch",
+      "title": "Further cut Vercel build memory — lazy-load jspdf, small heap-cap safety margin",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Further cut Vercel build memory — lazy-load jspdf, small heap-cap safety margin"
+        }
+      ],
+      "commit": "519dccfb1b"
+    },
+    {
+      "version": "1.170.0",
+      "date": "2026-07-31",
+      "release_type": "minor",
+      "title": "add per-template scoping for overall-comment rules, resolved live at render/print time",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "add per-template scoping for overall-comment rules, resolved live at render/print time"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.169.4"
+  "app_version": "1.170.0"
 }

@@ -136,6 +136,42 @@ retained — they serve both the SnapshotPreviewer emergency-mode iframe and
 the legacy `/academics/secular-emergency-reports` routes. Deleting them would
 break both.
 
+## Overall-comment resolution — documented exception (2026-07)
+
+Class Teacher / DOS / Headteacher comments (`src/lib/drce/commentEngine.ts`)
+are the ONE field on a report that deliberately does NOT follow hard
+invariants #2 and #5 above. Everything else on a report stays exactly as
+frozen at generation time; comments do not.
+
+**Why:** comment rules can now be scoped to a specific template
+(`report_overall_comment_rules.template_id`, nullable = applies everywhere)
+so a school running several report-card designs can give each one different
+comment logic without duplicating or reconfiguring rules every time they
+switch templates. Snapshots are generated once, template-unaware, and
+printed under whichever template is active at the time — so honouring a
+per-template scope requires knowing the template at PRINT time, not just at
+generation time.
+
+**What this means concretely:**
+- At generation time (`src/lib/snapshots/generator.ts`), comments are still
+  resolved once using the FULL rule set (template-unaware) and frozen into
+  the snapshot exactly as before — this frozen value is the fallback.
+- At render/print time (`src/lib/snapshots/print-state.ts`'s
+  `buildSnapshotRenderState`), IF the caller supplies `overallCommentRules`
+  (rules scoped to the actual template being rendered, fetched fresh by the
+  page), comments are RE-resolved against those rules, using aggregate/
+  division refreshed through that same template's own `aggregateConfig`
+  (the same computation the `assessment` section already does at render
+  time). If none match, it falls back to the frozen value from generation.
+- **Accepted tradeoff:** reprinting the same report card can show different
+  overall-comment wording if the school's comment bank (or which template is
+  configured as active) changes between prints. No other field is affected —
+  marks, grades, positions, aggregates-as-displayed, branding, and every
+  other frozen value remain byte-for-byte identical across reprints.
+- Parent-portal and public verify-token render paths do not fetch comment
+  rules (no staff session to authenticate the fetch) — those always show the
+  frozen generation-time value, same as before this existed.
+
 ## Future work (optional)
 
 - Section-type registry to replace the `switch (section.type)` in

@@ -42,6 +42,7 @@ const previewDefaults: CommentResolutionCtx = {
 
 export function OverallCommentsPanel() {
   const [rules, setRules] = useState<CommentBankRule[]>([]);
+  const [templates, setTemplates] = useState<Array<{ id: number; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Partial<CommentBankRule> | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,14 +51,25 @@ export function OverallCommentsPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/report-comments/overall', { cache: 'no-store' });
+      const [r, t] = await Promise.all([
+        fetch('/api/report-comments/overall', { cache: 'no-store' }),
+        fetch('/api/dvcf/documents', { cache: 'no-store' }).catch(() => null),
+      ]);
       const j = await r.json();
       setRules(j.rules || []);
+      if (t) {
+        const tj = await t.json().catch(() => ({}));
+        const docs = (tj.documents || []).filter((d: any) => (d.meta?.document_kind ?? 'report') === 'report' && /^\d+$/.test(String(d.meta?.id)));
+        setTemplates(docs.map((d: any) => ({ id: Number(d.meta.id), name: d.meta?.name || `Template #${d.meta.id}` })));
+      }
     } finally {
       setLoading(false);
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const templateNameOf = (id: number | null | undefined) =>
+    id == null ? 'All templates' : (templates.find((t) => t.id === id)?.name || `Template #${id}`);
 
   const save = useCallback(async () => {
     if (!modal) return;
@@ -194,6 +206,7 @@ export function OverallCommentsPanel() {
           <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-500">
             <tr>
               <th className="px-3 py-2 text-left">Role</th>
+              <th className="px-3 py-2 text-left">Template</th>
               <th className="px-3 py-2 text-left">Mode</th>
               <th className="px-3 py-2 text-left">Condition</th>
               <th className="px-3 py-2 text-left">Comment</th>
@@ -202,10 +215,11 @@ export function OverallCommentsPanel() {
             </tr>
           </thead>
           <tbody>
-            {rules.length === 0 && <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-400">No overall-comment rules yet — schools without rules keep the original static comments.</td></tr>}
+            {rules.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">No overall-comment rules yet — schools without rules keep the original static comments.</td></tr>}
             {rules.map((r, i) => (
               <tr key={r.id} className={`border-t border-gray-100 dark:border-gray-700/50 ${!r.isActive ? 'opacity-50' : ''}`}>
                 <td className="px-3 py-2">{ROLES.find(x => x.value === r.role)?.label}{r.role === 'custom' && r.customKey ? ` (${r.customKey})` : ''}</td>
+                <td className="px-3 py-2 text-xs">{r.templateId == null ? <span className="text-gray-400">All templates</span> : templateNameOf(r.templateId)}</td>
                 <td className="px-3 py-2 capitalize">{r.mode}</td>
                 <td className="px-3 py-2 text-xs text-gray-500 max-w-[220px] truncate" title={describeRule(r.condition)}>{describeRule(r.condition)}</td>
                 <td className="px-3 py-2 max-w-xs truncate">{r.commentText}</td>
@@ -253,6 +267,17 @@ export function OverallCommentsPanel() {
               <label className="text-xs text-gray-500">Priority (lower = first)
                 <input type="number" value={modal.priority ?? 100} onChange={(e) => setModal({ ...modal, priority: Number(e.target.value) })}
                   className="w-full mt-1 px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+              </label>
+              <label className="text-xs text-gray-500 col-span-2">Template
+                <select
+                  value={modal.templateId ?? ''}
+                  onChange={(e) => setModal({ ...modal, templateId: e.target.value === '' ? null : Number(e.target.value) })}
+                  className="w-full mt-1 px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+                >
+                  <option value="">All templates (applies everywhere)</option>
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <span className="block mt-0.5 text-[10px] text-gray-400">Leave as &quot;All templates&quot; unless this comment logic should only apply on one specific report design.</span>
               </label>
             </div>
 

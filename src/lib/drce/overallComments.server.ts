@@ -25,6 +25,7 @@ function ensureSchema(): Promise<void> {
          id                BIGINT        NOT NULL AUTO_INCREMENT,
          school_id         BIGINT        NOT NULL,
          role              VARCHAR(24)   NOT NULL,
+         template_id       BIGINT        NULL,
          custom_key        VARCHAR(64)   NULL,
          mode              VARCHAR(8)    NOT NULL DEFAULT 'replace',
          condition_json    JSON          NULL,
@@ -47,6 +48,7 @@ interface Row {
   id: number;
   school_id: number;
   role: string;
+  template_id: number | null;
   custom_key: string | null;
   mode: string;
   condition_json: string | VisibilityRule | null;
@@ -65,6 +67,7 @@ function toRule(r: Row): CommentBankRule {
     id: r.id,
     schoolId: r.school_id,
     role: r.role as CommentRole,
+    templateId: r.template_id,
     customKey: r.custom_key,
     mode: (r.mode as 'replace' | 'append') || 'replace',
     condition,
@@ -75,12 +78,21 @@ function toRule(r: Row): CommentBankRule {
   };
 }
 
-export async function listOverallCommentRules(schoolId: number): Promise<CommentBankRule[]> {
+/**
+ * List a school's overall-comment rules.
+ * - No `templateId` (admin panel): every rule, regardless of scope, so
+ *   admins can see and manage the full set in one place.
+ * - `templateId` given (render-time resolution): only rules that apply to
+ *   THAT template — unscoped (template_id IS NULL) rules plus any scoped
+ *   specifically to it.
+ */
+export async function listOverallCommentRules(schoolId: number, templateId?: number | null): Promise<CommentBankRule[]> {
   await ensureSchema();
-  const rows = (await query(
-    `SELECT * FROM report_overall_comment_rules WHERE school_id = ? ORDER BY is_active DESC, role ASC, priority ASC, id DESC`,
-    [schoolId],
-  ).catch(() => [])) as Row[];
+  const sql = templateId != null
+    ? `SELECT * FROM report_overall_comment_rules WHERE school_id = ? AND (template_id IS NULL OR template_id = ?) ORDER BY is_active DESC, role ASC, priority ASC, id DESC`
+    : `SELECT * FROM report_overall_comment_rules WHERE school_id = ? ORDER BY is_active DESC, role ASC, priority ASC, id DESC`;
+  const params = templateId != null ? [schoolId, templateId] : [schoolId];
+  const rows = (await query(sql, params).catch(() => [])) as Row[];
   return rows.map(toRule);
 }
 
@@ -96,10 +108,10 @@ export async function createOverallCommentRule(
 
   const res = (await query(
     `INSERT INTO report_overall_comment_rules
-       (school_id, role, custom_key, mode, condition_json, comment_text, comment_text_ar, priority, is_active, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (school_id, role, template_id, custom_key, mode, condition_json, comment_text, comment_text_ar, priority, is_active, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      schoolId, b.role, b.customKey ?? null, b.mode ?? 'replace',
+      schoolId, b.role, b.templateId ?? null, b.customKey ?? null, b.mode ?? 'replace',
       b.condition ? JSON.stringify(b.condition) : null,
       b.commentText, b.commentTextAr ?? null,
       b.priority ?? 100, b.isActive === false ? 0 : 1, userId ?? null,
@@ -117,6 +129,7 @@ export async function updateOverallCommentRule(
   const sets: string[] = [];
   const params: any[] = [];
   if (b.role !== undefined)          { sets.push('role = ?');            params.push(b.role); }
+  if (b.templateId !== undefined)    { sets.push('template_id = ?');     params.push(b.templateId ?? null); }
   if (b.customKey !== undefined)     { sets.push('custom_key = ?');       params.push(b.customKey || null); }
   if (b.mode !== undefined)          { sets.push('mode = ?');             params.push(b.mode); }
   if (b.condition !== undefined)     { sets.push('condition_json = ?');   params.push(b.condition ? JSON.stringify(b.condition) : null); }
