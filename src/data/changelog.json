@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31T09:58:25.227Z",
-  "last_commit": "519dccfb1b75e961189221d245b5a40cff7d3366",
+  "generated_at": "2026-07-31T10:16:00.542Z",
+  "last_commit": "d719a004967fe3d3a0311f466a0afa3c48ed1bdf",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5929,7 +5929,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.170.1",
+      "date": "2026-07-31",
+      "release_type": "patch",
+      "title": "revert Vercel build heap cap 3840->3072 after a real SIGKILL, not just a V8 FATAL",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "revert Vercel build heap cap 3840->3072 after a real SIGKILL, not just a V8 FATAL"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.170.0"
+  "app_version": "1.170.1"
 }
