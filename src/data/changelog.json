@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31T14:58:35.552Z",
-  "last_commit": "04688608425344c0d467ab45643f76e6cf4c548f",
+  "generated_at": "2026-07-31T15:06:55.849Z",
+  "last_commit": "b00dead0d975fd199bc797b04ef713c81f5d4622",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5955,7 +5955,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.171.1",
+      "date": "2026-07-31",
+      "release_type": "patch",
+      "title": "stop tracking .claude/ local config in the repo",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "stop tracking .claude/ local config in the repo"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.171.0"
+  "app_version": "1.171.1"
 }

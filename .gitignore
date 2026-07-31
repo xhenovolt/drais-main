@@ -118,3 +118,6 @@ drais-relay.apk
 archive/
 # Production-data rollback backups (phase1 repairs, dvcf rows)
 backups/
+
+# Local Claude Code config — not shared project config, no place in the repo
+.claude/
