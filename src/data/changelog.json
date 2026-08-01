@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31T16:23:04.861Z",
-  "last_commit": "989576ca5aaef1ebf6946e83fa4d28a113359a0c",
+  "generated_at": "2026-08-01T08:25:03.106Z",
+  "last_commit": "028173f6db7c7d97f7094a5cfc592ec38ed59725",
   "releases": [
     {
       "version": "0.0.0049",
@@ -5994,7 +5994,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.171.4",
+      "date": "2026-08-01",
+      "release_type": "patch",
+      "title": "remove stale duplicate class_results copy API route tree (dead since commit 3d7060e)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "remove stale duplicate class_results copy API route tree (dead since commit 3d7060e)"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.171.3"
+  "app_version": "1.171.4"
 }
