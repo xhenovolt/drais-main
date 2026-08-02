@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-01T08:25:03.106Z",
-  "last_commit": "028173f6db7c7d97f7094a5cfc592ec38ed59725",
+  "generated_at": "2026-08-02T21:06:01.445Z",
+  "last_commit": "117bff0d7f9d805b2f43a877d39edb0f95d99bb5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6007,7 +6007,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.172.0",
+      "date": "2026-08-02",
+      "release_type": "minor",
+      "title": "add Database Backup Center: one-click, school-scoped SQL backups to Cloudinary",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "add Database Backup Center: one-click, school-scoped SQL backups to Cloudinary"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.171.4"
+  "app_version": "1.172.0"
 }

@@ -96,6 +96,11 @@ export const AuditAction = {
   DEVICE_DECOMMISSIONED:    'DEVICE_DECOMMISSIONED',
   DEVICE_TRANSFER_ABORTED:  'DEVICE_TRANSFER_ABORTED',
   DEVICE_ALERT_ACKNOWLEDGED:'DEVICE_ALERT_ACKNOWLEDGED',
+  // Database Backup Center
+  BACKUP_CREATED_SCHOOL:    'BACKUP_CREATED_SCHOOL',
+  BACKUP_DOWNLOADED:        'BACKUP_DOWNLOADED',
+  BACKUP_DELETED:           'BACKUP_DELETED',
+  BACKUP_FAILED:            'BACKUP_FAILED',
 } as const;
 
 export type AuditActionType = typeof AuditAction[keyof typeof AuditAction];
