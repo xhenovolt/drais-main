@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T14:47:00.443Z",
-  "last_commit": "408e21d6a6527ba331fdf5cb847f25827c9991d2",
+  "generated_at": "2026-08-03T15:57:21.813Z",
+  "last_commit": "f9b90563da84855007093fafbb78e2feb3372951",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6085,7 +6085,20 @@
         }
       ],
       "commit": "408e21d6a6"
+    },
+    {
+      "version": "1.173.5",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Index the subsystem READMEs from docs/README.md",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Index the subsystem READMEs from docs/README.md"
+        }
+      ],
+      "commit": "f9b90563da"
     }
   ],
-  "app_version": "1.173.5"
+  "app_version": "1.173.6"
 }
