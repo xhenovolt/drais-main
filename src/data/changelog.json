@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T15:57:21.813Z",
-  "last_commit": "f9b90563da84855007093fafbb78e2feb3372951",
+  "generated_at": "2026-08-03T16:43:41.574Z",
+  "last_commit": "7d72d59d08a60656be5e5d292a7cdd4bcb600053",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6098,7 +6098,20 @@
         }
       ],
       "commit": "f9b90563da"
+    },
+    {
+      "version": "1.173.6",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Split school-scope how-tos from developer docs",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Split school-scope how-tos from developer docs"
+        }
+      ],
+      "commit": "7d72d59d08"
     }
   ],
-  "app_version": "1.173.6"
+  "app_version": "1.173.7"
 }

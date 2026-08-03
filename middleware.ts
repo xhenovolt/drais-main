@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { NON_SCHOOL_AUTH_PREFIXES } from '@/lib/routes/auth-scope';
 
 /**
  * DRAIS V1 Middleware
@@ -33,21 +34,11 @@ const PUBLIC_ROUTES = [
   '/api/auth/impersonation-status',
   '/api/health',
   '/api/feature-flags',
-  // Internal JETON control APIs — authenticated via x-api-key header, NOT session cookie
-  '/api/internal',
-  // JETON external control channel — authenticated via x-api-key + x-api-secret headers
-  '/api/control',
-  // External Platform API v1 — authenticated per-route via requirePlatformAuth
-  // (Bearer key.secret), NOT the session cookie. Session-gating it here would
-  // 401 every external consumer before their key is ever checked.
-  '/api/platform',
-  // DRAIS Control Center (Xhenvolt internal console) — its OWN isolated auth
-  // (control_users/control_sessions + drais_control cookie), enforced inside
-  // /api/control-center routes. School sessions are neither required nor used.
-  '/control',
-  '/api/control-center',
-  // Cron jobs — authenticated via CRON_SECRET header
-  '/api/cron',
+  // Every surface owned by a DIFFERENT auth domain (Control Center, parent
+  // portal) or authenticated per-request by key/token rather than a session
+  // cookie. Single source of truth — see src/lib/routes/auth-scope.ts for why
+  // this must not be re-listed by hand.
+  ...NON_SCHOOL_AUTH_PREFIXES,
 ];
 
 /**

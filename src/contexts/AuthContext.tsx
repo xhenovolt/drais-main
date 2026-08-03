@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { mutate as swrMutate } from 'swr';
+import { isExemptFromSchoolAuth } from '@/lib/routes/auth-scope';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -141,41 +142,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Skip route protection during initial load
     if (isLoading) return;
 
-    // Define public routes that don't require authentication
-    const publicRoutes = [
-      '/',
-      '/login',
-      '/signup',
-      '/auth/login',
-      '/auth/signup',
-      '/forgot-password',
-      '/reset-password',
-      '/unauthorized',
-      '/forbidden',
-      '/docs',
-      // /print-snapshot enforces its own auth via the API fetches it
-      // makes. We do NOT want the AuthContext to redirect away while
-      // puppeteer is capturing a PDF — the API calls return 401 if the
-      // forwarded cookie is invalid, which the page surfaces as an
-      // inline error rather than a redirect.
-      '/print-snapshot',
-      // /verify is the public QR-landing page. No session of any kind
-      // is required — the HMAC-signed token IS the access proof.
-      '/verify',
-    ];
-
-    // Check if current route is public
-    const isPublicRoute = publicRoutes.some(route => 
-      pathname === route || pathname.startsWith(route + '/')
-    );
+    // Routes that must NOT be redirected to the SCHOOL login.
+    //
+    // This deliberately reads from the shared list in src/lib/routes/auth-scope.ts
+    // rather than keeping its own copy. It used to keep its own copy, and that
+    // copy was missing /control, /portal and /parent — so visiting the Control
+    // Center or the parent portal without a school session bounced the user to
+    // the staff login before they could sign in to their OWN auth domain.
+    // The Control Center was only reachable if you were already signed in to a
+    // school account, which inverts the isolation the design depends on.
+    //
+    // Add new exemptions to auth-scope.ts, never here.
+    const isExempt = isExemptFromSchoolAuth(pathname);
 
     // Check if it's a static asset
-    const isStaticAsset = pathname.startsWith('/_next') || 
-                         pathname.startsWith('/static') || 
+    const isStaticAsset = pathname.startsWith('/_next') ||
+                         pathname.startsWith('/static') ||
                          pathname.includes('.');
 
     // If user is not authenticated and trying to access protected route
-    if (!user && !isPublicRoute && !isStaticAsset) {
+    if (!user && !isExempt && !isStaticAsset) {
       console.log('🔒 Route protection: Redirecting to login from', pathname);
       router.push('/auth/login');
     }
