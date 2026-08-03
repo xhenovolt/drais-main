@@ -15,7 +15,7 @@ export default function Page() {
 
       <Source path="docs/adr/">The authoritative set. Summaries below are for orientation only.</Source>
 
-      <h2>The twelve</h2>
+      <h2>The fourteen</h2>
 
       <Table
         head={['ADR', 'Decision', 'Why it matters now']}
@@ -79,6 +79,16 @@ export default function Page() {
             <strong>0012</strong>,
             <>Founder independence</>,
             <>The system must be operable and maintainable without its original author. Drives the Control Center, provisioning, backups and this documentation.</>,
+          ],
+          [
+            <strong>0013</strong>,
+            <>SWR is the client data layer</>,
+            <>One default for new screens. <code>apiFetch</code> is the transport; do not add <code>useQuery</code> — TanStack Query is mounted but used in 4 files.</>,
+          ],
+          [
+            <strong>0014</strong>,
+            <>App Router, client components throughout</>,
+            <>No server components. Explains why the provider tree runs on every route — including other auth domains — and why the exemption list exists.</>,
           ],
         ]}
       />

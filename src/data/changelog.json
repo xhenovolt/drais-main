@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T17:16:52.240Z",
-  "last_commit": "6e56b7ed4522467d1e9da4d26e5b64a9742256ff",
+  "generated_at": "2026-08-03T17:37:25.928Z",
+  "last_commit": "b7ccded845e6b022ecdb7da110acc79195b64fca",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6124,7 +6124,20 @@
         }
       ],
       "commit": "6e56b7ed45"
+    },
+    {
+      "version": "1.173.8",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "DRAIS knowledge system — architecture-first developer education",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "DRAIS knowledge system — architecture-first developer education"
+        }
+      ],
+      "commit": "b7ccded845"
     }
   ],
-  "app_version": "1.173.8"
+  "app_version": "1.173.9"
 }

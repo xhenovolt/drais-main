@@ -55,6 +55,8 @@ Write the Alternatives and Trade-offs sections honestly — an ADR that presents
 | [0010](0010-dual-database-mode.md) | TiDB Cloud and local MySQL coexist as first-class runtime modes | Accepted |
 | [0011](0011-platform-api-contract-freeze.md) | The external Platform API v1 contract is frozen | Accepted |
 | [0012](0012-founder-independence.md) | Founder independence is an explicit design goal, not a documentation afterthought | Accepted |
+| [0013](0013-swr-as-the-client-data-layer.md) | SWR is the client data layer; `apiFetch` is the transport | Accepted |
+| [0014](0014-client-rendered-app-router.md) | App Router with client components throughout, not server components | Accepted |
 
 ## Where the raw material came from
 

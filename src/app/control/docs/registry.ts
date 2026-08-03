@@ -89,6 +89,16 @@ export const DOCS: DocMeta[] = [
     minutes: 11,
   },
 
+  {
+    slug: 'components',
+    section: 'Frontend',
+    title: 'Components & the design system',
+    blurb: 'What is actually shared, what is bespoke, and the honest state of components/ui.',
+    topics: ['components', 'ui'],
+    keywords: ['design system', 'button', 'modal', 'table', 'pagination', 'toast', 'badge', 'input', 'primitives', 'shared component', 'reusable', 'when to extract', 'components/ui', 'duplicate'],
+    minutes: 10,
+  },
+
   // ── Backend & Data ─────────────────────────────────────────────────────────
   {
     slug: 'request-lifecycle',
@@ -146,6 +156,42 @@ export const DOCS: DocMeta[] = [
     keywords: ['fees', 'payment', 'receipt', 'ledger', 'balance', 'debit', 'credit', 'billing', 'import', 'reconciliation', 'wallet', 'money location', 'budget', 'pocket money', 'defaulters'],
     minutes: 12,
   },
+  {
+    slug: 'module-students',
+    section: 'Modules',
+    title: 'Learners',
+    blurb: 'The identity spine everything else hangs off, and the lifecycle operations that must not lose history.',
+    topics: ['learners', 'lifecycle'],
+    keywords: ['student', 'admission', 'admission number', 'enrollment', 'enrolment', 'promotion', 'transfer', 'leaver', 'duplicate', 'merge', 'import', 'bulk', 'id card', 'guardian', 'contact', 'person_id'],
+    minutes: 13,
+  },
+  {
+    slug: 'module-tahfiz',
+    section: 'Modules',
+    title: 'Tahfiz',
+    blurb: "Qur'an memorisation tracking — and the religious-accuracy stance that governs its reference data.",
+    topics: ['tahfiz', 'islamic'],
+    keywords: ['quran', "qur'an", 'memorisation', 'memorization', 'hifz', 'surah', 'ayah', 'juz', 'hizb', 'mushaf', 'yassarna', 'shatibiyyah', 'tajweed', 'portions', 'halaqa', 'arabic', 'module gate'],
+    minutes: 11,
+  },
+  {
+    slug: 'module-control',
+    section: 'Modules',
+    title: 'Control Center',
+    blurb: 'The operator console: tenants, billing, health and impersonation — and why it shares no code with the school app.',
+    topics: ['control', 'operations'],
+    keywords: ['xhenvolt', 'operator', 'tenant', 'provisioning', 'billing', 'invoice', 'subscription', 'dunning', 'impersonation', 'suspend', 'hard delete', 'platform_jobs', 'health', 'totp', 'drais_control'],
+    minutes: 13,
+  },
+  {
+    slug: 'module-portal',
+    section: 'Modules',
+    title: 'Parent portal',
+    blurb: 'The isolation gate, evidence versus grant, and the surface that faces families directly.',
+    topics: ['parents', 'isolation'],
+    keywords: ['guardian', 'parent', 'otp', 'phone', 'link', 'parent_student_links', 'access_uuid', 'learnerAccessId', 'visibility', 'portal', 'isolation gate', 'custody', 'revoke'],
+    minutes: 11,
+  },
 
   // ── Boundaries ─────────────────────────────────────────────────────────────
   {
@@ -188,6 +234,15 @@ export const DOCS: DocMeta[] = [
   },
 
   // ── Playbooks ──────────────────────────────────────────────────────────────
+  {
+    slug: 'blueprint-students-list',
+    section: 'Playbooks',
+    title: 'Page blueprint: /students/list',
+    blurb: 'The largest page in DRAIS, read end to end — and what it teaches about every list screen.',
+    topics: ['blueprint', 'frontend'],
+    keywords: ['students list', 'list page', 'table', 'pagination', 'filter', 'search', 'bulk actions', 'export', 'import', 'apifetch', 'inline edit', 'modal', 'archetype', 'largest page'],
+    minutes: 13,
+  },
   {
     slug: 'playbook-api',
     section: 'Playbooks',

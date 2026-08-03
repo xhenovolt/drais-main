@@ -44,7 +44,7 @@ export default function PaymentsPage() { … }`}</code></pre>
         head={['Need', 'Use']}
         rows={[
           [<>Data displayed and re-displayed</>, <><code>useSWR</code>. The default.</>],
-          [<>A one-shot action (save, delete)</>, <>Plain <code>fetch</code>, then <code>mutate(key)</code>.</>],
+          [<>A one-shot action (save, delete)</>, <><code>apiFetch</code> from <code>@/lib/apiClient</code> — never raw <code>fetch</code> — then <code>mutate(key)</code>. It throws on failure and toasts, so errors are never silent.</>],
           [<>School name, logo, motto</>, <><code>useSchoolConfig()</code> — never hardcode.</>],
           [<>Money formatting</>, <><code>useCurrency()</code> — never <code>toLocaleString</code> inline.</>],
           [<>Current term</>, <><code>useTerm()</code> from <code>TermContext</code>.</>],

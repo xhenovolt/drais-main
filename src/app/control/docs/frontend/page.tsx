@@ -93,7 +93,8 @@ export default function Page() {
         head={['Approach', 'Files', 'Verdict']}
         rows={[
           [<><strong>SWR</strong> (<code>useSWR</code>)</>, '~165', <><strong>The de facto standard.</strong> Use this for new work. A global <code>SWRConfig</code> supplies the fetcher, disables focus revalidation and disables error retry.</>],
-          [<>Raw <code>fetch</code> in a component</>, '~122 pages', <>Very common, especially for mutations and one-shot loads. Acceptable for actions; prefer SWR for anything displayed and re-displayed.</>],
+          [<><strong><code>apiFetch</code></strong> (<code>@/lib/apiClient</code>)</>, '~34 files', <><strong>The mandated wrapper for every client-side call.</strong> Guarantees success/error toasts, consistent parsing, and throws on failure. Pass <code>{'{ silent: true }'}</code> for background reads.</>],
+          [<>Raw <code>fetch</code> in a component</>, '~122 pages', <><strong>Policy says this is forbidden</strong>, and the codebase has not caught up. Use <code>apiFetch</code> in new code; converting an old file when you touch it is cheap and buys error surfacing.</>],
           [<><strong>TanStack Query</strong> (<code>useQuery</code>)</>, '4', <><strong>Effectively vestigial.</strong> The provider is mounted globally but almost nothing uses it. Do not add new usage — you would be maintaining a second cache for no benefit.</>],
         ]}
       />
