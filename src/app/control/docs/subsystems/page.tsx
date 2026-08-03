@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import ControlDoc, { Box, Source, Table } from '../ControlDoc';
+import ControlDoc, { Box, Source, Table, SeeAlso } from '../ControlDoc';
 
 export default function Page() {
   return (
@@ -120,6 +120,7 @@ export default function Page() {
       </Box>
 
       <Source path="docs/README.md">Indexes every subsystem README, and names the ones still missing.</Source>
+      <SeeAlso slugs={['architecture', 'schema', 'playbook-module', 'frontend']} />
     </ControlDoc>
   );
 }

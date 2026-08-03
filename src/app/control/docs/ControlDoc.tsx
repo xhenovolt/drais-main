@@ -1,19 +1,14 @@
 'use client';
 
 /**
- * Control Center engineering documentation shell.
+ * DRAIS Knowledge System — document shell and content primitives.
  *
- * DEVELOPER + ARCHITECTURAL documentation lives here and ONLY here. It is
- * gated by the Control Center session (see src/app/control/layout.tsx), which
- * is the isolated Xhenvolt security domain — never the school session.
+ * Navigation, prev/next and cross-links are driven by ./registry.ts. Adding a
+ * page means a registry entry plus a route; nothing here needs editing.
  *
- * School-facing how-to documentation belongs at /help/guides. Public product
- * documentation belongs on the marketing site. Do not surface architecture,
- * schema, invariants or operational constraints on either of those.
- *
- * These pages are an orientation layer over the in-repo sources of truth
- * (docs/adr/*, src/lib/<subsystem>/README.md). Where they disagree, the repo
- * wins — every page links to the file it summarises.
+ * SCOPE: Xhenvolt-internal developer documentation, gated by the Control
+ * Center session (src/app/control/layout.tsx). School-facing how-tos live at
+ * /help/guides; public product docs live on the marketing site.
  */
 
 import React from 'react';
@@ -21,37 +16,21 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ArrowLeft, ArrowRight, ChevronRight, BookOpen, Info, AlertTriangle,
-  Lightbulb, ShieldAlert, FileCode2,
+  Lightbulb, ShieldAlert, FileCode2, Compass,
 } from 'lucide-react';
+import { DOCS, DOC_SECTIONS, docBySlug, docsInSection, neighbours } from './registry';
 
-export interface DocMeta {
-  slug: string;
-  title: string;
-  blurb: string;
-  section: string;
-}
+export * from './registry';
 
-export const CONTROL_DOCS: DocMeta[] = [
-  { slug: 'architecture',  section: 'System',      title: 'Architecture overview', blurb: 'What DRAIS is, how the pieces fit, and the constraints that shaped them.' },
-  { slug: 'decisions',     section: 'System',      title: 'Key decisions',         blurb: 'The ADRs that explain why the system is built this way.' },
-  { slug: 'subsystems',    section: 'System',      title: 'Subsystem map',         blurb: 'What lives where under src/lib, and which invariant governs each.' },
-  { slug: 'security',      section: 'Boundaries',  title: 'Auth & tenancy',        blurb: 'Three separate auth domains, and how tenant isolation is enforced.' },
-  { slug: 'data',          section: 'Boundaries',  title: 'Data & migrations',     blurb: 'Dual DB mode, migrations, soft delete, and the timezone rule.' },
-  { slug: 'platform-api',  section: 'Interfaces',  title: 'Platform API v1',       blurb: 'The frozen external contract, and what may never change in it.' },
-  { slug: 'operations',    section: 'Interfaces',  title: 'Build & operations',    blurb: 'Deploy targets, the one-cron constraint, jobs, and the build memory ceiling.' },
-];
-
-export const DOC_SECTIONS = Array.from(new Set(CONTROL_DOCS.map((d) => d.section)));
-
-// ─── Blocks ──────────────────────────────────────────────────────────────────
+// ─── Content primitives ──────────────────────────────────────────────────────
 
 type Kind = 'note' | 'warning' | 'tip' | 'invariant';
 
 const KIND: Record<Kind, { icon: React.ElementType; cls: string; fg: string; label: string }> = {
-  note:      { icon: Info,        cls: 'border-sky-800/60 bg-sky-950/40',       fg: 'text-sky-300',    label: 'Note' },
-  warning:   { icon: AlertTriangle, cls: 'border-amber-800/60 bg-amber-950/40', fg: 'text-amber-300',  label: 'Careful' },
-  tip:       { icon: Lightbulb,   cls: 'border-indigo-800/60 bg-indigo-950/40', fg: 'text-indigo-300', label: 'Context' },
-  invariant: { icon: ShieldAlert, cls: 'border-rose-800/60 bg-rose-950/40',     fg: 'text-rose-300',   label: 'Invariant' },
+  note:      { icon: Info,          cls: 'border-sky-800/60 bg-sky-950/40',       fg: 'text-sky-300',    label: 'Note' },
+  warning:   { icon: AlertTriangle, cls: 'border-amber-800/60 bg-amber-950/40',   fg: 'text-amber-300',  label: 'Careful' },
+  tip:       { icon: Lightbulb,     cls: 'border-indigo-800/60 bg-indigo-950/40', fg: 'text-indigo-300', label: 'Context' },
+  invariant: { icon: ShieldAlert,   cls: 'border-rose-800/60 bg-rose-950/40',     fg: 'text-rose-300',   label: 'Invariant' },
 };
 
 export function Box({ kind = 'note', title, children }: { kind?: Kind; title?: string; children: React.ReactNode }) {
@@ -106,14 +85,66 @@ export function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][
   );
 }
 
+/** ASCII flow diagram. Scrolls rather than wrapping — wrapped diagrams are unreadable. */
+export function Diagram({ children, caption }: { children: string; caption?: string }) {
+  return (
+    <figure className="not-prose my-6">
+      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 p-5">
+        <pre className="text-[12.5px] leading-relaxed text-slate-300 font-mono whitespace-pre">{children}</pre>
+      </div>
+      {caption && <figcaption className="text-xs text-slate-500 mt-2">{caption}</figcaption>}
+    </figure>
+  );
+}
+
+/** Cross-link block. Use liberally — moving between topics is the point. */
+export function SeeAlso({ slugs, children }: { slugs: string[]; children?: React.ReactNode }) {
+  const docs = slugs.map(docBySlug).filter(Boolean) as ReturnType<typeof docBySlug>[];
+  return (
+    <div className="not-prose my-6 rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">See also</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {docs.map((d) => d && (
+          <Link
+            key={d.slug}
+            href={`/control/docs/${d.slug}`}
+            className="group flex items-start gap-2 text-sm text-slate-300 hover:text-indigo-300"
+          >
+            <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-600 group-hover:text-indigo-400" />
+            <span><span className="font-semibold">{d.title}</span> — <span className="text-slate-400">{d.blurb}</span></span>
+          </Link>
+        ))}
+      </div>
+      {children && <div className="text-sm text-slate-400 mt-3 leading-relaxed">{children}</div>}
+    </div>
+  );
+}
+
+/** The five questions every architecture guide must answer. */
+export function FiveQuestions({
+  what, why, how, where, extend,
+}: { what: React.ReactNode; why: React.ReactNode; how: React.ReactNode; where: React.ReactNode; extend: React.ReactNode }) {
+  const rows: Array<[string, React.ReactNode]> = [
+    ['What', what], ['Why', why], ['How', how], ['Where', where], ['Extending', extend],
+  ];
+  return (
+    <div className="not-prose my-6 rounded-xl border border-indigo-900/60 bg-indigo-950/20 divide-y divide-indigo-900/40">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex flex-col sm:flex-row gap-2 sm:gap-5 p-4">
+          <p className="w-24 shrink-0 text-xs font-bold uppercase tracking-wider text-indigo-400 pt-0.5">{k}</p>
+          <div className="text-sm text-slate-300 leading-relaxed flex-1 min-w-0">{v}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
 export default function ControlDoc({ slug, children }: { slug: string; children: React.ReactNode }) {
   const pathname = usePathname();
-  const meta = CONTROL_DOCS.find((d) => d.slug === slug);
-  const idx = CONTROL_DOCS.findIndex((d) => d.slug === slug);
-  const prev = idx > 0 ? CONTROL_DOCS[idx - 1] : null;
-  const next = idx >= 0 && idx < CONTROL_DOCS.length - 1 ? CONTROL_DOCS[idx + 1] : null;
+  const meta = docBySlug(slug);
+  const { prev, next } = neighbours(slug);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -122,24 +153,36 @@ export default function ControlDoc({ slug, children }: { slug: string; children:
         className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-indigo-300 mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
-        Engineering docs
+        Knowledge base
       </Link>
 
       <h1 className="text-3xl font-extrabold text-slate-100">{meta?.title ?? 'Documentation'}</h1>
-      {meta && <p className="text-slate-400 mt-1.5">{meta.blurb}</p>}
+      {meta && (
+        <>
+          <p className="text-slate-400 mt-1.5 max-w-3xl">{meta.blurb}</p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-3">
+            {meta.topics.map((t) => (
+              <span key={t} className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded bg-slate-800 text-slate-400">
+                {t}
+              </span>
+            ))}
+            <span className="text-xs text-slate-600 ml-1">{meta.minutes} min read</span>
+          </div>
+        </>
+      )}
 
       <div className="flex gap-10 mt-8">
         <nav className="hidden lg:block w-60 shrink-0">
-          <div className="sticky top-20">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
+            <Link href="/control/docs" className="flex items-center gap-2 mb-4 text-slate-200 hover:text-indigo-300">
               <BookOpen className="w-4 h-4 text-indigo-400" />
-              <span className="font-bold text-sm text-slate-200">Contents</span>
-            </div>
+              <span className="font-bold text-sm">Knowledge base</span>
+            </Link>
             {DOC_SECTIONS.map((section) => (
               <div key={section} className="mb-4">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 px-2">{section}</p>
                 <ul className="space-y-0.5">
-                  {CONTROL_DOCS.filter((d) => d.section === section).map((d) => {
+                  {docsInSection(section).map((d) => {
                     const href = `/control/docs/${d.slug}`;
                     const active = pathname === href;
                     return (
@@ -168,14 +211,15 @@ export default function ControlDoc({ slug, children }: { slug: string; children:
           <article
             className="prose prose-invert max-w-none
               prose-headings:font-extrabold
-              prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:text-slate-100
+              prose-h2:text-2xl prose-h2:mt-9 prose-h2:mb-4 prose-h2:text-slate-100
               prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-2.5 prose-h3:text-slate-200
+              prose-h4:text-base prose-h4:mt-5 prose-h4:mb-2 prose-h4:text-slate-300
               prose-p:text-slate-300 prose-p:leading-relaxed
               prose-li:text-slate-300
               prose-strong:text-slate-100
               prose-a:text-indigo-400
               prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:text-indigo-300
-              prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-800"
+              prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-800"
           >
             {children}
           </article>
@@ -200,6 +244,11 @@ export default function ControlDoc({ slug, children }: { slug: string; children:
               </Link>
             ) : <div className="flex-1" />}
           </div>
+
+          <p className="mt-8 text-xs text-slate-600 flex items-center gap-1.5">
+            <Compass className="w-3.5 h-3.5" />
+            {DOCS.length} documents. Where this and the repository disagree, the repository wins.
+          </p>
         </main>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import ControlDoc, { Box, Source, Table } from '../ControlDoc';
+import ControlDoc, { Box, Source, Table, SeeAlso } from '../ControlDoc';
 
 export default function Page() {
   return (
@@ -158,6 +158,7 @@ export default function Page() {
       <p>
         Next: <Link href="/control/docs/data">Data &amp; migrations</Link>.
       </p>
+      <SeeAlso slugs={['request-lifecycle', 'playbook-api', 'frontend', 'schema']} />
     </ControlDoc>
   );
 }

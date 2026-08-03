@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T16:43:41.574Z",
-  "last_commit": "7d72d59d08a60656be5e5d292a7cdd4bcb600053",
+  "generated_at": "2026-08-03T17:16:52.240Z",
+  "last_commit": "6e56b7ed4522467d1e9da4d26e5b64a9742256ff",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6111,7 +6111,20 @@
         }
       ],
       "commit": "7d72d59d08"
+    },
+    {
+      "version": "1.173.7",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Control Center login required an existing school session",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Control Center login required an existing school session"
+        }
+      ],
+      "commit": "6e56b7ed45"
     }
   ],
-  "app_version": "1.173.7"
+  "app_version": "1.173.8"
 }

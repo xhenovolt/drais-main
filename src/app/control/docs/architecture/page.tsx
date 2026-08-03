@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import ControlDoc, { Box, Source, Table } from '../ControlDoc';
+import ControlDoc, { Box, Source, Table, SeeAlso } from '../ControlDoc';
 
 export default function Page() {
   return (
@@ -128,6 +128,7 @@ export default function Page() {
           acting on it. Nothing in <code>archive/</code> is current.
         </p>
       </Box>
+      <SeeAlso slugs={['system-map', 'decisions', 'security', 'request-lifecycle']} />
     </ControlDoc>
   );
 }

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import ControlDoc, { Box, Source, Table } from '../ControlDoc';
+import ControlDoc, { Box, Source, Table, SeeAlso } from '../ControlDoc';
 
 export default function Page() {
   return (
@@ -140,6 +140,7 @@ return res;`}</code></pre>
       <p>
         Next: <Link href="/control/docs/operations">Build &amp; operations</Link>.
       </p>
+      <SeeAlso slugs={['security', 'operations', 'playbook-api', 'architecture']} />
     </ControlDoc>
   );
 }

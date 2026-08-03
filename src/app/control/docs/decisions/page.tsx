@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import ControlDoc, { Box, Source, Table } from '../ControlDoc';
+import ControlDoc, { Box, Source, Table, SeeAlso } from '../ControlDoc';
 
 export default function Page() {
   return (
@@ -128,6 +128,7 @@ export default function Page() {
       <p>
         Next: <Link href="/control/docs/subsystems">Subsystem map</Link>.
       </p>
+      <SeeAlso slugs={['architecture', 'module-reports', 'security', 'playbook-module']} />
     </ControlDoc>
   );
 }
