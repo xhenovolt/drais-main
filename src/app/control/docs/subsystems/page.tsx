@@ -95,14 +95,23 @@ export default function Page() {
         ]}
       />
 
-      <h2>Still uncovered</h2>
+      <h2>Coverage</h2>
 
       <p>
-        <code>academics</code>, <code>academic</code>, <code>admissions</code>, <code>issuance</code>,{' '}
-        <code>export</code>, <code>i18n</code>, <code>datetime</code>, <code>utils</code> and the smaller
-        single-file folders have no README yet. Write one when you next work in them — the pattern is
-        established.
+        <strong>33 of 42 folders have a README.</strong> The nine without are each 24&ndash;153 lines with a
+        header comment that already says everything a README would: <code>actions</code>,{' '}
+        <code>admissions</code>, <code>brand</code>, <code>calendar</code>, <code>config</code>,{' '}
+        <code>internal</code>, <code>pdf</code>, <code>routes</code>, <code>version</code>.
       </p>
+
+      <Box kind="tip" title="That is a decision, not a backlog">
+        <p>
+          Documentation should exist because it teaches something, not because every folder must contain a
+          file. A README for a 24-line config folder is the shallow documentation this knowledge base exists to
+          replace. If you substantially grow one of the nine, write it then.
+        </p>
+      </Box>
+
 
       <Box kind="tip" title="Two patterns worth recognising">
         <p>

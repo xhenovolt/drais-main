@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T22:35:00.384Z",
-  "last_commit": "f8cbd5951173b4ea135b257176c41c17906ccd67",
+  "generated_at": "2026-08-03T22:48:27.418Z",
+  "last_commit": "a62a6851531330692ef0b45fd4e6185ccb8d222e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6150,7 +6150,20 @@
         }
       ],
       "commit": "f8cbd59511"
+    },
+    {
+      "version": "1.173.10",
+      "date": "2026-08-04",
+      "release_type": "patch",
+      "title": "Code-level teaching — theming, dashboard anatomy, data flow",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Code-level teaching — theming, dashboard anatomy, data flow"
+        }
+      ],
+      "commit": "a62a685153"
     }
   ],
-  "app_version": "1.173.10"
+  "app_version": "1.173.11"
 }

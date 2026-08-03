@@ -53,8 +53,23 @@ The engineering knowledge base for DRAIS. If you are new here, read in this orde
 | [`backup/`](../src/lib/backup/README.md) | School-scoped SQL backups to Cloudinary |
 | [`db/`](../src/lib/db/README.md) | Dual database mode, pools, runtime credential config |
 | [`services/`](../src/lib/services/README.md) | Mixed legacy layer — ledger, Dahua devices, staff/class-teacher lifecycle |
+| [`academic/`](../src/lib/academic/README.md) | Term resolution — the single answer to "what term is it?" |
+| [`academics/`](../src/lib/academics/README.md) | Teacher allocation and result-entry gating (pure rules) |
+| [`datetime/`](../src/lib/datetime/README.md) | Timezone-safe dates — the `toISOString()` footgun |
+| [`i18n/`](../src/lib/i18n/README.md) | Server-side localisation and name transliteration |
+| [`events/`](../src/lib/events/README.md) | The in-process typed event bus, and why it does not cross instances |
+| [`api/`](../src/lib/api/README.md) | `withRoute` — the standard route wrapper |
+| [`export/`](../src/lib/export/README.md) | CSV / Excel / PDF export |
+| [`issuance/`](../src/lib/issuance/README.md) | Universal issuance — certificates, ID cards, transcripts |
+| [`utils/`](../src/lib/utils/README.md) | Device-sync reliability: idempotency, retry, circuit breaker, parallelism |
+| [`middleware/`](../src/lib/middleware/README.md) | Post-operation hooks (**not** Next.js middleware) |
 
-> **Not yet covered:** `academics/`, `academic/`, `admissions/`, `tahfiz`-related helpers, `issuance/`, `export/`, `i18n/`, `datetime/`, `utils/`, and the smaller single-file folders. Write one when you next work in them.
+> **Deliberately not covered:** `actions/`, `admissions/`, `brand/`, `calendar/`, `config/`, `internal/`,
+> `pdf/`, `routes/`, `version/` — each 24–153 lines, with a header comment that already says everything a
+> README would. Documentation should exist because it teaches something, not because every folder must have a
+> file. `routes/auth-scope.ts` in particular carries its own incident write-up inline.
+>
+> **33 of 42 folders documented.** If you substantially grow one of the nine, write the README then.
 
 ## Architecture Decision Records — `adr/`
 
