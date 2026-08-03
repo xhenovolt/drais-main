@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T14:32:55.342Z",
-  "last_commit": "1d5a51a4e13a179cfbefcf079aafe25bec5a9f71",
+  "generated_at": "2026-08-03T14:35:49.081Z",
+  "last_commit": "75dcc0f0989644edf3595aa1eb403394641747af",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6033,7 +6033,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.173.1",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Subsystem READMEs for drce, snapshots, rbac, platform",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Subsystem READMEs for drce, snapshots, rbac, platform"
+        }
+      ],
+      "commit": "75dcc0f098"
     }
   ],
-  "app_version": "1.173.1"
+  "app_version": "1.173.2"
 }
