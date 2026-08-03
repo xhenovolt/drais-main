@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T14:35:49.081Z",
-  "last_commit": "75dcc0f0989644edf3595aa1eb403394641747af",
+  "generated_at": "2026-08-03T14:38:52.101Z",
+  "last_commit": "a33eb8daf4c7d086b7bdb3115c054248ca886dc7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6046,7 +6046,20 @@
         }
       ],
       "commit": "75dcc0f098"
+    },
+    {
+      "version": "1.173.2",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Subsystem READMEs for control and biometric",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Subsystem READMEs for control and biometric"
+        }
+      ],
+      "commit": "a33eb8daf4"
     }
   ],
-  "app_version": "1.173.2"
+  "app_version": "1.173.3"
 }
