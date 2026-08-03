@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T14:38:52.101Z",
-  "last_commit": "a33eb8daf4c7d086b7bdb3115c054248ca886dc7",
+  "generated_at": "2026-08-03T14:43:12.337Z",
+  "last_commit": "157bf44fa5ad2e0e3484ff8c365cbbdc102f9b5c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6059,7 +6059,20 @@
         }
       ],
       "commit": "a33eb8daf4"
+    },
+    {
+      "version": "1.173.3",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Subsystem READMEs for portal, parent, db, devices, trash, auth",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Subsystem READMEs for portal, parent, db, devices, trash, auth"
+        }
+      ],
+      "commit": "157bf44fa5"
     }
   ],
-  "app_version": "1.173.3"
+  "app_version": "1.173.4"
 }
