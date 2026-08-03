@@ -5,7 +5,7 @@ The engineering knowledge base for DRAIS. If you are new here, read in this orde
 1. [Root README](../README.md) — what DRAIS is, what it ships to, how to run it
 2. [CONTRIBUTING.md](../CONTRIBUTING.md) — setup, tests, git workflow, migrations
 3. [Architecture Decision Records](adr/README.md) — **why** the system is built this way
-4. The subsystem README inside the `src/lib/` folder you're working in
+4. The [subsystem README](#subsystem-readmes--srclibsubsystemreadmemd) inside the `src/lib/` folder you're working in
 
 > **School administrators and end users:** this folder is for engineers. Product
 > documentation lives on the DRAIS website under `/documentation`.
@@ -23,6 +23,38 @@ The engineering knowledge base for DRAIS. If you are new here, read in this orde
 | Understand attendance | [`../src/lib/attendance/README.md`](../src/lib/attendance/README.md) → [ADR-0001](adr/0001-attendance-raw-events.md) |
 | Integrate with the external API | [`PLATFORM_API.md`](PLATFORM_API.md), [`PLATFORM_CONTRACT_FREEZE.md`](PLATFORM_CONTRACT_FREEZE.md) |
 | Understand permissions | [`RBAC_ARCHITECTURE.md`](RBAC_ARCHITECTURE.md) |
+
+## Subsystem READMEs — `src/lib/<subsystem>/README.md`
+
+**Closest to the code, and the most likely to be correct.** Each explains what the subsystem owns, the invariant that shapes its design, a file map, extension guidelines, and its known constraints.
+
+| Subsystem | Covers |
+|---|---|
+| [`drce/`](../src/lib/drce/README.md) | Report composition engine — document model, expressions, rendering. See also [`RENDER_LAYERS.md`](../src/lib/drce/RENDER_LAYERS.md), the binding contract |
+| [`snapshots/`](../src/lib/snapshots/README.md) | Immutable, deterministic report data; generation pipeline; verify tokens |
+| [`cafe/`](../src/lib/cafe/README.md) | Competency-based assessment (components, frameworks, promotion) |
+| [`reports/`](../src/lib/reports/README.md) | Contribution policy, grading, nursery handling, subject ordering |
+| [`attendance/`](../src/lib/attendance/README.md) | Attendance evaluation and policy |
+| [`ingestion/`](../src/lib/ingestion/README.md) | Device event intake, dedup, punch time |
+| [`biometric/`](../src/lib/biometric/README.md) | Fingerprint ↔ person identity, matching, corrections, templates |
+| [`devices/`](../src/lib/devices/README.md) | Device ownership transfer ceremony |
+| [`passouts/`](../src/lib/passouts/README.md) | Pass-outs, gate decisions, visitation cards |
+| [`rbac/`](../src/lib/rbac/README.md) | Permission catalog, authorization, role defaults |
+| [`auth/`](../src/lib/auth/README.md) | API auth helpers and module gating |
+| [`portal/`](../src/lib/portal/README.md) | Parent portal: sessions, OTP, linking, the isolation gate |
+| [`parent/`](../src/lib/parent/README.md) | Cross-school parent API access resolution |
+| [`control/`](../src/lib/control/README.md) | Xhenvolt Control Center — tenants, billing, health, impersonation |
+| [`platform/`](../src/lib/platform/README.md) | External Platform API v1 — keys, scopes, idempotency, webhooks |
+| [`finance/`](../src/lib/finance/README.md) | Fees, payments, money locations, budgets, pocket money |
+| [`comm/`](../src/lib/comm/README.md) | Communication event engine (emit → rules → template → provider) |
+| [`notifications/`](../src/lib/notifications/README.md) | Policy fanout, outbox, drainer |
+| [`search/`](../src/lib/search/README.md) | Global search: projection index, ranking, permission filtering |
+| [`trash/`](../src/lib/trash/README.md) | Universal soft-delete, restore, dependency preview, purge |
+| [`backup/`](../src/lib/backup/README.md) | School-scoped SQL backups to Cloudinary |
+| [`db/`](../src/lib/db/README.md) | Dual database mode, pools, runtime credential config |
+| [`services/`](../src/lib/services/README.md) | Mixed legacy layer — ledger, Dahua devices, staff/class-teacher lifecycle |
+
+> **Not yet covered:** `academics/`, `academic/`, `admissions/`, `tahfiz`-related helpers, `issuance/`, `export/`, `i18n/`, `datetime/`, `utils/`, and the smaller single-file folders. Write one when you next work in them.
 
 ## Architecture Decision Records — `adr/`
 

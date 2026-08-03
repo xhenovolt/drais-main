@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T14:43:12.337Z",
-  "last_commit": "157bf44fa5ad2e0e3484ff8c365cbbdc102f9b5c",
+  "generated_at": "2026-08-03T14:47:00.443Z",
+  "last_commit": "408e21d6a6527ba331fdf5cb847f25827c9991d2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6072,7 +6072,20 @@
         }
       ],
       "commit": "157bf44fa5"
+    },
+    {
+      "version": "1.173.4",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Subsystem READMEs for finance, comm, cafe, passouts, services, notifications, reports, search",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Subsystem READMEs for finance, comm, cafe, passouts, services, notifications, reports, search"
+        }
+      ],
+      "commit": "408e21d6a6"
     }
   ],
-  "app_version": "1.173.4"
+  "app_version": "1.173.5"
 }
