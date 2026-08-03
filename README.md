@@ -35,6 +35,51 @@ One codebase ships to four surfaces:
 - **PDF**: puppeteer against a naked print page; on serverless the Chromium binary comes from `@sparticuz/chromium`
 - **Testing**: Node test runner suites per domain (`npm run test:drce`, `test:snapshots`, `test:attendance`, …) plus data-integrity verifiers that run against production (`npm run verify:divisions`)
 
+## Repository Map
+
+```
+src/
+  app/            Next.js App Router — ~230 UI pages + ~685 API routes
+  lib/            the engines (see below); most real logic lives here
+  components/     shared React components
+  locales/        en.json / ar.json — every user-facing string
+docs/             engineering documentation — start at docs/README.md
+  adr/            Architecture Decision Records — why, not what
+database/
+  migrations/tidb/  managed, ledger-tracked migrations
+  exports/          periodic schema/data snapshots
+electron/         desktop shell
+android/, mobile/ Capacitor + nodejs-mobile Android build
+workers/          relay agents, background workers
+scripts/          build, database, and maintenance tooling
+```
+
+Key `src/lib/` subsystems — several carry their own `README.md`:
+
+| Folder | What it owns |
+|---|---|
+| [`attendance/`](src/lib/attendance/README.md) | Ingestion, rule evaluation, device clocks, time intelligence |
+| `drce/` | Report card engine ([`RENDER_LAYERS.md`](src/lib/drce/RENDER_LAYERS.md) is its binding contract) |
+| `snapshots/` | Immutable report snapshots, grading, ranking, integrity |
+| `control/` | Control Center — separate auth, provisioning, billing |
+| `finance/` | Fee rules engine, budgets, receipts |
+| `biometric/` | Enrollment, template distribution, identity resolution |
+| [`backup/`](src/lib/backup/README.md) | School-scoped SQL backups to Cloudinary |
+| `portal/` | Parent portal — OTP auth and the isolation gate |
+| `platform/` | External Platform API v1 (frozen contract) |
+| `ingestion/` | [Unified import pipeline](src/lib/ingestion/README.md) |
+
+## Documentation
+
+| | |
+|---|---|
+| **[docs/README.md](docs/README.md)** | Engineering documentation index |
+| **[docs/adr/](docs/adr/README.md)** | **Architecture Decision Records — read before changing a subsystem** |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, tests, migrations, commit conventions |
+| [docs/database/TABLE_DICTIONARY.md](docs/database/TABLE_DICTIONARY.md) | All 292 tables, scope, soft-delete status |
+
+Product documentation for schools lives on the DRAIS website under `/documentation`.
+
 ## Getting Started (development)
 
 ```bash
@@ -42,6 +87,8 @@ npm install
 cp .env.example .env.local        # configure DB (TIDB_* or local MySQL) + secrets
 npm run dev                        # http://localhost:3000
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for tests, database modes, and the commit/versioning workflow.
 
 Production web build: `npm run build` / `npm start`.
 

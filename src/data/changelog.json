@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-02T21:06:01.445Z",
-  "last_commit": "117bff0d7f9d805b2f43a877d39edb0f95d99bb5",
+  "generated_at": "2026-08-03T08:10:06.570Z",
+  "last_commit": "cc483eb3cf04fbdd116735047d2155a080885cdf",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6020,7 +6020,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "1.173.0",
+      "date": "2026-08-03",
+      "release_type": "minor",
+      "title": "documentation program: ADRs, docs index, CONTRIBUTING, DB dictionary, doc triage",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "documentation program: ADRs, docs index, CONTRIBUTING, DB dictionary, doc triage"
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "1.172.0"
+  "app_version": "1.173.0"
 }
