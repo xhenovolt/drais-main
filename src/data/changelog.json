@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T22:48:27.418Z",
-  "last_commit": "a62a6851531330692ef0b45fd4e6185ccb8d222e",
+  "generated_at": "2026-08-03T22:53:10.055Z",
+  "last_commit": "cc3219c2c5e5d240efbd7a1189817e457acaf8b5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6163,7 +6163,20 @@
         }
       ],
       "commit": "a62a685153"
+    },
+    {
+      "version": "1.173.11",
+      "date": "2026-08-04",
+      "release_type": "patch",
+      "title": "Ten subsystem READMEs — 33 of 42 folders covered",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Ten subsystem READMEs — 33 of 42 folders covered"
+        }
+      ],
+      "commit": "cc3219c2c5"
     }
   ],
-  "app_version": "1.173.11"
+  "app_version": "1.173.12"
 }

@@ -273,6 +273,15 @@ export const DOCS: DocMeta[] = [
     minutes: 13,
   },
   {
+    slug: 'blueprint-drce-editor',
+    section: 'Playbooks',
+    title: 'Page blueprint: the DRCE editor',
+    blurb: 'An editor is not a form. Undo/redo, mutation coalescing, decoupled selection, and dirty tracking.',
+    topics: ['blueprint', 'editor'],
+    keywords: ['drce editor', 'editor', 'undo', 'redo', 'history', 'usereducer', 'reducer', 'coalesce', 'drag', 'selection', 'usesyncexternalstore', 'dirty', 'isdirty', 'unsaved', 'autosave', 'draft', 'canvas', 'properties panel', 'form', 'wizard', 'builder'],
+    minutes: 13,
+  },
+  {
     slug: 'playbook-api',
     section: 'Playbooks',
     title: 'Add an API route',
