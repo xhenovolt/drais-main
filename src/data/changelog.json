@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T17:37:25.928Z",
-  "last_commit": "b7ccded845e6b022ecdb7da110acc79195b64fca",
+  "generated_at": "2026-08-03T22:35:00.384Z",
+  "last_commit": "f8cbd5951173b4ea135b257176c41c17906ccd67",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6137,7 +6137,20 @@
         }
       ],
       "commit": "b7ccded845"
+    },
+    {
+      "version": "1.173.9",
+      "date": "2026-08-03",
+      "release_type": "patch",
+      "title": "Complete the knowledge system — 24 docs, page blueprint, ADR-0013/0014",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Complete the knowledge system — 24 docs, page blueprint, ADR-0013/0014"
+        }
+      ],
+      "commit": "f8cbd59511"
     }
   ],
-  "app_version": "1.173.9"
+  "app_version": "1.173.10"
 }

@@ -99,6 +99,25 @@ export const DOCS: DocMeta[] = [
     minutes: 10,
   },
 
+  {
+    slug: 'theming',
+    section: 'Frontend',
+    title: 'Theming & colour',
+    blurb: 'Where every colour actually lives, the three-layer cascade, and why hardcoding a hex breaks four features at once.',
+    topics: ['theme', 'colour', 'dark mode'],
+    keywords: ['color', 'colour', 'colors', 'colours', 'coloring', 'colouring', 'theme', 'theme.tsx', 'themeprovider.tsx', 'why', 'dark mode', 'darkmode', 'light mode', 'globals.css', 'themeprovider', 'schoolthemeapplier', 'usethemestore', 'token', 'design token', 'css variable', 'var(--primary)', 'tailwind v4', 'custom variant', 'branding', 'brand color', 'glass', 'hex', 'palette', 'font scale', 'rtl', 'styling', 'css'],
+    minutes: 12,
+  },
+  {
+    slug: 'dashboard-anatomy',
+    section: 'Frontend',
+    title: 'The dashboard, component by component',
+    blurb: 'Why the homepage contains what it does, how each block gets its data, and how to add one.',
+    topics: ['dashboard', 'components'],
+    keywords: ['homepage', 'home page', 'dashboard', 'kpi', 'widget', 'card', 'landing', 'overview', 'intelligence', 'signals', 'device status', 'clock health', 'dynamic import', 'ssr false', 'refreshinterval', 'add a widget'],
+    minutes: 12,
+  },
+
   // ── Backend & Data ─────────────────────────────────────────────────────────
   {
     slug: 'request-lifecycle',
@@ -125,6 +144,16 @@ export const DOCS: DocMeta[] = [
     blurb: 'The tables that carry the business: why each exists, what it relates to, and the queries that hurt.',
     topics: ['database', 'schema'],
     keywords: ['students', 'people', 'person_id', 'enrollments', 'attendance_raw_events', 'attendance_records', 'report_snapshots', 'biometric_enrollments', 'student_ledger', 'fee', 'payment', 'users', 'sessions', 'devices', 'table', 'foreign key', 'index'],
+    minutes: 14,
+  },
+
+  {
+    slug: 'data-flow',
+    section: 'Backend & Data',
+    title: 'Data end to end: fetch, shape, reshape',
+    blurb: 'How a route returns data, how a component receives it, and exactly how to add or restructure your own.',
+    topics: ['data', 'api'],
+    keywords: ['fetch', 'fetcher', 'apifetch', 'useswr', 'swr key', 'conditional fetch', 'null key', 'envelope', 'success data', 'unwrap', 'response shape', 'add an api', 'restructure', 'mutate', 'revalidate', 'refreshinterval', 'transform', 'normalise', 'normalize'],
     minutes: 14,
   },
 
@@ -296,12 +325,33 @@ export function neighbours(slug: string): { prev: DocMeta | null; next: DocMeta 
 /**
  * Rank documents against a free-text query.
  *
- * Deliberately simple and transparent: AND semantics over tokens, weighted by
- * where the token matched. A developer searching "cannot login" should land on
- * Auth & tenancy, so symptoms live in `keywords` alongside identifiers.
+ * Two-stage, because developers type both keywords AND whole questions:
+ *
+ *   1. STRICT — every meaningful token must appear. Precise for "cannot login",
+ *      "school_id", "new table".
+ *   2. LENIENT fallback — if strict yields nothing, rank by how many tokens
+ *      matched. This is what rescues "how is data received" and
+ *      "why does the homepage have these components", where no stopword list
+ *      would ever be complete enough.
+ *
+ * Symptoms live in `keywords` alongside identifiers, so someone who does not yet
+ * know the vocabulary still lands on the right page.
  */
+/** Filler words that carry no discriminating signal. */
+const STOPWORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'in', 'on', 'at', 'to', 'of',
+  'for', 'and', 'or', 'do', 'does', 'did', 'i', 'my', 'me', 'it', 'its', 'this',
+  'that', 'with', 'from', 'can', 'should', 'would', 'about',
+]);
+
 export function searchDocs(query: string): DocMeta[] {
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const phrase = query.toLowerCase().trim();
+  const raw = phrase.split(/\s+/).filter(Boolean);
+
+  // Drop stopwords, but never drop every token — a query of only stopwords
+  // falls back to the raw list rather than matching everything.
+  const stripped = raw.filter((t) => !STOPWORDS.has(t));
+  const tokens = stripped.length ? stripped : raw;
   if (!tokens.length) return [];
 
   const scored = DOCS.map((d) => {
@@ -310,27 +360,44 @@ export function searchDocs(query: string): DocMeta[] {
     const section = d.section.toLowerCase();
     const topics = d.topics.join(' ').toLowerCase();
     const keywords = d.keywords.join(' ').toLowerCase();
+    const keywordList = keywords.split(' ');
     const haystack = `${title} ${blurb} ${section} ${topics} ${keywords}`;
 
-    // Every token must appear somewhere, or it is not a match.
-    if (!tokens.every((t) => haystack.includes(t))) return { d, score: 0 };
+    const matched = tokens.filter((t) => haystack.includes(t));
+    if (matched.length === 0) return { d, score: 0, matched: 0 };
 
     let score = 0;
-    for (const t of tokens) {
+
+    // Whole-phrase hit outranks scattered token hits: someone typing
+    // "dark mode" wants the theming page, not every page that mentions it.
+    if (keywords.includes(phrase)) score += 80;
+    if (title.includes(phrase)) score += 120;
+
+    for (const t of matched) {
       if (title === t) score += 100;
       else if (title.startsWith(t)) score += 60;
       else if (title.includes(t)) score += 40;
-      if (keywords.split(' ').includes(t)) score += 30;
+      if (keywordList.includes(t)) score += 30;
       else if (keywords.includes(t)) score += 18;
       if (topics.includes(t)) score += 12;
       if (blurb.includes(t)) score += 8;
       if (section.includes(t)) score += 5;
     }
-    return { d, score };
+
+    // Reward breadth of coverage, so a doc matching 4 of 5 tokens outranks one
+    // matching 1 of 5 that happens to hit a heavily-weighted field.
+    score += Math.round((matched.length / tokens.length) * 60);
+
+    return { d, score, matched: matched.length };
   });
 
-  return scored
-    .filter((s) => s.score > 0)
+  const hits = scored.filter((s) => s.score > 0);
+
+  // Stage 1: strict. Prefer documents matching EVERY token.
+  const strict = hits.filter((s) => s.matched === tokens.length);
+  const pool = strict.length ? strict : hits;
+
+  return pool
     .sort((a, b) => b.score - a.score || a.d.title.localeCompare(b.d.title))
     .map((s) => s.d);
 }
