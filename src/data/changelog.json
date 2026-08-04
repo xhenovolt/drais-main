@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-04T03:06:35.761Z",
-  "last_commit": "00077d715d1b8f06c6bd95de5c1d832010f8e0da",
+  "generated_at": "2026-08-04T08:00:15.282Z",
+  "last_commit": "bd19e56d558740cfb3e4c17d053b914c6e18ad79",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6189,7 +6189,20 @@
         }
       ],
       "commit": "00077d715d"
+    },
+    {
+      "version": "1.173.13",
+      "date": "2026-08-04",
+      "release_type": "patch",
+      "title": "Developer University track + surface school guides in the sidebar",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Developer University track + surface school guides in the sidebar"
+        }
+      ],
+      "commit": "bd19e56d55"
     }
   ],
-  "app_version": "1.173.13"
+  "app_version": "1.173.14"
 }

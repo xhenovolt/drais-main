@@ -42,6 +42,27 @@ export const SECTION_ORDER = [
 
 export const DOCS: DocMeta[] = [
   // ── Learn (DRAIS Developer University) ─────────────────────────────────────
+  // Ordered as a CURRICULUM, not alphabetically: prev/next and the sidebar
+  // follow this sequence, so a developer with only JavaScript can start at the
+  // top and never meet a concept before it has been taught.
+  {
+    slug: 'learn-react',
+    section: 'Learn',
+    title: 'React, taught from DRAIS',
+    blurb: 'Components, props, state, lists and conditional rendering — read from a real 73-line DRAIS component.',
+    topics: ['react', 'lesson'],
+    keywords: ['react', 'component', 'props', 'state', 'usestate', 'render', 're-render', 'keys', 'key prop', 'list', 'map', 'conditional rendering', 'event handling', 'onclick', 'children', 'jsx', 'beginner', 'learn', 'never used react'],
+    minutes: 20,
+  },
+  {
+    slug: 'learn-hooks-deep',
+    section: 'Learn',
+    title: 'Hooks and the dependency array',
+    blurb: 'useState, useEffect, useMemo, useCallback, useRef — the rules, and the dependency-array bug everyone ships once.',
+    topics: ['react', 'hooks', 'lesson'],
+    keywords: ['hooks', 'usestate', 'useeffect', 'usememo', 'usecallback', 'useref', 'usereducer', 'usesyncexternalstore', 'rules of hooks', 'dependency array', 'deps', 'infinite loop', 'stale closure', 'cleanup', 'custom hook', 'learn'],
+    minutes: 22,
+  },
   {
     slug: 'learn-typescript',
     section: 'Learn',
@@ -61,6 +82,33 @@ export const DOCS: DocMeta[] = [
     minutes: 16,
   },
   {
+    slug: 'learn-nextjs',
+    section: 'Learn',
+    title: 'Next.js App Router, taught from DRAIS',
+    blurb: 'File-based routing, layouts, route handlers, dynamic segments and middleware — using the real route tree.',
+    topics: ['nextjs', 'lesson'],
+    keywords: ['next.js', 'nextjs', 'app router', 'routing', 'file based', 'page.tsx', 'layout.tsx', 'route.ts', 'dynamic segment', 'params', 'middleware', 'edge runtime', 'nodejs runtime', 'server component', 'client component', 'use client', 'learn'],
+    minutes: 20,
+  },
+  {
+    slug: 'learn-async',
+    section: 'Learn',
+    title: 'Async JavaScript in DRAIS',
+    blurb: 'Promises, async/await, Promise.all, and the error handling the zero-silent-failures rule demands.',
+    topics: ['javascript', 'lesson'],
+    keywords: ['async', 'await', 'promise', 'promise.all', 'then', 'catch', 'error handling', 'try catch', 'fire and forget', 'void', 'unhandled rejection', 'race', 'concurrency', 'learn'],
+    minutes: 18,
+  },
+  {
+    slug: 'learn-sql',
+    section: 'Learn',
+    title: 'SQL and the database in DRAIS',
+    blurb: 'Queries, joins, indexes, parameterisation and tenancy — written the way DRAIS writes them.',
+    topics: ['database', 'lesson'],
+    keywords: ['sql', 'query', 'join', 'left join', 'inner join', 'index', 'parameterised', 'prepared statement', 'sql injection', 'transaction', 'withtransaction', 'group by', 'n+1', 'explain', 'mysql', 'tidb', 'learn'],
+    minutes: 20,
+  },
+  {
     slug: 'learn-patterns',
     section: 'Learn',
     title: 'Good, better, best',
@@ -77,6 +125,15 @@ export const DOCS: DocMeta[] = [
     topics: ['lab', 'attendance'],
     keywords: ['lab', 'walkthrough', 'trace', 'exercise', 'hands on', 'end to end', 'punch', 'scan', 'follow the code', 'tutorial', 'learn'],
     minutes: 25,
+  },
+  {
+    slug: 'learn-capstone',
+    section: 'Learn',
+    title: 'Capstone: ship a feature end to end',
+    blurb: 'Build one complete vertical slice — migration, service, route, page, nav, i18n, tests — with nothing left implicit.',
+    topics: ['capstone', 'lesson'],
+    keywords: ['capstone', 'build a feature', 'end to end', 'first feature', 'full stack', 'vertical slice', 'tutorial', 'walkthrough', 'complete example', 'from scratch', 'learn', 'onboarding'],
+    minutes: 30,
   },
 
   // ── Foundations ────────────────────────────────────────────────────────────

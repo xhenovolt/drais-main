@@ -141,19 +141,37 @@ export default function KnowledgeBaseIndex() {
             </section>
           ))}
 
-          <section className="mt-12 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-            <h2 className="text-lg font-bold text-slate-100 mb-1">If you are new, read in this order</h2>
+          <section className="mt-12 rounded-2xl border border-indigo-900/60 bg-indigo-950/20 p-6">
+            <h2 className="text-lg font-bold text-slate-100 mb-1">New to the codebase? Start with the course.</h2>
             <p className="text-sm text-slate-400 mb-4">
-              About two hours. It is the fastest route to being able to change something safely.
+              The <strong className="text-slate-200">Learn</strong> track is a curriculum, ordered so that a
+              developer who knows only JavaScript never meets a concept before it has been taught. Roughly
+              3.5 hours of reading, and every example is real DRAIS code — not a generic tutorial.
             </p>
+            <ol className="text-sm text-slate-300 space-y-1.5 list-decimal pl-5">
+              <li><Link href="/control/docs/learn-react" className="text-indigo-400">React</Link> → <Link href="/control/docs/learn-hooks-deep" className="text-indigo-400">Hooks</Link> — components, state, the dependency array.</li>
+              <li><Link href="/control/docs/learn-typescript" className="text-indigo-400">TypeScript</Link> → <Link href="/control/docs/learn-tsx" className="text-indigo-400">TSX</Link> — types, and what the compiler prevents.</li>
+              <li><Link href="/control/docs/learn-nextjs" className="text-indigo-400">Next.js</Link> → <Link href="/control/docs/learn-async" className="text-indigo-400">Async</Link> → <Link href="/control/docs/learn-sql" className="text-indigo-400">SQL</Link> — routing, concurrency, the database.</li>
+              <li><Link href="/control/docs/learn-patterns" className="text-indigo-400">Good, better, best</Link> — the six patterns, and the bug each one fixed.</li>
+              <li><Link href="/control/docs/learn-lab-attendance" className="text-indigo-400">Lab</Link> → <Link href="/control/docs/learn-capstone" className="text-indigo-400">Capstone</Link> — trace a real flow, then ship a feature.</li>
+            </ol>
+            <p className="text-sm text-slate-400 mt-4">
+              Finish the capstone unaided and you can build to DRAIS standards. The reference sections below
+              carry the domain knowledge for whatever you are asked to change next.
+            </p>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+            <h2 className="text-lg font-bold text-slate-100 mb-1">Already know React and TypeScript?</h2>
+            <p className="text-sm text-slate-400 mb-4">Skip the course. About two hours to be productive.</p>
             <ol className="text-sm text-slate-300 space-y-2 list-decimal pl-5">
               <li><Link href="/control/docs/system-map" className="text-indigo-400">System map</Link> — the measured shape of what you have inherited.</li>
               <li><Link href="/control/docs/architecture" className="text-indigo-400">Architecture overview</Link> — and the constraints that explain the odd parts.</li>
               <li><Link href="/control/docs/decisions" className="text-indigo-400">Architecture decisions</Link> — intent cannot be read from code.</li>
               <li><Link href="/control/docs/security" className="text-indigo-400">Auth &amp; tenancy</Link> — before touching anything that reads school data.</li>
               <li><Link href="/control/docs/request-lifecycle" className="text-indigo-400">Request lifecycles</Link> — how a click becomes a row.</li>
-              <li><Link href="/control/docs/frontend" className="text-indigo-400">Frontend architecture</Link> — who owns which state.</li>
-              <li>Then the <Link href="/control/docs/module-attendance" className="text-indigo-400">module guide</Link> for whatever you were asked to change, and the README of the folder you land in.</li>
+              <li><Link href="/control/docs/learn-patterns" className="text-indigo-400">Good, better, best</Link> — the house patterns, quickly.</li>
+              <li>Then the <Link href="/control/docs/module-attendance" className="text-indigo-400">module guide</Link> for whatever you were asked to change.</li>
             </ol>
             <p className="text-sm text-slate-400 mt-4">
               Before your first pull request: <code className="text-indigo-300">CONTRIBUTING.md</code> and{' '}
