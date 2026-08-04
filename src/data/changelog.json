@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-04T08:00:15.282Z",
-  "last_commit": "bd19e56d558740cfb3e4c17d053b914c6e18ad79",
+  "generated_at": "2026-08-04T15:10:49.316Z",
+  "last_commit": "6e6d5c0a76efb9045eee22a4975ec92c74dbdf75",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6202,7 +6202,20 @@
         }
       ],
       "commit": "bd19e56d55"
+    },
+    {
+      "version": "1.173.14",
+      "date": "2026-08-04",
+      "release_type": "patch",
+      "title": "Complete the Developer University — 10-lesson curriculum",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Complete the Developer University — 10-lesson curriculum"
+        }
+      ],
+      "commit": "6e6d5c0a76"
     }
   ],
-  "app_version": "1.173.14"
+  "app_version": "1.173.15"
 }

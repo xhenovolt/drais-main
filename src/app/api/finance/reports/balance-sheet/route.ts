@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
+    // Financial statements are their own permission. `finance.view` is a legacy
+    // two-segment code granting the whole module; a bursar may legitimately view
+    // the dashboard without being able to pull the school's P&L or balance sheet.
+    await requirePermission(session.userId, session.schoolId, 'finance.reports.view', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
@@ -63,16 +66,25 @@ export async function GET(req: NextRequest) {
       };
     }));
     
-    // Get accounts receivable (outstanding fees)
+    // ── Accounts receivable (outstanding fees) ───────────────────────────────
+    // SECURITY (2026-08): this query previously had NO tenant filter, so one
+    // school's balance sheet reported EVERY school's outstanding fees as its own
+    // receivables — inflating assets by an arbitrary amount.
+    //
+    // `student_fee_items` has no school_id of its own, so it must be scoped by
+    // joining through `students` (the same pattern the parent-portal gate uses).
     const [receivables] = await connection.execute(`
-      SELECT 
-        COUNT(DISTINCT student_id) as total_students_with_balance,
-        COALESCE(SUM(balance), 0) as total_outstanding,
-        COALESCE(SUM(CASE WHEN balance > 0 AND paid > 0 THEN balance ELSE 0 END), 0) as partial_outstanding,
-        COALESCE(SUM(CASE WHEN paid = 0 THEN balance ELSE 0 END), 0) as full_outstanding
-      FROM student_fee_items 
-      WHERE balance > 0
-    `);
+      SELECT
+        COUNT(DISTINCT sfi.student_id) as total_students_with_balance,
+        COALESCE(SUM(sfi.balance), 0) as total_outstanding,
+        COALESCE(SUM(CASE WHEN sfi.balance > 0 AND sfi.paid > 0 THEN sfi.balance ELSE 0 END), 0) as partial_outstanding,
+        COALESCE(SUM(CASE WHEN sfi.paid = 0 THEN sfi.balance ELSE 0 END), 0) as full_outstanding
+      FROM student_fee_items sfi
+      JOIN students s ON s.id = sfi.student_id
+      WHERE s.school_id = ?
+        AND s.deleted_at IS NULL
+        AND sfi.balance > 0
+    `, [schoolId]);
     
     // Get accounts payable (pending expenditures)
     const [payables] = await connection.execute(`

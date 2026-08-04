@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
+    // Financial statements are their own permission. `finance.view` is a legacy
+    // two-segment code granting the whole module; a bursar may legitimately view
+    // the dashboard without being able to pull the school's P&L or balance sheet.
+    await requirePermission(session.userId, session.schoolId, 'finance.reports.view', session.isSuperAdmin);
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
@@ -97,24 +100,38 @@ export async function GET(req: NextRequest) {
     
     const [expenseTransactions] = await connection.execute(expenseSql, expenseParams);
     
-    // Calculate totals
-    const totalIncome = (incomeTransactions as any[]).reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
-    const totalExpenses = (expenseTransactions as any[]).reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
-    const netIncome = totalIncome - totalExpenses;
-    
-    // Get fee collections summary
+    // ── Fee collections ──────────────────────────────────────────────────────
+    // SECURITY (2026-08): this query previously had NO school_id filter, so one
+    // school's income statement summed EVERY school's fee payments. It also read
+    // the retired `fee_payments` table (its own route returns 410), so for any
+    // school on the canonical path it reported zero regardless.
+    //
+    // Now reads finance_payments — written by the canonical recordPayment path
+    // in src/lib/services/FinanceLedger.ts — and is school-scoped.
     const [feeSummary] = await connection.execute(`
-      SELECT 
+      SELECT
         COALESCE(SUM(fp.amount), 0) as total_collected,
-        COUNT(*) as total_transactions,
+        COUNT(fp.id) as total_transactions,
         COALESCE(SUM(CASE WHEN fp.method = 'cash' THEN fp.amount ELSE 0 END), 0) as cash_collected,
         COALESCE(SUM(CASE WHEN fp.method = 'mpesa' THEN fp.amount ELSE 0 END), 0) as mpesa_collected,
-        COALESCE(SUM(CASE WHEN fp.method = 'bank_transfer' THEN fp.amount ELSE 0 END), 0) as bank_collected
-      FROM fee_payments fp
-      WHERE fp.status = 'completed'
+        COALESCE(SUM(CASE WHEN fp.method = 'bank_transfer' THEN fp.amount ELSE 0 END), 0) as bank_collected,
+        COALESCE(SUM(CASE WHEN fp.method NOT IN ('cash','mpesa','bank_transfer') THEN fp.amount ELSE 0 END), 0) as other_collected
+      FROM finance_payments fp
+      WHERE fp.school_id = ?
         AND DATE(fp.created_at) BETWEEN ? AND ?
-    `, [startDate || '2020-01-01', endDate || new Date().toISOString().split('T')[0]]);
-    
+    `, [schoolId, startDate || '2020-01-01', endDate || new Date().toISOString().split('T')[0]]);
+
+    // ── Totals ───────────────────────────────────────────────────────────────
+    // Revenue has TWO sources and both must count, or tuition — the largest
+    // income a school has — is missing from net income entirely:
+    //   1. general ledger income categories (`ledger`, manually categorised)
+    //   2. student fee collections (`finance_payments`, the canonical path)
+    const ledgerIncome = (incomeTransactions as any[]).reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
+    const totalExpenses = (expenseTransactions as any[]).reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
+    const feeIncome = parseFloat((feeSummary as any[])[0]?.total_collected || 0);
+    const totalIncome = ledgerIncome + feeIncome;
+    const netIncome = totalIncome - totalExpenses;
+
     // Get expenditure summary
     const [expenditureSummary] = await connection.execute(`
       SELECT 
@@ -137,7 +154,11 @@ export async function GET(req: NextRequest) {
         income: {
           categories: incomeCategories,
           transactions: incomeTransactions,
-          total: totalIncome
+          total: totalIncome,
+          // Split so the UI can show WHERE revenue came from. Fee collections
+          // are usually the overwhelming majority for a school.
+          ledger_income: ledgerIncome,
+          fee_income: feeIncome
         },
         expenses: {
           categories: expenseCategories,
@@ -146,6 +167,8 @@ export async function GET(req: NextRequest) {
         },
         summary: {
           total_income: totalIncome,
+          ledger_income: ledgerIncome,
+          fee_income: feeIncome,
           total_expenses: totalExpenses,
           net_income: netIncome,
           profit_margin: totalIncome > 0 ? ((netIncome / totalIncome) * 100).toFixed(2) : 0

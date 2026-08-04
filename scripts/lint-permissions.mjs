@@ -64,12 +64,21 @@ function loadCatalog() {
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Walk src/ for .ts/.tsx files
 // ─────────────────────────────────────────────────────────────────────────────
+// Directories whose permission strings are ILLUSTRATIVE, not call sites.
+// src/app/control/docs is the engineering knowledge base — its code samples
+// contain requirePermission('…') inside teaching examples, which the naive
+// scanner would otherwise report as uncatalogued permissions forever.
+const SKIP_DIRS = new Set(['node_modules', 'docs']);
+
 function* walk(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const e of entries) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) {
-      if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+      if (e.name.startsWith('.')) continue;
+      // Only skip `docs` under src/app/control — never a real `docs` elsewhere.
+      if (e.name === 'node_modules') continue;
+      if (e.name === 'docs' && full.replace(/\\/g, '/').endsWith('src/app/control/docs')) continue;
       yield* walk(full);
     } else if (e.isFile() && /\.(ts|tsx)$/.test(e.name)) {
       yield full;

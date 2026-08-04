@@ -55,8 +55,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ref:
       `SELECT COALESCE(SUM(fs.amount),0) AS expected FROM student_fee_items sfi
          JOIN fee_structures fs ON fs.id = sfi.fee_structure_id WHERE sfi.student_id = ?`,
       [r.student_id]) as Promise<any[]>, [{ expected: 0 }]),
-    safe(query(`SELECT COALESCE(SUM(amount),0) AS paid FROM fee_payments WHERE student_id = ?`,
-      [r.student_id]) as Promise<any[]>, [{ paid: 0 }]),
+    // FIX (2026-08): read the CANONICAL payment table. This previously summed
+    // the retired `fee_payments` (its own route returns 410), so for any school
+    // on the canonical recordPayment path it returned 0 — and every printed
+    // receipt showed an outstanding balance equal to the full expected fees,
+    // regardless of what the family had already paid.
+    safe(query(
+      `SELECT COALESCE(SUM(amount),0) AS paid FROM finance_payments
+        WHERE student_id = ? AND school_id = ?`,
+      [r.student_id, schoolId]) as Promise<any[]>, [{ paid: 0 }]),
   ]);
   const expected = n(exp[0]?.expected);
   const totalPaid = n(paid[0]?.paid);

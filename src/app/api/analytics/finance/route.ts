@@ -48,11 +48,12 @@ export async function GET(req: NextRequest) {
         SUM(fp.amount) as daily_collection,
         COUNT(fp.id) as transaction_count,
         AVG(fp.amount) as avg_transaction_amount
-      FROM fee_payments fp
+      FROM finance_payments fp
       JOIN students s ON fp.student_id = s.id AND s.deleted_at IS NULL
-      WHERE s.school_id = ? 
+      WHERE fp.school_id = ?
       AND fp.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-      ${termId ? 'AND fp.term_id = ?' : ''}
+      ${termId ? `AND EXISTS (SELECT 1 FROM student_ledger sl
+                               WHERE sl.payment_id = fp.id AND sl.term_id = ?)` : ''}
       GROUP BY DATE(fp.created_at)
       ORDER BY payment_date DESC
     `, termId ? [schoolId, termId] : [schoolId]);
@@ -73,8 +74,10 @@ export async function GET(req: NextRequest) {
       JOIN classes c ON e.class_id = c.id
       JOIN student_fee_items sfi ON s.id = sfi.student_id
         ${termId ? 'AND sfi.term_id = ?' : ''}
-      LEFT JOIN fee_payments fp ON s.id = fp.student_id
-        ${termId ? 'AND fp.term_id = ?' : ''}
+      LEFT JOIN finance_payments fp ON s.id = fp.student_id
+        AND fp.school_id = s.school_id
+        ${termId ? `AND EXISTS (SELECT 1 FROM student_ledger sl
+                                 WHERE sl.payment_id = fp.id AND sl.term_id = ?)` : ''}
       WHERE s.school_id = ? AND sfi.balance > 0 AND s.deleted_at IS NULL
       GROUP BY s.id, p.first_name, p.last_name, s.admission_no, c.name
       ORDER BY total_balance DESC, days_since_payment DESC
