@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-03T22:53:10.055Z",
-  "last_commit": "cc3219c2c5e5d240efbd7a1189817e457acaf8b5",
+  "generated_at": "2026-08-04T03:06:35.761Z",
+  "last_commit": "00077d715d1b8f06c6bd95de5c1d832010f8e0da",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6176,7 +6176,20 @@
         }
       ],
       "commit": "cc3219c2c5"
+    },
+    {
+      "version": "1.173.12",
+      "date": "2026-08-04",
+      "release_type": "patch",
+      "title": "Page blueprint for the DRCE editor — an editor is not a form",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Page blueprint for the DRCE editor — an editor is not a form"
+        }
+      ],
+      "commit": "00077d715d"
     }
   ],
-  "app_version": "1.173.12"
+  "app_version": "1.173.13"
 }

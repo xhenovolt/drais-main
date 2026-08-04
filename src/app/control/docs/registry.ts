@@ -30,6 +30,7 @@ export interface DocMeta {
 }
 
 export const SECTION_ORDER = [
+  'Learn',
   'Foundations',
   'Frontend',
   'Backend & Data',
@@ -40,6 +41,44 @@ export const SECTION_ORDER = [
 ] as const;
 
 export const DOCS: DocMeta[] = [
+  // ── Learn (DRAIS Developer University) ─────────────────────────────────────
+  {
+    slug: 'learn-typescript',
+    section: 'Learn',
+    title: 'TypeScript, taught from DRAIS',
+    blurb: 'interface vs type, discriminated unions, branded types, generics and guards — every example real code.',
+    topics: ['typescript', 'lesson'],
+    keywords: ['typescript', 'ts', 'interface', 'type', 'enum', 'generic', 'generics', 'utility type', 'partial', 'pick', 'omit', 'record', 'readonly', 'returntype', 'awaited', 'infer', 'union', 'intersection', 'discriminated union', 'type guard', 'never', 'unknown', 'any', 'const assertion', 'branded type', 'learn', 'beginner', 'new developer'],
+    minutes: 22,
+  },
+  {
+    slug: 'learn-tsx',
+    section: 'Learn',
+    title: 'JS → JSX → TS → TSX',
+    blurb: 'How the four layers stack, what the compiler rejects that JavaScript allows, and why that prevents production bugs.',
+    topics: ['typescript', 'react', 'lesson'],
+    keywords: ['jsx', 'tsx', 'javascript', 'react', 'compile', 'transpile', 'babel', 'swc', 'props', 'children', 'react.fc', 'component typing', 'why tsx', 'difference', 'learn'],
+    minutes: 16,
+  },
+  {
+    slug: 'learn-patterns',
+    section: 'Learn',
+    title: 'Good, better, best',
+    blurb: 'Real DRAIS decisions shown as three implementations, with the bug each earlier version caused.',
+    topics: ['patterns', 'lesson'],
+    keywords: ['anti-pattern', 'antipattern', 'best practice', 'refactor', 'good better best', 'bad code', 'production grade', 'safe', 'unsafe', 'correct', 'incorrect', 'learn', 'quality'],
+    minutes: 20,
+  },
+  {
+    slug: 'learn-lab-attendance',
+    section: 'Learn',
+    title: 'Lab: trace an attendance punch',
+    blurb: 'Follow one finger-scan through every layer with the real files open, then extend it.',
+    topics: ['lab', 'attendance'],
+    keywords: ['lab', 'walkthrough', 'trace', 'exercise', 'hands on', 'end to end', 'punch', 'scan', 'follow the code', 'tutorial', 'learn'],
+    minutes: 25,
+  },
+
   // ── Foundations ────────────────────────────────────────────────────────────
   {
     slug: 'system-map',
