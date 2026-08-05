@@ -37,45 +37,49 @@ export async function GET(req: NextRequest) {
     
     connection = await getConnection();
     
-    // Get all wallets with balances
-    const [wallets] = await connection.execute(`
-      SELECT 
+    // ── Cash across money locations ──────────────────────────────────────────
+    // FIX (2026-08): this route threw a 500 on EVERY request because the SQL
+    // referenced columns that do not exist. Against the real schema:
+    //   wallets  has  status, location_type       — NOT is_active, method, deleted_at
+    //   ledger   has  created_at                  — NOT status, transaction_date, deleted_at
+    // Any one of those is an "Unknown column" error, so the statement has never
+    // rendered since it was written.
+    //
+    // Also collapses the previous N+1 (two queries per wallet) into one
+    // aggregate, and scopes the ledger join by school_id.
+    const [walletRows] = await connection.execute(`
+      SELECT
         w.id,
         w.name,
-        w.method,
+        w.location_type AS type,
         w.account_number,
         w.bank_name,
         w.currency,
         w.opening_balance,
-        w.is_active
+        COALESCE(SUM(CASE WHEN l.tx_type = 'credit' THEN l.amount ELSE 0 END), 0) AS total_credits,
+        COALESCE(SUM(CASE WHEN l.tx_type = 'debit'  THEN l.amount ELSE 0 END), 0) AS total_debits
       FROM wallets w
-      WHERE w.school_id = ? AND w.is_active = 1 AND (w.deleted_at IS NULL OR w.deleted_at = '')
+      LEFT JOIN ledger l
+        ON l.wallet_id = w.id
+       AND l.school_id = w.school_id
+       AND DATE(l.created_at) <= ?
+      WHERE w.school_id = ?
+        AND (w.status IS NULL OR w.status = 'active')
+      GROUP BY w.id, w.name, w.location_type, w.account_number, w.bank_name,
+               w.currency, w.opening_balance
       ORDER BY w.name
-    `, [schoolId]);
-    
-    // Calculate wallet balances
-    const walletBalances = await Promise.all((wallets as any[]).map(async (wallet: any) => {
-      const [credits] = await connection.execute(`
-        SELECT COALESCE(SUM(amount), 0) as total_credits
-        FROM ledger 
-        WHERE wallet_id = ? AND tx_type = 'credit' AND status = 'approved'
-          AND transaction_date <= ?
-      `, [wallet.id, asOfDate]);
-      
-      const [debits] = await connection.execute(`
-        SELECT COALESCE(SUM(amount), 0) as total_debits
-        FROM ledger 
-        WHERE wallet_id = ? AND tx_type = 'debit' AND status = 'approved'
-          AND transaction_date <= ?
-      `, [wallet.id, asOfDate]);
-      
+    `, [asOfDate, schoolId]);
+
+    const walletBalances = (walletRows as any[]).map((w: any) => {
+      const credits = parseFloat(w.total_credits || 0);
+      const debits = parseFloat(w.total_debits || 0);
       return {
-        ...wallet,
-        total_credits: parseFloat((credits[0] as any)?.total_credits || 0),
-        total_debits: parseFloat((debits[0] as any)?.total_debits || 0),
-        current_balance: wallet.opening_balance + parseFloat((credits[0] as any)?.total_credits || 0) - parseFloat((debits[0] as any)?.total_debits || 0)
+        ...w,
+        total_credits: credits,
+        total_debits: debits,
+        current_balance: parseFloat(w.opening_balance || 0) + credits - debits,
       };
-    }));
+    });
     
     // ── Accounts receivable (outstanding fees) ───────────────────────────────
     // SECURITY (2026-08): this query previously had NO tenant filter, so one
@@ -106,15 +110,22 @@ export async function GET(req: NextRequest) {
       WHERE school_id = ? AND status = 'pending' AND (deleted_at IS NULL OR deleted_at = '')
     `, [schoolId]);
     
-    // Get student deposits/advances
+    // ── Student deposits / advances ──────────────────────────────────────────
+    // `ledger.status` does not exist (see the wallet query above), and the
+    // category sub-select was itself unscoped — it matched a category named
+    // 'Student Deposits' belonging to ANY school. Scoped to this school's own
+    // categories plus global ones, and bounded by the as-of date.
     const [deposits] = await connection.execute(`
-      SELECT 
-        COALESCE(SUM(amount), 0) as total_deposits
-      FROM ledger 
-      WHERE school_id = ? AND category_id IN (
-        SELECT id FROM finance_categories WHERE name = 'Student Deposits'
-      ) AND status = 'approved'
-    `, [schoolId]);
+      SELECT COALESCE(SUM(l.amount), 0) as total_deposits
+      FROM ledger l
+      WHERE l.school_id = ?
+        AND DATE(l.created_at) <= ?
+        AND l.category_id IN (
+          SELECT id FROM finance_categories
+           WHERE name = 'Student Deposits'
+             AND (school_id = ? OR school_id IS NULL)
+        )
+    `, [schoolId, asOfDate, schoolId]);
     
     // Calculate totals
     const totalCash = walletBalances.reduce((sum: number, w: any) => sum + w.current_balance, 0);

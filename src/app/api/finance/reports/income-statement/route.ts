@@ -65,23 +65,26 @@ export async function GET(req: NextRequest) {
         fc.id as category_id,
         fc.name as category_name,
         COALESCE(SUM(l.amount), 0) as total_amount,
-        COUNT(*) as transaction_count
+        COUNT(l.id) as transaction_count
       FROM finance_categories fc
-      LEFT JOIN ledger l ON fc.id = l.category_id 
-        AND l.status = 'approved'
-        AND (l.deleted_at IS NULL OR l.deleted_at = '')
-        ${startDate ? 'AND l.transaction_date >= ?' : ''}
-        ${endDate ? 'AND l.transaction_date <= ?' : ''}
-      WHERE fc.category_type = 'income' 
+      LEFT JOIN ledger l ON fc.id = l.category_id
+        -- ledger has NO status / deleted_at / transaction_date columns; the
+        -- date is created_at. Referencing them threw "Unknown column" and 500'd
+        -- this route on every request since it was written.
+        AND l.school_id = ?          -- global categories must not pull in
+                                     -- other schools' ledger rows
+        ${startDate ? 'AND DATE(l.created_at) >= ?' : ''}
+        ${endDate ? 'AND DATE(l.created_at) <= ?' : ''}
+      WHERE fc.category_type = 'income'
         AND (fc.school_id = ? OR fc.school_id IS NULL)
       GROUP BY fc.id, fc.name
       ORDER BY total_amount DESC
     `;
     
-    const incomeParams: any[] = [];
+    const incomeParams: any[] = [schoolId];   // join scope
     if (startDate) incomeParams.push(startDate);
     if (endDate) incomeParams.push(endDate);
-    incomeParams.push(schoolId);
+    incomeParams.push(schoolId);              // category scope
     
     const [incomeTransactions] = await connection.execute(incomeSql, incomeParams);
     
@@ -91,23 +94,26 @@ export async function GET(req: NextRequest) {
         fc.id as category_id,
         fc.name as category_name,
         COALESCE(SUM(l.amount), 0) as total_amount,
-        COUNT(*) as transaction_count
+        COUNT(l.id) as transaction_count
       FROM finance_categories fc
-      LEFT JOIN ledger l ON fc.id = l.category_id 
-        AND l.status = 'approved'
-        AND (l.deleted_at IS NULL OR l.deleted_at = '')
-        ${startDate ? 'AND l.transaction_date >= ?' : ''}
-        ${endDate ? 'AND l.transaction_date <= ?' : ''}
-      WHERE fc.category_type = 'expense' 
+      LEFT JOIN ledger l ON fc.id = l.category_id
+        -- ledger has NO status / deleted_at / transaction_date columns; the
+        -- date is created_at. Referencing them threw "Unknown column" and 500'd
+        -- this route on every request since it was written.
+        AND l.school_id = ?          -- global categories must not pull in
+                                     -- other schools' ledger rows
+        ${startDate ? 'AND DATE(l.created_at) >= ?' : ''}
+        ${endDate ? 'AND DATE(l.created_at) <= ?' : ''}
+      WHERE fc.category_type = 'expense'
         AND (fc.school_id = ? OR fc.school_id IS NULL)
       GROUP BY fc.id, fc.name
       ORDER BY total_amount DESC
     `;
     
-    const expenseParams: any[] = [];
+    const expenseParams: any[] = [schoolId];  // join scope
     if (startDate) expenseParams.push(startDate);
     if (endDate) expenseParams.push(endDate);
-    expenseParams.push(schoolId);
+    expenseParams.push(schoolId);             // category scope
     
     const [expenseTransactions] = await connection.execute(expenseSql, expenseParams);
     

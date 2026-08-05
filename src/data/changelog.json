@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-05T16:34:34.849Z",
-  "last_commit": "cc3ea5932495817d2b2e9cba5e27bd7d6f90078a",
+  "generated_at": "2026-08-05T16:46:55.308Z",
+  "last_commit": "985b954c09c60e4916987c2da22db9680b0c58cf",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6241,7 +6241,20 @@
         }
       ],
       "commit": "cc3ea59324"
+    },
+    {
+      "version": "1.173.17",
+      "date": "2026-08-05",
+      "release_type": "patch",
+      "title": "Restore report access — my permission change 403'd everyone",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Restore report access — my permission change 403'd everyone"
+        }
+      ],
+      "commit": "985b954c09"
     }
   ],
-  "app_version": "1.173.17"
+  "app_version": "1.173.18"
 }
