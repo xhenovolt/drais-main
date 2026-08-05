@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-05T10:20:09.809Z",
-  "last_commit": "b3ee54f607e78d134eccb151d8b46ab7a5507866",
+  "generated_at": "2026-08-05T16:34:34.849Z",
+  "last_commit": "cc3ea5932495817d2b2e9cba5e27bd7d6f90078a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6228,7 +6228,20 @@
         }
       ],
       "commit": "b3ee54f607"
+    },
+    {
+      "version": "1.173.16",
+      "date": "2026-08-05",
+      "release_type": "patch",
+      "title": "Payment reported failure after succeeding; learner name never shown",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Payment reported failure after succeeding; learner name never shown"
+        }
+      ],
+      "commit": "cc3ea59324"
     }
   ],
-  "app_version": "1.173.16"
+  "app_version": "1.173.17"
 }

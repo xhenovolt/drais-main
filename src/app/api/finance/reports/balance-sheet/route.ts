@@ -14,10 +14,21 @@ export async function GET(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    // Financial statements are their own permission. `finance.view` is a legacy
-    // two-segment code granting the whole module; a bursar may legitimately view
-    // the dashboard without being able to pull the school's P&L or balance sheet.
-    await requirePermission(session.userId, session.schoolId, 'finance.reports.view', session.isSuperAdmin);
+    // Financial statements have their own permission, but `finance.view` is the
+    // legacy module-wide code that existing roles actually hold. Requiring ONLY
+    // the granular code 403s every current user, because expandPermissionChain
+    // maps 'finance.reports.view' to
+    //   [finance.reports.view, finance.reports.*, finance.*, *]
+    // which does not include the legacy 'finance.view'.
+    //
+    // So accept EITHER: schools can adopt the finer permission when they choose
+    // without losing access today. Drop the fallback once `finance.reports.view`
+    // has been granted everywhere.
+    try {
+      await requirePermission(session.userId, session.schoolId, 'finance.reports.view', session.isSuperAdmin);
+    } catch {
+      await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
+    }
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
