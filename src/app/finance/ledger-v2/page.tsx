@@ -156,8 +156,8 @@ export default function FinanceLedgerPage() {
     try {
       const res = await apiFetch('/api/finance/bulk-import', { method: 'POST', body: JSON.stringify({ csv: bulkCsv }) });
       setBulkResult(res);
-      if (res.ok) { showToast(res.message, 'success'); await loadAll(); }
-      else showToast(res.error || 'Import failed', 'error');
+      if (res.ok) { showToast('success', res.message); await loadAll(); }
+      else showToast('error', res.error || 'Import failed');
     } finally { setBulkLoading(false); }
   };
 

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-04T15:10:49.316Z",
-  "last_commit": "6e6d5c0a76efb9045eee22a4975ec92c74dbdf75",
+  "generated_at": "2026-08-05T10:20:09.809Z",
+  "last_commit": "b3ee54f607e78d134eccb151d8b46ab7a5507866",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6215,7 +6215,20 @@
         }
       ],
       "commit": "6e6d5c0a76"
+    },
+    {
+      "version": "1.173.15",
+      "date": "2026-08-04",
+      "release_type": "patch",
+      "title": "Cross-tenant leaks in financial statements + build the reports",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Cross-tenant leaks in financial statements + build the reports"
+        }
+      ],
+      "commit": "b3ee54f607"
     }
   ],
-  "app_version": "1.173.15"
+  "app_version": "1.173.16"
 }

@@ -106,12 +106,12 @@ function TahfizPortionsContent() {
       return response.json();
     },
     onSuccess: () => {
-      showToast('Presentation recorded successfully', 'success');
+      showToast('success', 'Presentation recorded successfully');
       queryClient.invalidateQueries({ queryKey: ['tahfiz-learners'] });
       setShowPresentModal(false);
     },
     onError: (error: any) => {
-      showToast(error.message || 'Failed to record presentation', 'error');
+      showToast('error', error.message || 'Failed to record presentation');
     }
   });
 
@@ -147,7 +147,7 @@ function TahfizPortionsContent() {
 
   const handleMarkPresent = (learner: Learner) => {
     if (!learner.next_portion?.id) {
-      showToast('No active portion to mark as presented', 'error');
+      showToast('error', 'No active portion to mark as presented');
       return;
     }
     setSelectedLearner(learner);

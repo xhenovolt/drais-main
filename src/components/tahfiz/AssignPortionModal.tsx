@@ -153,18 +153,18 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
       return response.json();
     },
     onSuccess: () => {
-      showToast('Portion(s) assigned successfully', 'success');
+      showToast('success', 'Portion(s) assigned successfully');
       onSuccess();
       onClose();
     },
     onError: (error: any) => {
-      showToast(error.message || 'Failed to assign portion', 'error');
+      showToast('error', error.message || 'Failed to assign portion');
     }
   });
 
   const handleSubmit = () => {
     if (!portionName.trim()) {
-      showToast('Portion name is required', 'error');
+      showToast('error', 'Portion name is required');
       return;
     }
 
@@ -173,12 +173,12 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
       : selectedStudents;
 
     if (targetType === 'individual' && targetStudentIds.length === 0) {
-      showToast('Please select at least one student', 'error');
+      showToast('error', 'Please select at least one student');
       return;
     }
 
     if (targetType === 'group' && !selectedGroup) {
-      showToast('Please select a group', 'error');
+      showToast('error', 'Please select a group');
       return;
     }
 

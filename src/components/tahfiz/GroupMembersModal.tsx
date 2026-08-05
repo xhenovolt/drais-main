@@ -102,11 +102,11 @@ function GroupMembersModalContent({
       if (data.success) {
         setMembers(data.data);
       } else {
-        showToast('Failed to fetch group members', 'error');
+        showToast('error', 'Failed to fetch group members');
       }
     } catch (error) {
       console.error('Error:', error);
-      showToast('Failed to fetch group members', 'error');
+      showToast('error', 'Failed to fetch group members');
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ function GroupMembersModalContent({
 
   const handleAddStudents = async () => {
     if (selectedStudents.length === 0) {
-      showToast('Please select students to add', 'error');
+      showToast('error', 'Please select students to add');
       return;
     }
 
@@ -163,17 +163,17 @@ function GroupMembersModalContent({
 
       const failed = results.filter(r => !r.success);
       if (failed.length === 0) {
-        showToast(`${selectedStudents.length} student(s) added successfully`, 'success');
+        showToast('success', `${selectedStudents.length} student(s) added successfully`);
         setSelectedStudents([]);
         fetchMembers();
         fetchAvailableStudents();
         onMembersChanged();
       } else {
-        showToast(`${failed.length} student(s) failed to add`, 'error');
+        showToast('error', `${failed.length} student(s) failed to add`);
       }
     } catch (error) {
       console.error('Error:', error);
-      showToast('Failed to add students', 'error');
+      showToast('error', 'Failed to add students');
     } finally {
       setLoading(false);
     }
@@ -189,27 +189,27 @@ function GroupMembersModalContent({
 
       const data = await response.json();
       if (data.success) {
-        showToast('Student removed successfully', 'success');
+        showToast('success', 'Student removed successfully');
         fetchMembers();
         fetchAvailableStudents();
         onMembersChanged();
       } else {
-        showToast(data.message || 'Failed to remove student', 'error');
+        showToast('error', data.message || 'Failed to remove student');
       }
     } catch (error) {
       console.error('Error:', error);
-      showToast('Failed to remove student', 'error');
+      showToast('error', 'Failed to remove student');
     }
   };
 
   const handleTransferStudent = async (studentId: number, studentName: string) => {
     if (!transferFromGroup || !transferToGroup) {
-      showToast('Please select both source and destination groups', 'error');
+      showToast('error', 'Please select both source and destination groups');
       return;
     }
 
     if (transferFromGroup === transferToGroup) {
-      showToast('Source and destination groups cannot be the same', 'error');
+      showToast('error', 'Source and destination groups cannot be the same');
       return;
     }
 
@@ -229,18 +229,18 @@ function GroupMembersModalContent({
 
       const data = await response.json();
       if (data.success) {
-        showToast('Student transferred successfully', 'success');
+        showToast('success', 'Student transferred successfully');
         fetchMembers();
         fetchAvailableStudents();
         onMembersChanged();
         setTransferFromGroup('');
         setTransferToGroup('');
       } else {
-        showToast(data.message || 'Failed to transfer student', 'error');
+        showToast('error', data.message || 'Failed to transfer student');
       }
     } catch (error) {
       console.error('Error:', error);
-      showToast('Failed to transfer student', 'error');
+      showToast('error', 'Failed to transfer student');
     } finally {
       setLoading(false);
     }

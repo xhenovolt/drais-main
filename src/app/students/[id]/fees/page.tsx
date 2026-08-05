@@ -77,7 +77,10 @@ export default function StudentFeesPage() {
   const [ledger, setLedger]     = useState<LedgerEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [student, setStudent]   = useState<{ first_name: string; last_name: string; admission_no: string } | null>(null);
+  const [student, setStudent]   = useState<{
+    display_name: string; first_name?: string; last_name?: string;
+    admission_no?: string; class_name?: string | null;
+  } | null>(null);
 
   // Panel state
   const [showPayment,  setShowPayment]  = useState(false);
@@ -110,13 +113,33 @@ export default function StudentFeesPage() {
       setBalance(balanceRes);
       setAccounts(Array.isArray(accRes) ? accRes : []);
 
-      // Get student name from profile
-      const profile = await apiFetch(`/api/students/${studentId}/profile`);
-      if (profile?.student) {
+      // Learner identity for the page header.
+      //
+      // This read `profile.student`, which the route never returns — the
+      // payload is `{ success, data: { …student } }`. So `student` stayed null
+      // and the header rendered nothing, leaving a fees page identified only by
+      // the numeric id in the URL. A bursar taking money had no confirmation
+      // they were on the right learner.
+      const profile = await apiFetch(`/api/students/${studentId}/profile`, { silent: true });
+      const p = profile?.data ?? profile?.student ?? null;
+      if (p) {
+        // The class is NOT a field on the student — it lives on the enrolment,
+        // because a learner's class is a fact about a term, not about them
+        // (see the person/student/enrolment spine). Take the active enrolment,
+        // falling back to the most recent.
+        const enrolments = Array.isArray(p.enrollments) ? p.enrollments : [];
+        const current =
+          enrolments.find((e: any) => e.status === 'active') ?? enrolments[0] ?? null;
+
         setStudent({
-          first_name: profile.student.first_name,
-          last_name: profile.student.last_name,
-          admission_no: profile.student.admission_no,
+          // `display_name` is the localised name the API composes via
+          // personDisplayName(); fall back to the raw name parts.
+          display_name:
+            p.display_name || `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || `Learner #${studentId}`,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          admission_no: p.admission_no,
+          class_name: current?.class_name ?? null,
         });
       }
     } catch (e) {
@@ -136,7 +159,17 @@ export default function StudentFeesPage() {
     }
     setPaySubmitting(true);
     try {
-      const res = await apiFetch('/api/finance/record-payment', {
+      // apiFetch THROWS on failure and already shows both the error toast and
+      // the success toast. Reaching the next line means the payment was
+      // committed, so there is nothing to branch on here.
+      //
+      // This previously read `if (res.ok)`. apiFetch returns the parsed JSON
+      // body, not a Response — so `res.ok` was ALWAYS undefined and every
+      // successful payment fell into the else branch. The bursar saw a success
+      // toast from apiFetch immediately followed by "Payment failed", the
+      // balance never refreshed, and the natural response was to enter the
+      // payment again — duplicating it in the ledger.
+      await apiFetch('/api/finance/record-payment', {
         method: 'POST',
         body: JSON.stringify({
           student_id: studentId,
@@ -147,14 +180,13 @@ export default function StudentFeesPage() {
           account_id: payAccountId ? +payAccountId : undefined,
         }),
       });
-      if (res.ok) {
-        showToast(res.message || 'Payment recorded', 'success');
-        setPayAmount(''); setPayReference(''); setPayPaidBy('');
-        setShowPayment(false);
-        await load();
-      } else {
-        showToast(res.error || 'Payment failed', 'error');
-      }
+
+      setPayAmount(''); setPayReference(''); setPayPaidBy('');
+      setShowPayment(false);
+      await load();
+    } catch {
+      // apiFetch has already surfaced the reason. Keep the form open and
+      // populated so the bursar can correct and retry rather than re-key it.
     } finally {
       setPaySubmitting(false);
     }
@@ -169,7 +201,10 @@ export default function StudentFeesPage() {
     if (!adjRef.trim()) { showToast('error', 'Reference is required'); return; }
     setAdjSubmitting(true);
     try {
-      const res = await apiFetch('/api/finance/adjust', {
+      // Same fix as handlePayment: apiFetch throws on failure and toasts on
+      // success, so `if (res.ok)` was always false and every successful
+      // adjustment reported "Adjustment failed" without refreshing.
+      await apiFetch('/api/finance/adjust', {
         method: 'POST',
         body: JSON.stringify({
           student_id: studentId,
@@ -178,14 +213,12 @@ export default function StudentFeesPage() {
           reference: adjRef.trim(),
         }),
       });
-      if (res.ok) {
-        showToast(res.message || 'Balance adjusted', 'success');
-        setAdjAmount(''); setAdjRef('');
-        setShowAdjust(false);
-        await load();
-      } else {
-        showToast(res.error || 'Adjustment failed', 'error');
-      }
+
+      setAdjAmount(''); setAdjRef('');
+      setShowAdjust(false);
+      await load();
+    } catch {
+      // apiFetch already surfaced the reason; keep the form for correction.
     } finally {
       setAdjSubmitting(false);
     }
@@ -216,14 +249,17 @@ export default function StudentFeesPage() {
             <ArrowLeft className="w-4 h-4 text-slate-500" />
           </Link>
           <div>
+            {/* The LEARNER leads, not the page title. A bursar about to take
+                money must be able to confirm at a glance that they are on the
+                right person — the page title is the same on every one. */}
             <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-              Fee Ledger
+              {student ? student.display_name : `Learner #${studentId}`}
             </h1>
-            {student && (
-              <p className="text-xs text-slate-500 mt-0.5">
-                {student.first_name} {student.last_name} &middot; {student.admission_no}
-              </p>
-            )}
+            <p className="text-xs text-slate-500 mt-0.5">
+              {student
+                ? [student.admission_no, student.class_name].filter(Boolean).join(' · ') || 'Fee ledger'
+                : 'Loading learner…'}
+            </p>
           </div>
         </div>
         <button

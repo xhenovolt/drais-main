@@ -133,7 +133,7 @@ function TahfizStudentsContent() {
     // Refresh the students list after successful creation
     refetch();
     setShowStudentWizard(false);
-    showToast('Student enrolled successfully!', 'success');
+    showToast('success', 'Student enrolled successfully!');
   };
 
   return (
