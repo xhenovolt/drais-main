@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T08:40:24.328Z",
-  "last_commit": "9a439e7a25ebf8c5d79aaaca896393a30b58c0d3",
+  "generated_at": "2026-08-06T15:11:56.016Z",
+  "last_commit": "384ccfe62e4ad27da6bbceb30d49dab2b2a7d3f5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6319,7 +6319,20 @@
         }
       ],
       "commit": "9a439e7a25"
+    },
+    {
+      "version": "1.173.23",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Fix opt-in forced password reset flow",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Fix opt-in forced password reset flow"
+        }
+      ],
+      "commit": "384ccfe62e"
     }
   ],
-  "app_version": "1.173.23"
+  "app_version": "1.173.24"
 }
