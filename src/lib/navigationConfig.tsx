@@ -632,11 +632,33 @@ export function getNavigationItems(
         { key: 'templates',       label: 'Templates',      icon: <FileCog className="w-4 h-4" />,  href: '/settings/templates' },
         { key: 'system-status',   label: 'System Status',  icon: <Activity className="w-4 h-4" />, href: '/settings/system' },
         { key: 'relay-setup',     label: 'Relay Setup',    icon: <Radio className="w-4 h-4" />,    href: '/settings/relay' },
-        { key: 'help',            label: 'Help & Support', icon: <HelpCircle className="w-4 h-4" />, href: '/help' },
         { key: 'about',           label: 'About DRAIS',    icon: <Info className="w-4 h-4" />,     href: '/about' },
       ],
     },
 
+    // ══ HELP & GUIDES ═════════════════════════════════════════════════════════
+    // Top-level, deliberately. This used to be the 12th item inside the
+    // collapsed Settings group, between "Relay Setup" and "About DRAIS" — which
+    // is where documentation goes to be never found. Staff learn the system from
+    // here, so it gets its own entry.
+    {
+      key:   'guides',
+      label: t('nav.guides._', 'Help & Guides'),
+      icon:  <HelpCircle className="w-5 h-5" />,
+      children: [
+        { key: 'help-center',      label: 'Help Center',            icon: <HelpCircle className="w-4 h-4" />,      href: '/help' },
+        { key: 'g-first-week',     label: 'Your first week',        icon: <Rocket className="w-4 h-4" />,          href: '/help/guides/first-week' },
+        { key: 'g-learners',       label: 'Learners day to day',    icon: <Users className="w-4 h-4" />,           href: '/help/guides/learners' },
+        { key: 'g-fingerprints',   label: 'Enrolling fingerprints', icon: <Fingerprint className="w-4 h-4" />,     href: '/help/guides/enrol-fingerprints' },
+        { key: 'g-attendance',     label: 'Attendance day to day',  icon: <CalendarCheck className="w-4 h-4" />,   href: '/help/guides/attendance-daily' },
+        { key: 'g-marks',          label: 'Marks & report cards',   icon: <GraduationCap className="w-4 h-4" />,   href: '/help/guides/marks-and-reports' },
+        { key: 'g-fees',           label: 'Fees & payments',        icon: <Wallet className="w-4 h-4" />,          href: '/help/guides/fees' },
+        { key: 'g-messages',       label: 'Messaging guardians',    icon: <MessageSquareText className="w-4 h-4" />, href: '/help/guides/messages' },
+        { key: 'g-access',         label: 'Staff accounts & access',icon: <UserCog className="w-4 h-4" />,         href: '/help/guides/users-and-access' },
+        { key: 'g-recover',        label: 'Recovering data',        icon: <Database className="w-4 h-4" />,        href: '/help/guides/recover-data' },
+        { key: 'g-fix',            label: 'Fixing common problems', icon: <Wrench className="w-4 h-4" />,          href: '/help/guides/fix-problems' },
+      ],
+    },
   ];
 
   return translateMenuTree(items, lang);

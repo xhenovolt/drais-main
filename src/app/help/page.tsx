@@ -23,6 +23,7 @@ import {
   Youtube,
 } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { GUIDES } from '@/components/help/HelpDoc';
 
 // ============================================
 // DATA
@@ -79,7 +80,7 @@ const GUIDE_CATEGORIES = [
     label: 'Attendance',
     color: 'text-indigo-600 dark:text-indigo-400',
     bg: 'bg-indigo-50 dark:bg-indigo-900/20',
-    href: '/help',
+    href: '/help/guides/attendance-daily',
     guides: ['How fingerprint attendance works', 'Manual attendance entry', 'Late arrival detection', 'Parent notifications'],
   },
   {
@@ -87,7 +88,7 @@ const GUIDE_CATEGORIES = [
     label: 'Students',
     color: 'text-emerald-600 dark:text-emerald-400',
     bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-    href: '/help',
+    href: '/help/guides/learners',
     guides: ['Admitting new students', 'Enrolling fingerprints', 'Editing student records', 'Class promotions'],
   },
   {
@@ -95,7 +96,7 @@ const GUIDE_CATEGORIES = [
     label: 'Reports',
     color: 'text-blue-600 dark:text-blue-400',
     bg: 'bg-blue-50 dark:bg-blue-900/20',
-    href: '/help',
+    href: '/help/guides/marks-and-reports',
     guides: ['Attendance reports', 'Academic reports', 'Exporting to PDF / Excel', 'Financial snapshots'],
   },
   {
@@ -103,7 +104,7 @@ const GUIDE_CATEGORIES = [
     label: 'Academics',
     color: 'text-purple-600 dark:text-purple-400',
     bg: 'bg-purple-50 dark:bg-purple-900/20',
-    href: '/help',
+    href: '/help/guides/marks-and-reports',
     guides: ['Creating classes', 'Setting up exams', 'Entering marks', 'Result slips'],
   },
   {
@@ -111,7 +112,7 @@ const GUIDE_CATEGORIES = [
     label: 'Communication',
     color: 'text-amber-600 dark:text-amber-400',
     bg: 'bg-amber-50 dark:bg-amber-900/20',
-    href: '/help',
+    href: '/help/guides/messages',
     guides: ['SMS notifications', 'Parent portal', 'Staff announcements', 'Reminders'],
   },
   {
@@ -119,7 +120,7 @@ const GUIDE_CATEGORIES = [
     label: 'Settings',
     color: 'text-gray-600 dark:text-gray-400',
     bg: 'bg-gray-50 dark:bg-gray-800/50',
-    href: '/help',
+    href: '/help/guides/users-and-access',
     guides: ['School profile setup', 'User roles & permissions', 'Device configuration', 'Academic year setup'],
   },
 ];
@@ -202,7 +203,7 @@ export default function HelpPage() {
           </button>
 
           <Link
-            href="/documentation/getting-started"
+            href="/help/guides/first-week"
             className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 hover:shadow-md border border-gray-200 dark:border-gray-700 rounded-2xl transition-all text-left"
           >
             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -215,7 +216,7 @@ export default function HelpPage() {
           </Link>
 
           <Link
-            href="/help"
+            href="/help/guides/fix-problems"
             className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 hover:shadow-md border border-gray-200 dark:border-gray-700 rounded-2xl transition-all text-left"
           >
             <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -227,6 +228,45 @@ export default function HelpPage() {
             </div>
           </Link>
         </div>
+
+        {/* Written guides — the school-scope how-tos */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <BookOpen className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+            Guides
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Step-by-step how-tos for running your school in DRAIS. Each one links straight into the screens it
+            describes.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {GUIDES.map((g, idx) => (
+              <motion.div
+                key={g.slug}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.04 }}
+              >
+                <Link
+                  href={`/help/guides/${g.slug}`}
+                  className="group flex flex-col h-full p-5 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all"
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400 mb-1.5">
+                    {g.section}
+                  </p>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">
+                    {g.title}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed flex-1">{g.blurb}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-3 flex items-center gap-1">
+                    {g.minutes} min read
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </p>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </section>
 
         {/* Video Tutorials */}
         <section>

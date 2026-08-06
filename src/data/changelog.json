@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T08:13:24.974Z",
-  "last_commit": "ddb679b68c5b41adf2c40540058e94f6247131fa",
+  "generated_at": "2026-08-06T08:19:37.759Z",
+  "last_commit": "b8cdfffb0cea610077f79dafbbfa89b810196b35",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6293,7 +6293,20 @@
         }
       ],
       "commit": "ddb679b68c"
+    },
+    {
+      "version": "1.173.21",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Compile with Turbopack — webpack OOM is not heap-tunable",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Compile with Turbopack — webpack OOM is not heap-tunable"
+        }
+      ],
+      "commit": "b8cdfffb0c"
     }
   ],
-  "app_version": "1.173.21"
+  "app_version": "1.173.22"
 }
