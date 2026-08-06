@@ -276,8 +276,15 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder files
+     * - iclock/ + api/zk-handler — ZKTeco ADMS device traffic. Excluded at the
+     *   matcher so the middleware never even runs for an attendance device.
+     *   The PUBLIC_ROUTES entry would be enough, but this path must not be one
+     *   list edit away from breaking again: a device that receives a redirect
+     *   drops the batch, and the loss is silent — no error surfaces anywhere in
+     *   the app, attendance simply stops arriving. Belt and braces is correct
+     *   here. See src/lib/routes/auth-scope.ts for the protocol reasoning.
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public/|iclock/|api/zk-handler).*)',
   ],
 };
 

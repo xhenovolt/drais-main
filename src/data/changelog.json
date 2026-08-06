@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T15:11:56.016Z",
-  "last_commit": "384ccfe62e4ad27da6bbceb30d49dab2b2a7d3f5",
+  "generated_at": "2026-08-06T19:42:00.690Z",
+  "last_commit": "ec076fc587edea87b8e07090a532644b40a474f9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6332,7 +6332,20 @@
         }
       ],
       "commit": "384ccfe62e"
+    },
+    {
+      "version": "1.173.24",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Drop the force-dynamic layouts — their stated cause was wrong",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Drop the force-dynamic layouts — their stated cause was wrong"
+        }
+      ],
+      "commit": "ec076fc587"
     }
   ],
-  "app_version": "1.173.24"
+  "app_version": "1.173.25"
 }

@@ -49,6 +49,23 @@ export const NON_SCHOOL_AUTH_PREFIXES: readonly string[] = [
   '/api/control',    // JETON external control channel — x-api-key + x-api-secret
   '/api/cron',       // Cron — CRON_SECRET header
 
+  // ── ZKTeco ADMS push protocol. Attendance devices POST here unattended;
+  //    they have no cookie jar, no browser and no way to follow a redirect.
+  //    `/iclock/*` is rewritten to `/api/zk-handler` in next.config.js, but
+  //    MIDDLEWARE RUNS BEFORE next.config REWRITES — so the middleware sees
+  //    the literal `/iclock/cdata` path. Being neither public nor an `/api/`
+  //    route, it fell through to `createRedirect(request, '/login')`: a 307
+  //    the device cannot follow, so every ATTLOG and OPERLOG upload was
+  //    silently discarded. Both spellings are listed because the direct
+  //    `/api/zk-handler` path was 401ing for the same reason.
+  //
+  //    This is NOT a weakening. ADMS has no credential to present — the
+  //    protocol authenticates by device serial, and `getDeviceSchoolId(sn)`
+  //    resolves tenancy from the registered `SN`. An unregistered serial
+  //    resolves to no school and writes nothing but a raw log.
+  '/iclock',
+  '/api/zk-handler',
+
   // ── Token-authenticated public surfaces.
   '/verify',         // QR verification — the HMAC-signed token IS the access proof
 ] as const;
