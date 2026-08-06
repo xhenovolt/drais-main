@@ -6,12 +6,13 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "1.173.20",
+  "version": "1.173.21",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --turbopack",
+    "build:webpack": "next build",
     "start": "next start",
     "lint": "eslint",
     "lint:permissions": "node scripts/lint-permissions.mjs",

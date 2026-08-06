@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T08:03:45.613Z",
-  "last_commit": "2036ad377db354cedd9aa3f860bb5ff5b7b1aa28",
+  "generated_at": "2026-08-06T08:13:24.974Z",
+  "last_commit": "ddb679b68c5b41adf2c40540058e94f6247131fa",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6280,7 +6280,20 @@
         }
       ],
       "commit": "2036ad377d"
+    },
+    {
+      "version": "1.173.20",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Pull 49 doc routes out of the build — Vercel OOM",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Pull 49 doc routes out of the build — Vercel OOM"
+        }
+      ],
+      "commit": "ddb679b68c"
     }
   ],
-  "app_version": "1.173.20"
+  "app_version": "1.173.21"
 }

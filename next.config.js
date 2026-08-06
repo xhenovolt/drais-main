@@ -1,6 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable experimental features for better performance
+  // NOTE (2026-08): the build now runs on TURBOPACK (`next build --turbopack`).
+  // Turbopack compiles in Rust, so compilation memory sits OUTSIDE the V8 heap
+  // and --max_old_space_size is no longer the binding constraint. That is the
+  // point: this build repeatedly died with "Ineffective mark-compacts near heap
+  // limit" at ~2547MB against a 2560MB cap, during the COMPILE phase (the log
+  // never reached "Generating static pages").
+  //
+  // The three flags below are WEBPACK-ONLY and are inert under Turbopack. They
+  // are kept so `npm run build:webpack` remains a working rollback path — do not
+  // assume they are doing anything for the Vercel build.
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
     cpus: 1,
