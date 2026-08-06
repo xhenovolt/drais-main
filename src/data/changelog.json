@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-05T16:46:55.308Z",
-  "last_commit": "985b954c09c60e4916987c2da22db9680b0c58cf",
+  "generated_at": "2026-08-06T07:58:38.785Z",
+  "last_commit": "b18e45d2d55f99ffd7733a21f12a3b47dfbee69a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6254,7 +6254,20 @@
         }
       ],
       "commit": "985b954c09"
+    },
+    {
+      "version": "1.173.18",
+      "date": "2026-08-05",
+      "release_type": "patch",
+      "title": "Reports 500'd on every request — SQL referenced columns that do not exist",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Reports 500'd on every request — SQL referenced columns that do not exist"
+        }
+      ],
+      "commit": "b18e45d2d5"
     }
   ],
-  "app_version": "1.173.18"
+  "app_version": "1.173.19"
 }
