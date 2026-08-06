@@ -30,11 +30,24 @@ export async function GET() {
     db = { connected: false, error: raw.replace(/(password|user)=([^\s;]+)/gi, '$1=***').slice(0, 300) };
   }
 
+  // WHICH COMMIT IS ACTUALLY SERVING. Vercel injects these at build time.
+  // Added after an incident where attendance devices were being redirected to
+  // /login: the fix was committed and on origin/main, but a redeploy triggered
+  // by an env-var change had rebuilt the PREVIOUS commit, so the fix was not
+  // live. There was no way to tell that from outside — the only signal was
+  // inferring it from behaviour. Now `curl /api/health` answers it directly.
+  const build = {
+    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) || null,
+    branch: process.env.VERCEL_GIT_COMMIT_REF || null,
+    vercel_env: process.env.VERCEL_ENV || null,
+  };
+
   const ok = db.connected;
   return NextResponse.json(
     {
       ok,
       server: true,
+      build,
       db,
       env,
       time: new Date().toISOString(),

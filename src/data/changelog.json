@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T19:42:00.690Z",
-  "last_commit": "ec076fc587edea87b8e07090a532644b40a474f9",
+  "generated_at": "2026-08-06T20:06:29.121Z",
+  "last_commit": "606b0029c6aef3c6b59fce6723ddad32dd3bb72a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6345,7 +6345,20 @@
         }
       ],
       "commit": "ec076fc587"
+    },
+    {
+      "version": "1.173.25",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Device ADMS traffic was being redirected to /login",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Device ADMS traffic was being redirected to /login"
+        }
+      ],
+      "commit": "606b0029c6"
     }
   ],
-  "app_version": "1.173.25"
+  "app_version": "1.173.26"
 }
