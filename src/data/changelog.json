@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T07:58:38.785Z",
-  "last_commit": "b18e45d2d55f99ffd7733a21f12a3b47dfbee69a",
+  "generated_at": "2026-08-06T08:03:45.613Z",
+  "last_commit": "2036ad377db354cedd9aa3f860bb5ff5b7b1aa28",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6267,7 +6267,20 @@
         }
       ],
       "commit": "b18e45d2d5"
+    },
+    {
+      "version": "1.173.19",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Stop prerendering 49 doc routes — Vercel OOM at heap 2560",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Stop prerendering 49 doc routes — Vercel OOM at heap 2560"
+        }
+      ],
+      "commit": "2036ad377d"
     }
   ],
-  "app_version": "1.173.19"
+  "app_version": "1.173.20"
 }
