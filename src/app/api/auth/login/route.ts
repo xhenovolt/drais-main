@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { getSubscriptionInfo } from '@/lib/subscription';
 import { randomBytes } from 'crypto';
+import { shouldEnforceForcedPasswordReset } from '@/lib/auth/password-reset-policy';
 
 // Session configuration
 const SESSION_CONFIG = {
@@ -327,8 +328,8 @@ export async function POST(request: NextRequest) {
       httpOnly: false, // Middleware needs to read this
     });
 
-    // If user must change password, set a readable cookie for middleware redirect
-    if (mustChangePassword) {
+    // Only force the password-reset flow when explicitly enabled.
+    if (mustChangePassword && shouldEnforceForcedPasswordReset()) {
       response.cookies.set('drais_force_reset', '1', {
         httpOnly: false,
         secure: process.env.NODE_ENV === 'production',

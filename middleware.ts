@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NON_SCHOOL_AUTH_PREFIXES } from '@/lib/routes/auth-scope';
+import { shouldEnforceForcedPasswordReset } from '@/lib/auth/password-reset-policy';
 
 /**
  * DRAIS V1 Middleware
@@ -202,7 +203,8 @@ export function middleware(request: NextRequest) {
   const isChangePasswordApi = pathname === '/api/auth/change-password';
   const isLogoutApi = pathname === '/api/auth/logout';
 
-  if (forceReset === '1' && !isSetPasswordPage && !isChangePasswordApi && !isLogoutApi) {
+  const enforceForcedReset = shouldEnforceForcedPasswordReset();
+  if (enforceForcedReset && forceReset === '1' && !isSetPasswordPage && !isChangePasswordApi && !isLogoutApi) {
     if (isApiRoute) {
       return NextResponse.json(
         { success: false, error: { message: 'Password change required', code: 'PASSWORD_RESET_REQUIRED' } },

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T08:19:37.759Z",
-  "last_commit": "b8cdfffb0cea610077f79dafbbfa89b810196b35",
+  "generated_at": "2026-08-06T08:40:24.328Z",
+  "last_commit": "9a439e7a25ebf8c5d79aaaca896393a30b58c0d3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6306,7 +6306,20 @@
         }
       ],
       "commit": "b8cdfffb0c"
+    },
+    {
+      "version": "1.173.22",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Revert \"revert(docs): pull 49 doc routes out of the build\"",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Revert \"revert(docs): pull 49 doc routes out of the build\""
+        }
+      ],
+      "commit": "9a439e7a25"
     }
   ],
-  "app_version": "1.173.22"
+  "app_version": "1.173.23"
 }
