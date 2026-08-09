@@ -1,3 +1,29 @@
+/**
+ * ⚠️ KNOWN BROKEN — THIS ROUTE READS TABLES THAT ARE EMPTY.
+ *
+ * Every query below reads `student_attendance` / `staff_attendance`. Measured
+ * against production on 2026-08-06:
+ *
+ *     student_attendance        0 rows
+ *     staff_attendance          0 rows
+ *     attendance_records   15,347 rows   ← where attendance actually lives
+ *     attendance_raw_events 13,914 rows
+ *
+ * The attendance ENGINE (src/lib/attendance/engine) writes `attendance_records`.
+ * These two tables are the pre-engine schema and were never migrated or
+ * dropped. So this endpoint returns success with empty arrays — it does not
+ * error, which is why it reads as "no attendance yet" rather than as a bug.
+ *
+ * Rewriting it means switching to `attendance_records`, which is keyed by
+ * (person_id, role_type) rather than student_id — so the join to students goes
+ * through people, and role_type separates learners from staff. The dataset in
+ * /api/reports/custom was written against attendance_records and can be used as
+ * the reference.
+ *
+ * Not rewritten here because it also backs the /dashboard/analytics attendance
+ * tab, and changing five queries is a bigger change than the fix it was bundled
+ * with. Left annotated rather than silently wrong.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
@@ -16,7 +42,10 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
-    const days = parseInt(searchParams.get('days', 10) || '30');
+    // The radix belongs to parseInt, not to .get() — URLSearchParams.get takes
+    // one argument. Same slip appears in ~37 other routes; harmless (parseInt
+    // defaults to base 10) but it is a type error, so fixed where touched.
+    const days = parseInt(searchParams.get('days') || '30', 10);
     
     const connection = await getConnection();
     

@@ -91,7 +91,9 @@ const DATASETS: Record<string, DatasetDef> = {
       FROM staff st
       JOIN people p ON p.id = st.person_id AND p.deleted_at IS NULL
     `,
-    where: `st.school_id = ?`,
+    // staff carries deleted_at — 14 of 279 rows are soft-deleted in production.
+    // Omitting this filter is how a departed staff member reappears in a count.
+    where: `st.school_id = ? AND st.deleted_at IS NULL`,
     columns: {
       staff_no: { label: 'Staff no', sql: 'st.staff_no' },
       name: { label: 'Name', sql: `CONCAT(p.first_name, ' ', p.last_name)` },
@@ -143,33 +145,49 @@ const DATASETS: Record<string, DatasetDef> = {
 
   attendance: {
     label: 'Attendance',
-    description: 'Daily learner attendance marks, by date and class.',
+    description: 'Daily learner attendance, with arrival time and lateness.',
+    /**
+     * Reads `attendance_records` — the table the attendance ENGINE writes.
+     *
+     * NOT `student_attendance`. That table still exists and is empty (0 rows in
+     * production), while attendance_records holds 15,347. Anything still
+     * pointed at the old table reports "no attendance" forever and looks like
+     * a broken query rather than a wrong one. `/api/analytics/attendance` is
+     * still in that state — see the note on this commit.
+     *
+     * attendance_records is keyed by (person_id, role_type), NOT student_id, so
+     * the join to students goes through people.
+     */
     from: `
-      FROM student_attendance sa
-      JOIN students s ON s.id = sa.student_id AND s.deleted_at IS NULL
-      JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
+      FROM attendance_records ar
+      JOIN people p ON p.id = ar.person_id AND p.deleted_at IS NULL
+      LEFT JOIN students s ON s.person_id = ar.person_id
+        AND s.school_id = ar.school_id AND s.deleted_at IS NULL
       LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
       LEFT JOIN classes c ON c.id = e.class_id
     `,
-    where: `s.school_id = ?`,
+    where: `ar.school_id = ? AND ar.role_type = 'student'`,
     columns: {
-      date: { label: 'Date', sql: 'sa.date', kind: 'date' },
+      date: { label: 'Date', sql: 'ar.attendance_date', kind: 'date' },
       admission_no: { label: 'Admission no', sql: 's.admission_no' },
       name: { label: 'Name', sql: `CONCAT(p.first_name, ' ', p.last_name)` },
       class_name: { label: 'Class', sql: 'c.name' },
-      status: { label: 'Status', sql: 'sa.status' },
+      status: { label: 'Status', sql: 'ar.status' },
+      first_in_at: { label: 'Arrived', sql: 'ar.first_in_at' },
+      late_minutes: { label: 'Late (min)', sql: 'ar.late_minutes', kind: 'number' },
     },
     filters: {
       status: {
         label: 'Status',
-        sql: 'sa.status',
+        sql: 'ar.status',
         type: 'enum',
-        options: ['present', 'absent', 'late', 'excused'],
+        // Exactly the enum the column declares — a value outside it is dropped.
+        options: ['present', 'late', 'absent', 'half_day', 'early_leave', 'holiday', 'weekend'],
       },
       class_name: { label: 'Class', sql: 'c.name', type: 'text' },
-      date: { label: 'Date', sql: 'sa.date', type: 'date', range: true },
+      date: { label: 'Date', sql: 'ar.attendance_date', type: 'date', range: true },
     },
-    defaultColumns: ['date', 'admission_no', 'name', 'class_name', 'status'],
+    defaultColumns: ['date', 'admission_no', 'name', 'class_name', 'status', 'late_minutes'],
     defaultOrder: 'date',
   },
 };

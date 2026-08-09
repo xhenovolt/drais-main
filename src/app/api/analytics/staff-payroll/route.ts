@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN staff_attendance sa ON st.id = sa.staff_id 
         AND sa.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-      WHERE st.school_id = ? AND st.status = 'active'
+      WHERE st.school_id = ? AND st.deleted_at IS NULL AND st.status = 'active'
       GROUP BY st.id, p.first_name, p.last_name, st.staff_no, st.position, st.status, st.hire_date
       ORDER BY st.staff_no
     `, [schoolId]);
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN staff_salaries ss ON st.id = ss.staff_id
         ${month ? 'AND ss.month = ?' : ''}
       LEFT JOIN salary_payments sp ON st.id = sp.staff_id
-      WHERE st.school_id = ? AND st.status = 'active'
+      WHERE st.school_id = ? AND st.deleted_at IS NULL AND st.status = 'active'
       GROUP BY st.id, p.first_name, p.last_name, st.position
       ORDER BY outstanding_amount DESC
     `, month ? [month, schoolId] : [schoolId]);
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       FROM payroll_definitions pd
       LEFT JOIN staff_salaries ss ON pd.id = ss.definition_id
       LEFT JOIN staff st ON ss.staff_id = st.id
-      WHERE pd.school_id = ?
+      WHERE pd.school_id = ? AND pd.deleted_at IS NULL
       ${month ? 'AND ss.month = ?' : ''}
       GROUP BY pd.id, pd.name, pd.type
       ORDER BY total_amount DESC
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       FROM salary_payments sp
       JOIN staff st ON sp.staff_id = st.id
       JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
-      WHERE st.school_id = ?
+      WHERE st.school_id = ? AND st.deleted_at IS NULL
       AND sp.paid_at >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
       GROUP BY DATE(sp.paid_at)
       ORDER BY payment_date DESC
@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
         COUNT(CASE WHEN st.status = 'active' THEN 1 END) as active_count,
         COUNT(CASE WHEN st.status != 'active' THEN 1 END) as inactive_count
       FROM staff st
-      WHERE st.school_id = ?
+      WHERE st.school_id = ? AND st.deleted_at IS NULL
       GROUP BY st.position
       ORDER BY staff_count DESC
     `, [schoolId]);
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
       JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN staff_salaries ss ON st.id = ss.staff_id
       LEFT JOIN salary_payments sp ON st.id = sp.staff_id
-      WHERE st.school_id = ? AND st.status = 'active'
+      WHERE st.school_id = ? AND st.deleted_at IS NULL AND st.status = 'active'
       GROUP BY st.id, p.first_name, p.last_name, st.staff_no, st.position
       HAVING outstanding > 0
       ORDER BY outstanding DESC, days_since_payment DESC

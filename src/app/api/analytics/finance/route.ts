@@ -100,12 +100,21 @@ export async function GET(req: NextRequest) {
       ORDER BY (income + expenses) DESC
     `, [schoolId]);
 
-    // Wallet balances
+    // Wallet balances.
+    //
+    // The wallets table has NO `method` column — it is `location_type` (cash /
+    // bank / mobile money). Selecting w.method threw "Unknown column 'w.method'
+    // in 'group statement'", which the catch-all below turned into "Failed to
+    // fetch analytics": ONE bad column killed all five queries and the whole
+    // page. Verified against the live schema; the other four queries run clean.
+    //
+    // (This comment lives outside the template literal on purpose — SQL `--`
+    // comments containing backticks terminate the string.)
     const walletBalances = await connection.execute(`
-      SELECT 
+      SELECT
         w.id as wallet_id,
         w.name as wallet_name,
-        w.method,
+        w.location_type,
         w.opening_balance,
         w.opening_balance + COALESCE(SUM(CASE WHEN l.tx_type = 'in' THEN l.amount ELSE -l.amount END), 0) as current_balance,
         COALESCE(SUM(CASE WHEN l.tx_type = 'in' THEN l.amount ELSE 0 END), 0) as total_income,
@@ -115,7 +124,7 @@ export async function GET(req: NextRequest) {
       FROM wallets w
       LEFT JOIN ledger l ON w.id = l.wallet_id
       WHERE w.school_id = ?
-      GROUP BY w.id, w.name, w.method, w.opening_balance
+      GROUP BY w.id, w.name, w.location_type, w.opening_balance
       ORDER BY current_balance DESC
     `, [schoolId]);
 

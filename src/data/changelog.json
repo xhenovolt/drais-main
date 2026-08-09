@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-09T18:13:40.196Z",
-  "last_commit": "8c96d280a520d73421905bc97cde762de2c24081",
+  "generated_at": "2026-08-09T19:07:13.971Z",
+  "last_commit": "d9de245b45ce19e52444cdb8c542d7e1c977098b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6371,7 +6371,33 @@
         }
       ],
       "commit": "8c96d280a5"
+    },
+    {
+      "version": "1.173.27",
+      "date": "2026-08-09",
+      "release_type": "patch",
+      "title": "The four \"coming soon\" report routes now render",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "The four \"coming soon\" report routes now render"
+        }
+      ],
+      "commit": "a98b44ddea"
+    },
+    {
+      "version": "1.173.28",
+      "date": "2026-08-09",
+      "release_type": "patch",
+      "title": "Finance page 500 was one bad column; attendance reads dead tables",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Finance page 500 was one bad column; attendance reads dead tables"
+        }
+      ],
+      "commit": "d9de245b45"
     }
   ],
-  "app_version": "1.173.27"
+  "app_version": "1.173.29"
 }
