@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-06T20:06:29.121Z",
-  "last_commit": "606b0029c6aef3c6b59fce6723ddad32dd3bb72a",
+  "generated_at": "2026-08-09T18:13:40.196Z",
+  "last_commit": "8c96d280a520d73421905bc97cde762de2c24081",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6358,7 +6358,20 @@
         }
       ],
       "commit": "606b0029c6"
+    },
+    {
+      "version": "1.173.26",
+      "date": "2026-08-06",
+      "release_type": "patch",
+      "title": "Report which commit is actually serving",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Report which commit is actually serving"
+        }
+      ],
+      "commit": "8c96d280a5"
     }
   ],
-  "app_version": "1.173.26"
+  "app_version": "1.173.27"
 }
