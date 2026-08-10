@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 // M-Pesa Configuration
 const MPESA_CONFIG = {
   consumerKey: process.env.MPESA_CONSUMER_KEY || '',

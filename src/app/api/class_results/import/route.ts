@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { isSubjectAllocatedToClass } from '@/lib/subject-allocation-validation';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
+import { checkModule } from '@/lib/auth/requireModule';
 
 interface ImportRow {
   student_id?: number;

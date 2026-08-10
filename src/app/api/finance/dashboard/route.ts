@@ -14,6 +14,7 @@ import { query } from '@/lib/db';
 import { listLocations } from '@/lib/finance/locations';
 import { listBudgets, budgetWarnings } from '@/lib/finance/budgets';
 import { listAccounts as listPocket } from '@/lib/finance/pocketMoney';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 const num = (v: any) => Number(v) || 0;
@@ -21,6 +22,8 @@ const num = (v: any) => Number(v) || 0;
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
   const schoolId = session.schoolId;
 

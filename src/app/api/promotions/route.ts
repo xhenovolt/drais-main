@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { queryTenant } from '@/lib/dbTenant';
 import { promoteStudents, getOrderedClasses } from '@/services/promotionService';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * PROMOTIONS API — Order-Independent Promotion System

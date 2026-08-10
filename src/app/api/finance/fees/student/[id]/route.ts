@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { computeFeeItemStatus, updateFeeItemStatus } from '@/lib/services/FeeService';
 import FeeStatusMiddleware from '@/lib/middleware/feeStatusMiddleware';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let connection;
@@ -11,6 +12,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'finance');
+    if (modDenied) return modDenied;
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
     const resolvedParams = await params;

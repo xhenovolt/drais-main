@@ -9,10 +9,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { userCan } from '@/lib/rbac';
 import type { DRCECapabilities } from '@/lib/drce/workflow';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   if (session.isSuperAdmin) {
     const caps: DRCECapabilities = { view: true, edit: true, approve: true, publish: true, admin: true };

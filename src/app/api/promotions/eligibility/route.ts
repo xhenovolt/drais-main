@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { analyseEligibility, getNextClass, getOrderedClasses } from '@/services/promotionService';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * GET /api/promotions/eligibility?from_class_id=X&academic_year_id=Y

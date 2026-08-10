@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { getStudentLedger, getStudentBalance } from '@/lib/services/FinanceLedger';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // GET /api/finance/student-ledger?student_id=N[&limit=50]
 // Returns: { ledger: LedgerEntry[], balance: StudentBalance }
@@ -9,6 +10,8 @@ import { getStudentLedger, getStudentBalance } from '@/lib/services/FinanceLedge
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
 
   await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
   const { searchParams } = new URL(req.url);

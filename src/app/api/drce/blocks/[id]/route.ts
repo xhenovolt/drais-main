@@ -8,12 +8,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getBlock, updateBlock, deleteBlock, type BlockKind } from '@/lib/drce/blocks';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const KINDS: BlockKind[] = ['header', 'footer', 'comment_rules', 'custom'];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const id = Number((await params).id);
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   const block = await getBlock(id, session.schoolId);
@@ -24,6 +27,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const id = Number((await params).id);
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
@@ -51,6 +56,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const id = Number((await params).id);
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 

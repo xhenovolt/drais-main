@@ -11,6 +11,7 @@ import {
   type OverrideKind,
   type RenderOverride,
 } from '@/lib/drce/overrides';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * Phase 3.1 — per-snapshot override CRUD.
@@ -32,6 +33,8 @@ export async function GET(
 ) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const { id: snapshotId } = await ctx.params;
   if (!await verifySnapshotOwnership(snapshotId, session.schoolId)) {
@@ -74,6 +77,8 @@ export async function POST(
 ) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const { id: snapshotId } = await ctx.params;
   if (!await verifySnapshotOwnership(snapshotId, session.schoolId)) {
@@ -173,6 +178,8 @@ export async function DELETE(
 ) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const { id: snapshotId } = await ctx.params;
   if (!await verifySnapshotOwnership(snapshotId, session.schoolId)) {

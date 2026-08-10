@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getSnapshotRow } from '@/lib/snapshots/storage';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * Lightweight polling endpoint — returns the index row only, no payload.

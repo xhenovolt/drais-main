@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T14:37:01.228Z",
-  "last_commit": "ed9903bedbc657bb3708cb37a4fbd58a985d531a",
+  "generated_at": "2026-08-10T14:56:23.349Z",
+  "last_commit": "8df3d2465d932104efddc1c0ebd15d6cd9dbedc1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6423,7 +6423,20 @@
         }
       ],
       "commit": "ed9903bedb"
+    },
+    {
+      "version": "1.173.31",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "Enforce school login lockout + Control Center unlock",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Enforce school login lockout + Control Center unlock"
+        }
+      ],
+      "commit": "8df3d2465d"
     }
   ],
-  "app_version": "1.173.31"
+  "app_version": "1.173.33"
 }

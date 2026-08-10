@@ -15,10 +15,13 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { findStarter } from '@/lib/drce/starters';
 import type { DRCEDocument } from '@/lib/drce/schema';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const { id } = await ctx.params;
   const idStr = decodeURIComponent(id);

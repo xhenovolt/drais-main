@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { parseTemplateRow } from '@/lib/reportTemplates';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // ============================================================================
 // POST /api/report-templates/[id]/duplicate
@@ -15,6 +16,8 @@ export async function POST(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const { id } = await params;

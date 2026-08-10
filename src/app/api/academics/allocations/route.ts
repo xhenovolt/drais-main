@@ -8,6 +8,7 @@ import {
   ensureAllocationBelongsToSchool,
 } from '@/lib/allocation-validation';
 import { resolveTeacherInitials } from '@/lib/reports/canonical-report-engine';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // ============================================================================
 // GET: Fetch all allocations with optional filters

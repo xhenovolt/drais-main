@@ -6,6 +6,7 @@ import {
   type FlushCriteria,
 } from '@/lib/snapshots/lifecycle';
 import type { SnapshotType } from '@/lib/snapshots/types';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
 const VALID_TERMINAL_STATUSES = ['ready', 'failed', 'cancelled', 'stale'] as const;

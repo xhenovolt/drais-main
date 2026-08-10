@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { recordPayment } from '@/lib/services/FinanceLedger';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // POST /api/finance/record-payment
 // Body: { student_id, amount, method?, account_id?, reference?, receipt_no?,
@@ -11,6 +12,8 @@ import { recordPayment } from '@/lib/services/FinanceLedger';
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   const body = await req.json();

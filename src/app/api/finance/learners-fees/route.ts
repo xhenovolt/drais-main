@@ -4,6 +4,7 @@ import { FinanceService } from '@/lib/services/FinanceService';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 export async function GET(request: NextRequest) {
   let connection;
   

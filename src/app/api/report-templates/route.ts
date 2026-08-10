@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { parseTemplateRow, DEFAULT_TEMPLATE_JSON, MODERN_CLEAN_TEMPLATE_JSON, NORTHGATE_TEMPLATE_JSON } from '@/lib/reportTemplates';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // ============================================================================
 // GET /api/report-templates  — list all templates available to this school

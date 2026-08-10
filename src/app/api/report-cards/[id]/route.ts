@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -9,6 +10,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const conn = await getConnection();

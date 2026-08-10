@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getCurrentTerm } from '@/lib/terms';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * GET /api/results/filtered

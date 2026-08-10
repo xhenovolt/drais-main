@@ -40,6 +40,7 @@ import {
 } from '@/lib/ingestion/adapters/sql-memory';
 import { persistAutoMappings } from '@/lib/ingestion/memory';
 import type { ConflictPolicySet, ParsedSource } from '@/lib/ingestion/types';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 

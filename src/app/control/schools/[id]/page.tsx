@@ -24,7 +24,18 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
   if (!data.success) return <p className="text-rose-400 text-sm">{data.error}</p>;
 
   const s = data.school;
-  const enabledSet = new Set((data.modules.enabled || []).filter((m: any) => Number(m.is_enabled) === 1).map((m: any) => m.module_code));
+  // The API returns SchoolModuleRow — { code, isEnabled, enabledAt, expiresAt }.
+  // This previously read `m.is_enabled` and `m.module_code`, the raw COLUMN
+  // names, neither of which exists on the response. `Number(undefined) === 1`
+  // is false for every row, so EVERY module rendered as off no matter what the
+  // database said, and toggling one changed nothing the operator could see.
+  // That single mismatch is what made feature management look unreliable.
+  const moduleState = new Map<string, { isEnabled: boolean; enabledAt: string | null }>(
+    (data.modules.enabled || []).map((m: any) => [m.code, { isEnabled: !!m.isEnabled, enabledAt: m.enabledAt ?? null }]),
+  );
+  // Opt-out policy: a module with no row at all is ENABLED. Mirrors
+  // getEnabledModules on the server — the UI must not invent a stricter rule.
+  const isOn = (code: string) => moduleState.get(code)?.isEnabled ?? true;
   const att = data.attendance_today || [];
   const sum = (role: string, status: string) => att.filter((a: any) => a.role_type === role && a.status === status).reduce((x: number, a: any) => x + Number(a.n), 0);
 
@@ -130,20 +141,51 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
       </Panel>
 
       {/* Feature management */}
-      <Panel title="Features (foundation for feature flags)" icon={<MessageSquare className="w-4 h-4" />}>
+      <Panel title="Features" icon={<MessageSquare className="w-4 h-4" />}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {data.modules.catalog.map((m: any) => {
-            const on = enabledSet.has(m.code);
+            const on = isOn(m.code);
+            const since = moduleState.get(m.code)?.enabledAt;
             return (
-              <button key={m.code} onClick={() => toggleModule(m.code, !on)}
-                className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-left">
-                <span className="text-xs text-slate-200">{m.label}</span>
-                {on ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-slate-600" />}
+              <button
+                key={m.code}
+                onClick={() => {
+                  // Confirm only on the destructive direction. Disabling takes a
+                  // working area away from every user at the school at once, and
+                  // the operator doing it is rarely the person who will field the
+                  // call. Enabling needs no ceremony.
+                  if (on && !window.confirm(
+                    `Disable ${m.label} for this school?\n\n` +
+                    `Everyone at the school immediately loses access to it — the pages and the APIs behind them.\n\n` +
+                    `No data is deleted. Existing ${m.label.toLowerCase()} records stay exactly as they are and return if you re-enable it.`,
+                  )) return;
+                  toggleModule(m.code, !on);
+                }}
+                className="flex items-start justify-between gap-2 px-2.5 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs text-slate-200">{m.label}</span>
+                  <span className="block text-[10px] text-slate-500 leading-snug">{m.description}</span>
+                  {on && since && (
+                    <span className="block text-[10px] text-slate-600 mt-0.5">
+                      enabled {new Date(since).toLocaleDateString()}
+                    </span>
+                  )}
+                </span>
+                {on
+                  ? <ToggleRight className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  : <ToggleLeft className="w-5 h-5 text-slate-600 shrink-0 mt-0.5" />}
               </button>
             );
           })}
         </div>
-        <p className="text-[10px] text-slate-500 mt-2">Toggles write the existing school_modules registry (super-admin only) and are audited.</p>
+        <p className="text-[10px] text-slate-500 mt-2">
+          Enforced server-side: a disabled module returns 403 <code>MODULE_DISABLED</code> from its APIs, not just a
+          hidden menu. Disabling never deletes data. Every change is audited with the operator and origin IP.
+        </p>
+        <p className="text-[10px] text-slate-600 mt-1">
+          Who changed what is in the <a href="/control/audit" className="underline hover:text-slate-400">audit log</a>.
+        </p>
       </Panel>
     </div>
   );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { forceCancel } from '@/lib/snapshots/lifecycle';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * Force-cancel an in-flight snapshot generation. Any authenticated school

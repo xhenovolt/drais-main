@@ -11,6 +11,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import type { DRCEDocument, DRCEResultsTableSection } from '@/lib/drce/schema';
 import { generateDefaultTotalsConfig } from '@/lib/drce/totalsCalculator';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function PATCH(
   req: NextRequest,
@@ -20,6 +21,8 @@ export async function PATCH(
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const templateId = params.id;
@@ -120,6 +123,8 @@ export async function GET(
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const templateId = params.id;

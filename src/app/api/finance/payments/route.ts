@@ -4,6 +4,7 @@ import { batchUpdateFeeItemStatuses } from '@/lib/services/FeeService';
 import { recordPayment } from '@/lib/services/FinanceLedger';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest) {
   let connection;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { parseTemplateRow } from '@/lib/reportTemplates';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // ============================================================================
 // GET    /api/report-templates/[id]  — fetch single template
@@ -17,6 +18,8 @@ export async function GET(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const { id } = await params;
@@ -47,6 +50,8 @@ export async function PUT(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const { id } = await params;
@@ -100,6 +105,8 @@ export async function PATCH(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const { id } = await params;
     const b = await request.json();
 
@@ -133,6 +140,8 @@ export async function DELETE(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const { id } = await params;

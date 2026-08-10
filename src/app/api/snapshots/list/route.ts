@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { listSnapshots } from '@/lib/snapshots/storage';
 import type { SnapshotStatus, SnapshotType } from '@/lib/snapshots/types';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
 const VALID_STATUSES: SnapshotStatus[] = ['generating', 'ready', 'failed', 'cancelled', 'stale'];

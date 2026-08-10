@@ -7,12 +7,15 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { updateFeeItem } from '@/lib/finance/feeRules';
 import { query } from '@/lib/db';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   try { await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin); }
   catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
   const { id } = await ctx.params;
@@ -23,6 +26,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   try { await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin); }
   catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
   const { id } = await ctx.params;

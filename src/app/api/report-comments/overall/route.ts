@@ -13,12 +13,15 @@ import { logAudit, AuditAction } from '@/lib/audit';
 import {
   listOverallCommentRules, createOverallCommentRule,
 } from '@/lib/drce/overallComments.server';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   // ?template_id=<id> narrows to rules that apply to that specific template
   // (unscoped + matching) — used at render time. Omitted entirely for the
   // admin panel, which manages the full set across every template.
@@ -30,6 +33,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const b = await req.json().catch(() => null);
   if (!b) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   try {

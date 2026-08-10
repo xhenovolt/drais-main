@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { filterToAllocatedSubjects, getValidSubjectsForClass } from '@/lib/subject-allocation-validation';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * Report Cards API
@@ -13,6 +14,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const studentId = req.nextUrl.searchParams.get('student_id');
@@ -98,6 +101,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     const body = await req.json();

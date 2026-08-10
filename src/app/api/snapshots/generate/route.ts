@@ -6,6 +6,7 @@ import {
   ExistingReadySnapshotsError,
 } from '@/lib/snapshots/generator';
 import type { SnapshotType } from '@/lib/snapshots/types';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
 

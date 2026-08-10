@@ -8,12 +8,15 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
 import { classifyWarnings, type AllocRow, type WarningItem } from '@/lib/academics/allocation-logic';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   try { await requirePermission(session.userId, session.schoolId, 'academics.allocations.view', session.isSuperAdmin); }
   catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 403 }); }
   const S = session.schoolId;

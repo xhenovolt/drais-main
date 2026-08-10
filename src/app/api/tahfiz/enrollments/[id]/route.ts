@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const ACTION_TO_STATUS: Record<string, string> = {
   suspend: 'suspended', reactivate: 'active', withdraw: 'withdrawn', complete: 'completed',
@@ -16,6 +17,8 @@ const ACTION_TO_STATUS: Record<string, string> = {
 async function gate(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return { error: NextResponse.json({ error: 'Not authenticated' }, { status: 401 }) };
+  const modDenied = await checkModule(session.schoolId, 'tahfiz');
+  if (modDenied) return { error: modDenied };
   try { await requirePermission(session.userId, session.schoolId, 'tahfiz.records.manage', session.isSuperAdmin); }
   catch (e: any) { return { error: NextResponse.json({ error: e.message }, { status: 403 }) }; }
   return { session };

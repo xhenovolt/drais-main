@@ -10,12 +10,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { userCan } from '@/lib/rbac';
 import { query } from '@/lib/db';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const privileged = session.isSuperAdmin || (await userCan(session.userId, session.schoolId, 'academics.allocations.manage'));
   const classId = Number(req.nextUrl.searchParams.get('class_id')) || null;

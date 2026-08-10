@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 /**
  * GET /api/academics/promotions
  * Calculate promotions for 3rd term based on Division performance

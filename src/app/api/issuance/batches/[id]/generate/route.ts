@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { generateBatch } from '@/lib/issuance/engine';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // Long pipeline — increase the maxDuration if your platform supports it.
 export const maxDuration = 60;
@@ -13,6 +14,8 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'inventory');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'issuance.create', session.isSuperAdmin);
   } catch (e) {

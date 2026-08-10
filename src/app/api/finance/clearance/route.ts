@@ -10,12 +10,15 @@ import {
   loadClearance, requestClearanceException, setClearanceExceptionStatus,
   type ClearanceStatus,
 } from '@/lib/finance/feeRules';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   try {
     const sp = req.nextUrl.searchParams;
     let termId = sp.get('term_id') ? Number(sp.get('term_id')) : null;
@@ -38,6 +41,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   const b = await req.json().catch(() => null);
   if (!b?.student_id) return NextResponse.json({ error: 'student_id is required' }, { status: 400 });
   try {
@@ -51,6 +56,8 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   const b = await req.json().catch(() => ({}));
   if (!b?.id || !['approved', 'rejected', 'blocked'].includes(b.status)) {
     return NextResponse.json({ error: 'id and a valid status are required' }, { status: 400 });

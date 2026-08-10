@@ -9,12 +9,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { listBlocks, createBlock, type BlockKind } from '@/lib/drce/blocks';
 import type { DRCESection } from '@/lib/drce/schema';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const KINDS: BlockKind[] = ['header', 'footer', 'comment_rules', 'custom'];
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const url = new URL(req.url);
   const kindParam = url.searchParams.get('kind');
   const kind = kindParam && KINDS.includes(kindParam as BlockKind) ? (kindParam as BlockKind) : undefined;
@@ -25,6 +28,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
 

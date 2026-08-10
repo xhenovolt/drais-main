@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { loadSnapshot, deleteSnapshot, getSnapshotRow, saveSnapshot } from '@/lib/snapshots/storage';
 import { hashCanonical } from '@/lib/snapshots/normalizers';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(
   req: NextRequest,

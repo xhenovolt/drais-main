@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // GET  /api/finance/accounts         → list accounts for school
 // POST /api/finance/accounts         → create new account
@@ -10,6 +11,8 @@ import { requirePermission } from '@/lib/rbac';
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
 
   await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
   const conn = await getConnection();
@@ -29,6 +32,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   const body = await req.json();
@@ -56,6 +61,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   const { searchParams } = new URL(req.url);

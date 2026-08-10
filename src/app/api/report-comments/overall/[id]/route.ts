@@ -6,12 +6,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { updateOverallCommentRule, deleteOverallCommentRule } from '@/lib/drce/overallComments.server';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}));
   await updateOverallCommentRule(session.schoolId, Number(id), body);
@@ -28,6 +31,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const { id } = await ctx.params;
   await deleteOverallCommentRule(session.schoolId, Number(id));
   void logAudit({

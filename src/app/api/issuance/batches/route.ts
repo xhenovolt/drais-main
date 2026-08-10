@@ -14,12 +14,15 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { listBatches, createBatch } from '@/lib/issuance/engine';
 import type { CreateBatchInput, IssuanceStatus } from '@/lib/issuance/types';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const VALID_STATUSES: IssuanceStatus[] = ['draft','previewed','generating','generated','printed','failed','archived'];
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'inventory');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'issuance.view', session.isSuperAdmin);
   } catch (e) {
@@ -39,6 +42,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'inventory');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'issuance.create', session.isSuperAdmin);
   } catch (e) {

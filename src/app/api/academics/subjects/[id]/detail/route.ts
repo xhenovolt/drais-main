@@ -11,10 +11,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   const subjectId = Number((await params).id);
   if (!subjectId) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 

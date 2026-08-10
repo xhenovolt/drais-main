@@ -6,10 +6,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'tahfiz');
+  if (modDenied) return modDenied;
 
   const [surahs, juz, hizb] = await Promise.all([
     query(`SELECT number, name_ar, name_translit, name_en, ayah_count, revelation_type, juz_start, start_page, end_page

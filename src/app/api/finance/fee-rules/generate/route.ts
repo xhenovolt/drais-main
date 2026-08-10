@@ -7,12 +7,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { generateBills } from '@/lib/finance/feeRules';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   const commit = !!(await req.clone().json().catch(() => ({})))?.commit;
   try {
     await requirePermission(session.userId, session.schoolId, commit ? 'finance.fees.manage' : 'finance.view', session.isSuperAdmin);

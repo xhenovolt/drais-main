@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 // GET /api/finance/expenditures
 // List expenditures with filtering
 export async function GET(req: NextRequest) {

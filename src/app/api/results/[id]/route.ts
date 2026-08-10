@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getConnection } from "@/lib/db";
 import { getSessionSchoolId } from "@/lib/auth";
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * SECURITY: PHASE 2A & 2B FIX - Multi-tenant Isolation with Direct school_id

@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { userCan } from '@/lib/rbac';
 import { isSubjectAllocatedToClass } from '@/lib/subject-allocation-validation';
 import { canEnterSubject, denyReason } from '@/lib/academics/comment-gating';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function POST(req: NextRequest) {
   let connection;

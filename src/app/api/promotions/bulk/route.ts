@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { promoteStudents, analyseEligibility } from '@/services/promotionService';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * BULK PROMOTIONS API — Order-Independent

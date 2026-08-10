@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * GET /api/finance/ledger
@@ -29,6 +30,8 @@ export async function GET(req: NextRequest) {
   // anyone with the URL could read every school's ledger.
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
   } catch (e: any) {
@@ -131,6 +134,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
   } catch (e: any) {

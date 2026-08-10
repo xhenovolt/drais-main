@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 // GET /api/finance/reports/balance-sheet
 // Get balance sheet report
 export async function GET(req: NextRequest) {

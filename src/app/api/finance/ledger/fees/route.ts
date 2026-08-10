@@ -4,6 +4,7 @@ import { FinanceService } from '@/lib/services/FinanceService';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 // GET /api/finance/ledger/fees
 // Central Fees Ledger - View all learners with their fees status
 export async function GET(req: NextRequest) {

@@ -9,12 +9,15 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { getCurrentTerm } from '@/lib/terms';
 import { runFeeImport } from '@/lib/finance/feeImport';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
   } catch (e) {

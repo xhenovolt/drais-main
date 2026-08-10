@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { assignFeesToStudent } from '@/lib/services/FinanceLedger';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // POST /api/finance/assign-fees
 //
@@ -13,6 +14,8 @@ import { assignFeesToStudent } from '@/lib/services/FinanceLedger';
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   const body = await req.json();

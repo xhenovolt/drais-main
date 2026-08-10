@@ -8,6 +8,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
 import { receiptToken } from '@/lib/finance/receiptToken';
+import { checkModule } from '@/lib/auth/requireModule';
 
 async function safe<T>(p: Promise<T>, fb: T): Promise<T> { try { return await p; } catch { return fb; } }
 const n = (v: any) => (v == null ? 0 : Number(v));
@@ -15,6 +16,8 @@ const n = (v: any) => (v == null ? 0 : Number(v));
 export async function GET(req: NextRequest, { params }: { params: Promise<{ ref: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   try { await requirePermission(session.userId, session.schoolId, 'finance.payments.view', session.isSuperAdmin); }
   catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
 

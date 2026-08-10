@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { getBalancesForStudents } from '@/lib/services/FinanceLedger';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * POST /api/finance/balances-batch
@@ -14,6 +15,8 @@ import { getBalancesForStudents } from '@/lib/services/FinanceLedger';
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'finance');
+  if (modDenied) return modDenied;
   await requirePermission(session.userId, session.schoolId, 'finance.fees.manage', session.isSuperAdmin);
 
   let body: { student_ids?: unknown };

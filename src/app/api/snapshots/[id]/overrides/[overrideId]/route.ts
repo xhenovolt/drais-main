@@ -4,6 +4,7 @@ import {
   deleteOverride,
   verifySnapshotOwnership,
 } from '@/lib/snapshots/overrides';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * DELETE /api/snapshots/[id]/overrides/[overrideId]
@@ -16,6 +17,8 @@ export async function DELETE(
 ) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const { id: snapshotId, overrideId: overrideIdRaw } = await ctx.params;
   const overrideId = Number(overrideIdRaw);

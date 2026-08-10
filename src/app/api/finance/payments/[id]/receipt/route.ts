@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { generateReceiptPDF } from '@/lib/services/ReceiptService';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let connection;
@@ -10,6 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'finance');
+    if (modDenied) return modDenied;
     await requirePermission(session.userId, session.schoolId, 'finance.view', session.isSuperAdmin);
     const schoolId = session.schoolId;
 

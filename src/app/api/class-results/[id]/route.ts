@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export async function PUT(
   req: NextRequest,
@@ -10,6 +11,8 @@ export async function PUT(
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     const body = await req.json();
     const { score, grade, remarks } = body;

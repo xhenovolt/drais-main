@@ -7,6 +7,7 @@ import {
   type RegistryEntry,
   type TemplateCategory,
 } from '@/lib/drce/registry';
+import { checkModule } from '@/lib/auth/requireModule';
 
 /**
  * GET /api/drce/registry — unified, category-driven list of every

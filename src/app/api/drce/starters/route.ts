@@ -15,6 +15,7 @@ import { query, getConnection } from '@/lib/db';
 import { BUILT_IN_STARTERS } from '@/lib/drce/starters';
 import { normalizeKind, findKind } from '@/lib/drce/kinds';
 import type { DRCEDocument } from '@/lib/drce/schema';
+import { checkModule } from '@/lib/auth/requireModule';
 
 interface StarterRow {
   id: number;
@@ -78,6 +79,8 @@ function rowToPayload(r: StarterRow): StarterPayload {
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const sp = req.nextUrl.searchParams;
   const kindFilter = sp.get('kind')?.trim().toLowerCase() || null;
@@ -121,6 +124,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'drce.edit', session.isSuperAdmin);
   } catch (e) {

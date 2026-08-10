@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
+import { checkModule } from '@/lib/auth/requireModule';
 // GET /api/finance/invoices?student_id=&term_id=
 // Generate invoice for a student
 export async function GET(req: NextRequest) {

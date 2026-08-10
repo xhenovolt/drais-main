@@ -20,6 +20,7 @@ import { listAggregators } from '@/lib/drce/computed/aggregations';
 import { loadSnapshot } from '@/lib/snapshots/storage';
 import { snapshotToDRCEDataContext } from '@/lib/snapshots/adapter/toDRCEDataContext';
 import type { DRCEDataContext } from '@/lib/drce/schema';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // Minimal demo context — same shape used by the editor preview.
 const DEMO_CTX: DRCEDataContext = {
@@ -61,6 +62,8 @@ const DEMO_CTX: DRCEDataContext = {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const body = await req.json().catch(() => null);
   const expression = String(body?.expression ?? '').slice(0, 4000);

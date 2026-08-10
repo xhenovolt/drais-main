@@ -13,6 +13,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
 import { resolveTeacherInitials } from '@/lib/reports/canonical-report-engine';
+import { checkModule } from '@/lib/auth/requireModule';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +22,8 @@ const ROLES = ['primary_teacher', 'assistant_teacher', 'practical_teacher', 'the
 async function guard(req: NextRequest, perm: string) {
   const session = await getSessionSchoolId(req);
   if (!session) return { error: NextResponse.json({ error: 'Not authenticated' }, { status: 401 }) };
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return { error: modDenied };
   try { await requirePermission(session.userId, session.schoolId, perm, session.isSuperAdmin); }
   catch (e) { return { error: NextResponse.json({ error: (e as Error).message }, { status: 403 }) }; }
   return { session };

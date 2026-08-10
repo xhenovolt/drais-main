@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
 
 // ============================================================================
 // GET  /api/report-templates/[id]/versions — list versions (newest first)
@@ -14,6 +15,8 @@ export async function GET(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     const { id } = await params;
     const conn = await getConnection();
@@ -48,6 +51,8 @@ export async function POST(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     const { id } = await params;
     const body = await request.json();

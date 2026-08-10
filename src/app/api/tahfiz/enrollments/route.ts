@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
+import { checkModule } from '@/lib/auth/requireModule';
 
 const TRACKS   = ['academic_plus_tahfiz', 'tahfiz_only'];
 const STATUSES = ['active', 'suspended', 'withdrawn', 'completed'];
@@ -19,6 +20,8 @@ const STATUSES = ['active', 'suspended', 'withdrawn', 'completed'];
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'tahfiz');
+  if (modDenied) return modDenied;
   const schoolId = session.schoolId;
   const url = new URL(req.url);
 
@@ -75,6 +78,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'tahfiz');
+  if (modDenied) return modDenied;
   try {
     await requirePermission(session.userId, session.schoolId, 'tahfiz.records.manage', session.isSuperAdmin);
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
