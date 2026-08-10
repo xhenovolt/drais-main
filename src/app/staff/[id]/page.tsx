@@ -11,6 +11,7 @@ import {
 import StaffPhotoModal from '@/components/staff/StaffPhotoModal';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { TeacherSubjectAssignment } from '@/components/academics/TeacherSubjectAssignment';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -287,6 +288,13 @@ export default function StaffDetailPage() {
 
         {/* Phase C — Employment lifecycle */}
         <EmploymentHistoryPanel staffId={id!} />
+
+        {/* Assign subjects to THIS teacher.
+            Sits outside the read-only "Teaching Assignments" panel above,
+            which returns null when a teacher has no allocations yet — that is
+            precisely the teacher who needs assigning, so the editor must not
+            be hidden behind the same condition. */}
+        <TeacherSubjectAssignment staffId={Number(id)} staffName={fullName} />
 
         {/* Phase H — Qualifications + specialisations */}
         <QualificationsPanel staffId={id!} />

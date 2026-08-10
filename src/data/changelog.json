@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T19:12:43.977Z",
-  "last_commit": "e5fa2cfbf91c67485ab31ec24bfe4e47fc1ab6a7",
+  "generated_at": "2026-08-10T20:05:56.147Z",
+  "last_commit": "f575dba2aefc0ef56910c13c787f6630aac902e0",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6488,7 +6488,20 @@
         }
       ],
       "commit": "e5fa2cfbf9"
+    },
+    {
+      "version": "1.173.37",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "Warn before the plan limit is hit, on both sides",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Warn before the plan limit is hit, on both sides"
+        }
+      ],
+      "commit": "f575dba2ae"
     }
   ],
-  "app_version": "1.173.37"
+  "app_version": "1.173.38"
 }
