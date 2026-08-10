@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { parsePageParams, totalPages } from '@/lib/control/pagination';
+import { LIMIT_WARN_PERCENT, LIMIT_CRITICAL_PERCENT } from '@/lib/entitlements/limits';
 
 export const runtime = 'nodejs';
 
@@ -69,6 +70,35 @@ export async function GET(req: NextRequest) {
     modsBy.get(k)!.push(m.module_code);
   }
 
+  // ── PHASE 7: capacity severity per row ───────────────────────────────────
+  // Computed here, not per school detail page, so an operator can SCAN one
+  // screen for who is near a ceiling. Without it, spotting a school at 96%
+  // means opening all 23 — which nobody does, so nobody finds out until the
+  // school is refused a creation and calls.
+  //
+  // The learner/staff counts above already use the same predicates as the
+  // entitlement meters (deleted_at IS NULL AND status = 'active'), so these
+  // percentages agree with the enforcement figure and with the school detail
+  // page. Thresholds come from the engine — one definition, three surfaces.
+  const planRows = (await query(
+    `SELECT code, limits FROM subscription_plans WHERE is_active = TRUE`, [],
+  ).catch(() => [])) as any[];
+  const limitsByCode = new Map<string, any>();
+  for (const p of planRows) {
+    try {
+      limitsByCode.set(String(p.code), typeof p.limits === 'string' ? JSON.parse(p.limits) : p.limits);
+    } catch { /* malformed plan JSON must not break the list */ }
+  }
+  const severity = (used: number, limit: unknown): { pct: number; sev: 'ok'|'warn'|'critical'|'exceeded' } | null => {
+    const lim = Number(limit);
+    if (limit == null || !Number.isFinite(lim) || lim <= 0) return null; // unlimited / unset
+    const pct = Math.min(100, Math.round((used / lim) * 100));
+    const sev = used >= lim ? 'exceeded'
+      : pct >= LIMIT_CRITICAL_PERCENT ? 'critical'
+      : pct >= LIMIT_WARN_PERCENT ? 'warn' : 'ok';
+    return { pct, sev };
+  };
+
   await controlAudit(user.id, 'viewed_schools', 'schools', null, clientIp(req));
   return NextResponse.json({
     success: true,
@@ -90,6 +120,21 @@ export async function GET(req: NextRequest) {
       },
       last_sync: (syncBy.get(Number(s.id)) as any)?.last_sync ?? null,
       modules: modsBy.get(Number(s.id)) || [],
+      capacity: (() => {
+        const lim = limitsByCode.get(String(s.subscription_plan));
+        if (!lim) return null;                       // no resolvable plan → unlimited
+        const used = {
+          learners: Number((learnersBy.get(Number(s.id)) as any)?.learners || 0),
+          staff:    Number((staffBy.get(Number(s.id)) as any)?.staff || 0),
+          devices:  Number((devBy.get(Number(s.id)) as any)?.total || 0),
+        };
+        const lines = (['learners', 'staff', 'devices'] as const)
+          .map((k) => { const r = severity(used[k], lim[k]); return r ? { key: k, used: used[k], limit: Number(lim[k]), ...r } : null; })
+          .filter(Boolean) as Array<{ key: string; used: number; limit: number; pct: number; sev: string }>;
+        if (!lines.length) return null;
+        const worst = [...lines].sort((a, b) => b.pct - a.pct)[0];
+        return { lines, worst, alert: worst.sev !== 'ok' };
+      })(),
     })),
     pagination: { page, limit, total, totalPages: totalPages(total, limit) },
   });

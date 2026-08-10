@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { MobileDrawer } from './MobileDrawer';
 import { SubscriptionBanner } from './SubscriptionBanner';
+import { CapacityBanner } from './CapacityBanner';
 import MaintenanceBanner from './MaintenanceBanner';
 import { SchoolThemeApplier } from '@/components/theme/SchoolThemeApplier';
 import { useRouteValidator } from '@/hooks/useRouteValidator';
@@ -60,6 +61,9 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
         {/* CONTENT — Scrollable, padded bottom on mobile for BottomNav */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 lg:pt-16">
           <SubscriptionBanner />
+          {/* Running out of TIME vs running out of ROOM — both can be true at
+              once and the remedies differ, so they are separate bars. */}
+          <CapacityBanner />
           {children}
         </main>
       </div>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T18:52:31.033Z",
-  "last_commit": "1b1944e88ee9f92232db51fc5a4ce64b2c81ddc3",
+  "generated_at": "2026-08-10T19:12:43.977Z",
+  "last_commit": "e5fa2cfbf91c67485ab31ec24bfe4e47fc1ab6a7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6475,7 +6475,20 @@
         }
       ],
       "commit": "1b1944e88e"
+    },
+    {
+      "version": "1.173.36",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "One usage number; surface plan, limits and gaps per school",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "One usage number; surface plan, limits and gaps per school"
+        }
+      ],
+      "commit": "e5fa2cfbf9"
     }
   ],
-  "app_version": "1.173.36"
+  "app_version": "1.173.37"
 }

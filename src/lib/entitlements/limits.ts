@@ -60,6 +60,26 @@ export function limitLabel(key: LimitKey): string {
   return KNOWN_LABELS[key] ?? String(key).replace(/_/g, ' ');
 }
 
+/** Singular forms, for "1 learner remaining" rather than "1 learners remaining". */
+const SINGULAR_LABELS: Record<string, string> = {
+  learners:    'learner',
+  staff:       'staff member',
+  devices:     'device',
+  users:       'user account',
+  sms_monthly: 'SMS message this month',
+  storage_mb:  'MB of storage',
+};
+
+/**
+ * Count-aware label. The banner that uses this is shown to a school at the
+ * moment it is nearly out of room, which is exactly when sloppy copy reads as
+ * a broken system rather than a real constraint.
+ */
+export function limitLabelFor(key: LimitKey, count: number): string {
+  if (Math.abs(count) === 1) return SINGULAR_LABELS[key] ?? limitLabel(key);
+  return limitLabel(key);
+}
+
 /** Kept for existing call sites; prefer limitLabel() for plan-driven keys. */
 export const LIMIT_LABELS: Record<string, string> = KNOWN_LABELS;
 
@@ -201,13 +221,18 @@ export async function getLimitState(schoolId: number, key: LimitKey): Promise<Li
   if (!metered) {
     return { key, limit, used: null, remaining: null, percent: null, exceeded: false, metered };
   }
+  const exceeded = used! >= limit;
   return {
     key,
     limit,
     used,
     remaining: Math.max(0, limit - used!),
-    percent:   Math.min(100, Math.round((used! / limit) * 100)),
-    exceeded:  used! >= limit,
+    // FLOOR, not round, and 100% is reserved for actually being full.
+    // Rounding showed 999/1000 as "100%" while the school could still admit a
+    // learner — a number that says full when it is not is worse than no number,
+    // because the next time it says 100% nobody believes it.
+    percent:   exceeded ? 100 : Math.min(99, Math.floor((used! / limit) * 100)),
+    exceeded,
     metered,
   };
 }

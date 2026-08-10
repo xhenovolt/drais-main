@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { School, HardDrive, Loader2, Search, ChevronLeft, ChevronRight, Plus, Copy, Check, X } from 'lucide-react';
+import { School, HardDrive, Loader2, Search, ChevronLeft, ChevronRight, Plus, Copy, Check, X, AlertTriangle } from 'lucide-react';
 import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
@@ -116,6 +116,24 @@ export default function ControlSchools() {
                 <div className="text-[10px] text-slate-500 flex items-center justify-center gap-0.5"><HardDrive className="w-3 h-3" /> devices</div>
               </div>
             </div>
+            {/* Phase 7 — capacity at a glance. Shown ONLY once a school crosses
+                the warning threshold: a badge on every card would be scanned
+                past within a week, and then the one that matters is missed. */}
+            {s.capacity?.alert && (() => {
+              const w = s.capacity.worst;
+              const tone = w.sev === 'exceeded' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                : w.sev === 'critical' ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                : 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+              return (
+                <div className={`mt-2 px-2 py-1 rounded border text-[10px] font-semibold flex items-center gap-1 ${tone}`}>
+                  <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                  {w.sev === 'exceeded' ? 'PLAN FULL' : w.sev === 'critical' ? 'CRITICAL' : 'NEAR LIMIT'}
+                  <span className="font-normal opacity-90">
+                    · {w.key} {w.used.toLocaleString()}/{w.limit.toLocaleString()} ({w.pct}%)
+                  </span>
+                </div>
+              );
+            })()}
             <div className="flex items-center justify-between mt-3 text-[11px] text-slate-500">
               <span>Sub: {s.subscription.plan || '—'} ({s.subscription.status || '—'})</span>
               <span>Last sync: {ago(s.last_sync)}</span>
