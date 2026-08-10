@@ -37,35 +37,48 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
-export type LimitKey = 'learners' | 'staff' | 'devices' | 'sms_monthly' | 'storage_mb';
+/**
+ * Known keys are named for autocomplete and label lookup, but the type stays
+ * open: the plan JSON is the source of truth, so a key added there must not
+ * need a code change to be *reported*. `(string & {})` keeps the named
+ * suggestions while permitting any other key.
+ */
+export type KnownLimitKey = 'learners' | 'staff' | 'devices' | 'users' | 'sms_monthly' | 'storage_mb';
+export type LimitKey = KnownLimitKey | (string & {});
 
-export const LIMIT_LABELS: Record<LimitKey, string> = {
+const KNOWN_LABELS: Record<string, string> = {
   learners:    'learners',
   staff:       'staff members',
   devices:     'devices',
+  users:       'user accounts',
   sms_monthly: 'SMS messages this month',
   storage_mb:  'MB of storage',
 };
+
+/** Human label for a limit key; falls back to the key itself for new keys. */
+export function limitLabel(key: LimitKey): string {
+  return KNOWN_LABELS[key] ?? String(key).replace(/_/g, ' ');
+}
+
+/** Kept for existing call sites; prefer limitLabel() for plan-driven keys. */
+export const LIMIT_LABELS: Record<string, string> = KNOWN_LABELS;
 
 /** null = unlimited, for that key or for the whole school. */
 export type PlanLimits = Partial<Record<LimitKey, number | null>>;
 
 /**
- * Keys this engine can actually measure.
+ * The state of one limit for one school.
  *
- * `sms_monthly` and `storage_mb` appear in every plan's JSON but are NOT here:
- *   • SMS is already governed by its own mechanism — `sms_allocations.quota_sms`
- *     set from the Control Center, with sends tracked through the notification
- *     tables and enforced by /api/sms/quota. A second, plan-based counter would
- *     be a competing source of truth for the same thing.
- *   • Storage is not metered anywhere yet.
+ * `metered: false` means the plan declares a ceiling this engine cannot
+ * measure, so `used` is null rather than 0. Two keys are in that state today:
+ *   • sms_monthly — already governed by its own mechanism
+ *     (`sms_allocations.quota_sms` + /api/sms/quota). A second, plan-based
+ *     counter would be a competing source of truth for the same thing.
+ *   • storage_mb — not metered anywhere yet.
  *
- * They report `used: null` rather than 0. A confident 0 would read as "you have
- * used none of your 2,000 messages", which is a stronger and wronger claim than
- * "not measured here".
+ * A confident 0 would read as "you have used none of your 2,000 messages" —
+ * a stronger and wronger claim than "not measured here".
  */
-export const METERED_KEYS: readonly LimitKey[] = ['learners', 'staff', 'devices'] as const;
-
 export interface LimitState {
   key:       LimitKey;
   limit:     number | null;
@@ -124,25 +137,42 @@ export async function getPlanLimits(schoolId: number): Promise<PlanLimits | null
 }
 
 /**
- * Live usage for one key, or null when the key is not metered here.
+ * METER REGISTRY — the extensibility point (Phase 5).
+ *
+ * A limit is enforceable when two things line up: the plan JSON carries the
+ * key, and a meter here knows how to count it. Adding `users: 25` to a plan
+ * row makes it enforceable immediately, because the meter already exists —
+ * no route changes, no deployment, which is the whole point of driving limits
+ * from data rather than code.
+ *
+ * A key in the plan with no meter is reported (limit shown, `metered: false`)
+ * and never enforced. That is the honest failure mode: it says "there is a
+ * ceiling here that we cannot measure", rather than inventing a usage figure.
+ */
+const COUNT_METERS: Record<string, string> = {
+  learners: `SELECT COUNT(*) n FROM students WHERE school_id = ? AND deleted_at IS NULL`,
+  staff:    `SELECT COUNT(*) n FROM staff    WHERE school_id = ? AND deleted_at IS NULL`,
+  devices:  `SELECT COUNT(*) n FROM devices  WHERE school_id = ?`,
+  // Registered ahead of demand: no plan sets `users` yet, so this meters
+  // nothing today and costs nothing. The day a plan does, it works.
+  users:    `SELECT COUNT(*) n FROM users    WHERE school_id = ? AND deleted_at IS NULL`,
+};
+
+/** Keys this engine can actually measure — derived, never hand-maintained. */
+export const METERED_KEYS: readonly string[] = Object.keys(COUNT_METERS);
+
+/**
+ * Live usage for one key, or null when nothing can measure it.
  * Counts only rows that are not soft-deleted.
  */
 export async function getUsage(schoolId: number, key: LimitKey): Promise<number | null> {
-  if (!METERED_KEYS.includes(key)) return null;
-  const one = async (sql: string) => {
-    const r = (await query(sql, [schoolId]).catch(() => [])) as Array<{ n: number }>;
-    return Number(r[0]?.n ?? 0);
-  };
-  switch (key) {
-    case 'learners':
-      return one(`SELECT COUNT(*) n FROM students WHERE school_id = ? AND deleted_at IS NULL`);
-    case 'staff':
-      return one(`SELECT COUNT(*) n FROM staff WHERE school_id = ? AND deleted_at IS NULL`);
-    case 'devices':
-      return one(`SELECT COUNT(*) n FROM devices WHERE school_id = ?`);
-    default:
-      return null;
-  }
+  const sql = COUNT_METERS[key];
+  if (!sql) return null;
+  const r = (await query(sql, [schoolId]).catch(() => null)) as Array<{ n: number }> | null;
+  // A failed query must not read as "zero used" — that would silently disable
+  // the limit while claiming full headroom.
+  if (r === null) return null;
+  return Number(r[0]?.n ?? 0);
 }
 
 /** Current state of one limit, for display or for a decision. */
@@ -171,10 +201,15 @@ export async function getLimitState(schoolId: number, key: LimitKey): Promise<Li
   };
 }
 
-/** Every limit at once — for the Control Center and usage banners. */
+/**
+ * Every limit the school's plan declares, plus any metered key the plan omits
+ * (reported with limit=null so usage is still visible). Driven by the plan row
+ * rather than a hardcoded list, so a new plan key appears without a code change.
+ */
 export async function getUsageSummary(schoolId: number): Promise<LimitState[]> {
-  const keys: LimitKey[] = ['learners', 'staff', 'devices', 'sms_monthly', 'storage_mb'];
-  return Promise.all(keys.map((k) => getLimitState(schoolId, k)));
+  const limits = await getPlanLimits(schoolId);
+  const keys = new Set<string>([...Object.keys(limits ?? {}), ...METERED_KEYS]);
+  return Promise.all([...keys].map((k) => getLimitState(schoolId, k)));
 }
 
 /**
@@ -205,7 +240,7 @@ export async function checkCapacity(
   if (state.used === null) return null;               // ceiling exists but unmeasurable — fail open
   if (state.used + requested <= state.limit) return null;
 
-  const label = LIMIT_LABELS[key];
+  const label = limitLabel(key);
   return NextResponse.json(
     {
       error:

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T16:14:02.251Z",
-  "last_commit": "1ec4d7ee5f7d9099da9a47fe81623dd745bbaa12",
+  "generated_at": "2026-08-10T18:46:05.307Z",
+  "last_commit": "8442125dc227fa8371afc8cf503ee7423e86cef5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6449,7 +6449,20 @@
         }
       ],
       "commit": "1ec4d7ee5f"
+    },
+    {
+      "version": "1.173.34",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "Enforce plan capacity limits server-side",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Enforce plan capacity limits server-side"
+        }
+      ],
+      "commit": "8442125dc2"
     }
   ],
-  "app_version": "1.173.34"
+  "app_version": "1.173.35"
 }
