@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { checkCapacity } from '@/lib/entitlements/limits';
 
 /**
  * POST /api/students/restore — bring soft-deleted learner(s) back from Trash.
@@ -32,6 +33,26 @@ export async function POST(req: NextRequest) {
   const conn = await getConnection();
   try {
     const placeholders = ids.map(() => '?').join(',');
+
+    // Plan capacity. Restoring returns a learner to the live roll, so it
+    // consumes capacity exactly as an admission does — otherwise Trash becomes
+    // an overflow store that lets a school sit permanently over its plan.
+    //
+    // Charge only the rows that will ACTUALLY be restored: ids that are truly
+    // soft-deleted and belong to this school. Restoring an already-live learner
+    // is a no-op and must not consume anything, or a repeated click would eat
+    // the school's headroom.
+    const [pending]: any = await conn.execute(
+      `SELECT COUNT(*) AS n FROM students
+        WHERE school_id = ? AND deleted_at IS NOT NULL AND id IN (${placeholders})`,
+      [schoolId, ...ids],
+    );
+    const willRestore = Number(pending?.[0]?.n ?? 0);
+    if (willRestore > 0) {
+      const overCapacity = await checkCapacity(schoolId, 'learners', willRestore);
+      if (overCapacity) { await conn.end(); return overCapacity; }
+    }
+
     const [res]: any = await conn.execute(
       `UPDATE students
           SET deleted_at = NULL, restored_at = NOW(), restored_by = ?

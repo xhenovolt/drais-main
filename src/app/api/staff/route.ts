@@ -3,6 +3,7 @@ import { getConnection, query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { buildCsv, csvResponse } from '@/lib/export/serverCsv';
+import { checkCapacity } from '@/lib/entitlements/limits';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -172,6 +173,9 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
+
+    const overCapacity = await checkCapacity(session.schoolId, 'staff');
+    if (overCapacity) return overCapacity;
     const schoolId = session.schoolId;
 
     const body = await req.json();

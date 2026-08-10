@@ -38,6 +38,7 @@ import { getConnection } from '@/lib/db';
 import { execTenant } from '@/lib/dbTenant';
 import * as XLSX from 'xlsx';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getLimitState, LIMIT_LABELS } from '@/lib/entitlements/limits';
 
 const CHUNK_SIZE = 50;
 
@@ -952,6 +953,23 @@ export async function POST(request: NextRequest) {
         errors: [] as string[], failedRows: [] as number[],
       };
 
+      // ── PLAN CAPACITY ─────────────────────────────────────────────────────
+      // Read ONCE, then decremented locally as rows are created. Two reasons
+      // it is not re-queried per row: a 1,000-row import would add 2,000
+      // queries, and the count would shift under us mid-import anyway.
+      //
+      // Only the CREATE branch decrements this. That is what makes the rule
+      // identity-aware rather than row-count-based: a school at 950/1000 that
+      // uploads 40 existing learners plus 30 new ones consumes 30, not 70, so
+      // re-importing the same roll stays possible forever. Charging by rows
+      // would make routine re-imports impossible the moment a school neared
+      // its ceiling.
+      const capState  = await getLimitState(schoolId, 'learners');
+      let   headroom  = (capState.limit === null || capState.used === null)
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, capState.limit - capState.used);
+      let   capBlocked = 0;
+
       try {
         conn = await getConnection();
 
@@ -1138,6 +1156,21 @@ export async function POST(request: NextRequest) {
                   }
 
                 } else if (action === 'create') {
+                  // Refuse only the NEW rows beyond the plan. Matched rows have
+                  // already taken the update branch above, so an import that is
+                  // mostly corrections still succeeds — the school is told which
+                  // rows could not be admitted instead of the whole file failing.
+                  if (headroom <= 0) {
+                    capBlocked++;
+                    stats.skipped++;
+                    stats.errors.push(
+                      `Row ${rowNum}: not created — plan limit of ${capState.limit} ${LIMIT_LABELS.learners} reached.`,
+                    );
+                    await conn.rollback();
+                    continue;
+                  }
+                  headroom--;
+
                   // CREATE — person → student → enrollment (rolled back together on failure)
                   const year       = new Date().getFullYear();
                   const seq        = stats.imported + stats.updated + stats.skipped + 1;
@@ -1384,7 +1417,12 @@ export async function POST(request: NextRequest) {
           failedRows: stats.failedRows,
           enrollmentsPreserved: stats.enrollmentsPreserved,
           total:      importRows.length,
-          message:    `Import complete: ${stats.imported} created, ${stats.updated} updated, ${stats.skipped} skipped, ${stats.failed} failed${stats.enrollmentsPreserved ? `, ${stats.enrollmentsPreserved} existing enrollment${stats.enrollmentsPreserved === 1 ? '' : 's'} preserved` : ''}${integrityNote}`,
+          planLimitBlocked: capBlocked,
+          // Surfaced separately from the generic "skipped" count. A skip for a
+          // duplicate and a skip because the plan is full need different
+          // actions from the operator, and lumping them together is how the
+          // second one goes unnoticed until someone asks where a learner went.
+          message:    `Import complete: ${stats.imported} created, ${stats.updated} updated, ${stats.skipped} skipped, ${stats.failed} failed${stats.enrollmentsPreserved ? `, ${stats.enrollmentsPreserved} existing enrollment${stats.enrollmentsPreserved === 1 ? '' : 's'} preserved` : ''}${capBlocked ? `. ${capBlocked} learner${capBlocked === 1 ? ' was' : 's were'} NOT created because the plan limit of ${capState.limit} was reached — archive leavers or upgrade the plan` : ''}${integrityNote}`,
           session_id: sessionId,
         });
 

@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { NotificationMiddleware } from '@/lib/middleware/notificationMiddleware';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkCapacity } from '@/lib/entitlements/limits';
 export async function POST(req: NextRequest) {
   let connection;
   
@@ -13,6 +14,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+
+    // Plan capacity. Checked before any work so a school at its ceiling gets a
+    // clear, actionable message rather than a half-created learner.
+    const overCapacity = await checkCapacity(schoolId, 'learners');
+    if (overCapacity) return overCapacity;
 
     const body = await req.json();
     const { first_name,

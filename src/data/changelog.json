@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T14:56:23.349Z",
-  "last_commit": "8df3d2465d932104efddc1c0ebd15d6cd9dbedc1",
+  "generated_at": "2026-08-10T16:14:02.251Z",
+  "last_commit": "1ec4d7ee5f7d9099da9a47fe81623dd745bbaa12",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6436,7 +6436,20 @@
         }
       ],
       "commit": "8df3d2465d"
+    },
+    {
+      "version": "1.173.33",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "Enforce school module entitlements server-side",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Enforce school module entitlements server-side"
+        }
+      ],
+      "commit": "1ec4d7ee5f"
     }
   ],
-  "app_version": "1.173.33"
+  "app_version": "1.173.34"
 }
