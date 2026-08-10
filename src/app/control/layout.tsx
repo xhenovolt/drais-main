@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, BookOpen } from 'lucide-react';
+import { Shield, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, BookOpen, Lock } from 'lucide-react';
 
 const NAV = [
   { href: '/control/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -20,6 +20,9 @@ const NAV = [
   { href: '/control/bi', label: 'Business', icon: TrendingUp },
   { href: '/control/system-health', label: 'System Health', icon: Activity },
   { href: '/control/operators', label: 'Operators', icon: Users },
+  // Placed next to Operators, not under Schools: an operator looking for
+  // "someone cannot sign in" reaches for people, not for a school record.
+  { href: '/control/user-locks', label: 'Account Locks', icon: Lock },
   { href: '/control/audit', label: 'Audit Log', icon: ScrollText },
   { href: '/control/docs', label: 'Docs', icon: BookOpen },
 ];

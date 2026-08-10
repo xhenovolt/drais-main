@@ -5,6 +5,7 @@ import { logAudit, AuditAction } from '@/lib/audit';
 import { getSubscriptionInfo } from '@/lib/subscription';
 import { randomBytes } from 'crypto';
 import { shouldEnforceForcedPasswordReset } from '@/lib/auth/password-reset-policy';
+import { getLockState, registerFailedAttempt, clearFailedAttempts } from '@/lib/auth/login-lockout';
 
 // Session configuration
 const SESSION_CONFIG = {
@@ -120,21 +121,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Brute-force guard ────────────────────────────────────────────────
+    // Checked BEFORE bcrypt.compare, deliberately: a locked account must not
+    // get a password comparison at all. bcrypt at cost 12 is ~250ms of CPU, so
+    // comparing first would let an attacker keep burning server time on an
+    // account they are already locked out of.
+    //
+    // The response is byte-identical to a wrong password apart from
+    // Retry-After. Saying "this account is locked" would confirm the address
+    // exists and tell the attacker their guessing is having an effect.
+    const lock = await getLockState(user.id);
+    if (lock.locked) {
+      void logAudit({
+        schoolId: Number(user.schoolId) || 0, userId: user.id,
+        action: AuditAction.LOGIN_FAILED, entityType: 'user', entityId: user.id,
+        details: { email: String(email).toLowerCase(), reason: 'account_locked', retryAfterSec: lock.retryAfterSec },
+        ip: getClientIp(request), userAgent: request.headers.get('user-agent'),
+      });
+      return NextResponse.json(
+        { success: false, error: { message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' } },
+        { status: 401, headers: { 'Retry-After': String(lock.retryAfterSec) } },
+      );
+    }
+
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
-      // Log failed attempt (optional: implement rate limiting)
-      await query(
-        `UPDATE users SET failed_login_attempts = COALESCE(failed_login_attempts, 0) + 1 WHERE id = ?`,
-        [user.id]
-      ).catch(() => {}); // Don't fail if this fails
+      // Counts the failure and applies a progressive cooldown once the
+      // threshold is crossed. Replaces the previous increment, which was
+      // written but never read.
+      const state = await registerFailedAttempt(user.id);
 
       // Accountability (P2): record the failed sign-in with the actor + origin.
       void logAudit({
         schoolId: Number(user.schoolId) || 0, userId: user.id,
         action: AuditAction.LOGIN_FAILED, entityType: 'user', entityId: user.id,
-        details: { email: String(email).toLowerCase(), reason: 'bad_password' },
+        details: {
+          email: String(email).toLowerCase(),
+          reason: state.locked ? 'bad_password_now_locked' : 'bad_password',
+          ...(state.locked ? { retryAfterSec: state.retryAfterSec } : {}),
+        },
         ip: getClientIp(request), userAgent: request.headers.get('user-agent'),
       });
 
@@ -146,7 +173,12 @@ export async function POST(request: NextRequest) {
             code: 'INVALID_CREDENTIALS'
           }
         },
-        { status: 401 }
+        // Retry-After only once a cooldown is actually in force. It carries no
+        // information an attacker lacks — they know they just failed — but a
+        // legitimate user needs to be told how long to wait.
+        state.locked
+          ? { status: 401, headers: { 'Retry-After': String(state.retryAfterSec) } }
+          : { status: 401 }
       );
     }
 
@@ -227,9 +259,15 @@ export async function POST(request: NextRequest) {
 
     // Update last login
     await query(
-      `UPDATE users SET last_login_at = NOW(), failed_login_attempts = 0 WHERE id = ?`,
+      `UPDATE users SET last_login_at = NOW() WHERE id = ?`,
       [user.id]
     ).catch(() => {}); // Don't fail if this fails
+
+    // Clear the brute-force counters. This also drops `locked_until` and
+    // `last_failed_login_at`, which the old `failed_login_attempts = 0` above
+    // did not — leaving a stale lock timestamp that would have re-locked a
+    // legitimate user on their next single mistype.
+    await clearFailedAttempts(user.id);
 
     // Accountability (P2): record the successful sign-in.
     void logAudit({

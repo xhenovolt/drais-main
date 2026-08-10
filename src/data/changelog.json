@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T11:07:48.625Z",
-  "last_commit": "674a09d39048ff13f8b0218d6c9059d2e9cb5565",
+  "generated_at": "2026-08-10T14:37:01.228Z",
+  "last_commit": "ed9903bedbc657bb3708cb37a4fbd58a985d531a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6410,7 +6410,20 @@
         }
       ],
       "commit": "674a09d390"
+    },
+    {
+      "version": "1.173.30",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "Enforce permissions server-side on 20 privileged handlers",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Enforce permissions server-side on 20 privileged handlers"
+        }
+      ],
+      "commit": "ed9903bedb"
     }
   ],
-  "app_version": "1.173.30"
+  "app_version": "1.173.31"
 }
