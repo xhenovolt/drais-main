@@ -11,6 +11,7 @@ import { controlCan } from '@/lib/control/permissions';
 import { MODULE_CATALOG, isModuleCode, getSchoolModuleStatus, setSchoolModule } from '@/lib/school-modules';
 import { getPlanByCode, assignPlanToSchool, renewSchool, schoolUsage, usageAgainst } from '@/lib/control/subscriptions';
 import { schoolFootprint, hardDeleteSchool } from '@/lib/control/school-hard-delete';
+import { getSchoolEntitlements } from '@/lib/entitlements';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   const list = async (sql: string, params: any[] = [schoolId]) =>
     (await query(sql, params).catch(() => [])) as any[];
+
+  const entitlements = await getSchoolEntitlements(schoolId).catch(() => null);
 
   const [devices, punches24, todayCounts, clock, smsRecent, moduleRows, syncEvents, recentPunches] = await Promise.all([
     list(`SELECT sn, device_name, device_type, is_online, last_seen, lan_ip FROM devices WHERE school_id = ?`),
@@ -70,9 +73,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     sync_events_7d: syncEvents,
     recent_punches: recentPunches,
     modules: {
-      catalog: MODULE_CATALOG.map(m => ({ code: m.code, label: m.label })),
+      catalog: MODULE_CATALOG.map(m => ({ code: m.code, label: m.label, description: m.description })),
       enabled: moduleRows,
     },
+    // Phase 6 — plan, usage against limits, module state and the plan-feature
+    // gap in one payload, so an operator can answer "what does this school
+    // have, and what are they near?" without cross-referencing three screens.
+    entitlements,
   });
 }
 

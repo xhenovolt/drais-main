@@ -60,7 +60,7 @@ export default function ControlSchoolDetail({ params }: { params: Promise<{ id: 
       <SubscriptionControl school={s} act={act} />
 
       {/* Plan & usage (P5) — catalog plan + limits vs current usage */}
-      <PlanUsagePanel plan={data.plan} usage={data.plan_usage} act={act} />
+      <PlanUsagePanel plan={data.plan} usage={data.plan_usage} ent={data.entitlements} act={act} />
 
       {/* Billing ledger (P11) — invoices + payments; payment extends access */}
       <BillingPanel schoolId={s.id} currency={data.plan?.currency || 'UGX'} />
@@ -415,10 +415,13 @@ function LifecycleControl({ school, act }: { school: any; act: (b: any) => Promi
   );
 }
 
-function PlanUsagePanel({ plan, usage, act }: { plan: any; usage: any[] | null; act: (b: any) => Promise<boolean> }) {
+function PlanUsagePanel({ plan, usage, ent, act }: { plan: any; usage: any[] | null; ent: any; act: (b: any) => Promise<boolean> }) {
   const { data } = useSWR<any>('/api/control-center/plans', fetcher);
   const plans = data?.plans || [];
   const shown = (usage || []).filter((u: any) => ['learners', 'staff', 'devices'].includes(u.key));
+  // key → severity, from the entitlement engine (one threshold set for the
+  // whole system rather than a number invented per component).
+  const sevByKey = new Map<string, string>((ent?.limits || []).map((l: any) => [String(l.key), l.severity]));
   const fmt = (v: any) => (v == null ? '∞' : Number(v).toLocaleString());
   return (
     <Panel title="Plan & usage" icon={<CreditCard className="w-4 h-4" />}>
@@ -443,22 +446,77 @@ function PlanUsagePanel({ plan, usage, act }: { plan: any; usage: any[] | null; 
           {' · '}Assigning or renewing sets the expiry that drives auto-suspend.
         </p>
       )}
+      {ent?.subscription?.endDate && (
+        <p className="text-[11px] mb-2">
+          <span className="text-slate-400">Expires </span>
+          <span className={ent.subscription.expired ? 'text-rose-400 font-semibold'
+            : (ent.subscription.daysLeft ?? 999) <= 30 ? 'text-amber-300 font-semibold' : 'text-slate-300'}>
+            {new Date(ent.subscription.endDate).toLocaleDateString()}
+            {ent.subscription.daysLeft != null && (
+              ent.subscription.expired
+                ? ` · EXPIRED ${Math.abs(ent.subscription.daysLeft)} day${Math.abs(ent.subscription.daysLeft) === 1 ? '' : 's'} ago`
+                : ` · ${ent.subscription.daysLeft} day${ent.subscription.daysLeft === 1 ? '' : 's'} left`)}
+          </span>
+          {ent.subscription.status && <span className="text-slate-500"> · status {ent.subscription.status}</span>}
+        </p>
+      )}
+
       {!plan ? <p className="text-xs text-slate-500">Assign a catalog plan to enforce limits.</p> : shown.length === 0 ? <p className="text-xs text-slate-500">No usage data.</p> : (
         <div className="space-y-2">
-          {shown.map((u: any) => (
-            <div key={u.key}>
-              <div className="flex items-center justify-between text-[11px] mb-0.5">
-                <span className="text-slate-400 capitalize">{u.key}</span>
-                <span className={u.over ? 'text-rose-400 font-semibold' : 'text-slate-300'}>{u.used.toLocaleString()} / {fmt(u.limit)}{u.over ? ' · OVER' : ''}</span>
+          {shown.map((u: any) => {
+            // Severity comes from the entitlement engine (90% warn / 95% critical)
+            // so this bar, any school-facing banner and the refusal at the API
+            // all agree. The old hardcoded 80% here agreed with nothing.
+            const sev = sevByKey.get(u.key) ?? (u.over ? 'exceeded' : 'ok');
+            const bar =
+              sev === 'exceeded' ? 'bg-rose-500'
+              : sev === 'critical' ? 'bg-rose-400'
+              : sev === 'warn'     ? 'bg-amber-500'
+              : 'bg-emerald-500';
+            const text =
+              sev === 'exceeded' || sev === 'critical' ? 'text-rose-400 font-semibold'
+              : sev === 'warn' ? 'text-amber-300 font-semibold'
+              : 'text-slate-300';
+            return (
+              <div key={u.key}>
+                <div className="flex items-center justify-between text-[11px] mb-0.5">
+                  <span className="text-slate-400 capitalize">{u.key}</span>
+                  <span className={text}>
+                    {u.used.toLocaleString()} / {fmt(u.limit)}
+                    {!u.unlimited && ` · ${u.pct}%`}
+                    {sev === 'exceeded' ? ' · OVER' : sev === 'critical' ? ' · CRITICAL' : sev === 'warn' ? ' · NEAR LIMIT' : ''}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${bar}`} style={{ width: `${u.unlimited ? 0 : u.pct}%` }} />
+                </div>
               </div>
-              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${u.over ? 'bg-rose-500' : u.pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${u.unlimited ? 0 : u.pct}%` }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
-      <p className="text-[10px] text-slate-500 mt-2">Assigning a plan is audited. Limits shown vs live usage; ∞ = unlimited.</p>
+
+      {ent?.featureGap?.length > 0 && (
+        <div className="mt-3 px-2.5 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25">
+          <p className="text-[11px] text-amber-200 font-semibold">Enabled beyond the plan</p>
+          <p className="text-[10px] text-amber-200/80 leading-snug mt-0.5">
+            {ent.featureGap.join(', ')} — in use but not included in {plan?.name ?? 'this plan'}.
+            <strong> Not enforced.</strong> Whether the school keeps this access is a commercial decision, so
+            nothing has been taken away; change the plan or disable the module deliberately.
+          </p>
+        </div>
+      )}
+      {ent?.unmappedPlanFeatures?.length > 0 && (
+        <p className="text-[10px] text-slate-500 mt-2">
+          Plan promises <strong>{ent.unmappedPlanFeatures.join(', ')}</strong>, which the system has no module for
+          — nothing gates it either way.
+        </p>
+      )}
+
+      <p className="text-[10px] text-slate-500 mt-2">
+        Assigning a plan is audited. Usage is the same count the API enforces on; ∞ = unlimited. A school with no
+        resolvable plan is unlimited, never zero.
+      </p>
     </Panel>
   );
 }

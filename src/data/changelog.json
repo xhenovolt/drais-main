@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T18:46:05.307Z",
-  "last_commit": "8442125dc227fa8371afc8cf503ee7423e86cef5",
+  "generated_at": "2026-08-10T18:52:31.033Z",
+  "last_commit": "1b1944e88ee9f92232db51fc5a4ce64b2c81ddc3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6462,7 +6462,20 @@
         }
       ],
       "commit": "8442125dc2"
+    },
+    {
+      "version": "1.173.35",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "Config-driven entitlement engine + unified resolver",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Config-driven entitlement engine + unified resolver"
+        }
+      ],
+      "commit": "1b1944e88e"
     }
   ],
-  "app_version": "1.173.35"
+  "app_version": "1.173.36"
 }

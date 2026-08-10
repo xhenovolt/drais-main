@@ -150,9 +150,20 @@ export async function getPlanLimits(schoolId: number): Promise<PlanLimits | null
  * ceiling here that we cannot measure", rather than inventing a usage figure.
  */
 const COUNT_METERS: Record<string, string> = {
-  learners: `SELECT COUNT(*) n FROM students WHERE school_id = ? AND deleted_at IS NULL`,
-  staff:    `SELECT COUNT(*) n FROM staff    WHERE school_id = ? AND deleted_at IS NULL`,
-  devices:  `SELECT COUNT(*) n FROM devices  WHERE school_id = ?`,
+  // ── THESE PREDICATES MUST MATCH THE CONTROL CENTRE DISPLAY EXACTLY ───────
+  // `schoolUsage` in src/lib/control/subscriptions.ts delegates here so there
+  // is one query per resource. That delegation exists because the first
+  // version of this file counted differently — it omitted `status = 'active'`
+  // — and ALBAYAN measured 741 in the Control Centre while enforcement used
+  // 785. An operator reading "741 / 1000" while a bursar is refused at 785
+  // has no way to understand the refusal, and would call the founder.
+  //
+  // The `status = 'active'` semantics are deliberate and were the pre-existing
+  // ones: a learner who has left still occupies a row but should not occupy a
+  // paid seat. Same for retired devices.
+  learners: `SELECT COUNT(*) n FROM students WHERE school_id = ? AND deleted_at IS NULL AND status = 'active'`,
+  staff:    `SELECT COUNT(*) n FROM staff    WHERE school_id = ? AND deleted_at IS NULL AND status = 'active'`,
+  devices:  `SELECT COUNT(*) n FROM devices  WHERE school_id = ? AND deleted_at IS NULL AND status NOT IN ('retired')`,
   // Registered ahead of demand: no plan sets `users` yet, so this meters
   // nothing today and costs nothing. The day a plan does, it works.
   users:    `SELECT COUNT(*) n FROM users    WHERE school_id = ? AND deleted_at IS NULL`,

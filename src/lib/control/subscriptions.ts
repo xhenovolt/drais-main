@@ -13,6 +13,7 @@
 import { query } from '@/lib/db';
 import { controlAudit } from '@/lib/control/auth';
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
+import { getUsage } from '@/lib/entitlements/limits';
 
 export interface PlanLimits {
   learners?: number | null; staff?: number | null; devices?: number | null;
@@ -288,14 +289,33 @@ export async function renewSchool(schoolId: number, operatorId: number | null, i
 }
 
 /** Current resource usage for a school (learners / staff / devices). */
+/**
+ * Live usage per resource.
+ *
+ * Delegates to the entitlement engine's meters so the number an operator READS
+ * here and the number that REFUSES a creation are produced by the same query.
+ * They were briefly two implementations, and they disagreed: ALBAYAN measured
+ * 741 here while enforcement counted 785, because one predicate omitted
+ * `status = 'active'`. An operator seeing "741 / 1000" while a bursar is
+ * refused has no way to explain the refusal.
+ *
+ * sms_monthly and storage_mb stay 0 in this shape because the Control Centre
+ * display expects numbers; the engine reports them as unmetered (null) for
+ * callers that can represent that.
+ */
 export async function schoolUsage(schoolId: number): Promise<Record<LimitKey, number>> {
-  const one = async (sql: string) => Number(((await query(sql, [schoolId]).catch(() => [{}])) as any[])[0]?.n || 0);
   const [learners, staff, devices] = await Promise.all([
-    one(`SELECT COUNT(*) n FROM students WHERE school_id = ? AND deleted_at IS NULL AND status = 'active'`),
-    one(`SELECT COUNT(*) n FROM staff WHERE school_id = ? AND deleted_at IS NULL AND status = 'active'`),
-    one(`SELECT COUNT(*) n FROM devices WHERE school_id = ? AND deleted_at IS NULL AND status NOT IN ('retired')`),
+    getUsage(schoolId, 'learners'),
+    getUsage(schoolId, 'staff'),
+    getUsage(schoolId, 'devices'),
   ]);
-  return { learners, staff, devices, sms_monthly: 0, storage_mb: 0 };
+  return {
+    learners: learners ?? 0,
+    staff:    staff ?? 0,
+    devices:  devices ?? 0,
+    sms_monthly: 0,
+    storage_mb:  0,
+  };
 }
 
 /* ── PURE limit maths (unit-tested) ─────────────────────────────────────── */
