@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
 import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
+import { checkAnyPermission } from '@/lib/rbac';
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -66,6 +67,8 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const denied = await checkAnyPermission(session.userId, session.schoolId, ['departments.department.create', 'departments.manage'], session.isSuperAdmin);
+    if (denied) return denied;
     const schoolId = session.schoolId;
 
     const body = await req.json();
@@ -108,6 +111,8 @@ export async function DELETE(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
+    const denied = await checkAnyPermission(session.userId, session.schoolId, ['departments.department.archive', 'departments.manage'], session.isSuperAdmin);
+    if (denied) return denied;
 
     const body = await req.json();
     const { id, reason } = body;

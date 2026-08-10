@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { syncPermissionCatalog } from '@/lib/rbac/sync';
 import { authorize } from '@/lib/rbac/authorize';
+import { checkAnyPermission } from '@/lib/rbac';
 
 /**
  * POST /api/admin/permissions/sync
@@ -17,6 +18,8 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['roles.permission.sync', 'roles.manage'], session.isSuperAdmin);
+  if (denied) return denied;
 
   const auth = await authorize(session, 'roles.permission.sync');
   if (!auth.allowed) {

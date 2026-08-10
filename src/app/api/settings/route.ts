@@ -4,6 +4,7 @@ import { invalidateSchoolCache } from '@/lib/schoolDB';
 import { logAudit, AuditAction } from '@/lib/audit';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkAnyPermission } from '@/lib/rbac';
 /**
  * GET /api/settings?school_id=1
  * Returns the school's full settings including school info from the schools table
@@ -90,6 +91,8 @@ export async function PUT(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const denied = await checkAnyPermission(session.userId, session.schoolId, ['school.update'], session.isSuperAdmin);
+    if (denied) return denied;
     const schoolId = session.schoolId;
 
     const body = await req.json();

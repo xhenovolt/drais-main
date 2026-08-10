@@ -212,6 +212,53 @@ export async function checkPermission(
 }
 
 /**
+ * Return-based "any of these permissions" check — 403 NextResponse, or null to proceed.
+ *
+ *   const denied = await checkAnyPermission(uid, sid, ['roles.manage', 'roles.role.create'], isSA);
+ *   if (denied) return denied;
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * `userCan` expands a code through `expandPermissionChain`, but that chain only
+ * ever widens to WILDCARDS — `roles.role.create` → `roles.role.*` → `roles.*` → `*`.
+ * Measured against production: there are ZERO wildcard rows in `permissions`, so
+ * the expansion currently matches nothing extra.
+ *
+ * That matters because the granular codes and the codes roles actually hold are
+ * two different vocabularies. As of this commit:
+ *
+ *     roles.role.create / .update / .archive      granted to 0 roles
+ *     roles.permission.sync                        granted to 0 roles
+ *     staff.employment|qualifications|specializations.manage   0 roles
+ *     departments.department.create / .archive     granted to 0 roles
+ *     roles.manage                                 granted to 1 role  (3 users)
+ *     departments.manage                           granted to 6 roles (4 users)
+ *
+ * Gating a route on the granular code alone would 403 every legitimate
+ * non-super-admin holding the older coarse code. Accepting EITHER lets the
+ * finer-grained vocabulary be adopted without a migration and without an
+ * outage — and without inventing a second permission system, which is why this
+ * lives in rbac.ts beside checkPermission rather than in a new module.
+ *
+ * Super-admins short-circuit, consistent with every other check here.
+ */
+export async function checkAnyPermission(
+  userId:       number,
+  schoolId:     number,
+  codes:        string[],
+  isSuperAdmin: boolean = false,
+): Promise<NextResponse | null> {
+  if (isSuperAdmin) return null;
+  for (const code of codes) {
+    if (await userCan(userId, schoolId, code)) return null;
+  }
+  return NextResponse.json(
+    { error: `Forbidden: missing permission '${codes[0]}'`, code: 'FORBIDDEN' },
+    { status: 403 },
+  );
+}
+
+/**
  * Wrap an async route handler to catch RBAC/structured errors
  * and return proper HTTP status codes instead of 500.
  */

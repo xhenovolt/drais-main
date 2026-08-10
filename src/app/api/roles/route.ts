@@ -5,6 +5,7 @@ import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/lib/
 import { logAudit, AuditAction } from '@/lib/audit';
 import { logSystemError, logSystemEvent, LogLevel } from '@/lib/systemLogger';
 import { notifyRoleAssigned } from '@/lib/notificationTrigger';
+import { checkAnyPermission } from '@/lib/rbac';
 
 /**
  * POST /api/roles
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
         401
       );
     }
+    const denied = await checkAnyPermission(session.userId, session.schoolId, ['roles.role.create', 'roles.manage'], session.isSuperAdmin);
+    if (denied) return denied;
     const { schoolId, userId: sessionUserId } = session;
 
     // Parse and validate input

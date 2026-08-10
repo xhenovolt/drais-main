@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkAnyPermission } from '@/lib/rbac';
 
 /**
  * PUT /api/roles/[id]
@@ -13,6 +14,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
+    const denied = await checkAnyPermission(session.userId, session.schoolId, ['roles.role.update', 'roles.manage'], session.isSuperAdmin);
+    if (denied) return denied;
     const schoolId = session.schoolId;
 
     const body = await req.json();
@@ -60,6 +63,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!session) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
+    const denied = await checkAnyPermission(session.userId, session.schoolId, ['roles.role.archive', 'roles.manage'], session.isSuperAdmin);
+    if (denied) return denied;
     const schoolId = session.schoolId;
 
     const { id: roleId } = await params;

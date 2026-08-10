@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { buildCsv, csvResponse } from '@/lib/export/serverCsv';
+import { checkAnyPermission } from '@/lib/rbac';
 
 /**
  * GET /api/admin/users
@@ -154,6 +155,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['user.create'], session.isSuperAdmin);
+  if (denied) return denied;
 
   let body: any;
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }

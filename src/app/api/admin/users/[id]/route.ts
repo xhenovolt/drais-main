@@ -5,6 +5,7 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
+import { checkAnyPermission } from '@/lib/rbac';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,6 +30,8 @@ async function getTargetUser(userId: number, schoolId: number) {
 export async function PATCH(request: NextRequest, { params }: Params) {
   const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['user.update'], session.isSuperAdmin);
+  if (denied) return denied;
 
   const { id } = await params;
   const targetId = parseInt(id, 10);
@@ -101,6 +104,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(request: NextRequest, { params }: Params) {
   const session = await getSessionSchoolId(request);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['user.update', 'user.activate'], session.isSuperAdmin);
+  if (denied) return denied;
 
   const { id } = await params;
   const targetId = parseInt(id, 10);

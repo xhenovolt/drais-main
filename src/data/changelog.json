@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-09T19:07:13.971Z",
-  "last_commit": "d9de245b45ce19e52444cdb8c542d7e1c977098b",
+  "generated_at": "2026-08-10T11:07:48.625Z",
+  "last_commit": "674a09d39048ff13f8b0218d6c9059d2e9cb5565",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6397,7 +6397,20 @@
         }
       ],
       "commit": "d9de245b45"
+    },
+    {
+      "version": "1.173.29",
+      "date": "2026-08-09",
+      "release_type": "patch",
+      "title": "Finance page 500 was one bad column; attendance reads dead tables",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Finance page 500 was one bad column; attendance reads dead tables"
+        }
+      ],
+      "commit": "674a09d390"
     }
   ],
-  "app_version": "1.173.29"
+  "app_version": "1.173.30"
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { checkAnyPermission } from '@/lib/rbac';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -44,6 +45,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 export async function POST(req: NextRequest, ctx: Ctx) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['staff.qualifications.manage', 'staff.update'], session.isSuperAdmin);
+  if (denied) return denied;
 
   const { id } = await ctx.params;
   const staffId = Number(id);
@@ -79,6 +82,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['staff.qualifications.manage', 'staff.update'], session.isSuperAdmin);
+  if (denied) return denied;
 
   const { id } = await ctx.params;
   const staffId = Number(id);

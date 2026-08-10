@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkAnyPermission } from '@/lib/rbac';
 import {
   listClassTeachers,
   assignClassTeacher,
@@ -50,6 +51,8 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['academics.allocations.manage', 'academics.classes.manage'], session.isSuperAdmin);
+  if (denied) return denied;
   const { id } = await ctx.params;
   const classId = Number(id);
   if (!Number.isFinite(classId) || classId <= 0) {

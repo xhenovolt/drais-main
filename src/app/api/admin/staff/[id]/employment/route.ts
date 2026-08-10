@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkAnyPermission } from '@/lib/rbac';
 import {
   listEmploymentEvents,
   appendEmploymentEvent,
@@ -66,6 +67,8 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['staff.employment.manage', 'staff.update'], session.isSuperAdmin);
+  if (denied) return denied;
   const { id: idRaw } = await ctx.params;
   const staffId = Number(idRaw);
   if (!Number.isFinite(staffId) || staffId <= 0) {

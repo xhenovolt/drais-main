@@ -67,7 +67,27 @@ const SESSION_COOKIE_NAME = 'drais_session';
 
 /**
  * Routes that require specific roles.
- * If the user's role is NOT in the allowed list they get 403 / redirect.
+ *
+ * ⚠️ THIS IS A UX GATE, NOT A SECURITY BOUNDARY. DO NOT TREAT IT AS ONE.
+ *
+ * The check below reads the `drais_role` cookie, which login sets with
+ * `httpOnly: false` — deliberately, because middleware runs on the Edge runtime
+ * and cannot open a database connection to resolve the real role. Anything the
+ * browser can read, the browser can rewrite: `document.cookie = 'drais_role=Admin'`
+ * passes every guard in this list.
+ *
+ * That is acceptable ONLY because it is not the thing standing between a user
+ * and a privileged action. Authorization is enforced inside the route handlers
+ * against the server-side session, via `checkPermission` / `checkAnyPermission`
+ * from `src/lib/rbac.ts`, which resolve the user's real roles from the database
+ * on every request and cannot be influenced by a cookie.
+ *
+ * What this list actually buys: a user who is not an administrator gets a clean
+ * redirect instead of a page that loads and then 403s on every fetch.
+ *
+ * ➜ Adding a route here does NOT protect it. Add the permission check in the
+ *   handler. Phase 1 (2026-08) closed 20 such handlers across 15 routes that
+ *   were relying on this list alone.
  */
 const ROLE_PROTECTED: { prefix: string; roles: string[] }[] = [
   { prefix: '/admin/users',   roles: ['Admin', 'Super Admin'] },

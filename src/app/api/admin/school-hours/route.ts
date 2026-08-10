@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkAnyPermission } from '@/lib/rbac';
 import {
   loadAllSchoolHours,
   upsertSchoolHours,
@@ -60,6 +61,8 @@ export async function PUT(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['school.update'], session.isSuperAdmin);
+  if (denied) return denied;
   let body: PutBody;
   try {
     body = await req.json();
@@ -137,6 +140,8 @@ export async function DELETE(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
+  const denied = await checkAnyPermission(session.userId, session.schoolId, ['school.update'], session.isSuperAdmin);
+  if (denied) return denied;
   const url = new URL(req.url);
   const audience = url.searchParams.get('audience');
   const dayParam = url.searchParams.get('dayOfWeek');

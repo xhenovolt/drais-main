@@ -4,6 +4,7 @@ import { getConnection } from '@/lib/db';
 
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkAnyPermission } from '@/lib/rbac';
 export async function GET(req: NextRequest) {
   try {
     // Enforce multi-tenant isolation: derive school_id from session
@@ -66,6 +67,8 @@ export async function PUT(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const denied = await checkAnyPermission(session.userId, session.schoolId, ['school.update'], session.isSuperAdmin);
+    if (denied) return denied;
     const schoolId = session.schoolId;
 
     const body = await req.json();
