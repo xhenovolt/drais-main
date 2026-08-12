@@ -29,6 +29,20 @@ interface RawSnapshotRow {
   is_legacy_fallback: number;
 }
 
+/** Normalise JSON_EXTRACT output to a plain string[]; never throws. */
+function parseClassNames(raw: unknown): string[] {
+  if (raw == null) return [];
+  try {
+    const val = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(val)) return [];
+    return val
+      .map((v) => (typeof v === 'string' ? v : String(v ?? '')).trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function toRow(r: RawSnapshotRow): SnapshotRow {
   return {
     id:                r.id,
@@ -41,6 +55,10 @@ function toRow(r: RawSnapshotRow): SnapshotRow {
     status:            r.status,
     dataHash:          r.data_hash,
     classCount:        r.class_count,
+    // Driver returns JSON_EXTRACT as a string on some paths and as a parsed
+    // value on others; normalise both, and never let a malformed payload throw
+    // — a snapshot with unreadable names must still be listable.
+    classNames:        parseClassNames((r as any).class_names),
     studentCount:      r.student_count,
     resultCount:       r.result_count,
     generatedBy:       r.generated_by,
@@ -52,11 +70,35 @@ function toRow(r: RawSnapshotRow): SnapshotRow {
   };
 }
 
+/**
+ * `class_names` is extracted from the stored JSON rather than read from a
+ * column, because no column holds it.
+ *
+ * The table records `class_count` — a NUMBER — and nothing else about which
+ * classes a snapshot covers. In production that made five snapshots for
+ * ALBAYAN completely indistinguishable in the list: all "secular · ready ·
+ * 1 class", when they were PRIMARY ONE, TWO, THREE, FOUR and SIX. Flushing,
+ * regenerating or publishing meant picking blind between them, and every one
+ * of those actions is destructive or parent-visible.
+ *
+ * Extracting at read time (rather than adding a column) means every snapshot
+ * ALREADY STORED gains its names immediately, with no migration and no
+ * backfill — the data was never lost, only unexposed. The path is targeted at
+ * the names alone so MySQL is not asked to hand back the whole result payload.
+ *
+ * If snapshot volume grows enough for this to cost, the durable fix is a
+ * denormalised column written at generation time; the extraction here would
+ * then become its backfill.
+ */
 const ROW_COLUMNS = `
   id, snapshot_id, school_id, type, term_id, year_id, result_type_id,
   status, data_hash, class_count, student_count, result_count,
   generated_by, generated_at, completed_at, generation_ms,
-  error_message, is_legacy_fallback
+  error_message, is_legacy_fallback,
+  -- NOTE: the payload is camelCase (classId / className / stream), not the
+  -- snake_case used by the SQL schema. Verified against a stored row:
+  --   JSON_KEYS($.classes[0]) → ["classId","className","stream","students","subjects"]
+  JSON_EXTRACT(snapshot_json, '$.classes[*].className') AS class_names
 `;
 
 /**

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-10T20:05:56.147Z",
-  "last_commit": "f575dba2aefc0ef56910c13c787f6630aac902e0",
+  "generated_at": "2026-08-12T04:48:33.452Z",
+  "last_commit": "190b79697820a14dfa726227e0c06ba27a4ebd26",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6501,7 +6501,20 @@
         }
       ],
       "commit": "f575dba2ae"
+    },
+    {
+      "version": "1.173.38",
+      "date": "2026-08-10",
+      "release_type": "patch",
+      "title": "Assign subjects to a teacher from the staff profile",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Assign subjects to a teacher from the staff profile"
+        }
+      ],
+      "commit": "190b796978"
     }
   ],
-  "app_version": "1.173.38"
+  "app_version": "1.173.39"
 }

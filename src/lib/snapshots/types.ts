@@ -318,6 +318,8 @@ export interface SnapshotRow {
   resultTypeId:       number | null;
   status:             SnapshotStatus;
   dataHash:           string | null;
+  /** Which classes this snapshot covers — extracted from snapshot_json. */
+  classNames:        string[];
   classCount:         number;
   studentCount:       number;
   resultCount:        number;

@@ -229,7 +229,16 @@ export default function SnapshotManagementPage() {
                     <div className="text-[11px] text-slate-500">by user #{r.generatedBy}</div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    <div>{r.classCount} cls / {r.studentCount} stu</div>
+                    {/* Name the classes. This row's actions include flush and
+                        regenerate, and "1 cls / 51 stu" is identical across
+                        every single-class snapshot a school has. */}
+                    <div className="font-medium" title={r.classNames?.join(', ')}>
+                      {r.classNames?.length
+                        ? r.classNames.slice(0, 2).join(', ') +
+                          (r.classNames.length > 2 ? ` +${r.classNames.length - 2}` : '')
+                        : `${r.classCount} class${r.classCount === 1 ? '' : 'es'}`}
+                    </div>
+                    <div className="text-slate-500">{r.studentCount} learners</div>
                     <div className="text-[11px] text-slate-500">{r.resultCount} rows</div>
                   </td>
                   <td className="px-3 py-2 text-slate-500">

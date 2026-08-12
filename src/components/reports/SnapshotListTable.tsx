@@ -59,7 +59,7 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
           <tr>
             <th className="text-left px-3 py-2">Snapshot</th>
             <th className="text-left px-3 py-2">Status</th>
-            <th className="text-right px-3 py-2">Classes</th>
+            <th className="text-left px-3 py-2">Classes</th>
             <th className="text-right px-3 py-2">Students</th>
             <th className="text-right px-3 py-2">Results</th>
             <th className="text-left px-3 py-2">Generated</th>
@@ -75,7 +75,22 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
                 {r.isLegacyFallback && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-800">legacy</span>}
               </td>
               <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
-              <td className="px-3 py-2 text-right">{r.classCount}</td>
+              {/* The NAMES, not just the count. Five ALBAYAN snapshots read
+                  identically as "secular · ready · 1" while being PRIMARY ONE
+                  through SIX — and the actions on this row (flush, regenerate,
+                  publish) are destructive or parent-visible. */}
+              <td className="px-3 py-2">
+                {r.classNames?.length ? (
+                  <span title={r.classNames.join(', ')}>
+                    {r.classNames.slice(0, 2).join(', ')}
+                    {r.classNames.length > 2 && (
+                      <span className="text-slate-500"> +{r.classNames.length - 2} more</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-slate-400">{r.classCount} class{r.classCount === 1 ? '' : 'es'}</span>
+                )}
+              </td>
               <td className="px-3 py-2 text-right">{r.studentCount}</td>
               <td className="px-3 py-2 text-right">{r.resultCount}</td>
               <td className="px-3 py-2 text-slate-500">{formatDate(r.generatedAt)}</td>
