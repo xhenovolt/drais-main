@@ -23,7 +23,10 @@ export async function DELETE(
 
     // Verify session belongs to current user and school
     const [existing]: any = await conn.execute(
-      `SELECT id FROM user_sessions
+      // `sessions`, not `user_sessions` — see the note in ../route.ts.
+      // Scoped to the caller's OWN user_id so one user cannot end another's
+      // session from this self-service endpoint.
+      `SELECT id FROM sessions
        WHERE id = ? AND user_id = ? AND school_id = ?`,
       [sessionId, userId, session.schoolId]
     );
@@ -34,7 +37,9 @@ export async function DELETE(
 
     // Mark session as expired
     await conn.execute(
-      `UPDATE user_sessions SET expires_at = NOW() WHERE id = ?`,
+      // Matches how logout and /api/admin/user-sessions end a session, so a
+      // session terminated here looks identical to one ended anywhere else.
+      `UPDATE sessions SET is_active = FALSE, logout_time = NOW() WHERE id = ?`,
       [sessionId]
     );
 

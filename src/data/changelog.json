@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T08:10:50.828Z",
-  "last_commit": "539eef669d8180e7ea2465ea326a09b8dbf778a4",
+  "generated_at": "2026-08-12T09:28:52.843Z",
+  "last_commit": "fae5e61eeaf7d85375951a216bc2fc7d1a0e1b65",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6553,7 +6553,20 @@
         }
       ],
       "commit": "539eef669d"
+    },
+    {
+      "version": "1.173.42",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Permanent, recorded deletion of audit entries",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Permanent, recorded deletion of audit entries"
+        }
+      ],
+      "commit": "fae5e61eea"
     }
   ],
-  "app_version": "1.173.42"
+  "app_version": "1.173.43"
 }

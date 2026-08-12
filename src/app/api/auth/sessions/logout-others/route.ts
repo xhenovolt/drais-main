@@ -15,16 +15,28 @@ export async function POST(req: NextRequest) {
   const conn = await getConnection();
   try {
     const userId = session.userId || 0;
-    const body = await req.json();
-    const { except_session_id } = body; // Session ID to keep active
-
-    // Get current session ID from request if provided
+    const body = await req.json().catch(() => ({} as any));
+    const { except_session_id } = body ?? {};
     const currentSessionId = except_session_id ? parseInt(except_session_id, 10) : null;
 
-    let sql = `UPDATE user_sessions SET expires_at = NOW()
-              WHERE user_id = ? AND school_id = ? AND expires_at IS NULL`;
+    // `sessions`, not `user_sessions` — see the note in ../route.ts.
+    //
+    // The caller's OWN session is excluded from the caller's cookie, not from
+    // a body parameter. "Sign out other devices" that signs you out too is a
+    // trap, and relying on the client to remember `except_session_id` means it
+    // happens the first time any caller forgets. The body parameter is still
+    // honoured so an existing caller can pin a different session, but it is no
+    // longer what protects you.
+    const currentToken = req.cookies.get('drais_session')?.value ?? null;
+
+    let sql = `UPDATE sessions SET is_active = FALSE, logout_time = NOW()
+              WHERE user_id = ? AND school_id = ? AND is_active = TRUE`;
     const params: any[] = [userId, session.schoolId];
 
+    if (currentToken) {
+      sql += ` AND session_token != ?`;
+      params.push(currentToken);
+    }
     if (currentSessionId) {
       sql += ` AND id != ?`;
       params.push(currentSessionId);
