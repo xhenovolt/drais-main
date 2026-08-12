@@ -159,18 +159,29 @@ export async function findReadyForKey(args: {
   resultTypeId: number | null;
 }): Promise<SnapshotRow[]> {
   const rows = (await query(
-    `SELECT id, snapshot_id, school_id, type, term_id, year_id, result_type_id,
-            status, data_hash, class_count, student_count, result_count,
-            generated_by, generated_at, completed_at, generation_ms,
-            error_message, is_legacy_fallback
-       FROM report_snapshots
-      WHERE school_id      = ?
-        AND type           = ?
-        AND term_id        = ?
-        AND year_id        = ?
-        AND ((? IS NULL AND result_type_id IS NULL) OR result_type_id = ?)
-        AND status         = 'ready'
-      ORDER BY generated_at DESC
+    // Resolves the same names as listSnapshots. This function feeds the
+    // "supersede an earlier snapshot" flow, which is precisely where showing
+    // a raw term_id instead of "Term II · Mid Term" leads to replacing the
+    // wrong document. LEFT joins for the same reason as in storage.ts:
+    // production holds snapshots whose term/year rows no longer exist.
+    `SELECT rs.id, rs.snapshot_id, rs.school_id, rs.type, rs.term_id, rs.year_id,
+            rs.result_type_id, rs.status, rs.data_hash, rs.class_count,
+            rs.student_count, rs.result_count, rs.generated_by, rs.generated_at,
+            rs.completed_at, rs.generation_ms, rs.error_message,
+            rs.is_legacy_fallback,
+            JSON_EXTRACT(rs.snapshot_json, '$.classes[*].className') AS class_names,
+            t.name AS term_name, ay.name AS year_name, rt.name AS result_type_name
+       FROM report_snapshots rs
+       LEFT JOIN terms          t  ON t.id  = rs.term_id
+       LEFT JOIN academic_years ay ON ay.id = rs.year_id
+       LEFT JOIN result_types   rt ON rt.id = rs.result_type_id
+      WHERE rs.school_id      = ?
+        AND rs.type           = ?
+        AND rs.term_id        = ?
+        AND rs.year_id        = ?
+        AND ((? IS NULL AND rs.result_type_id IS NULL) OR rs.result_type_id = ?)
+        AND rs.status         = 'ready'
+      ORDER BY rs.generated_at DESC
       LIMIT 25`,
     [
       args.schoolId, args.type, args.termId, args.yearId,
@@ -187,6 +198,15 @@ export async function findReadyForKey(args: {
     resultTypeId:     r.result_type_id,
     status:           r.status,
     dataHash:         r.data_hash,
+    classNames:       (() => {
+      try {
+        const v = typeof r.class_names === 'string' ? JSON.parse(r.class_names) : r.class_names;
+        return Array.isArray(v) ? v.map((x: unknown) => String(x ?? '').trim()).filter(Boolean) : [];
+      } catch { return []; }
+    })(),
+    termName:         r.term_name ?? null,
+    yearName:         r.year_name ?? null,
+    resultTypeName:   r.result_type_name ?? null,
     classCount:       r.class_count,
     studentCount:     r.student_count,
     resultCount:      r.result_count,

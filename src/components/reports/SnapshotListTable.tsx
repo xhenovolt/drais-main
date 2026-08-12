@@ -59,6 +59,7 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
           <tr>
             <th className="text-left px-3 py-2">Snapshot</th>
             <th className="text-left px-3 py-2">Status</th>
+            <th className="text-left px-3 py-2">Term &amp; assessment</th>
             <th className="text-left px-3 py-2">Classes</th>
             <th className="text-right px-3 py-2">Students</th>
             <th className="text-right px-3 py-2">Results</th>
@@ -75,6 +76,17 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
                 {r.isLegacyFallback && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-800">legacy</span>}
               </td>
               <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
+              {/* Term + assessment. Without these, every ALBAYAN snapshot in
+                  this table reads "secular · ready" with no way to tell Term II
+                  Mid Term from Term III End of Term — different documents, both
+                  of which go home to parents. */}
+              <td className="px-3 py-2">
+                <div>{r.termName ?? `Term #${r.termId}`}</div>
+                <div className="text-xs text-slate-500">
+                  {r.resultTypeName ?? (r.resultTypeId ? `Type #${r.resultTypeId}` : 'All assessments')}
+                  {r.yearName ? ` · ${r.yearName}` : ''}
+                </div>
+              </td>
               {/* The NAMES, not just the count. Five ALBAYAN snapshots read
                   identically as "secular · ready · 1" while being PRIMARY ONE
                   through SIX — and the actions on this row (flush, regenerate,

@@ -223,7 +223,18 @@ export default function SnapshotManagementPage() {
                     )}
                   </td>
                   <td className="px-3 py-2">{r.type}</td>
-                  <td className="px-3 py-2">T{r.termId} / Y{r.yearId}</td>
+                  {/* Was "T300004 / Y8002" — raw foreign keys. A snapshot is
+                      identified by its TERM and its ASSESSMENT: "Term II Mid
+                      Term" and "Term II End of Term" are different documents
+                      that go home to parents. Falls back to the id only when
+                      the referenced row is gone. */}
+                  <td className="px-3 py-2">
+                    <div className="font-medium">{r.termName ?? `Term #${r.termId}`}</div>
+                    <div className="text-slate-500">
+                      {r.resultTypeName ?? (r.resultTypeId ? `Type #${r.resultTypeId}` : 'All assessments')}
+                      {r.yearName ? ` · ${r.yearName}` : ''}
+                    </div>
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div>{new Date(r.generatedAt).toLocaleString()}</div>
                     <div className="text-[11px] text-slate-500">by user #{r.generatedBy}</div>

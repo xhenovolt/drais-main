@@ -319,7 +319,15 @@ export interface SnapshotRow {
   status:             SnapshotStatus;
   dataHash:           string | null;
   /** Which classes this snapshot covers — extracted from snapshot_json. */
-  classNames:        string[];
+  classNames:         string[];
+  /**
+   * Resolved via LEFT JOIN, so null means the referenced row no longer exists
+   * — production has one such snapshot. Callers fall back to the raw id rather
+   * than showing a blank.
+   */
+  termName:           string | null;
+  yearName:           string | null;
+  resultTypeName:     string | null;
   classCount:         number;
   studentCount:       number;
   resultCount:        number;

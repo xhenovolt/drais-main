@@ -59,6 +59,11 @@ function toRow(r: RawSnapshotRow): SnapshotRow {
     // value on others; normalise both, and never let a malformed payload throw
     // — a snapshot with unreadable names must still be listable.
     classNames:        parseClassNames((r as any).class_names),
+    // Names resolved via LEFT JOIN, so null means the referenced row is gone
+    // (one such snapshot exists in production) — the caller shows the raw id.
+    termName:          (r as any).term_name ?? null,
+    yearName:          (r as any).year_name ?? null,
+    resultTypeName:    (r as any).result_type_name ?? null,
     studentCount:      r.student_count,
     resultCount:       r.result_count,
     generatedBy:       r.generated_by,
@@ -90,15 +95,45 @@ function toRow(r: RawSnapshotRow): SnapshotRow {
  * denormalised column written at generation time; the extraction here would
  * then become its backfill.
  */
+/**
+ * Every column is qualified with `rs.` and the joins below are LEFT.
+ *
+ * QUALIFIED because `terms`, `result_types` and `academic_years` all carry
+ * `id`, `name` and `status`; an unqualified `WHERE status = ?` against the
+ * joined shape is an ambiguous-column error, not a wrong answer, so it would
+ * take the whole list down.
+ *
+ * LEFT because production already contains one snapshot whose `term_id`
+ * matches no `terms` row and one whose `year_id` matches no `academic_years`
+ * row. An INNER JOIN would silently drop exactly the oldest, oddest rows —
+ * the same failure recorded in the ADR about the term resolver, where a term
+ * whose academic-year row was missing simply vanished with no error.
+ */
 const ROW_COLUMNS = `
-  id, snapshot_id, school_id, type, term_id, year_id, result_type_id,
-  status, data_hash, class_count, student_count, result_count,
-  generated_by, generated_at, completed_at, generation_ms,
-  error_message, is_legacy_fallback,
+  rs.id, rs.snapshot_id, rs.school_id, rs.type, rs.term_id, rs.year_id,
+  rs.result_type_id, rs.status, rs.data_hash, rs.class_count,
+  rs.student_count, rs.result_count, rs.generated_by, rs.generated_at,
+  rs.completed_at, rs.generation_ms, rs.error_message, rs.is_legacy_fallback,
   -- NOTE: the payload is camelCase (classId / className / stream), not the
   -- snake_case used by the SQL schema. Verified against a stored row:
   --   JSON_KEYS($.classes[0]) → ["classId","className","stream","students","subjects"]
-  JSON_EXTRACT(snapshot_json, '$.classes[*].className') AS class_names
+  JSON_EXTRACT(rs.snapshot_json, '$.classes[*].className') AS class_names,
+  t.name  AS term_name,
+  ay.name AS year_name,
+  rt.name AS result_type_name
+`;
+
+/**
+ * Shared FROM. Resolves the three foreign keys the list previously rendered as
+ * raw ids — the manage screen literally displayed "T300004 / Y8002", which
+ * tells an operator nothing about whether a snapshot is Term II Mid Term or
+ * Term III End of Term. Those are different documents for parents.
+ */
+const ROW_FROM = `
+  report_snapshots rs
+  LEFT JOIN terms          t  ON t.id  = rs.term_id
+  LEFT JOIN academic_years ay ON ay.id = rs.year_id
+  LEFT JOIN result_types   rt ON rt.id = rs.result_type_id
 `;
 
 /**
@@ -242,18 +277,18 @@ export async function listSnapshots(args: {
   yearId?:  number;
   limit?:   number;
 }): Promise<SnapshotRow[]> {
-  const where: string[] = ['school_id = ?'];
+  const where: string[] = ['rs.school_id = ?'];
   const params: any[] = [args.schoolId];
-  if (args.type)   { where.push('type = ?');      params.push(args.type); }
-  if (args.status) { where.push('status = ?');    params.push(args.status); }
-  if (args.termId !== undefined) { where.push('term_id = ?'); params.push(args.termId); }
-  if (args.yearId !== undefined) { where.push('year_id = ?'); params.push(args.yearId); }
+  if (args.type)   { where.push('rs.type = ?');      params.push(args.type); }
+  if (args.status) { where.push('rs.status = ?');    params.push(args.status); }
+  if (args.termId !== undefined) { where.push('rs.term_id = ?'); params.push(args.termId); }
+  if (args.yearId !== undefined) { where.push('rs.year_id = ?'); params.push(args.yearId); }
   const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
   const rows = (await query(
     `SELECT ${ROW_COLUMNS}
-       FROM report_snapshots
+       FROM ${ROW_FROM}
       WHERE ${where.join(' AND ')}
-      ORDER BY generated_at DESC
+      ORDER BY rs.generated_at DESC
       LIMIT ${limit}`,
     params,
   )) as RawSnapshotRow[];
@@ -266,9 +301,9 @@ export async function listSnapshots(args: {
 export async function getSnapshotRow(snapshotId: string, schoolId: number): Promise<SnapshotRow | null> {
   const rows = (await query(
     `SELECT ${ROW_COLUMNS}
-       FROM report_snapshots
-      WHERE snapshot_id = ?
-        AND school_id   = ?
+       FROM ${ROW_FROM}
+      WHERE rs.snapshot_id = ?
+        AND rs.school_id   = ?
       LIMIT 1`,
     [snapshotId, schoolId],
   )) as RawSnapshotRow[];

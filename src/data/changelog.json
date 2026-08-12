@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T04:48:33.452Z",
-  "last_commit": "190b79697820a14dfa726227e0c06ba27a4ebd26",
+  "generated_at": "2026-08-12T05:05:19.104Z",
+  "last_commit": "b89a4f64d286fd701e9768b32869ac0361381208",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6514,7 +6514,20 @@
         }
       ],
       "commit": "190b796978"
+    },
+    {
+      "version": "1.173.39",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Name the classes in the snapshot list",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Name the classes in the snapshot list"
+        }
+      ],
+      "commit": "b89a4f64d2"
     }
   ],
-  "app_version": "1.173.39"
+  "app_version": "1.173.40"
 }
