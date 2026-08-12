@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T10:02:46.099Z",
-  "last_commit": "1d7f2d4c0787446578a868e512a4a43ae6bbaacb",
+  "generated_at": "2026-08-12T10:06:53.121Z",
+  "last_commit": "43767eb9fa1169141a0a4bde9669c7be84b5145c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6579,7 +6579,20 @@
         }
       ],
       "commit": "1d7f2d4c07"
+    },
+    {
+      "version": "1.173.44",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Per-school curriculums; feat(finance): print/export a bill",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Per-school curriculums; feat(finance): print/export a bill"
+        }
+      ],
+      "commit": "43767eb9fa"
     }
   ],
-  "app_version": "1.173.44"
+  "app_version": "1.173.45"
 }
