@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T09:28:52.843Z",
-  "last_commit": "fae5e61eeaf7d85375951a216bc2fc7d1a0e1b65",
+  "generated_at": "2026-08-12T10:02:46.099Z",
+  "last_commit": "1d7f2d4c0787446578a868e512a4a43ae6bbaacb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6566,7 +6566,20 @@
         }
       ],
       "commit": "fae5e61eea"
+    },
+    {
+      "version": "1.173.43",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Profile sessions read the wrong table and never worked",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Profile sessions read the wrong table and never worked"
+        }
+      ],
+      "commit": "1d7f2d4c07"
     }
   ],
-  "app_version": "1.173.43"
+  "app_version": "1.173.44"
 }

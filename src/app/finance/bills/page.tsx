@@ -7,12 +7,15 @@
  *    into student_fee_items, idempotent).
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { ReceiptText, Search, Loader2, Users, CheckCircle, Plus, Trash2 } from 'lucide-react';
+import { ReceiptText, Search, Loader2, Users, CheckCircle, Plus, Trash2, Printer, Download } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useSchoolConfig } from '@/hooks/useSchoolConfig';
+import { showToast } from '@/lib/toast';
 
 export default function BillsPage() {
   const { format } = useCurrency();
+  const { school } = useSchoolConfig();
   const [terms, setTerms] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [termId, setTermId] = useState('');
@@ -53,6 +56,121 @@ export default function BillsPage() {
     }, 250);
     return () => clearTimeout(t);
   }, [q]);
+
+  /** The term's display name, for the printed heading. */
+  const termLabel = () => terms.find((t: any) => String(t.id) === String(termId))?.name
+    || (termId ? `Term #${termId}` : 'Current term');
+
+  /**
+   * CSV of the bill exactly as shown.
+   *
+   * Built from `preview.lines` — the same rows on screen — so an exported bill
+   * can never disagree with the reviewed one. The "why it applies" reason is
+   * included because it is the column that answers the question a parent
+   * actually asks, and dropping it would make the export less useful than the
+   * screen it came from.
+   */
+  const exportBillCsv = () => {
+    const lines = preview?.lines ?? [];
+    if (!lines.length) return;
+    const esc = (v: unknown) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows: string[][] = [
+      ['School', school?.name ?? ''],
+      ['Learner', learner?.name ?? ''],
+      ['Term', termLabel()],
+      ['Generated', new Date().toLocaleString()],
+      [],
+      ['Fee', 'Why it applies', 'Base', 'Payable'],
+      ...lines.map((l: any) => [
+        l.name ?? '',
+        l.reason ?? '',
+        String(l.base_amount ?? l.amount ?? ''),
+        String(l.final ?? l.amount ?? ''),
+      ]),
+      [],
+      ['', '', 'Total payable', String(preview?.total ?? '')],
+    ];
+    const csv = rows.map((r) => r.map(esc).join(',')).join('\n');
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bill-${(learner?.name ?? 'learner').replace(/[^\w-]+/g, '_')}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /**
+   * Printable bill.
+   *
+   * Rendered into a new window rather than via a print stylesheet on this page:
+   * the page carries filters, an adjustments editor and a bulk-generate panel,
+   * none of which belong on a document handed to a parent. Writing the document
+   * explicitly means what prints is decided here, not left to whatever CSS
+   * happens to survive.
+   */
+  const printBill = () => {
+    const lines = preview?.lines ?? [];
+    if (!lines.length) return;
+    const esc = (v: unknown) => String(v ?? '').replace(/[&<>]/g, (ch) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' } as Record<string, string>)[ch]!);
+
+    const body = lines.map((l: any) => `
+      <tr>
+        <td>${esc(l.name)}</td>
+        <td class="reason">${esc(l.reason)}</td>
+        <td class="num">${esc(format(l.base_amount ?? l.amount))}</td>
+        <td class="num strong">${esc(format(l.final ?? l.amount))}</td>
+      </tr>`).join('');
+
+    const html = `<!doctype html><html><head><meta charset="utf-8">
+      <title>Bill — ${esc(learner?.name ?? '')}</title>
+      <style>
+        *{box-sizing:border-box} body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#111;margin:32px;font-size:13px}
+        .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px}
+        h1{font-size:17px;margin:0} .sub{color:#555;font-size:12px;margin-top:2px}
+        .meta{font-size:12px;color:#333;margin-bottom:14px}
+        .meta b{display:inline-block;min-width:74px;color:#666;font-weight:500}
+        table{width:100%;border-collapse:collapse;font-size:12.5px}
+        th{text-align:left;border-bottom:1px solid #999;padding:6px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555}
+        td{padding:6px 4px;border-bottom:1px solid #eee;vertical-align:top}
+        .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+        .strong{font-weight:600} .reason{color:#666;font-size:11.5px}
+        tfoot td{border-top:2px solid #111;border-bottom:none;font-weight:700;padding-top:8px}
+        .foot{margin-top:22px;color:#666;font-size:11px;border-top:1px solid #ddd;padding-top:8px}
+        @media print{body{margin:14mm}}
+      </style></head><body>
+      <div class="head">
+        <div>
+          <h1>${esc(school?.name || 'Fee Bill')}</h1>
+          <div class="sub">${esc([school?.address, school?.phone].filter(Boolean).join(' · '))}</div>
+        </div>
+        <div class="sub" style="text-align:right">Fee bill<br>${esc(new Date().toLocaleDateString())}</div>
+      </div>
+      <div class="meta">
+        <div><b>Learner</b> ${esc(learner?.name ?? '')}</div>
+        <div><b>Term</b> ${esc(termLabel())}</div>
+      </div>
+      <table>
+        <thead><tr><th>Fee</th><th>Why it applies</th><th class="num">Base</th><th class="num">Payable</th></tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr><td colspan="3">Total payable</td><td class="num">${esc(format(preview?.total))}</td></tr></tfoot>
+      </table>
+      <div class="foot">This bill reflects the fee rules in force on ${esc(new Date().toLocaleDateString())}. Contact the bursar with any query.</div>
+      </body></html>`;
+
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (!w) { showToast('error', 'Allow pop-ups to print the bill'); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    // Give the new document a tick to lay out before the print dialog opens,
+    // otherwise some browsers print a blank first page.
+    setTimeout(() => w.print(), 250);
+  };
 
   const runPreview = useCallback(async (studentId: number) => {
     setLoadingPrev(true); setPreview(null);
@@ -162,6 +280,27 @@ export default function BillsPage() {
         {loadingPrev && <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />}
         {preview && (
           <div>
+            {/* A bill is handed to a parent, so it must carry the school's
+                identity, the learner, the term and the date — a bare table of
+                figures is not a document anyone can act on or file. Both
+                actions use the SAME rows already on screen, so what prints is
+                exactly what was reviewed. */}
+            <div className="flex items-center justify-end gap-2 mb-2 print:hidden">
+              <button
+                onClick={() => exportBillCsv()}
+                disabled={!(preview.lines || []).length}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40"
+              >
+                <Download className="w-3.5 h-3.5" /> Export CSV
+              </button>
+              <button
+                onClick={() => printBill()}
+                disabled={!(preview.lines || []).length}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40"
+              >
+                <Printer className="w-3.5 h-3.5" /> Print
+              </button>
+            </div>
             {(preview.lines || []).length === 0 ? <p className="text-sm text-gray-400">No fees apply (no matching rules).</p> : (
               <table className="w-full text-sm">
                 <thead className="text-gray-500"><tr><th className="text-left py-1">Fee</th><th className="text-left">Why it applies</th><th className="text-right">Base</th><th className="text-right">Payable</th></tr></thead>
