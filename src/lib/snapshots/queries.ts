@@ -238,12 +238,30 @@ export async function fetchResultsForGeneration(args: {
         p.photo_url        AS photo_url,
         st.name            AS stream_name,
         st.name_ar         AS stream_name_ar,
-        -- Phase D (fixed): time-filter allocation by the RESULT'S OWN term
-        -- start_date (t.start_date, joined below), not CURRENT_TIMESTAMP —
-        -- a snapshot generated today for a term that ended months ago must
-        -- still pick the teacher who was allocated back then, not whoever
-        -- holds the slot now. Falls back to CURRENT_TIMESTAMP only if the
-        -- term's start_date is somehow unset.
+        -- Time-filter allocation by the RESULT'S OWN term, not by
+        -- CURRENT_TIMESTAMP: a snapshot generated today for a term that ended
+        -- months ago must still pick the teacher allocated back then, not
+        -- whoever holds the slot now. That intent is unchanged.
+        --
+        -- ANCHORED ON end_date, NOT start_date. Anchoring on the term's START
+        -- meant any allocation made after day one was invisible, and schools
+        -- routinely finalise allocations in week two or three. Measured at
+        -- ALBAYAN, TERM II (01 Jun – 22 Aug):
+        --
+        --   ENGLISH  W.A  allocated 22 Jun  -> report showed BLANK
+        --   ICT      M.N  allocated 21 Jul  -> report showed BLANK
+        --   SCIENCE  K.F  allocated 21 Jul  -> report showed "F.S",
+        --                                      a SUPERSEDED teacher's initials
+        --
+        -- The last case is the serious one: not a missing value but a wrong
+        -- one, crediting a teacher who no longer taught the subject, on a
+        -- document that goes home to parents.
+        --
+        -- end_date keeps the historical guarantee (a finished term's end is in
+        -- the past, so today's reallocation is still excluded) while covering
+        -- the whole term. It is also DETERMINISTIC — unlike CURRENT_TIMESTAMP,
+        -- regenerating a snapshot yields the same initials every time. All 17
+        -- terms in production have an end_date; start_date is the fallback.
         (
           SELECT CONCAT_WS(' ', tp.first_name, tp.last_name)
             FROM class_subjects cs2
@@ -251,8 +269,8 @@ export async function fetchResultsForGeneration(args: {
             LEFT JOIN people tp ON tp.id = ts.person_id
            WHERE cs2.class_id  = cr.class_id
              AND cs2.subject_id = cr.subject_id
-             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURRENT_TIMESTAMP))
-             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURRENT_TIMESTAMP))
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.end_date, t.start_date, CURRENT_TIMESTAMP))
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.end_date, t.start_date, CURRENT_TIMESTAMP))
            ORDER BY cs2.valid_from DESC, cs2.id DESC LIMIT 1
         )                  AS teacher_name,
         (
@@ -274,8 +292,8 @@ export async function fetchResultsForGeneration(args: {
              AND cs2.subject_id = cr.subject_id
              AND COALESCE(cs2.display_on_report, 1) = 1
              AND (cs2.status IS NULL OR cs2.status = 'active')
-             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURRENT_TIMESTAMP))
-             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURRENT_TIMESTAMP))
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.end_date, t.start_date, CURRENT_TIMESTAMP))
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.end_date, t.start_date, CURRENT_TIMESTAMP))
         )                  AS teacher_initials,
         (
           -- All report-visible teacher NAMES for this subject/class, primary
@@ -293,8 +311,8 @@ export async function fetchResultsForGeneration(args: {
              AND cs2.subject_id = cr.subject_id
              AND COALESCE(cs2.display_on_report, 1) = 1
              AND (cs2.status IS NULL OR cs2.status = 'active')
-             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.start_date, CURRENT_TIMESTAMP))
-             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.start_date, CURRENT_TIMESTAMP))
+             AND (cs2.valid_from IS NULL OR cs2.valid_from <= COALESCE(t.end_date, t.start_date, CURRENT_TIMESTAMP))
+             AND (cs2.valid_to   IS NULL OR cs2.valid_to   >  COALESCE(t.end_date, t.start_date, CURRENT_TIMESTAMP))
         )                  AS teachers_all,
         dep.name           AS department_name,
         sg.name            AS subject_group_name

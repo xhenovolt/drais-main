@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T10:06:53.121Z",
-  "last_commit": "43767eb9fa1169141a0a4bde9669c7be84b5145c",
+  "generated_at": "2026-08-12T10:19:34.264Z",
+  "last_commit": "5d98a83c4aef07d3dba44025434581c2167a6a0c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6592,7 +6592,20 @@
         }
       ],
       "commit": "43767eb9fa"
+    },
+    {
+      "version": "1.173.45",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Fee circular — what each class pays, and who each fee applies to",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Fee circular — what each class pays, and who each fee applies to"
+        }
+      ],
+      "commit": "5d98a83c4a"
     }
   ],
-  "app_version": "1.173.45"
+  "app_version": "1.173.46"
 }
