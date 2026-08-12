@@ -106,7 +106,12 @@ export default function FeeRulesPage() {
   }, [selected, loadRules, editingId, resetDraft]);
 
   const toggleClass = (id: number) => setDraft((d) => ({ ...d, class_ids: d.class_ids.includes(id) ? d.class_ids.filter((x) => x !== id) : [...d.class_ids, id] }));
-  const classNameOf = (id: number) => classes.find((c) => c.id === id)?.name || `#${id}`;
+  // String comparison — see the note in finance/fee-items. `classes.id` is a
+  // BIGINT that arrives as a string, while rule class_ids are stored as
+  // numbers by most write paths and strings by one, so `===` resolved some
+  // classes and printed "#392002" for others on the same screen.
+  const classNameOf = (id: number | string) =>
+    classes.find((c) => String(c.id) === String(id))?.name || `#${id}`;
   const item = items.find((i) => i.id === selected);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;

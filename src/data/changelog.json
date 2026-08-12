@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T05:05:19.104Z",
-  "last_commit": "b89a4f64d286fd701e9768b32869ac0361381208",
+  "generated_at": "2026-08-12T05:11:10.670Z",
+  "last_commit": "1c70ec3d9c6c9f60b8d63a710bb276e23157a8ff",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6527,7 +6527,20 @@
         }
       ],
       "commit": "b89a4f64d2"
+    },
+    {
+      "version": "1.173.40",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Show term and assessment on snapshots, not raw ids",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Show term and assessment on snapshots, not raw ids"
+        }
+      ],
+      "commit": "1c70ec3d9c"
     }
   ],
-  "app_version": "1.173.40"
+  "app_version": "1.173.41"
 }

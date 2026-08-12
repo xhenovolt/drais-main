@@ -637,7 +637,10 @@ function AssignmentsPanel() {
       ) : (
         <div className="border border-slate-200 dark:border-slate-700 rounded divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
           {assignments.map(a => {
-            const cls = classes.find(c => c.id === a.classId)?.name ?? `Class #${a.classId}`;
+            // String-compared: class ids are BIGINTs delivered as strings, so
+            // `===` against a numeric classId silently falls through to
+            // "Class #392002". Same defect as the finance fee-item scopes.
+            const cls = classes.find(c => String(c.id) === String(a.classId))?.name ?? `Class #${a.classId}`;
             const trm = terms.find(t => t.id === a.termId)?.name ?? `Term #${a.termId}`;
             const fw  = frameworks.find(f => f.id === a.frameworkId)?.name ?? `Framework #${a.frameworkId}`;
             return (

@@ -37,7 +37,22 @@ export default function FeeItemsPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const classNameOf = (id: number) => classes.find((c) => c.id === id)?.name || `#${id}`;
+  /**
+   * Compare as STRINGS, deliberately.
+   *
+   * `classes.id` is a BIGINT and arrives from the API as a string, while
+   * `fee_eligibility_rules.class_ids` stores its elements inconsistently —
+   * measured in production, one rule holds ["392002","392003"] and nine hold
+   * [392002,392003]. With `===` the string rule resolved to "BABY CLASS" and
+   * the numeric ones fell through to "#392002", so the SAME class rendered
+   * both ways on the same screen depending on which rule wrote it.
+   *
+   * Coercing both sides fixes every existing row without touching the stored
+   * data. Normalising the data instead would fix today's rows and not the next
+   * one written by whichever path stores numbers.
+   */
+  const classNameOf = (id: number | string) =>
+    classes.find((c) => String(c.id) === String(id))?.name || `#${id}`;
 
   // Same "how does this rule read" logic as Fee Rules' describe() — a fee
   // item can have several ORed rules, so this is a per-rule one-liner, not a

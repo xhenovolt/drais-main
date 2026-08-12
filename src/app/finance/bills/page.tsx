@@ -123,7 +123,37 @@ export default function BillsPage() {
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"><Search className="w-4 h-4 text-gray-400" /><input placeholder="Search learner…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1 bg-transparent text-sm outline-none" /></div>
               {results.length > 0 && (
                 <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow max-h-48 overflow-y-auto">
-                  {results.map((s: any) => <button key={s.id} onClick={() => { const nm = s.full_name || s.name; setLearner({ id: s.id, name: nm }); setResults([]); setQ(''); runPreview(s.id); loadAdjustments(s.id); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700">{s.full_name || s.name} <span className="text-xs text-gray-400">{s.admission_no}</span></button>)}
+                  {results.map((s: any) => {
+                    // /api/students/full returns first_name and last_name as
+                    // SEPARATE fields — there is no full_name and no name. The
+                    // previous `s.full_name || s.name` was undefined for every
+                    // row, so the learner rendered blank and only the admission
+                    // number was visible: searching "Mariam" returned a list of
+                    // numbers. Compose from the fields the API actually sends,
+                    // and fall back to the admission number only when a learner
+                    // genuinely has no name on record.
+                    const nm =
+                      s.full_name ||
+                      s.name ||
+                      [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ').trim() ||
+                      s.admission_no ||
+                      'Unnamed learner';
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => { setLearner({ id: s.id, name: nm }); setResults([]); setQ(''); runPreview(s.id); loadAdjustments(s.id); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <span className="text-gray-900 dark:text-white">{nm}</span>
+                        {s.admission_no && (
+                          <span className="text-xs text-gray-400 ml-1.5">{s.admission_no}</span>
+                        )}
+                        {s.class_name && (
+                          <span className="text-xs text-gray-400 ml-1.5">· {s.class_name}</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </>
