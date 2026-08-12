@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T05:11:10.670Z",
-  "last_commit": "1c70ec3d9c6c9f60b8d63a710bb276e23157a8ff",
+  "generated_at": "2026-08-12T08:10:50.828Z",
+  "last_commit": "539eef669d8180e7ea2465ea326a09b8dbf778a4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6540,7 +6540,20 @@
         }
       ],
       "commit": "1c70ec3d9c"
+    },
+    {
+      "version": "1.173.41",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Show class names in fee scopes and learner names in bill search",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Show class names in fee scopes and learner names in bill search"
+        }
+      ],
+      "commit": "539eef669d"
     }
   ],
-  "app_version": "1.173.41"
+  "app_version": "1.173.42"
 }

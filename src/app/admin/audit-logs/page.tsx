@@ -4,7 +4,7 @@
  * Paginated audit trail table — Admin only.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Shield, ChevronLeft, ChevronRight, RefreshCw, Search, Download } from 'lucide-react';
+import { Shield, ChevronLeft, ChevronRight, RefreshCw, Search, Download, Trash2 } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AuditLog {
@@ -54,6 +54,40 @@ export default function AuditLogsPage() {
   const [error,       setError]       = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState('');
   const [expandedId,  setExpandedId]  = useState<number | null>(null);
+  const [purgeOpen,   setPurgeOpen]   = useState(false);
+  const [purgeBefore, setPurgeBefore] = useState('');
+  const [purgeAction, setPurgeAction] = useState('');
+  const [purgeReason, setPurgeReason] = useState('');
+  const [purgeBusy,   setPurgeBusy]   = useState(false);
+  const [purgeMsg,    setPurgeMsg]    = useState<string | null>(null);
+
+  const runPurge = async () => {
+    setPurgeBusy(true);
+    setPurgeMsg(null);
+    try {
+      const res = await fetch('/api/admin/audit-logs', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          before: purgeBefore || undefined,
+          action: purgeAction.trim() || undefined,
+          reason: purgeReason.trim(),
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPurgeMsg(j?.error ?? 'Deletion failed.');
+      } else {
+        setPurgeMsg(j?.message ?? `${j?.deleted ?? 0} deleted.`);
+        setPurgeReason('');
+        fetchLogs(1);
+      }
+    } catch {
+      setPurgeMsg('Could not reach the server.');
+    } finally {
+      setPurgeBusy(false);
+    }
+  };
 
   const fetchLogs = useCallback(async (page = 1) => {
     setLoading(true);
@@ -110,6 +144,16 @@ export default function AuditLogsPage() {
             className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+          {/* Permanent deletion. Super-admin only, server-enforced; a non-super
+              admin sees the button and gets a clear 403 rather than the control
+              being hidden and the capability looking absent. */}
+          <button
+            onClick={() => setPurgeOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+            title="Permanently delete audit entries (recorded, irreversible)"
+          >
+            <Trash2 className="w-4 h-4" /> Delete
           </button>
         </div>
       </div>
@@ -240,6 +284,102 @@ export default function AuditLogsPage() {
           </div>
         )}
       </div>
+
+      {/* Permanent-deletion dialog.
+          Everything here is written to make irreversibility unmistakable: the
+          scope must be stated explicitly (no "delete all" default), a reason is
+          mandatory and permanent, and the copy says plainly that the purge
+          record itself cannot be removed. */}
+      {purgeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/30">
+                <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-800 dark:text-white">Delete audit history</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  This is permanent. Deleted entries are not recoverable — there is no Trash for audit history.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2">
+              <p className="text-xs text-amber-800 dark:text-amber-200">
+                The deletion is itself recorded — who did it, when, why, how many entries and a sample of them —
+                in a separate record that <strong>cannot be deleted from here</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Delete entries older than <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={purgeBefore}
+                  onChange={(e) => setPurgeBefore(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Required. Entries on or after this date are kept.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Only this action <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <input
+                  value={purgeAction}
+                  onChange={(e) => setPurgeAction(e.target.value)}
+                  placeholder="e.g. IMPORT_ROW_ERROR"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Leave blank to delete every action in the range. Narrowing to import errors clears noise without
+                  touching records of who changed what.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Reason <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  value={purgeReason}
+                  onChange={(e) => setPurgeReason(e.target.value)}
+                  placeholder="Why these entries are being removed"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Stored permanently with your name.</p>
+              </div>
+            </div>
+
+            {purgeMsg && (
+              <div className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200">
+                {purgeMsg}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => { setPurgeOpen(false); setPurgeMsg(null); }}
+                className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Close
+              </button>
+              <button
+                onClick={runPurge}
+                disabled={purgeBusy || !purgeBefore || purgeReason.trim().length < 5}
+                className="px-3 py-2 text-sm rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold"
+              >
+                {purgeBusy ? 'Deleting…' : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

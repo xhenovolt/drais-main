@@ -73,6 +73,10 @@ export const AuditAction = {
   EXPORTED_STAFF:           'EXPORTED_STAFF',
   EXPORTED_USERS:           'EXPORTED_USERS',
   EXPORTED_AUDIT_LOGS:      'EXPORTED_AUDIT_LOGS',
+  // Recorded here for convenience only. The authoritative record of a purge
+  // lives in `audit_purges`, because THIS row is itself deletable by the very
+  // operation it describes.
+  DELETED_AUDIT_LOGS:       'DELETED_AUDIT_LOGS',
   EXPORTED_DEVICE_LOGS:     'EXPORTED_DEVICE_LOGS',
   GENERATED_REPORT:         'GENERATED_REPORT',
   ATTENDANCE_CORRECTED:     'ATTENDANCE_CORRECTED',
