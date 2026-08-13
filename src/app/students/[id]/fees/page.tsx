@@ -84,6 +84,8 @@ export default function StudentFeesPage() {
 
   // Panel state
   const [showPayment,  setShowPayment]  = useState(false);
+  /** Set after a successful payment so the receipt can be handed over at once. */
+  const [lastReceipt, setLastReceipt] = useState<{ receiptNo: string; paymentId?: number } | null>(null);
   const [showAdjust,   setShowAdjust]   = useState(false);
 
   // Form state — payment
@@ -169,7 +171,12 @@ export default function StudentFeesPage() {
       // toast from apiFetch immediately followed by "Payment failed", the
       // balance never refreshed, and the natural response was to enter the
       // payment again — duplicating it in the ledger.
-      await apiFetch('/api/finance/record-payment', {
+      // Capture the response. It carries { paymentId, receiptNo, receiptUrl },
+      // and this call previously discarded it — so a payment was taken and the
+      // payer was offered NO receipt at all. In a school office an
+      // undocumented payment is the transaction most likely to be disputed
+      // later, and the bursar had nothing to hand over.
+      const res: any = await apiFetch('/api/finance/record-payment', {
         method: 'POST',
         body: JSON.stringify({
           student_id: studentId,
@@ -183,6 +190,9 @@ export default function StudentFeesPage() {
 
       setPayAmount(''); setPayReference(''); setPayPaidBy('');
       setShowPayment(false);
+      setLastReceipt(res?.data?.receiptNo
+        ? { receiptNo: res.data.receiptNo, paymentId: res.data.paymentId }
+        : null);
       await load();
     } catch {
       // apiFetch has already surfaced the reason. Keep the form open and
@@ -325,6 +335,41 @@ export default function StudentFeesPage() {
           Profile
         </Link>
       </div>
+
+      {/* Receipt handover.
+          A payment taken with no receipt offered is the transaction most
+          likely to be disputed later, and this page previously discarded the
+          receipt number the API had already issued. Shown until dismissed so
+          it survives the list refresh. */}
+      {lastReceipt && (
+        <div className="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4 flex items-center gap-3 flex-wrap">
+          <Receipt className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="text-sm text-emerald-800 dark:text-emerald-200 flex-1 min-w-0">
+            Payment recorded · receipt <span className="font-mono font-semibold">{lastReceipt.receiptNo}</span>
+          </span>
+          <a
+            href={`/finance/receipts/${encodeURIComponent(lastReceipt.receiptNo)}`}
+            target="_blank" rel="noopener noreferrer"
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white"
+          >
+            View / print
+          </a>
+          {lastReceipt.paymentId && (
+            <a
+              href={`/api/finance/payments/${lastReceipt.paymentId}/receipt`}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-emerald-400 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300"
+            >
+              Download PDF
+            </a>
+          )}
+          <button
+            onClick={() => setLastReceipt(null)}
+            className="text-xs text-emerald-700 dark:text-emerald-400 hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Record Payment Form */}
       {showPayment && (

@@ -40,7 +40,27 @@ export async function GET(req: NextRequest) {
       FROM student_fee_items sfi
       JOIN students s ON sfi.student_id = s.id
       JOIN people p ON s.person_id = p.id
-      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+      -- ONE enrollment per learner, never a fan-out.
+      --
+      -- Filtering on status alone multiplies every fee row by the number of
+      -- active enrollments a learner has. Measured at ALBAYAN: 695 learners
+      -- have more than one and student 392629 has SIX, so its 28 fee rows
+      -- rendered as 168 identical rows sharing one primary key, and every SUM
+      -- over them was six times the real balance.
+      --
+      -- The data itself is clean: 16,608 rows, 16,608 distinct
+      -- (learner, fee, term). The duplication was made by the join.
+      --
+      -- A derived table, NOT a subquery in ON: TiDB rejects the latter with
+      -- "ON condition doesn't support subqueries yet" — which tsc cannot catch,
+      -- so it would have failed only at runtime, in production.
+      LEFT JOIN (
+        SELECT student_id, MAX(id) AS id
+          FROM enrollments
+         WHERE status = 'active'
+         GROUP BY student_id
+      ) le ON le.student_id = s.id
+      LEFT JOIN enrollments e ON e.id = le.id
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN terms t ON sfi.term_id = t.id
       WHERE s.school_id = ?

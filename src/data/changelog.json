@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T10:19:34.264Z",
-  "last_commit": "5d98a83c4aef07d3dba44025434581c2167a6a0c",
+  "generated_at": "2026-08-13T00:03:32.935Z",
+  "last_commit": "f2c3fc757328c248b32cdd85141086b8f45caceb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6605,7 +6605,20 @@
         }
       ],
       "commit": "5d98a83c4a"
+    },
+    {
+      "version": "1.173.46",
+      "date": "2026-08-12",
+      "release_type": "patch",
+      "title": "Teacher initials missed allocations made after the term began",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Teacher initials missed allocations made after the term began"
+        }
+      ],
+      "commit": "f2c3fc7573"
     }
   ],
-  "app_version": "1.173.46"
+  "app_version": "1.173.47"
 }

@@ -22,6 +22,7 @@ import { formatDistanceToNow } from 'date-fns';
 import NewBadge from '@/components/ui/NewBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { useCurrency } from '@/hooks/useCurrency';
+import { RecordPaymentModal } from '@/components/finance/RecordPaymentModal';
 
 interface Payment {
   id: number;
@@ -442,6 +443,16 @@ const PaymentsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* The modal this page's "Record Payment" button has always tried to open.
+          `showPaymentModal` was set on click and rendered by NOTHING, so the
+          button did nothing at all — no modal, no error, no feedback — and
+          /finance had no way to take money. */}
+      <RecordPaymentModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onRecorded={() => { setShowPaymentModal(false); mutate(); }}
+      />
     </div>
   );
 };

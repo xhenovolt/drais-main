@@ -42,6 +42,17 @@ const nextConfig = {
     '/api/verify/*/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
     '/api/students/*/transcript/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
     '/api/students/full': ['./node_modules/@sparticuz/chromium/bin/**'],
+
+    // Receipts are built with pdfkit, which reads its Adobe font-metric files
+    // (.afm) from disk AT RUNTIME. The static tracer only follows imports, so
+    // it never sees those 15 files and they were missing from the deployed
+    // function — the route threw before it could return a PDF, which is why
+    // receipt downloads failed in production while working locally, where
+    // node_modules is simply present.
+    //
+    // Same class of problem, and same fix, as the @sparticuz/chromium entries
+    // above: if a package loads assets via fs rather than import, list them.
+    '/api/finance/payments/*/receipt': ['./node_modules/pdfkit/js/data/**'],
   },
   
   // Turbopack configuration
