@@ -464,7 +464,7 @@ export async function previewCorrection(
 
 export async function applyCorrection(
   schoolId: number, deviceSn: string, date: string, shiftMinutes: number,
-  userId?: number | null, source: 'assisted' | 'manual' = 'assisted',
+  userId?: number | null, source: 'assisted' | 'manual' | 'auto' = 'assisted',
 ): Promise<{ correctionId: number; affected: number; reEvaluated: number }> {
   await ensureTimeIntelligenceSchema();
   const policy = await resolveTimePolicy(schoolId);
@@ -551,7 +551,7 @@ export async function previewRecomputeFromDeviceTime(
 
 export async function applyRecomputeFromDeviceTime(
   schoolId: number, deviceSn: string, date: string, driftHours: number,
-  userId?: number | null, source: 'assisted' | 'manual' = 'assisted',
+  userId?: number | null, source: 'assisted' | 'manual' | 'auto' = 'assisted',
 ): Promise<{ correctionId: number; affected: number; reEvaluated: number }> {
   await ensureTimeIntelligenceSchema();
   const policy = await resolveTimePolicy(schoolId);

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T14:54:46.834Z",
-  "last_commit": "3d355937af6bb13f99be05433e31a3c056d64ba7",
+  "generated_at": "2026-08-13T15:33:44.530Z",
+  "last_commit": "352bd7ef44632ee19b8361ff4f9bc0547848cd0e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6683,7 +6683,20 @@
         }
       ],
       "commit": "3d355937af"
+    },
+    {
+      "version": "1.173.52",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "School name printed once; audit trail says what went wrong",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "School name printed once; audit trail says what went wrong"
+        }
+      ],
+      "commit": "352bd7ef44"
     }
   ],
-  "app_version": "1.173.52"
+  "app_version": "1.173.53"
 }
