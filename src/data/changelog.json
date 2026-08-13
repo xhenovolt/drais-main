@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T20:45:04.630Z",
-  "last_commit": "82e5c83f437ce5f7911bedb9af8d9c2d528c664f",
+  "generated_at": "2026-08-13T20:57:09.922Z",
+  "last_commit": "2fd3a96780d13e98ba3baa9c1ed740470b03fa1f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6813,7 +6813,20 @@
         }
       ],
       "commit": "82e5c83f43"
+    },
+    {
+      "version": "1.173.62",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Program edit and delete were calling a route that does not exist",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Program edit and delete were calling a route that does not exist"
+        }
+      ],
+      "commit": "2fd3a96780"
     }
   ],
-  "app_version": "1.173.62"
+  "app_version": "1.173.63"
 }
