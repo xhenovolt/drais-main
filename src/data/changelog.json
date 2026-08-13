@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T15:58:13.620Z",
-  "last_commit": "b2b883f88fc2f34f39a696b0ad4c1c7651d94a8c",
+  "generated_at": "2026-08-13T16:06:48.008Z",
+  "last_commit": "d80b93304e6f515854f425acc58e1c5514f307c9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6722,7 +6722,20 @@
         }
       ],
       "commit": "b2b883f88f"
+    },
+    {
+      "version": "1.173.55",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Recompute a day's punches in one UPDATE, not one per row",
+      "changes": [
+        {
+          "category": "PERFORMANCE",
+          "description": "Recompute a day's punches in one UPDATE, not one per row"
+        }
+      ],
+      "commit": "d80b93304e"
     }
   ],
-  "app_version": "1.173.55"
+  "app_version": "1.173.56"
 }

@@ -358,8 +358,32 @@ export async function detectDailyDrift(
       reason += ` Differs from the ${priorHours}h usually corrected by hand — using the measured value.`;
     }
   } else {
-    confidence = 70;
-    reason += ' No previous manual correction for this device to compare against.';
+    // No manual history to lean on — either a new device, or (eventually)
+    // JIPRA's own corrections aged past the 60-day window. Without a second
+    // opinion this used to score 70, just under the auto-apply bar, so the
+    // whole thing would have quietly stopped working about two months from
+    // now with nobody able to say why. Corroborate against the school's
+    // calibrated opening instead: if shifting by the measured drift lands
+    // first arrivals where this school actually starts, that is independent
+    // confirmation and needs no memory of past corrections at all.
+    const { openingMinute, fromDays } = await calibrateTrueOpening(schoolId, deviceSn, off);
+    const med = await firstArrivalMedian(schoolId, deviceSn, localDate, off);
+    const hh = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m) % 60).padStart(2, '0')}`;
+
+    if (openingMinute != null && med != null) {
+      const landsAt = med - measured * 60;
+      const missMin = Math.abs(landsAt - openingMinute);
+      if (missMin <= 45) {
+        confidence = 92;
+        reason += ` Shifting by ${measured}h puts first arrivals at ${hh(landsAt)}, matching this school's usual ${hh(openingMinute)} (from ${fromDays} proven days).`;
+      } else {
+        confidence = 65;
+        reason += ` Shifting by ${measured}h would put first arrivals at ${hh(landsAt)}, away from this school's usual ${hh(openingMinute)} — worth a look.`;
+      }
+    } else {
+      confidence = 70;
+      reason += ' No previous correction and no established opening time for this device to compare against.';
+    }
   }
 
   // More punches, more confidence — a handful could be a coincidence.
