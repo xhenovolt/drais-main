@@ -1245,6 +1245,36 @@ export default function UnifiedAttendancePage() {
           </div>
         )}
 
+        {/* ── What DRAIS just fixed, and what it could not ─────────────
+               The device is offline except when staff connect it to upload
+               and print, so this page IS the moment the clock gets checked.
+               A correction that happened without saying so would be worse
+               than the wrong times — the person printing has to know the
+               times moved, and how to put it back. */}
+        {Array.isArray(data?.clock_corrections) && data.clock_corrections.length > 0 && (
+          <div className="mb-2 px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-xs">
+            {data.clock_corrections.map((c: any) => (
+              <div key={`${c.device_sn}-${c.date}`} className="text-emerald-900 dark:text-emerald-200">
+                <span className="font-semibold">Times corrected automatically.</span>{' '}
+                {c.device_sn} was {Math.abs(c.drift_hours)}h {c.drift_hours >= 0 ? 'fast' : 'slow'} on {c.date} —{' '}
+                {c.affected} punch{c.affected === 1 ? '' : 'es'} adjusted before this list was drawn.{' '}
+                <a href="/attendance/time-health" className="underline font-medium">review or undo</a>
+              </div>
+            ))}
+          </div>
+        )}
+        {Array.isArray(data?.clock_needs_review) && data.clock_needs_review.length > 0 && (
+          <div className="mb-2 px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-xs">
+            {data.clock_needs_review.map((c: any) => (
+              <div key={`${c.device_sn}-${c.date}`} className="text-amber-900 dark:text-amber-200">
+                <span className="font-semibold">These times look wrong, but DRAIS would not guess.</span>{' '}
+                {c.reason}{' '}
+                <a href="/attendance/time-health" className="underline font-medium">check before printing</a>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── Attention row — anomalies + clock health on ONE compact line
                so alerts never push the table below the fold ───────────── */}
         {(timeAnomaly || recoveryGap) && (

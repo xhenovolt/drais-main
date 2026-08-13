@@ -8,6 +8,7 @@ import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter
 import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
 import { scoreRecord } from '@/lib/attendance/confidence-scoring';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { autoCorrectDay, settledDevices } from '@/lib/attendance/time-intelligence/autoCorrect';
 
 export const runtime = 'nodejs';
 
@@ -168,6 +169,41 @@ export async function GET(req: NextRequest) {
     const sortDir = url.searchParams.get('dir') === 'asc' ? 'ASC' : 'DESC';
     const orderBy = `${sortCol} ${sortDir}${sortKey !== 'time' ? ', ar.punch_at DESC' : ''}`;
 
+    /* ── Fix a wrong device clock before anyone reads the list ──────────
+     * JIPRA's device is offline except when staff connect it to upload the
+     * day and print. The times come in hours wrong, and for three weeks
+     * somebody corrected them by hand HERE, on this screen, before printing.
+     *
+     * This is the natural moment to do it for them: whoever connected the
+     * device is the person about to open this page, so the correction lands
+     * exactly when it is needed and they see the result immediately - no
+     * schedule to miss it, and nothing to remember.
+     *
+     * Cheap and safe to run on a read: it only acts once the upload has gone
+     * quiet, it skips any day a person already judged, it is idempotent
+     * (punch_at is recomputed from device_reported_time, never shifted
+     * again), and a device reading the correct time is left alone. Failure
+     * is swallowed - a clock check must never stop attendance being read.
+     */
+    const autoFixed: Array<{ device_sn: string; date: string; drift_hours: number; affected: number; reason: string }> = [];
+    const autoReview: Array<{ device_sn: string; date: string; reason: string }> = [];
+    try {
+      const viewDay = dateFrom || dateTo || schoolLocalToday();
+      const settled = await settledDevices(viewDay);
+      for (const dev of settled) {
+        if (dev.schoolId !== schoolId) continue;
+        if (deviceSn && dev.deviceSn !== deviceSn) continue;
+        const r = await autoCorrectDay(schoolId, dev.deviceSn, viewDay);
+        if (r.applied) {
+          autoFixed.push({ device_sn: r.deviceSn, date: r.localDate, drift_hours: r.driftHours, affected: r.affected ?? 0, reason: r.reason });
+        } else if (r.verdict === 'insufficient_evidence' && Math.abs(r.driftHours) > 0.3) {
+          autoReview.push({ device_sn: r.deviceSn, date: r.localDate, reason: r.reason });
+        }
+      }
+    } catch (e) {
+      console.error('[Attendance History] clock auto-correct skipped:', e);
+    }
+
     const countRows = await query(
       `SELECT COUNT(*) AS total
          FROM attendance_raw_events ar
@@ -321,6 +357,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data,
+      // Never correct silently: say what was changed and why, so the person
+      // printing knows the times moved and can undo it from Time Health.
+      clock_corrections: autoFixed,
+      clock_needs_review: autoReview,
       presentation: {
         timezone: formatter.timezone,
         visibleCount: data.length,

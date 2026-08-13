@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T15:33:44.530Z",
-  "last_commit": "352bd7ef44632ee19b8361ff4f9bc0547848cd0e",
+  "generated_at": "2026-08-13T15:44:18.024Z",
+  "last_commit": "d45bf70f11238b6ec287984b1f692497651e3b49",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6696,7 +6696,20 @@
         }
       ],
       "commit": "352bd7ef44"
+    },
+    {
+      "version": "1.173.53",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Correct JIPRA's clock drift automatically after the batch lands",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Correct JIPRA's clock drift automatically after the batch lands"
+        }
+      ],
+      "commit": "d45bf70f11"
     }
   ],
-  "app_version": "1.173.53"
+  "app_version": "1.173.54"
 }
