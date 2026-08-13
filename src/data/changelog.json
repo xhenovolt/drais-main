@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T19:48:24.642Z",
-  "last_commit": "69114622697b17d7aced458b846c5e39f16e9ec4",
+  "generated_at": "2026-08-13T19:54:40.390Z",
+  "last_commit": "9c683a3549a4e46908e024417dbc1e81f204c752",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6774,7 +6774,20 @@
         }
       ],
       "commit": "6911462269"
+    },
+    {
+      "version": "1.173.59",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Salary payments were invisible in the audit trail",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Salary payments were invisible in the audit trail"
+        }
+      ],
+      "commit": "9c683a3549"
     }
   ],
-  "app_version": "1.173.59"
+  "app_version": "1.173.60"
 }

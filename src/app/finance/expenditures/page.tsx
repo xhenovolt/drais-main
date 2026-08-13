@@ -39,6 +39,46 @@ export default function ExpendituresPage() {
   });
   const [expenditures, setExpenditures] = useState<{ data: Expenditure[], summary: any } | null>(null);
 
+  // Expense categories. Both category dropdowns on this page were hardcoded
+  // to a single placeholder option and never fetched anything, so there was
+  // no selectable category and every expense failed on a required
+  // category_id. finance_categories is empty for every school, so offering
+  // the list is not enough on its own — a school has to be able to create the
+  // first one from here, which is what the add button below is for.
+  const [categories, setCategories] = useState<Array<{ id: number; name: string; type: string }>>([]);
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [catBusy, setCatBusy] = useState(false);
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch('/api/finance/categories?type=expense', { cache: 'no-store' });
+      const j = await res.json().catch(() => null);
+      const list = Array.isArray(j) ? j : (j?.data ?? j?.categories ?? []);
+      setCategories(Array.isArray(list) ? list : []);
+    } catch { setCategories([]); }
+  };
+  React.useEffect(() => { loadCategories(); }, []);
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newCatName.trim();
+    if (!name) return;
+    setCatBusy(true);
+    try {
+      await apiFetch('/api/finance/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'expense', name }),
+        successMessage: `Category "${name}" added`,
+      });
+      setNewCatName('');
+      setShowCatModal(false);
+      await loadCategories();
+    } catch { /* apiFetch already surfaced the error */ }
+    finally { setCatBusy(false); }
+  };
+
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -108,6 +148,9 @@ export default function ExpendituresPage() {
             </div>
             <p className="text-gray-600 dark:text-gray-400">{entries.length} transactions • {format(Number(summary.total_amount || 0))} total</p>
           </div>
+          <button onClick={() => setShowCatModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+            <Plus className="w-4 h-4" />Category
+          </button>
           <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
             <Plus className="w-4 h-4" />Add Expenditure
           </button>
@@ -145,7 +188,10 @@ export default function ExpendituresPage() {
             <div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg" />
             </div>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg"><option value="">All Categories</option></select>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg">
+              <option value="">All Categories</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg"><option value="">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="paid">Paid</option></select>
           </div>
         </div>
@@ -187,12 +233,77 @@ export default function ExpendituresPage() {
         </div>
       </div>
 
+
+      {/* Add expense category — reachable from the expense form AND on its own,
+
+           because the first category has to exist before any expense can be
+
+           saved, and a school should not have to open a form it cannot submit
+
+           in order to find the way to create one. */}
+
+      {showCatModal && (
+
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4" onClick={() => setShowCatModal(false)}>
+
+          <form onSubmit={handleAddCategory} onClick={e => e.stopPropagation()}
+
+            className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 w-full max-w-sm p-5">
+
+            <h2 className="font-bold text-gray-900 dark:text-white mb-1">New expense category</h2>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Categories group spending — e.g. Salaries, Utilities, Transport, Maintenance.</p>
+
+            <input autoFocus value={newCatName} onChange={e => setNewCatName(e.target.value)}
+
+              placeholder="Category name" maxLength={100}
+
+              className="w-full mb-3 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white" />
+
+            <div className="flex gap-2">
+
+              <button type="button" onClick={() => setShowCatModal(false)}
+
+                className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-300">Cancel</button>
+
+              <button type="submit" disabled={catBusy || !newCatName.trim()}
+
+                className="flex-1 rounded-lg bg-indigo-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50">
+
+                {catBusy ? 'Saving…' : 'Add category'}
+
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
+
+      )}
+
+
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Add Expenditure</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div><label className="block text-sm font-medium mb-1">Category</label><select required value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-4 py-2 border rounded-lg"><option value="">Select Category</option></select></div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium">Category</label>
+                  <button type="button" onClick={() => setShowCatModal(true)}
+                    className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline">+ New category</button>
+                </div>
+                <select required value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
+                  <option value="">Select Category</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                {categories.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    No expense categories yet — add one first, or the expense cannot be saved.
+                  </p>
+                )}
+              </div>
               <div><label className="block text-sm font-medium mb-1">Amount ({code})</label><input type="number" required value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
               <div><label className="block text-sm font-medium mb-1">Description</label><textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
               <div><label className="block text-sm font-medium mb-1">Vendor Name</label><input type="text" value={formData.vendor_name} onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
