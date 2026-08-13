@@ -230,15 +230,26 @@ export default function ClassesCurriculumsPage() {
 
   const saveProgram = async (v: Partial<Program>) => {
     const isEdit = !!progModal.edit;
-    const url = isEdit ? `${API_BASE}/programs/${progModal.edit!.id}` : `${API_BASE}/programs`;
+    // Programs live at a single collection endpoint — there is no
+    // /api/programs/[id] route, so the previous PUT to `/programs/${id}` hit
+    // nothing and returned 404 on every edit. The collection exposes PATCH,
+    // and it maps `display_name` rather than `name`: sending {name} was
+    // accepted and then changed nothing, which is why renaming a program
+    // appeared to work and never did.
+    const body: Record<string, unknown> = { ...v };
+    if (v.name !== undefined) body.display_name = v.name;
+    if (isEdit) body.id = progModal.edit!.id;
     try {
-      await apiFetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v), successMessage: isEdit ? 'Program updated' : 'Program created' });
+      await apiFetch(`${API_BASE}/programs`, { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), successMessage: isEdit ? 'Program updated' : 'Program created' });
       setProgModal({ open: false }); progSWR.mutate();
     } catch { /* */ }
   };
   const deleteProgram = async (id: number) => {
     if (!await confirmAction('Delete program?', 'Classes linked to this program will lose their program assignment.', 'Delete')) return;
-    try { await apiFetch(`${API_BASE}/programs/${id}`, { method: 'DELETE', successMessage: 'Program deleted' }); progSWR.mutate(); classSWR.mutate(); } catch { /* */ }
+    // Same missing route as the edit above: DELETE /api/programs/<id> was a
+    // 404, so "Program deleted" never deleted anything. The endpoint takes the
+    // id as a query parameter.
+    try { await apiFetch(`${API_BASE}/programs?id=${id}`, { method: 'DELETE', successMessage: 'Program deleted' }); progSWR.mutate(); classSWR.mutate(); } catch { /* */ }
   };
 
   const saveClass = async (v: Partial<ClassRec & { program_id?: number | null }>) => {

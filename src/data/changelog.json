@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T20:32:46.307Z",
-  "last_commit": "f3aeafe8df1fb4412670d0faab808a5dd3b97c54",
+  "generated_at": "2026-08-13T20:45:04.630Z",
+  "last_commit": "82e5c83f437ce5f7911bedb9af8d9c2d528c664f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6800,7 +6800,20 @@
         }
       ],
       "commit": "f3aeafe8df"
+    },
+    {
+      "version": "1.173.61",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Salary definitions, wallet balances and paying staff",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Salary definitions, wallet balances and paying staff"
+        }
+      ],
+      "commit": "82e5c83f43"
     }
   ],
-  "app_version": "1.173.61"
+  "app_version": "1.173.62"
 }
