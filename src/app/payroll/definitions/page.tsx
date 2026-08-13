@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { apiErrorMessage } from '@/lib/errorMessage';
 import useSWR from 'swr';
 import { Plus, Edit, Trash, Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -18,20 +19,31 @@ export default function PayrollDefinitionsPage() {
   const { data, error, mutate } = useSWR<PayrollDefinition[]>(API_PAYROLL_DEFINITIONS, fetcher);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<Partial<PayrollDefinition>>({ id: undefined, name: '', type: '' });
+  const [saveError, setSaveError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     const method = form.id ? 'PUT' : 'POST';
     try {
-      await fetch(API_PAYROLL_DEFINITIONS, {
+      // The response was never checked: a rejected save closed the dialog and
+      // looked exactly like a successful one, so definitions appeared
+      // impossible to add when in fact the failure was simply never shown.
+      const res = await fetch(API_PAYROLL_DEFINITIONS, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
+      const j = await res.json().catch(() => null);
+      if (!res.ok || j?.error) {
+        setSaveError(apiErrorMessage(j, `Could not save (${res.status}).`));
+        return;
+      }
+      setSaveError('');
       mutate();
       setModalOpen(false);
     } catch (error) {
+      setSaveError('Could not reach the server.');
       console.error('Failed to save payroll definition:', error);
     } finally {
       setIsSubmitting(false);
@@ -133,12 +145,23 @@ export default function PayrollDefinitionsPage() {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full mb-4 px-4 py-2 border rounded-lg"
             />
-            <input
-              placeholder="Type"
+            {/* Was a free-text box labelled only "Type", with no hint of what
+                to write. A salary component is either money added or money
+                taken off; anything else is a typo waiting to break reporting. */}
+            <label className="block text-sm font-medium mb-1">Type</label>
+            <select
               value={form.type || ''}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="w-full mb-4 px-4 py-2 border rounded-lg"
-            />
+              className="w-full mb-1 px-4 py-2 border rounded-lg"
+            >
+              <option value="">Select type…</option>
+              <option value="earning">Earning — added to pay (basic, allowance, bonus)</option>
+              <option value="deduction">Deduction — taken off pay (NSSF, PAYE, advance)</option>
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              e.g. “Basic Salary” as an earning, “PAYE” as a deduction.
+            </p>
+            {saveError && <p className="text-sm text-rose-600 mb-3">{saveError}</p>}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setModalOpen(false)}

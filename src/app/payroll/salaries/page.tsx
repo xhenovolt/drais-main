@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { apiErrorMessage } from '@/lib/errorMessage';
 import useSWR from 'swr';
 import { Plus, Edit, Trash, Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -46,19 +47,29 @@ export default function StaffSalariesPage() {
     amount: undefined,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     const method = form.id ? 'PUT' : 'POST';
     try {
-      await fetch(API_STAFF_SALARIES, {
+      // The response was never inspected, so a rejected save closed the dialog
+      // exactly like a successful one and the salary silently never existed.
+      const res = await fetch(API_STAFF_SALARIES, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
+      const j = await res.json().catch(() => null);
+      if (!res.ok || j?.error) {
+        setSaveError(apiErrorMessage(j, `Could not save (${res.status}).`));
+        return;
+      }
+      setSaveError('');
       mutate();
       setModalOpen(false);
     } catch (error) {
+      setSaveError('Could not reach the server.');
       console.error('Failed to save staff salary:', error);
     } finally {
       setIsSubmitting(false);
@@ -177,18 +188,32 @@ export default function StaffSalariesPage() {
                 <option key={s.id} value={s.id}>{s.first_name} {s.last_name} - {s.position}</option>
               ))}
             </select>
-            <input
-              placeholder="Month"
+            {/* These were two free-text boxes labelled "Month" and "Period
+                Month". The columns are month = YEAR(4) and period_month =
+                TINYINT (1-12), so the first is really the year and the second
+                the month number — unguessable from the labels, and anything
+                typed was rejected by the database. */}
+            <label className="block text-sm font-medium mb-1">Year</label>
+            <select
               value={form.month || ''}
               onChange={(e) => setForm({ ...form, month: e.target.value })}
               className="w-full mb-4 px-4 py-2 border rounded-lg"
-            />
-            <input
-              placeholder="Period Month"
+            >
+              <option value="">Select year…</option>
+              {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                <option key={y} value={String(y)}>{y}</option>
+              ))}
+            </select>
+            <label className="block text-sm font-medium mb-1">Month</label>
+            <select
               value={form.period_month || ''}
               onChange={(e) => setForm({ ...form, period_month: Number(e.target.value) })}
               className="w-full mb-4 px-4 py-2 border rounded-lg"
-            />
+            >
+              <option value="">Select month…</option>
+              {['January','February','March','April','May','June','July','August','September','October','November','December']
+                .map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
             <select
               value={form.definition_id || ''}
               onChange={(e) => setForm({ ...form, definition_id: Number(e.target.value) })}
@@ -205,6 +230,7 @@ export default function StaffSalariesPage() {
               onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
               className="w-full mb-4 px-4 py-2 border rounded-lg"
             />
+            {saveError && <p className="text-sm text-rose-600 mb-3">{saveError}</p>}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setModalOpen(false)}

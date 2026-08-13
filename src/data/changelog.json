@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T19:54:40.390Z",
-  "last_commit": "9c683a3549a4e46908e024417dbc1e81f204c752",
+  "generated_at": "2026-08-13T20:32:46.307Z",
+  "last_commit": "f3aeafe8df1fb4412670d0faab808a5dd3b97c54",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6787,7 +6787,20 @@
         }
       ],
       "commit": "9c683a3549"
+    },
+    {
+      "version": "1.173.60",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Expenses could never be saved - no category could be chosen",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Expenses could never be saved - no category could be chosen"
+        }
+      ],
+      "commit": "f3aeafe8df"
     }
   ],
-  "app_version": "1.173.60"
+  "app_version": "1.173.61"
 }
