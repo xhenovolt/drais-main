@@ -244,7 +244,16 @@ export function middleware(request: NextRequest) {
 
   for (const guard of ROLE_PROTECTED) {
     if (pathname.startsWith(guard.prefix)) {
-      const allowed = guard.roles.some(r => r.toLowerCase() === userRole.toLowerCase());
+      // Compare role IDENTITY, not spelling. The cookie carries the role's
+      // NAME as the school typed it, while the guards are written in slug
+      // convention — so JIPRA's "SuperAdmin" never matched 'super_admin' and
+      // its holder (Katiti Enoch, a genuine super admin whose session
+      // resolves isSuperAdmin = TRUE and whose API access is unrestricted)
+      // was bounced from the very screens he owns. A school naming its role
+      // "Super Admin", "SuperAdmin" or "super-admin" must not change who can
+      // get in, so strip separators from both sides before comparing.
+      const roleKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const allowed = guard.roles.some(r => roleKey(r) === roleKey(userRole));
       if (!allowed) {
         if (isApiRoute) {
           return NextResponse.json(

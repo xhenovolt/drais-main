@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T16:06:48.008Z",
-  "last_commit": "d80b93304e6f515854f425acc58e1c5514f307c9",
+  "generated_at": "2026-08-13T16:36:35.918Z",
+  "last_commit": "6d2d67026f68dec6a6fd528b53c0e2aeb9d3e95d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6735,7 +6735,20 @@
         }
       ],
       "commit": "d80b93304e"
+    },
+    {
+      "version": "1.173.56",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Keep auto-correction working after the manual history ages out",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Keep auto-correction working after the manual history ages out"
+        }
+      ],
+      "commit": "6d2d67026f"
     }
   ],
-  "app_version": "1.173.56"
+  "app_version": "1.173.57"
 }

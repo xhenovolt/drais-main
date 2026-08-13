@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -24,8 +25,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const url = new URL(req.url);
   const tab       = (url.searchParams.get('tab') || 'raw').toLowerCase();
-  const limit     = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit', 10) || '50', 10)));
-  const page      = Math.max(1, parseInt(url.searchParams.get('page', 10) || '1', 10));
+  const limit     = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+  const page      = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
   const offset    = (page - 1) * limit;
   const deviceSn  = url.searchParams.get('device_sn') || null;
   const dateFrom  = url.searchParams.get('date_from') || null;
@@ -217,4 +218,135 @@ async function handleParsed(schoolId: number, f: ParsedFilters) {
     data: rows,
     pagination: { page: f.page, limit: f.limit, total, totalPages: Math.ceil(total / f.limit) },
   });
+}
+
+/**
+ * DELETE /api/zk/pipeline
+ *
+ * Clears device pipeline telemetry — the HTTP exchanges and per-record
+ * interpretations behind the Raw / Parsed / Errors tabs.
+ *
+ * WHAT IT CAN AND CANNOT TOUCH
+ * These three tables are the biggest in DRAIS (zk_parsed_logs ~270k,
+ * zk_device_logs ~155k, zk_raw_logs ~55k) and nothing ever pruned them. They
+ * are diagnostic evidence, not attendance: the attendance itself lives in
+ * attendance_raw_events and zk_attendance_logs, and this endpoint names only
+ * the three telemetry tables, so no filter and no bug here can delete a
+ * punch. Clearing telemetry never changes a single attendance record.
+ *
+ * SCHOOL SCOPING IS LOAD-BEARING, NOT DECORATIVE
+ * All three tables are shared across tenants — zk_raw_logs currently holds
+ * rows for five schools, the largest of which is not the one usually looking
+ * at this screen. Every statement below is therefore anchored on
+ * `school_id = <session school>`, taken from the SESSION and never from the
+ * request, so one school cannot reach another's evidence even by crafting the
+ * body. The id-list mode is scoped the same way, so an id belonging to
+ * another school simply matches nothing.
+ *
+ * WHY IT IS A HARD DELETE, AND WHY IT IS RECORDED
+ * The point is to reclaim space, so a soft delete would leave the rows in the
+ * table it was meant to shrink. Instead the deletion itself is audited — who,
+ * which scope, how many rows — because removing forensic evidence is exactly
+ * the kind of act that should leave a trace.
+ *
+ * Body: { tab?: 'raw'|'parsed'|'errors', ids?: number[], before?: 'YYYY-MM-DD',
+ *         device_sn?: string, reason?: string }
+ * Either `ids` (specific rows) or `before` (everything older than a date).
+ */
+export async function DELETE(req: NextRequest): Promise<NextResponse> {
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  // Same bar as the other destructive log operations in DRAIS: deleting
+  // history is deliberately harder than reading it.
+  if (!session.isSuperAdmin) {
+    return NextResponse.json(
+      { error: 'Only a super administrator can clear device logs.' }, { status: 403 },
+    );
+  }
+  const { schoolId } = session;
+
+  const body = await req.json().catch(() => null) as any;
+  if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+
+  const tab = String(body.tab || 'raw').toLowerCase();
+  if (!['raw', 'parsed', 'errors'].includes(tab)) {
+    return NextResponse.json({ error: 'tab must be raw, parsed or errors' }, { status: 400 });
+  }
+
+  const ids = Array.isArray(body.ids)
+    ? body.ids.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n))
+    : [];
+  const before = typeof body.before === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.before) ? body.before : null;
+  const deviceSn = typeof body.device_sn === 'string' && body.device_sn ? body.device_sn : null;
+  const reason = String(body.reason ?? '').slice(0, 255) || null;
+
+  // Refuse an unbounded delete. Without this, an empty body would mean
+  // "everything", which is never what someone meant to click.
+  if (!ids.length && !before) {
+    return NextResponse.json(
+      { error: 'Choose rows to delete, or a date to delete before.' }, { status: 400 },
+    );
+  }
+
+  const scope: string[] = ['school_id = ?'];
+  const args: any[] = [schoolId];
+  if (ids.length) { scope.push(`id IN (${ids.map(() => '?').join(',')})`); args.push(...ids); }
+  if (before)     { scope.push('created_at < ?'); args.push(`${before} 00:00:00`); }
+  if (deviceSn)   { scope.push('device_sn = ?'); args.push(deviceSn); }
+  const where = scope.join(' AND ');
+
+  try {
+    let deletedRaw = 0, deletedParsed = 0;
+
+    if (tab === 'raw') {
+      // Parsed rows hang off raw ones by raw_log_id. Deleting the raw
+      // exchange without them would leave interpretations pointing at
+      // evidence that no longer exists, so they go together — still scoped
+      // to this school on BOTH sides of the subquery.
+      const p = (await query(
+        `DELETE FROM zk_parsed_logs
+          WHERE school_id = ?
+            AND raw_log_id IN (SELECT id FROM (SELECT id FROM zk_raw_logs WHERE ${where}) AS x)`,
+        [schoolId, ...args],
+      )) as any;
+      deletedParsed = Number(p?.affectedRows ?? 0);
+
+      const r = (await query(`DELETE FROM zk_raw_logs WHERE ${where}`, args)) as any;
+      deletedRaw = Number(r?.affectedRows ?? 0);
+    } else {
+      const failedOnly = tab === 'errors' ? " AND status = 'failed'" : '';
+      const r = (await query(`DELETE FROM zk_parsed_logs WHERE ${where}${failedOnly}`, args)) as any;
+      deletedParsed = Number(r?.affectedRows ?? 0);
+    }
+
+    const total = deletedRaw + deletedParsed;
+
+    await logAudit({
+      schoolId,
+      userId: (session as any).userId ?? null,
+      action: 'DEVICE_LOGS_PURGED',
+      entityType: 'device_logs',
+      details: {
+        tab, reason,
+        scope: { ids: ids.length || null, before, device_sn: deviceSn },
+        deleted_raw: deletedRaw, deleted_parsed: deletedParsed, total,
+      },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    }).catch(() => { /* never fail the delete because the log failed */ });
+
+    return NextResponse.json({
+      success: true,
+      deleted: total,
+      deleted_raw: deletedRaw,
+      deleted_parsed: deletedParsed,
+      message: total
+        ? `Deleted ${total.toLocaleString()} log row${total === 1 ? '' : 's'}. Attendance records are untouched.`
+        : 'Nothing matched — no rows deleted.',
+    });
+  } catch (e: any) {
+    console.error('[zk/pipeline] delete failed:', e);
+    return NextResponse.json({ error: `Could not delete logs: ${e?.message ?? 'unknown error'}` }, { status: 500 });
+  }
 }
