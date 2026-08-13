@@ -101,12 +101,38 @@ export async function POST(req: NextRequest) {
       });
 
       if (!res.ok) {
-        const detail = await res.text().catch(() => '');
-        // Surface the provider's own reason — "invalid key" and "out of
-        // credit" need different actions, and a generic failure sends the
-        // operator to the founder.
+        const raw = await res.text().catch(() => '');
+        // Pull the provider's own sentence out of its JSON envelope and put it
+        // IN THE ERROR MESSAGE, not in a side field.
+        //
+        // This previously returned a bare "provider error (403)" with the real
+        // reason tucked into `detail`, which the screen did not render. xAI had
+        // said, in plain words, "your newly created team doesn't have any
+        // credits or licenses yet" — an answer the operator could act on in a
+        // minute — and DRAIS replaced it with a number. A 403 for no credit, a
+        // 403 for a revoked key and a 401 for a typo need three different
+        // actions, so the distinction has to reach the person.
+        let reason = '';
+        try {
+          const parsed = JSON.parse(raw);
+          reason = String(parsed?.error?.message ?? parsed?.error ?? parsed?.message ?? '').trim();
+        } catch { reason = raw.trim(); }
+
+        const hint =
+          res.status === 401 ? ' The key looks wrong — check it in Setup.'
+          : res.status === 403 ? ' The key is valid but the provider account cannot be used yet — usually billing or credits.'
+          : res.status === 404 ? ' The model name may not exist on this provider.'
+          : res.status === 429 ? ' Rate limited — try again shortly.'
+          : '';
+
         return NextResponse.json(
-          { error: `${NEXUS_NAME} provider error (${res.status}).`, detail: detail.slice(0, 300) },
+          {
+            error: reason
+              ? `${NEXUS_NAME} could not reach the provider (${res.status}): ${reason.slice(0, 300)}${hint}`
+              : `${NEXUS_NAME} provider error (${res.status}).${hint}`,
+            status: res.status,
+            provider: reason.slice(0, 300) || null,
+          },
           { status: 502 },
         );
       }

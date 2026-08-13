@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T05:15:46.173Z",
-  "last_commit": "e8eaae139dc33631248ca20cb45baa49b04aede9",
+  "generated_at": "2026-08-13T05:20:04.742Z",
+  "last_commit": "f455de9442dcaac3e35d68257391c5c1b6bd422c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6644,7 +6644,20 @@
         }
       ],
       "commit": "e8eaae139d"
+    },
+    {
+      "version": "1.173.49",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Read the provider key from the environment as well as settings",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Read the provider key from the environment as well as settings"
+        }
+      ],
+      "commit": "f455de9442"
     }
   ],
-  "app_version": "1.173.49"
+  "app_version": "1.173.50"
 }

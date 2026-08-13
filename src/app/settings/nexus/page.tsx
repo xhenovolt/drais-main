@@ -41,6 +41,8 @@ export default function NexusPage() {
   const [form, setForm] = useState({ enabled: false, baseUrl: '', model: '', apiKey: '' });
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadCfg = useCallback(async () => {
@@ -75,6 +77,17 @@ export default function NexusPage() {
     finally { setSaving(false); }
   };
 
+  /** Verify the provider without spending a question on it. */
+  const testConnection = async () => {
+    setTesting(true); setTestResult(null);
+    try {
+      const r = await fetch('/api/nexus/test', { method: 'POST' });
+      setTestResult(await r.json());
+    } catch {
+      setTestResult({ ok: false, message: 'Could not reach the server.' });
+    } finally { setTesting(false); }
+  };
+
   const ask = async (question: string) => {
     const text = question.trim();
     if (!text || busy) return;
@@ -85,9 +98,13 @@ export default function NexusPage() {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question: text }),
       });
       const j = await r.json();
+      // j.error now CARRIES the provider's own sentence (e.g. "your newly
+      // created team doesn't have any credits or licenses yet"). Showing a bare
+      // status code instead is what made this feel like a silent failure.
       setTurns((t) => [...t, r.ok
         ? { role: 'nexus', text: j.answer ?? '(no answer)', used: j.used }
-        : { role: 'nexus', text: j?.error ?? 'Something went wrong.', error: true }]);
+        : { role: 'nexus', text: j?.error ?? `Request failed (${r.status}).`, error: true }]);
+      if (!r.ok) loadCfg();   // a failure may mean the setup changed underneath
     } catch {
       setTurns((t) => [...t, { role: 'nexus', text: 'Could not reach the server.', error: true }]);
     } finally { setBusy(false); }
@@ -166,12 +183,39 @@ export default function NexusPage() {
               className="px-3 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 flex items-center gap-1.5">
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
             </button>
+            <button onClick={testConnection} disabled={testing}
+              className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 disabled:opacity-50 flex items-center gap-1.5">
+              {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Test connection
+            </button>
             {savedMsg && (
               <span className="text-xs text-slate-500 flex items-center gap-1">
                 {savedMsg === 'Saved.' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
                 {savedMsg}
               </span>
             )}
+          </div>
+
+          {/* The provider's own words, verbatim. "Provider error (403)" sent
+              someone hunting; "your team doesn't have any credits yet" is a
+              one-minute fix. */}
+          {testResult && (
+            <div className={`px-3 py-2 rounded-lg text-xs ${
+              testResult.ok
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200'
+                : 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300'
+            }`}>
+              <p className="font-semibold">
+                {testResult.ok ? 'Connected' : `Not working${testResult.status ? ` (${testResult.status})` : ''}`}
+              </p>
+              <p className="mt-0.5">{testResult.message}</p>
+              {Array.isArray(testResult.availableModels) && testResult.availableModels.length > 0 && !testResult.ok && (
+                <p className="mt-1 text-[11px] opacity-80">
+                  Models this account can use: {testResult.availableModels.join(', ')}
+                </p>
+              )}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
           </div>
 
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -186,12 +230,30 @@ export default function NexusPage() {
         </div>
       )}
 
-      {!ready && !showCfg && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
-          <p className="text-sm text-amber-800 dark:text-amber-200">{name} is not set up yet.</p>
-          <button onClick={() => setShowCfg(true)} className="text-xs font-semibold text-amber-900 dark:text-amber-100 underline mt-1">
-            Add a provider key
-          </button>
+      {/* Status, always visible.
+          "Is this set up?" was previously answerable only by asking a question
+          and interpreting the failure — and the same deployment could say "not
+          set up yet" on one screen and return a provider error on another,
+          because a key in the server environment was invisible here. State the
+          three facts that decide whether a question can work. */}
+      {cfg && (
+        <div className={`rounded-xl border p-3 text-xs flex flex-wrap items-center gap-x-4 gap-y-1 ${
+          ready
+            ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200'
+            : 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200'
+        }`}>
+          <span className="font-semibold">{ready ? `${name} is ready` : `${name} is not ready`}</span>
+          <span>Enabled: <strong>{cfg.enabled ? 'yes' : 'no'}</strong></span>
+          <span>
+            Key: <strong>{cfg.hasKey ? cfg.keyHint : 'none'}</strong>
+            {cfg.keySource ? ` (${cfg.keySource})` : ''}
+          </span>
+          <span>Model: <strong>{cfg.model}</strong></span>
+          {!ready && (
+            <button onClick={() => setShowCfg(true)} className="underline font-semibold">
+              {cfg.hasKey ? 'Enable it' : 'Add a key'}
+            </button>
+          )}
         </div>
       )}
 
