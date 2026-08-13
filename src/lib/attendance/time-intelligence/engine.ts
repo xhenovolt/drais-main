@@ -583,12 +583,22 @@ export async function applyRecomputeFromDeviceTime(
     [schoolId, deviceSn, date, repShiftMinutes, rows.length, JSON.stringify(originals), source, userId ?? null],
   )) as unknown as { insertId: number };
 
-  for (const r of rows) {
-    await query(
-      `UPDATE attendance_raw_events SET punch_at = ?, clock_skew_seconds = ? WHERE id = ? AND school_id = ?`,
-      [new Date(recompute(r)), driftHours * 3600, Number(r.id), schoolId],
-    );
-  }
+  // ONE statement, not one per row. The recomputation is a uniform expression
+  // — punch_at = device_reported_time − tzOffset − drift — so every affected
+  // row can be rewritten in a single UPDATE. The previous per-row loop issued
+  // a separate round-trip for every punch: a 116-punch day took minutes
+  // against TiDB Cloud, which is fine for a background job and fatal now that
+  // this also runs while someone waits for the attendance logs page.
+  const shiftMinutes = off + driftHours * 60;
+  await query(
+    `UPDATE attendance_raw_events
+        SET punch_at = DATE_SUB(device_reported_time, INTERVAL ? MINUTE),
+            clock_skew_seconds = ?
+      WHERE school_id = ? AND device_sn = ?
+        AND ingested_at >= ? AND ingested_at < ?
+        AND device_reported_time IS NOT NULL`,
+    [shiftMinutes, Math.round(driftHours * 3600), schoolId, deviceSn, utcStart, utcEnd],
+  );
 
   const reEvaluated = await reevaluateAffected(schoolId, rows, repShiftMinutes, off);
 
