@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { checkModule } from '@/lib/auth/requireModule';
+import { logAudit } from '@/lib/audit';
 
 /**
  * Salary payments — actual outflows of cash from a wallet to a staff
@@ -83,13 +84,28 @@ export async function POST(req: NextRequest) {
       `UPDATE wallets SET balance = balance - ? WHERE id = ?`,
       [amt, wallet_id]
     );
-    await connection.execute(
-      `INSERT INTO audit_log (actor_user_id, action, entity_type, entity_id, changes_json, created_at)
-       VALUES (?, 'CREATE', 'SalaryPayment', ?, ?, NOW())`,
-      [session.userId, ins.insertId, JSON.stringify({ staff_id, wallet_id, amount: amt, method, reference })]
-    );
-
     await connection.commit();
+
+    // Recorded through the canonical logger, into `audit_logs` — the table
+    // /admin/audit-logs actually reads. This previously wrote to `audit_log`
+    // (singular), a parallel table nothing surfaces: 560 events across ten
+    // routes are sitting in it unread. Paying a salary moves real money out
+    // of a school's wallet, so it has to appear where someone looks for it.
+    //
+    // Written AFTER the commit, not inside the transaction. The old placement
+    // meant a failure in the audit write rolled back the payment itself —
+    // losing the money movement to protect the record of it, which is exactly
+    // backwards.
+    await logAudit({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      action: 'SALARY_PAID',
+      entityType: 'salary_payment',
+      entityId: ins.insertId,
+      details: { staff_id, wallet_id, amount: amt, method: method || null, reference: reference || null },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null,
+      userAgent: req.headers.get('user-agent'),
+    }).catch(() => { /* never fail a completed payment because the log failed */ });
     return NextResponse.json({ success: true, id: ins.insertId }, { status: 201 });
   } catch (e: any) {
     try { if (connection) await connection.rollback(); } catch {}
