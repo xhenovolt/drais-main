@@ -7,7 +7,7 @@
  * authoritative reference data.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Check, Plus, X, ToggleLeft, ToggleRight, BookMarked } from 'lucide-react';
+import { BookOpen, Check, Plus, X, ToggleLeft, ToggleRight, BookMarked, Pencil, Trash2 } from 'lucide-react';
 
 const j = (u, opts) => fetch(u, opts).then(r => r.json());
 
@@ -15,6 +15,8 @@ export default function TahfizBooksPage() {
   const [catalog, setCatalog] = useState(null);
   const [msg, setMsg] = useState('');
   const [addingCustom, setAddingCustom] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [selectorBook, setSelectorBook] = useState(null);
 
   const load = useCallback(async () => {
@@ -65,14 +67,27 @@ export default function TahfizBooksPage() {
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
         {!catalog ? <p className="text-sm text-slate-400 p-4">Loading…</p> : catalog.custom.length === 0 ? <p className="text-sm text-slate-400 p-4">No custom books yet.</p> :
           catalog.custom.map(b => (
-            <div key={b.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-              <span className="font-medium text-slate-700 dark:text-slate-200">{b.title}</span>
-              <span className="text-[11px] text-slate-400">{b.structure_type} · {b.total_units ?? '?'} {b.unit_label}s</span>
+            <div key={b.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <span className="font-medium text-slate-700 dark:text-slate-200 min-w-0 truncate">{b.title}</span>
+              <span className="flex items-center gap-3 flex-shrink-0">
+                <span className="text-[11px] text-slate-400">{b.structure_type} · {b.total_units ?? '?'} {b.unit_label}s</span>
+                {/* A book you can create but never correct is a permanent typo
+                    in the curriculum — plans, portions and records all hang
+                    off it. */}
+                <button onClick={() => setEditing(b)} title="Edit this book"
+                  className="p-1 text-slate-400 hover:text-indigo-600"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => setDeleting(b)} title="Remove this book"
+                  className="p-1 text-slate-400 hover:text-rose-600"><Trash2 className="w-4 h-4" /></button>
+              </span>
             </div>
           ))}
       </div>
 
       {addingCustom && <AddCustom onClose={() => setAddingCustom(false)} onAdded={() => { setAddingCustom(false); setMsg('Custom book added'); load(); }} />}
+      {editing && <EditCustom book={editing} onClose={() => setEditing(null)}
+        onSaved={(t) => { setEditing(null); setMsg(`Saved "${t}"`); load(); }} />}
+      {deleting && <DeleteCustom book={deleting} onClose={() => setDeleting(null)}
+        onDone={(t) => { setDeleting(null); setMsg(`Removed "${t}"`); load(); }} />}
       {selectorBook && <QuranSelector onClose={() => setSelectorBook(null)} />}
     </div>
   );
@@ -101,6 +116,125 @@ function AddCustom({ onClose, onAdded }) {
         </select>
         {err && <p className="text-xs text-rose-600 mb-2">{err}</p>}
         <button onClick={save} disabled={busy || !title.trim()} className="w-full rounded-lg bg-indigo-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50">{busy ? 'Saving…' : 'Create book'}</button>
+      </div>
+    </div>
+  );
+}
+
+const TYPE_OPTIONS = [
+  ['ordered_lessons', 'Ordered lessons (primer/qaida)'],
+  ['versed_poem', 'Versed poem (matn/abyat)'],
+  ['chaptered_text', 'Chaptered text'],
+];
+
+/** Correct a custom book in place. Only changed fields are sent. */
+function EditCustom({ book, onClose, onSaved }) {
+  const [title, setTitle] = useState(book.title ?? '');
+  const [type, setType] = useState(book.structure_type ?? 'ordered_lessons');
+  const [unitLabel, setUnitLabel] = useState(book.unit_label ?? '');
+  const [totalUnits, setTotalUnits] = useState(book.total_units ?? '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function save() {
+    setBusy(true); setErr('');
+    const r = await j(`/api/tahfiz/books/${book.id}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        structure_type: type,
+        unit_label: unitLabel,
+        total_units: totalUnits === '' ? null : Number(totalUnits),
+      }),
+    }).catch(() => null);
+    setBusy(false);
+    // Show what the server said. "Failed" on its own leaves nobody able to act.
+    if (r?.success) onSaved(r.book?.title ?? title);
+    else setErr(r?.error || 'Could not save — the server did not respond.');
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-slate-800 dark:text-white">Edit book</h2>
+          <button onClick={onClose} className="p-1 text-slate-400"><X className="w-5 h-5" /></button>
+        </div>
+
+        <label className="block mb-2">
+          <span className="text-[11px] text-slate-400">Title</span>
+          <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none text-slate-800 dark:text-white" />
+        </label>
+
+        <label className="block mb-2">
+          <span className="text-[11px] text-slate-400">Structure</span>
+          <select value={type} onChange={e => setType(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-white">
+            {TYPE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <label className="block">
+            <span className="text-[11px] text-slate-400">Unit label</span>
+            <input value={unitLabel} onChange={e => setUnitLabel(e.target.value)} placeholder="lesson"
+              className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-white" />
+          </label>
+          <label className="block">
+            <span className="text-[11px] text-slate-400">Total units</span>
+            <input type="number" min={0} value={totalUnits} onChange={e => setTotalUnits(e.target.value)} placeholder="—"
+              className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-white" />
+          </label>
+        </div>
+
+        {err && <p className="text-xs text-rose-600 mb-2">{err}</p>}
+        <button onClick={save} disabled={busy || !title.trim()}
+          className="w-full rounded-lg bg-indigo-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50">
+          {busy ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Retire a custom book. Refused by the server while it is still in use. */
+function DeleteCustom({ book, onClose, onDone }) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function remove() {
+    setBusy(true); setErr('');
+    const r = await j(`/api/tahfiz/books/${book.id}?reason=${encodeURIComponent(reason)}`, { method: 'DELETE' })
+      .catch(() => null);
+    setBusy(false);
+    if (r?.success) onDone(r.deleted ?? book.title);
+    else setErr(r?.error || 'Could not remove — the server did not respond.');
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-slate-800 dark:text-white">Remove “{book.title}”?</h2>
+          <button onClick={onClose} className="p-1 text-slate-400"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          The book stops appearing in pickers. Existing plans and records keep their history, and
+          this is refused outright if the book is still being taught from.
+        </p>
+        <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (optional, recorded)"
+          className="w-full mb-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-800 dark:text-white" />
+        {err && <p className="text-xs text-rose-600 mb-2">{err}</p>}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300">Cancel</button>
+          <button onClick={remove} disabled={busy}
+            className="flex-1 rounded-lg bg-rose-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50">
+            {busy ? 'Removing…' : 'Remove book'}
+          </button>
+        </div>
       </div>
     </div>
   );

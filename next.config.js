@@ -27,7 +27,15 @@ const nextConfig = {
   // Keep puppeteer + the lambda Chromium binary out of the webpack bundle;
   // Next's file tracing ships them as-is so @sparticuz/chromium's brotli
   // binaries reach the Vercel function (see src/lib/pdf/browser.ts).
-  serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium'],
+  // pdfkit belongs here for the same reason as chromium, and leaving it out was
+  // why receipt downloads still failed after the tracing include below was
+  // added. pdfkit loads its font metrics with
+  //     fs.readFileSync(__dirname + '/data/Helvetica.afm')
+  // Bundled into the route, `__dirname` becomes the bundle's directory, so the
+  // tracer can copy those 15 .afm files into the deployment and pdfkit will
+  // still look somewhere else and throw ENOENT. Tracing puts the files on disk;
+  // externalising is what keeps `__dirname` pointing at them. Both are needed.
+  serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium', 'pdfkit'],
 
   // @sparticuz/chromium locates its bin/ payload via fs at runtime, which
   // the static tracer cannot see — without these includes the lambda dies

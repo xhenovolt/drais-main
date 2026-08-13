@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T05:20:04.742Z",
-  "last_commit": "f455de9442dcaac3e35d68257391c5c1b6bd422c",
+  "generated_at": "2026-08-13T14:04:50.621Z",
+  "last_commit": "16f227b9c53e8abcdcdd1cd4cfff70a823da6bb5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6657,7 +6657,20 @@
         }
       ],
       "commit": "f455de9442"
+    },
+    {
+      "version": "1.173.50",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Say why it failed, and show whether it is set up",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Say why it failed, and show whether it is set up"
+        }
+      ],
+      "commit": "16f227b9c5"
     }
   ],
-  "app_version": "1.173.50"
+  "app_version": "1.173.51"
 }

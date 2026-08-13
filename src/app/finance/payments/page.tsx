@@ -112,22 +112,45 @@ const PaymentsPage: React.FC = () => {
     }
   };
 
+  // Reports what actually went wrong. This used to say "Failed to download
+  // receipt" for every outcome — missing permission, missing payment, and a
+  // server-side font error all looked identical, so nobody could tell whether
+  // to call the bursar, the head teacher or the developer. The endpoint now
+  // returns a sentence; show it.
   const handleDownloadReceipt = async (payment: Payment) => {
     try {
       const response = await fetch(`/api/finance/payments/${payment.id}/receipt`);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Receipt-${payment.receipt_no}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      } else {
-        showToast('error', 'Failed to download receipt');
+
+      if (!response.ok) {
+        let reason = `The server replied ${response.status}.`;
+        try {
+          const body = await response.json();
+          if (body?.error) reason = String(body.error);
+        } catch { /* non-JSON body — keep the status line */ }
+        showToast('error', reason);
+        return;
       }
-    } catch (error) {
-      showToast('error', 'Error downloading receipt');
+
+      // A 200 that is not a PDF means something upstream returned a page (a
+      // login redirect, typically). Saving it would hand the user a .pdf that
+      // no reader can open, which reads as corruption rather than as a session
+      // that expired.
+      const blob = await response.blob();
+      if (!blob.type.includes('pdf')) {
+        showToast('error', 'The server did not return a PDF — your session may have expired. Sign in and try again.');
+        return;
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Receipt-${payment.receipt_no || payment.id}.pdf`;
+      document.body.appendChild(a);   // Firefox ignores click() on a detached node
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      showToast('error', `Could not reach the server: ${error?.message ?? 'network error'}`);
     }
   };
 

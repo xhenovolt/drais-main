@@ -592,6 +592,384 @@
         "v1.147.0 Schools see SMS left + hard block on money/quota out",
         "v1.148.0 Suspended vs deactivated lifecycle + archiveEntity soft-delete fix (P4)"
       ]
+    },
+    {
+      "version": "1.151.0",
+      "period": {
+        "from": "2026-07-28",
+        "to": "2026-07-31"
+      },
+      "milestone_title": "The Report Engine Patch Program",
+      "summary": "A four-phase programme on the report card itself: totals and signatures that always render, an academic summary block that connects a learner’s total to their actual standing, a rule-driven comment engine that writes Class Teacher / DOS / Head Teacher remarks from real results, and a configurable subject order with a grouped Core/Electives table layout.",
+      "significance": "The report card is the one DRAIS artefact a parent physically holds. Before this, a blank total or a missing signature line was a silent formatting failure that reached the parent before anyone in the school saw it — and comments were typed by hand for every learner, every term.",
+      "key_capabilities": [
+        "Report totals always render, with default signature lines when none are configured",
+        "Academic summary block — connects the total mark to the learner’s division and standing",
+        "Intelligent Report Comment Engine — rule-driven Class Teacher, DOS and Head Teacher remarks generated from results",
+        "Per-template scoping for overall-comment rules, resolved live at render time",
+        "Configurable subject order and a grouped results table (Core / Electives) surfaced in the editor"
+      ],
+      "architectural_changes": [
+        "Comment rules stored per template and resolved at render, not baked into the snapshot",
+        "Subject ordering moved from implicit query order to explicit, editable configuration",
+        "Phase 0 hardening audit documented before the code changed — findings first, fixes second"
+      ],
+      "business_impact": [
+        "A term’s remarks that took an afternoon per class are now generated and reviewed",
+        "No report leaves DRAIS with a blank total or an unsigned footer"
+      ],
+      "related_commits": [
+        "v1.150.1–v1.150.3 DRCE Phase 0 audit + totals/signature hardening (P-A..P-D)",
+        "v1.151.0 Academic summary block — Total connected to standing (Phase I)",
+        "v1.151.1 Intelligent Report Comment Engine (Phase II)",
+        "v1.151.2 Albayan academic intelligence & integrity audit (Phase III)",
+        "v1.154.0–v1.154.1 Configurable subject order + grouped Core/Electives layout",
+        "v1.170.0 Per-template scoping for overall-comment rules"
+      ]
+    },
+    {
+      "version": "1.164.0",
+      "period": {
+        "from": "2026-07-28",
+        "to": "2026-07-29"
+      },
+      "milestone_title": "Clock Truth — Time Health & Device Time Authority",
+      "summary": "A sustained campaign against a single class of bug: fingerprint devices whose real-time clocks drift, jump, or fail outright, silently recording arrivals at the wrong hour. DRAIS learned to measure each batch’s own drift, show device time against server time as evidence, correct a selected group of people rather than a whole day, span the midnight boundary, and recompute from raw punches without compounding earlier corrections.",
+      "significance": "Attendance is only as trustworthy as the clock that stamped it. A device running five hours fast turns an on-time arrival into a late one, and the school has no way to see why. This era made the clock itself observable and correctable — and made every correction idempotent, so fixing a mistake twice does not double the damage.",
+      "key_capabilities": [
+        "Device time shown against DRAIS time for first and last punches — the missing evidence",
+        "Selective correction — fix a chosen group of people, not the entire day",
+        "Corrections span the midnight boundary, catching previous-day late-night punches",
+        "Recompute-from-raw correction — idempotent, never compounds a previous fix",
+        "ADAPTIVE_DRIFT_NO_MEMORY policy for devices with a failing RTC",
+        "Historical analysis — detect clock-jump patterns in data already stored",
+        "Manual clock correction always available, never gated on DRAIS agreeing there is a problem"
+      ],
+      "architectural_changes": [
+        "CORRECT_BY_DRIFT measures each batch’s own drift instead of reusing a memorised offset",
+        "Fixed an asymmetric trust bug — the \"device is behind\" case was unbounded",
+        "Contaminated baselines no longer mask a real drift signal",
+        "Time policy became per-device configuration rather than one global rule"
+      ],
+      "business_impact": [
+        "Late/absent marks reflect when a learner actually arrived, not what a failing clock claimed",
+        "A school can prove, from the record, why a mark was corrected and by how much"
+      ],
+      "related_commits": [
+        "v1.152.0–v1.153.2 Selective per-person correction, midnight-boundary batches, modal fixes",
+        "v1.157.0 Stop contaminated baselines masking real drift + one-click correction",
+        "v1.158.0 Measure each batch’s own drift, not a stale memorised offset",
+        "v1.161.0 Show device-reported time vs DRAIS time",
+        "v1.162.0 Recompute-from-raw correction (idempotent)",
+        "v1.163.0 ADAPTIVE_DRIFT_NO_MEMORY policy for failing-RTC devices",
+        "v1.164.0–v1.164.2 Analyse stored data for clock-jump patterns"
+      ]
+    },
+    {
+      "version": "1.160.0",
+      "period": {
+        "from": "2026-07-29",
+        "to": "2026-07-29"
+      },
+      "milestone_title": "Devices as Deployment Targets — Biometric Templates",
+      "summary": "Fingerprint devices stopped being isolated boxes each holding their own enrolments, and became deployment targets: templates are stored centrally and pushed in bulk to a scoped set of devices, with each device reporting its role and its template readiness (X of Y synced).",
+      "significance": "Enrolling a learner once per device does not scale past one device. A school with a gate reader, a dormitory reader and an office reader had to enrol every learner three times — and had no way to tell which device was missing whom.",
+      "key_capabilities": [
+        "Push Templates — scoped bulk deployment of stored fingerprint templates",
+        "Device role labels and template-readiness indicators (Templates X/Y, sync state)",
+        "Closed the last unreconciled gap in the central fingerprint store"
+      ],
+      "architectural_changes": [
+        "Central template store treated as the source of truth; devices are replicas",
+        "Deployment scoped by class/section rather than all-or-nothing"
+      ],
+      "business_impact": [
+        "One enrolment reaches every reader in the school",
+        "A device missing templates is visible before it causes missed attendance"
+      ],
+      "related_commits": [
+        "v1.159.0–v1.159.1 Push Templates — bulk template deployment (Phase 5)",
+        "v1.160.0 Device role label + template deployment readiness (Phase 4)"
+      ]
+    },
+    {
+      "version": "1.165.0",
+      "period": {
+        "from": "2026-07-28",
+        "to": "2026-07-29"
+      },
+      "milestone_title": "Learner Identity Integrity",
+      "summary": "Two related defects closed: a student import that could overwrite an existing enrolment, and a race in admission-number assignment that had already produced duplicate learners. The import now updates in place and never touches enrolments it did not create; admission numbers gained a uniqueness constraint, and 108 existing duplicates were merged through a self-service tool rather than by hand.",
+      "significance": "A duplicated learner is worse than a missing one — fees split across two records, attendance recorded against one and reported from the other, and a report card that omits half a term. This is the failure mode that quietly corrupts every downstream number.",
+      "key_capabilities": [
+        "Student import updates in place and never overrides existing enrolments",
+        "Self-service duplicate-merge tool — schools resolve their own duplicates",
+        "Admission-number uniqueness enforced at the database level"
+      ],
+      "architectural_changes": [
+        "Admission-unique migration + closure of the insert race that created duplicates (SP-1)",
+        "Merge is a recorded operation, not a manual database edit"
+      ],
+      "business_impact": [
+        "108 duplicate learners merged; the class of bug that created them is now impossible",
+        "Imports became safe to re-run — previously a second run could damage enrolments"
+      ],
+      "related_commits": [
+        "v1.150.0 Harden student import — update-in-place, never override enrolments",
+        "v1.165.0 Close the SP-1 admission-number duplicate race — 108 dupes merged"
+      ]
+    },
+    {
+      "version": "1.167.0",
+      "period": {
+        "from": "2026-07-28",
+        "to": "2026-07-30"
+      },
+      "milestone_title": "Finance Consolidation — Stages A, B and C",
+      "summary": "A staged consolidation of a finance module that had grown two of several things: fee items linked to charges by a real foreign key (Stage A), an active-learner undercount fixed in the older parent-facing route (Stage B), and waivers and discounts consolidated onto a single learner_fee_adjustments table (Stage C). Fee Items gained inline scope visibility and Fee Rules gained editing.",
+      "significance": "Finance disagreeing with itself is the one class of bug a school cannot absorb. Two tables holding the same concept means two different answers to \"what does this learner owe\", and no way to tell which is right.",
+      "key_capabilities": [
+        "Fee items linked to charges by foreign key, with sync-fees deduplication",
+        "Waivers and discounts unified onto learner_fee_adjustments",
+        "Fee Items shows resolved rule scope inline, not just a count",
+        "Fee Rules supports editing existing rules rather than delete-and-recreate"
+      ],
+      "architectural_changes": [
+        "fee_item_id FK introduced; duplicate rows removed at the source",
+        "waivers_discounts retired in favour of learner_fee_adjustments (Stage C)",
+        "Fixed an active-learner undercount in the legacy parent fees route"
+      ],
+      "business_impact": [
+        "One answer to what a learner owes, from every screen that asks",
+        "Fee structures can be corrected in place instead of rebuilt"
+      ],
+      "related_commits": [
+        "v1.155.0 Stage A — fee_item_id FK, sync-fees dedup",
+        "v1.156.0–v1.156.2 Stage B — fixed active undercounting in the older parent fees route",
+        "v1.167.0–v1.167.3 Stage C — waivers/discounts → learner_fee_adjustments",
+        "v1.168.0 Fee Items scope visibility + Fee Rules editing",
+        "v1.169.0–v1.169.4 Eliminate the freeze-causing pattern across list routes"
+      ]
+    },
+    {
+      "version": "1.172.0",
+      "period": {
+        "from": "2026-07-31",
+        "to": "2026-08-02"
+      },
+      "milestone_title": "Resilience — First Arrival Health & the Backup Center",
+      "summary": "Two independent safety nets: a per-school date-rollover resilience layer that keeps \"today’s first arrival\" correct across the midnight boundary and timezone edges, and a Database Backup Center producing one-click, school-scoped SQL backups to off-site storage.",
+      "significance": "Everything before this made DRAIS correct. This made DRAIS recoverable — a school can take its own backup without asking anyone, and the attendance day boundary stops being a source of silent wrong answers.",
+      "key_capabilities": [
+        "First Arrival Health — per-school date-rollover resilience with a visible health signal",
+        "Database Backup Center — one-click, school-scoped SQL backups to Cloudinary"
+      ],
+      "architectural_changes": [
+        "Date rollover computed per school rather than from server-local time",
+        "Backups scoped by tenant so one school’s export never contains another’s data"
+      ],
+      "business_impact": [
+        "A school owns a copy of its own data, on demand",
+        "\"Today’s first arrival\" is correct regardless of when the day rolls over"
+      ],
+      "related_commits": [
+        "v1.171.0–v1.171.4 First Arrival Health — date-rollover resilience layer",
+        "v1.172.0 Database Backup Center — school-scoped SQL backups"
+      ]
+    },
+    {
+      "version": "1.173.14",
+      "period": {
+        "from": "2026-08-03",
+        "to": "2026-08-04"
+      },
+      "milestone_title": "Founder-Independence — The Knowledge System",
+      "summary": "A documentation programme built as infrastructure rather than as an afterthought: architecture decision records, a database dictionary, CONTRIBUTING, a README for every subsystem (33 of 42 folders), page blueprints explaining why a screen is shaped the way it is, and a ten-lesson Developer University curriculum — with school-facing how-to guides separated from developer material and surfaced in the sidebar.",
+      "significance": "The single largest risk to DRAIS was that its reasoning lived in one head. Code shows what the system does; nothing showed why. This era wrote down the decisions, the trade-offs and the shape of each subsystem so a new engineer can become useful without an oral handover.",
+      "key_capabilities": [
+        "Architecture Decision Records — decisions and their trade-offs, dated and permanent",
+        "Database dictionary and a documentation index",
+        "Subsystem READMEs across DRCE, snapshots, RBAC, control, biometric, finance, portal, devices, trash, auth and more",
+        "Page blueprints — e.g. the DRCE editor, documented as an editor rather than a form",
+        "Developer University — a ten-lesson architecture-first curriculum",
+        "School-scope how-to guides split from developer docs and shown in the sidebar"
+      ],
+      "architectural_changes": [
+        "Documentation lives in the repository next to the code it explains",
+        "Docs are routed and readable in-app, not a separate site to keep in sync"
+      ],
+      "business_impact": [
+        "DRAIS can be maintained by someone who did not build it",
+        "Schools have task-shaped guides instead of engineering documentation"
+      ],
+      "related_commits": [
+        "v1.173.0 Documentation programme — ADRs, index, CONTRIBUTING, DB dictionary",
+        "v1.173.1–v1.173.6 Subsystem READMEs + school/developer doc split",
+        "v1.173.8–v1.173.9 Knowledge system — 24 docs, page blueprint, ADR-0013/0014",
+        "v1.173.10–v1.173.12 Code-level teaching — theming, dashboard anatomy, data flow",
+        "v1.173.13–v1.173.14 Developer University — 10-lesson curriculum"
+      ]
+    },
+    {
+      "version": "1.173.26",
+      "period": {
+        "from": "2026-08-05",
+        "to": "2026-08-06"
+      },
+      "milestone_title": "Build Survivability — the Memory Wall",
+      "summary": "A protracted fight with the deployment build itself. Every deploy after a certain commit had been silently failing on an out-of-memory kill, meaning fixes were being written and never shipped. Resolution came from cutting the real footprint — lazy-loading heavy export and charting libraries, removing dead dependencies and duplicate route trees, dropping 49 prerendered doc routes, and compiling with Turbopack — rather than from repeatedly raising the heap cap.",
+      "significance": "This is the most dangerous failure mode a project can have: work that appears done and is not deployed. It also produced a lasting lesson recorded in the codebase — the memory ceiling was structural, not a number to tune.",
+      "key_capabilities": [
+        "/api/health reports which commit is actually serving — deployment truth, not assumption",
+        "Export and charting libraries (xlsx, jspdf, html2canvas, recharts) load on demand"
+      ],
+      "architectural_changes": [
+        "Compile with Turbopack — webpack OOM proved not to be heap-tunable",
+        "Dead dependencies and a duplicate route tree removed; 49 doc routes no longer prerendered",
+        "Heap cap settled empirically rather than guessed"
+      ],
+      "business_impact": [
+        "Deploys either succeed or fail loudly — no more silent non-shipping",
+        "Anyone can verify in one request which build a site is running"
+      ],
+      "related_commits": [
+        "v1.173.19–v1.173.22 Stop prerendering doc routes; compile with Turbopack",
+        "v1.173.24 Drop the force-dynamic layouts — their stated cause was wrong",
+        "v1.173.26 Report which commit is actually serving",
+        "Bundle work — lazy-load xlsx/jspdf/html2canvas/recharts; remove dead dependencies"
+      ]
+    },
+    {
+      "version": "1.173.29",
+      "period": {
+        "from": "2026-08-06",
+        "to": "2026-08-09"
+      },
+      "milestone_title": "Device Ingest Restored & Reporting Completed",
+      "summary": "Attendance devices had been unable to reach DRAIS: ADMS traffic to /iclock was being caught by the authentication middleware and answered with a redirect to the login page, which a fingerprint reader cannot follow. Device paths were excluded from the middleware matcher and added to the non-school auth scope. In the same window, the four analytics routes that had been showing \"coming soon\" were built, and a finance analytics 500 traced to a single wrong column name.",
+      "significance": "A device that cannot post is an attendance system that does not exist. The failure was invisible from inside the app — every human-facing page worked perfectly while the machines were being turned away at the door.",
+      "key_capabilities": [
+        "Fingerprint devices post attendance and operation logs without authentication interference",
+        "Student, staff, finance and academic analytics routes render real reports",
+        "Password reset flow corrected"
+      ],
+      "architectural_changes": [
+        "Device paths (/iclock, /api/zk-handler) excluded from the middleware matcher — middleware runs before rewrites, so exclusion is the only correct fix",
+        "NON_SCHOOL_AUTH_PREFIXES extended to cover device ingest",
+        "Attendance analytics repointed away from tables no longer written to"
+      ],
+      "business_impact": [
+        "Attendance data reaches the system again — the core of the product",
+        "Four reporting areas that promised \"coming soon\" now deliver"
+      ],
+      "related_commits": [
+        "v1.173.25 Device ADMS traffic was being redirected to /login",
+        "v1.173.27 The four \"coming soon\" report routes now render",
+        "v1.173.28–v1.173.29 Finance analytics 500 (one bad column); attendance read dead tables",
+        "v1.173.23 Fix opt-in forced password reset flow"
+      ]
+    },
+    {
+      "version": "1.173.37",
+      "period": {
+        "from": "2026-08-10",
+        "to": "2026-08-10"
+      },
+      "milestone_title": "Control & Access Hardening",
+      "summary": "A seven-phase programme moving enforcement from the interface to the server: permission checks on privileged handlers, login lockout with Control Center unlock, module entitlements enforced server-side, plan capacity limits enforced at the point of creation, a single config-driven entitlement engine replacing divergent limit logic, and warnings shown on both the school and platform sides before a limit is reached.",
+      "significance": "A hidden menu item is not a permission, and a plan limit the server does not check is a suggestion. This era made what a school is entitled to and what a user may do into facts the server decides, while keeping the answers visible enough that nobody is blocked by a rule they could not see coming.",
+      "key_capabilities": [
+        "Server-side permission enforcement on privileged handlers",
+        "Login lockout with escalating delay, and unlock from the Control Center",
+        "Module entitlements and plan capacity limits enforced server-side",
+        "One usage number — plan, limits and gaps visible per school",
+        "Limit warnings before the ceiling is hit, on both school and platform sides"
+      ],
+      "architectural_changes": [
+        "checkAnyPermission added — accepts a granular code or a granted parent code",
+        "Declarative route→module map with an explicit, reasoned list of ungated routes",
+        "A single meter registry so Control Center display and enforcement cannot diverge",
+        "Lockout anchored on users.locked_until with a recorded last-failed-login time"
+      ],
+      "business_impact": [
+        "Role boundaries hold at the API, not just in the menu",
+        "Plans mean something commercially — and a school sees the ceiling approaching"
+      ],
+      "related_commits": [
+        "v1.173.30 Enforce permissions server-side on 20 privileged handlers",
+        "v1.173.31 Enforce school login lockout + Control Center unlock",
+        "v1.173.33–v1.173.34 Module entitlements and plan capacity limits enforced server-side",
+        "v1.173.35 Config-driven entitlement engine + unified resolver",
+        "v1.173.36–v1.173.37 One usage number; warn before the plan limit is hit"
+      ]
+    },
+    {
+      "version": "1.173.47",
+      "period": {
+        "from": "2026-08-10",
+        "to": "2026-08-13"
+      },
+      "milestone_title": "Say What You Mean — Clarity, Allocations and Working Money",
+      "summary": "A campaign against ambiguity in screens that were technically correct and practically unusable: snapshot lists showing raw identifiers instead of class, term and assessment names; fee scopes listing class IDs; bill search returning admission numbers instead of learner names. Alongside it, subject allocation moved onto the staff profile, audit entries became permanently and accountably deletable, profile sessions were repaired, per-school curriculums returned, and finance gained a fee circular, printable bills and a payment button that actually records a payment.",
+      "significance": "Ambiguity in a school system is not cosmetic. A bursar choosing between \"12004\" and \"12007\" is one keystroke from charging the wrong class, and a snapshot list with no class names cannot be audited at all. This era closed the gap between data being present and data being usable.",
+      "key_capabilities": [
+        "Snapshots show class names, term and assessment instead of raw identifiers",
+        "Fee scopes show class names; bill search matches learner names",
+        "Assign subjects to a teacher directly from the staff profile",
+        "Permanent, recorded deletion of audit entries — a deliberate act, and itself audited",
+        "Fee circular — what each class pays and who each fee applies to",
+        "Printable and exportable bills; a working payment button with receipt generation",
+        "Per-school curriculums; profile session listing repaired"
+      ],
+      "architectural_changes": [
+        "Snapshot list query joins terms, academic years and result types, and extracts class names from the frozen snapshot JSON",
+        "Enrolment fan-out eliminated with a derived-table join — duplicate rows and inflated totals both traced to the same cause",
+        "Audit deletion writes a tombstone recording who deleted what and how many",
+        "pdfkit font data added to Vercel output file tracing so receipt PDFs can render at runtime"
+      ],
+      "business_impact": [
+        "A bursar can take a payment from the learner list — previously there was nowhere to click",
+        "Report snapshots are auditable by a human without cross-referencing IDs"
+      ],
+      "related_commits": [
+        "v1.173.38 Assign subjects to a teacher from the staff profile",
+        "v1.173.39–v1.173.41 Name the classes, terms and assessments; class names in fee scopes; learner names in bill search",
+        "v1.173.42 Permanent, recorded deletion of audit entries",
+        "v1.173.43–v1.173.44 Profile sessions repaired; per-school curriculums; print/export a bill",
+        "v1.173.45 Fee circular",
+        "v1.173.46 Teacher initials missed allocations made after the term began",
+        "v1.173.47 Working payment button, real fee totals, receipt generation"
+      ]
+    },
+    {
+      "version": "1.173.50",
+      "period": {
+        "from": "2026-08-13",
+        "to": "2026-08-13"
+      },
+      "milestone_title": "Nexus — Asking DRAIS About Your School",
+      "summary": "Nexus answers questions about a school’s own records in plain language. The model never touches the database: it chooses from a fixed catalogue of read-only lookups, the server runs the chosen one with school_id taken from the session, and the rows are handed back for the model to summarise. Provider, model and key are configuration, so any OpenAI-compatible endpoint works without a code change.",
+      "significance": "The first capability in DRAIS aimed at a question nobody anticipated. Its design constraint matters more than the feature: a fixed tool whitelist and session-derived tenancy mean a prompt cannot reach another school’s data, because there is no argument through which to ask.",
+      "key_capabilities": [
+        "Ask questions about learners, classes, fees, attendance and results in plain language",
+        "Provider-agnostic — key, base URL and model are settings, rotatable without a deploy",
+        "Connection test that reports what the provider actually said, and a permanent setup status line"
+      ],
+      "architectural_changes": [
+        "Six whitelisted read-only tools — the model never generates SQL",
+        "school_id is always taken from the session, never from model arguments",
+        "Key resolved from stored setting first, environment second; never a constant in source",
+        "Provider error messages surfaced verbatim rather than reduced to a status code"
+      ],
+      "business_impact": [
+        "Answers to one-off questions without building a report for each one",
+        "Setup problems are self-diagnosing — the screen says what is wrong and where the key came from"
+      ],
+      "related_commits": [
+        "v1.173.48 Ask questions about your school’s records",
+        "v1.173.49 Read the provider key from the environment as well as settings",
+        "v1.173.50 Say why it failed, and show whether it is set up"
+      ]
     }
   ]
 }

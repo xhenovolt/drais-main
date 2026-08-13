@@ -18,7 +18,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ref:
     `SELECT fp.id AS payment_id, fp.amount, fp.receipt_no, fp.created_at AS paid_at,
             sch.name AS school_name, sch.currency,
             TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS learner_name
-       FROM fee_payments fp
+       -- finance_payments is where recordPayment writes. Reading the retired
+       -- fee_payments here meant the QR printed on every receipt resolved to
+       -- "not_found" — a genuine receipt reporting itself as unverifiable,
+       -- which is worse than having no verification at all.
+       FROM finance_payments fp
        JOIN students s  ON s.id = fp.student_id
        JOIN people  p   ON p.id = s.person_id
        JOIN schools sch ON sch.id = s.school_id
