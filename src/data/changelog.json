@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T00:03:32.935Z",
-  "last_commit": "f2c3fc757328c248b32cdd85141086b8f45caceb",
+  "generated_at": "2026-08-13T04:57:19.451Z",
+  "last_commit": "df62272a5537903a8ca729e16ae1c54c20a7648b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6618,7 +6618,20 @@
         }
       ],
       "commit": "f2c3fc7573"
+    },
+    {
+      "version": "1.173.47",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Working payment button, real fee totals, downloadable receipts",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Working payment button, real fee totals, downloadable receipts"
+        }
+      ],
+      "commit": "df62272a55"
     }
   ],
-  "app_version": "1.173.47"
+  "app_version": "1.173.48"
 }

@@ -311,6 +311,7 @@ const LABEL_AR: Record<string, string> = {
   'Fee Items':                 'بنود الرسوم',
   'Fee Rules':                 'قواعد الرسوم',
   'Fee Circular':              'منشور الرسوم',
+  'Nexus':                     'نيكسس',
   'Bills (generate)':          'إنشاء الفواتير',
   'Money Locations':           'مواقع الأموال',
   'Ledger':                    'دفتر الأستاذ',
@@ -635,6 +636,10 @@ export function getNavigationItems(
         { key: 'appearance',      label: 'Appearance',     icon: <Palette className="w-4 h-4" />,  href: '/settings/appearance' },
         { key: 'profile',         label: 'My Profile',     icon: <UserCog className="w-4 h-4" />,  href: '/settings/profile' },
         { key: 'templates',       label: 'Templates',      icon: <FileCog className="w-4 h-4" />,  href: '/settings/templates' },
+        // Under Settings on purpose: a tool for heads, bursars and admins.
+        // In the main navigation it would be noise for every teacher and cost
+        // for the school on every idle question.
+        { key: 'nexus',           label: 'Nexus',          icon: <Sparkles className="w-4 h-4" />, href: '/settings/nexus', roles: ['admin', 'super_admin'] },
         { key: 'system-status',   label: 'System Status',  icon: <Activity className="w-4 h-4" />, href: '/settings/system' },
         { key: 'relay-setup',     label: 'Relay Setup',    icon: <Radio className="w-4 h-4" />,    href: '/settings/relay' },
         { key: 'about',           label: 'About DRAIS',    icon: <Info className="w-4 h-4" />,     href: '/about' },
