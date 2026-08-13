@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
-    const limit = parseInt(searchParams.get('limit', 10) || '50', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
 
     // Default to last 30 days if no dates provided
     const today = schoolLocalToday();

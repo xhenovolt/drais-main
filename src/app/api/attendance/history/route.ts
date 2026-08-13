@@ -189,7 +189,7 @@ export async function GET(req: NextRequest) {
     const autoReview: Array<{ device_sn: string; date: string; reason: string }> = [];
     try {
       const viewDay = dateFrom || dateTo || schoolLocalToday();
-      const settled = await settledDevices(viewDay);
+      const settled = await settledDevices(viewDay, Date.now(), schoolId);
       for (const dev of settled) {
         if (dev.schoolId !== schoolId) continue;
         if (deviceSn && dev.deviceSn !== deviceSn) continue;

@@ -266,7 +266,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const deviceSn = url.searchParams.get('device_sn');
   const directIp = url.searchParams.get('device_ip');
-  const devicePort = parseInt(url.searchParams.get('device_port', 10) || '4370', 10);
+  const devicePort = parseInt(url.searchParams.get('device_port') || '4370', 10);
   const action = url.searchParams.get('action') || 'info';
 
   // Resolve IP: prefer direct IP, fallback to SN lookup

@@ -437,15 +437,21 @@ export async function autoCorrectDay(
  * wildly wrong is still found.
  */
 export async function settledDevices(
-  localDate: string, nowMs = Date.now(),
+  localDate: string, nowMs = Date.now(), schoolId?: number,
 ): Promise<Array<{ schoolId: number; deviceSn: string; punches: number; quietMinutes: number }>> {
+  // Scoped in SQL, not just by the caller filtering afterwards. A device
+  // SERIAL is not unique to a school in this data — GED7254601154 carries
+  // rows under four different school_ids from earlier setup and testing — so
+  // anything keyed on serial alone can span tenants. Callers pass their
+  // session's school; the (school_id, device_sn) pair is the real key.
   const rows = (await query(
     `SELECT re.school_id, re.device_sn, COUNT(*) AS punches, MAX(re.ingested_at) AS last_ingest
        FROM attendance_raw_events re
       WHERE re.ingested_at >= DATE_SUB(?, INTERVAL 2 DAY)
         AND re.device_reported_time IS NOT NULL
+        ${schoolId != null ? 'AND re.school_id = ?' : ''}
       GROUP BY re.school_id, re.device_sn`,
-    [`${localDate} 23:59:59`],
+    schoolId != null ? [`${localDate} 23:59:59`, schoolId] : [`${localDate} 23:59:59`],
   ).catch(() => [])) as any[];
 
   return rows

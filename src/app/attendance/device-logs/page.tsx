@@ -18,9 +18,11 @@ import {
   Clock,
   FileText,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
+import { apiErrorMessage } from '@/lib/errorMessage';
 import { toLocalDateStr } from '@/lib/datetime/local-date';
 import clsx from 'clsx';
 
@@ -156,6 +158,13 @@ export default function DeviceObservabilityPage() {
   const [liveMode, setLiveMode]   = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // Purge dialog. A cut-off date is REQUIRED — the API refuses an unbounded
+  // delete, and the UI should never make "everything" the easy click either.
+  const [purgeOpen, setPurgeOpen]     = useState(false);
+  const [purgeBefore, setPurgeBefore] = useState('');
+  const [purgeReason, setPurgeReason] = useState('');
+  const [purgeBusy, setPurgeBusy]     = useState(false);
+
   // Build query
   const params = new URLSearchParams();
   params.set('tab',   tab);
@@ -194,6 +203,39 @@ export default function DeviceObservabilityPage() {
     showToast('success', 'Exported CSV');
   };
 
+  // Delete telemetry for the scope currently on screen. Scoped server-side to
+  // this school regardless of what is sent — these tables are shared across
+  // tenants — and it can only reach the three device-log tables, never a
+  // punch.
+  const runPurge = async () => {
+    if (!purgeBefore) { showToast('error', 'Choose a cut-off date first.'); return; }
+    setPurgeBusy(true);
+    try {
+      const res = await fetch('/api/zk/pipeline', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          tab,
+          before: purgeBefore,
+          device_sn: deviceSn || undefined,
+          reason: purgeReason.trim() || undefined,
+        }),
+      });
+      const j = await res.json().catch(() => null);
+      if (!res.ok || !j?.success) {
+        showToast('error', apiErrorMessage(j, `Delete failed (${res.status}).`));
+      } else {
+        showToast('success', j.message);
+        setPurgeOpen(false); setPurgeReason('');
+        mutate();
+      }
+    } catch (e: any) {
+      showToast('error', `Could not reach the server: ${e?.message ?? 'network error'}`);
+    } finally {
+      setPurgeBusy(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
 
@@ -215,6 +257,10 @@ export default function DeviceObservabilityPage() {
                        : 'bg-gray-100 text-gray-600 border border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600')}>
             <Radio className={clsx('w-4 h-4', liveMode && 'animate-pulse')} />
             {liveMode ? 'Live' : 'Paused'}
+          </button>
+          <button onClick={() => setPurgeOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-900/20">
+            <Trash2 className="w-4 h-4" /> Delete logs
           </button>
           <button onClick={handleExport}
             className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
@@ -244,6 +290,51 @@ export default function DeviceObservabilityPage() {
           </button>
         ))}
       </div>
+
+      {/* ── Purge dialog ───────────────────────────────────────────────
+             Deleting forensic evidence should be deliberate and legible: the
+             dialog names the exact scope, requires a cut-off date, and says
+             out loud that attendance is not involved — because "delete logs"
+             on an attendance page is a sentence that deserves to be
+             unambiguous. */}
+      {purgeOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPurgeOpen(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 className="w-5 h-5 text-rose-600" />
+              <h2 className="font-bold text-gray-900 dark:text-white">Delete device logs</h2>
+            </div>
+
+            <div className="rounded-lg bg-gray-50 dark:bg-gray-900/50 px-3 py-2 text-xs text-gray-600 dark:text-gray-300 mb-3 space-y-0.5">
+              <div><span className="font-medium">Tab:</span> {tab === 'raw' ? 'Raw Logs (and the parsed rows belonging to them)' : tab === 'errors' ? 'Errors only' : 'Parsed Logs'}</div>
+              <div><span className="font-medium">Device:</span> {deviceSn || 'all devices in this school'}</div>
+              <div><span className="font-medium">Scope:</span> this school only</div>
+            </div>
+
+            <label className="block mb-2">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">Delete everything recorded BEFORE this date <span className="text-rose-600">*</span></span>
+              <input type="date" value={purgeBefore} max={today} onChange={e => setPurgeBefore(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+            </label>
+
+            <input value={purgeReason} onChange={e => setPurgeReason(e.target.value)} placeholder="Reason (optional, recorded in the audit trail)"
+              className="w-full mb-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+              This removes device diagnostics only. <span className="font-medium text-gray-700 dark:text-gray-200">Attendance records are not touched</span> — no punch, no arrival time and no report changes. The deletion is permanent and is written to the audit trail.
+            </p>
+
+            <div className="flex gap-2">
+              <button onClick={() => setPurgeOpen(false)}
+                className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-300">Cancel</button>
+              <button onClick={runPurge} disabled={purgeBusy || !purgeBefore}
+                className="flex-1 rounded-lg bg-rose-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50">
+                {purgeBusy ? 'Deleting…' : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Summary Stats (tab-specific) ───────────────────────────────── */}
       {tab === 'raw' && (

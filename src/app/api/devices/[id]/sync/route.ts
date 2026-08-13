@@ -29,7 +29,7 @@ export async function GET(
     const schoolId = session.schoolId;
     const { id: deviceId } = await params;
     const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit', 10) || '50', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
     
     // Verify device belongs to school
     const [devices] = await connection.execute<any[]>(
