@@ -9,7 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BookOpen, Check, Plus, X, ToggleLeft, ToggleRight, BookMarked, Pencil, Trash2 } from 'lucide-react';
 
-const j = (u, opts) => fetch(u, opts).then(r => r.json());
+const j = (u, opts?) => fetch(u, opts).then(r => r.json());
 
 export default function TahfizBooksPage() {
   const [catalog, setCatalog] = useState(null);

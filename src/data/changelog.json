@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T14:04:50.621Z",
-  "last_commit": "16f227b9c53e8abcdcdd1cd4cfff70a823da6bb5",
+  "generated_at": "2026-08-13T14:54:46.834Z",
+  "last_commit": "3d355937af6bb13f99be05433e31a3c056d64ba7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6670,7 +6670,20 @@
         }
       ],
       "commit": "16f227b9c5"
+    },
+    {
+      "version": "1.173.51",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Receipts download and print; Tahfiz records can be corrected",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Receipts download and print; Tahfiz records can be corrected"
+        }
+      ],
+      "commit": "3d355937af"
     }
   ],
-  "app_version": "1.173.51"
+  "app_version": "1.173.52"
 }

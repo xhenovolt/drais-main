@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Shield, ChevronLeft, ChevronRight, RefreshCw, Search, Download, Trash2 } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { apiErrorMessage } from '@/lib/errorMessage';
 
 interface AuditLog {
   id: number;
@@ -76,7 +77,7 @@ export default function AuditLogsPage() {
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setPurgeMsg(j?.error ?? 'Deletion failed.');
+        setPurgeMsg(apiErrorMessage(j, 'Deletion failed.'));
       } else {
         setPurgeMsg(j?.message ?? `${j?.deleted ?? 0} deleted.`);
         setPurgeReason('');
@@ -96,8 +97,14 @@ export default function AuditLogsPage() {
       const params = new URLSearchParams({ page: String(page), limit: '50' });
       if (actionFilter.trim()) params.set('action', actionFilter.trim());
       const res  = await fetch(`/api/admin/audit-logs?${params}`);
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error ?? 'Failed to load logs');
+      const data = await res.json().catch(() => null);
+      // DRAIS returns errors in two shapes; `data.error` is a string in one and
+      // an object in the other. Passing the object straight to new Error() made
+      // this screen display "[object Object]" in place of the audit trail
+      // whenever a session expired or a permission was missing.
+      if (!res.ok || !data?.success) {
+        throw new Error(apiErrorMessage(data, `Could not load the audit trail (${res.status}).`));
+      }
       setLogs(data.data);
       setPagination(data.pagination);
     } catch (e: any) {
