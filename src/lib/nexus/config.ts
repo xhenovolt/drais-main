@@ -13,10 +13,21 @@
  * point at xAI because that is what this was set up with.
  *
  * THE KEY IS NEVER IN THE SOURCE
- * It lives in `platform_settings`, written through the settings screen. A key
- * pasted into a file would be committed to three GitHub repositories and be
- * unrotatable without a deploy. `getNexusConfig` masks it on read; only the
- * server-side caller that actually makes the request sees the real value.
+ * Two places only, checked in this order:
+ *
+ *   1. platform_settings  — written through the settings screen, rotatable
+ *                           without a deploy. Wins when present.
+ *   2. NEXUS_API_KEY      — environment. Used for local development and for
+ *                           hosts that manage secrets as env config (Vercel).
+ *
+ * Never a constant in a file: that would be committed to three GitHub
+ * repositories and be unrotatable without a deploy. `.env.local` is
+ * gitignored, which is what makes the environment route safe — and note it is
+ * LOCAL ONLY, so production needs the same variable set in the host.
+ *
+ * `getNexusConfig` masks the key on read and reports which source is in force;
+ * only `getNexusApiKey`, called server-side at request time, sees the real
+ * value.
  */
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
 
@@ -30,6 +41,8 @@ export interface NexusConfig {
   hasKey:   boolean;
   /** Masked for display, e.g. "xai-…mLscYJ". */
   keyHint:  string | null;
+  /** Where the key came from, so the screen can say which one is in force. */
+  keySource: 'settings' | 'environment' | null;
 }
 
 const KEYS = {
@@ -52,25 +65,49 @@ function mask(key: string | null): string | null {
 
 /** Safe for a client: never includes the key. */
 export async function getNexusConfig(): Promise<NexusConfig> {
-  const [enabled, baseUrl, model, apiKey] = await Promise.all([
+  const [enabled, baseUrl, model, storedKey] = await Promise.all([
     getSetting(KEYS.enabled).catch(() => null),
     getSetting(KEYS.baseUrl).catch(() => null),
     getSetting(KEYS.model).catch(() => null),
     getSetting(KEYS.apiKey).catch(() => null),
   ]);
+
+  // Mirrors getNexusApiKey's order, so the screen cannot report "no key" while
+  // a request would in fact succeed from the environment — a mismatch that
+  // would send someone hunting for a problem that is not there.
+  const effectiveKey = storedKey?.trim() || process.env.NEXUS_API_KEY?.trim() || null;
+  const fromEnv = !storedKey?.trim() && !!process.env.NEXUS_API_KEY?.trim();
+
   return {
-    enabled: enabled === '1',
-    baseUrl: baseUrl?.trim() || DEFAULT_BASE_URL,
-    model:   model?.trim()   || DEFAULT_MODEL,
-    hasKey:  !!apiKey?.trim(),
-    keyHint: mask(apiKey),
+    enabled: enabled === '1'
+      // A key present in the environment implies intent to use it, so Nexus is
+      // usable on a fresh deploy without someone first finding a checkbox.
+      || (enabled === null && fromEnv),
+    baseUrl: baseUrl?.trim() || process.env.NEXUS_BASE_URL?.trim() || DEFAULT_BASE_URL,
+    model:   model?.trim()   || process.env.NEXUS_MODEL?.trim()    || DEFAULT_MODEL,
+    hasKey:  !!effectiveKey,
+    keyHint: mask(effectiveKey),
+    keySource: effectiveKey ? (fromEnv ? 'environment' : 'settings') : null,
   };
 }
 
-/** Server-only. Never expose the result through an API response. */
+/**
+ * Server-only. Never expose the result through an API response.
+ *
+ * RESOLUTION ORDER: stored setting first, environment second.
+ *
+ * The setting wins because it is the one an operator can rotate from the
+ * screen without a deploy. The environment variable is the fallback for
+ * local development and for hosts where secrets are managed as env config
+ * (Vercel), so the key never has to live in a file inside the repository.
+ *
+ * Both are read here and NOWHERE else, so there is exactly one place that
+ * touches the raw key.
+ */
 export async function getNexusApiKey(): Promise<string | null> {
-  const k = await getSetting(KEYS.apiKey).catch(() => null);
-  return k?.trim() || null;
+  const stored = await getSetting(KEYS.apiKey).catch(() => null);
+  if (stored?.trim()) return stored.trim();
+  return process.env.NEXUS_API_KEY?.trim() || null;
 }
 
 export async function saveNexusConfig(patch: {

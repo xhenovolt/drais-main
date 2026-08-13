@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T04:57:19.451Z",
-  "last_commit": "df62272a5537903a8ca729e16ae1c54c20a7648b",
+  "generated_at": "2026-08-13T05:15:46.173Z",
+  "last_commit": "e8eaae139dc33631248ca20cb45baa49b04aede9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6631,7 +6631,20 @@
         }
       ],
       "commit": "df62272a55"
+    },
+    {
+      "version": "1.173.48",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Ask questions about your school's records",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Ask questions about your school's records"
+        }
+      ],
+      "commit": "e8eaae139d"
     }
   ],
-  "app_version": "1.173.48"
+  "app_version": "1.173.49"
 }

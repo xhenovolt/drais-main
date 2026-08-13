@@ -143,12 +143,21 @@ export default function NexusPage() {
 
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-              Key {cfg?.hasKey && <span className="font-normal text-slate-400">· currently {cfg.keyHint}</span>}
+              Key {cfg?.hasKey && (
+                <span className="font-normal text-slate-400">
+                  · currently {cfg.keyHint}
+                  {/* Naming the source matters: a key from the environment
+                      cannot be changed here, and without saying so an operator
+                      would type a new one, save, and wonder why nothing moved. */}
+                  {cfg.keySource === 'environment' ? ' (from server environment)' : ' (saved here)'}
+                </span>
+              )}
             </label>
             <input type="password" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
               placeholder={cfg?.hasKey ? 'Leave blank to keep the current key' : 'Paste the provider key'} className={input} />
             <p className="text-[10px] text-slate-400 mt-1">
               Stored on the server and never shown again. Leave blank to keep the existing key.
+              {cfg?.keySource === 'environment' && ' A key saved here overrides the one in the server environment.'}
             </p>
           </div>
 
