@@ -782,7 +782,7 @@
       "commit": "b961ff9bfe"
     },
     {
-      "version": "1.2.1",
+      "version": "1.2.0",
       "date": "2026-08-14",
       "release_type": "patch",
       "title": "Align release metadata to DRAIS 1.2.0",
@@ -6892,5 +6892,5 @@
       "commit": "d10bdb3c44"
     }
   ],
-  "app_version": "1.2.1"
+  "app_version": "1.2.0"
 }
