@@ -149,8 +149,14 @@ const AssignPortionModal: React.FC<AssignPortionModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!response.ok) throw new Error('Failed to create portion');
-      return response.json();
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.message || 'Failed to create portion');
+      }
+
+      return payload;
     },
     onSuccess: () => {
       showToast('success', 'Portion(s) assigned successfully');

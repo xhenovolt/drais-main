@@ -50,7 +50,7 @@ export default function TahfizOverview() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(index, 20) * 0.1 }}
-              className="glass-surface rounded-2xl p-6 shadow-lg"
+              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -77,7 +77,7 @@ export default function TahfizOverview() {
                 transition={{ delay: Math.min(index, 20) * 0.1 }}
               >
                 <Link href={action.href}>
-                  <div className="glass-surface rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer">
+                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-md group cursor-pointer">
                     <div className="flex items-center space-x-3 mb-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <action.icon className="w-5 h-5 text-primary" />
@@ -95,7 +95,7 @@ export default function TahfizOverview() {
         </div>
 
         {/* Recent Activity */}
-        <div className="glass-surface rounded-2xl p-6 shadow-lg">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center">
             <Clock className="w-5 h-5 mr-2" />
             {t('operations.auditTrail')}

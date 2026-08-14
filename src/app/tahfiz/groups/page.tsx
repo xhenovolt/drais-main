@@ -55,6 +55,11 @@ export default function TahfizGroups() {
   const { user } = useAuth();
   const schoolId = user?.schoolId ?? 0; // real session school
 
+  const toNumber = (value: unknown, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
   useEffect(() => {
     fetchGroups();
     fetchTeachers();
@@ -81,10 +86,10 @@ export default function TahfizGroups() {
         // Ensure proper data structure with defaults
         const processedGroups = (data.data || []).map((group: any) => ({
           ...group,
-          progress: group.progress || 0,
-          studentCount: group.studentCount || group.member_count || 0,
-          completedSessions: group.completedSessions || 0,
-          totalSessions: group.totalSessions || 0,
+          progress: toNumber(group.progress, 0),
+          studentCount: toNumber(group.studentCount ?? group.member_count, 0),
+          completedSessions: toNumber(group.completedSessions, 0),
+          totalSessions: toNumber(group.totalSessions, 0),
           status: group.status || 'active',
           created_at: group.created_at || new Date().toISOString(),
           teacher: group.teacher_name || group.teacher || 'Unknown Teacher'
@@ -200,8 +205,8 @@ export default function TahfizGroups() {
   };
 
   const filteredGroups = groups.filter(group =>
-    group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    group.teacher.toLowerCase().includes(searchTerm.toLowerCase())
+    (group.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (group.teacher || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleViewMembers = (group: Group) => {
@@ -241,7 +246,7 @@ export default function TahfizGroups() {
         </div>
 
         {/* Search */}
-        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
             <input
@@ -278,7 +283,7 @@ export default function TahfizGroups() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: Math.min(index, 20) * 0.1 }}
-                className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-md group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
@@ -333,7 +338,7 @@ export default function TahfizGroups() {
                       <div className="text-xs text-muted-foreground">Students</div>
                     </div>
                     <div className="text-center p-3 bg-muted rounded-xl">
-                      <div className="text-2xl font-bold text-foreground">{(group.progress || 0).toFixed(0)}%</div>
+                      <div className="text-2xl font-bold text-foreground">{Math.round(toNumber(group.progress, 0))}%</div>
                       <div className="text-xs text-muted-foreground">Progress</div>
                     </div>
                   </div>
@@ -371,7 +376,7 @@ export default function TahfizGroups() {
                   <div className="w-full bg-slate-200 rounded-full h-2">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${group.progress || 0}%` }}
+                      animate={{ width: `${Math.min(Math.max(toNumber(group.progress, 0), 0), 100)}%` }}
                       transition={{ delay: Math.min(index, 20) * 0.1 + 0.3, duration: 0.8 }}
                       className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full"
                     />
@@ -384,7 +389,7 @@ export default function TahfizGroups() {
 
         {/* Empty State */}
         {!loading && filteredGroups.length === 0 && (
-          <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-white/20 text-center">
+          <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-sm">
             <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
               <Users className="w-10 h-10 text-muted-foreground" />
             </div>

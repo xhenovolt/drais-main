@@ -248,17 +248,12 @@ html[dir="rtl"] [data-no-mirror] {
    `.glass-panel` is kept as an alias for the pre-existing callers. */
 .glass-surface,
 .glass-panel {
-  background-color: var(--card);        /* solid fallback (no @supports / no blur) */
-  border: var(--glass-border);
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-}
-@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  .glass-surface,
-  .glass-panel {
-    background-color: var(--glass-bg);
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    backdrop-filter: blur(var(--glass-blur));
-  }
+  box-shadow: var(--shadow-sm);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 [data-sidebar][data-collapsed='true'] { --sidebar-width: 5rem; }
