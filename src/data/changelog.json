@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T20:57:09.922Z",
-  "last_commit": "2fd3a96780d13e98ba3baa9c1ed740470b03fa1f",
+  "generated_at": "2026-08-14T13:48:52.717Z",
+  "last_commit": "d10bdb3c44af0afdd83c318770065166064a9973",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6826,7 +6826,20 @@
         }
       ],
       "commit": "2fd3a96780"
+    },
+    {
+      "version": "1.173.63",
+      "date": "2026-08-13",
+      "release_type": "patch",
+      "title": "Curriculum creation was impossible - TINYINT primary key",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Curriculum creation was impossible - TINYINT primary key"
+        }
+      ],
+      "commit": "d10bdb3c44"
     }
   ],
-  "app_version": "1.173.63"
+  "app_version": "1.173.64"
 }

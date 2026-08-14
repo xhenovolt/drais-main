@@ -1,0 +1,456 @@
+<title>DRAIS — One-Year Production Readiness Audit</title>
+<style>
+  :root{
+    --paper:#EFF2F4; --surface:#FFFFFF; --surface-2:#F7F9FA;
+    --ink:#0D1417; --ink-2:#33434C; --muted:#64757F; --hair:#D3DCE1;
+    --accent:#125E56; --accent-soft:#DCEDE9;
+    --crit:#9E1C24; --crit-soft:#F7E2E3;
+    --warn:#8A5A06; --warn-soft:#F9EEDA;
+    --ok:#256039; --ok-soft:#DFEDE3;
+    --shadow:0 1px 2px rgba(13,20,23,.06),0 8px 24px -16px rgba(13,20,23,.28);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#0B1013; --surface:#121A1E; --surface-2:#162026;
+      --ink:#E6EDF0; --ink-2:#B3C2C9; --muted:#7E9099; --hair:#25343B;
+      --accent:#4FB8A8; --accent-soft:#12302C;
+      --crit:#F08A8F; --crit-soft:#3A1417;
+      --warn:#E0AE58; --warn-soft:#372613;
+      --ok:#79C696; --ok-soft:#14301F;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0B1013; --surface:#121A1E; --surface-2:#162026;
+    --ink:#E6EDF0; --ink-2:#B3C2C9; --muted:#7E9099; --hair:#25343B;
+    --accent:#4FB8A8; --accent-soft:#12302C;
+    --crit:#F08A8F; --crit-soft:#3A1417;
+    --warn:#E0AE58; --warn-soft:#372613;
+    --ok:#79C696; --ok-soft:#14301F;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:16px;line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:60rem;margin:0 auto;padding:2.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:2.75rem}
+
+  .eyebrow{
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);margin:0;
+  }
+  h1{font-size:clamp(1.9rem,4.6vw,2.9rem);line-height:1.1;letter-spacing:-.022em;margin:.5rem 0 0;text-wrap:balance;font-weight:660}
+  h2{font-size:1.32rem;letter-spacing:-.012em;margin:0;font-weight:640;text-wrap:balance}
+  h3{font-size:1rem;margin:0;font-weight:640;letter-spacing:-.005em}
+  p{margin:0;max-width:66ch}
+  a{color:var(--accent)}
+  strong{font-weight:640}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface-2);border:1px solid var(--hair);border-radius:4px;padding:.08em .34em}
+
+  header.masthead{border-bottom:2px solid var(--ink);padding-bottom:1.5rem;display:flex;flex-direction:column;gap:.4rem}
+  .meta{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-top:.9rem}
+  .meta b{color:var(--ink-2);font-weight:500}
+
+  section{display:flex;flex-direction:column;gap:1rem}
+  .sec-head{display:flex;align-items:baseline;gap:.85rem;border-bottom:1px solid var(--hair);padding-bottom:.6rem}
+  .sec-num{font-family:var(--mono);font-size:.72rem;color:var(--accent);letter-spacing:.08em;flex:none}
+
+  /* verdict */
+  .verdict{
+    background:var(--surface);border:1px solid var(--hair);border-left:5px solid var(--warn);
+    border-radius:3px;padding:1.5rem 1.6rem;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:.85rem;
+  }
+  .verdict .badge{
+    font-family:var(--mono);font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--warn);background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 32%,transparent);
+    padding:.3rem .6rem;border-radius:3px;align-self:flex-start;font-weight:600;
+  }
+  .verdict h2{font-size:1.5rem}
+
+  /* scorecard */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(13.5rem,1fr));gap:.75rem}
+  .stat{background:var(--surface);border:1px solid var(--hair);border-radius:3px;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.18rem}
+  .stat .k{font-family:var(--mono);font-size:.66rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+  .stat .v{font-family:var(--mono);font-size:1.5rem;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .stat .n{font-size:.79rem;color:var(--ink-2);line-height:1.45}
+  .stat.is-crit{border-left:3px solid var(--crit)} .stat.is-crit .v{color:var(--crit)}
+  .stat.is-warn{border-left:3px solid var(--warn)} .stat.is-warn .v{color:var(--warn)}
+  .stat.is-ok{border-left:3px solid var(--ok)}     .stat.is-ok .v{color:var(--ok)}
+
+  /* tables */
+  .tw{overflow-x:auto;border:1px solid var(--hair);border-radius:3px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:.83rem;min-width:38rem}
+  th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hair);vertical-align:top}
+  th{
+    font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);font-weight:500;background:var(--surface-2);position:sticky;top:0;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .mono{font-family:var(--mono);font-size:.82em}
+
+  .pill{
+    display:inline-block;font-family:var(--mono);font-size:.64rem;letter-spacing:.07em;
+    padding:.14rem .42rem;border-radius:3px;white-space:nowrap;font-weight:600;text-transform:uppercase;
+  }
+  .p-crit{background:var(--crit-soft);color:var(--crit)}
+  .p-warn{background:var(--warn-soft);color:var(--warn)}
+  .p-ok{background:var(--ok-soft);color:var(--ok)}
+  .p-neu{background:var(--surface-2);color:var(--muted);border:1px solid var(--hair)}
+
+  .callout{border:1px solid var(--hair);border-left:4px solid var(--accent);background:var(--surface);border-radius:3px;padding:1rem 1.15rem;display:flex;flex-direction:column;gap:.5rem}
+  .callout.crit{border-left-color:var(--crit)}
+  .callout.warn{border-left-color:var(--warn)}
+  .callout h3{font-size:.94rem}
+
+  ul,ol{margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.34rem;max-width:66ch}
+  li::marker{color:var(--muted)}
+
+  .ev{
+    font-family:var(--mono);font-size:.76rem;line-height:1.65;background:var(--surface-2);
+    border:1px solid var(--hair);border-radius:3px;padding:.75rem .9rem;overflow-x:auto;white-space:pre;color:var(--ink-2)
+  }
+  .split{display:grid;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));gap:.75rem}
+  .card{background:var(--surface);border:1px solid var(--hair);border-radius:3px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.45rem}
+  .card .lbl{font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+  footer{border-top:1px solid var(--hair);padding-top:1.25rem;color:var(--muted);font-size:.8rem;display:flex;flex-direction:column;gap:.4rem}
+  @media (max-width:34rem){ .wrap{padding:1.75rem 1rem 4rem} th{position:static} }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Production Reliability Audit · Evidence-based</p>
+  <h1>Can a school depend on DRAIS for twelve months without you?</h1>
+  <p style="color:var(--ink-2);margin-top:.4rem">Every finding below was measured against the live production database and the current <code>main</code> tree. No claim rests on documentation, comments, or prior reports.</p>
+  <div class="meta">
+    <span><b>Commit</b> 674a09d3</span>
+    <span><b>Version</b> 1.173.29</span>
+    <span><b>Schema</b> 294 tables</span>
+    <span><b>Schools</b> 23 (17 with modules)</span>
+    <span><b>Date</b> 2026-08-10</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <span class="badge">Verdict · Yes, with hardening</span>
+  <h2>The architecture is sound. Four specific defects stand between it and a year of autonomy.</h2>
+  <p>The things that are hardest to retrofit — multi-tenant isolation, attendance ingestion, soft-delete recovery, audit logging — are genuinely built and working in production. That is the expensive part, and it is done.</p>
+  <p>What is missing is not architecture but <strong>enforcement and housekeeping</strong>: an unenforced login lockout, a client-writable role cookie, payments that are not atomic, and log tables growing without bound. All four are patch-or-minor work, none require redesign.</p>
+  <p><strong>One scoped exception:</strong> Finance is enabled for all 18 schools but has 4 recorded payments in its entire history. It has never been load-bearing. If a school begins relying on it for a full academic year, the transaction and reconciliation gaps below become blocking. Attendance and Academics can carry a year today; Finance cannot yet.</p>
+</div>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>How this was measured</h2></div>
+  <p>Three instruments, all reproducible:</p>
+  <ul>
+    <li><strong>Schema diff.</strong> Extracted all 291 distinct table names referenced in SQL across <code>src/</code> and diffed against <code>information_schema</code> on the live database.</li>
+    <li><strong>Static audit of 692 API routes</strong> for session derivation, permission checks, transaction boundaries, and SQL interpolation.</li>
+    <li><strong>Direct production queries</strong> for row counts, constraint coverage, index coverage, and module enablement.</li>
+  </ul>
+  <p>Read-only throughout. Nothing was modified during the audit.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>System inventory</h2></div>
+  <div class="grid">
+    <div class="stat"><span class="k">UI routes</span><span class="v">279</span><span class="n">across 25 product areas</span></div>
+    <div class="stat"><span class="k">API endpoints</span><span class="v">692</span><span class="n">416 run SQL in the school domain</span></div>
+    <div class="stat"><span class="k">Database tables</span><span class="v">294</span><span class="n">210 carry <code>school_id</code></span></div>
+    <div class="stat is-crit"><span class="k">Referenced but absent</span><span class="v">37</span><span class="n">tables queried by code that do not exist</span></div>
+    <div class="stat is-ok"><span class="k">Tenant-scoped routes</span><span class="v">411/416</span><span class="n">the 5 exceptions are non-tenant utilities</span></div>
+    <div class="stat is-crit"><span class="k">Foreign keys</span><span class="v">42</span><span class="n">across 294 tables — integrity is application-enforced</span></div>
+    <div class="stat is-warn"><span class="k">Routes using transactions</span><span class="v">43/692</span><span class="n">finance: 6 of 56</span></div>
+    <div class="stat is-warn"><span class="k">Routes logging audit</span><span class="v">67/692</span><span class="n">8,174 audit rows recorded</span></div>
+    <div class="stat is-crit"><span class="k">Scheduled crons</span><span class="v">1 of 6</span><span class="n">5 cron routes exist but are never invoked</span></div>
+  </div>
+  <p>Largest product areas by page count: Control Center (51), Finance (24), Attendance (22), Academics (22), Admin (20), Students (19). Largest API domains: Attendance (90), Students (64), Admin (62), Finance (56).</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Module classification</h2></div>
+  <div class="tw"><table>
+    <thead><tr><th>Module</th><th>Enabled</th><th>Class</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Attendance</strong></td><td class="num">17/17</td><td><span class="pill p-ok">A</span></td><td>15,262 records, 13,914 raw events, ingestion live for 2 schools. Recovery UI present.</td></tr>
+      <tr><td><strong>Academics / Examinations</strong></td><td class="num">17/17</td><td><span class="pill p-ok">A</span></td><td>19,003 class results, 16,579 results, 175 exams.</td></tr>
+      <tr><td><strong>Students</strong></td><td class="num">—</td><td><span class="pill p-ok">A</span></td><td>6,124 students, 7,378 enrolments, import has preview + dedupe.</td></tr>
+      <tr><td><strong>Control Center</strong></td><td class="num">—</td><td><span class="pill p-ok">A</span></td><td>Isolated auth domain, bcrypt, login throttling present.</td></tr>
+      <tr><td><strong>Finance</strong></td><td class="num">18/18</td><td><span class="pill p-warn">B</span></td><td>16,722 fee items but only <strong>4 payments</strong> and 0 ledger rows. Untested at load.</td></tr>
+      <tr><td><strong>Devices / Biometric</strong></td><td class="num">17/17</td><td><span class="pill p-warn">B</span></td><td>2,381 enrolments; 604 unmatched punches, 297 pending device users.</td></tr>
+      <tr><td><strong>Reporting / DRCE</strong></td><td class="num">17/17</td><td><span class="pill p-warn">B</span></td><td>Results healthy, but <code>report_cards</code> table is empty and 4 template tables absent.</td></tr>
+      <tr><td><strong>Parent portal</strong></td><td class="num">—</td><td><span class="pill p-neu">D</span></td><td><code>parents</code> and <code>student_parents</code> both 0 rows. Dormant, harmless.</td></tr>
+      <tr><td><strong>Payroll</strong></td><td class="num">17/17</td><td><span class="pill p-crit">E</span></td><td>Enabled everywhere; <code>staff_salaries</code> and <code>salary_payments</code> both 0. Visible and misleading.</td></tr>
+      <tr><td><strong>Tahfiz</strong></td><td class="num">14/17</td><td><span class="pill p-crit">E</span></td><td>Enabled for 14 schools; all six <code>tahfiz_*</code> tables empty. Visible and misleading.</td></tr>
+      <tr><td><strong>Inventory</strong></td><td class="num">17/17</td><td><span class="pill p-crit">F</span></td><td>Analytics reads <code>store_items</code> / <code>store_transactions</code> — neither exists. Hard 500.</td></tr>
+      <tr><td><strong>Timetable</strong></td><td class="num">—</td><td><span class="pill p-crit">F</span></td><td>All three tables absent, no alternative schema. Never functioned.</td></tr>
+      <tr><td><strong>CAFE / Curriculum</strong></td><td class="num">—</td><td><span class="pill p-crit">F</span></td><td>Six tables absent. Entire <code>src/lib/cafe</code> subsystem non-functional.</td></tr>
+      <tr><td><strong>Requirements</strong></td><td class="num">—</td><td><span class="pill p-crit">F</span></td><td>Reads 3 absent tables while <code>requirements_master</code> exists unused.</td></tr>
+      <tr><td><strong>Global search</strong></td><td class="num">—</td><td><span class="pill p-crit">F</span></td><td><code>search_index</code> absent.</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Class E is the important distinction.</strong> Payroll and Tahfiz are not merely unfinished — they are enabled for every school and reachable from the sidebar, so staff will enter data into features that cannot store it. That is worse than a module that is switched off.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Security</h2></div>
+
+  <div class="callout crit">
+    <h3><span class="pill p-crit">P1</span> &nbsp;School login has no brute-force protection</h3>
+    <p><code>/api/auth/login</code> increments <code>failed_login_attempts</code> on every failure and resets it on success — but <strong>never reads it</strong>. The only status check is for an already-<code>locked</code> account, and nothing in the codebase sets that status from attempt count. Password guessing against a school account is unlimited and unthrottled.</p>
+    <p>The Control Center, by contrast, has a proper throttle in <code>src/lib/control/login-guard.ts</code> with a windowed backoff. The protection exists; it was never applied to the surface that 34 active users log in through.</p>
+  </div>
+
+  <div class="callout crit">
+    <h3><span class="pill p-crit">P1</span> &nbsp;The role cookie is client-writable, and 13 admin routes rely on it</h3>
+    <p>Middleware gates <code>/admin/users</code>, <code>/finance</code>, <code>/api/admin</code> and <code>/api/finance</code> on the <code>drais_role</code> cookie — which login sets with <code>httpOnly: false</code> so the middleware can read it. Anything the browser can read, the browser can rewrite.</p>
+    <p>That is survivable where the route re-checks permissions server-side. Finance does: 51 of 56 routes call <code>requirePermission</code>. <strong>Admin does not</strong> — 30 of 62 routes skip it, and 13 of those expose write methods:</p>
+    <div class="ev">admin/users/route.ts               GET POST
+admin/users/[id]/route.ts          PATCH DELETE
+admin/permissions/sync/route.ts    POST GET
+admin/classes/[id]/teacher/route.ts GET POST
+admin/school-hours/route.ts        GET PUT DELETE
+admin/staff/[id]/employment/route.ts GET POST</div>
+    <p>A Teacher or Receptionist who edits one cookie value reaches user creation, user deletion, and permission sync. <strong>Tenant isolation still holds</strong> — every one of these derives <code>school_id</code> from the session, so this is privilege escalation <em>within</em> a school, not across schools. That is what keeps it P1 rather than P0.</p>
+  </div>
+
+  <div class="split">
+    <div class="card"><span class="lbl">Holds up well</span>
+      <ul>
+        <li><strong>Password hashing:</strong> bcrypt <code>$2b$12</code> for 38 of 39 users, one legacy <code>$2a$10</code>.</li>
+        <li><strong>Session cookie:</strong> <code>httpOnly</code>, <code>secure</code> in production, <code>sameSite: lax</code>.</li>
+        <li><strong>SQL injection:</strong> no user input reaches a query unparameterised. All 55 interpolation sites splice either allow-listed fragments or integers clamped through <code>Math.min/Math.max(parseInt(...))</code>.</li>
+        <li><strong>Platform API:</strong> bearer auth with its own rate limiter.</li>
+      </ul>
+    </div>
+    <div class="card"><span class="lbl">Open, lower severity</span>
+      <ul>
+        <li><span class="pill p-warn">P2</span> No CSRF token anywhere. Mitigated by <code>sameSite: lax</code>, which blocks the cross-site POST case in current browsers.</li>
+        <li><span class="pill p-warn">P2</span> Audit logging covers 67 of 692 routes (~10%). Deletions and finance are covered; most configuration changes are not.</li>
+        <li><span class="pill p-neu">P3</span> One legacy bcrypt cost factor to upgrade on next login.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Multi-tenant isolation</h2></div>
+  <p>This is the strongest area of the system, and it is the one that would have been most expensive to fix late.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Test</th><th>Result</th><th>Assessment</th></tr></thead>
+    <tbody>
+      <tr><td>School-domain routes running SQL</td><td class="num">416</td><td>—</td></tr>
+      <tr><td>Referencing session or <code>school_id</code></td><td class="num">411</td><td><span class="pill p-ok">Pass</span> the 5 exceptions are heartbeat, relay-status, document-types, schools-available, feature-flags</td></tr>
+      <tr><td>Reading <code>school_id</code> from the request</td><td class="num">11</td><td><span class="pill p-ok">Pass</span> spot-checked: gated on <code>session.isSuperAdmin</code> or overridden by session</td></tr>
+      <tr><td>Tables carrying <code>school_id</code></td><td class="num">210 / 294</td><td><span class="pill p-ok">Pass</span> tables without it are lookups or join through one that has it</td></tr>
+      <tr><td>Indexes leading on <code>school_id</code></td><td class="num">224</td><td><span class="pill p-warn">Gap</span> see performance</td></tr>
+    </tbody>
+  </table></div>
+  <p>Verified by reading, not by trusting: <code>/api/students/full</code> — the largest export endpoint in the system — carries the comment <em>"Derive school_id from authenticated session — never from query params"</em> and does exactly that, including explicitly excluding <code>school_id</code> from its field-sanitiser so it cannot be overridden by payload.</p>
+  <p><strong>No cross-tenant leak was found.</strong> The two leaks fixed earlier this week in the finance reports were real, which makes the remaining 411 routes evidence of a pattern that is applied deliberately rather than accidentally.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Data integrity</h2></div>
+
+  <div class="callout crit">
+    <h3><span class="pill p-crit">Must fix</span> &nbsp;Payments are not atomic</h3>
+    <p>43 of 692 routes open a transaction. In Finance it is <strong>6 of 56</strong>. Recording a payment writes to <code>finance_payments</code>, <code>student_ledger</code>, and updates <code>student_fee_items.paid</code> / <code>.balance</code>. Without a transaction boundary, a failure between those writes leaves a payment recorded with a balance not reduced, or the reverse.</p>
+    <p>This has not yet caused damage because only 4 payments exist. It becomes near-certain within a term of real use.</p>
+  </div>
+
+  <div class="split">
+    <div class="card"><span class="lbl">Referential integrity</span>
+      <p><strong>42 foreign keys across 294 tables.</strong> Integrity is almost entirely application-enforced. The system is already showing the consequence:</p>
+      <div class="ev">school 12004 (Jinja Progressive)
+  students        0
+  enrolments    109  ← orphaned</div>
+      <p>109 active enrolments referencing students that are deleted or absent. Any class list or report for that school under-reports today.</p>
+    </div>
+    <div class="card"><span class="lbl">Recovery works</span>
+      <p><strong>1,469 of 6,124 students are soft-deleted and restorable</strong> — 24% of the table. <code>/admin/trash</code> and the restore endpoints are real and exercised. 45 tables carry <code>deleted_at</code>.</p>
+      <p>The caveat: only 45 of 294 tables have soft delete, so deletion in the other 249 is permanent. Audit log is active with 8,174 rows, most recent yesterday.</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <h3><span class="pill p-warn">Should fix</span> &nbsp;Soft-delete filters are omitted in places</h3>
+    <p>Measured directly: <strong>14 of 279 staff rows are soft-deleted</strong>, and until this week none of the six staff-payroll analytics queries filtered <code>deleted_at</code>. That class of omission is invisible in review and shows up as two numbers on the same screen disagreeing. A codebase-wide sweep is warranted, not just the routes already found.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>Attendance — the one-year test</h2></div>
+  <p>Attendance is the most production-critical module and the most mature. It survives the founder test with two named gaps.</p>
+  <div class="grid">
+    <div class="stat is-ok"><span class="k">Records evaluated</span><span class="v">15,262</span><span class="n">present 8,262 · late 2,571 · absent 2,477</span></div>
+    <div class="stat is-ok"><span class="k">Raw events preserved</span><span class="v">13,914</span><span class="n">raw punches retained independently of evaluation</span></div>
+    <div class="stat is-warn"><span class="k">Unmatched punches</span><span class="v">604</span><span class="n">4.3% credited to nobody</span></div>
+    <div class="stat is-warn"><span class="k">Pending device users</span><span class="v">297</span><span class="n">awaiting identity mapping</span></div>
+  </div>
+  <p><strong>What works without you:</strong> raw punches are preserved separately from evaluation, so a mapping error is recoverable rather than destructive. Clock drift is handled — <code>punch_at</code> records the true server instant while dedup uses device-reported time, and there are 18 recorded clock corrections and 5 time baselines in production. Recovery UI exists at <code>/attendance/biometric/unassigned</code>, <code>/attendance/identity-matching</code>, <code>/attendance/time-health</code>, and devices can be acquired and released from <code>/admin/devices</code>.</p>
+  <div class="callout warn">
+    <h3>Two gaps that will need you</h3>
+    <ul>
+      <li><strong>Attendance analytics reads dead tables.</strong> <code>student_attendance</code> and <code>staff_attendance</code> hold 0 rows; the engine writes <code>attendance_records</code>. The endpoint returns success with empty arrays, so it reads as "no data yet" rather than as a fault. 15,262 records are invisible to every analytics surface.</li>
+      <li><strong>604 unmatched punches have a UI but no workflow that drives an admin to it.</strong> Nothing surfaces the backlog on the dashboard, so it accumulates silently until someone asks why a learner's attendance is missing.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>Finance — the one-year test</h2></div>
+  <div class="callout crit">
+    <h3>Finance has never been load-bearing, and its safety mechanisms are the least developed</h3>
+    <div class="ev">student_fee_items   16,722    charges raised
+student_ledger      16,613    16,610 debits / 5 credits
+finance_payments         4    payments recorded, all schools, all time
+ledger                   0    general ledger unused
+expenditures             0    no expense side exists
+fee_invoices             0
+receipts                 4</div>
+    <p>A ratio of 16,610 debits to 5 credits means schools have raised fees extensively and recorded essentially no receipts. Every finance report is therefore untested against real data — including the Income Statement and Balance Sheet fixes shipped this week, which have never had figures to be right or wrong about.</p>
+  </div>
+  <p><strong>Present:</strong> fee structures, waivers, discounts, an adjustment endpoint (<code>/api/finance/adjust</code>), reversal affordances on the ledger and payments pages, and permission coverage at 51 of 56 routes — the best-governed area in the codebase.</p>
+  <p><strong>Missing for a year of real use:</strong> transaction boundaries on payment writes (6 of 56 routes); no reconciliation screen; the general ledger and expenditure side unused, so no Income Statement can balance; and no maker-checker on payments despite <code>finance.payments.record</code> and <code>.refund</code> existing in the permission catalogue with no route consuming them.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">09</span><h2>Performance and scale</h2></div>
+  <div class="callout crit">
+    <h3><span class="pill p-crit">Architectural risk</span> &nbsp;Unbounded log growth with no retention job</h3>
+    <p>These figures come from <strong>3 devices across 2 active schools</strong>:</p>
+    <div class="ev">zk_parsed_logs      266,551
+zk_device_logs      150,536
+system_logs          54,476
+zk_raw_logs          54,385
+device_heartbeats    44,956
+                 ─────────
+                    570,904 rows of device telemetry</div>
+    <p>That is 37× the volume of the attendance records they produced. No retention or pruning job exists, and the cron that might have run one is not scheduled. At 50 schools with 3 devices each this is on the order of 28 million rows within a year, on tables that back operational screens.</p>
+  </div>
+  <div class="callout warn">
+    <h3><span class="pill p-warn">Needs optimisation</span> &nbsp;Hot tables with no leading <code>school_id</code> index</h3>
+    <div class="ev">student_ledger   16,613 rows    no index leading on school_id
+people            7,130 rows    no index leading on school_id
+staff               279 rows
+exams               175 rows</div>
+    <p>224 indexes across the schema do lead with <code>school_id</code>, so the pattern is understood — these are omissions, not a design choice. <code>student_ledger</code> and <code>people</code> are on the path of every fee and every name lookup; both become full scans as tenancy grows.</p>
+  </div>
+  <div class="callout crit">
+    <h3><span class="pill p-crit">Must fix</span> &nbsp;Five cron routes exist and none of them run</h3>
+    <div class="ev">vercel.json schedules:  /api/result-deadlines        ✓ daily 06:00
+
+Present in code, never invoked:
+  /api/cron/notification-drain
+  /api/cron/device-status
+  /api/cron/aggregate-refresh
+  /api/cron/attendance-intelligence
+  /api/cron/platform-webhooks</div>
+    <p>Notification delivery currently depends on device heartbeats opportunistically draining the outbox — which works only while a device is online. The outbox shows 8 messages stuck in <code>sending</code>. A school with no device, or a device offline overnight, has no message delivery at all.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">10</span><h2>The founder-disappears simulation</h2></div>
+  <div class="tw"><table>
+    <thead><tr><th>Scenario</th><th>Recovers autonomously?</th><th>What is missing</th></tr></thead>
+    <tbody>
+      <tr><td>School admits 1,000 learners</td><td><span class="pill p-ok">Yes</span></td><td>Import has preview, validation, dedupe; enrolments preserved.</td></tr>
+      <tr><td>Same spreadsheet imported twice</td><td><span class="pill p-ok">Yes</span></td><td>Existing records matched and updated, not duplicated. Active enrolment explicitly preserved.</td></tr>
+      <tr><td>Teacher deleted by accident</td><td><span class="pill p-ok">Yes</span></td><td><code>/admin/trash</code> restore; 1,469 students already recoverable this way.</td></tr>
+      <tr><td>Device assigned to wrong school</td><td><span class="pill p-ok">Yes</span></td><td>Acquire / release endpoints plus <code>/admin/devices</code>.</td></tr>
+      <tr><td>Device clock drifts</td><td><span class="pill p-ok">Yes</span></td><td>Self-heal plus <code>/attendance/time-health</code>; 18 corrections already applied.</td></tr>
+      <tr><td>Punch arrives unmapped</td><td><span class="pill p-warn">Partly</span></td><td>UI exists but nothing surfaces the 604-item backlog. Admin must know to look.</td></tr>
+      <tr><td>Learner changes class</td><td><span class="pill p-ok">Yes</span></td><td>Enrolment model handles it.</td></tr>
+      <tr><td>Fee waived / payment mis-entered</td><td><span class="pill p-warn">Partly</span></td><td>Adjustment and reversal exist; no reconciliation view, and non-atomic writes can leave balance and payment disagreeing.</td></tr>
+      <tr><td>Receipt needs correction</td><td><span class="pill p-warn">Partly</span></td><td>Correcting entry preserves history; no receipt reissue workflow.</td></tr>
+      <tr><td>Report needs regeneration</td><td><span class="pill p-ok">Yes</span></td><td>Regenerate produces a new snapshot; prior versions remain traceable.</td></tr>
+      <tr><td>Subscription expires</td><td><span class="pill p-ok">Yes</span></td><td>Login blocks with an explicit reason; Control Center can extend.</td></tr>
+      <tr><td>Staff member enters payroll data</td><td><span class="pill p-crit">No</span></td><td>Module enabled for 17 schools, tables empty. Data silently goes nowhere.</td></tr>
+      <tr><td>Admin opens Inventory analytics</td><td><span class="pill p-crit">No</span></td><td>Hard 500 — <code>store_items</code> does not exist. No error the user can act on.</td></tr>
+      <tr><td>Admin opens Timetable</td><td><span class="pill p-crit">No</span></td><td>No tables exist. Feature has never worked; reachable from the sidebar.</td></tr>
+      <tr><td>Device offline overnight, SMS queued</td><td><span class="pill p-crit">No</span></td><td>Outbox drain depends on device heartbeats; the cron is not scheduled.</td></tr>
+      <tr><td>Someone brute-forces a bursar login</td><td><span class="pill p-crit">No</span></td><td>Attempts counted, never enforced. No lockout, no alert.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">11</span><h2>Remediation</h2></div>
+
+  <h3 style="color:var(--crit)">Must fix — before depending on this for a year</h3>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>Issue</th><th>Why it blocks</th><th>Release</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>Enforce login lockout on school auth</td><td>Unlimited password guessing against every school account</td><td class="mono">1.173.30</td></tr>
+      <tr><td class="num">2</td><td><code>requirePermission</code> on the 13 write-exposed admin routes</td><td>Cookie edit reaches user create/delete and permission sync</td><td class="mono">1.173.30</td></tr>
+      <tr><td class="num">3</td><td>Schedule the outbox drain (or move it off cron)</td><td>No device online means no SMS to parents at all</td><td class="mono">1.173.30</td></tr>
+      <tr><td class="num">4</td><td>Transaction boundaries on payment writes</td><td>Balance and payment can silently disagree</td><td class="mono">1.174.0</td></tr>
+      <tr><td class="num">5</td><td>Retention job for the five device-log tables</td><td>570k rows from 3 devices; unbounded</td><td class="mono">1.174.0</td></tr>
+      <tr><td class="num">6</td><td>Disable Payroll and Tahfiz where unused, or empty-state them</td><td>Staff enter data the system cannot store</td><td class="mono">1.173.30</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 style="color:var(--warn);margin-top:.6rem">Should fix — significant reliability gain</h3>
+  <ul>
+    <li>Repoint attendance analytics at <code>attendance_records</code> — 15,262 records currently invisible.</li>
+    <li>Repoint Inventory analytics at <code>inventory_items</code> / <code>inventory_transactions</code>; Requirements at <code>requirements_master</code> / <code>student_requirements</code>. Both are renames, not rebuilds.</li>
+    <li>Add indexes leading on <code>school_id</code> to <code>student_ledger</code> and <code>people</code>.</li>
+    <li>Surface the unmapped-punch backlog on the dashboard.</li>
+    <li>Codebase-wide <code>deleted_at</code> filter sweep.</li>
+    <li>Repair the 109 orphaned enrolments in school 12004 and add a constraint or check preventing recurrence.</li>
+    <li>Extend audit logging beyond 10% of routes to cover configuration changes.</li>
+  </ul>
+
+  <h3 style="color:var(--accent);margin-top:.6rem">Can wait</h3>
+  <ul>
+    <li>CSRF tokens — <code>sameSite: lax</code> covers the realistic case.</li>
+    <li>Foreign-key constraints — valuable, but retrofitting 294 tables is a major change, not a hardening pass.</li>
+    <li>Maker-checker on payments — matters once payment volume is real.</li>
+    <li>The one legacy bcrypt cost factor.</li>
+  </ul>
+
+  <h3 style="color:var(--muted);margin-top:.6rem">Safe to leave dormant</h3>
+  <ul>
+    <li><strong>Parent portal</strong> — no data, no exposure, no dependency. Genuinely harmless.</li>
+    <li><strong>Timetable and CAFE</strong> — provided they are removed from navigation. They need migrations and finishing work; there is no reason to invest unless a school asks. Leaving them <em>visible</em> is the problem, not leaving them unfinished.</li>
+    <li><strong>Global search</strong> — absent index; the feature is not otherwise wired in.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">12</span><h2>Phased roadmap</h2></div>
+  <div class="tw"><table>
+    <thead><tr><th>Phase</th><th>Version</th><th>Contents</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1 · Close the exposures</strong></td><td class="mono">1.173.30</td><td>Login lockout; permission checks on 13 admin routes; schedule outbox drain; hide or empty-state Payroll, Tahfiz, Timetable, CAFE, Inventory analytics</td><td>Removes every finding that can be exploited or that silently discards user input</td></tr>
+      <tr><td><strong>2 · Make the data trustworthy</strong></td><td class="mono">1.174.0</td><td>Payment transactions; log retention; <code>school_id</code> indexes; <code>deleted_at</code> sweep; repair orphaned enrolments</td><td>The system can be left alone for months without accumulating silent corruption</td></tr>
+      <tr><td><strong>3 · Make the work visible</strong></td><td class="mono">1.175.0</td><td>Attendance, Inventory and Requirements analytics repointed; unmapped-punch surfacing; wider audit coverage</td><td>Data already captured becomes usable; problems surface before a parent reports them</td></tr>
+      <tr><td><strong>4 · Finance for real use</strong></td><td class="mono">1.176.0</td><td>Reconciliation screen; receipt reissue; maker-checker; ledger and expenditure entry</td><td>Only needed when a school commits to running its books here</td></tr>
+      <tr><td><strong>5 · Structural</strong></td><td class="mono">2.0.0</td><td>Foreign-key constraints; retire the dead legacy tables</td><td>Defer until phases 1–3 have run for a term</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">13</span><h2>The honest answer</h2></div>
+  <p><strong>Yes, with hardening — and the hardening is Phase 1, which is small.</strong></p>
+  <p>Do not read this report as a long list of failures. Read the ratio: 411 of 416 routes correctly scoped, bcrypt at cost 12, raw attendance preserved independently of evaluation, 1,469 records recoverable through a working trash, an audit log with 8,174 entries. Those are the properties that cannot be added later without rewriting the system, and they are present.</p>
+  <p>What the audit found instead is a system that was built correctly and then not <em>finished</em> in the operational sense — a throttle written for one login and not the other, a cron file with five routes and one schedule, log tables with no retention, modules switched on for every school before their tables existed. Those are all housekeeping, and housekeeping is cheap.</p>
+  <p>The single most dangerous category is not a security hole. It is <strong>Class E</strong>: Payroll and Tahfiz enabled for 14–17 schools, sitting in the sidebar, accepting input into tables that do not exist or are empty. A school will spend a week entering payroll before discovering nothing was saved, and no error will ever have been shown. Fix that first — it costs a configuration change, and it is the only finding here that actively destroys a user's work.</p>
+</section>
+
+<footer>
+  <p>All figures measured against production on 2026-08-10 at commit <span class="mono">674a09d3</span>. Read-only; nothing was modified.</p>
+  <p>Two limits worth stating: this audit detects <em>missing tables</em>, not <em>missing columns</em> — the finance outage fixed this week was a wrong column in a table that exists, and that class would not appear here. And row counts reflect current adoption, so a module measured as empty is not thereby proven broken.</p>
+</footer>
+
+</div>
