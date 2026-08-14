@@ -125,7 +125,7 @@ export default function AboutPage() {
             </div>
             <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/40">
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                DRAIS 1.2.0 represents a dependable foundation for the current operational platform, bringing core attendance, identity, communication, and administrative capabilities together into a stable institutional baseline.
+                DRAIS 1.200.0 represents a dependable foundation for the current operational platform, bringing core attendance, identity, communication, and administrative capabilities together into a stable institutional baseline.
               </p>
             </div>
           </div>
@@ -185,7 +185,7 @@ export default function AboutPage() {
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-5 flex items-center gap-2 text-slate-700 dark:text-slate-200">
           <Package className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-          <h2 className="text-xl font-semibold">DRAIS 1.2.0 foundation</h2>
+          <h2 className="text-xl font-semibold">DRAIS 1.200.0 foundation</h2>
         </div>
         <div className="grid gap-5 md:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">

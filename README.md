@@ -1,4 +1,4 @@
-# DRAIS 1.2.0
+# DRAIS 1.200.0
 
 DRAIS is a School Operational Intelligence Infrastructure for schools. It is designed to give institutions a more structured and accountable view of the day-to-day operations that shape the school experience — attendance, learner records, staff administration, biometric identity, communication, passout activity, fee operations, and reporting.
 
@@ -75,11 +75,11 @@ DRAIS exists to bring relevant school information into a more structured environ
 
 ## Current Release
 
-### DRAIS 1.2.0
+### DRAIS 1.200.0
 
 This is the current product baseline for the platform.
 
-DRAIS 1.2.0 represents a stable and dependable operating baseline for institutional use: continuity, maintainability, predictable operations, and a controlled path for product evolution. It is intended to be a mature release point for schools rather than a transient development snapshot.
+DRAIS 1.200.0 represents a stable and dependable operating baseline for institutional use: continuity, maintainability, predictable operations, and a controlled path for product evolution. It is intended to be a mature release point for schools rather than a transient development snapshot.
 
 ## Platform scope
 
@@ -130,7 +130,7 @@ For production builds and platform packaging, see the project scripts in `packag
 
 ```text
 Current release
-1.2.0
+1.200.0
 ```
 
 The changelog metadata used by the application lives in `src/data/changelog.json`.
