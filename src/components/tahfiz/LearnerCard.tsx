@@ -114,7 +114,7 @@ const LearnerCard: React.FC<LearnerCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 group"
+      className="bg-card rounded-2xl p-6 shadow-sm border border-border hover:shadow-md transition-all duration-300 group"
     >
       {/* Header */}
       <div className="flex items-center space-x-3 mb-4">

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-13T20:57:09.922Z",
-  "last_commit": "2fd3a96780d13e98ba3baa9c1ed740470b03fa1f",
+  "generated_at": "2026-08-14T03:13:13.162Z",
+  "last_commit": "045aa587b093f35cf9097b663634be82393a2c7c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -32,11 +32,11 @@
       "version": "0.0.0051",
       "date": "2026-06-04",
       "release_type": "patch",
-      "title": "Unblock Vercel \u2014 ship install-hooks.mjs, drop sub-daily crons",
+      "title": "Unblock Vercel — ship install-hooks.mjs, drop sub-daily crons",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Unblock Vercel \u2014 ship install-hooks.mjs, drop sub-daily crons"
+          "description": "Unblock Vercel — ship install-hooks.mjs, drop sub-daily crons"
         }
       ],
       "commit": "5681a4cb23"
@@ -201,11 +201,11 @@
       "version": "0.0.0064",
       "date": "2026-06-14",
       "release_type": "patch",
-      "title": "Real device inventory polling (ZKTeco K40) \u2014 device-sourced user counts",
+      "title": "Real device inventory polling (ZKTeco K40) — device-sourced user counts",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Real device inventory polling (ZKTeco K40) \u2014 device-sourced user counts"
+          "description": "Real device inventory polling (ZKTeco K40) — device-sourced user counts"
         }
       ],
       "commit": "98a3531963"
@@ -656,11 +656,11 @@
       "version": "0.0.0099",
       "date": "2026-06-20",
       "release_type": "patch",
-      "title": "Attendance settings: configurable School Days (weekday_mask) \u2014 support weekend teaching",
+      "title": "Attendance settings: configurable School Days (weekday_mask) — support weekend teaching",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Attendance settings: configurable School Days (weekday_mask) \u2014 support weekend teaching"
+          "description": "Attendance settings: configurable School Days (weekday_mask) — support weekend teaching"
         }
       ],
       "commit": "fe8c9abd8f"
@@ -734,24 +734,49 @@
       "version": "1.2.0",
       "date": "2026-06-21",
       "release_type": "minor",
-      "title": "Phase 1 \u2014 create+apply parent portal schema, fix attendance source",
+      "title": "Phase 1 — create+apply parent portal schema, fix attendance source",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 1 \u2014 create+apply parent portal schema, fix attendance source"
+          "description": "Phase 1 — create+apply parent portal schema, fix attendance source"
         }
       ],
       "commit": "1f52938937"
     },
     {
-      "version": "1.3.0",
-      "date": "2026-06-21",
-      "release_type": "minor",
-      "title": "Phase 2 \u2014 security sweep + per-school fees visibility toggle",
+      "version": "1.2.0",
+      "date": "2026-08-14",
+      "release_type": "patch",
+      "title": "DRAIS 1.2.0 — a stable operational baseline for attendance, biometric identity, passouts, communication, and school administration",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 2 \u2014 security sweep + per-school fees visibility toggle"
+          "description": "DRAIS 1.2.0 consolidates the school operational platform around a stable, dependable baseline for attendance intelligence, learner administration, biometric identity, communication, passout management, and institutional reporting."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Tahfiz portions, group flows, and learner assignment actions are now aligned with the underlying data model so schools can create and manage memorization plans without broken UI flows."
+        },
+        {
+          "category": "FIXED",
+          "description": "The release resolves the Tahfiz portion assignment mismatch and removes cosmetic glassmorphism from the Tahfiz experience so the create and assignment actions are clearer, more dependable, and easier to operate."
+        },
+        {
+          "category": "PERFORMANCE",
+          "description": "The platform continues to prioritize clarity, system stability, and maintainability through controlled operational improvements and a more dependable Tahfiz workflow."
+        }
+      ],
+      "commit": "1.2.0"
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-06-21",
+      "release_type": "minor",
+      "title": "Phase 2 — security sweep + per-school fees visibility toggle",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 2 — security sweep + per-school fees visibility toggle"
         }
       ],
       "commit": "1b8b839eb4"
@@ -773,11 +798,11 @@
       "version": "1.5.0",
       "date": "2026-06-21",
       "release_type": "minor",
-      "title": "Track A Phases 0-2 \u2014 cross-school phone-OTP portal backend",
+      "title": "Track A Phases 0-2 — cross-school phone-OTP portal backend",
       "changes": [
         {
           "category": "NEW",
-          "description": "Track A Phases 0-2 \u2014 cross-school phone-OTP portal backend"
+          "description": "Track A Phases 0-2 — cross-school phone-OTP portal backend"
         }
       ],
       "commit": "5f6b2fe93d"
@@ -786,11 +811,11 @@
       "version": "1.6.0",
       "date": "2026-06-21",
       "release_type": "minor",
-      "title": "Track A Phases 3-4 \u2014 /parent UI shell + learner detail",
+      "title": "Track A Phases 3-4 — /parent UI shell + learner detail",
       "changes": [
         {
           "category": "NEW",
-          "description": "Track A Phases 3-4 \u2014 /parent UI shell + learner detail"
+          "description": "Track A Phases 3-4 — /parent UI shell + learner detail"
         }
       ],
       "commit": "8eb2f13ba0"
@@ -799,11 +824,11 @@
       "version": "1.7.0",
       "date": "2026-06-21",
       "release_type": "minor",
-      "title": "Track A Phases 5 + 7 \u2014 cross-school compare + security suite",
+      "title": "Track A Phases 5 + 7 — cross-school compare + security suite",
       "changes": [
         {
           "category": "NEW",
-          "description": "Track A Phases 5 + 7 \u2014 cross-school compare + security suite"
+          "description": "Track A Phases 5 + 7 — cross-school compare + security suite"
         }
       ],
       "commit": "609ca603fe"
@@ -812,11 +837,11 @@
       "version": "1.8.0",
       "date": "2026-06-21",
       "release_type": "minor",
-      "title": "Track A Phase 6 \u2014 admin safety tools (Track A complete)",
+      "title": "Track A Phase 6 — admin safety tools (Track A complete)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Track A Phase 6 \u2014 admin safety tools (Track A complete)"
+          "description": "Track A Phase 6 — admin safety tools (Track A complete)"
         }
       ],
       "commit": "70a46d4af9"
@@ -838,11 +863,11 @@
       "version": "1.8.2",
       "date": "2026-06-21",
       "release_type": "patch",
-      "title": "Responsive layout \u2014 usable on laptop/desktop, not just mobile",
+      "title": "Responsive layout — usable on laptop/desktop, not just mobile",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Responsive layout \u2014 usable on laptop/desktop, not just mobile"
+          "description": "Responsive layout — usable on laptop/desktop, not just mobile"
         }
       ],
       "commit": "99a1374c15"
@@ -851,11 +876,11 @@
       "version": "1.9.0",
       "date": "2026-06-21",
       "release_type": "minor",
-      "title": "Track B1 \u2014 Jeton master-control endpoints (storage, footprint, staff, feature toggles)",
+      "title": "Track B1 — Jeton master-control endpoints (storage, footprint, staff, feature toggles)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Track B1 \u2014 Jeton master-control endpoints (storage, footprint, staff, feature toggles)"
+          "description": "Track B1 — Jeton master-control endpoints (storage, footprint, staff, feature toggles)"
         }
       ],
       "commit": "f5cd93a06f"
@@ -864,11 +889,11 @@
       "version": "1.9.1",
       "date": "2026-06-21",
       "release_type": "patch",
-      "title": "DRAIS architectural gap analysis (read-only) \u2014 webhook delivery/emission + coverage gaps",
+      "title": "DRAIS architectural gap analysis (read-only) — webhook delivery/emission + coverage gaps",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "DRAIS architectural gap analysis (read-only) \u2014 webhook delivery/emission + coverage gaps"
+          "description": "DRAIS architectural gap analysis (read-only) — webhook delivery/emission + coverage gaps"
         }
       ],
       "commit": "e82c3c0277"
@@ -916,11 +941,11 @@
       "version": "1.12.0",
       "date": "2026-06-22",
       "release_type": "minor",
-      "title": "Phase 1 \u2014 de-risk + first-class participation model",
+      "title": "Phase 1 — de-risk + first-class participation model",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 1 \u2014 de-risk + first-class participation model"
+          "description": "Phase 1 — de-risk + first-class participation model"
         }
       ],
       "commit": "9e7db6b902"
@@ -942,11 +967,11 @@
       "version": "1.13.0",
       "date": "2026-06-22",
       "release_type": "minor",
-      "title": "Phase 2F \u2014 Book Structure Engine + authoritative Quran reference",
+      "title": "Phase 2F — Book Structure Engine + authoritative Quran reference",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 2F \u2014 Book Structure Engine + authoritative Quran reference"
+          "description": "Phase 2F — Book Structure Engine + authoritative Quran reference"
         }
       ],
       "commit": "24ee26cc67"
@@ -981,11 +1006,11 @@
       "version": "1.16.0",
       "date": "2026-06-22",
       "release_type": "minor",
-      "title": "Phases 4-5 \u2014 fix payment recording + receipt/verify engine",
+      "title": "Phases 4-5 — fix payment recording + receipt/verify engine",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phases 4-5 \u2014 fix payment recording + receipt/verify engine"
+          "description": "Phases 4-5 — fix payment recording + receipt/verify engine"
         }
       ],
       "commit": "5470003ed1"
@@ -1007,11 +1032,11 @@
       "version": "1.17.0",
       "date": "2026-06-22",
       "release_type": "minor",
-      "title": "Scoped policy engine \u2014 Phase 0-2 (audit + model + resolver)",
+      "title": "Scoped policy engine — Phase 0-2 (audit + model + resolver)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Scoped policy engine \u2014 Phase 0-2 (audit + model + resolver)"
+          "description": "Scoped policy engine — Phase 0-2 (audit + model + resolver)"
         }
       ],
       "commit": "02a686154d"
@@ -1228,11 +1253,11 @@
       "version": "1.30.0",
       "date": "2026-06-23",
       "release_type": "minor",
-      "title": "Fee rules engine \u2014 model + rule UI (fee-rules Batch A)",
+      "title": "Fee rules engine — model + rule UI (fee-rules Batch A)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Fee rules engine \u2014 model + rule UI (fee-rules Batch A)"
+          "description": "Fee rules engine — model + rule UI (fee-rules Batch A)"
         }
       ],
       "commit": "267a2afa5a"
@@ -1254,11 +1279,11 @@
       "version": "1.31.0",
       "date": "2026-06-23",
       "release_type": "minor",
-      "title": "Full online\u2192local dump + local DB named 'drais' + transfer flow",
+      "title": "Full online→local dump + local DB named 'drais' + transfer flow",
       "changes": [
         {
           "category": "NEW",
-          "description": "Full online\u2192local dump + local DB named 'drais' + transfer flow"
+          "description": "Full online→local dump + local DB named 'drais' + transfer flow"
         }
       ],
       "commit": "4df3740e7a"
@@ -1280,11 +1305,11 @@
       "version": "1.32.1",
       "date": "2026-06-23",
       "release_type": "patch",
-      "title": "Npm run zip \u2014 lean transferable source archive",
+      "title": "Npm run zip — lean transferable source archive",
       "changes": [
         {
           "category": "NEW",
-          "description": "Npm run zip \u2014 lean transferable source archive"
+          "description": "Npm run zip — lean transferable source archive"
         }
       ],
       "commit": "e3346fa31f"
@@ -1319,11 +1344,11 @@
       "version": "1.32.4",
       "date": "2026-06-23",
       "release_type": "patch",
-      "title": "Remove outputFileTracingExcludes \u2014 broke Vercel runtime",
+      "title": "Remove outputFileTracingExcludes — broke Vercel runtime",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Remove outputFileTracingExcludes \u2014 broke Vercel runtime"
+          "description": "Remove outputFileTracingExcludes — broke Vercel runtime"
         }
       ],
       "commit": "e3dae9b027"
@@ -1410,11 +1435,11 @@
       "version": "1.35.0",
       "date": "2026-06-23",
       "release_type": "minor",
-      "title": "Linux packaging \u2014 .deb/AppImage icon + snap target",
+      "title": "Linux packaging — .deb/AppImage icon + snap target",
       "changes": [
         {
           "category": "NEW",
-          "description": "Linux packaging \u2014 .deb/AppImage icon + snap target"
+          "description": "Linux packaging — .deb/AppImage icon + snap target"
         }
       ],
       "commit": "bb3a7f5dac"
@@ -1449,11 +1474,11 @@
       "version": "1.35.3",
       "date": "2026-06-23",
       "release_type": "patch",
-      "title": "Strict confinement \u2192 instant worldwide store publish",
+      "title": "Strict confinement → instant worldwide store publish",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Strict confinement \u2192 instant worldwide store publish"
+          "description": "Strict confinement → instant worldwide store publish"
         }
       ],
       "commit": "d3a703fcef"
@@ -1462,11 +1487,11 @@
       "version": "1.36.0",
       "date": "2026-06-24",
       "release_type": "minor",
-      "title": "Db:export:albayan \u2014 lean Albayan-only dump",
+      "title": "Db:export:albayan — lean Albayan-only dump",
       "changes": [
         {
           "category": "NEW",
-          "description": "Db:export:albayan \u2014 lean Albayan-only dump"
+          "description": "Db:export:albayan — lean Albayan-only dump"
         }
       ],
       "commit": "d0da20559f"
@@ -1514,11 +1539,11 @@
       "version": "1.38.0",
       "date": "2026-06-25",
       "release_type": "minor",
-      "title": "Template Kitchen lifecycle \u2014 rename/archive/restore (Founder-Indep. Phase 2)",
+      "title": "Template Kitchen lifecycle — rename/archive/restore (Founder-Indep. Phase 2)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Template Kitchen lifecycle \u2014 rename/archive/restore (Founder-Indep. Phase 2)"
+          "description": "Template Kitchen lifecycle — rename/archive/restore (Founder-Indep. Phase 2)"
         }
       ],
       "commit": "62ffb83261"
@@ -1592,11 +1617,11 @@
       "version": "1.42.0",
       "date": "2026-06-29",
       "release_type": "minor",
-      "title": "Arabic localization Batch 1 \u2014 Phase 0 audit + navbar/sidebar fix",
+      "title": "Arabic localization Batch 1 — Phase 0 audit + navbar/sidebar fix",
       "changes": [
         {
           "category": "NEW",
-          "description": "Arabic localization Batch 1 \u2014 Phase 0 audit + navbar/sidebar fix"
+          "description": "Arabic localization Batch 1 — Phase 0 audit + navbar/sidebar fix"
         }
       ],
       "commit": "b2cbcddb44"
@@ -1605,11 +1630,11 @@
       "version": "1.43.0",
       "date": "2026-06-29",
       "release_type": "minor",
-      "title": "Arabic localization Batch 2 \u2014 DB Arabic fields + API display support",
+      "title": "Arabic localization Batch 2 — DB Arabic fields + API display support",
       "changes": [
         {
           "category": "NEW",
-          "description": "Arabic localization Batch 2 \u2014 DB Arabic fields + API display support"
+          "description": "Arabic localization Batch 2 — DB Arabic fields + API display support"
         }
       ],
       "commit": "d7b0f9710b"
@@ -1618,11 +1643,11 @@
       "version": "1.44.0",
       "date": "2026-06-29",
       "release_type": "minor",
-      "title": "Arabic localization Batch 3 \u2014 students list/profile Arabic names",
+      "title": "Arabic localization Batch 3 — students list/profile Arabic names",
       "changes": [
         {
           "category": "NEW",
-          "description": "Arabic localization Batch 3 \u2014 students list/profile Arabic names"
+          "description": "Arabic localization Batch 3 — students list/profile Arabic names"
         }
       ],
       "commit": "79798b70f3"
@@ -1631,11 +1656,11 @@
       "version": "1.45.0",
       "date": "2026-06-29",
       "release_type": "minor",
-      "title": "Arabic localization Batch 4 \u2014 bulk Arabic name import/export + approval gate",
+      "title": "Arabic localization Batch 4 — bulk Arabic name import/export + approval gate",
       "changes": [
         {
           "category": "NEW",
-          "description": "Arabic localization Batch 4 \u2014 bulk Arabic name import/export + approval gate"
+          "description": "Arabic localization Batch 4 — bulk Arabic name import/export + approval gate"
         }
       ],
       "commit": "cb9fb8e687"
@@ -1644,11 +1669,11 @@
       "version": "1.46.0",
       "date": "2026-06-29",
       "release_type": "minor",
-      "title": "Arabic localization Batch 5 \u2014 Arabic names/labels in reports + DRCE",
+      "title": "Arabic localization Batch 5 — Arabic names/labels in reports + DRCE",
       "changes": [
         {
           "category": "NEW",
-          "description": "Arabic localization Batch 5 \u2014 Arabic names/labels in reports + DRCE"
+          "description": "Arabic localization Batch 5 — Arabic names/labels in reports + DRCE"
         }
       ],
       "commit": "00b116d1f2"
@@ -1657,11 +1682,11 @@
       "version": "1.47.0",
       "date": "2026-06-29",
       "release_type": "minor",
-      "title": "Arabic localization Batch 6 \u2014 coverage dashboard + reference editor",
+      "title": "Arabic localization Batch 6 — coverage dashboard + reference editor",
       "changes": [
         {
           "category": "NEW",
-          "description": "Arabic localization Batch 6 \u2014 coverage dashboard + reference editor"
+          "description": "Arabic localization Batch 6 — coverage dashboard + reference editor"
         }
       ],
       "commit": "94c3a9a503"
@@ -1670,11 +1695,11 @@
       "version": "1.47.1",
       "date": "2026-06-29",
       "release_type": "patch",
-      "title": "Route sweep \u2014 attendance dashboard bilingual",
+      "title": "Route sweep — attendance dashboard bilingual",
       "changes": [
         {
           "category": "NEW",
-          "description": "Route sweep \u2014 attendance dashboard bilingual"
+          "description": "Route sweep — attendance dashboard bilingual"
         }
       ],
       "commit": "42cc19758e"
@@ -1683,11 +1708,11 @@
       "version": "1.47.2",
       "date": "2026-06-29",
       "release_type": "patch",
-      "title": "Route sweep \u2014 finance dashboard bilingual",
+      "title": "Route sweep — finance dashboard bilingual",
       "changes": [
         {
           "category": "NEW",
-          "description": "Route sweep \u2014 finance dashboard bilingual"
+          "description": "Route sweep — finance dashboard bilingual"
         }
       ],
       "commit": "ea03e9a7a0"
@@ -1696,11 +1721,11 @@
       "version": "1.47.3",
       "date": "2026-06-29",
       "release_type": "patch",
-      "title": "Route sweep \u2014 Tahfiz results page bilingual",
+      "title": "Route sweep — Tahfiz results page bilingual",
       "changes": [
         {
           "category": "NEW",
-          "description": "Route sweep \u2014 Tahfiz results page bilingual"
+          "description": "Route sweep — Tahfiz results page bilingual"
         }
       ],
       "commit": "e7052d8c73"
@@ -1709,11 +1734,11 @@
       "version": "1.47.4",
       "date": "2026-06-29",
       "release_type": "patch",
-      "title": "Route sweep \u2014 Tahfiz records page bilingual",
+      "title": "Route sweep — Tahfiz records page bilingual",
       "changes": [
         {
           "category": "NEW",
-          "description": "Route sweep \u2014 Tahfiz records page bilingual"
+          "description": "Route sweep — Tahfiz records page bilingual"
         }
       ],
       "commit": "d34daeb9b2"
@@ -1722,11 +1747,11 @@
       "version": "1.47.5",
       "date": "2026-06-29",
       "release_type": "patch",
-      "title": "Route sweep \u2014 topbar status badges + students list chrome bilingual",
+      "title": "Route sweep — topbar status badges + students list chrome bilingual",
       "changes": [
         {
           "category": "NEW",
-          "description": "Route sweep \u2014 topbar status badges + students list chrome bilingual"
+          "description": "Route sweep — topbar status badges + students list chrome bilingual"
         }
       ],
       "commit": "df94da026c"
@@ -1787,11 +1812,11 @@
       "version": "1.48.3",
       "date": "2026-06-30",
       "release_type": "patch",
-      "title": "Local-MySQL pipeline \u2014 TiDB\u2192MySQL8 converter + filtered Albayan export",
+      "title": "Local-MySQL pipeline — TiDB→MySQL8 converter + filtered Albayan export",
       "changes": [
         {
           "category": "NEW",
-          "description": "Local-MySQL pipeline \u2014 TiDB\u2192MySQL8 converter + filtered Albayan export"
+          "description": "Local-MySQL pipeline — TiDB→MySQL8 converter + filtered Albayan export"
         }
       ],
       "commit": "24bef7c280"
@@ -1865,11 +1890,11 @@
       "version": "1.51.0",
       "date": "2026-06-30",
       "release_type": "minor",
-      "title": "Per-learner fee import with upsert (existing fee \u2192 update)",
+      "title": "Per-learner fee import with upsert (existing fee → update)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Per-learner fee import with upsert (existing fee \u2192 update)"
+          "description": "Per-learner fee import with upsert (existing fee → update)"
         }
       ],
       "commit": "5790c9aa5c"
@@ -1878,11 +1903,11 @@
       "version": "1.52.0",
       "date": "2026-07-01",
       "release_type": "minor",
-      "title": "Biometric pass-out foundation \u2014 model, RBAC, engine, API",
+      "title": "Biometric pass-out foundation — model, RBAC, engine, API",
       "changes": [
         {
           "category": "NEW",
-          "description": "Biometric pass-out foundation \u2014 model, RBAC, engine, API"
+          "description": "Biometric pass-out foundation — model, RBAC, engine, API"
         }
       ],
       "commit": "305f5f782c"
@@ -2008,11 +2033,11 @@
       "version": "1.62.0",
       "date": "2026-07-02",
       "release_type": "minor",
-      "title": "DRCE allocation bindings \u2014 department/group/teachers (Phase 7)",
+      "title": "DRCE allocation bindings — department/group/teachers (Phase 7)",
       "changes": [
         {
           "category": "NEW",
-          "description": "DRCE allocation bindings \u2014 department/group/teachers (Phase 7)"
+          "description": "DRCE allocation bindings — department/group/teachers (Phase 7)"
         }
       ],
       "commit": "1f835211d1"
@@ -2073,11 +2098,11 @@
       "version": "1.66.0",
       "date": "2026-07-03",
       "release_type": "minor",
-      "title": "Design token foundation \u2014 semantic color/radius/shadow/glass vars (Phase 1)",
+      "title": "Design token foundation — semantic color/radius/shadow/glass vars (Phase 1)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Design token foundation \u2014 semantic color/radius/shadow/glass vars (Phase 1)"
+          "description": "Design token foundation — semantic color/radius/shadow/glass vars (Phase 1)"
         }
       ],
       "commit": "7d851e4b97"
@@ -2086,11 +2111,11 @@
       "version": "1.67.0",
       "date": "2026-07-03",
       "release_type": "minor",
-      "title": "School branding \u2014 school_theme_settings + /settings/branding (Phase 3)",
+      "title": "School branding — school_theme_settings + /settings/branding (Phase 3)",
       "changes": [
         {
           "category": "NEW",
-          "description": "School branding \u2014 school_theme_settings + /settings/branding (Phase 3)"
+          "description": "School branding — school_theme_settings + /settings/branding (Phase 3)"
         }
       ],
       "commit": "1a9f6d24c3"
@@ -2112,11 +2137,11 @@
       "version": "1.67.2",
       "date": "2026-07-03",
       "release_type": "patch",
-      "title": "Commit orphaned Phase 2 pieces \u2014 anti-flicker script + system-mode toggle",
+      "title": "Commit orphaned Phase 2 pieces — anti-flicker script + system-mode toggle",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Commit orphaned Phase 2 pieces \u2014 anti-flicker script + system-mode toggle"
+          "description": "Commit orphaned Phase 2 pieces — anti-flicker script + system-mode toggle"
         }
       ],
       "commit": "2f57133a61"
@@ -2216,11 +2241,11 @@
       "version": "1.68.0",
       "date": "2026-07-04",
       "release_type": "minor",
-      "title": "Glassmorphism policy \u2014 readable glass + solid fallback (Phase 6)",
+      "title": "Glassmorphism policy — readable glass + solid fallback (Phase 6)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Glassmorphism policy \u2014 readable glass + solid fallback (Phase 6)"
+          "description": "Glassmorphism policy — readable glass + solid fallback (Phase 6)"
         }
       ],
       "commit": "e790a84c5d"
@@ -2385,11 +2410,11 @@
       "version": "1.71.0",
       "date": "2026-07-06",
       "release_type": "minor",
-      "title": "Phase 1 stability + lifecycle \u2014 autosave, crash recovery, rename modal",
+      "title": "Phase 1 stability + lifecycle — autosave, crash recovery, rename modal",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 1 stability + lifecycle \u2014 autosave, crash recovery, rename modal"
+          "description": "Phase 1 stability + lifecycle — autosave, crash recovery, rename modal"
         }
       ],
       "commit": "d7d1c5ced7"
@@ -2398,11 +2423,11 @@
       "version": "1.72.0",
       "date": "2026-07-06",
       "release_type": "minor",
-      "title": "Phase 2 \u2014 working Ctrl+C/V/D clipboard shortcuts + DRY clipboardOps",
+      "title": "Phase 2 — working Ctrl+C/V/D clipboard shortcuts + DRY clipboardOps",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 2 \u2014 working Ctrl+C/V/D clipboard shortcuts + DRY clipboardOps"
+          "description": "Phase 2 — working Ctrl+C/V/D clipboard shortcuts + DRY clipboardOps"
         }
       ],
       "commit": "8c51be88e9"
@@ -2411,11 +2436,11 @@
       "version": "1.73.0",
       "date": "2026-07-06",
       "release_type": "minor",
-      "title": "Phase 4 \u2014 discoverable table bindings + catalog gaps filled",
+      "title": "Phase 4 — discoverable table bindings + catalog gaps filled",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 4 \u2014 discoverable table bindings + catalog gaps filled"
+          "description": "Phase 4 — discoverable table bindings + catalog gaps filled"
         }
       ],
       "commit": "be4ff52f42"
@@ -2424,11 +2449,11 @@
       "version": "1.73.1",
       "date": "2026-07-06",
       "release_type": "patch",
-      "title": "Phase 3 (slice) \u2014 'Even widths' distribute-columns for tables",
+      "title": "Phase 3 (slice) — 'Even widths' distribute-columns for tables",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 3 (slice) \u2014 'Even widths' distribute-columns for tables"
+          "description": "Phase 3 (slice) — 'Even widths' distribute-columns for tables"
         }
       ],
       "commit": "16c958af7f"
@@ -2476,11 +2501,11 @@
       "version": "1.76.0",
       "date": "2026-07-07",
       "release_type": "minor",
-      "title": "Founder-independent transfers \u2014 superadmin bypasses claim-secret + force-transfer",
+      "title": "Founder-independent transfers — superadmin bypasses claim-secret + force-transfer",
       "changes": [
         {
           "category": "NEW",
-          "description": "Founder-independent transfers \u2014 superadmin bypasses claim-secret + force-transfer"
+          "description": "Founder-independent transfers — superadmin bypasses claim-secret + force-transfer"
         }
       ],
       "commit": "61d8064be9"
@@ -2489,11 +2514,11 @@
       "version": "1.76.1",
       "date": "2026-07-08",
       "release_type": "patch",
-      "title": "Staff overview 500 \u2014 staff has no created_at column",
+      "title": "Staff overview 500 — staff has no created_at column",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Staff overview 500 \u2014 staff has no created_at column"
+          "description": "Staff overview 500 — staff has no created_at column"
         }
       ],
       "commit": "d4cd8ed565"
@@ -2502,11 +2527,11 @@
       "version": "1.77.0",
       "date": "2026-07-08",
       "release_type": "minor",
-      "title": "Shift engine core \u2014 schema + precedence resolver + classifier",
+      "title": "Shift engine core — schema + precedence resolver + classifier",
       "changes": [
         {
           "category": "NEW",
-          "description": "Shift engine core \u2014 schema + precedence resolver + classifier"
+          "description": "Shift engine core — schema + precedence resolver + classifier"
         }
       ],
       "commit": "4ed3cf622c"
@@ -2528,11 +2553,11 @@
       "version": "1.79.0",
       "date": "2026-07-08",
       "release_type": "minor",
-      "title": "/attendance/shifts UI \u2014 create/list/assign shifts + live simulator",
+      "title": "/attendance/shifts UI — create/list/assign shifts + live simulator",
       "changes": [
         {
           "category": "NEW",
-          "description": "/attendance/shifts UI \u2014 create/list/assign shifts + live simulator"
+          "description": "/attendance/shifts UI — create/list/assign shifts + live simulator"
         }
       ],
       "commit": "be2f43c6d3"
@@ -2580,11 +2605,11 @@
       "version": "1.80.3",
       "date": "2026-07-09",
       "release_type": "patch",
-      "title": "Mapping lifecycle \u2014 reassign/unmap, deleted-person cleanup, history",
+      "title": "Mapping lifecycle — reassign/unmap, deleted-person cleanup, history",
       "changes": [
         {
           "category": "NEW",
-          "description": "Mapping lifecycle \u2014 reassign/unmap, deleted-person cleanup, history"
+          "description": "Mapping lifecycle — reassign/unmap, deleted-person cleanup, history"
         }
       ],
       "commit": "1c5d7f9fb1"
@@ -2606,11 +2631,11 @@
       "version": "1.80.5",
       "date": "2026-07-09",
       "release_type": "patch",
-      "title": "Phase 5 \u2014 remove user from device (fingerprint cleanup)",
+      "title": "Phase 5 — remove user from device (fingerprint cleanup)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 5 \u2014 remove user from device (fingerprint cleanup)"
+          "description": "Phase 5 — remove user from device (fingerprint cleanup)"
         }
       ],
       "commit": "3208bc3478"
@@ -3321,11 +3346,11 @@
       "version": "1.80.62",
       "date": "2026-07-21",
       "release_type": "patch",
-      "title": "Live generation inspector \u2014 poll snapshot status and allow cancel/inspect",
+      "title": "Live generation inspector — poll snapshot status and allow cancel/inspect",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Live generation inspector \u2014 poll snapshot status and allow cancel/inspect"
+          "description": "Live generation inspector — poll snapshot status and allow cancel/inspect"
         }
       ],
       "commit": "8763039aaa"
@@ -3399,11 +3424,11 @@
       "version": "1.80.68",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Serverless Chromium for Vercel \u2014 PDF routes no longer 500",
+      "title": "Serverless Chromium for Vercel — PDF routes no longer 500",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Serverless Chromium for Vercel \u2014 PDF routes no longer 500"
+          "description": "Serverless Chromium for Vercel — PDF routes no longer 500"
         }
       ],
       "commit": "2e60a37b78"
@@ -3451,11 +3476,11 @@
       "version": "1.80.72",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Rewrite README \u2014 platform overview, architecture, author",
+      "title": "Rewrite README — platform overview, architecture, author",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Rewrite README \u2014 platform overview, architecture, author"
+          "description": "Rewrite README — platform overview, architecture, author"
         }
       ],
       "commit": "f044a7a91f"
@@ -3516,11 +3541,11 @@
       "version": "1.80.78",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Fast first-launch \u2014 generate file.list/dir.list asset indexes",
+      "title": "Fast first-launch — generate file.list/dir.list asset indexes",
       "changes": [
         {
           "category": "PERFORMANCE",
-          "description": "Fast first-launch \u2014 generate file.list/dir.list asset indexes"
+          "description": "Fast first-launch — generate file.list/dir.list asset indexes"
         }
       ],
       "commit": "adfaf639da"
@@ -3529,11 +3554,11 @@
       "version": "1.80.79",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Transparent boot \u2014 live phase progress, beacons, loud failures",
+      "title": "Transparent boot — live phase progress, beacons, loud failures",
       "changes": [
         {
           "category": "NEW",
-          "description": "Transparent boot \u2014 live phase progress, beacons, loud failures"
+          "description": "Transparent boot — live phase progress, beacons, loud failures"
         }
       ],
       "commit": "282bca9264"
@@ -3542,11 +3567,11 @@
       "version": "1.80.80",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Embedded runtime Node 12 \u2192 18.20.4 \u2014 Next 15 can actually run",
+      "title": "Embedded runtime Node 12 → 18.20.4 — Next 15 can actually run",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Embedded runtime Node 12 \u2192 18.20.4 \u2014 Next 15 can actually run"
+          "description": "Embedded runtime Node 12 → 18.20.4 — Next 15 can actually run"
         }
       ],
       "commit": "8fcd63b5c6"
@@ -3555,11 +3580,11 @@
       "version": "1.80.81",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Rename the runtime FindClass target too \u2014 app died on first node\u2192Java message",
+      "title": "Rename the runtime FindClass target too — app died on first node→Java message",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Rename the runtime FindClass target too \u2014 app died on first node\u2192Java message"
+          "description": "Rename the runtime FindClass target too — app died on first node→Java message"
         }
       ],
       "commit": "1a7eadce6a"
@@ -3568,11 +3593,11 @@
       "version": "1.80.82",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Rename the runtime FindClass target too \u2014 app died on first node\u2192Java message",
+      "title": "Rename the runtime FindClass target too — app died on first node→Java message",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Rename the runtime FindClass target too \u2014 app died on first node\u2192Java message"
+          "description": "Rename the runtime FindClass target too — app died on first node→Java message"
         }
       ],
       "commit": "00b82c8975"
@@ -3581,11 +3606,11 @@
       "version": "1.80.83",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Phase 0 \u2014 TCP pull data reconciliation (JIPRA device)",
+      "title": "Phase 0 — TCP pull data reconciliation (JIPRA device)",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Phase 0 \u2014 TCP pull data reconciliation (JIPRA device)"
+          "description": "Phase 0 — TCP pull data reconciliation (JIPRA device)"
         }
       ],
       "commit": "a6e3ccf2c3"
@@ -3594,11 +3619,11 @@
       "version": "1.80.84",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Phase 1 \u2014 acquisition backbone (audit batches + staging + canonical wall time)",
+      "title": "Phase 1 — acquisition backbone (audit batches + staging + canonical wall time)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 1 \u2014 acquisition backbone (audit batches + staging + canonical wall time)"
+          "description": "Phase 1 — acquisition backbone (audit batches + staging + canonical wall time)"
         }
       ],
       "commit": "522f68ac59"
@@ -3620,11 +3645,11 @@
       "version": "1.80.86",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Phase 2 \u2014 staging-only pull-by-date, raw inspection, auto-validation",
+      "title": "Phase 2 — staging-only pull-by-date, raw inspection, auto-validation",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 2 \u2014 staging-only pull-by-date, raw inspection, auto-validation"
+          "description": "Phase 2 — staging-only pull-by-date, raw inspection, auto-validation"
         }
       ],
       "commit": "0866150231"
@@ -3633,11 +3658,11 @@
       "version": "1.80.87",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Phase 3 \u2014 Device Control redesigned as acquisition center",
+      "title": "Phase 3 — Device Control redesigned as acquisition center",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 3 \u2014 Device Control redesigned as acquisition center"
+          "description": "Phase 3 — Device Control redesigned as acquisition center"
         }
       ],
       "commit": "9b03277a47"
@@ -3646,11 +3671,11 @@
       "version": "1.80.88",
       "date": "2026-07-22",
       "release_type": "patch",
-      "title": "Phase 4 \u2014 guarded transactional committer, Save enabled",
+      "title": "Phase 4 — guarded transactional committer, Save enabled",
       "changes": [
         {
           "category": "NEW",
-          "description": "Phase 4 \u2014 guarded transactional committer, Save enabled"
+          "description": "Phase 4 — guarded transactional committer, Save enabled"
         }
       ],
       "commit": "68022bb416"
@@ -3672,11 +3697,11 @@
       "version": "1.80.90",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Intelligent device-user \u2194 DRAIS identity reconciliation",
+      "title": "Intelligent device-user ↔ DRAIS identity reconciliation",
       "changes": [
         {
           "category": "NEW",
-          "description": "Intelligent device-user \u2194 DRAIS identity reconciliation"
+          "description": "Intelligent device-user ↔ DRAIS identity reconciliation"
         }
       ],
       "commit": "597f53575e"
@@ -3698,11 +3723,11 @@
       "version": "1.80.92",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Operational intelligence for /attendance/logs \u2014 allowance report, smart filters, designation",
+      "title": "Operational intelligence for /attendance/logs — allowance report, smart filters, designation",
       "changes": [
         {
           "category": "NEW",
-          "description": "Operational intelligence for /attendance/logs \u2014 allowance report, smart filters, designation"
+          "description": "Operational intelligence for /attendance/logs — allowance report, smart filters, designation"
         }
       ],
       "commit": "0c4f8aaef8"
@@ -3711,11 +3736,11 @@
       "version": "1.80.93",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "JIPRA nameless-logs root cause \u2014 directory tenancy + name integrity repair",
+      "title": "JIPRA nameless-logs root cause — directory tenancy + name integrity repair",
       "changes": [
         {
           "category": "FIXED",
-          "description": "JIPRA nameless-logs root cause \u2014 directory tenancy + name integrity repair"
+          "description": "JIPRA nameless-logs root cause — directory tenancy + name integrity repair"
         }
       ],
       "commit": "3319640df5"
@@ -3750,11 +3775,11 @@
       "version": "1.80.96",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Dashboards read the canonical punch store \u2014 statistics now correct",
+      "title": "Dashboards read the canonical punch store — statistics now correct",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Dashboards read the canonical punch store \u2014 statistics now correct"
+          "description": "Dashboards read the canonical punch store — statistics now correct"
         }
       ],
       "commit": "94978aa95e"
@@ -3828,11 +3853,11 @@
       "version": "1.80.102",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Biometric-backed learner movement management (verify \u2192 approve \u2192 gate \u2192 SMS \u2192 return)",
+      "title": "Biometric-backed learner movement management (verify → approve → gate → SMS → return)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Biometric-backed learner movement management (verify \u2192 approve \u2192 gate \u2192 SMS \u2192 return)"
+          "description": "Biometric-backed learner movement management (verify → approve → gate → SMS → return)"
         }
       ],
       "commit": "1e2ab27078"
@@ -3841,11 +3866,11 @@
       "version": "1.80.103",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Time Intelligence Engine \u2014 self-healing clock-drift detection",
+      "title": "Time Intelligence Engine — self-healing clock-drift detection",
       "changes": [
         {
           "category": "NEW",
-          "description": "Time Intelligence Engine \u2014 self-healing clock-drift detection"
+          "description": "Time Intelligence Engine — self-healing clock-drift detection"
         }
       ],
       "commit": "ceb44f6e29"
@@ -3867,11 +3892,11 @@
       "version": "1.80.105",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Phase 0 architecture audit \u2014 inventory, dependency graph, founder-dependence baseline",
+      "title": "Phase 0 architecture audit — inventory, dependency graph, founder-dependence baseline",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Phase 0 architecture audit \u2014 inventory, dependency graph, founder-dependence baseline"
+          "description": "Phase 0 architecture audit — inventory, dependency graph, founder-dependence baseline"
         }
       ],
       "commit": "4693325c56"
@@ -3880,11 +3905,11 @@
       "version": "1.81.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Attendance Health Center \u2014 Phase 1 of the Intelligence Program",
+      "title": "Attendance Health Center — Phase 1 of the Intelligence Program",
       "changes": [
         {
           "category": "NEW",
-          "description": "Attendance Health Center \u2014 Phase 1 of the Intelligence Program"
+          "description": "Attendance Health Center — Phase 1 of the Intelligence Program"
         }
       ],
       "commit": "7cd5afe16b"
@@ -3893,11 +3918,11 @@
       "version": "1.82.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Attendance Digital Twin \u2014 Phase 2 of the Intelligence Program",
+      "title": "Attendance Digital Twin — Phase 2 of the Intelligence Program",
       "changes": [
         {
           "category": "NEW",
-          "description": "Attendance Digital Twin \u2014 Phase 2 of the Intelligence Program"
+          "description": "Attendance Digital Twin — Phase 2 of the Intelligence Program"
         }
       ],
       "commit": "ee6f45258c"
@@ -3906,11 +3931,11 @@
       "version": "1.83.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "About / System Information module \u2014 version, changelog, release history",
+      "title": "About / System Information module — version, changelog, release history",
       "changes": [
         {
           "category": "NEW",
-          "description": "About / System Information module \u2014 version, changelog, release history"
+          "description": "About / System Information module — version, changelog, release history"
         }
       ],
       "commit": null
@@ -3919,11 +3944,11 @@
       "version": "1.83.1",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Product Evolution milestone layer \u2014 DRAIS history with meaning",
+      "title": "Product Evolution milestone layer — DRAIS history with meaning",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Product Evolution milestone layer \u2014 DRAIS history with meaning"
+          "description": "Product Evolution milestone layer — DRAIS history with meaning"
         }
       ],
       "commit": "296b82c7f2"
@@ -3932,11 +3957,11 @@
       "version": "1.83.2",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Grouped, school-readable release history \u2014 no raw commit dumps",
+      "title": "Grouped, school-readable release history — no raw commit dumps",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Grouped, school-readable release history \u2014 no raw commit dumps"
+          "description": "Grouped, school-readable release history — no raw commit dumps"
         }
       ],
       "commit": "d090197684"
@@ -3958,11 +3983,11 @@
       "version": "1.84.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "DRAIS Control Center \u2014 isolated Xhenvolt control plane v1",
+      "title": "DRAIS Control Center — isolated Xhenvolt control plane v1",
       "changes": [
         {
           "category": "NEW",
-          "description": "DRAIS Control Center \u2014 isolated Xhenvolt control plane v1"
+          "description": "DRAIS Control Center — isolated Xhenvolt control plane v1"
         }
       ],
       "commit": null
@@ -3997,11 +4022,11 @@
       "version": "1.85.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Per-record confidence scoring \u2014 Phase 3 Attendance Intelligence Engine",
+      "title": "Per-record confidence scoring — Phase 3 Attendance Intelligence Engine",
       "changes": [
         {
           "category": "NEW",
-          "description": "Per-record confidence scoring \u2014 Phase 3 Attendance Intelligence Engine"
+          "description": "Per-record confidence scoring — Phase 3 Attendance Intelligence Engine"
         }
       ],
       "commit": null
@@ -4010,11 +4035,11 @@
       "version": "1.86.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Automatic Attendance Recovery \u2014 Phase 5 Recovery Center",
+      "title": "Automatic Attendance Recovery — Phase 5 Recovery Center",
       "changes": [
         {
           "category": "NEW",
-          "description": "Automatic Attendance Recovery \u2014 Phase 5 Recovery Center"
+          "description": "Automatic Attendance Recovery — Phase 5 Recovery Center"
         }
       ],
       "commit": null
@@ -4023,11 +4048,11 @@
       "version": "1.87.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Attendance Pattern Analytics \u2014 Phase 6 Trends",
+      "title": "Attendance Pattern Analytics — Phase 6 Trends",
       "changes": [
         {
           "category": "NEW",
-          "description": "Attendance Pattern Analytics \u2014 Phase 6 Trends"
+          "description": "Attendance Pattern Analytics — Phase 6 Trends"
         }
       ],
       "commit": null
@@ -4036,11 +4061,11 @@
       "version": "1.88.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Device Intelligence \u2014 Phase 7 reputation scoring",
+      "title": "Device Intelligence — Phase 7 reputation scoring",
       "changes": [
         {
           "category": "NEW",
-          "description": "Device Intelligence \u2014 Phase 7 reputation scoring"
+          "description": "Device Intelligence — Phase 7 reputation scoring"
         }
       ],
       "commit": null
@@ -4049,11 +4074,11 @@
       "version": "1.89.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Identity Intelligence \u2014 Phase 8 mapping health + suggestions",
+      "title": "Identity Intelligence — Phase 8 mapping health + suggestions",
       "changes": [
         {
           "category": "NEW",
-          "description": "Identity Intelligence \u2014 Phase 8 mapping health + suggestions"
+          "description": "Identity Intelligence — Phase 8 mapping health + suggestions"
         }
       ],
       "commit": null
@@ -4062,11 +4087,11 @@
       "version": "1.89.1",
       "date": "2026-07-23",
       "release_type": "patch",
-      "title": "Self-feeding intelligence sweep \u2014 remove founder-dependence bottleneck",
+      "title": "Self-feeding intelligence sweep — remove founder-dependence bottleneck",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Self-feeding intelligence sweep \u2014 remove founder-dependence bottleneck"
+          "description": "Self-feeding intelligence sweep — remove founder-dependence bottleneck"
         }
       ],
       "commit": "591906add5"
@@ -4075,11 +4100,11 @@
       "version": "1.90.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Explanation Engine + Founder Independence \u2014 Phases 9 & 10",
+      "title": "Explanation Engine + Founder Independence — Phases 9 & 10",
       "changes": [
         {
           "category": "NEW",
-          "description": "Explanation Engine + Founder Independence \u2014 Phases 9 & 10"
+          "description": "Explanation Engine + Founder Independence — Phases 9 & 10"
         }
       ],
       "commit": null
@@ -4114,11 +4139,11 @@
       "version": "1.92.0",
       "date": "2026-07-23",
       "release_type": "minor",
-      "title": "Self-scaling person intelligence \u2014 separates roster noise, self-heals",
+      "title": "Self-scaling person intelligence — separates roster noise, self-heals",
       "changes": [
         {
           "category": "NEW",
-          "description": "Self-scaling person intelligence \u2014 separates roster noise, self-heals"
+          "description": "Self-scaling person intelligence — separates roster noise, self-heals"
         }
       ],
       "commit": null
@@ -4140,11 +4165,11 @@
       "version": "1.94.0",
       "date": "2026-07-24",
       "release_type": "minor",
-      "title": "Identity correction from attendance \u2014 events immutable, audited",
+      "title": "Identity correction from attendance — events immutable, audited",
       "changes": [
         {
           "category": "NEW",
-          "description": "Identity correction from attendance \u2014 events immutable, audited"
+          "description": "Identity correction from attendance — events immutable, audited"
         }
       ],
       "commit": null
@@ -4153,11 +4178,11 @@
       "version": "1.94.1",
       "date": "2026-07-24",
       "release_type": "patch",
-      "title": "Data-first density pass \u2014 table above the fold (Part 1)",
+      "title": "Data-first density pass — table above the fold (Part 1)",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Data-first density pass \u2014 table above the fold (Part 1)"
+          "description": "Data-first density pass — table above the fold (Part 1)"
         }
       ],
       "commit": "816d2d38e4"
@@ -4218,11 +4243,11 @@
       "version": "1.95.0",
       "date": "2026-07-24",
       "release_type": "minor",
-      "title": "Control Center subscription + suspend/activate \u2014 operate schools without their login",
+      "title": "Control Center subscription + suspend/activate — operate schools without their login",
       "changes": [
         {
           "category": "NEW",
-          "description": "Control Center subscription + suspend/activate \u2014 operate schools without their login"
+          "description": "Control Center subscription + suspend/activate — operate schools without their login"
         }
       ],
       "commit": null
@@ -4231,11 +4256,11 @@
       "version": "1.96.0",
       "date": "2026-07-24",
       "release_type": "minor",
-      "title": "Enter any school \u2014 secure audited impersonation",
+      "title": "Enter any school — secure audited impersonation",
       "changes": [
         {
           "category": "NEW",
-          "description": "Enter any school \u2014 secure audited impersonation"
+          "description": "Enter any school — secure audited impersonation"
         }
       ],
       "commit": null
@@ -4270,11 +4295,11 @@
       "version": "1.97.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Identity correction preview + undo \u2014 founder-independence Phase A",
+      "title": "Identity correction preview + undo — founder-independence Phase A",
       "changes": [
         {
           "category": "NEW",
-          "description": "Identity correction preview + undo \u2014 founder-independence Phase A"
+          "description": "Identity correction preview + undo — founder-independence Phase A"
         }
       ],
       "commit": null
@@ -4283,11 +4308,11 @@
       "version": "1.98.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Proactive daily digest \u2014 founder-independence Phase D",
+      "title": "Proactive daily digest — founder-independence Phase D",
       "changes": [
         {
           "category": "NEW",
-          "description": "Proactive daily digest \u2014 founder-independence Phase D"
+          "description": "Proactive daily digest — founder-independence Phase D"
         }
       ],
       "commit": null
@@ -4296,11 +4321,11 @@
       "version": "1.99.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Bulk roster hygiene \u2014 founder-independence Phase C",
+      "title": "Bulk roster hygiene — founder-independence Phase C",
       "changes": [
         {
           "category": "NEW",
-          "description": "Bulk roster hygiene \u2014 founder-independence Phase C"
+          "description": "Bulk roster hygiene — founder-independence Phase C"
         }
       ],
       "commit": null
@@ -4309,11 +4334,11 @@
       "version": "1.100.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Guided person merge \u2014 founder-independence Phase B",
+      "title": "Guided person merge — founder-independence Phase B",
       "changes": [
         {
           "category": "NEW",
-          "description": "Guided person merge \u2014 founder-independence Phase B"
+          "description": "Guided person merge — founder-independence Phase B"
         }
       ],
       "commit": null
@@ -4322,11 +4347,11 @@
       "version": "1.101.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Historical repair \u2014 founder-independence Phase E",
+      "title": "Historical repair — founder-independence Phase E",
       "changes": [
         {
           "category": "NEW",
-          "description": "Historical repair \u2014 founder-independence Phase E"
+          "description": "Historical repair — founder-independence Phase E"
         }
       ],
       "commit": null
@@ -4400,11 +4425,11 @@
       "version": "1.105.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Policy-aware Time Health \u2014 dual-drift + time-policy reinterpretation",
+      "title": "Policy-aware Time Health — dual-drift + time-policy reinterpretation",
       "changes": [
         {
           "category": "NEW",
-          "description": "Policy-aware Time Health \u2014 dual-drift + time-policy reinterpretation"
+          "description": "Policy-aware Time Health — dual-drift + time-policy reinterpretation"
         }
       ],
       "commit": null
@@ -4413,11 +4438,11 @@
       "version": "1.105.1",
       "date": "2026-07-25",
       "release_type": "patch",
-      "title": "Lazy-construct Africa's Talking client \u2014 build no longer fails when key unset",
+      "title": "Lazy-construct Africa's Talking client — build no longer fails when key unset",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Lazy-construct Africa's Talking client \u2014 build no longer fails when key unset"
+          "description": "Lazy-construct Africa's Talking client — build no longer fails when key unset"
         }
       ],
       "commit": null
@@ -4452,11 +4477,11 @@
       "version": "1.107.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Platform device management \u2014 inventory, assign, lifecycle, timeline (P2)",
+      "title": "Platform device management — inventory, assign, lifecycle, timeline (P2)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Platform device management \u2014 inventory, assign, lifecycle, timeline (P2)"
+          "description": "Platform device management — inventory, assign, lifecycle, timeline (P2)"
         }
       ],
       "commit": null
@@ -4478,11 +4503,11 @@
       "version": "1.108.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Live recent-activity read \u2014 view a school without impersonation (P3)",
+      "title": "Live recent-activity read — view a school without impersonation (P3)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Live recent-activity read \u2014 view a school without impersonation (P3)"
+          "description": "Live recent-activity read — view a school without impersonation (P3)"
         }
       ],
       "commit": null
@@ -4491,11 +4516,11 @@
       "version": "1.109.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Platform Health Center \u2014 cross-school proactive monitors (P4)",
+      "title": "Platform Health Center — cross-school proactive monitors (P4)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Platform Health Center \u2014 cross-school proactive monitors (P4)"
+          "description": "Platform Health Center — cross-school proactive monitors (P4)"
         }
       ],
       "commit": null
@@ -4504,11 +4529,11 @@
       "version": "1.110.0",
       "date": "2026-07-25",
       "release_type": "minor",
-      "title": "Subscription plan engine \u2014 catalog + limits + usage (P5)",
+      "title": "Subscription plan engine — catalog + limits + usage (P5)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Subscription plan engine \u2014 catalog + limits + usage (P5)"
+          "description": "Subscription plan engine — catalog + limits + usage (P5)"
         }
       ],
       "commit": null
@@ -4530,11 +4555,11 @@
       "version": "1.112.0",
       "date": "2026-07-26",
       "release_type": "minor",
-      "title": "School lifecycle \u2014 archive/delete/restore + enforce in session gate (P6)",
+      "title": "School lifecycle — archive/delete/restore + enforce in session gate (P6)",
       "changes": [
         {
           "category": "NEW",
-          "description": "School lifecycle \u2014 archive/delete/restore + enforce in session gate (P6)"
+          "description": "School lifecycle — archive/delete/restore + enforce in session gate (P6)"
         }
       ],
       "commit": null
@@ -4543,11 +4568,11 @@
       "version": "1.113.0",
       "date": "2026-07-26",
       "release_type": "minor",
-      "title": "Opt-out module visibility \u2014 Control disable truly hides + gates (P-modules)",
+      "title": "Opt-out module visibility — Control disable truly hides + gates (P-modules)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Opt-out module visibility \u2014 Control disable truly hides + gates (P-modules)"
+          "description": "Opt-out module visibility — Control disable truly hides + gates (P-modules)"
         }
       ],
       "commit": null
@@ -4582,11 +4607,11 @@
       "version": "1.116.0",
       "date": "2026-07-26",
       "release_type": "minor",
-      "title": "Theming \u2014 light/system/dark/high-contrast (retire forced dark)",
+      "title": "Theming — light/system/dark/high-contrast (retire forced dark)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Theming \u2014 light/system/dark/high-contrast (retire forced dark)"
+          "description": "Theming — light/system/dark/high-contrast (retire forced dark)"
         }
       ],
       "commit": null
@@ -4608,11 +4633,11 @@
       "version": "1.117.1",
       "date": "2026-07-26",
       "release_type": "patch",
-      "title": "Light theme legibility \u2014 darken coloured chip text, style inputs, resolve system in JS",
+      "title": "Light theme legibility — darken coloured chip text, style inputs, resolve system in JS",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Light theme legibility \u2014 darken coloured chip text, style inputs, resolve system in JS"
+          "description": "Light theme legibility — darken coloured chip text, style inputs, resolve system in JS"
         }
       ],
       "commit": null
@@ -4699,11 +4724,11 @@
       "version": "1.123.0",
       "date": "2026-07-26",
       "release_type": "minor",
-      "title": "Billing ledger \u2014 invoices, payments, reconciliation (money Phase 11)",
+      "title": "Billing ledger — invoices, payments, reconciliation (money Phase 11)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Billing ledger \u2014 invoices, payments, reconciliation (money Phase 11)"
+          "description": "Billing ledger — invoices, payments, reconciliation (money Phase 11)"
         }
       ],
       "commit": null
@@ -4894,11 +4919,11 @@
       "version": "1.133.0",
       "date": "2026-07-26",
       "release_type": "minor",
-      "title": "Platform business intelligence \u2014 MRR/revenue/plan-mix (Phase 24)",
+      "title": "Platform business intelligence — MRR/revenue/plan-mix (Phase 24)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Platform business intelligence \u2014 MRR/revenue/plan-mix (Phase 24)"
+          "description": "Platform business intelligence — MRR/revenue/plan-mix (Phase 24)"
         }
       ],
       "commit": null
@@ -5089,11 +5114,11 @@
       "version": "1.138.0",
       "date": "2026-07-27",
       "release_type": "minor",
-      "title": "Trash view \u2014 see, restore, or permanently delete soft-deleted learners",
+      "title": "Trash view — see, restore, or permanently delete soft-deleted learners",
       "changes": [
         {
           "category": "NEW",
-          "description": "Trash view \u2014 see, restore, or permanently delete soft-deleted learners"
+          "description": "Trash view — see, restore, or permanently delete soft-deleted learners"
         }
       ],
       "commit": null
@@ -5115,11 +5140,11 @@
       "version": "1.138.2",
       "date": "2026-07-27",
       "release_type": "patch",
-      "title": "System-wide /admin/trash crashed on load (bad exam column) \u2014 now works + resilient",
+      "title": "System-wide /admin/trash crashed on load (bad exam column) — now works + resilient",
       "changes": [
         {
           "category": "FIXED",
-          "description": "System-wide /admin/trash crashed on load (bad exam column) \u2014 now works + resilient"
+          "description": "System-wide /admin/trash crashed on load (bad exam column) — now works + resilient"
         }
       ],
       "commit": null
@@ -5128,11 +5153,11 @@
       "version": "1.139.0",
       "date": "2026-07-27",
       "release_type": "minor",
-      "title": "Make Trash boring \u2014 26-entity coverage + a verifier so it can't silently break",
+      "title": "Make Trash boring — 26-entity coverage + a verifier so it can't silently break",
       "changes": [
         {
           "category": "NEW",
-          "description": "Make Trash boring \u2014 26-entity coverage + a verifier so it can't silently break"
+          "description": "Make Trash boring — 26-entity coverage + a verifier so it can't silently break"
         }
       ],
       "commit": null
@@ -5167,11 +5192,11 @@
       "version": "1.141.1",
       "date": "2026-07-27",
       "release_type": "patch",
-      "title": "Plan tombstones \u2014 a deleted plan can NEVER be re-seeded (kills Starter resurrection)",
+      "title": "Plan tombstones — a deleted plan can NEVER be re-seeded (kills Starter resurrection)",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Plan tombstones \u2014 a deleted plan can NEVER be re-seeded (kills Starter resurrection)"
+          "description": "Plan tombstones — a deleted plan can NEVER be re-seeded (kills Starter resurrection)"
         }
       ],
       "commit": null
@@ -5193,11 +5218,11 @@
       "version": "1.141.3",
       "date": "2026-07-27",
       "release_type": "patch",
-      "title": "Attendance exports now emit an audit event (P2 \u2014 who exported what, when, where)",
+      "title": "Attendance exports now emit an audit event (P2 — who exported what, when, where)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Attendance exports now emit an audit event (P2 \u2014 who exported what, when, where)"
+          "description": "Attendance exports now emit an audit event (P2 — who exported what, when, where)"
         }
       ],
       "commit": null
@@ -5271,11 +5296,11 @@
       "version": "1.145.0",
       "date": "2026-07-27",
       "release_type": "minor",
-      "title": "SMS economics engine \u2014 provider balance + per-school allocation/usage (P5)",
+      "title": "SMS economics engine — provider balance + per-school allocation/usage (P5)",
       "changes": [
         {
           "category": "NEW",
-          "description": "SMS economics engine \u2014 provider balance + per-school allocation/usage (P5)"
+          "description": "SMS economics engine — provider balance + per-school allocation/usage (P5)"
         }
       ],
       "commit": null
@@ -5349,11 +5374,11 @@
       "version": "1.149.0",
       "date": "2026-07-27",
       "release_type": "minor",
-      "title": "Backfill product-evolution milestones 1.84\u21921.148 + sticky section nav",
+      "title": "Backfill product-evolution milestones 1.84→1.148 + sticky section nav",
       "changes": [
         {
           "category": "NEW",
-          "description": "Backfill product-evolution milestones 1.84\u21921.148 + sticky section nav"
+          "description": "Backfill product-evolution milestones 1.84→1.148 + sticky section nav"
         }
       ],
       "commit": null
@@ -5440,11 +5465,11 @@
       "version": "1.151.0",
       "date": "2026-07-28",
       "release_type": "minor",
-      "title": "Intelligent Report Comment Engine \u2014 rule-driven Class Teacher/DOS/Headteacher comments (Phase II)",
+      "title": "Intelligent Report Comment Engine — rule-driven Class Teacher/DOS/Headteacher comments (Phase II)",
       "changes": [
         {
           "category": "NEW",
-          "description": "Intelligent Report Comment Engine \u2014 rule-driven Class Teacher/DOS/Headteacher comments (Phase II)"
+          "description": "Intelligent Report Comment Engine — rule-driven Class Teacher/DOS/Headteacher comments (Phase II)"
         }
       ],
       "commit": null
@@ -5570,11 +5595,11 @@
       "version": "1.155.0",
       "date": "2026-07-28",
       "release_type": "minor",
-      "title": "Stage A of finance consolidation \u2014 fee_item_id FK, sync-fees dedup, broken payroll wallet fix",
+      "title": "Stage A of finance consolidation — fee_item_id FK, sync-fees dedup, broken payroll wallet fix",
       "changes": [
         {
           "category": "NEW",
-          "description": "Stage A of finance consolidation \u2014 fee_item_id FK, sync-fees dedup, broken payroll wallet fix"
+          "description": "Stage A of finance consolidation — fee_item_id FK, sync-fees dedup, broken payroll wallet fix"
         }
       ],
       "commit": null
@@ -5583,11 +5608,11 @@
       "version": "1.156.0",
       "date": "2026-07-29",
       "release_type": "minor",
-      "title": "Stage B \u2014 fixed active undercounting bug in older parent fees route, backfilled fee_item_id, cleaned up duplicate nav entry",
+      "title": "Stage B — fixed active undercounting bug in older parent fees route, backfilled fee_item_id, cleaned up duplicate nav entry",
       "changes": [
         {
           "category": "NEW",
-          "description": "Stage B \u2014 fixed active undercounting bug in older parent fees route, backfilled fee_item_id, cleaned up duplicate nav entry"
+          "description": "Stage B — fixed active undercounting bug in older parent fees route, backfilled fee_item_id, cleaned up duplicate nav entry"
         }
       ],
       "commit": null
@@ -5609,11 +5634,11 @@
       "version": "1.156.2",
       "date": "2026-07-29",
       "release_type": "patch",
-      "title": "Today's first arrival always showed blank \u2014 field computed and saved to DB but never returned by the API",
+      "title": "Today's first arrival always showed blank — field computed and saved to DB but never returned by the API",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Today's first arrival always showed blank \u2014 field computed and saved to DB but never returned by the API"
+          "description": "Today's first arrival always showed blank — field computed and saved to DB but never returned by the API"
         }
       ],
       "commit": null
@@ -5648,11 +5673,11 @@
       "version": "1.159.0",
       "date": "2026-07-29",
       "release_type": "minor",
-      "title": "Enterprise Push Templates \u2014 scoped bulk deployment of stored fingerprints to any device",
+      "title": "Enterprise Push Templates — scoped bulk deployment of stored fingerprints to any device",
       "changes": [
         {
           "category": "NEW",
-          "description": "Enterprise Push Templates \u2014 scoped bulk deployment of stored fingerprints to any device"
+          "description": "Enterprise Push Templates — scoped bulk deployment of stored fingerprints to any device"
         }
       ],
       "commit": null
@@ -5726,11 +5751,11 @@
       "version": "1.164.0",
       "date": "2026-07-29",
       "release_type": "minor",
-      "title": "Analyze historical data \u2014 detect clock jump patterns in already-stored punches",
+      "title": "Analyze historical data — detect clock jump patterns in already-stored punches",
       "changes": [
         {
           "category": "NEW",
-          "description": "Analyze historical data \u2014 detect clock jump patterns in already-stored punches"
+          "description": "Analyze historical data — detect clock jump patterns in already-stored punches"
         }
       ],
       "commit": null
@@ -5765,11 +5790,11 @@
       "version": "1.165.0",
       "date": "2026-07-29",
       "release_type": "minor",
-      "title": "Close the admission-number duplicate race (SP-1) \u2014 merged 108 dupes, DB now enforces uniqueness, retry on collision",
+      "title": "Close the admission-number duplicate race (SP-1) — merged 108 dupes, DB now enforces uniqueness, retry on collision",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Close the admission-number duplicate race (SP-1) \u2014 merged 108 dupes, DB now enforces uniqueness, retry on collision"
+          "description": "Close the admission-number duplicate race (SP-1) — merged 108 dupes, DB now enforces uniqueness, retry on collision"
         }
       ],
       "commit": null
@@ -5791,11 +5816,11 @@
       "version": "1.167.0",
       "date": "2026-07-29",
       "release_type": "minor",
-      "title": "Consolidate waivers/discounts onto learner_fee_adjustments (Stage C) \u2014 retroactive re-pricing, retire duplicate table",
+      "title": "Consolidate waivers/discounts onto learner_fee_adjustments (Stage C) — retroactive re-pricing, retire duplicate table",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Consolidate waivers/discounts onto learner_fee_adjustments (Stage C) \u2014 retroactive re-pricing, retire duplicate table"
+          "description": "Consolidate waivers/discounts onto learner_fee_adjustments (Stage C) — retroactive re-pricing, retire duplicate table"
         }
       ],
       "commit": null
@@ -5804,11 +5829,11 @@
       "version": "1.167.1",
       "date": "2026-07-29",
       "release_type": "patch",
-      "title": "/finance/fees page freeze \u2014 unpaginated full-table fetch + per-row animation",
+      "title": "/finance/fees page freeze — unpaginated full-table fetch + per-row animation",
       "changes": [
         {
           "category": "FIXED",
-          "description": "/finance/fees page freeze \u2014 unpaginated full-table fetch + per-row animation"
+          "description": "/finance/fees page freeze — unpaginated full-table fetch + per-row animation"
         }
       ],
       "commit": null
@@ -5830,11 +5855,11 @@
       "version": "1.167.3",
       "date": "2026-07-29",
       "release_type": "patch",
-      "title": "Learners-fees showed 0 for every student billed via the modern engine \u2014 joined a dead V1 table",
+      "title": "Learners-fees showed 0 for every student billed via the modern engine — joined a dead V1 table",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Learners-fees showed 0 for every student billed via the modern engine \u2014 joined a dead V1 table"
+          "description": "Learners-fees showed 0 for every student billed via the modern engine — joined a dead V1 table"
         }
       ],
       "commit": null
@@ -5908,11 +5933,11 @@
       "version": "1.169.4",
       "date": "2026-07-30",
       "release_type": "patch",
-      "title": "Further cut Vercel build memory \u2014 lazy-load jspdf, small heap-cap safety margin",
+      "title": "Further cut Vercel build memory — lazy-load jspdf, small heap-cap safety margin",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Further cut Vercel build memory \u2014 lazy-load jspdf, small heap-cap safety margin"
+          "description": "Further cut Vercel build memory — lazy-load jspdf, small heap-cap safety margin"
         }
       ],
       "commit": "519dccfb1b"
@@ -6129,11 +6154,11 @@
       "version": "1.173.8",
       "date": "2026-08-03",
       "release_type": "patch",
-      "title": "DRAIS knowledge system \u2014 architecture-first developer education",
+      "title": "DRAIS knowledge system — architecture-first developer education",
       "changes": [
         {
           "category": "NEW",
-          "description": "DRAIS knowledge system \u2014 architecture-first developer education"
+          "description": "DRAIS knowledge system — architecture-first developer education"
         }
       ],
       "commit": "b7ccded845"
@@ -6142,11 +6167,11 @@
       "version": "1.173.9",
       "date": "2026-08-03",
       "release_type": "patch",
-      "title": "Complete the knowledge system \u2014 24 docs, page blueprint, ADR-0013/0014",
+      "title": "Complete the knowledge system — 24 docs, page blueprint, ADR-0013/0014",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Complete the knowledge system \u2014 24 docs, page blueprint, ADR-0013/0014"
+          "description": "Complete the knowledge system — 24 docs, page blueprint, ADR-0013/0014"
         }
       ],
       "commit": "f8cbd59511"
@@ -6155,11 +6180,11 @@
       "version": "1.173.10",
       "date": "2026-08-04",
       "release_type": "patch",
-      "title": "Code-level teaching \u2014 theming, dashboard anatomy, data flow",
+      "title": "Code-level teaching — theming, dashboard anatomy, data flow",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Code-level teaching \u2014 theming, dashboard anatomy, data flow"
+          "description": "Code-level teaching — theming, dashboard anatomy, data flow"
         }
       ],
       "commit": "a62a685153"
@@ -6168,11 +6193,11 @@
       "version": "1.173.11",
       "date": "2026-08-04",
       "release_type": "patch",
-      "title": "Ten subsystem READMEs \u2014 33 of 42 folders covered",
+      "title": "Ten subsystem READMEs — 33 of 42 folders covered",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Ten subsystem READMEs \u2014 33 of 42 folders covered"
+          "description": "Ten subsystem READMEs — 33 of 42 folders covered"
         }
       ],
       "commit": "cc3219c2c5"
@@ -6181,11 +6206,11 @@
       "version": "1.173.12",
       "date": "2026-08-04",
       "release_type": "patch",
-      "title": "Page blueprint for the DRCE editor \u2014 an editor is not a form",
+      "title": "Page blueprint for the DRCE editor — an editor is not a form",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Page blueprint for the DRCE editor \u2014 an editor is not a form"
+          "description": "Page blueprint for the DRCE editor — an editor is not a form"
         }
       ],
       "commit": "00077d715d"
@@ -6207,11 +6232,11 @@
       "version": "1.173.14",
       "date": "2026-08-04",
       "release_type": "patch",
-      "title": "Complete the Developer University \u2014 10-lesson curriculum",
+      "title": "Complete the Developer University — 10-lesson curriculum",
       "changes": [
         {
           "category": "NEW",
-          "description": "Complete the Developer University \u2014 10-lesson curriculum"
+          "description": "Complete the Developer University — 10-lesson curriculum"
         }
       ],
       "commit": "6e6d5c0a76"
@@ -6246,11 +6271,11 @@
       "version": "1.173.17",
       "date": "2026-08-05",
       "release_type": "patch",
-      "title": "Restore report access \u2014 my permission change 403'd everyone",
+      "title": "Restore report access — my permission change 403'd everyone",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Restore report access \u2014 my permission change 403'd everyone"
+          "description": "Restore report access — my permission change 403'd everyone"
         }
       ],
       "commit": "985b954c09"
@@ -6259,11 +6284,11 @@
       "version": "1.173.18",
       "date": "2026-08-05",
       "release_type": "patch",
-      "title": "Reports 500'd on every request \u2014 SQL referenced columns that do not exist",
+      "title": "Reports 500'd on every request — SQL referenced columns that do not exist",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Reports 500'd on every request \u2014 SQL referenced columns that do not exist"
+          "description": "Reports 500'd on every request — SQL referenced columns that do not exist"
         }
       ],
       "commit": "b18e45d2d5"
@@ -6272,11 +6297,11 @@
       "version": "1.173.19",
       "date": "2026-08-06",
       "release_type": "patch",
-      "title": "Stop prerendering 49 doc routes \u2014 Vercel OOM at heap 2560",
+      "title": "Stop prerendering 49 doc routes — Vercel OOM at heap 2560",
       "changes": [
         {
           "category": "FIXED",
-          "description": "Stop prerendering 49 doc routes \u2014 Vercel OOM at heap 2560"
+          "description": "Stop prerendering 49 doc routes — Vercel OOM at heap 2560"
         }
       ],
       "commit": "2036ad377d"
@@ -6285,11 +6310,11 @@
       "version": "1.173.20",
       "date": "2026-08-06",
       "release_type": "patch",
-      "title": "Pull 49 doc routes out of the build \u2014 Vercel OOM",
+      "title": "Pull 49 doc routes out of the build — Vercel OOM",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Pull 49 doc routes out of the build \u2014 Vercel OOM"
+          "description": "Pull 49 doc routes out of the build — Vercel OOM"
         }
       ],
       "commit": "ddb679b68c"
@@ -6298,11 +6323,11 @@
       "version": "1.173.21",
       "date": "2026-08-06",
       "release_type": "patch",
-      "title": "Compile with Turbopack \u2014 webpack OOM is not heap-tunable",
+      "title": "Compile with Turbopack — webpack OOM is not heap-tunable",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Compile with Turbopack \u2014 webpack OOM is not heap-tunable"
+          "description": "Compile with Turbopack — webpack OOM is not heap-tunable"
         }
       ],
       "commit": "b8cdfffb0c"
@@ -6337,11 +6362,11 @@
       "version": "1.173.24",
       "date": "2026-08-06",
       "release_type": "patch",
-      "title": "Drop the force-dynamic layouts \u2014 their stated cause was wrong",
+      "title": "Drop the force-dynamic layouts — their stated cause was wrong",
       "changes": [
         {
           "category": "IMPROVED",
-          "description": "Drop the force-dynamic layouts \u2014 their stated cause was wrong"
+          "description": "Drop the force-dynamic layouts — their stated cause was wrong"
         }
       ],
       "commit": "ec076fc587"
@@ -6597,11 +6622,11 @@
       "version": "1.173.45",
       "date": "2026-08-12",
       "release_type": "patch",
-      "title": "Fee circular \u2014 what each class pays, and who each fee applies to",
+      "title": "Fee circular — what each class pays, and who each fee applies to",
       "changes": [
         {
           "category": "NEW",
-          "description": "Fee circular \u2014 what each class pays, and who each fee applies to"
+          "description": "Fee circular — what each class pays, and who each fee applies to"
         }
       ],
       "commit": "5d98a83c4a"
@@ -6831,27 +6856,15 @@
       "version": "1.173.63",
       "date": "2026-08-13",
       "release_type": "patch",
-      "title": "DRAIS 1.173.63 LTS \u2014 a stable operational baseline for attendance, biometric identity, passouts, communication, and school administration",
+      "title": "Curriculum creation was impossible - TINYINT primary key",
       "changes": [
         {
-          "category": "NEW",
-          "description": "DRAIS 1.173.63 consolidates the school operational platform around a stable, dependable baseline for attendance intelligence, learner administration, biometric identity, communication, passout management, and institutional reporting."
-        },
-        {
-          "category": "IMPROVED",
-          "description": "School workflows are clearer and more predictable across operational records, staff administration, fee-related processes, and the management environment that supports daily institutional activity."
-        },
-        {
           "category": "FIXED",
-          "description": "The release addresses recurring operational blockers affecting expense records, salary definitions, wallet balances, and program edit/delete flows so the platform remains reliable for daily institutional use."
-        },
-        {
-          "category": "PERFORMANCE",
-          "description": "The platform continues to prioritize system stability and maintainability through careful operational fixes and low-disruption improvements in core admin workflows."
+          "description": "Curriculum creation was impossible - TINYINT primary key"
         }
       ],
-      "commit": "1.173.63-lts"
+      "commit": "d10bdb3c44"
     }
   ],
-  "app_version": "1.173.63"
+  "app_version": "1.2.1"
 }

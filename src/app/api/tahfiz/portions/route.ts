@@ -250,19 +250,20 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      student_ids, 
-      group_id, 
-      book_id, 
-      portion_name, 
-      surah_name, 
-      ayah_from, 
-      ayah_to, 
-      page_from, 
-      page_to, 
+      student_ids,
+      group_id,
+      book_id,
+      portion_name,
+      surah_name,
+      ayah_from,
+      ayah_to,
+      page_from,
+      page_to,
       juz_number,
-      difficulty_level, 
-      estimated_days, 
-      notes
+      difficulty_level,
+      estimated_days,
+      notes,
+      type,
     } = body;
 
     if (!schoolId) {
@@ -290,15 +291,17 @@ export async function POST(req: NextRequest) {
     await connection.beginTransaction();
 
     // Get target student IDs
-    let targetStudentIds = student_ids || [];
-    
-    if (group_id && !student_ids) {
-      // Fetch students from group
+    let targetStudentIds = Array.isArray(student_ids) ? student_ids : [];
+
+    if (group_id && (!student_ids || targetStudentIds.length === 0)) {
       const [groupMembers] = await connection.execute(
-        `SELECT student_id FROM tahfiz_group_members WHERE group_id = ?`,
-        [group_id]
+        `SELECT student_id
+         FROM tahfiz_group_members tgm
+         INNER JOIN tahfiz_groups tg ON tg.id = tgm.group_id
+         WHERE tgm.group_id = ? AND tg.school_id = ?`,
+        [group_id, schoolId]
       );
-      targetStudentIds = (groupMembers as any[]).map(member => member.student_id);
+      targetStudentIds = (groupMembers as any[]).map((member) => member.student_id);
     }
 
     if (targetStudentIds.length === 0) {
@@ -312,9 +315,9 @@ export async function POST(req: NextRequest) {
     // Check for duplicate active portions
     const placeholders = targetStudentIds.map(() => '?').join(',');
     const [existingPortions] = await connection.execute(
-      `SELECT student_id, portion_name FROM tahfiz_portions 
-       WHERE student_id IN (${placeholders}) AND status IN ('pending', 'in_progress')`,
-      targetStudentIds
+      `SELECT student_id, portion_name FROM tahfiz_portions
+       WHERE school_id = ? AND student_id IN (${placeholders}) AND status IN ('pending', 'in_progress', 'review')`,
+      [schoolId, ...targetStudentIds]
     );
 
     if ((existingPortions as any[]).length > 0) {
@@ -331,34 +334,56 @@ export async function POST(req: NextRequest) {
     for (const studentId of targetStudentIds) {
       const [result] = await connection.execute(
         `INSERT INTO tahfiz_portions (
-          student_id, portion_name, surah_name, ayah_from, ayah_to, 
-          juz_number, page_from, page_to, difficulty_level, estimated_days, 
-          notes, status, assigned_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+          school_id,
+          student_id,
+          portion_name,
+          surah_name,
+          ayah_from,
+          ayah_to,
+          juz_number,
+          page_from,
+          page_to,
+          difficulty_level,
+          estimated_days,
+          notes,
+          status,
+          assigned_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
         [
-          studentId, portion_name, surah_name || null, ayah_from || null, 
-          ayah_to || null, juz_number || null, page_from || null, 
-          page_to || null, difficulty_level || 'medium', estimated_days || 1, notes || null
+          schoolId,
+          studentId,
+          portion_name,
+          surah_name || null,
+          ayah_from || null,
+          ayah_to || null,
+          juz_number || null,
+          page_from || null,
+          page_to || null,
+          difficulty_level || 'medium',
+          estimated_days || 1,
+          notes || null,
         ]
       );
 
-      createdPortions.push({ 
-        id: (result as any).insertId, 
-        student_id: studentId, 
-        portion_name, 
-        surah_name: surah_name || null, 
-        ayah_from: ayah_from || null, 
-        ayah_to: ayah_to || null, 
-        juz_number: juz_number || null, 
-        page_from: page_from || null, 
-        page_to: page_to || null, 
+      createdPortions.push({
+        id: (result as any).insertId,
+        school_id: schoolId,
+        student_id: studentId,
+        portion_name,
+        surah_name: surah_name || null,
+        ayah_from: ayah_from || null,
+        ayah_to: ayah_to || null,
+        juz_number: juz_number || null,
+        page_from: page_from || null,
+        page_to: page_to || null,
         status: 'pending',
         difficulty_level: difficulty_level || 'medium',
         estimated_days: estimated_days || 1,
         notes: notes || null,
         assigned_at: new Date().toISOString(),
         started_at: null,
-        completed_at: null
+        completed_at: null,
+        type: type || null,
       });
     }
 

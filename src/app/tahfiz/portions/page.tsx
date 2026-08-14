@@ -232,7 +232,7 @@ function TahfizPortionsContent() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search */}
             <div className="lg:col-span-2 relative">
@@ -339,7 +339,7 @@ function TahfizPortionsContent() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted border-b border-border">

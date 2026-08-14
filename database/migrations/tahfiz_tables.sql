@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS tahfiz_evaluations (
 
 CREATE TABLE IF NOT EXISTS tahfiz_portions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  school_id BIGINT DEFAULT NULL,
   student_id BIGINT NOT NULL,
   portion_name VARCHAR(100) NOT NULL,
   surah_name VARCHAR(100) DEFAULT NULL,
