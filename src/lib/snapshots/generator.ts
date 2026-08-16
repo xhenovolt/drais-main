@@ -73,6 +73,7 @@ import {
   applyGradingScale,
   buildDefaultConfig,
   defaultComments,
+  performanceOverallComments,
   deriveOverallRemark,
   subjectComment,
   DEFAULT_GRADING_SCALE,
@@ -688,6 +689,8 @@ function buildClasses(
           displayTotal:    '',
           displayAverage:  '',
           displayPosition: '',
+          // Placeholder only — overwritten with performanceOverallComments()
+          // once the student's average is known (see the ranking loop below).
           comments:        defaultComments(language),
           remarks:         '',
         },
@@ -775,6 +778,12 @@ function buildClasses(
         ? `${toArabicNumerals(stu.position)}/${toArabicNumerals(stu.totalInClass)}`
         : `${stu.position}/${stu.totalInClass}`;
       stu.remarks         = deriveOverallRemark(stu.average, language);
+
+      // Performance-adaptive overall comments — replaces the old static
+      // defaultComments() placeholder now that the student's average is
+      // known, so class teacher / DOS / headteacher comments vary with how
+      // well the student actually performed.
+      stu.comments = performanceOverallComments(stu.average, language);
 
       // Phase II — Intelligent Overall-Comment Engine. Resolved ONCE here
       // (positions/totals now known) and frozen into the snapshot, exactly

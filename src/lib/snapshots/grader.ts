@@ -110,6 +110,11 @@ export function displaySubjectComment(
 /**
  * Comments block matching the three emergency routes verbatim. Stored on
  * each student so the snapshot is self-contained and language-stable.
+ *
+ * @deprecated performance-blind — every student gets the identical phrase
+ * regardless of score. Kept only as the placeholder used before a student's
+ * average is known; `performanceOverallComments()` below is what actually
+ * ends up in the snapshot. Do not use this for the final comments block.
  */
 export function defaultComments(language: SnapshotLanguage) {
   if (language === 'ar') {
@@ -123,6 +128,75 @@ export function defaultComments(language: SnapshotLanguage) {
     classTeacher: 'Excellent work, keep it up',
     dos:          'Thank you for this effort, continue',
     headTeacher:  'Promising grades, continue',
+  };
+}
+
+/**
+ * Performance-adaptive overall comments (class teacher / DOS / headteacher).
+ * Bands mirror `deriveOverallRemark()` (80/65/50/40) so the remark and the
+ * three overall comments always agree on how well a student did. This is the
+ * fallback used whenever a school has no (or no matching) comment-bank rule
+ * for a student — replacing the old single fixed phrase that every learner
+ * received regardless of their actual performance.
+ */
+export function performanceOverallComments(
+  average: number,
+  language: SnapshotLanguage,
+): { classTeacher: string; dos: string; headTeacher: string } {
+  const a = Number.isFinite(average) ? average : 0;
+
+  if (language === 'ar') {
+    if (a >= 80) return {
+      classTeacher: 'عمل ممتاز، استمر على هذا المستوى الرائع',
+      dos:          'أداء متميز، نفخر بك، واصل الاجتهاد',
+      headTeacher:  'نتائج باهرة، أنت مثال يحتذى به',
+    };
+    if (a >= 65) return {
+      classTeacher: 'أداء جيد جداً، استمر في الاجتهاد للوصول إلى التميز',
+      dos:          'جهد ملحوظ، يمكنك تحقيق الأفضل بمزيد من التركيز',
+      headTeacher:  'درجات واعدة، استمر ولا تتهاون',
+    };
+    if (a >= 50) return {
+      classTeacher: 'أداء جيد، بحاجة إلى مزيد من الجهد والمراجعة',
+      dos:          'شكراً لهذا الجهد، يمكن تحسينه بالمثابرة',
+      headTeacher:  'نتائج مقبولة، اجتهد أكثر لتحقيق مستوى أفضل',
+    };
+    if (a >= 40) return {
+      classTeacher: 'الأداء دون المتوسط، يلزم بذل جهد إضافي والمتابعة عن قرب',
+      dos:          'التحصيل ضعيف نسبياً، يرجى مضاعفة الجهد في المراجعة',
+      headTeacher:  'النتائج تحتاج إلى تحسين، ننصح بمتابعة أقرب مع المعلمين',
+    };
+    return {
+      classTeacher: 'ضعيف، يحتاج إلى اجتهاد كبير ومتابعة عاجلة',
+      dos:          'أداء ضعيف جداً، يلزم دعم إضافي فوري',
+      headTeacher:  'مستوى غير مُرضٍ، مطلوب تدخل عاجل ومتابعة حثيثة',
+    };
+  }
+
+  if (a >= 80) return {
+    classTeacher: 'Brilliant! An outstanding result — keep up this excellent standard.',
+    dos:          'Outstanding performance, well deserved. Stay focused.',
+    headTeacher:  'Excellent achievement — you are a role model to your peers.',
+  };
+  if (a >= 65) return {
+    classTeacher: 'Very good work, keep pushing towards excellence.',
+    dos:          'A strong, promising performance — keep it up.',
+    headTeacher:  'Promising results, continue with this commitment.',
+  };
+  if (a >= 50) return {
+    classTeacher: 'A fair performance — more consistent effort will lift this further.',
+    dos:          'Good effort, but there is clear room for improvement.',
+    headTeacher:  'Satisfactory results; aim higher next term.',
+  };
+  if (a >= 40) return {
+    classTeacher: 'Below expectations — needs closer attention and extra practice.',
+    dos:          'Performance needs significant improvement; more effort is required.',
+    headTeacher:  'Results are a concern; closer follow-up with teachers is advised.',
+  };
+  return {
+    classTeacher: 'Well below standard — requires serious effort and immediate support.',
+    dos:          'Very weak performance; urgent remedial support is needed.',
+    headTeacher:  'Unsatisfactory results; requires urgent intervention and follow-up.',
   };
 }
 
