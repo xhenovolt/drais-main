@@ -629,6 +629,15 @@ export interface DRCEResultsTableSection extends DRCESectionBase {
     core?: string; coreAr?: string;
     elective?: string; electiveAr?: string;
   };
+  /**
+   * Show the divider row with the band's label text when layoutMode is
+   * 'grouped'. Default true. Set false to keep subjects partitioned
+   * core-first/electives-last (Phase 1's ordering already does this even in
+   * 'standard' mode) WITHOUT rendering the labelled divider row — i.e.
+   * "core first, no label" as a distinct choice from "core first, with a
+   * labelled band header".
+   */
+  showGroupLabels?: boolean;
 }
 
 export interface DRCEDivisionThreshold {

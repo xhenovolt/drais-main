@@ -300,11 +300,12 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
           );
           const coreLabel = resolveLocalizedLabel(language, groupLabels.core ?? 'Core Subjects', groupLabels.coreAr);
           const electiveLabel = resolveLocalizedLabel(language, groupLabels.elective ?? 'Electives', groupLabels.electiveAr);
+          const showLabels = section.showGroupLabels !== false;
           return (
             <>
-              {coreRows.length > 0 && renderGroupHeaderRow(coreLabel)}
+              {coreRows.length > 0 && showLabels && renderGroupHeaderRow(coreLabel)}
               {coreRows.map(({ row, i }) => renderResultRow(row, i))}
-              {electiveRows.length > 0 && renderGroupHeaderRow(electiveLabel)}
+              {electiveRows.length > 0 && showLabels && renderGroupHeaderRow(electiveLabel)}
               {electiveRows.map(({ row, i }) => renderResultRow(row, i))}
             </>
           );

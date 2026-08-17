@@ -1227,6 +1227,12 @@ function ResultsTablePanel({ section, onMutate }: {
         </Row>
         {section.layoutMode === 'grouped' && (
           <>
+            <Row label="Show band label">
+              <input type="checkbox"
+                checked={section.showGroupLabels ?? true}
+                onChange={e => onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'showGroupLabels', value: e.target.checked })}
+              />
+            </Row>
             <Row label="Core band label">
               <TextInput
                 value={section.groupLabels?.core ?? 'Core Subjects'}
