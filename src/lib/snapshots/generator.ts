@@ -753,15 +753,20 @@ function buildClasses(
   for (const cls of [...classMap.values()].sort((a, b) => a.classId - b.classId)) {
     // Reporting Architecture Phase 1 — configurable order (school/class/exam
     // specific, most-specific-wins), replacing raw database-id ordering.
-    // Unconfigured schools fall back to alphabetical, never silent id-order.
+    // Unconfigured classes fall back to the built-in seed default — core
+    // subjects before non-core, then alphabetical — never silent id-order.
     const subjects = orderSubjects([...cls.subjects.values()], subjectOrderRules, cls.classId, resultTypeId);
+    // Each student's per-subject result columns must line up 1:1 with the
+    // subject header row above, so reuse ITS resolved order (by index)
+    // rather than re-resolving independently — guarantees the results table
+    // never drifts out of sync with its own header.
+    const subjectIndex = new Map(subjects.map((s, i) => [s.id, i]));
 
     const students: SnapshotStudent[] = [];
     for (const stu of cls.students.values()) {
-      const results = orderSubjects(
-        [...stu.results.values()].map((r) => ({ id: r.subjectId, name: r.subjectName, _r: r })),
-        subjectOrderRules, cls.classId, resultTypeId,
-      ).map((x) => x._r);
+      const results = [...stu.results.values()].sort(
+        (a, b) => (subjectIndex.get(a.subjectId) ?? Infinity) - (subjectIndex.get(b.subjectId) ?? Infinity),
+      );
       stu.info.results = results;
       students.push(stu.info);
     }

@@ -26,6 +26,28 @@ describe('orderSubjects — no rules configured', () => {
   });
 });
 
+describe('orderSubjects — built-in seed default: core before non-core', () => {
+  const withTypes = [
+    { id: 1, name: 'Mathematics', subjectType: 'core' },
+    { id: 2, name: 'English', subjectType: 'core' },
+    { id: 3, name: 'Science', subjectType: 'primary' }, // snapshot-pipeline spelling also counts as core
+    { id: 4, name: 'Art', subjectType: 'other' },
+    { id: 5, name: 'Music', subjectType: 'secondary' },
+    { id: 6, name: 'Tahfiz', subjectType: 'tahfiz' },
+  ];
+
+  it('sorts unconfigured core subjects before unconfigured non-core, alphabetically within each group', () => {
+    const out = orderSubjects(withTypes, [], null, null);
+    assert.deepEqual(out.map(s => s.name), ['English', 'Mathematics', 'Science', 'Art', 'Music', 'Tahfiz']);
+  });
+
+  it('an explicit rule still wins over the core/non-core default', () => {
+    const rules = [{ subjectId: 4, classId: null, resultTypeId: null, priority: 1 }]; // Art forced first
+    const out = orderSubjects(withTypes, rules, null, null);
+    assert.deepEqual(out.map(s => s.name)[0], 'Art');
+  });
+});
+
 describe('orderSubjects — school-wide default (brief\'s worked example)', () => {
   const rules = [
     { subjectId: 1, classId: null, resultTypeId: null, priority: 1 }, // Mathematics

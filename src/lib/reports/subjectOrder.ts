@@ -26,7 +26,27 @@ export interface SubjectOrderRule {
 export interface OrderableSubject {
   id: number;
   name: string;
+  /** Optional core/non-core classification used as the DEFAULT tiebreak for
+   *  subjects with no explicit rule (see isCoreSubjectType below). Accepts
+   *  either raw DB values ('core', 'tahfiz', ...) or the snapshot pipeline's
+   *  'primary'/'secondary' classification — both are recognized. */
+  subjectType?: string | null;
 }
+
+/**
+ * The built-in ordering "seed": core (a.k.a. 'primary') subjects are treated
+ * as core for the default sort. Everything else (secondary, tahfiz, other,
+ * unset, ...) is non-core. This is what makes "core subjects first, then
+ * non-core" the out-of-the-box behaviour for every school/class/results
+ * table with no explicit subject-order rule configured — no per-school
+ * seeding required, and it applies uniformly across all current DRCE
+ * templates because every renderer goes through this one resolver.
+ */
+export function isCoreSubjectType(subjectType: string | null | undefined): boolean {
+  const t = (subjectType ?? '').trim().toLowerCase();
+  return t === 'core' || t === 'primary';
+}
+
 
 /**
  * Resolve the single best-matching rule per subject for a given
@@ -72,8 +92,10 @@ export function resolvePriorityMap(
 /**
  * PURE: order a list of subjects for one (classId, resultTypeId) context.
  * Configured subjects sort by resolved priority (lower first); unconfigured
- * subjects sort alphabetically by name AFTER all configured ones — visible,
- * predictable behaviour rather than silent id-order for anything not yet set up.
+ * subjects fall back to the built-in seed — core subjects before non-core —
+ * then alphabetically by name within each group, AFTER all configured
+ * subjects. Visible, predictable behaviour rather than silent id-order (or
+ * plain alphabetical) for anything not yet set up.
  */
 export function orderSubjects<T extends OrderableSubject>(
   subjects: T[],
@@ -88,6 +110,10 @@ export function orderSubjects<T extends OrderableSubject>(
     if (pa != null && pb != null) return pa - pb || a.name.localeCompare(b.name);
     if (pa != null) return -1; // configured subjects come first
     if (pb != null) return 1;
-    return a.name.localeCompare(b.name); // both unconfigured — alphabetical, deterministic
+    // Neither has an explicit rule — apply the core-first seed default.
+    const aCore = isCoreSubjectType(a.subjectType);
+    const bCore = isCoreSubjectType(b.subjectType);
+    if (aCore !== bCore) return aCore ? -1 : 1;
+    return a.name.localeCompare(b.name); // both unconfigured, same group — alphabetical
   });
 }

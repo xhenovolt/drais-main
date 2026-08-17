@@ -32,10 +32,13 @@ export async function GET(req: NextRequest) {
     listSubjectOrderRulesWithNames(session.schoolId),
   ]);
 
-  const ordered = orderSubjects(subjects, rules, classId, resultTypeId);
+  const ordered = orderSubjects(
+    subjects.map((s) => ({ id: s.id, name: s.name, subjectType: s.subject_type })),
+    rules, classId, resultTypeId,
+  );
   return NextResponse.json({
     success: true,
-    subjects: ordered.map((s) => ({ id: s.id, name: s.name, subjectType: s.subject_type })),
+    subjects: ordered,
     rules, // full rule set (all scopes) — the UI groups these to show what's configured where
   });
 }
