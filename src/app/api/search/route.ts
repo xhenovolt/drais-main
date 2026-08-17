@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         SELECT s.id, p.first_name, p.last_name, s.admission_no
         FROM students s
         JOIN people p ON s.person_id = p.id
-        WHERE s.school_id = ? AND s.status = 'active' AND (
+        WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL AND (
           p.first_name LIKE ? OR
           p.last_name LIKE ? OR
           CONCAT(p.first_name, ' ', p.last_name) LIKE ? OR
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
         FROM results r
         JOIN students s ON r.student_id = s.id
         JOIN people p ON s.person_id = p.id
-        WHERE r.school_id = ? AND (
+        WHERE r.school_id = ? AND s.deleted_at IS NULL AND (
           p.first_name LIKE ? OR
           p.last_name LIKE ? OR
           CONCAT(p.first_name, ' ', p.last_name) LIKE ?

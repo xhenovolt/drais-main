@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     // Verify student belongs to this school
-    const [check] = await connection.execute('SELECT id FROM students WHERE id = ? AND school_id = ?', [student_id, schoolId]);
+    const [check] = await connection.execute('SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL', [student_id, schoolId]);
     if (!Array.isArray(check) || check.length === 0) {
       return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
     }

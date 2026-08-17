@@ -32,10 +32,22 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: true, deleted: 0, message: 'No learners to delete.' });
     }
 
+    await conn.beginTransaction();
+
     await conn.execute(
       'UPDATE students SET deleted_at = NOW() WHERE school_id = ? AND deleted_at IS NULL',
       [schoolId],
     );
+
+    // Same fix as students/bulk/delete — close active enrollments in the
+    // same transaction so they can't be left orphaned (readiness audit,
+    // Phase 2: this exact gap produced 109 orphaned rows in one school).
+    await conn.execute(
+      "UPDATE enrollments SET status = 'closed' WHERE school_id = ? AND status = 'active'",
+      [schoolId],
+    );
+
+    await conn.commit();
 
     return NextResponse.json({
       success: true,
@@ -43,6 +55,7 @@ export async function DELETE(req: NextRequest) {
       message: `${total} learner${total !== 1 ? 's' : ''} removed.`,
     });
   } catch (error) {
+    await conn.rollback().catch(() => {});
     console.error('Delete-all learners error:', error);
     return NextResponse.json({ error: 'Failed to remove learners' }, { status: 500 });
   } finally {

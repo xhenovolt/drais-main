@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest) {
                 p.first_name, p.last_name, p.other_name, p.gender,
                 p.date_of_birth, p.phone, p.email, p.address, p.photo_url
          FROM students s JOIN people p ON s.person_id = p.id
-         WHERE s.id = ? AND s.school_id = ?`,
+         WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL`,
         [id, schoolId]
       ) as any[];
 
@@ -114,7 +114,7 @@ export async function PUT(req: NextRequest) {
                 p.date_of_birth, p.phone, p.email, p.address, p.photo_url,
                 s.status
          FROM students s JOIN people p ON s.person_id = p.id
-         WHERE s.id = ? AND s.school_id = ?`,
+         WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL`,
         [id, schoolId]
       ) as any[];
       const updatedStudent = updatedRows[0] ?? null;

@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
     try {
       // Verify student belongs to this school
       const [studentRows] = await connection.execute(
-        'SELECT id FROM students WHERE id = ? AND school_id = ?',
+        'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
         [student_id, schoolId]
       );
 

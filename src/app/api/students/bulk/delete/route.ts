@@ -48,11 +48,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    await conn.beginTransaction();
+
     // Soft delete students
     await conn.execute(
       `UPDATE students SET deleted_at = NOW() WHERE school_id = ? AND id IN (${student_ids.map(() => '?').join(',')})`,
       [schoolId, ...student_ids]
     );
+
+    // Readiness audit, Phase 2 — the orphaned-enrolments root cause: a
+    // soft-deleted student kept an 'active' enrollment forever, since
+    // nothing closed it. Close their active enrollments in the same
+    // transaction so the two writes can't drift apart. 'closed' is an
+    // existing status value already in real use (see enrollments.status),
+    // not a new one introduced here.
+    await conn.execute(
+      `UPDATE enrollments SET status = 'closed' WHERE school_id = ? AND status = 'active' AND student_id IN (${student_ids.map(() => '?').join(',')})`,
+      [schoolId, ...student_ids]
+    );
+
+    await conn.commit();
 
     return NextResponse.json({
       success: true,
@@ -60,6 +75,7 @@ export async function POST(req: NextRequest) {
       deleted: student_ids.length
     });
   } catch (error) {
+    await conn.rollback().catch(() => {});
     console.error('Bulk delete error:', error);
     return NextResponse.json(
       { error: 'Failed to process bulk delete' },

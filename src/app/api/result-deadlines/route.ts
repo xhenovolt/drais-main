@@ -104,6 +104,8 @@ export async function GET(req: NextRequest) {
       await jobs.enqueueJob({ type: 'sentinel_sweep', dedupKey: `sentinel_sweep:${today}` });
       // Guaranteed daily backstop for the outbox drain — see job-handlers.ts.
       await jobs.enqueueJob({ type: 'notification_drain', dedupKey: `notification_drain:${today}` });
+      // No-op unless an operator has explicitly opted in — see data-retention.ts.
+      await jobs.enqueueJob({ type: 'data_retention_sweep', dedupKey: `data_retention_sweep:${today}` });
       await jobs.runDueJobs();
     })
     .catch(() => {});

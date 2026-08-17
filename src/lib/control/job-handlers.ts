@@ -50,4 +50,13 @@ export function registerCoreHandlers(): void {
     const { drainNotificationOutbox } = await import('@/lib/notifications/drain');
     return drainNotificationOutbox();
   });
+
+  // Data retention sweep — readiness audit Phase 2. A genuine no-op unless
+  // an operator has explicitly set retention_attendance_raw_days via
+  // src/lib/control/data-retention.ts's setRetentionDays(); this code never
+  // decides on its own to permanently delete production data.
+  registerJobHandler('data_retention_sweep', async () => {
+    const { runDataRetentionSweep } = await import('@/lib/control/data-retention');
+    return runDataRetentionSweep();
+  });
 }

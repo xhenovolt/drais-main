@@ -16,23 +16,23 @@ export async function GET(req: NextRequest) {
     const [classes] = await connection.execute('SELECT COUNT(*) AS total_classes FROM classes WHERE school_id = ?', [schoolId]);
 
     // Fetch total learners
-    const [learners] = await connection.execute('SELECT COUNT(*) AS total_learners FROM students WHERE status = "active" AND school_id = ?', [schoolId]);
+    const [learners] = await connection.execute('SELECT COUNT(*) AS total_learners FROM students WHERE status = "active" AND school_id = ? AND deleted_at IS NULL', [schoolId]);
 
     // Fetch total boys and girls
     const [genderCounts] = await connection.execute(`
-      SELECT 
+      SELECT
         SUM(CASE WHEN p.gender = 'M' THEN 1 ELSE 0 END) AS boys,
         SUM(CASE WHEN p.gender = 'F' THEN 1 ELSE 0 END) AS girls
       FROM students s
       JOIN people p ON s.person_id = p.id
-      WHERE s.status = "active" AND s.school_id = ?
+      WHERE s.status = "active" AND s.school_id = ? AND s.deleted_at IS NULL
     `, [schoolId]);
 
     // Fetch total staff members
-    const [staff] = await connection.execute('SELECT COUNT(*) AS total_staff FROM staff WHERE status = "active" AND school_id = ?', [schoolId]);
+    const [staff] = await connection.execute('SELECT COUNT(*) AS total_staff FROM staff WHERE status = "active" AND school_id = ? AND deleted_at IS NULL', [schoolId]);
 
     // Fetch total parents
-    const [parents] = await connection.execute('SELECT COUNT(DISTINCT sc.student_id) AS total_parents FROM student_contacts sc JOIN students s ON sc.student_id = s.id WHERE s.school_id = ?', [schoolId]);
+    const [parents] = await connection.execute('SELECT COUNT(DISTINCT sc.student_id) AS total_parents FROM student_contacts sc JOIN students s ON sc.student_id = s.id WHERE s.school_id = ? AND s.deleted_at IS NULL', [schoolId]);
 
     // Fetch learners admitted in various timeframes
     const [admissions] = await connection.execute(`
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN YEAR(admission_date) = YEAR(CURDATE()) THEN 1 ELSE 0 END) AS this_year,
         SUM(CASE WHEN YEAR(admission_date) = YEAR(CURDATE()) - 1 THEN 1 ELSE 0 END) AS last_year
       FROM students
-      WHERE school_id = ?
+      WHERE school_id = ? AND deleted_at IS NULL
     `, [schoolId]);
 
     // Fetch learners' payment statuses
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN balance > 0 AND paid > 0 THEN 1 ELSE 0 END) AS partially_paid
       FROM student_fee_items sfi
       JOIN students s ON sfi.student_id = s.id
-      WHERE s.school_id = ?
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
     `, [schoolId]);
 
     // Fetch improving and declining learners
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN cr.score < 40 THEN 1 ELSE 0 END) AS declining_learners
       FROM class_results cr
       JOIN students s ON cr.student_id = s.id
-      WHERE s.school_id = ?
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
     `, [schoolId]);
 
     // Fetch best and worst learners
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
       FROM class_results cr
       JOIN students s ON cr.student_id = s.id
       JOIN people p ON s.person_id = p.id
-      WHERE s.school_id = ?
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
       GROUP BY cr.student_id, p.first_name, p.last_name
       ORDER BY best_score DESC
       LIMIT 1
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       FROM class_results cr
       JOIN students s ON cr.student_id = s.id
       JOIN people p ON s.person_id = p.id
-      WHERE s.school_id = ?
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
       GROUP BY cr.student_id, p.first_name, p.last_name
       ORDER BY worst_score ASC
       LIMIT 1

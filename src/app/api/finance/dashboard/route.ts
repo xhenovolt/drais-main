@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const [feeAgg] = (await query(
     `SELECT COALESCE(SUM(amount - discount - waived), 0) AS expected,
             COUNT(DISTINCT student_id) AS billed_learners
-       FROM student_fee_items WHERE student_id IN (SELECT id FROM students WHERE school_id = ?)`,
+       FROM student_fee_items WHERE student_id IN (SELECT id FROM students WHERE school_id = ? AND deleted_at IS NULL)`,
     [schoolId],
   )) as any[];
   const expected = num(feeAgg?.expected);
