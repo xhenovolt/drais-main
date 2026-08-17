@@ -102,6 +102,8 @@ export async function GET(req: NextRequest) {
       await jobs.enqueueJob({ type: 'platform_health', dedupKey: `platform_health:${today}` });
       // Sentinel's fleet-wide sweep — same one-cron piggyback, no new schedule.
       await jobs.enqueueJob({ type: 'sentinel_sweep', dedupKey: `sentinel_sweep:${today}` });
+      // Guaranteed daily backstop for the outbox drain — see job-handlers.ts.
+      await jobs.enqueueJob({ type: 'notification_drain', dedupKey: `notification_drain:${today}` });
       await jobs.runDueJobs();
     })
     .catch(() => {});

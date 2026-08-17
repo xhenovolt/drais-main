@@ -37,4 +37,17 @@ export function registerCoreHandlers(): void {
     const { runSentinelSweep } = await import('@/lib/sentinel/sweep');
     return runSentinelSweep();
   });
+
+  // Notification outbox drain — guaranteed backstop. The outbox already
+  // drains opportunistically on device heartbeats / passout notices /
+  // attendance recovery (src/lib/notifications/drain.ts), which is fast on
+  // any day with real device or portal traffic. A school with none of that
+  // traffic on a given day previously had nothing pumping the queue at all
+  // (readiness audit, Phase 1). This job type does not add a new Vercel
+  // cron slot — it rides the existing daily fan-out in
+  // src/app/api/result-deadlines/route.ts, same as dunning/platform_health.
+  registerJobHandler('notification_drain', async () => {
+    const { drainNotificationOutbox } = await import('@/lib/notifications/drain');
+    return drainNotificationOutbox();
+  });
 }

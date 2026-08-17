@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { parsePhoneList } from '@/lib/notifications/fanout';
+import { userCan } from '@/lib/rbac';
 
 export const runtime = 'nodejs';
 
@@ -36,6 +37,9 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!session.isSuperAdmin && !(await userCan(session.userId, session.schoolId, 'system.notifications.manage'))) {
+    return NextResponse.json({ error: 'You do not have permission to configure broadcast recipients' }, { status: 403 });
+  }
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }

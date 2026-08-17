@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { userCan } from '@/lib/rbac';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +14,9 @@ export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  if (!session.isSuperAdmin && !(await userCan(session.userId, session.schoolId, 'attendance.devices.manage'))) {
+    return NextResponse.json({ error: 'You do not have permission to manage biometric devices' }, { status: 403 });
   }
 
   try {
@@ -44,6 +48,9 @@ export async function DELETE(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  if (!session.isSuperAdmin && !(await userCan(session.userId, session.schoolId, 'attendance.devices.manage'))) {
+    return NextResponse.json({ error: 'You do not have permission to manage biometric devices' }, { status: 403 });
   }
 
   try {
