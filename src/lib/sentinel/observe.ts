@@ -88,6 +88,49 @@ export async function recentModuleStats(windowMinutes = 60): Promise<ModuleStats
   return out.sort((a, b) => b.errorRate - a.errorRate);
 }
 
+export interface ModuleStatsBySchool extends ModuleStats {
+  schoolId: number | null;
+}
+
+/**
+ * Same as recentModuleStats() but broken out per school instead of
+ * aggregated platform-wide. Kept as a separate function rather than
+ * changing recentModuleStats()'s shape — the diagnosis engine already
+ * depends on that one being a single global aggregate per module
+ * (diagnosis/engine.ts does a plain .find() across it), so this is
+ * additive rather than a breaking change to an existing consumer.
+ */
+export async function recentModuleStatsBySchool(windowMinutes = 60): Promise<ModuleStatsBySchool[]> {
+  await ensureSentinelSchema();
+  const rows = (await query(
+    `SELECT module, school_id, status_code, duration_ms FROM sentinel_observations
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+    [windowMinutes],
+  ).catch(() => [])) as Array<{ module: string; school_id: number | null; status_code: number; duration_ms: number }>;
+
+  const byKey = new Map<string, { module: string; schoolId: number | null; durations: number[] }>();
+  const errByKey = new Map<string, number>();
+  for (const r of rows) {
+    const key = `${r.module}::${r.school_id ?? 'platform'}`;
+    if (!byKey.has(key)) byKey.set(key, { module: r.module, schoolId: r.school_id, durations: [] });
+    byKey.get(key)!.durations.push(r.duration_ms);
+    if (r.status_code >= 500) errByKey.set(key, (errByKey.get(key) ?? 0) + 1);
+  }
+
+  const out: ModuleStatsBySchool[] = [];
+  for (const [key, { module, schoolId, durations }] of byKey) {
+    const sorted = [...durations].sort((a, b) => a - b);
+    const pick = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
+    const errorCount = errByKey.get(key) ?? 0;
+    out.push({
+      module, schoolId, count: sorted.length, errorCount,
+      errorRate: sorted.length ? errorCount / sorted.length : 0,
+      p50DurationMs: pick(0.5), p95DurationMs: pick(0.95),
+    });
+  }
+  return out.sort((a, b) => b.errorRate - a.errorRate);
+}
+
 /** Retention: short. High-volume table — prune anything older than N days. */
 export async function pruneObservations(olderThanDays = 7): Promise<number> {
   await ensureSentinelSchema();

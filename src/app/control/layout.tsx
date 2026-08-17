@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, BookOpen, Lock } from 'lucide-react';
+import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, BookOpen, Lock } from 'lucide-react';
 
 const NAV = [
   { href: '/control/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -19,6 +19,9 @@ const NAV = [
   { href: '/control/sms', label: 'SMS', icon: MessageSquare },
   { href: '/control/bi', label: 'Business', icon: TrendingUp },
   { href: '/control/system-health', label: 'System Health', icon: Activity },
+  // Distinct from System Health (current metrics): Sentinel is the
+  // incident-detection, self-monitoring, and SMS-alerting layer.
+  { href: '/control/sentinel', label: 'Sentinel', icon: ShieldCheck },
   { href: '/control/operators', label: 'Operators', icon: Users },
   // Placed next to Operators, not under Schools: an operator looking for
   // "someone cannot sign in" reaches for people, not for a school record.
