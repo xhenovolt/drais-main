@@ -102,18 +102,28 @@ export async function runDueJobs(limit = 25): Promise<{ ran: number; done: numbe
 
   const jobs = (await query(`SELECT * FROM platform_jobs WHERE lock_token = ?`, [token]).catch(() => [])) as any[];
   let done = 0, failed = 0;
+  // Sentinel heartbeat hooks (dynamic import — job-runner must not take a
+  // hard dependency on the sentinel module tree just to run a job that
+  // isn't sentinel's). "Job starts → heartbeat; job completes → heartbeat
+  // updated," generically, for every job type this runner ever executes —
+  // this is the mechanism behind Sentinel's background-job observer.
+  const beats = await import('@/lib/sentinel/heartbeat').catch(() => null);
   for (const job of jobs) {
     const handler = HANDLERS.get(job.type);
+    const heartbeatName = `job_${job.type}`;
+    if (beats) void beats.beatStart(heartbeatName);
     try {
       if (!handler) throw new Error(`No handler registered for job type '${job.type}'`);
       const payload = typeof job.payload === 'object' && job.payload ? job.payload : JSON.parse(job.payload || '{}');
       await handler(payload);
       await query(`UPDATE platform_jobs SET status = 'done', lock_token = NULL, last_error = NULL WHERE id = ?`, [job.id]).catch(() => {});
+      if (beats) void beats.beatSuccess(heartbeatName);
       done++;
     } catch (e: any) {
       const attempts = Number(job.attempts || 1);
       const max = Number(job.max_attempts || 5);
       const err = String(e?.message || e).slice(0, 500);
+      if (beats) void beats.beatFailure(heartbeatName, err);
       if (attempts >= max) {
         await query(`UPDATE platform_jobs SET status = 'failed', lock_token = NULL, last_error = ? WHERE id = ?`, [err, job.id]).catch(() => {});
         failed++;

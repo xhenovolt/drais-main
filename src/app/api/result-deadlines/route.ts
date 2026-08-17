@@ -100,6 +100,8 @@ export async function GET(req: NextRequest) {
       const today = new Date().toISOString().slice(0, 10);
       await jobs.enqueueJob({ type: 'dunning', dedupKey: `dunning:${today}` });
       await jobs.enqueueJob({ type: 'platform_health', dedupKey: `platform_health:${today}` });
+      // Sentinel's fleet-wide sweep — same one-cron piggyback, no new schedule.
+      await jobs.enqueueJob({ type: 'sentinel_sweep', dedupKey: `sentinel_sweep:${today}` });
       await jobs.runDueJobs();
     })
     .catch(() => {});

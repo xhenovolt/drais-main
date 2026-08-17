@@ -23,6 +23,7 @@ export const CONTROL_PERMISSIONS = {
   'billing.manage':     'Generate invoices and record payments',
   'impersonate':        'Start and revoke school impersonations',
   'operators.manage':   'Create and manage Control Center operators',
+  'sentinel.manage':    'Acknowledge/resolve/suppress Sentinel incidents, trigger a Full System Diagnosis, configure the Sentinel alert phone number',
 } as const;
 export type ControlPermission = keyof typeof CONTROL_PERMISSIONS;
 
@@ -30,7 +31,7 @@ const ALL = Object.keys(CONTROL_PERMISSIONS) as ControlPermission[];
 
 const ROLE_PERMISSIONS: Record<ControlRoleName, ControlPermission[]> = {
   XHENVOLT_SUPER_ADMIN: ALL,
-  XHENVOLT_OPERATOR: ['platform.view', 'schools.manage', 'devices.manage', 'billing.manage', 'impersonate'],
+  XHENVOLT_OPERATOR: ['platform.view', 'schools.manage', 'devices.manage', 'billing.manage', 'impersonate', 'sentinel.manage'],
   XHENVOLT_VIEWER: ['platform.view'],
 };
 

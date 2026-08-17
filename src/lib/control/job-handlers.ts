@@ -27,4 +27,14 @@ export function registerCoreHandlers(): void {
     const { runHealthSnapshotJob } = await import('@/lib/control/health-history');
     return runHealthSnapshotJob();
   });
+
+  // Sentinel sweep — fleet-wide observers (background-job liveness,
+  // notification backlog, security bursts, platform health as Sentinel
+  // incidents) + self-heartbeat. Real-time, single-school anomalies are
+  // detected inline at request time and never wait for this job — see
+  // src/lib/sentinel/sweep.ts for the split.
+  registerJobHandler('sentinel_sweep', async () => {
+    const { runSentinelSweep } = await import('@/lib/sentinel/sweep');
+    return runSentinelSweep();
+  });
 }

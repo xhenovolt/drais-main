@@ -16,8 +16,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
   Info, ChevronDown, ChevronRight, CheckCircle, AlertTriangle,
-  GitCommit, Package, Server, Database, Shield, Milestone as MilestoneIcon,
+  GitCommit, Package, Server, Database, Shield, ShieldCheck, Milestone as MilestoneIcon,
 } from 'lucide-react';
+import { SENTINEL_VERSION } from '@/lib/sentinel/types';
 import changelog from '@/data/changelog.json';
 import milestonesData from '@/data/release-milestones.json';
 
@@ -318,8 +319,18 @@ export default function AboutPage() {
               <div className="font-medium text-gray-400">—</div>
             )}
           </div>
+          <div>
+            <div className="text-[11px] text-gray-400 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Monitoring</div>
+            <div className="font-medium text-gray-800 dark:text-gray-100">DRAIS Sentinel v{SENTINEL_VERSION}</div>
+          </div>
         </div>
-        <p className="text-[11px] text-gray-400 mt-4 flex items-center gap-1.5">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-4 leading-relaxed">
+          DRAIS Sentinel continuously watches the health of your school's operational system —
+          attendance, notifications, and background processes — and helps identify abnormal
+          behaviour before it becomes an operational problem, alerting our team independently
+          of any single person having to notice first.
+        </p>
+        <p className="text-[11px] text-gray-400 mt-2 flex items-center gap-1.5">
           <Shield className="w-3.5 h-3.5" /> This page shows product information only — no credentials, endpoints or infrastructure details are exposed.
         </p>
       </section>

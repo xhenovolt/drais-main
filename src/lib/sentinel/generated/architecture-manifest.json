@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-08-17T05:17:10.562Z",
+  "commitSha": "1664604fbb7a2091326b59b03d20bbc3e75d2e95",
+  "repo": {
+    "apiRouteCount": 699,
+    "tenantSafeWrapperFiles": 5,
+    "rawQueryFiles": 239,
+    "testFileCount": 93,
+    "testFilesByArea": {
+      "other": 89,
+      "root": 4
+    },
+    "ciWorkflows": [
+      "build-android.yml",
+      "build-desktop.yml"
+    ],
+    "hasPrOrPushCiGate": false,
+    "nextConfigIgnoresBuildErrors": true,
+    "nextConfigIgnoresLint": true,
+    "tsconfigStrict": false,
+    "vercelCronCount": 1,
+    "cronRouteCount": 6,
+    "unboundedListRoutesDetected": [
+      "src/app/api/students/admitted/route.ts",
+      "src/app/api/students/enrolled/route.ts",
+      "src/app/api/students/list/route.ts"
+    ]
+  }
+}

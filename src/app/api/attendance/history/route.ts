@@ -9,6 +9,7 @@ import { AttendancePresentationModel } from '@/lib/attendance/export/AttendanceP
 import { scoreRecord } from '@/lib/attendance/confidence-scoring';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { autoCorrectDay, settledDevices } from '@/lib/attendance/time-intelligence/autoCorrect';
+import { sentinelObserveAttendanceLogs } from '@/lib/sentinel/wiring/attendance-logs-hook';
 
 export const runtime = 'nodejs';
 
@@ -332,6 +333,11 @@ export async function GET(req: NextRequest) {
       ...row,
       presentation: AttendancePresentationModel.fromHistoryRow(row, formatter),
     }));
+
+    // Sentinel — fire-and-forget anomaly tap on data already fetched for this
+    // response. Zero extra queries, never awaited, never affects the response.
+    // See src/lib/sentinel/wiring/attendance-logs-hook.ts.
+    void sentinelObserveAttendanceLogs(schoolId, enriched);
 
     // Accountability (P2): a data EXPORT is a distinct, auditable event. The
     // logs page marks an export pull with ?export=csv|excel; we record WHO

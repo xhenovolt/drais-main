@@ -24,6 +24,8 @@
     "test:ingestion": "npx tsx --test src/lib/ingestion/__tests__/*.test.mjs",
     "test:attendance": "npx tsx --test src/lib/attendance/__tests__/*.test.mjs",
     "test:notifications": "npx tsx --test src/lib/notifications/__tests__/*.test.mjs",
+    "test:sentinel": "npx tsx --test src/lib/sentinel/__tests__/*.test.mjs",
+    "sentinel:scan": "node scripts/sentinel/architecture-scan.mjs",
     "gate": "node scripts/phase-stability-gate.mjs",
     "zip": "node scripts/zip-project.mjs",
     "import:schema": "node scripts/import-schema.js",
