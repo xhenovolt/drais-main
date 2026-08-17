@@ -293,6 +293,11 @@ export interface IngestionReport {
   runId: string;             // uuid v4
   startedAt: string;          // ISO
   finishedAt: string;          // ISO
+  /** True when this report came from a dry run (RunOptions.dryRun) — every
+   *  decision was computed but pipeline.commit() was never called. Persist
+   *  this alongside the report so ingestion_runs never confuses a preview
+   *  with a real, committed import. */
+  dryRun: boolean;
   /** What was inferred about the source shape. Surfaced to the review UI. */
   schemaInference: SchemaInferenceResult;
   /** Per-row outcomes. Trimmed to N for the response body; full list lives

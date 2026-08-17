@@ -33,7 +33,6 @@
 
 import type { Connection } from 'mysql2/promise';
 import type {
-  CanonicalField,
   ConflictDecision,
   IdentityClaim,
   IngestionPipeline,
@@ -42,6 +41,9 @@ import type {
   RowProvenance,
 } from '../types';
 import { getConnection } from '@/lib/db';
+import { RESULT_FIELDS } from './results-schema';
+
+export { RESULT_FIELDS };
 
 // ─── Validated row shape (post-explosion) ────────────────────────────────────
 
@@ -61,59 +63,8 @@ export interface ResultRow {
 }
 
 // ─── Canonical field catalog (post-explosion) ────────────────────────────────
-// The exploder produces RawRows with these column names; the inference
-// engine maps each one to the same canonical field below. No fuzz
-// happens at this layer — the route's exploder already normalised the
-// shape. But we still go through inferSchema so synonyms ("ADM No" →
-// admission_no) work for schools whose explosion uses different
-// header names.
-
-export const RESULT_FIELDS: CanonicalField[] = [
-  {
-    name: 'admission_no',
-    label: 'Admission Number',
-    synonyms: [
-      'admission no', 'adm no', 'adm number', 'admno', 'admission number',
-      'reg no', 'regno', 'registration no', 'registration number',
-      'student id', 'student number', 'student no', 'studentid',
-      'index no', 'index number', 'pin', 'pupil no', 'learner id',
-    ],
-    type: 'string',
-    required: true,
-  },
-  {
-    name: 'subject_name',
-    label: 'Subject',
-    synonyms: ['subject', 'subject name', 'paper', 'discipline', 'subject_code', 'subjectcode'],
-    type: 'string',
-    required: true,
-  },
-  {
-    name: 'score',
-    label: 'Score',
-    synonyms: ['mark', 'marks', 'value', 'result', 'grade', 'total', 'points'],
-    type: 'float',
-    required: true,
-  },
-  {
-    name: 'grade',
-    label: 'Grade',
-    synonyms: ['letter', 'letter grade', 'band'],
-    type: 'string',
-  },
-  {
-    name: 'remarks',
-    label: 'Remarks',
-    synonyms: ['comment', 'comments', 'notes', 'feedback', 'teacher comment'],
-    type: 'string',
-  },
-  {
-    name: 'teacher_initials',
-    label: 'Teacher Initials',
-    synonyms: ['teacher', 'initials', 'tr initials', 'tr', 'sig'],
-    type: 'string',
-  },
-];
+// Moved to results-schema.ts (re-exported above) so it can be imported
+// without pulling in mysql2 via getConnection. See that file's header for why.
 
 // ─── Per-row validator ───────────────────────────────────────────────────────
 

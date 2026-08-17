@@ -389,6 +389,20 @@ class MatchingEngine {
 }
 
 // ─── Session helpers ───────────────────────────────────────────────────────────
+// Readiness-audit Phase A: these previously swallowed every failure in an
+// empty catch{}, so a missing/broken import_sessions/import_errors table
+// made an import invisible after the fact with nothing surfaced anywhere.
+// Now they log loudly (once per session, not once per row — a broken
+// tracking table on a 5,000-row import must not spam 5,000 log lines) and
+// still let the import itself proceed unaffected. A tracking-table failure
+// is a Sentinel-worthy condition, not a reason to fail someone's import.
+const warnedOnce = new Set<string>();
+function warnTrackingFailure(fn: string, sessionId: number | null, err: unknown) {
+  const key = `${fn}:${sessionId ?? 'no-session'}`;
+  if (warnedOnce.has(key)) return;
+  warnedOnce.add(key);
+  console.error(`[students/import] import-session tracking failed in ${fn} (session=${sessionId ?? 'none'}) — the import itself will proceed, but this run has NO session/error audit trail:`, err);
+}
 
 async function tryCreateSession(
   conn: any, schoolId: number, userId: number,
@@ -401,7 +415,10 @@ async function tryCreateSession(
       [schoolId, userId, filename, totalRows, JSON.stringify(options)],
     ) as any[];
     return (r as any).insertId ?? null;
-  } catch { return null; } // table not yet migrated — still works
+  } catch (err) {
+    warnTrackingFailure('tryCreateSession', null, err); // table not yet migrated, or a real failure — either way, surfaced now
+    return null;
+  }
 }
 
 async function tryUpdateSession(
@@ -413,7 +430,9 @@ async function tryUpdateSession(
     const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
     const vals = [...Object.values(fields), sessionId];
     await conn.execute(`UPDATE import_sessions SET ${sets} WHERE id = ?`, vals);
-  } catch {}
+  } catch (err) {
+    warnTrackingFailure('tryUpdateSession', sessionId, err);
+  }
 }
 
 async function tryLogError(
@@ -425,7 +444,9 @@ async function tryLogError(
       `INSERT INTO import_errors (session_id, row_number, reason, raw_data) VALUES (?, ?, ?, ?)`,
       [sessionId, rowNumber, reason.slice(0, 499), JSON.stringify(rawData)],
     );
-  } catch {}
+  } catch (err) {
+    warnTrackingFailure('tryLogError', sessionId, err);
+  }
 }
 
 async function tryCheckCancelled(conn: any, sessionId: number | null): Promise<boolean> {
@@ -436,7 +457,10 @@ async function tryCheckCancelled(conn: any, sessionId: number | null): Promise<b
       [sessionId],
     ) as any[];
     return (rows as any[])[0]?.status === 'cancelled';
-  } catch { return false; }
+  } catch (err) {
+    warnTrackingFailure('tryCheckCancelled', sessionId, err);
+    return false; // fail open — an unreadable cancel flag should never itself abort the import
+  }
 }
 
 // ─── Main handler ──────────────────────────────────────────────────────────────

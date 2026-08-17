@@ -203,6 +203,11 @@ export async function POST(req: NextRequest) {
   });
 
   // ─── 7. Persist memory, run, orphans ────────────────────────────────────
+  // Readiness-audit Phase A: these were console.warn-only, invisible to
+  // whoever's actually driving the import. Collected into `warnings` and
+  // returned alongside the report — see students/import/v2/route.ts for
+  // the identical fix and its rationale.
+  const warnings: string[] = [];
   try {
     await persistAutoMappings({
       schoolId:     session.schoolId,
@@ -213,7 +218,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn('[results.v2] persistAutoMappings failed:', err);
+    console.error('[results.v2] persistAutoMappings failed — this school will not benefit from learned column mapping on the next import:', err);
+    warnings.push('Column-mapping memory failed to save — future imports for this school will need to re-map headers instead of remembering this run\'s choices.');
   }
   try {
     await persistIngestionRun({
@@ -228,8 +234,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn('[results.v2] persistIngestionRun failed:', err);
+    console.error('[results.v2] persistIngestionRun failed — this run has NO audit trail:', err);
+    warnings.push('This import succeeded, but its audit-log entry (ingestion_runs) failed to save — the run itself is not recoverable from history.');
   }
+  let orphanPersistFailures = 0;
   for (const outcome of report.outcomes) {
     if (outcome.decision.action === 'orphan') {
       try {
@@ -248,12 +256,16 @@ export async function POST(req: NextRequest) {
         });
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.warn('[results.v2] persistOrphan failed:', err);
+        console.error('[results.v2] persistOrphan failed:', err);
+        orphanPersistFailures++;
       }
     }
   }
+  if (orphanPersistFailures > 0) {
+    warnings.push(`${orphanPersistFailures} orphaned row(s) could not be saved to the review queue (ingestion_orphans) — they are still listed in this report's outcomes, but won't appear in the orphan-review UI.`);
+  }
 
-  return NextResponse.json({ success: true, report });
+  return NextResponse.json({ success: true, report, warnings });
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────

@@ -73,6 +73,24 @@ export interface RunOptions<TRow> {
    *  resolution compare incoming against existing. Return {} when
    *  there is no existing row (i.e. this is a pure insert path). */
   fetchExisting?: (personId: number) => Promise<Record<string, RawCellValue>>;
+  /**
+   * Readiness-audit Phase A: run every stage — mapping, validation,
+   * identity resolution, conflict decision — WITHOUT calling
+   * pipeline.commit(). Produces the exact same IngestionReport shape a
+   * real run would, so a caller can show a school "here is what would
+   * happen" before anything is written, the same guarantee
+   * src/lib/finance/import.ts's preview→commit split already gives
+   * fee/payment imports but the generic pipeline never had.
+   *
+   * Scope note: this makes the PIPELINE capable of a dry run. It does
+   * NOT yet persist a re-runnable staged batch the way
+   * finance_import_batches/finance_import_rows do — a caller that wants
+   * "preview now, commit later without re-uploading" still needs to
+   * store the file/rows itself and call the pipeline twice. Adding a
+   * generic staged-batch table is a Phase B decision, made once an
+   * actual route needs it.
+   */
+  dryRun?: boolean;
 }
 
 export async function runIngestionPipeline<TRow>(
@@ -98,6 +116,7 @@ export async function runIngestionPipeline<TRow>(
       runId,
       startedAt,
       finishedAt: new Date().toISOString(),
+      dryRun: options.dryRun === true,
       schemaInference,
       outcomes: [],
       counts: zeroCounts(),
@@ -191,8 +210,12 @@ export async function runIngestionPipeline<TRow>(
         }
       }
 
-      // 7. COMMIT — caller does the actual DB write.
-      await options.pipeline.commit(validation.value, identity, decision);
+      // 7. COMMIT — caller does the actual DB write. Skipped entirely in
+      // dry-run mode: the decision above is still the real, fully-resolved
+      // decision the pipeline WOULD act on, just never applied.
+      if (!options.dryRun) {
+        await options.pipeline.commit(validation.value, identity, decision);
+      }
 
       // Tally per the FINAL decision.
       switch (decision.action) {
@@ -226,6 +249,7 @@ export async function runIngestionPipeline<TRow>(
     runId,
     startedAt,
     finishedAt: new Date().toISOString(),
+    dryRun: options.dryRun === true,
     schemaInference,
     outcomes,
     counts,
