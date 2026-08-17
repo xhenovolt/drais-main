@@ -50,6 +50,7 @@ export type IncidentKind =
   | 'api_latency_anomaly'
   | 'academic_generation_failure'
   | 'academic_results_import_failure'
+  | 'academic_manual_submission_failure'
   | 'sentinel_self_degraded'
   | 'sentinel_alert_path_degraded';
 

@@ -5,18 +5,27 @@ import { userCan } from '@/lib/rbac';
 import { isSubjectAllocatedToClass } from '@/lib/subject-allocation-validation';
 import { canEnterSubject, denyReason } from '@/lib/academics/comment-gating';
 import { checkModule } from '@/lib/auth/requireModule';
+import { logResultsSubmission } from '@/lib/academics/results-submission-log';
 
 export async function POST(req: NextRequest) {
   let connection;
+  // Best-effort context for the submission-outcome log (results-submission-log.ts).
+  // Populated as it becomes known; a failure before schoolId is known can't be
+  // attributed to a school and is simply not logged — same as any other
+  // failure this route already can't attribute (e.g. malformed request body).
+  const logCtx: { schoolId?: number; classId?: number; subjectId?: number; resultTypeId?: number; termId?: number; submittedBy?: number } = {};
   try {
     const session = await getSessionSchoolId(req);
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+    logCtx.schoolId = schoolId;
+    logCtx.submittedBy = session.userId;
 
     const body = await req.json();
     const { class_id, subject_id, result_type_id, term_id, entries } = body;
+    logCtx.classId = class_id; logCtx.subjectId = subject_id; logCtx.resultTypeId = result_type_id; logCtx.termId = term_id;
     const academic_type: string = ['secular', 'theology'].includes(body.academic_type)
       ? body.academic_type
       : 'secular';
@@ -117,9 +126,13 @@ export async function POST(req: NextRequest) {
       success++;
     }
 
+    await logResultsSubmission({ ...logCtx, schoolId: logCtx.schoolId!, route: 'submit', status: 'success', insertedCount: success, ignoredCount: ignored.length });
     return NextResponse.json({ success: true, inserted: success, ignored, message: 'Results submitted successfully' });
   } catch (error) {
     console.error('Error submitting results:', error);
+    if (logCtx.schoolId) {
+      await logResultsSubmission({ ...logCtx, schoolId: logCtx.schoolId, route: 'submit', status: 'failed', errorCount: 1, errorMessage: error instanceof Error ? error.message : String(error) });
+    }
     return NextResponse.json({ error: 'Failed to submit results' }, { status: 500 });
   } finally {
     if (connection) await connection.end();

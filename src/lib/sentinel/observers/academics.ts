@@ -17,17 +17,13 @@
  * src/app/api/class_results/import/v2/route.ts) already writes with real
  * parsed/failed/orphaned counts and a full report_json per run.
  *
- * Confirmed narrower than "results submission" in general: this only covers
- * the bulk CSV/Excel import path. The everyday teacher-facing "enter marks
- * and submit" flow (/api/class_results/submit, /api/class_results/bulk-submit)
- * has no persisted status/error column at all — a failure there returns a
- * 500 to the caller and is never written to the database, so there is
- * nothing for an observer to read after the fact. Investigated directly
- * (class_results has no status/error column; audit_log has no status
- * column either) rather than assumed. Closing that gap for real would mean
- * adding a status/error_message column to class_results (or a new
- * class_results_submissions table), which is a schema change to an
- * existing core table — out of scope for an additive observer.
+ * A fourth check covers the everyday teacher-facing "enter marks and
+ * submit" flow (/api/class_results/submit, /api/class_results/bulk-submit),
+ * which previously had no persisted status/error signal at all — a failure
+ * returned a 500 and left no trace. Those two routes now write one row per
+ * call to results_submission_log (src/lib/academics/results-submission-log.ts),
+ * success or failure, without touching class_results itself or changing
+ * either route's response shape.
  */
 import { query } from '@/lib/db';
 import type { Observation } from '../types';
@@ -134,6 +130,38 @@ export async function observeAcademics(): Promise<Observation[]> {
       autoRemediationSafe: false,
       notifyRequired: failureRate >= RESULTS_IMPORT_FAILURE_RATE_HIGH,
       dedupKey: `academic_results_import_failure::${row.school_id ?? 'global'}`,
+    });
+  }
+
+  const manualFailures = (await query(
+    `SELECT rsl.school_id, s.name, rsl.route, COUNT(*) n, MAX(rsl.created_at) latest,
+            SUBSTRING_INDEX(GROUP_CONCAT(rsl.error_message SEPARATOR ' ||| '), ' ||| ', 1) sample_error
+       FROM results_submission_log rsl LEFT JOIN schools s ON s.id = rsl.school_id
+      WHERE rsl.status = 'failed' AND rsl.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      GROUP BY rsl.school_id, s.name, rsl.route`,
+  ).catch(() => [])) as Array<{ school_id: number; name: string; route: string; n: number; latest: string; sample_error: string | null }>;
+
+  for (const row of manualFailures) {
+    observations.push({
+      kind: 'academic_manual_submission_failure',
+      observer: 'academics',
+      schoolId: Number(row.school_id) || null,
+      module: 'Results submission',
+      severity: row.n >= 3 ? 'high' : 'medium',
+      confidence: 90,
+      probableCause: row.sample_error || 'Results submission failed without a recorded error message.',
+      userImpact: 'A teacher tried to submit marks/results for a class and it did not go through — they may not know it failed.',
+      technicalImpact: `${row.n} failed ${row.route} call(s) in 24h.`,
+      evidence: [
+        { label: 'Failures (24h)', value: row.n },
+        { label: 'Route', value: row.route },
+        { label: 'Last failure', value: row.latest },
+        ...(row.sample_error ? [{ label: 'Sample error', value: row.sample_error.slice(0, 200) }] : []),
+      ],
+      recommendedAction: 'Check results_submission_log for this school in the last 24h; cross-reference with server logs at the failure time.',
+      autoRemediationSafe: false,
+      notifyRequired: row.n >= 3,
+      dedupKey: `academic_manual_submission_failure::${row.school_id ?? 'global'}::${row.route}`,
     });
   }
 

@@ -3,15 +3,19 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { isSubjectAllocatedToClass } from '@/lib/subject-allocation-validation';
 import { checkModule } from '@/lib/auth/requireModule';
+import { logResultsSubmission } from '@/lib/academics/results-submission-log';
 
 export async function POST(req: NextRequest) {
   let connection;
+  const logCtx: { schoolId?: number; submittedBy?: number } = {};
   try {
     const session = await getSessionSchoolId(req);
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+    logCtx.schoolId = schoolId;
+    logCtx.submittedBy = session.userId;
 
     const body = await req.json();
     const { entries, academic_type } = body;
@@ -101,6 +105,7 @@ export async function POST(req: NextRequest) {
       ]
     );
 
+    await logResultsSubmission({ ...logCtx, schoolId: logCtx.schoolId!, route: 'bulk_submit', status: 'success', insertedCount: success, ignoredCount: ignored.length, errorCount: errors.length });
     return NextResponse.json({
       success: true,
       inserted: success,
@@ -110,6 +115,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error submitting bulk results:', error);
+    if (logCtx.schoolId) {
+      await logResultsSubmission({ ...logCtx, schoolId: logCtx.schoolId, route: 'bulk_submit', status: 'failed', errorCount: 1, errorMessage: error instanceof Error ? error.message : String(error) });
+    }
     return NextResponse.json({ error: 'Failed to submit bulk results' }, { status: 500 });
   } finally {
     if (connection) await connection.end();
