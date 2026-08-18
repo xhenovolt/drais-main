@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T23:06:39.113Z",
-  "last_commit": "8324e5628e066aa1bbef752fc7221265a2b207d9",
+  "generated_at": "2026-08-18T23:06:54.195Z",
+  "last_commit": "e4d0b0c5a57266005fed2179bd9ca12a0766d42e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7073,7 +7073,20 @@
         }
       ],
       "commit": "8324e5628e"
+    },
+    {
+      "version": "1.173.82",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "WhatsApp school-level settings UI + test-send endpoint",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "WhatsApp school-level settings UI + test-send endpoint"
+        }
+      ],
+      "commit": "e4d0b0c5a5"
     }
   ],
-  "app_version": "1.173.82"
+  "app_version": "1.173.83"
 }
