@@ -1,0 +1,33 @@
+name: CI
+
+# Gates every push/PR against main with the test suites that don't need a
+# live database connection (pure unit/logic tests over ingestion, sentinel,
+# biometric, DRCE, snapshots, attendance, notifications). Deliberately does
+# NOT run `tsc --noEmit` or ESLint as a blocking step: strict mode is off
+# and the build already ignores both (see next.config.ts) — see the
+# "DRAIS Sentinel scoring redesign" memory for why re-adding either here
+# would just fail on ~250 pre-existing lint findings unrelated to this
+# change, noise rather than signal. This workflow exists to catch a real
+# regression in the business logic these suites cover before it merges,
+# not to re-litigate the whole codebase's lint/type debt.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Unit test suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run test suites
+        run: npm test

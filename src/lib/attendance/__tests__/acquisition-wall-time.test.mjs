@@ -9,6 +9,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import {
   isDeviceWallTime, wallFromZkRecordTime, wallToUtc, utcToWall,
   wallDate, wallDiffSeconds,
@@ -66,8 +69,13 @@ describe('DeviceWallTime canonical helpers', () => {
   it('is invariant across host timezones (the RC-1 failure mode)', () => {
     // Re-run the core assertions in child processes pinned to different TZs.
     // If any helper secretly consults the host zone, one of these fails.
+    // Windows cwd is backslash-separated; embedding it raw in the require()
+    // string below turns "\x..." sequences (e.g. "\xhenvolt") into invalid
+    // hex-escape syntax errors in the generated script. Forward slashes
+    // work as a path separator in a require() call on every platform.
+    const cwdPosix = process.cwd().replace(/\\/g, '/');
     const script = `
-      const { wallFromZkRecordTime, wallToUtc, utcToWall } = require('${process.cwd()}/src/lib/attendance/acquisition/wall-time.ts');
+      const { wallFromZkRecordTime, wallToUtc, utcToWall } = require('${cwdPosix}/src/lib/attendance/acquisition/wall-time.ts');
       const zkDate = new Date(2026, 6, 17, 8, 19, 33);
       const wall = wallFromZkRecordTime(zkDate);
       if (wall !== '2026-07-17 08:19:33') throw new Error('wall recovery broke under TZ=' + process.env.TZ + ': ' + wall);
@@ -76,12 +84,31 @@ describe('DeviceWallTime canonical helpers', () => {
       if (utcToWall(inst, 180) !== wall) throw new Error('utcToWall broke under TZ=' + process.env.TZ);
       console.log('ok ' + process.env.TZ);
     `;
-    for (const tz of ['UTC', 'Africa/Kampala', 'America/New_York', 'Asia/Shanghai']) {
-      const out = execFileSync('npx', ['tsx', '-e', script], {
-        env: { ...process.env, TZ: tz },
-        encoding: 'utf8',
-      });
-      assert.match(out, new RegExp(`ok ${tz}`));
+    // Write the probe to a temp file rather than passing it as a `-e`
+    // string: on Windows, execFileSync needs shell:true to resolve
+    // npx.cmd at all, but shell:true then re-tokenizes the whole argv
+    // through cmd.exe — which mangles this script's embedded quotes/
+    // template-literal backslashes into silent empty output instead of
+    // a clean failure. A file path needs no such quoting on either
+    // platform, and (still) needs shell:true on Windows purely to find
+    // npx.cmd in the first place.
+    // .js (not .mjs) — this repo has no "type": "module" in package.json,
+    // so a bare .js file resolves as CommonJS, matching the require() the
+    // script body uses (the same as the original inline `-e` string ran
+    // under, since node -e defaults to CJS too).
+    const probeFile = path.join(os.tmpdir(), `wall-time-tz-probe-${process.pid}.js`);
+    writeFileSync(probeFile, script, 'utf8');
+    try {
+      for (const tz of ['UTC', 'Africa/Kampala', 'America/New_York', 'Asia/Shanghai']) {
+        const out = execFileSync('npx', ['tsx', probeFile], {
+          env: { ...process.env, TZ: tz },
+          encoding: 'utf8',
+          shell: process.platform === 'win32',
+        });
+        assert.match(out, new RegExp(`ok ${tz}`));
+      }
+    } finally {
+      try { unlinkSync(probeFile); } catch { /* best effort */ }
     }
   });
 });
