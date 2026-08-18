@@ -17,7 +17,9 @@ import { langFromRequest, personDisplayName } from '@/lib/i18n/localize';
  * - view: "all" | "enrolled" | "admitted" (default: "all")
  * 
  * REMOVED: pagination, classId filtering (use separate endpoints)
- * Frontend will handle pagination if needed.
+ * Frontend will handle pagination if needed. A SAFETY_LIMIT (10,000 rows)
+ * guards against an unbounded response at extreme scale — see `truncated`
+ * in the response; no real school approaches this today.
  * 
  * Security:
  * - Requires authentication
@@ -108,10 +110,21 @@ export async function GET(req: NextRequest) {
       selectQuery += ` LEFT JOIN enrollments e ON s.id = e.student_id AND e.school_id = s.school_id`;
     }
 
+    // Safety ceiling, not real pagination — this endpoint is deliberately
+    // "return everything" (frontend does bulk-select/search over the full
+    // roster), which is fine at real-world school sizes (hundreds to a
+    // few thousand). LIMIT 10001 (one over the cap) so `truncated` can be
+    // detected without a second COUNT query; no real school hits this
+    // today, it exists purely so one can never turn into an unbounded
+    // full-table scan/response.
+    const SAFETY_LIMIT = 10000;
     selectQuery += ` WHERE ${whereClause}
-      ORDER BY ${view === 'trash' ? 's.deleted_at DESC' : 'p.first_name ASC, p.last_name ASC'}`;
+      ORDER BY ${view === 'trash' ? 's.deleted_at DESC' : 'p.first_name ASC, p.last_name ASC'}
+      LIMIT ${SAFETY_LIMIT + 1}`;
 
-    const [rows]: any = await conn.execute(selectQuery, params);
+    const [rawRows]: any = await conn.execute(selectQuery, params);
+    const truncated = rawRows.length > SAFETY_LIMIT;
+    const rows = truncated ? rawRows.slice(0, SAFETY_LIMIT) : rawRows;
 
     // Localize: add a language-aware display_name (Arabic full name with EN
     // fallback) plus arabic_name_missing so the UI can flag learners that still
@@ -138,6 +151,7 @@ export async function GET(req: NextRequest) {
       view,
       total,
       returned: rows.length,
+      truncated,
       school_id: schoolId,
       data
     });

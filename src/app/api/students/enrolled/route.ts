@@ -101,7 +101,12 @@ export async function GET(req: NextRequest) {
     // Fetch data query
     // No pagination — frontend handles all pagination logic.
     // Backend returns complete filtered result set.
-    const [rows]: any = await conn.execute(
+    // SAFETY_LIMIT guards against an unbounded response at extreme scale
+    // (same pattern as students/list and students/admitted) — most
+    // exposed here in `historical=true` mode, which can span every
+    // enrollment a school has ever had. No real school hits this today.
+    const SAFETY_LIMIT = 10000;
+    const [rawRows]: any = await conn.execute(
       `SELECT
          e.id                                   AS enrollment_id,
          e.student_id,
@@ -153,9 +158,12 @@ export async function GET(req: NextRequest) {
        LEFT JOIN study_modes sm    ON e.study_mode_id    = sm.id
        LEFT JOIN programs pr       ON e.program_id       = pr.id
        ${where}
-       ORDER BY p.first_name ASC, p.last_name ASC`,
+       ORDER BY p.first_name ASC, p.last_name ASC
+       LIMIT ${SAFETY_LIMIT + 1}`,
       [...params]
     );
+    const truncated = rawRows.length > SAFETY_LIMIT;
+    const rows = truncated ? rawRows.slice(0, SAFETY_LIMIT) : rawRows;
 
     // Fetch programs for each enrollment
     if (rows.length > 0) {
@@ -222,6 +230,7 @@ export async function GET(req: NextRequest) {
       data: rows,
       meta: {
         total: rows.length,
+        truncated,
         term_id: termId,
         historical,
       },

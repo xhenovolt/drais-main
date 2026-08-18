@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T16:44:31.326Z",
-  "last_commit": "47b64bb73fb261a4b4d460f0a4d50deb3427d2c2",
+  "generated_at": "2026-08-18T16:44:46.650Z",
+  "last_commit": "8d343b2414289c4cb33b99faea9ee9fd8ad311f5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6995,7 +6995,20 @@
         }
       ],
       "commit": "47b64bb73f"
+    },
+    {
+      "version": "1.173.76",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Add a real PR/push gate running the unit test suites",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Add a real PR/push gate running the unit test suites"
+        }
+      ],
+      "commit": "8d343b2414"
     }
   ],
-  "app_version": "1.173.76"
+  "app_version": "1.173.77"
 }

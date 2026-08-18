@@ -58,8 +58,11 @@ export async function GET(req: NextRequest) {
 
     const where = 'WHERE ' + conditions.join(' AND ');
 
-    // Fetch all admitted students (no pagination — frontend handles)
-    const [rows] = await conn.execute<any[]>(
+    // Fetch all admitted students (no pagination — frontend handles).
+    // SAFETY_LIMIT guards against an unbounded response at extreme scale
+    // (see students/list's identical pattern) — no real school hits this.
+    const SAFETY_LIMIT = 10000;
+    const [rawRows] = await conn.execute<any[]>(
       `SELECT
          s.id,
          s.person_id,
@@ -81,9 +84,12 @@ export async function GET(req: NextRequest) {
        FROM students s
        LEFT JOIN people p ON s.person_id = p.id
        ${where}
-       ORDER BY p.first_name ASC, p.last_name ASC`,
+       ORDER BY p.first_name ASC, p.last_name ASC
+       LIMIT ${SAFETY_LIMIT + 1}`,
       [...params]
     );
+    const truncated = rawRows.length > SAFETY_LIMIT;
+    const rows = truncated ? rawRows.slice(0, SAFETY_LIMIT) : rawRows;
 
     const lang = langFromRequest(req);
     for (const row of rows as Record<string, any>[]) {
@@ -102,6 +108,7 @@ export async function GET(req: NextRequest) {
       data: rows,
       meta: {
         total: rows.length,
+        truncated,
         current_term_id: currentTermId,
         current_term_name: currentTerm?.name ?? null,
       },
