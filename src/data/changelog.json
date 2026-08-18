@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T03:25:27.562Z",
-  "last_commit": "9bdf6d721357bf2dc597349b2a1c81868f7a43ae",
+  "generated_at": "2026-08-18T04:25:46.770Z",
+  "last_commit": "bbcc84406ceaccd0e8e3f0b46033a06dd8c99936",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6852,7 +6852,20 @@
         }
       ],
       "commit": "70dabf7a6f"
+    },
+    {
+      "version": "1.173.65",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Phases C, D, E of the import redesign — fees, Sentinel, scale testing",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phases C, D, E of the import redesign — fees, Sentinel, scale testing"
+        }
+      ],
+      "commit": "bbcc84406c"
     }
   ],
-  "app_version": "1.173.65"
+  "app_version": "1.173.66"
 }

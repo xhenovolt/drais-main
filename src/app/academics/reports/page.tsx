@@ -2257,6 +2257,26 @@ function calculateMarks(groupedResult: GroupedResult, isEndOfTerm: boolean, enab
     }
   }
 
+  // Bug fix (2026-08-18): `r` (regularScore) was destructured above but
+  // never actually used — any subject whose result_type isn't literally
+  // named with "mid" or "end" (buildGroupedResults' grouping logic puts
+  // its score in regularScore only, see the else-branch there) fell
+  // through with BOTH midTermMarks and endTermMarks left at 0, no matter
+  // how high the real score was. Nursery classes almost always record a
+  // single termly assessment per subject with no mid/end split, so this
+  // hit them on effectively every report: totalMarks=0 -> gradeForScore
+  // returns 'E' for every subject regardless of real performance, and
+  // getNurseryOverallGrade's mode-of-grades then reports 'E' overall too.
+  // sibling tahfiz/reports/page.tsx's calculateMarks already had this
+  // fallback — this brings the two back in sync (same fix applied there
+  // 2026-07 per the "one function, don't reimplement it" note in
+  // control/docs/decisions).
+  if (m === null && e === null && r !== null) {
+    const regularMarks = Math.round(r);
+    midTermMarks = regularMarks;
+    endTermMarks = regularMarks;
+  }
+
   // Total calculation: Only use end-term marks for EOT reports
   const totalMarks = isEndOfTerm ? endTermMarks : midTermMarks;
 
