@@ -40,98 +40,20 @@
 import type { Connection } from 'mysql2/promise';
 import type {
   ConflictDecision,
-  IdentityClaim,
   IngestionPipeline,
   ResolvedIdentity,
-  RowProvenance,
-  RawCellValue,
 } from '../types';
 import { getConnection } from '@/lib/db';
-import { STUDENT_FIELDS } from './students-schema';
+import {
+  STUDENT_FIELDS, type StudentRow, validateStudentRow, studentIdentityFromRow,
+} from './students-schema';
 
-export { STUDENT_FIELDS };
+export { STUDENT_FIELDS, type StudentRow, validateStudentRow, studentIdentityFromRow };
 
-// ─── Validated row shape ─────────────────────────────────────────────────────
-
-export interface StudentRow {
-  admission_no: string;
-  first_name:   string;
-  last_name:    string;
-  other_name:   string | null;
-  gender:       'male' | 'female' | null;
-  date_of_birth: string | null;       // YYYY-MM-DD
-  phone:        string | null;
-  email:        string | null;
-  address:      string | null;
-  class_name:   string | null;
-  stream_name:  string | null;
-  fees_balance: number | null;
-}
-
-// ─── Canonical field catalog ─────────────────────────────────────────────────
-// Moved to students-schema.ts (re-exported above) so it can be imported
-// without pulling in mysql2 via getConnection. See that file's header for why.
-
-// ─── Per-row validator ───────────────────────────────────────────────────────
-
-export function validateStudentRow(
-  mapped: Record<string, RawCellValue>,
-  _provenance: RowProvenance,
-): { ok: true; value: StudentRow } | { ok: false; error: string } {
-  // admission_no is required and must be non-empty after trimming.
-  const admission = coerceString(mapped.admission_no);
-  if (!admission) return { ok: false, error: 'admission_no is empty' };
-
-  const first = coerceString(mapped.first_name);
-  if (!first) return { ok: false, error: 'first_name is empty' };
-
-  const last = coerceString(mapped.last_name);
-  if (!last) return { ok: false, error: 'last_name is empty' };
-
-  // Gender enum normalisation.
-  let gender: StudentRow['gender'] = null;
-  const g = coerceString(mapped.gender)?.toLowerCase();
-  if (g === 'm' || g === 'male')   gender = 'male';
-  if (g === 'f' || g === 'female') gender = 'female';
-
-  // DOB → YYYY-MM-DD.
-  const dob = parseDateToIso(mapped.date_of_birth);
-
-  // Fees → float, comma- and space-stripped.
-  const balance = parseMoney(mapped.fees_balance);
-
-  return {
-    ok: true,
-    value: {
-      admission_no:  admission,
-      first_name:    first,
-      last_name:     last,
-      other_name:    coerceString(mapped.other_name),
-      gender,
-      date_of_birth: dob,
-      phone:         coerceString(mapped.phone),
-      email:         coerceString(mapped.email),
-      address:       coerceString(mapped.address),
-      class_name:    coerceString(mapped.class_name),
-      stream_name:   coerceString(mapped.stream_name),
-      fees_balance:  balance,
-    },
-  };
-}
-
-// ─── Identity extraction ─────────────────────────────────────────────────────
-
-export function studentIdentityFromRow(row: StudentRow): IdentityClaim {
-  return {
-    admissionNo: row.admission_no,
-    firstName:   row.first_name,
-    lastName:    row.last_name,
-    otherName:   row.other_name ?? undefined,
-    className:   row.class_name ?? undefined,
-    streamName:  row.stream_name ?? undefined,
-    personRole:  'student',
-  };
-}
+// ─── Validated row shape, canonical fields, validator, identity extraction ──
+// All pure — moved to students-schema.ts (re-exported above) so they can be
+// imported without pulling in mysql2 via getConnection. See that file's
+// header for why.
 
 // ─── Commit (the real DB writes) ─────────────────────────────────────────────
 // Honest about every action it takes — decision.action drives the SQL.
@@ -150,9 +72,28 @@ export interface StudentCommitContext {
   /** Whether to auto-create an active enrolment when class_name resolves
    *  to an existing class. Default true. */
   autoEnroll: boolean;
+  /**
+   * Import redesign Phase B — school-configurable settings (see
+   * src/lib/ingestion/settings.ts for the full rationale on defaults).
+   * Optional so existing direct callers of makeStudentsPipeline (if any)
+   * keep compiling against the DEFAULT (safest) behavior.
+   */
+  allowUpdateExisting?: boolean;      // default false
+  allowClassReassignment?: boolean;   // default false
+  autoCreateMissingClasses?: boolean; // default false
 }
 
-export function makeStudentCommitFn(ctx: StudentCommitContext) {
+function withDefaults(ctx: StudentCommitContext): Required<Pick<StudentCommitContext, 'allowUpdateExisting' | 'allowClassReassignment' | 'autoCreateMissingClasses'>> & StudentCommitContext {
+  return {
+    ...ctx,
+    allowUpdateExisting: ctx.allowUpdateExisting ?? false,
+    allowClassReassignment: ctx.allowClassReassignment ?? false,
+    autoCreateMissingClasses: ctx.autoCreateMissingClasses ?? false,
+  };
+}
+
+export function makeStudentCommitFn(rawCtx: StudentCommitContext) {
+  const ctx = withDefaults(rawCtx);
   return async function commit(
     row: StudentRow,
     identity: ResolvedIdentity,
@@ -165,12 +106,13 @@ export function makeStudentCommitFn(ctx: StudentCommitContext) {
           await insertStudent(conn, row, ctx);
           return;
         case 'update':
-          if (identity.personId == null) return;
-          await updateStudent(conn, identity.personId, row, decision.changedFields, ctx);
-          return;
         case 'merge':
           if (identity.personId == null) return;
+          if (!ctx.allowUpdateExisting) return; // matched an existing student, but updates are OFF by default — a no-op, not an error
           await updateStudent(conn, identity.personId, row, decision.changedFields, ctx);
+          if (ctx.allowClassReassignment) {
+            await reassignClassIfNeeded(conn, identity.personId, row, ctx);
+          }
           return;
         case 'skip':
         case 'orphan':
@@ -221,25 +163,13 @@ async function insertStudent(
 
     // 3. Optionally enrol them.
     if (ctx.autoEnroll && row.class_name) {
-      const [classRows] = await conn.execute(
-        `SELECT id FROM classes WHERE school_id = ? AND name = ? LIMIT 1`,
-        [ctx.schoolId, row.class_name],
-      );
-      const cls = (classRows as Array<{ id: number }>)[0];
-      if (cls) {
-        let streamId: number | null = null;
-        if (row.stream_name) {
-          const [streamRows] = await conn.execute(
-            `SELECT id FROM streams WHERE class_id = ? AND name = ? LIMIT 1`,
-            [cls.id, row.stream_name],
-          );
-          streamId = (streamRows as Array<{ id: number }>)[0]?.id ?? null;
-        }
+      const resolved = await resolveClassAndStream(conn, ctx, row.class_name, row.stream_name);
+      if (resolved) {
         await conn.execute(
           `INSERT INTO enrollments
              (student_id, class_id, stream_id, status, enrolled_at)
            VALUES (?, ?, ?, 'active', NOW())`,
-          [studentId, cls.id, streamId],
+          [studentId, resolved.classId, resolved.streamId],
         );
       }
     }
@@ -312,43 +242,111 @@ async function updateStudent(
   }
 }
 
-// ─── Tiny pure helpers (testable) ────────────────────────────────────────────
+/**
+ * Find an existing class/stream by name, or create the class (never the
+ * stream — a stream needs a class to belong to; a row that names a stream
+ * under a class that doesn't exist and isn't being auto-created gets no
+ * enrolment at all, same as today) when ctx.autoCreateMissingClasses is
+ * on. Shared by insertStudent (new student) and reassignClassIfNeeded
+ * (existing student, class-change path) so both honour the same setting
+ * identically rather than two independently-drifting lookups.
+ */
+async function resolveClassAndStream(
+  conn: Connection,
+  ctx: StudentCommitContext,
+  className: string,
+  streamName: string | null,
+): Promise<{ classId: number; streamId: number | null } | null> {
+  const [classRows] = await conn.execute(
+    `SELECT id FROM classes WHERE school_id = ? AND name = ? LIMIT 1`,
+    [ctx.schoolId, className],
+  );
+  let cls = (classRows as Array<{ id: number }>)[0];
 
-export function coerceString(v: RawCellValue): string | null {
-  if (v == null || v === '') return null;
-  const s = String(v).trim();
-  return s === '' ? null : s;
-}
-
-export function parseMoney(v: RawCellValue): number | null {
-  if (v == null || v === '') return null;
-  // Allow commas + spaces in currency display: "1,200,000.00" → 1200000.00
-  const cleaned = String(v).replace(/[\s,]/g, '');
-  const n = Number.parseFloat(cleaned);
-  return Number.isFinite(n) ? n : null;
-}
-
-export function parseDateToIso(v: RawCellValue): string | null {
-  if (v == null || v === '') return null;
-  const s = String(v).trim();
-  if (!s) return null;
-  // ISO already?
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // DD/MM/YYYY or DD-MM-YYYY
-  const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/.exec(s);
-  if (dmy) {
-    const day = dmy[1].padStart(2, '0');
-    const mon = dmy[2].padStart(2, '0');
-    return `${dmy[3]}-${mon}-${day}`;
+  if (!cls && ctx.autoCreateMissingClasses) {
+    const [created] = await conn.execute(
+      `INSERT INTO classes (school_id, name) VALUES (?, ?)`,
+      [ctx.schoolId, className],
+    );
+    cls = { id: (created as { insertId: number }).insertId };
   }
-  // Fallback: Date parse.
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  const yyyy = d.getUTCFullYear();
-  const mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd   = String(d.getUTCDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  if (!cls) return null;
+
+  let streamId: number | null = null;
+  if (streamName) {
+    const [streamRows] = await conn.execute(
+      `SELECT id FROM streams WHERE class_id = ? AND name = ? LIMIT 1`,
+      [cls.id, streamName],
+    );
+    streamId = (streamRows as Array<{ id: number }>)[0]?.id ?? null;
+    if (streamId == null && ctx.autoCreateMissingClasses) {
+      const [createdStream] = await conn.execute(
+        `INSERT INTO streams (school_id, class_id, name) VALUES (?, ?, ?)`,
+        [ctx.schoolId, cls.id, streamName],
+      );
+      streamId = (createdStream as { insertId: number }).insertId;
+    }
+  }
+
+  return { classId: cls.id, streamId };
 }
+
+/**
+ * Import redesign Phase B — class reassignment for an ALREADY-MATCHED
+ * existing student, gated entirely by ctx.allowClassReassignment (default
+ * false — see settings.ts). Only acts when the row actually names a class
+ * different from the student's current active enrolment; a row with no
+ * class_name, or the same class_name, is a no-op. Closes the old
+ * enrolment (status='closed' — the same fix applied to the manual
+ * soft-delete leak in readiness-audit Phase 2, students/bulk/delete)
+ * rather than deleting it, so history is preserved.
+ */
+async function reassignClassIfNeeded(
+  conn: Connection,
+  studentId: number,
+  row: StudentRow,
+  ctx: StudentCommitContext,
+): Promise<void> {
+  if (!row.class_name) return;
+
+  const [currentRows] = await conn.execute(
+    `SELECT e.id AS enrollment_id, c.name AS class_name, st.name AS stream_name
+       FROM enrollments e
+       JOIN classes c ON c.id = e.class_id
+       LEFT JOIN streams st ON st.id = e.stream_id
+      WHERE e.student_id = ? AND e.status = 'active'
+      LIMIT 1`,
+    [studentId],
+  );
+  const current = (currentRows as Array<{ enrollment_id: number; class_name: string; stream_name: string | null }>)[0];
+
+  const sameClass = current?.class_name === row.class_name;
+  const sameStream = (current?.stream_name ?? null) === (row.stream_name ?? null);
+  if (current && sameClass && sameStream) return; // nothing to do
+
+  const resolved = await resolveClassAndStream(conn, ctx, row.class_name, row.stream_name);
+  if (!resolved) return; // class doesn't exist and auto-create is off — leave the existing enrolment untouched
+
+  await conn.beginTransaction();
+  try {
+    if (current) {
+      await conn.execute(`UPDATE enrollments SET status = 'closed' WHERE id = ?`, [current.enrollment_id]);
+    }
+    await conn.execute(
+      `INSERT INTO enrollments (student_id, class_id, stream_id, status, enrolled_at)
+       VALUES (?, ?, ?, 'active', NOW())`,
+      [studentId, resolved.classId, resolved.streamId],
+    );
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  }
+}
+
+// ─── Tiny pure helpers ────────────────────────────────────────────────────
+// Moved to students-schema.ts along with everything else pure — see this
+// file's header comment.
 
 // ─── Factory — the IngestionPipeline the v2 route consumes ─────────────────
 

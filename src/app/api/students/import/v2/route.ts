@@ -1,39 +1,39 @@
 /**
  * POST /api/students/import/v2 — Unified Ingestion Pipeline path.
  *
- * Parallel to the legacy /api/students/import. Both routes coexist
- * during Phase 2 migration:
+ * Parallel to the legacy /api/students/import. Both routes coexist:
  *
  *   - Legacy keeps working unchanged for the ImportModal UI.
- *   - v2 lets schools opt in via direct API call (or a future UI
- *     toggle) to validate the unified pipeline against their real
- *     exports before we flip the default.
+ *   - v2 is the redesigned path (readiness-audit import brief) — schools
+ *     opt in via the new /students/import-v2 UI. Retired once proven.
  *
- * Request shape (multipart/form-data OR JSON):
+ * Request (multipart/form-data):
  *
  *   file: File (CSV or XLSX) — REQUIRED
- *   overrides?: JSON string of { sourceHeader → canonicalField } — optional
- *               human-supplied mapping that wins over inference
- *   conflictPolicy?: JSON string of ConflictPolicySet — optional, falls
- *                    back to safe prefer-existing default
- *   autoEnroll?: boolean — auto-create active enrolment when class_name
- *                resolves to an existing class. Default true.
+ *   sheets: JSON array — REQUIRED for XLSX, ignored for CSV (which has one
+ *           implicit sheet). Each entry:
+ *             { sheetName: string, headerRowIndex: number,
+ *               useSheetContext?: boolean,      // default: school setting
+ *               overrides?: Record<string,string> }
+ *           Get sheetName/headerRowIndex from POST .../analyze first — this
+ *           route does NOT re-detect the header row, so preview and commit
+ *           can never disagree about where the data starts.
+ *   dryRun: 'true' | 'false' — default false. true runs every stage
+ *           (mapping, validation, identity, conflict) without writing
+ *           anything and without persisting to ingestion_runs/orphans/
+ *           memory — a preview, not a partial commit.
+ *   autoEnroll: 'true' | 'false' — default true.
  *
- * Response (JSON):
+ * JSON body form (curl/scripts) is unchanged: { rows: [...], headers?: [...] }
+ * — single flat table, no multi-sheet concept, dryRun still supported.
  *
- *   {
- *     success: true,
- *     report: IngestionReport      // full per-row outcomes + counts +
- *                                   // schemaInference for the review UI
- *   }
- *
- *   The full report is also persisted to ingestion_runs for audit.
- *   Orphans land in ingestion_orphans for the human-review UI (Phase 6
- *   from the original brief).
+ * Response:
+ *   { success: true, dryRun: boolean, reports: IngestionReport[],
+ *     combinedCounts: {...}, warnings: string[] }
+ *   One IngestionReport per sheet (or one, for the JSON-body path).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
 import { getSessionSchoolId } from '@/lib/auth';
 import { runIngestionPipeline } from '@/lib/ingestion/pipeline';
 import { makeStudentsPipeline } from '@/lib/ingestion/pipelines/students';
@@ -43,9 +43,28 @@ import {
   persistIngestionRun, persistOrphan,
 } from '@/lib/ingestion/adapters/sql-memory';
 import { persistAutoMappings } from '@/lib/ingestion/memory';
-import type { ConflictPolicySet, ParsedSource } from '@/lib/ingestion/types';
+import { parseSheetToSource } from '@/lib/ingestion/parse/parse-sheet';
+import { inferContextFromSheetName } from '@/lib/ingestion/parse/sheet-name-context';
+import { getImportSettings } from '@/lib/ingestion/settings';
+import type { ConflictPolicySet, IngestionReport, ParsedSource, RawCellValue } from '@/lib/ingestion/types';
 
 export const runtime = 'nodejs';
+
+interface SheetSelection {
+  sheetName: string;
+  headerRowIndex: number;
+  useSheetContext?: boolean;
+  overrides?: Record<string, string>;
+}
+
+function zeroCombinedCounts() {
+  return { parsed: 0, inserted: 0, updated: 0, merged: 0, skipped: 0, orphaned: 0, failed: 0 };
+}
+
+function addCounts(target: ReturnType<typeof zeroCombinedCounts>, r: IngestionReport['counts']) {
+  target.parsed += r.parsed; target.inserted += r.inserted; target.updated += r.updated;
+  target.merged += r.merged; target.skipped += r.skipped; target.orphaned += r.orphaned; target.failed += r.failed;
+}
 
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -53,162 +72,70 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  // 1. PARSE the upload. The pipeline doesn't touch parsing — it's too
-  //    format-dependent. We support multipart form-data (browser) and
-  //    JSON body (curl / scripts).
-  let parsed: ParsedSource;
-  try {
-    parsed = await parseRequest(req);
-  } catch (err) {
-    return NextResponse.json(
-      { success: false, error: `parse: ${(err as Error).message}` },
-      { status: 400 },
-    );
-  }
-  if (parsed.rows.length === 0) {
-    return NextResponse.json(
-      { success: false, error: 'no rows in upload' },
-      { status: 400 },
-    );
-  }
+  const settings = await getImportSettings(session.schoolId);
+  const conflictPolicy: ConflictPolicySet = { perField: {}, default: settings.fieldConflictDefault };
 
-  // 2. Pull caller-supplied overrides (from a future review UI).
-  let mappingOverrides: Record<string, string> | undefined;
-  let conflictPolicy:   ConflictPolicySet | undefined;
-  let autoEnroll = true;
-  try {
-    const form = req.headers.get('content-type')?.includes('multipart/form-data')
-      ? await req.formData().catch(() => null)
-      : null;
-    if (form) {
-      const o = form.get('overrides');
-      if (typeof o === 'string') mappingOverrides = JSON.parse(o);
-      const p = form.get('conflictPolicy');
-      if (typeof p === 'string') conflictPolicy = JSON.parse(p);
-      const a = form.get('autoEnroll');
-      if (a === 'false' || a === '0') autoEnroll = false;
-    }
-  } catch {
-    // Best-effort — bad overrides JSON just means we run without them.
-  }
-
-  // 3. Build the pipeline + adapters.
-  const pipeline = makeStudentsPipeline({
-    schoolId: session.schoolId,
-    importedBy: session.userId ?? null,
-    autoEnroll,
-  });
-  const lookup = createSqlPersonLookup();
-  const memoryReader = createSqlMemoryReader();
-  const memoryWriter = createSqlMemoryWriter();
-
-  const memory = await memoryReader.loadFieldMemory(session.schoolId, 'students')
-    .catch(() => ({}));
-
-  // 4. RUN.
-  const report = await runIngestionPipeline({
-    schoolId: session.schoolId,
-    parsed,
-    pipeline,
-    lookup,
-    mappingMemory: memory,
-    mappingOverrides,
-    conflictPolicy,
-  });
-
-  // 5. Persist auto-rememberable mappings — high-confidence non-fuzzy
-  //    hits get cached so the school sees them automatically next time.
-  const warnings: string[] = [];
-  if (report.schemaInference.mappings.length > 0) {
-    try {
-      await persistAutoMappings({
-        schoolId: session.schoolId,
-        pipelineName: 'students',
-        mappings: report.schemaInference.mappings,
-        writer: memoryWriter,
-        approvedBy: session.userId ?? null,
-      });
-    } catch (err) {
-      // Memory persistence failure is non-fatal — the import succeeded.
-      // eslint-disable-next-line no-console
-      console.error('[students.v2] persistAutoMappings failed — this school will not benefit from learned column mapping on the next import:', err);
-      warnings.push('Column-mapping memory failed to save — future imports for this school will need to re-map headers instead of remembering this run\'s choices.');
-    }
-  }
-
-  // 6. Persist run + orphans for the audit log. Readiness-audit Phase A:
-  // these failures used to be console.warn-only — invisible to whoever's
-  // actually driving the import, since nothing in the response said the
-  // audit trail didn't get written. Collected into `warnings` and returned
-  // alongside the report instead, so a broken tracking table is visible to
-  // the caller, not just to whoever happens to be tailing server logs.
-  try {
-    await persistIngestionRun({
-      schoolId:    session.schoolId,
-      pipelineName: 'students',
-      runId:       report.runId,
-      startedAt:   report.startedAt,
-      finishedAt:  report.finishedAt,
-      reportJson:  JSON.stringify(report),
-      counts:      report.counts,
-      initiatedBy: session.userId ?? null,
-    });
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('[students.v2] persistIngestionRun failed — this run has NO audit trail:', err);
-    warnings.push('This import succeeded, but its audit-log entry (ingestion_runs) failed to save — the run itself is not recoverable from history.');
-  }
-  let orphanPersistFailures = 0;
-  for (const outcome of report.outcomes) {
-    if (outcome.decision.action === 'orphan') {
-      try {
-        await persistOrphan({
-          schoolId: session.schoolId,
-          pipelineName: 'students',
-          runId: report.runId,
-          sourceFile: outcome.provenance.sourceFile,
-          sourceSheet: outcome.provenance.sourceSheet ?? null,
-          sourceRowIndex: outcome.provenance.sourceRowIndex,
-          reason: outcome.decision.reason,
-          candidatesJson: outcome.identity?.candidates
-            ? JSON.stringify(outcome.identity.candidates)
-            : null,
-          payloadJson: JSON.stringify(outcome.validated ?? outcome.mapped ?? outcome.raw),
-        });
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[students.v2] persistOrphan failed:', err);
-        orphanPersistFailures++;
-      }
-    }
-  }
-  if (orphanPersistFailures > 0) {
-    warnings.push(`${orphanPersistFailures} orphaned row(s) could not be saved to the review queue (ingestion_orphans) — they are still listed in this report's outcomes, but won't appear in the orphan-review UI.`);
-  }
-
-  return NextResponse.json({ success: true, report, warnings });
-}
-
-// ─── Parser ──────────────────────────────────────────────────────────────────
-async function parseRequest(req: NextRequest): Promise<ParsedSource> {
   const ct = req.headers.get('content-type') ?? '';
+  const warnings: string[] = [];
+  let sources: Array<{ parsed: ParsedSource; sheetContext?: { className: string | null; streamName: string | null } | null; overrides?: Record<string, string> }>;
+  let dryRun = false;
 
   if (ct.includes('multipart/form-data')) {
-    const form = await req.formData();
-    const file = form.get('file');
-    if (!(file instanceof Blob)) throw new Error('file field missing');
-    const filename = (file as File).name ?? 'upload';
-    const buf = Buffer.from(await file.arrayBuffer());
-    return parseBuffer(buf, filename);
-  }
+    const form = await req.formData().catch(() => null);
+    if (!form) return NextResponse.json({ success: false, error: 'could not read form data' }, { status: 400 });
 
-  if (ct.includes('application/json')) {
-    const body = await req.json() as { rows?: unknown[]; headers?: string[] };
-    if (!Array.isArray(body.rows)) throw new Error('rows[] required in JSON body');
+    const file = form.get('file');
+    if (!(file instanceof Blob)) return NextResponse.json({ success: false, error: 'file field required' }, { status: 400 });
+    const filename = (file as File).name ?? 'upload';
+    dryRun = form.get('dryRun') === 'true';
+
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(await file.arrayBuffer());
+    } catch (err) {
+      return NextResponse.json({ success: false, error: `could not read upload: ${(err as Error).message}` }, { status: 400 });
+    }
+
+    const isCsv = filename.toLowerCase().endsWith('.csv');
+    let sheetSelections: SheetSelection[];
+    if (isCsv) {
+      // CSV has one implicit sheet — no analyze step needed, header assumed
+      // at row 0 (matches every other CSV path in the app; a CSV with a
+      // title row ahead of its header is rare enough not to warrant the
+      // full workbook-inspection machinery for a single-sheet format).
+      sheetSelections = [{ sheetName: 'Sheet1', headerRowIndex: 0 }];
+    } else {
+      const raw = form.get('sheets');
+      if (typeof raw !== 'string') {
+        return NextResponse.json({
+          success: false,
+          error: 'sheets[] is required for XLSX uploads — call POST .../analyze first to get sheetName + headerRowIndex per sheet, then pass the ones the user selected here.',
+        }, { status: 400 });
+      }
+      try {
+        sheetSelections = JSON.parse(raw);
+        if (!Array.isArray(sheetSelections) || sheetSelections.length === 0) throw new Error('sheets must be a non-empty array');
+      } catch (err) {
+        return NextResponse.json({ success: false, error: `invalid sheets JSON: ${(err as Error).message}` }, { status: 400 });
+      }
+    }
+
+    sources = sheetSelections.map((sel) => {
+      const parsed = parseSheetToSource(buffer, filename, isCsv ? 'Sheet1' : sel.sheetName, sel.headerRowIndex);
+      const useContext = sel.useSheetContext ?? settings.allowSheetNameContext;
+      const sheetContext = useContext && !isCsv ? inferContextFromSheetName(sel.sheetName) : null;
+      return { parsed, sheetContext: sheetContext && sheetContext.confidence > 0 ? sheetContext : null, overrides: sel.overrides };
+    });
+  } else if (ct.includes('application/json')) {
+    const body = await req.json().catch(() => null) as { rows?: unknown[]; headers?: string[]; dryRun?: boolean; overrides?: Record<string, string> } | null;
+    if (!body || !Array.isArray(body.rows)) {
+      return NextResponse.json({ success: false, error: 'rows[] required in JSON body' }, { status: 400 });
+    }
+    dryRun = body.dryRun === true;
     const headers = Array.isArray(body.headers) && body.headers.length > 0
       ? body.headers
       : Object.keys((body.rows[0] ?? {}) as Record<string, unknown>);
-    return {
+    const parsed: ParsedSource = {
       rows: body.rows.map((r, i) => ({
         ...(r as Record<string, unknown>),
         __provenance: { sourceRowIndex: i + 1, sourceFile: 'api' },
@@ -216,36 +143,121 @@ async function parseRequest(req: NextRequest): Promise<ParsedSource> {
       headers,
       detectedFormat: 'json',
     };
+    sources = [{ parsed, sheetContext: null, overrides: body.overrides }];
+  } else {
+    return NextResponse.json({ success: false, error: `unsupported content-type: ${ct}` }, { status: 400 });
   }
 
-  throw new Error(`unsupported content-type: ${ct}`);
-}
-
-function parseBuffer(buf: Buffer, filename: string): ParsedSource {
-  const lower = filename.toLowerCase();
-  const isCsv = lower.endsWith('.csv');
-
-  const wb = isCsv
-    ? XLSX.read(buf.toString('utf-8'), { type: 'string' })
-    : XLSX.read(buf, { type: 'buffer' });
-  const sheetName = wb.SheetNames[0];
-  if (!sheetName) throw new Error('workbook has no sheets');
-  const ws = wb.Sheets[sheetName];
-  const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, blankrows: false });
-  if (aoa.length === 0) return { rows: [], headers: [], detectedFormat: isCsv ? 'csv' : 'xlsx' };
-
-  const headers = (aoa[0] as unknown[]).map(v => String(v ?? '').trim()).filter(Boolean);
-  const rows: ParsedSource['rows'] = [];
-  for (let i = 1; i < aoa.length; i++) {
-    const arr = aoa[i] as unknown[];
-    if (!Array.isArray(arr) || arr.every(v => v == null || v === '')) continue;
-    const row: Record<string, unknown> = {};
-    headers.forEach((h, idx) => { row[h] = arr[idx]; });
-    rows.push({
-      ...row,
-      __provenance: { sourceRowIndex: i + 1, sourceFile: filename, sourceSheet: sheetName },
-    } as ParsedSource['rows'][number]);
+  for (const s of sources) {
+    if (s.parsed.rows.length === 0) {
+      return NextResponse.json({ success: false, error: `no data rows found${s.parsed.headers.length ? '' : ' (and no headers detected either)'} — check the selected header row` }, { status: 400 });
+    }
   }
 
-  return { rows, headers, detectedFormat: isCsv ? 'csv' : 'xlsx' };
+  const lookup = createSqlPersonLookup();
+  const memoryReader = createSqlMemoryReader();
+  const memoryWriter = createSqlMemoryWriter();
+  const memory = await memoryReader.loadFieldMemory(session.schoolId, 'students').catch(() => ({}));
+
+  const reports: IngestionReport[] = [];
+  const combinedCounts = zeroCombinedCounts();
+
+  for (const { parsed, sheetContext, overrides } of sources) {
+    const pipeline = makeStudentsPipeline({
+      schoolId: session.schoolId,
+      importedBy: session.userId ?? null,
+      autoEnroll: true,
+      allowUpdateExisting: settings.allowUpdateExisting,
+      allowClassReassignment: settings.allowClassReassignment,
+      autoCreateMissingClasses: settings.autoCreateMissingClasses,
+    });
+
+    // Sheet-name-derived context (e.g. "S.2 Blue" -> class/stream) is a
+    // DEFAULT applied only when the row's own class/stream column is
+    // empty — never overrides an explicit value the school actually
+    // typed in. Wrapping validateRow rather than touching pipeline.ts
+    // keeps this entirely a route-level concern.
+    if (sheetContext) {
+      const originalValidate = pipeline.validateRow;
+      pipeline.validateRow = (mapped, provenance) => {
+        const withDefaults: Record<string, RawCellValue> = { ...mapped };
+        if (!withDefaults.class_name && sheetContext.className) withDefaults.class_name = sheetContext.className;
+        if (!withDefaults.stream_name && sheetContext.streamName) withDefaults.stream_name = sheetContext.streamName;
+        return originalValidate(withDefaults, provenance);
+      };
+    }
+
+    const report = await runIngestionPipeline({
+      schoolId: session.schoolId,
+      parsed,
+      pipeline,
+      lookup,
+      mappingMemory: memory,
+      mappingOverrides: overrides,
+      conflictPolicy,
+      dryRun,
+    });
+    reports.push(report);
+    addCounts(combinedCounts, report.counts);
+
+    if (dryRun) continue; // preview only — no memory/audit persistence for a run that wrote nothing
+
+    if (report.schemaInference.mappings.length > 0) {
+      try {
+        await persistAutoMappings({
+          schoolId: session.schoolId,
+          pipelineName: 'students',
+          mappings: report.schemaInference.mappings,
+          writer: memoryWriter,
+          approvedBy: session.userId ?? null,
+        });
+      } catch (err) {
+        console.error('[students.v2] persistAutoMappings failed — this school will not benefit from learned column mapping on the next import:', err);
+        warnings.push(`Column-mapping memory failed to save for sheet "${parsed.rows[0]?.__provenance.sourceSheet ?? 'unknown'}".`);
+      }
+    }
+
+    try {
+      await persistIngestionRun({
+        schoolId: session.schoolId,
+        pipelineName: 'students',
+        runId: report.runId,
+        startedAt: report.startedAt,
+        finishedAt: report.finishedAt,
+        reportJson: JSON.stringify(report),
+        counts: report.counts,
+        initiatedBy: session.userId ?? null,
+      });
+    } catch (err) {
+      console.error('[students.v2] persistIngestionRun failed — this run has NO audit trail:', err);
+      warnings.push('An import succeeded, but its audit-log entry (ingestion_runs) failed to save — that run is not recoverable from history.');
+    }
+
+    let orphanPersistFailures = 0;
+    for (const outcome of report.outcomes) {
+      if (outcome.decision.action === 'orphan') {
+        try {
+          await persistOrphan({
+            schoolId: session.schoolId,
+            pipelineName: 'students',
+            runId: report.runId,
+            sourceFile: outcome.provenance.sourceFile,
+            sourceSheet: outcome.provenance.sourceSheet ?? null,
+            sourceRowIndex: outcome.provenance.sourceRowIndex,
+            reason: outcome.decision.reason,
+            candidatesJson: outcome.identity?.candidates ? JSON.stringify(outcome.identity.candidates) : null,
+            payloadJson: JSON.stringify(outcome.validated ?? outcome.mapped ?? outcome.raw),
+          });
+        } catch (err) {
+          console.error('[students.v2] persistOrphan failed:', err);
+          orphanPersistFailures++;
+        }
+      }
+    }
+    if (orphanPersistFailures > 0) {
+      warnings.push(`${orphanPersistFailures} orphaned row(s) could not be saved to the review queue.`);
+    }
+  }
+
+  return NextResponse.json({ success: true, dryRun, reports, combinedCounts, warnings });
 }

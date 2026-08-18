@@ -475,6 +475,14 @@ export default function BulkImportPage() {
           </button>
         </div>
 
+        {/* ── New import experience banner (opt-in beta) ── */}
+        <a href="/students/import-v2" className="mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-indigo-200 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/15 transition-colors group">
+          <span className="text-sm text-indigo-800 dark:text-indigo-300">
+            <span className="font-medium">Try the new import experience (beta)</span> — multi-sheet workbooks, no reformatting needed, DRAIS explains what it found before writing anything.
+          </span>
+          <ArrowRight size={16} className="text-indigo-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </a>
+
         {/* ── Step breadcrumb ── */}
         <div className="mb-6 flex items-center gap-1.5 flex-wrap text-xs font-medium">
           {STEPS.map((step, i) => {
