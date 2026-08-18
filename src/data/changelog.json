@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T20:04:34.987Z",
-  "last_commit": "1c16fca78199978057fa670956b48d1f591bbb4d",
+  "generated_at": "2026-08-18T20:28:20.058Z",
+  "last_commit": "f891ca1872d1089d3e1acd9895ea328d8eac9169",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7034,7 +7034,20 @@
         }
       ],
       "commit": "1c16fca781"
+    },
+    {
+      "version": "1.173.79",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Dunning/platform-health stopped enqueueing for 2 weeks; notification_drain heartbeat name mismatch",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Dunning/platform-health stopped enqueueing for 2 weeks; notification_drain heartbeat name mismatch"
+        }
+      ],
+      "commit": "f891ca1872"
     }
   ],
-  "app_version": "1.173.79"
+  "app_version": "1.173.80"
 }

@@ -24,6 +24,7 @@ import { upsertEnrollment, decideNameMatchAction } from '@/lib/biometric/enrollm
 import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
 import { completeAdmsInventoryRun, refreshLiveCountFromDirectory } from '@/lib/biometric/inventory-service';
 import { drainOutboxOpportunistically, drainNotificationOutbox } from '@/lib/notifications/drain';
+import { runDeviceStatusSweepOpportunistically } from '@/lib/devices/device-status-sweep';
 import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
 import { admsUploadAck, normalizeDeviceDateTime, parseZKBody } from '@/lib/attendance/adms-protocol';
 
@@ -1131,6 +1132,16 @@ export async function GET(req: NextRequest) {
     // ~30-60s per device) act as the scheduler. Throttled per-process
     // inside the helper; fire-and-forget; never blocks the response.
     drainOutboxOpportunistically();
+
+    // Same pattern for the device-status sweep (offline-flip + alerts +
+    // command timeouts) — found 2026-08-18 to have never run at all,
+    // since it was written for a dedicated cron slot this plan doesn't
+    // have and was never migrated to ride real traffic like the outbox
+    // drain above was. Its own design calls for a 2-minute staleness
+    // threshold, which only means something if it runs roughly that
+    // often — the daily job-runner fan-out alone (device_status_sweep)
+    // is a floor, not the real mechanism.
+    runDeviceStatusSweepOpportunistically();
 
     // Phase 1A — make the ADMS devices shape reproducible (the audit
     // found the sn-keyed table existed only as runtime drift). Gated

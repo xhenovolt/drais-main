@@ -59,4 +59,15 @@ export function registerCoreHandlers(): void {
     const { runDataRetentionSweep } = await import('@/lib/control/data-retention');
     return runDataRetentionSweep();
   });
+
+  // Device status sweep — flips stale devices offline + opens/auto-acks
+  // device_offline alerts + expires timed-out commands. This is a DAILY
+  // safety-net floor only; the sweep's own 2-minute staleness threshold is
+  // actually met via the opportunistic per-heartbeat trigger in
+  // zk-handler.ts, not this once-a-day run. Found orphaned entirely
+  // (never triggered by anything) 2026-08-18 — see device-status-sweep.ts.
+  registerJobHandler('device_status_sweep', async () => {
+    const { runDeviceStatusSweep } = await import('@/lib/devices/device-status-sweep');
+    return runDeviceStatusSweep();
+  });
 }

@@ -134,6 +134,9 @@ export async function GET(req: NextRequest) {
       await jobs.enqueueJob({ type: 'notification_drain', dedupKey: `notification_drain:${today}` });
       // No-op unless an operator has explicitly opted in — see data-retention.ts.
       await jobs.enqueueJob({ type: 'data_retention_sweep', dedupKey: `data_retention_sweep:${today}` });
+      // Daily safety-net floor only — real responsiveness comes from the
+      // opportunistic per-heartbeat trigger in zk-handler.ts, not this.
+      await jobs.enqueueJob({ type: 'device_status_sweep', dedupKey: `device_status_sweep:${today}` });
       await jobs.runDueJobs();
     } catch (err) {
       console.error('[result-deadlines] job-runner block failed (non-fatal):', err);
