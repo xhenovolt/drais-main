@@ -148,6 +148,14 @@ export default function FinanceImportPage() {
 
       {error && <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-sm"><AlertTriangle className="w-4 h-4" />{error}</div>}
 
+      {/* New consolidated experience banner (opt-in beta) */}
+      <a href="/finance/import-v2" className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-indigo-200 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/15 transition-colors group">
+        <span className="text-sm text-indigo-800 dark:text-indigo-300">
+          <span className="font-medium">Try the new fee import experience (beta)</span> — multi-sheet workbooks, DRAIS explains what it found before posting anything.
+        </span>
+        <ArrowRight size={16} className="text-indigo-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+      </a>
+
       {/* STEP: upload */}
       {step === 'upload' && (
         <label className="block border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-400">

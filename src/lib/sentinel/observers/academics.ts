@@ -12,12 +12,14 @@
  *      single-flight lock (uk_inflight) never resolved, which blocks any
  *      retry for that (school, term, year, type) until it's cleared.
  *
- * A third check reuses ingestion_runs (migrations/ingestion_memory.sql),
- * which the bulk results-import pipeline (pipeline_name='results',
- * src/app/api/class_results/import/v2/route.ts) already writes with real
- * parsed/failed/orphaned counts and a full report_json per run.
+ * The generic ingestion_runs failure-rate check (results/students/fees
+ * bulk imports) moved OUT of this file to observers/import-health.ts —
+ * it isn't academics-specific (students/fees imports aren't academics),
+ * and keeping one copy per domain would have double-reported the same
+ * ingestion_runs row as two separate incidents once the fees/students
+ * pipelines existed too (import redesign Phase D).
  *
- * A fourth check covers the everyday teacher-facing "enter marks and
+ * A third check covers the everyday teacher-facing "enter marks and
  * submit" flow (/api/class_results/submit, /api/class_results/bulk-submit),
  * which previously had no persisted status/error signal at all — a failure
  * returned a 500 and left no trace. Those two routes now write one row per
@@ -29,8 +31,6 @@ import { query } from '@/lib/db';
 import type { Observation } from '../types';
 
 const STUCK_GENERATING_MINUTES = 15; // normal generation is seconds; 15m is unambiguous
-const RESULTS_IMPORT_LOOKBACK_HOURS = 24;
-const RESULTS_IMPORT_FAILURE_RATE_HIGH = 0.25;
 
 export async function observeAcademics(): Promise<Observation[]> {
   const observations: Observation[] = [];
@@ -90,46 +90,6 @@ export async function observeAcademics(): Promise<Observation[]> {
       autoRemediationSafe: false,
       notifyRequired: true,
       dedupKey: `academic_generation_failure::${row.school_id ?? 'global'}::stuck::${row.type}`,
-    });
-  }
-
-  const imports = (await query(
-    `SELECT ir.school_id, s.name,
-            SUM(ir.parsed_count) parsed, SUM(ir.failed_count) failed, SUM(ir.orphaned_count) orphaned,
-            COUNT(*) n, MAX(ir.finished_at) latest, MAX(ir.run_id) sample_run_id
-       FROM ingestion_runs ir LEFT JOIN schools s ON s.id = ir.school_id
-      WHERE ir.pipeline_name = 'results' AND ir.finished_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-      GROUP BY ir.school_id, s.name`,
-    [RESULTS_IMPORT_LOOKBACK_HOURS],
-  ).catch(() => [])) as Array<{ school_id: number; name: string; parsed: number; failed: number; orphaned: number; n: number; latest: string; sample_run_id: string }>;
-
-  for (const row of imports) {
-    const attempted = Number(row.parsed) + Number(row.failed);
-    if (attempted === 0) continue;
-    const failureRate = Number(row.failed) / attempted;
-    if (failureRate <= 0 && Number(row.orphaned) === 0) continue; // clean runs — no incident
-
-    observations.push({
-      kind: 'academic_results_import_failure',
-      observer: 'academics',
-      schoolId: Number(row.school_id) || null,
-      module: 'Results bulk import',
-      severity: failureRate >= RESULTS_IMPORT_FAILURE_RATE_HIGH ? 'high' : 'medium',
-      confidence: 85,
-      probableCause: `${row.failed} row(s) failed and ${row.orphaned} row(s) went unmatched (orphaned) across ${row.n} bulk results-import run(s) in the last ${RESULTS_IMPORT_LOOKBACK_HOURS}h.`,
-      userImpact: 'A teacher/admin uploaded a results spreadsheet and some rows did not make it in — those students may show as missing results without anyone noticing.',
-      technicalImpact: `parsed=${row.parsed}, failed=${row.failed}, orphaned=${row.orphaned} over ${row.n} run(s).`,
-      evidence: [
-        { label: 'Runs (lookback)', value: row.n },
-        { label: 'Failed rows', value: row.failed },
-        { label: 'Orphaned rows', value: row.orphaned },
-        { label: 'Last run', value: row.latest },
-        { label: 'Sample run_id', value: row.sample_run_id },
-      ],
-      recommendedAction: `Open ingestion_runs.report_json for run_id=${row.sample_run_id} (or the import-review UI) to see exactly which rows failed and why.`,
-      autoRemediationSafe: false,
-      notifyRequired: failureRate >= RESULTS_IMPORT_FAILURE_RATE_HIGH,
-      dedupKey: `academic_results_import_failure::${row.school_id ?? 'global'}`,
     });
   }
 

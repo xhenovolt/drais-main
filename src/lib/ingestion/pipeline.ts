@@ -157,6 +157,7 @@ export async function runIngestionPipeline<TRow>(
         counts.failed++;
         outcome.durationMs = Date.now() - t0;
         outcomes.push(outcome);
+        counts.parsed++; // fixed alongside the fees pipeline work — this early-exit was skipping the shared parsed++ at the loop's end, undercounting "rows attempted" whenever a row failed validation
         continue;
       }
       outcome.validated = validation.value;
@@ -170,10 +171,28 @@ export async function runIngestionPipeline<TRow>(
 
       // 6. CONFLICT + 7. COMMIT
       let decision: ConflictDecision;
-      if (identity.matchType === 'no-match') {
+      if (identity.matchType === 'no-match' && options.pipeline.allowInsertOnNoMatch !== false) {
         // Pipeline doesn't INSERT on its own — that's the importer's
         // commit fn's job. The pipeline only signals "no existing row".
         decision = { action: 'insert', newId: 0 };  // newId set by commit
+      } else if (identity.matchType === 'no-match') {
+        // allowInsertOnNoMatch === false: this domain has no concept of
+        // creating a new record from a bare identity claim (e.g. a
+        // payment with no student to attach to). Orphan for review
+        // instead of a decision that would look like a successful
+        // insert when nothing was actually created.
+        decision = {
+          action: 'orphan',
+          orphanId: 0,
+          reason: 'no matching existing record, and this pipeline cannot create one from this row alone',
+        };
+        bump(errorSummary, 'noMatchCannotInsert');
+        counts.orphaned++;
+        outcome.decision = decision;
+        outcome.durationMs = Date.now() - t0;
+        outcomes.push(outcome);
+        counts.parsed++;
+        continue;
       } else if (identity.matchType === 'fuzzy-ambiguous') {
         decision = {
           action: 'orphan',
@@ -185,6 +204,7 @@ export async function runIngestionPipeline<TRow>(
         outcome.decision = decision;
         outcome.durationMs = Date.now() - t0;
         outcomes.push(outcome);
+        counts.parsed++; // fixed alongside the fees pipeline work — see the validation-failure branch above for why
         continue;
       } else {
         // Confident match → compare with existing if caller supplied a fetcher.

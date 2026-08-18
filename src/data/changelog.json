@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-14T13:48:52.717Z",
-  "last_commit": "d10bdb3c44af0afdd83c318770065166064a9973",
+  "generated_at": "2026-08-18T03:25:27.562Z",
+  "last_commit": "9bdf6d721357bf2dc597349b2a1c81868f7a43ae",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6839,7 +6839,20 @@
         }
       ],
       "commit": "d10bdb3c44"
+    },
+    {
+      "version": "1.173.64",
+      "date": "2026-08-14",
+      "release_type": "patch",
+      "title": "make stable version",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "make stable version"
+        }
+      ],
+      "commit": "70dabf7a6f"
     }
   ],
-  "app_version": "1.173.64"
+  "app_version": "1.173.65"
 }

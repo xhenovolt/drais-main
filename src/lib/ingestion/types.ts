@@ -271,6 +271,19 @@ export interface IngestionPipeline<TRow> {
     identity: ResolvedIdentity,
     decision: ConflictDecision,
   ) => Promise<void>;
+  /**
+   * Import redesign Phase C: whether "no existing match found" means
+   * "create a new record" for this domain. True (the default, and the
+   * only behavior before this flag existed) for students/results — the
+   * whole point of importing them is to create rows that don't exist
+   * yet. False for a domain like fees, where a payment CANNOT be
+   * inserted without an existing student to attach it to — a no-match
+   * there is data-integrity-critical (an admission number in a fee sheet
+   * that no student has) and must be held for review, never silently
+   * turned into a decision that looks like a successful insert when
+   * nothing meaningful was created.
+   */
+  allowInsertOnNoMatch?: boolean;
 }
 
 /** Per-row outcome the pipeline emits. */

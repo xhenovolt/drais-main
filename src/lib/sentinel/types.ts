@@ -49,14 +49,18 @@ export type IncidentKind =
   | 'api_error_rate_anomaly'
   | 'api_latency_anomaly'
   | 'academic_generation_failure'
-  | 'academic_results_import_failure'
+  | 'academic_results_import_failure' // superseded by import_failure_rate_anomaly (kept for historical rows already using this kind)
   | 'academic_manual_submission_failure'
+  | 'import_failure_rate_anomaly'
+  | 'import_repeated_failures'
+  | 'import_unusually_large'
   | 'sentinel_self_degraded'
   | 'sentinel_alert_path_degraded';
 
 export type ObserverName =
   | 'attendance' | 'background_jobs' | 'notifications' | 'devices'
-  | 'tenant_isolation' | 'security' | 'fleet' | 'self' | 'route' | 'academics';
+  | 'tenant_isolation' | 'security' | 'fleet' | 'self' | 'route' | 'academics'
+  | 'import_health';
 
 export interface EvidenceItem {
   label: string;

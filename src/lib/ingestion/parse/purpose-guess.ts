@@ -9,15 +9,16 @@
  * purpose guess and the eventual column mapping can never disagree with
  * each other — they're the same engine asked the same question twice.
  *
- * `fees` has no CanonicalField catalog yet (Phase C of the redesign) — a
- * lightweight synonym list is used for fees purpose-guessing only, kept
- * separate so it's obvious where to delete this once pipelines/fees.ts
- * exists and can be scored the same way as students/results.
+ * Phase C: fees now has a real CanonicalField catalog (FEE_FIELDS in
+ * pipelines/fees-schema.ts) — used here directly, the same way
+ * STUDENT_FIELDS/RESULT_FIELDS already are, so purpose-guessing and
+ * actual column mapping can never disagree with each other.
  */
-import type { CanonicalField } from '../types';
 import { inferSchema } from '../schema-inference';
 import { STUDENT_FIELDS } from '../pipelines/students-schema';
 import { RESULT_FIELDS } from '../pipelines/results-schema';
+import { FEE_FIELDS } from '../pipelines/fees-schema';
+import type { CanonicalField } from '../types';
 
 export type SheetPurpose = 'students' | 'fees' | 'results' | 'unknown';
 
@@ -28,17 +29,6 @@ export interface PurposeGuess {
   /** Score per candidate purpose, for the review UI to show "also considered". */
   scores: Record<Exclude<SheetPurpose, 'unknown'>, number>;
 }
-
-// Fees has no pipeline/CanonicalField catalog yet (Phase C) — a minimal
-// stand-in catalog, used ONLY for purpose scoring here, not for actual
-// column mapping (that stays hardcoded fallback logic until Phase C).
-const FEES_PROBE_FIELDS: CanonicalField[] = [
-  { name: 'admission_no', label: 'Admission Number', synonyms: ['adm no', 'admission number', 'reg no', 'registration number'], type: 'string' },
-  { name: 'amount', label: 'Amount', synonyms: ['tuition', 'fees', 'balance', 'paid', 'amount due', 'amount paid'], type: 'float' },
-  { name: 'term', label: 'Term', synonyms: ['term', 'semester'], type: 'string' },
-  { name: 'method', label: 'Payment Method', synonyms: ['method', 'payment method', 'mode of payment'], type: 'string' },
-  { name: 'date', label: 'Date', synonyms: ['date', 'payment date', 'date paid'], type: 'date' },
-];
 
 function scoreAgainst(headers: string[], fields: CanonicalField[]): number {
   if (headers.length === 0) return 0;
@@ -53,7 +43,7 @@ export function guessSheetPurpose(headers: string[]): PurposeGuess {
   const cleaned = headers.filter((h) => h && h.trim() !== '');
   const scores = {
     students: scoreAgainst(cleaned, STUDENT_FIELDS),
-    fees: scoreAgainst(cleaned, FEES_PROBE_FIELDS),
+    fees: scoreAgainst(cleaned, FEE_FIELDS),
     results: scoreAgainst(cleaned, RESULT_FIELDS),
   };
 

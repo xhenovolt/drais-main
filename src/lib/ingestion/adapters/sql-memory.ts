@@ -16,10 +16,107 @@
 import { query } from '@/lib/db';
 import type { MemoryReader, MemoryWriter } from '../memory';
 
+/**
+ * Lazy, idempotent schema bootstrap — same CREATE TABLE IF NOT EXISTS
+ * pattern used everywhere else in DRAIS (ensureSentinelSchema,
+ * ensureNotificationSchema, etc). Added after discovering LIVE
+ * (readiness-audit import redesign, Phase D) that migrations/
+ * ingestion_memory.sql had never actually been applied to production —
+ * these 4 tables genuinely did not exist until this fix, meaning every
+ * persistIngestionRun/persistOrphan call before it was silently failing
+ * (caught by the v2 routes' own warnings array, but still — the audit
+ * trail this whole system exists to provide was never being written).
+ * This ensures a fresh environment (or one where the manual migration
+ * was skipped, like this one was) can never end up in that state again.
+ */
+let ensured: Promise<void> | null = null;
+export async function ensureIngestionSchema(): Promise<void> {
+  if (!ensured) {
+    ensured = (async () => {
+      await query(`
+        CREATE TABLE IF NOT EXISTS ingestion_field_memory (
+          id                 BIGINT       NOT NULL AUTO_INCREMENT,
+          school_id          BIGINT       NOT NULL,
+          pipeline_name      VARCHAR(64)  NOT NULL,
+          source_header      VARCHAR(255) NOT NULL,
+          canonical_field    VARCHAR(64)  NOT NULL,
+          approved_by        BIGINT       NULL,
+          approved_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          last_used_at       DATETIME     NULL,
+          use_count          INT          NOT NULL DEFAULT 0,
+          PRIMARY KEY (id),
+          UNIQUE KEY uk_ingestion_field_memory (school_id, pipeline_name, source_header),
+          KEY idx_ingestion_field_memory_pipeline (school_id, pipeline_name)
+        )
+      `).catch(() => {});
+      await query(`
+        CREATE TABLE IF NOT EXISTS ingestion_conflict_policy (
+          id                 BIGINT       NOT NULL AUTO_INCREMENT,
+          school_id          BIGINT       NOT NULL,
+          pipeline_name      VARCHAR(64)  NOT NULL,
+          field              VARCHAR(64)  NULL,
+          policy             ENUM('prefer-new', 'prefer-existing', 'prefer-higher', 'prefer-lower', 'prefer-non-empty', 'merge-average', 'fail-loud') NOT NULL,
+          set_by             BIGINT       NULL,
+          set_at             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id),
+          UNIQUE KEY uk_ingestion_conflict_policy (school_id, pipeline_name, field),
+          KEY idx_ingestion_conflict_policy_school (school_id)
+        )
+      `).catch(() => {});
+      await query(`
+        CREATE TABLE IF NOT EXISTS ingestion_runs (
+          id                 BIGINT       NOT NULL AUTO_INCREMENT,
+          run_id             CHAR(36)     NOT NULL,
+          school_id          BIGINT       NOT NULL,
+          pipeline_name      VARCHAR(64)  NOT NULL,
+          started_at         DATETIME     NOT NULL,
+          finished_at        DATETIME     NOT NULL,
+          report_json        LONGTEXT     NOT NULL,
+          parsed_count       INT          NOT NULL DEFAULT 0,
+          inserted_count     INT          NOT NULL DEFAULT 0,
+          updated_count      INT          NOT NULL DEFAULT 0,
+          merged_count       INT          NOT NULL DEFAULT 0,
+          skipped_count      INT          NOT NULL DEFAULT 0,
+          orphaned_count     INT          NOT NULL DEFAULT 0,
+          failed_count       INT          NOT NULL DEFAULT 0,
+          initiated_by       BIGINT       NULL,
+          PRIMARY KEY (id),
+          UNIQUE KEY uk_ingestion_runs_run_id (run_id),
+          KEY idx_ingestion_runs_school_pipe (school_id, pipeline_name, started_at)
+        )
+      `).catch(() => {});
+      await query(`
+        CREATE TABLE IF NOT EXISTS ingestion_orphans (
+          id                 BIGINT       NOT NULL AUTO_INCREMENT,
+          school_id          BIGINT       NOT NULL,
+          pipeline_name      VARCHAR(64)  NOT NULL,
+          run_id             CHAR(36)     NOT NULL,
+          source_file        VARCHAR(255) NULL,
+          source_sheet       VARCHAR(64)  NULL,
+          source_row_index   INT          NULL,
+          reason             VARCHAR(500) NOT NULL,
+          candidates_json    LONGTEXT     NULL,
+          payload_json       LONGTEXT     NOT NULL,
+          status             ENUM('pending','resolved','dismissed') NOT NULL DEFAULT 'pending',
+          resolved_by        BIGINT       NULL,
+          resolved_at        DATETIME     NULL,
+          resolution_note    VARCHAR(500) NULL,
+          created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id),
+          KEY idx_ingestion_orphans_school_status (school_id, status, created_at),
+          KEY idx_ingestion_orphans_run (run_id)
+        )
+      `).catch(() => {});
+    })();
+  }
+  return ensured;
+}
+
 export function createSqlMemoryReader(): MemoryReader {
   return {
     async loadFieldMemory(schoolId, pipelineName) {
       try {
+        await ensureIngestionSchema();
         const rows = (await query(
           `SELECT source_header, canonical_field
              FROM ingestion_field_memory
@@ -42,6 +139,7 @@ export function createSqlMemoryReader(): MemoryReader {
 export function createSqlMemoryWriter(): MemoryWriter {
   return {
     async rememberFieldMapping(args) {
+      await ensureIngestionSchema();
       await query(
         `INSERT INTO ingestion_field_memory
            (school_id, pipeline_name, source_header, canonical_field, approved_by, last_used_at, use_count)
@@ -96,6 +194,7 @@ export async function persistIngestionRun(args: {
   };
   initiatedBy: number | null;
 }): Promise<void> {
+  await ensureIngestionSchema();
   await query(
     `INSERT INTO ingestion_runs
        (run_id, school_id, pipeline_name, started_at, finished_at, report_json,
@@ -125,6 +224,7 @@ export async function persistOrphan(args: {
   candidatesJson:  string | null;
   payloadJson:     string;
 }): Promise<void> {
+  await ensureIngestionSchema();
   await query(
     `INSERT INTO ingestion_orphans
        (school_id, pipeline_name, run_id,

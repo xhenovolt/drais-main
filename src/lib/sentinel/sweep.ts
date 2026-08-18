@@ -23,6 +23,7 @@ import { observeSecurity } from './observers/security';
 import { observeFleet } from './observers/fleet';
 import { observeAcademics } from './observers/academics';
 import { observeApiHealth } from './observers/api-health';
+import { observeImportHealth } from './observers/import-health';
 import { observeTenantIsolationStatic } from './observers/tenant-isolation';
 import { beatStart, beatSuccess, beatFailure, HEARTBEATS } from './heartbeat';
 import { pruneObservations } from './observe';
@@ -37,17 +38,18 @@ export interface SweepResult {
 export async function runSentinelSweep(): Promise<SweepResult> {
   await beatStart(HEARTBEATS.SENTINEL_SWEEP, 26 * 3600); // expect at least daily
   try {
-    const [bgJobs, notifications, security, fleet, academics, apiHealth] = await Promise.all([
+    const [bgJobs, notifications, security, fleet, academics, apiHealth, importHealth] = await Promise.all([
       observeBackgroundJobs(),
       observeNotifications(),
       observeSecurity(),
       observeFleet(),
       observeAcademics(),
       observeApiHealth(),
+      observeImportHealth(),
     ]);
     const staticFindings = observeTenantIsolationStatic();
 
-    const all = [...bgJobs, ...notifications, ...security, ...fleet, ...academics, ...apiHealth, ...staticFindings];
+    const all = [...bgJobs, ...notifications, ...security, ...fleet, ...academics, ...apiHealth, ...importHealth, ...staticFindings];
     let incidentsRecorded = 0;
     let alertsSent = 0;
     for (const o of all) {

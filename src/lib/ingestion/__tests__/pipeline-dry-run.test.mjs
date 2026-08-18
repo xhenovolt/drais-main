@@ -102,4 +102,51 @@ describe('runIngestionPipeline — dry run', () => {
     assert.equal(report.counts.failed, 1);
     assert.match(report.outcomes[0].decision.error, /admission_no is empty/);
   });
+
+  it('counts.parsed includes EVERY row attempted, not just the ones that ended in insert/update — a real bug found and fixed alongside the fees pipeline work', async () => {
+    // 3 rows: one fails validation, one is fine, one has no admission_no
+    // match with a name close enough to be flagged ambiguous by the fake
+    // lookup below. Before the fix, the failed row and the ambiguous row
+    // both silently vanished from counts.parsed, undercounting "rows
+    // attempted" by 2 out of 3.
+    const ambiguousLookup = {
+      byAdmissionNo: async () => [],
+      byCredentialId: async () => [],
+      byDeviceMapping: async () => [],
+      byNamePrefix: async (firstName) => firstName === 'John'
+        ? [
+            { personId: 101, role: 'student', firstName: 'John', lastName: 'Kato' },
+            { personId: 102, role: 'student', firstName: 'John', lastName: 'Kato' },
+          ]
+        : [],
+    };
+    const parsed = makeParsed(
+      ['Admission No', 'First Name', 'Last Name'],
+      [
+        { 'Admission No': '', 'First Name': 'X', 'Last Name': 'Y' },          // fails validation
+        { 'Admission No': 'XHN/999', 'First Name': 'Jane', 'Last Name': 'Doe' }, // clean insert
+        { 'Admission No': 'UNKNOWN', 'First Name': 'John', 'Last Name': 'Kato' }, // ambiguous (2 candidates)
+      ],
+    );
+    const report = await runIngestionPipeline({ schoolId: 1, parsed, pipeline: makePipeline([]), lookup: ambiguousLookup, dryRun: true });
+    assert.equal(report.counts.failed, 1);
+    assert.equal(report.counts.orphaned, 1);
+    assert.equal(report.counts.inserted, 1);
+    assert.equal(report.counts.parsed, 3, 'all 3 rows must be counted as parsed regardless of outcome');
+  });
+
+  it('allowInsertOnNoMatch:false orphans an unmatched row instead of treating it as an insert (e.g. a fees pipeline — a payment cannot be "inserted" without an existing student)', async () => {
+    const feesLikePipeline = {
+      ...makePipeline([]),
+      allowInsertOnNoMatch: false,
+    };
+    const parsed = makeParsed(
+      ['Admission No', 'First Name', 'Last Name'],
+      [{ 'Admission No': 'GHOST/001', 'First Name': '', 'Last Name': '' }],
+    );
+    const report = await runIngestionPipeline({ schoolId: 1, parsed, pipeline: feesLikePipeline, lookup: noopLookup, dryRun: true });
+    assert.equal(report.counts.inserted, 0);
+    assert.equal(report.counts.orphaned, 1);
+    assert.equal(report.outcomes[0].decision.action, 'orphan');
+  });
 });
