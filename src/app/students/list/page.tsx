@@ -1675,10 +1675,15 @@ export default function StudentsListPage() {
             </button>
           )}
 
-          <button title={t('actions.import')} onClick={() => setShowImportModal(true)}
+          {/* Points at the redesigned importer (/students/import-v2) so this
+              is the default experience from here on. The legacy
+              ImportModal below is left fully intact for future use — still
+              reachable directly at /students/import, just no longer this
+              button's destination. */}
+          <Link href="/students/import-v2" title={t('actions.import')}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-600 hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors">
             <Upload className="w-3.5 h-3.5" />
-          </button>
+          </Link>
 
           <button
             title="Folder Photo Upload — auto-match photos by filename"
