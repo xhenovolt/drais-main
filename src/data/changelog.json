@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T16:44:46.650Z",
-  "last_commit": "8d343b2414289c4cb33b99faea9ee9fd8ad311f5",
+  "generated_at": "2026-08-18T19:42:07.859Z",
+  "last_commit": "4d182a1921655ff298256ed0ee56c264e81c9771",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7008,7 +7008,20 @@
         }
       ],
       "commit": "8d343b2414"
+    },
+    {
+      "version": "1.173.77",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Add a safety ceiling to the three deliberately-unpaginated list endpoints",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Add a safety ceiling to the three deliberately-unpaginated list endpoints"
+        }
+      ],
+      "commit": "4d182a1921"
     }
   ],
-  "app_version": "1.173.77"
+  "app_version": "1.173.78"
 }
