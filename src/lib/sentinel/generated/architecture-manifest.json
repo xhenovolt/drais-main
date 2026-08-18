@@ -1,35 +1,14 @@
 {
-  "generatedAt": "2026-08-18T14:43:54.361Z",
-  "commitSha": "e7c638393183af1ba0269c67735c9345dd12ddb0",
+  "generatedAt": "2026-08-18T16:41:43.038Z",
+  "commitSha": "3222436903e89f85454fddb89482d39f47826fbb",
   "repo": {
     "apiRouteCount": 709,
-    "excludedNotTenantScoped": 84,
+    "excludedNotTenantScoped": 93,
     "tenantSafeWrapperFiles": 5,
-    "rawQueryFiles": 194,
-    "verifiedManualCheckFiles": 174,
-    "noDetectedCheckFileCount": 20,
-    "noDetectedCheckFilesSample": [
-      "src/app/api/admin/biometric/templates/[enrollmentId]/distribute/route.ts",
-      "src/app/api/admin/holidays/[id]/route.ts",
-      "src/app/api/admin/notification-policies/[id]/route.ts",
-      "src/app/api/admin/permissions/catalog/route.ts",
-      "src/app/api/attendance/devices/[id]/activity/route.ts",
-      "src/app/api/attendance/devices/[id]/inventory/route.ts",
-      "src/app/api/attendance/system-logs/route.ts",
-      "src/app/api/attendance/zk/devices/sync-members/route.ts",
-      "src/app/api/device/relay-enroll/status/route.ts",
-      "src/app/api/devices/sync-all/route.ts",
-      "src/app/api/finance/receipts/[ref]/verify/route.ts",
-      "src/app/api/portal/link/claim/route.ts",
-      "src/app/api/relay-status/route.ts",
-      "src/app/api/students/enroll-fingerprint/status/route.ts",
-      "src/app/api/tahfiz/init/route.ts",
-      "src/app/api/verify/[token]/pdf/route.ts",
-      "src/app/api/verify/[token]/route.ts",
-      "src/app/api/verify/[token]/snapshot/route.ts",
-      "src/app/api/zk/logs/route.ts",
-      "src/app/api/zk-handler/route.ts"
-    ],
+    "rawQueryFiles": 186,
+    "verifiedManualCheckFiles": 186,
+    "noDetectedCheckFileCount": 0,
+    "noDetectedCheckFilesSample": [],
     "testFileCount": 99,
     "testFilesByArea": {
       "other": 95,
@@ -37,18 +16,15 @@
     },
     "ciWorkflows": [
       "build-android.yml",
-      "build-desktop.yml"
+      "build-desktop.yml",
+      "ci.yml"
     ],
-    "hasPrOrPushCiGate": false,
+    "hasPrOrPushCiGate": true,
     "nextConfigIgnoresBuildErrors": true,
     "nextConfigIgnoresLint": true,
     "tsconfigStrict": false,
     "vercelCronCount": 1,
     "cronRouteCount": 6,
-    "unboundedListRoutesDetected": [
-      "src/app/api/students/admitted/route.ts",
-      "src/app/api/students/enrolled/route.ts",
-      "src/app/api/students/list/route.ts"
-    ]
+    "unboundedListRoutesDetected": []
   }
 }

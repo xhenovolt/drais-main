@@ -110,6 +110,47 @@ const NOT_TENANT_SCOPED_BY_DESIGN = [
   // may see yet, that's the whole point of these endpoints.
   /^src\/app\/api\/parent\/auth\//,
   /^src\/app\/api\/portal\/auth\//,
+  // Individually verified false positives (each read in full before being
+  // added here — see the scoring-redesign session notes, 2026-08-18):
+  //
+  //   verify/[token]/* and finance/receipts/[ref]/verify — PUBLIC,
+  //   HMAC-token-gated by design (the token itself is the access proof;
+  //   no session exists to derive a school_id from). Not a tenant gap —
+  //   it's a different, deliberately weaker anchor for a deliberately
+  //   public endpoint, same category as the auth/portal-auth exclusions.
+  /^src\/app\/api\/verify\//,
+  /^src\/app\/api\/finance\/receipts\/\[ref\]\/verify\/route\.ts$/,
+  //   admin/permissions/catalog — reads the global PERMISSIONS catalog +
+  //   the platform-wide `permissions` table. Not tenant data at all (no
+  //   school_id column on that table); RBAC-gated via authorize(), just
+  //   not school-scoped because there is nothing school-scoped to check.
+  /^src\/app\/api\/admin\/permissions\/catalog\/route\.ts$/,
+  //   portal/link/claim — the parent claims learners by their OWN
+  //   verified phone number, matched across whichever schools have that
+  //   contact on file. Identity-scoped (the caller's own phone), not
+  //   school-session-scoped — a parent's children can legitimately be at
+  //   different schools, so cross-school matching here is the intended
+  //   behaviour, not a leak.
+  /^src\/app\/api\/portal\/link\/claim\/route\.ts$/,
+  //   zk-handler — the ZKTeco ADMS device push-protocol endpoint. There
+  //   is no browser session in this protocol at all; school_id is
+  //   resolved from the DEVICE's own row (getDeviceSchoolId), which is
+  //   the correct anchor for a device-initiated request, just not one
+  //   this scanner's session-based heuristic can see.
+  /^src\/app\/api\/zk-handler\/route\.ts$/,
+  //   tahfiz/init — runs a one-off CREATE-TABLE schema migration file.
+  //   No tenant data is read or written; nothing to scope by school.
+  /^src\/app\/api\/tahfiz\/init\/route\.ts$/,
+];
+
+// Shared, already-verified authorization helpers. A route that resolves
+// its target through one of these and then checks the returned `.ok`
+// flag is doing a real ownership check — just via a function call this
+// scanner's inline-pattern heuristic can't see into. Each helper here was
+// individually read and confirmed to reject cross-school access before
+// being trusted (see src/lib/biometric/device-access.ts).
+const VERIFIED_DELEGATION_HELPERS = [
+  /resolveDeviceForSession\s*\(/,
 ];
 
 let tenantSafeWrapperFiles = 0;
@@ -131,13 +172,21 @@ for (const f of routeFiles) {
   if (!usesRawQuery) continue; // no DB access in this route at all — not a tenant-isolation question
   rawQueryFiles++;
 
-  // Session-derived schoolId, actually referenced in a query filter.
-  // Doesn't prove EVERY query in the file is scoped — same limitation as
-  // every heuristic here — but a file with neither signal at all is a
-  // meaningfully different (and rarer) risk than one that clearly does
-  // this correctly just not via the wrapper.
+  // Session-derived schoolId, actually referenced in a query filter OR a
+  // runtime ownership comparison. Doesn't prove EVERY query in the file
+  // is scoped — same limitation as every heuristic here — but a file
+  // with neither signal at all is a meaningfully different (and rarer)
+  // risk than one that clearly does this correctly just not via the
+  // wrapper. The comparison form (`x.school_id !== session.schoolId`,
+  // `owner === session.schoolId`) was originally missed entirely — a
+  // sample audit of the "no detected check" list found several files
+  // doing exactly this and nothing else, undercounting real coverage.
   const derivesSchoolIdFromSession = /getSessionSchoolId|session\.schoolId|session!\.schoolId/.test(src);
-  const filtersOnSchoolId = /school_id\s*[=:]\s*\?|school_id\s*=\s*session|\.schoolId\s*[,)]/.test(src);
+  const filtersOnSchoolId = /school_id\s*[=:]\s*\?|school_id\s*=\s*session|\.schoolId\s*[,)]/.test(src)
+    || /session\.schoolId\s*[!=]==?/.test(src)
+    || /[!=]==?\s*session\.schoolId/.test(src)
+    || /session!\.schoolId\s*[!=]==?/.test(src)
+    || /[!=]==?\s*session!\.schoolId/.test(src);
   // The parent/guardian portal scopes by a different, equally legitimate
   // anchor — a learner-access token, or the target student's own row —
   // that itself resolves to one school, not a browser session's
@@ -147,7 +196,10 @@ for (const f of routeFiles) {
   const isPortalRoute = /^src\/app\/api\/(parent|portal)\//.test(rel);
   const usesLearnerAccessScoping = (isPortalRoute && /school_id/.test(src))
     || (/learnerAccessId|learner_access_id|parent_student_links/.test(src) && /school_id/.test(src));
-  if ((derivesSchoolIdFromSession && filtersOnSchoolId) || usesLearnerAccessScoping) {
+  // See VERIFIED_DELEGATION_HELPERS above — a route that resolves through
+  // one of these and checks the result is doing a real check by proxy.
+  const usesVerifiedDelegationHelper = VERIFIED_DELEGATION_HELPERS.some((re) => re.test(src));
+  if ((derivesSchoolIdFromSession && filtersOnSchoolId) || usesLearnerAccessScoping || usesVerifiedDelegationHelper) {
     verifiedManualCheckFiles++;
   } else {
     noDetectedCheckFiles.push(path.relative(repoRoot, f).replace(/\\/g, '/'));
@@ -201,10 +253,16 @@ try {
 const cronRouteCount = walk(path.join(apiDir, 'cron'), (name) => name === 'route.ts').length;
 
 // ── 7. Unbounded list endpoints (source-comment heuristic) ───────────────
+// A route can carry the "no pagination" comment (still true — the
+// frontend still gets the full matching set, no page/offset params) while
+// no longer being truly UNBOUNDED, if it also has a SAFETY_LIMIT ceiling
+// (see students/list, students/admitted, students/enrolled, fixed
+// 2026-08-18) capping the worst case instead of letting it grow forever.
+// Only the comment with no such ceiling is the real finding.
 const unboundedListRoutesDetected = [];
 for (const f of routeFiles) {
   const src = readSafe(f);
-  if (/NO PAGINATION|REMOVED:\s*pagination/i.test(src)) {
+  if (/NO PAGINATION|REMOVED:\s*pagination/i.test(src) && !/SAFETY_LIMIT/.test(src)) {
     unboundedListRoutesDetected.push(path.relative(repoRoot, f).replace(/\\/g, '/'));
   }
 }

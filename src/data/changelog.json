@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T16:43:38.277Z",
-  "last_commit": "3222436903e89f85454fddb89482d39f47826fbb",
+  "generated_at": "2026-08-18T16:43:58.758Z",
+  "last_commit": "74a5d74ebfbde61213e77af60baa3895ac55a23d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6956,7 +6956,20 @@
         }
       ],
       "commit": "3222436903"
+    },
+    {
+      "version": "1.173.73",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Close real cross-tenant leaks found while auditing the tenant-isolation scanner's \"no detected check\" list",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Close real cross-tenant leaks found while auditing the tenant-isolation scanner's \"no detected check\" list"
+        }
+      ],
+      "commit": "74a5d74ebf"
     }
   ],
-  "app_version": "1.173.73"
+  "app_version": "1.173.74"
 }
