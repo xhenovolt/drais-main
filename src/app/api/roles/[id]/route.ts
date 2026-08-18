@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkAnyPermission } from '@/lib/rbac';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
  * PUT /api/roles/[id]
@@ -35,6 +36,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       'UPDATE roles SET name = ?, description = ? WHERE id = ? AND school_id = ?',
       [name, description || null, roleId, schoolId]
     );
+
+    await logAudit({
+      schoolId, userId: session.userId,
+      action: AuditAction.UPDATED_ROLE, entityType: 'role', entityId: roleId,
+      details: { name, description },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
 
     return NextResponse.json({
       success: true,
@@ -83,7 +91,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       }, { status: 400 });
     }
 
+    const [roleRows] = await connection.execute(
+      'SELECT name FROM roles WHERE id = ? AND school_id = ?', [roleId, schoolId]
+    );
+    const roleName = (roleRows as any[])[0]?.name ?? null;
+
     await connection.execute('DELETE FROM roles WHERE id = ? AND school_id = ?', [roleId, schoolId]);
+
+    await logAudit({
+      schoolId, userId: session.userId,
+      action: AuditAction.DELETED_ROLE, entityType: 'role', entityId: roleId,
+      details: { name: roleName },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
 
     return NextResponse.json({
       success: true,

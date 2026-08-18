@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T15:07:33.444Z",
-  "last_commit": "e7c638393183af1ba0269c67735c9345dd12ddb0",
+  "generated_at": "2026-08-18T15:07:46.461Z",
+  "last_commit": "8e3e5de36814fe4ed28396e094b60892f813dd38",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6930,7 +6930,20 @@
         }
       ],
       "commit": "e7c6383931"
+    },
+    {
+      "version": "1.173.71",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Stop conflating tenant-isolation coverage with wrapper adoption",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Stop conflating tenant-isolation coverage with wrapper adoption"
+        }
+      ],
+      "commit": "8e3e5de368"
     }
   ],
-  "app_version": "1.173.71"
+  "app_version": "1.173.72"
 }

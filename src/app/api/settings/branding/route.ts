@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -88,5 +89,12 @@ export async function PUT(req: NextRequest) {
      t.border_radius, t.button_style, t.card_style, t.sidebar_style, t.report_branding, t.receipt_branding,
      session.userId ?? null],
   );
+
+  await logAudit({
+    schoolId: session.schoolId, userId: session.userId,
+    action: AuditAction.SETTINGS_CHANGED, entityType: 'school_theme_settings', entityId: session.schoolId,
+    details: t, ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+  });
+
   return NextResponse.json({ success: true, theme: { school_id: session.schoolId, ...t } });
 }

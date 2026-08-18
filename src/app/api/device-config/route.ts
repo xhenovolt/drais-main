@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { deviceConnectionManager } from '@/lib/services/DeviceConnectionManager';
 import { encryptionUtil } from '@/lib/services/EncryptionUtil';
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 // Get device configuration for current school
 export async function GET(req: NextRequest) {
@@ -114,6 +115,15 @@ export async function POST(req: NextRequest) {
     // Start heartbeat monitoring
     deviceConnectionManager.startHeartbeatMonitoring(saveResult.id, schoolId);
 
+    // Never log devicePassword — everything else about which device
+    // biometric attendance now connects to is worth an audit trail.
+    await logAudit({
+      schoolId, userId: session.userId,
+      action: AuditAction.DEVICE_CONFIG_CHANGED, entityType: 'device_config', entityId: saveResult.id ?? null,
+      details: { deviceName, deviceIp, devicePort, deviceUsername },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Device configured and connected successfully',
@@ -165,6 +175,13 @@ export async function PUT(req: NextRequest) {
     // Test new configuration
     const testResult = await deviceConnectionManager.testAndUpdateDeviceConnection(schoolId);
 
+    await logAudit({
+      schoolId, userId: session.userId,
+      action: AuditAction.DEVICE_CONFIG_CHANGED, entityType: 'device_config', entityId: saveResult.id ?? null,
+      details: { deviceName, deviceIp, devicePort, deviceUsername },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
+
     return NextResponse.json({
       success: testResult.success,
       message: testResult.message,
@@ -200,6 +217,13 @@ export async function DELETE(req: NextRequest) {
     if (config) {
       deviceConnectionManager.stopHeartbeatMonitoring(config.id);
     }
+
+    await logAudit({
+      schoolId, userId: session.userId,
+      action: AuditAction.DEVICE_CONFIG_CHANGED, entityType: 'device_config', entityId: config?.id ?? null,
+      details: { removed: true, deviceName: config?.deviceName ?? null },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
 
     return NextResponse.json({
       success: true,

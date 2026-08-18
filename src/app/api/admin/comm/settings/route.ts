@@ -3,6 +3,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { getCommSettings, updateCommSettings } from '@/lib/comm';
 import { listProviders } from '@/lib/comm';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -38,5 +39,15 @@ export async function PUT(req: NextRequest) {
   // Empty string → NULL (means "use provider default")
   if (body.senderName === '') body.senderName = null;
   const settings = await updateCommSettings(session.schoolId, body);
+
+  // Never log the raw API key — only whether it changed.
+  const { providerApiKey, ...safeBody } = body;
+  await logAudit({
+    schoolId: session.schoolId, userId: session.userId,
+    action: AuditAction.SETTINGS_CHANGED, entityType: 'comm_settings', entityId: session.schoolId,
+    details: { ...safeBody, apiKeyChanged: providerApiKey !== undefined },
+    ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+  });
+
   return NextResponse.json({ success: true, settings });
 }

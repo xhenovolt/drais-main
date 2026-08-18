@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { ensureDayOverrideSchema, saveRuleDayOverrides } from '@/lib/attendance/day-overrides';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -168,6 +169,13 @@ export async function POST(req: NextRequest) {
         }));
       await saveRuleDayOverrides(newRuleId, clean);
     }
+
+    await logAudit({
+      schoolId: session.schoolId, userId: session.userId,
+      action: AuditAction.SETTINGS_CHANGED, entityType: 'attendance_rules', entityId: newRuleId ?? null,
+      details: { rule_name, scope, arrival_start_time, arrival_end_time, late_threshold_minutes, closing_time, weekday_mask: wmask },
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
 
     return NextResponse.json({
       success: true,

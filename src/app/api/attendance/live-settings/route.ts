@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -73,6 +74,16 @@ export async function PUT(req: NextRequest) {
        v.show_for_late_only, v.show_sms_status, v.show_guardian_phone, v.show_fee_balance,
        v.sound_enabled, v.popup_duration_ms, v.mount_scope],
     );
+
+    // Worth auditing: show_guardian_phone/show_fee_balance are PII-exposure
+    // toggles for a popup visible to whoever is watching the attendance
+    // dashboard, not just cosmetic preferences.
+    await logAudit({
+      schoolId: session.schoolId, userId: session.userId,
+      action: AuditAction.SETTINGS_CHANGED, entityType: 'attendance_live_ui_settings', entityId: session.schoolId,
+      details: v, ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
+
     return NextResponse.json({ success: true, settings: { school_id: session.schoolId, ...v } });
   } catch (err) {
     console.error('[live-settings PUT]', err);

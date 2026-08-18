@@ -3,6 +3,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { syncPermissionCatalog } from '@/lib/rbac/sync';
 import { authorize } from '@/lib/rbac/authorize';
 import { checkAnyPermission } from '@/lib/rbac';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
  * POST /api/admin/permissions/sync
@@ -31,16 +32,30 @@ export async function POST(req: NextRequest) {
 
   try {
     const report = await syncPermissionCatalog();
+    const summary = {
+      inserted:  report.inserted.length,
+      updated:   report.updated.length,
+      activated: report.activated.length,
+      orphaned:  report.orphaned.length,
+      unchanged: report.unchanged,
+    };
+
+    // Platform-wide action (the permission catalog isn't per-school), but
+    // still worth an audit row attributing WHO triggered it and WHEN —
+    // schoolId records the acting admin's own school context.
+    if (summary.inserted + summary.updated + summary.activated > 0) {
+      await logAudit({
+        schoolId: session.schoolId, userId: session.userId,
+        action: AuditAction.SETTINGS_CHANGED, entityType: 'permission_catalog', entityId: null,
+        details: summary,
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       report,
-      summary: {
-        inserted:  report.inserted.length,
-        updated:   report.updated.length,
-        activated: report.activated.length,
-        orphaned:  report.orphaned.length,
-        unchanged: report.unchanged,
-      },
+      summary,
     });
   } catch (e: unknown) {
     console.error('[permissions/sync]', e);

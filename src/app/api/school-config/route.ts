@@ -4,6 +4,7 @@ import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkAnyPermission } from '@/lib/rbac';
+import { logAudit, AuditAction } from '@/lib/audit';
 /**
  * GET /api/school-config
  * Returns school configuration from the DATABASE (single source of truth).
@@ -162,6 +163,13 @@ export async function POST(request: NextRequest) {
         `UPDATE schools SET ${updates.join(', ')} WHERE id = ?`,
         values
       );
+
+      await logAudit({
+        schoolId, userId: session.userId,
+        action: AuditAction.SETTINGS_CHANGED, entityType: 'school', entityId: schoolId,
+        details: { changedFields: Object.keys(body) },
+        ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+      });
     }
 
     invalidateSchoolCache(schoolId);

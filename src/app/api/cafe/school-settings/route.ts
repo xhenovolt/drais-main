@@ -7,6 +7,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { getSchoolSettings, updateSchoolSettings } from '@/lib/cafe/settings';
 import type { SchoolSettingsInput } from '@/lib/cafe/types';
+import { logAudit, AuditAction } from '@/lib/audit';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -32,6 +33,12 @@ export async function PUT(req: NextRequest) {
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   try {
     const settings = await updateSchoolSettings({ schoolId: session.schoolId, input: body });
+    await logAudit({
+      schoolId: session.schoolId, userId: session.userId,
+      action: AuditAction.SETTINGS_CHANGED, entityType: 'cafe_school_settings', entityId: session.schoolId,
+      details: body as Record<string, unknown>,
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
     return NextResponse.json({ success: true, settings });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
