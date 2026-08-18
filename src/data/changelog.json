@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T23:07:06.033Z",
-  "last_commit": "a2d5e4817d2368ecb498651c73674873780b9e84",
+  "generated_at": "2026-08-18T23:08:04.275Z",
+  "last_commit": "464ae5d559d4014037f05b406cced392c1bef69f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7099,7 +7099,20 @@
         }
       ],
       "commit": "a2d5e4817d"
+    },
+    {
+      "version": "1.173.84",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "Control Center cross-school communications overview",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Control Center cross-school communications overview"
+        }
+      ],
+      "commit": "464ae5d559"
     }
   ],
-  "app_version": "1.173.84"
+  "app_version": "1.173.85"
 }
