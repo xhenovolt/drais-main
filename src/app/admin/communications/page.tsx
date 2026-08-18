@@ -306,6 +306,8 @@ function SettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [testing, setTesting] = useState(false);
+  const [waTestPhone, setWaTestPhone] = useState('');
+  const [waTesting, setWaTesting] = useState(false);
 
   async function sendTest() {
     if (!testPhone.trim()) { toast.error('Enter a phone number'); return; }
@@ -321,10 +323,26 @@ function SettingsPanel() {
     } catch (e: any) { toast.error(e?.message || 'Test SMS failed'); }
     finally { setTesting(false); }
   }
+  async function sendWaTest() {
+    if (!waTestPhone.trim()) { toast.error('Enter a phone number'); return; }
+    setWaTesting(true);
+    try {
+      const res = await fetch('/api/admin/comm/test-whatsapp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: waTestPhone.trim() }),
+      });
+      const j = await res.json();
+      if (j.success) toast.success(j.message || 'Test WhatsApp message sent');
+      else toast.error(j.error || 'Test WhatsApp message failed');
+    } catch (e: any) { toast.error(e?.message || 'Test WhatsApp message failed'); }
+    finally { setWaTesting(false); }
+  }
   const [form, setForm] = useState({
     senderName: '', prefix: '', autoMode: false, defaultProvider: 'africas_talking',
     quietHoursStart: '', quietHoursEnd: '', retryAttempts: 1, retryDelaySecs: 60,
     providerUsername: '', providerApiKey: '',
+    whatsappEnabled: false, whatsappProvider: 'infobip_whatsapp', whatsappSender: '',
+    whatsappProviderBaseUrl: '', whatsappProviderApiKey: '',
   });
 
   React.useEffect(() => {
@@ -341,6 +359,11 @@ function SettingsPanel() {
         retryDelaySecs:  s.retryDelaySecs ?? 60,
         providerUsername: s.providerUsername ?? '',
         providerApiKey:   s.providerApiKey ?? '', // server sends '********' if set
+        whatsappEnabled:         !!s.whatsappEnabled,
+        whatsappProvider:        s.whatsappProvider ?? 'infobip_whatsapp',
+        whatsappSender:          s.whatsappSender ?? '',
+        whatsappProviderBaseUrl: s.whatsappProviderBaseUrl ?? '',
+        whatsappProviderApiKey:  s.whatsappProviderApiKey ?? '', // server sends '********' if set
       });
     }
   }, [data]);
@@ -457,6 +480,60 @@ function SettingsPanel() {
             <input type="number" value={form.retryDelaySecs} min={10}
               onChange={e => setForm({ ...form, retryDelaySecs: Number(e.target.value) })} className={inputCls} />
           </F>
+        </div>
+      </div>
+
+      <div className="md:col-span-2 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">WhatsApp (Infobip)</h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.whatsappEnabled}
+              onChange={e => setForm({ ...form, whatsappEnabled: e.target.checked })} />
+            <span className="text-xs font-semibold">Enabled</span>
+          </label>
+        </div>
+        <div className="grid md:grid-cols-2 gap-x-5">
+          <div className="space-y-3">
+            <F label="Business sender / number">
+              <input value={form.whatsappSender}
+                onChange={e => setForm({ ...form, whatsappSender: e.target.value })}
+                className={inputCls} placeholder="e.g. 256700000000" autoComplete="off" />
+              <p className="text-[10px] text-slate-400 mt-1">The WhatsApp Business number registered with Infobip. Required to send.</p>
+            </F>
+            <F label="Provider">
+              <select value={form.whatsappProvider}
+                onChange={e => setForm({ ...form, whatsappProvider: e.target.value })} className={inputCls}>
+                <option value="infobip_whatsapp">infobip_whatsapp</option>
+              </select>
+            </F>
+          </div>
+          <div className="space-y-3">
+            <F label="API base URL (blank = use platform default)">
+              <input value={form.whatsappProviderBaseUrl}
+                onChange={e => setForm({ ...form, whatsappProviderBaseUrl: e.target.value })}
+                className={inputCls} placeholder="xxxxxx.api.infobip.com" autoComplete="off" />
+            </F>
+            <F label="API key (blank = use platform default)">
+              <input type="password" value={form.whatsappProviderApiKey}
+                onChange={e => setForm({ ...form, whatsappProviderApiKey: e.target.value })}
+                className={inputCls} placeholder={data?.settings?.hasWhatsappApiKey ? '•••••••• (saved — type to replace)' : '(platform Infobip account is used by default)'} autoComplete="off" />
+            </F>
+          </div>
+        </div>
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Test delivery</h3>
+          <p className="text-[10px] text-slate-400 mb-2">
+            Save your sender number first. A WhatsApp test message only delivers if this number has
+            messaged your business number within the last 24h — a failed test can mean that, not
+            misconfiguration.
+          </p>
+          <div className="flex gap-2">
+            <input value={waTestPhone} onChange={e => setWaTestPhone(e.target.value)} className={inputCls} placeholder="e.g. +2567..." autoComplete="off" />
+            <button onClick={sendWaTest} disabled={waTesting}
+              className="shrink-0 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium disabled:opacity-50">
+              {waTesting ? 'Sending…' : 'Send test WhatsApp'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -650,6 +727,7 @@ function RulesPanel() {
           <F label="Channel">
             <select value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value })} className={inputCls}>
               <option value="sms">SMS</option>
+              <option value="whatsapp">WhatsApp</option>
             </select>
           </F>
           <F label="Audience">

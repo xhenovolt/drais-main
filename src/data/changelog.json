@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T23:06:10.175Z",
-  "last_commit": "2459ec40c3253d3ca6146c28f4364ca9b6443cfc",
+  "generated_at": "2026-08-18T23:06:39.113Z",
+  "last_commit": "8324e5628e066aa1bbef752fc7221265a2b207d9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7060,7 +7060,20 @@
         }
       ],
       "commit": "2459ec40c3"
+    },
+    {
+      "version": "1.173.81",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "WhatsApp channel foundation — Infobip provider, schema, channel-aware dispatch",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "WhatsApp channel foundation — Infobip provider, schema, channel-aware dispatch"
+        }
+      ],
+      "commit": "8324e5628e"
     }
   ],
-  "app_version": "1.173.81"
+  "app_version": "1.173.82"
 }

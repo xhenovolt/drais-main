@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
 
   const settings  = await getCommSettings(session.schoolId);
   const providers = listProviders();
-  // Never return the raw API key to the client; send a mask if one is set.
+  // Never return raw API keys to the client; send a mask if one is set.
   const masked = {
     ...settings,
     providerApiKey: settings.providerApiKey ? '********' : null,
     hasApiKey: !!settings.providerApiKey,
+    whatsappProviderApiKey: settings.whatsappProviderApiKey ? '********' : null,
+    hasWhatsappApiKey: !!settings.whatsappProviderApiKey,
   };
   return NextResponse.json({ success: true, settings: masked, providers });
 }
@@ -40,12 +42,12 @@ export async function PUT(req: NextRequest) {
   if (body.senderName === '') body.senderName = null;
   const settings = await updateCommSettings(session.schoolId, body);
 
-  // Never log the raw API key — only whether it changed.
-  const { providerApiKey, ...safeBody } = body;
+  // Never log raw API keys — only whether each one changed.
+  const { providerApiKey, whatsappProviderApiKey, ...safeBody } = body;
   await logAudit({
     schoolId: session.schoolId, userId: session.userId,
     action: AuditAction.SETTINGS_CHANGED, entityType: 'comm_settings', entityId: session.schoolId,
-    details: { ...safeBody, apiKeyChanged: providerApiKey !== undefined },
+    details: { ...safeBody, apiKeyChanged: providerApiKey !== undefined, whatsappApiKeyChanged: whatsappProviderApiKey !== undefined },
     ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
   });
 
