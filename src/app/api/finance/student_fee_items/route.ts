@@ -27,7 +27,7 @@ export async function GET(req: NextRequest){
   const conn = await getConnection();
   try {
     const schoolId = session.schoolId;
-    const where:string[]=['st.school_id = ?']; 
+    const where:string[]=['st.school_id = ?', 'st.deleted_at IS NULL'];
     const params:any[]=[schoolId];
     
     if(student_id){ where.push('sfi.student_id=?'); params.push(student_id);} 
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest){
     
     // Verify student belongs to this school
     const [[student]]: any = await conn.execute(
-      `SELECT id FROM students WHERE id=? AND school_id=?`, 
+      `SELECT id FROM students WHERE id=? AND school_id=? AND deleted_at IS NULL`,
       [student_id, schoolId]
     );
     if (!student) return NextResponse.json({ error:'Student not found' },{ status:404 });
@@ -211,7 +211,7 @@ export async function PATCH(req: NextRequest){
     await conn.execute(`
       UPDATE student_fee_items
       SET ${sets.join(', ')}
-      WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=?)
+      WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=? AND deleted_at IS NULL)
     `,params);
     
     const [[row]]:any = await conn.execute(`
@@ -247,7 +247,7 @@ export async function DELETE(req: NextRequest){
   try {
     const [[row]]: any = await conn.execute(
       `SELECT paid FROM student_fee_items
-        WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=?)`,
+        WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=? AND deleted_at IS NULL)`,
       [id, session.schoolId],
     );
     if (!row) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
@@ -256,7 +256,7 @@ export async function DELETE(req: NextRequest){
     }
     await conn.execute(
       `DELETE FROM student_fee_items
-        WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=?)`,
+        WHERE id=? AND student_id IN (SELECT id FROM students WHERE school_id=? AND deleted_at IS NULL)`,
       [id, session.schoolId],
     );
     return NextResponse.json({ success: true });

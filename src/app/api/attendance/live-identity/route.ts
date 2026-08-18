@@ -104,8 +104,8 @@ export async function GET(req: NextRequest) {
                     p.first_name, p.last_name, p.gender, p.photo_url,
                     c.name AS class_name
                FROM zk_attendance_logs al
-               LEFT JOIN students s    ON al.student_id = s.id
-               LEFT JOIN people p      ON s.person_id   = p.id
+               LEFT JOIN students s    ON al.student_id = s.id AND s.deleted_at IS NULL
+               LEFT JOIN people p      ON s.person_id   = p.id AND p.deleted_at IS NULL
                LEFT JOIN enrollments e ON e.student_id  = s.id AND e.status = 'active'
                LEFT JOIN classes c     ON e.class_id    = c.id
               WHERE al.id > ? AND al.school_id = ?

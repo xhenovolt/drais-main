@@ -87,8 +87,8 @@ export async function POST(req: NextRequest) {
       `SELECT p.id AS person_id,
               CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.last_name,'')) AS full_name
          FROM people p
-         JOIN students s ON s.person_id = p.id
-        WHERE s.school_id = ?`,
+         JOIN students s ON s.person_id = p.id AND s.deleted_at IS NULL
+        WHERE s.school_id = ? AND p.deleted_at IS NULL`,
       [session.schoolId],
     );
 

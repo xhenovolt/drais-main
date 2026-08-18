@@ -89,8 +89,8 @@ export async function GET(req: NextRequest) {
     const countSql = `
       SELECT COUNT(*) AS total
       FROM zk_attendance_logs al
-      LEFT JOIN students st ON al.student_id = st.id
-      LEFT JOIN people sp ON st.person_id = sp.id
+      LEFT JOIN students st ON al.student_id = st.id AND st.deleted_at IS NULL
+      LEFT JOIN people sp ON st.person_id = sp.id AND sp.deleted_at IS NULL
       LEFT JOIN staff stf ON al.staff_id = stf.id
       LEFT JOIN device_user_directory dud
         ON dud.school_id = al.school_id
@@ -147,8 +147,8 @@ export async function GET(req: NextRequest) {
         pfstf.photo_url AS staff_photo
       FROM zk_attendance_logs al
       LEFT JOIN devices d      ON al.device_sn = d.sn
-      LEFT JOIN students st    ON al.student_id = st.id
-      LEFT JOIN people sp      ON st.person_id = sp.id
+      LEFT JOIN students st    ON al.student_id = st.id AND st.deleted_at IS NULL
+      LEFT JOIN people sp      ON st.person_id = sp.id AND sp.deleted_at IS NULL
       LEFT JOIN classes cl     ON st.class_id = cl.id
       LEFT JOIN staff stf      ON al.staff_id = stf.id
       LEFT JOIN people pfstf   ON stf.person_id = pfstf.id

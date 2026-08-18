@@ -32,7 +32,7 @@ export async function PUT(
     // Verify the result belongs to this school via student ownership
     const [check]: any = await connection.execute(
       `SELECT cr.id FROM class_results cr
-       JOIN students s ON cr.student_id = s.id
+       JOIN students s ON cr.student_id = s.id AND s.deleted_at IS NULL
        WHERE cr.id = ? AND s.school_id = ?`,
       [resultId, schoolId]
     );
@@ -76,7 +76,7 @@ export async function DELETE(
 
     const [check]: any = await connection.execute(
       `SELECT cr.id FROM class_results cr
-       JOIN students s ON cr.student_id = s.id
+       JOIN students s ON cr.student_id = s.id AND s.deleted_at IS NULL
        WHERE cr.id = ? AND s.school_id = ?`,
       [resultId, schoolId]
     );

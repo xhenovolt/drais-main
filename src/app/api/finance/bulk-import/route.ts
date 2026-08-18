@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const ids = rows.map(r => r.student_id);
     const ph = ids.map(() => '?').join(',');
     const [valid]: any[] = await conn.execute(
-      `SELECT id FROM students WHERE id IN (${ph}) AND school_id = ?`,
+      `SELECT id FROM students WHERE id IN (${ph}) AND school_id = ? AND deleted_at IS NULL`,
       [...ids, session.schoolId]
     );
     const validSet = new Set((valid as any[]).map((r: any) => r.id));

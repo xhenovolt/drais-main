@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
       SELECT cr.student_id, cr.subject_id, cr.score, cr.grade, cr.remarks,
              p.first_name, p.last_name, s.admission_no
       FROM class_results cr
-      JOIN students s ON s.id = cr.student_id
-      JOIN people p ON p.id = s.person_id
+      JOIN students s ON s.id = cr.student_id AND s.deleted_at IS NULL
+      JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
       WHERE cr.class_id = ? AND cr.result_type_id = ? AND s.school_id = ?`;
 
     const params: any[] = [classId, resultTypeId, schoolId];

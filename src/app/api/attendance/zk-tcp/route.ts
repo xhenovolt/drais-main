@@ -173,10 +173,22 @@ async function buildJoinedAttendance(
     if (resolution?.resolved) {
       try {
         if (resolution.roleType === 'student' && resolution.studentId) {
-          const r = await query('SELECT full_name FROM students WHERE id = ? AND school_id = ? LIMIT 1', [resolution.studentId, session.schoolId]);
+          // Bug fix: `full_name` doesn't exist on `students` (name lives
+          // on `people`) -- was silently caught and degraded to null.
+          const r = await query(
+            `SELECT CONCAT(p.first_name, ' ', p.last_name) AS full_name
+               FROM students s JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
+              WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL LIMIT 1`,
+            [resolution.studentId, session.schoolId],
+          );
           draisName = r?.[0]?.full_name ?? null;
         } else if (resolution.roleType === 'staff' && resolution.staffId) {
-          const r = await query('SELECT full_name FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [resolution.staffId, session.schoolId]);
+          const r = await query(
+            `SELECT CONCAT(p.first_name, ' ', p.last_name) AS full_name
+               FROM staff st JOIN people p ON p.id = st.person_id AND p.deleted_at IS NULL
+              WHERE st.id = ? AND st.school_id = ? LIMIT 1`,
+            [resolution.staffId, session.schoolId],
+          );
           draisName = r?.[0]?.full_name ?? null;
         }
       } catch { draisName = null; }

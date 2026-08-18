@@ -17,20 +17,25 @@ export async function POST(req: NextRequest) {
     connection = await getConnection();
     await connection.beginTransaction();
 
-    // Get missing fee items
+    // Get missing fee items — tenant-scoped: this previously had NO
+    // school_id filter at all, so calling it from ANY school backfilled
+    // missing fee items for EVERY school's students on the platform,
+    // silently writing real financial records across tenant boundaries
+    // on every single call. Found during the stability-roadmap Phase 3
+    // deleted_at sweep.
     const [missingStudents] = await connection.execute(`
       SELECT e.student_id, e.term_id, e.class_id, fs.item, fs.amount,
              CONCAT(p.first_name, ' ', p.last_name) as student_name
       FROM enrollments e
       JOIN fee_structures fs ON e.class_id = fs.class_id AND e.term_id = fs.term_id
-      JOIN students s ON e.student_id = s.id
-      JOIN people p ON s.person_id = p.id
-      LEFT JOIN student_fee_items sfi 
-        ON e.student_id = sfi.student_id 
-        AND fs.item = sfi.item 
+      JOIN students s ON e.student_id = s.id AND s.school_id = ? AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
+      LEFT JOIN student_fee_items sfi
+        ON e.student_id = sfi.student_id
+        AND fs.item = sfi.item
         AND e.term_id = sfi.term_id
       WHERE sfi.id IS NULL AND e.status = 'active'
-    `) as any;
+    `, [session.schoolId]) as any;
 
     if (!missingStudents.length) {
       return NextResponse.json({ 

@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
         // path below uses, rather than dumping every row for every student.
         const baseFrom = `
           FROM class_results cr
-          JOIN students s ON cr.student_id = s.id
-          JOIN people p ON s.person_id = p.id
+          JOIN students s ON cr.student_id = s.id AND s.deleted_at IS NULL
+          JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
           LEFT JOIN classes c ON cr.class_id = c.id
           LEFT JOIN subjects sub ON cr.subject_id = sub.id
           LEFT JOIN terms t ON cr.term_id = t.id
@@ -80,8 +80,8 @@ export async function GET(req: NextRequest) {
 
       const baseFrom = `
         FROM students s
-        JOIN people p ON s.person_id = p.id
-        WHERE s.school_id = ?
+        JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
+        WHERE s.school_id = ? AND s.deleted_at IS NULL
       `;
       const params: any[] = [schoolId];
       let filters = '';
@@ -136,8 +136,8 @@ export async function GET(req: NextRequest) {
         rt.name as result_type_name,
         ay.name as academic_year
       FROM class_results cr
-      JOIN students s ON cr.student_id = s.id
-      JOIN people p ON s.person_id = p.id
+      JOIN students s ON cr.student_id = s.id AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN classes c ON cr.class_id = c.id
       LEFT JOIN subjects sub ON cr.subject_id = sub.id
       LEFT JOIN terms t ON cr.term_id = t.id
@@ -171,8 +171,8 @@ export async function GET(req: NextRequest) {
         p.last_name,
         s.admission_no
       FROM student_history sh
-      JOIN students s ON sh.student_id = s.id
-      JOIN people p ON s.person_id = p.id
+      JOIN students s ON sh.student_id = s.id AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       WHERE s.school_id = ?
     `;
 
@@ -202,7 +202,7 @@ export async function GET(req: NextRequest) {
         e.end_date,
         e.end_reason
       FROM enrollments e
-      JOIN students s ON e.student_id = s.id
+      JOIN students s ON e.student_id = s.id AND s.deleted_at IS NULL
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN streams st ON e.stream_id = st.id
       LEFT JOIN academic_years ay ON e.academic_year_id = ay.id

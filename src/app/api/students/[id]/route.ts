@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
        LEFT JOIN districts d ON d.id = p.school_id
        LEFT JOIN classes c ON c.id = e.class_id
        LEFT JOIN student_history h ON h.student_id = s.id
-       WHERE s.id = ? AND s.school_id = ?`,
+       WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL`,
       [id, schoolId]
     );
 

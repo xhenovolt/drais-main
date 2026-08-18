@@ -73,8 +73,8 @@ export async function GET(req: NextRequest) {
         rcm.position,
         rcm.promoted
       FROM report_cards rc
-      JOIN students s ON rc.student_id = s.id
-      JOIN people p ON s.person_id = p.id
+      JOIN students s ON rc.student_id = s.id AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN terms t ON rc.term_id = t.id
       LEFT JOIN academic_years ay ON rc.academic_year_id = ay.id
       LEFT JOIN academic_years ay2 ON t.academic_year_id = ay2.id

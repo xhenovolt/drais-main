@@ -139,8 +139,8 @@ export async function POST(req: NextRequest) {
     const studentRows = await query(
       `SELECT s.id, p.first_name, p.last_name
        FROM students s
-       JOIN people p ON s.person_id = p.id
-       WHERE s.id = ? AND s.school_id = ?
+       JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
+       WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
        LIMIT 1`,
       [student_id, session.schoolId],
     );

@@ -45,8 +45,8 @@ async function loadRecord(id: number, schoolId: number) {
   const rows = (await query(
     `SELECT r.*, TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS learner_name, s.admission_no
        FROM tahfiz_records r
-       JOIN students s ON s.id = r.student_id
-       JOIN people   p ON p.id = s.person_id
+       JOIN students s ON s.id = r.student_id AND s.deleted_at IS NULL
+       JOIN people   p ON p.id = s.person_id AND p.deleted_at IS NULL
       WHERE r.id = ? AND r.school_id = ? LIMIT 1`,
     [id, schoolId],
   )) as any[];

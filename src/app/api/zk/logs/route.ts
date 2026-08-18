@@ -119,9 +119,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
          LEFT JOIN devices d
            ON d.sn = zdl.device_sn
          LEFT JOIN students stu
-           ON stu.id = zdl.student_id AND stu.school_id = zdl.school_id
+           ON stu.id = zdl.student_id AND stu.school_id = zdl.school_id AND stu.deleted_at IS NULL
          LEFT JOIN people sp
-           ON sp.id = stu.person_id
+           ON sp.id = stu.person_id AND sp.deleted_at IS NULL
          LEFT JOIN staff stf
            ON stf.id = zdl.staff_id AND stf.school_id = zdl.school_id
          LEFT JOIN people tp

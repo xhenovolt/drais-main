@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
         COALESCE(portion_stats.completed_verses, 0) as completed_verses
         
       FROM students s
-      JOIN people p ON s.person_id = p.id
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN streams str ON e.stream_id = str.id

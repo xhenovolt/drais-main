@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     // Verify all students belong to school
     const [verification]: any = await conn.execute(
-      `SELECT COUNT(*) as cnt FROM students WHERE school_id = ? AND id IN (${student_ids.map(() => '?').join(',')})`,
+      `SELECT COUNT(*) as cnt FROM students WHERE school_id = ? AND deleted_at IS NULL AND id IN (${student_ids.map(() => '?').join(',')})`,
       [schoolId, ...student_ids]
     );
 

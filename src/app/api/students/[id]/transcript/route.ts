@@ -71,7 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
        LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
        LEFT JOIN classes c  ON c.id  = e.class_id
        LEFT JOIN streams st ON st.id = e.stream_id
-      WHERE s.id = ? AND s.school_id = ?
+      WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
       LIMIT 1`,
     [studentId, session.schoolId],
   )) as StudentRow[];

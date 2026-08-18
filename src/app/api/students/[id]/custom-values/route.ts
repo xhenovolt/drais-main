@@ -22,7 +22,7 @@ import {
 
 async function resolveStudent(studentId: number, schoolId: number): Promise<boolean> {
   const rows = (await query(
-    `SELECT 1 FROM students WHERE id = ? AND school_id = ? LIMIT 1`,
+    `SELECT 1 FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
     [studentId, schoolId],
   )) as Array<{ '1': number }>;
   return rows.length > 0;

@@ -89,8 +89,8 @@ export async function GET(req: NextRequest) {
          CONCAT_WS(' ', bpe.first_name, bpe.last_name) AS canonical_person_name
        FROM zk_attendance_logs al
        LEFT JOIN devices d ON al.device_sn = d.sn
-       LEFT JOIN students st ON al.student_id = st.id
-       LEFT JOIN people sp ON st.person_id = sp.id
+       LEFT JOIN students st ON al.student_id = st.id AND st.deleted_at IS NULL
+       LEFT JOIN people sp ON st.person_id = sp.id AND sp.deleted_at IS NULL
        LEFT JOIN staff stf ON al.staff_id = stf.id
        LEFT JOIN people tp ON stf.person_id = tp.id
        LEFT JOIN device_user_directory dud

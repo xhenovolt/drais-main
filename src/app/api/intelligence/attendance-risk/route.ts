@@ -82,8 +82,8 @@ export async function GET(req: NextRequest) {
          MAX(DATE(z.check_time))                      AS last_seen,
          MIN(DATE(z.check_time))                      AS first_seen
        FROM zk_attendance_logs z
-       JOIN students s  ON s.id = z.student_id
-       JOIN people   p  ON p.id = s.person_id
+       JOIN students s  ON s.id = z.student_id AND s.deleted_at IS NULL
+       JOIN people   p  ON p.id = s.person_id AND p.deleted_at IS NULL
        LEFT JOIN classes c ON c.id = s.class_id
        WHERE z.school_id = ?
          AND z.student_id IS NOT NULL

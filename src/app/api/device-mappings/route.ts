@@ -48,8 +48,8 @@ export async function GET(req: NextRequest) {
           c.name as class_name
         FROM device_user_mappings dum
         JOIN biometric_devices bd ON dum.device_id = bd.id
-        JOIN students st ON dum.student_id = st.id
-        JOIN people p ON st.person_id = p.id
+        JOIN students st ON dum.student_id = st.id AND st.deleted_at IS NULL
+        JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
         LEFT JOIN enrollments e ON st.id = e.student_id AND e.status = 'active'
         LEFT JOIN classes c ON e.class_id = c.id
         WHERE dum.school_id = ?
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
 
       // Verify student belongs to school
       const [studentCheck]: any = await connection.execute(
-        `SELECT id FROM students WHERE id = ? AND school_id = ?`,
+        `SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL`,
         [student_id, tenant.schoolId]
       );
 

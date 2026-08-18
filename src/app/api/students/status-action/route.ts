@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
        LEFT JOIN people p ON s.person_id = p.id
        LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
        LEFT JOIN classes c ON e.class_id = c.id
-       WHERE s.id = ? AND s.school_id = ?`,
+       WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL`,
       [student_id, schoolId]
     ) as any[];
 

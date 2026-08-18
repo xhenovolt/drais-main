@@ -45,16 +45,21 @@ export async function GET(request: NextRequest) {
         t.name as term_name,
         c.name as class_name
       FROM class_results cr
-      INNER JOIN students s ON cr.student_id = s.id
-      INNER JOIN people p ON s.person_id = p.id
+      INNER JOIN students s ON cr.student_id = s.id AND s.deleted_at IS NULL
+      INNER JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       INNER JOIN subjects subj ON cr.subject_id = subj.id
       LEFT JOIN result_types rt ON cr.result_type_id = rt.id
       LEFT JOIN terms t ON cr.term_id = t.id
       LEFT JOIN classes c ON cr.class_id = c.id
-      WHERE subj.subject_type = 'tahfiz'
+      WHERE subj.subject_type = 'tahfiz' AND s.school_id = ?
     `;
 
-    const params: any[] = [];
+    // Tenant isolation fix (stability-roadmap Phase 3, deleted_at sweep):
+    // schoolId was derived from session but never actually used in this
+    // query at all -- any authenticated session could see every school's
+    // tahfiz results, filtered only by class_id/term_id/etc, which are
+    // themselves not tenant-checked either.
+    const params: any[] = [schoolId];
 
     if (classId) {
       sql += ' AND cr.class_id = ?';

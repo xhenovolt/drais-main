@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Verify the student is in the callers school before launching
   // puppeteer — saves a Chromium spawn on cross-tenant probes.
   const ok = (await query(
-    `SELECT id FROM students WHERE id = ? AND school_id = ? LIMIT 1`,
+    `SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
     [studentId, session.schoolId],
   )) as Array<{ id: number }>;
   if (ok.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });

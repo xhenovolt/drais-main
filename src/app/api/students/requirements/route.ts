@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
 
     const baseFrom = `
       FROM student_requirements sr
-      JOIN students s ON sr.student_id = s.id
-      JOIN people p ON s.person_id = p.id
+      JOIN students s ON sr.student_id = s.id AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN terms t ON sr.term_id = t.id

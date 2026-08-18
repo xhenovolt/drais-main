@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
       rawBackfilled = backfill.affectedRows;
 
       const mappedPersonId = user_type === 'student'
-        ? (await query('SELECT person_id FROM students WHERE id = ? AND school_id = ? LIMIT 1', [mappedStudentId, session.schoolId]))[0]?.person_id ?? null
+        ? (await query('SELECT person_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1', [mappedStudentId, session.schoolId]))[0]?.person_id ?? null
         : (await query('SELECT person_id FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [mappedStaffId, session.schoolId]))[0]?.person_id ?? null;
 
       if (mappedPersonId && backfill.affectedDates.length > 0) {
@@ -317,7 +317,7 @@ export async function PUT(req: NextRequest) {
       rawBackfilled = backfill.affectedRows;
 
       const mappedPersonId = user_type === 'student'
-        ? (await query('SELECT person_id FROM students WHERE id = ? AND school_id = ? LIMIT 1', [mappedStudentId, session.schoolId]))[0]?.person_id ?? null
+        ? (await query('SELECT person_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1', [mappedStudentId, session.schoolId]))[0]?.person_id ?? null
         : (await query('SELECT person_id FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [mappedStaffId, session.schoolId]))[0]?.person_id ?? null;
 
       if (mappedPersonId && backfill.affectedDates.length > 0) {

@@ -52,8 +52,8 @@ export async function GET(req: NextRequest) {
         r.file_url AS receipt_url,
         pr.status AS reconciliation_status
       FROM finance_payments fp
-      JOIN students s ON fp.student_id = s.id
-      JOIN people p ON s.person_id = p.id
+      JOIN students s ON fp.student_id = s.id AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN student_ledger sl ON sl.payment_id = fp.id AND sl.type = 'credit'

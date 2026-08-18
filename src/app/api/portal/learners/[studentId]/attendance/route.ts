@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stud
               SUM(ar.status = 'late')   AS late,
               SUM(ar.status IN ('half_day','early_leave')) AS partial
          FROM attendance_records ar
-         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id
+         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id AND s.deleted_at IS NULL
         WHERE ar.school_id = ? AND ar.role_type = 'student' AND s.id = ?
           AND ar.status NOT IN ('weekend','holiday')
           AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)`,
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stud
       `SELECT ar.attendance_date, ar.status,
               ar.first_in_at AS first_arrival_time, ar.late_minutes
          FROM attendance_records ar
-         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id
+         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id AND s.deleted_at IS NULL
         WHERE ar.school_id = ? AND ar.role_type = 'student' AND s.id = ?
           AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
         ORDER BY ar.attendance_date DESC LIMIT 60`,

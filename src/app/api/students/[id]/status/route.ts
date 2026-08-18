@@ -47,7 +47,7 @@ export async function PATCH(
 
     // Security: Verify student belongs to user's school
     const [studentCheck]: any = await conn.execute(
-      'SELECT id FROM students WHERE id = ? AND school_id = ?',
+      'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
       [studentId, schoolId]
     );
     if (!studentCheck || studentCheck.length === 0) {
@@ -88,7 +88,7 @@ export async function PATCH(
        LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
        LEFT JOIN classes c ON c.id = e.class_id
        LEFT JOIN results res ON res.student_id = s.id
-       WHERE s.id = ? AND s.school_id = ?
+       WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
        GROUP BY s.id`,
       [studentId, schoolId]
     );
@@ -150,7 +150,7 @@ export async function GET(
         p.first_name, p.last_name
        FROM students s
        JOIN people p ON s.person_id = p.id
-       WHERE s.id = ? AND s.school_id = ?`,
+       WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL`,
       [studentId, schoolId]
     );
 

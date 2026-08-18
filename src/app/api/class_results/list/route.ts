@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
         cr.created_at,
         cr.updated_at
       FROM class_results cr
-      JOIN students s ON s.id = cr.student_id
-      JOIN people p ON p.id = s.person_id
+      JOIN students s ON s.id = cr.student_id AND s.deleted_at IS NULL
+      JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
       JOIN classes c ON c.id = cr.class_id
       JOIN subjects sub ON sub.id = cr.subject_id
       JOIN result_types rt ON rt.id = cr.result_type_id

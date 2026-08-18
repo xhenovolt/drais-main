@@ -55,7 +55,7 @@ export async function GET(
        FROM students s
        JOIN people     p ON s.person_id = p.id
        LEFT JOIN classes c ON s.class_id  = c.id
-       WHERE s.id = ? AND s.school_id = ?
+       WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
        LIMIT 1`,
       [studentId, schoolId]
     );

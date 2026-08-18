@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
           SUM(CASE WHEN sl.type = 'debit'  THEN sl.amount ELSE 0 END)
             - SUM(CASE WHEN sl.type = 'credit' THEN sl.amount ELSE 0 END) AS balance
         FROM student_ledger sl
-        JOIN students s ON sl.student_id = s.id
-        JOIN people p   ON s.person_id = p.id
+        JOIN students s ON sl.student_id = s.id AND s.deleted_at IS NULL
+        JOIN people p   ON s.person_id = p.id AND p.deleted_at IS NULL
         LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
         LEFT JOIN classes c     ON e.class_id = c.id
         WHERE sl.school_id = ?

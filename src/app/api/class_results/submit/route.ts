@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
       // Verify student belongs to this school
       const [stuCheck]: any = await connection.execute(
-        'SELECT id FROM students WHERE id = ? AND school_id = ?',
+        'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
         [student_id, schoolId]
       );
       if (!stuCheck || stuCheck.length === 0) {

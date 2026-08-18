@@ -22,7 +22,7 @@ async function metrics(l: LearnerAccess) {
               SUM(ar.status IN ('present','late')) AS present,
               SUM(ar.status = 'late') AS late
          FROM attendance_records ar
-         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id
+         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id AND s.deleted_at IS NULL
         WHERE ar.school_id = ? AND ar.role_type = 'student' AND s.id = ?
           AND ar.status NOT IN ('weekend','holiday')
           AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)`,

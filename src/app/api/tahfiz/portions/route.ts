@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
         END as overall_status
         
       FROM students s
-      JOIN people p ON s.person_id = p.id
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id AND c.name = 'tahfiz'
       LEFT JOIN tahfiz_group_members tgm ON s.id = tgm.student_id
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
       -- Get records for the last presented portion
       LEFT JOIN tahfiz_records last_tr ON last_tp.id = last_tr.plan_id AND s.id = last_tr.student_id
       
-      WHERE s.school_id = ? AND s.status = 'active' AND c.id IS NOT NULL
+      WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL AND c.id IS NOT NULL
     `;
 
     const queryParams: any[] = [schoolId];
@@ -168,14 +168,14 @@ export async function GET(req: NextRequest) {
     let countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM students s
-      JOIN people p ON s.person_id = p.id
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id AND c.name = 'tahfiz'
       LEFT JOIN tahfiz_group_members tgm ON s.id = tgm.student_id
       LEFT JOIN tahfiz_groups tg ON tgm.group_id = tg.id
       LEFT JOIN tahfiz_portions next_tp ON s.id = next_tp.student_id 
         AND next_tp.status IN ('pending', 'in_progress', 'review')
-      WHERE s.school_id = ? AND s.status = 'active' AND c.id IS NOT NULL
+      WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL AND c.id IS NOT NULL
     `;
 
     const countParams: any[] = [schoolId];

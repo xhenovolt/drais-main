@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     // Total students (school-scoped for accuracy)
     const studentCount = await query(
-      `SELECT COUNT(*) AS total FROM students WHERE school_id = ? AND status = 'active'`,
+      `SELECT COUNT(*) AS total FROM students WHERE school_id = ? AND status = 'active' AND deleted_at IS NULL`,
       [schoolId],
     );
 

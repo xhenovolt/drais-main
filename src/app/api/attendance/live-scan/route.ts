@@ -352,7 +352,7 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
       [r.id],
     ).catch(() => [] as any[]),
     studentId
-      ? query('SELECT person_id FROM students WHERE id = ? LIMIT 1', [studentId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
+      ? query('SELECT person_id FROM students WHERE id = ? AND deleted_at IS NULL LIMIT 1', [studentId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
       : staffId
         ? query('SELECT person_id FROM staff WHERE id = ? LIMIT 1', [staffId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
         : Promise.resolve(null),
@@ -392,7 +392,7 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
              JOIN student_contacts sc ON sc.student_id = s.id
              JOIN contacts con ON con.id = sc.contact_id
              JOIN people cp ON cp.id = con.person_id
-            WHERE s.id = ? AND cp.phone IS NOT NULL AND cp.phone <> '' LIMIT 1`,
+            WHERE s.id = ? AND s.deleted_at IS NULL AND cp.phone IS NOT NULL AND cp.phone <> '' LIMIT 1`,
           [studentId],
         );
         smsStatus = (Array.isArray(g) && (g as any[]).length > 0) ? 'pending' : 'no_phone';

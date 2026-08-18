@@ -5,6 +5,19 @@ import { getSessionSchoolId } from '@/lib/auth';
 /**
  * Attendance Log Processing Service
  * Matches device logs with students/staff and processes attendance records
+ *
+ * FLAGGED, NOT FIXED HERE (found during the stability-roadmap deleted_at
+ * sweep, 2026-08-18): the student-matching query below references
+ * s.student_id_number, which does not exist on `students` (confirmed via
+ * SHOW COLUMNS — no such column). Every call to this processor would
+ * throw on student matching. This lines up with daily_attendance being
+ * confirmed EMPTY in production despite attendance_logs holding real,
+ * current data — i.e. logs ARE being ingested, but this processing step
+ * that's supposed to turn them into daily_attendance rows looks like it
+ * has never successfully run. Worth a dedicated investigation (is this
+ * on a cron? what actually populates attendance_records instead — see
+ * src/lib/attendance/engine, which appears to be the real, live path)
+ * rather than folded into a mechanical deleted_at pass.
  */
 
 /**

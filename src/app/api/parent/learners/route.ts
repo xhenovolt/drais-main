@@ -19,7 +19,7 @@ async function cardSummary(l: LearnerAccess) {
     safe(query(
       `SELECT ar.status, ar.first_in_at, ar.late_minutes
          FROM attendance_records ar
-         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id
+         JOIN students s ON s.person_id = ar.person_id AND s.school_id = ar.school_id AND s.deleted_at IS NULL
         WHERE ar.school_id = ? AND ar.role_type = 'student' AND s.id = ?
           AND ar.attendance_date = CURDATE() LIMIT 1`,
       [l.school_id, l.student_id],

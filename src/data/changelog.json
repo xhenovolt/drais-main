@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T07:01:03.487Z",
-  "last_commit": "4ac0bba469c73c04e21b710dd290996eedf2c904",
+  "generated_at": "2026-08-18T07:01:57.671Z",
+  "last_commit": "63e7fa29b4b03dcc05887621b599d643271fa403",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6891,7 +6891,20 @@
         }
       ],
       "commit": "4ac0bba469"
+    },
+    {
+      "version": "1.173.68",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Student importer required separate First/Last Name columns — real schools often export one combined Name column",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Student importer required separate First/Last Name columns — real schools often export one combined Name column"
+        }
+      ],
+      "commit": "63e7fa29b4"
     }
   ],
-  "app_version": "1.173.68"
+  "app_version": "1.173.69"
 }

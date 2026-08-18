@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
         tpl.portion_text,
         tb.title as book_title
       FROM tahfiz_records r
-      JOIN students s ON r.student_id = s.id
-      JOIN people p ON s.person_id = p.id
+      JOIN students s ON r.student_id = s.id AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN tahfiz_plans tpl ON r.plan_id = tpl.id
       LEFT JOIN tahfiz_books tb ON tpl.book_id = tb.id
       LEFT JOIN tahfiz_groups tg ON r.group_id = tg.id

@@ -13,9 +13,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const studentId = resolvedParams.id;
     connection = await getConnection();
 
+    // Tenant isolation + deleted_at: previously scoped by student_id alone,
+    // which let any authenticated session query fingerprint status for a
+    // student in ANY school if the id was known/guessed.
     const [result] = await connection.execute(
-      'SELECT id, is_active, created_at, updated_at FROM student_fingerprints WHERE student_id = ? AND is_active = 1',
-      [studentId]
+      `SELECT sf.id, sf.is_active, sf.created_at, sf.updated_at
+         FROM student_fingerprints sf
+         JOIN students s ON s.id = sf.student_id
+        WHERE sf.student_id = ? AND sf.is_active = 1 AND s.school_id = ? AND s.deleted_at IS NULL`,
+      [studentId, schoolId]
     );
 
     const hasFingerprint = Array.isArray(result) && result.length > 0;
@@ -55,10 +61,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     connection = await getConnection();
 
-    // Check if student exists
+    // Check if student exists — tenant-scoped: a bare `WHERE id = ?` here
+    // previously let any authenticated session enroll a fingerprint
+    // against a student_id belonging to a DIFFERENT school if the id was
+    // known/guessed. schoolId was already derived from session above but
+    // never actually used in this query.
     const [studentCheck] = await connection.execute(
-      'SELECT id FROM students WHERE id = ?',
-      [studentId]
+      'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+      [studentId, schoolId]
     );
 
     if (!Array.isArray(studentCheck) || studentCheck.length === 0) {

@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 
       // Verify student belongs to school
       const [studentCheck]: any = await connection.execute(
-        `SELECT id FROM students WHERE id = ? AND school_id = ?`,
+        `SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL`,
         [entityId, tenant.schoolId]
       );
 

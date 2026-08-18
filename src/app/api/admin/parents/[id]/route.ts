@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             psl.relationship, psl.status, psl.requested_at, psl.approved_at
        FROM parent_student_links psl
        JOIN schools sc ON sc.id = psl.school_id
-       JOIN students s ON s.id = psl.student_id
+       JOIN students s ON s.id = psl.student_id AND s.deleted_at IS NULL
        LEFT JOIN people p ON p.id = s.person_id
       WHERE psl.parent_account_id = ? ${session.isSuperAdmin ? '' : 'AND psl.school_id = ?'}
       ORDER BY psl.requested_at DESC`,

@@ -5,6 +5,22 @@ import { getSessionSchoolId } from '@/lib/auth';
 /**
  * Attendance Analytics API
  * Provides analytics and statistics for dashboard
+ *
+ * Bug fix (stability-roadmap Phase 3, deleted_at sweep, 2026-08-18): this
+ * route is LIVE (called from AttendanceDashboard.tsx on /attendance) but
+ * was crashing on every single call — its "absent students" query
+ * referenced s.first_name/s.last_name, which don't exist on `students`
+ * (those live on `people`), and c.class_name, which doesn't exist on
+ * `classes` (the column is `name`). Both are now fixed below.
+ *
+ * Separately, and NOT fixed here: daily_attendance — the table every
+ * query in this route reads — is confirmed EMPTY in production (0 rows),
+ * same root cause already found and fixed for student_attendance in
+ * /api/analytics/attendance (see that route's header for the writeup).
+ * The real attendance ENGINE writes attendance_records instead. This
+ * route will keep returning empty/zeroed analytics (no longer crashing,
+ * but not populated either) until it's repointed the same way — a
+ * larger, separate fix than this crash-fix pass, tracked as a follow-up.
  */
 
 interface AnalyticsData {
@@ -102,17 +118,18 @@ export async function GET(req: NextRequest) {
     today.setHours(0, 0, 0, 0);
 
     const [lateData] = await connection.execute(
-      `SELECT 
-        CONCAT(s.first_name, ' ', s.last_name) as name,
+      `SELECT
+        CONCAT(p.first_name, ' ', p.last_name) as name,
         'student' as type,
         da.first_arrival_time as time,
-        CASE 
-          WHEN ar.arrival_end_time IS NOT NULL 
+        CASE
+          WHEN ar.arrival_end_time IS NOT NULL
           THEN TIMESTAMPDIFF(MINUTE, ar.arrival_end_time, da.first_arrival_time)
           ELSE 0
         END as delay_minutes
       FROM daily_attendance da
-      JOIN students s ON da.person_id = s.id AND da.person_type = 'student'
+      JOIN students s ON da.person_id = s.id AND da.person_type = 'student' AND s.deleted_at IS NULL
+      JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
       LEFT JOIN attendance_rules ar ON s.school_id = ar.school_id
       WHERE da.school_id = ? AND da.attendance_date = ? AND da.status = 'late'
       ORDER BY delay_minutes DESC
@@ -129,10 +146,11 @@ export async function GET(req: NextRequest) {
 
     // 3. Absent students (today)
     const [absentData] = await connection.execute(
-      `SELECT s.id, CONCAT(s.first_name, ' ', s.last_name) as name, c.class_name as class
+      `SELECT s.id, CONCAT(p.first_name, ' ', p.last_name) as name, c.name as class
       FROM students s
-      LEFT JOIN classes c ON s.class_id = c.id
-      WHERE s.school_id = ? AND s.status = 'enrolled'
+      JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
+      LEFT JOIN classes c ON s.class_id = c.id AND c.deleted_at IS NULL
+      WHERE s.school_id = ? AND s.status = 'enrolled' AND s.deleted_at IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM daily_attendance da
         WHERE da.person_id = s.id AND da.person_type = 'student'

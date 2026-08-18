@@ -48,20 +48,24 @@ export async function GET(
     
     const device = devices[0];
     
-    // Get all user mappings with student info
+    // Get all user mappings with student info. Bug fix (stability-roadmap
+    // Phase 3, deleted_at sweep): this crashed on every call — s.first_name,
+    // s.last_name, s.student_number, s.grade, s.division don't exist on
+    // `students` (name lives on `people`; no grade/division columns at
+    // all). This route is live (DeviceReconciliationModal.tsx via
+    // /attendance/devices).
     const [mappings] = await connection.execute<any[]>(
-      `SELECT 
+      `SELECT
         du.id,
         du.device_user_id,
         du.student_id,
         du.enrolled_at,
-        s.first_name,
-        s.last_name,
-        s.student_number,
-        s.grade,
-        s.division
+        p.first_name,
+        p.last_name,
+        s.admission_no
       FROM device_users du
-      INNER JOIN students s ON du.student_id = s.id
+      INNER JOIN students s ON du.student_id = s.id AND s.deleted_at IS NULL
+      INNER JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
       WHERE du.device_id = ? AND du.school_id = ?
       ORDER BY du.device_user_id`,
       [deviceId, schoolId]
@@ -145,7 +149,7 @@ export async function POST(
     
     // Verify student belongs to school
     const [students] = await connection.execute<any[]>(
-      'SELECT id, first_name, last_name FROM students WHERE id = ? AND school_id = ?',
+      'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
       [body.student_id, schoolId]
     );
     

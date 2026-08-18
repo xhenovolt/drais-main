@@ -54,8 +54,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS learner_name,
             s.admission_no
        FROM tahfiz_group_members gm
-       JOIN students s ON s.id = gm.student_id
-       JOIN people   p ON p.id = s.person_id
+       JOIN students s ON s.id = gm.student_id AND s.deleted_at IS NULL
+       JOIN people   p ON p.id = s.person_id AND p.deleted_at IS NULL
       WHERE gm.group_id = ? AND gm.school_id = ?
       ORDER BY learner_name`,
     [id, session!.schoolId],

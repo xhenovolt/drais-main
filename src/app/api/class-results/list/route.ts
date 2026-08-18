@@ -83,8 +83,8 @@ export async function GET(req: NextRequest) {
       const [[{ total }]] = await connection.execute<any[]>(
         `SELECT COUNT(*) AS total
          FROM class_results cr
-         JOIN students st ON cr.student_id = st.id
-         JOIN people p ON st.person_id = p.id
+         JOIN students st ON cr.student_id = st.id AND st.deleted_at IS NULL
+         JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
          JOIN classes c ON cr.class_id = c.id
          JOIN subjects s ON cr.subject_id = s.id
          JOIN result_types rt ON cr.result_type_id = rt.id
@@ -117,8 +117,8 @@ export async function GET(req: NextRequest) {
            t.name AS term_name,
            cur.name AS program_name
          FROM class_results cr
-         JOIN students st ON cr.student_id = st.id
-         JOIN people p ON st.person_id = p.id
+         JOIN students st ON cr.student_id = st.id AND st.deleted_at IS NULL
+         JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
          JOIN classes c ON cr.class_id = c.id
          JOIN subjects s ON cr.subject_id = s.id
          JOIN result_types rt ON cr.result_type_id = rt.id

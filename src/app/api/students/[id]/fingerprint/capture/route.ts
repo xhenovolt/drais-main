@@ -9,6 +9,19 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Bug fix (stability-roadmap Phase 3, found during the deleted_at
+  // sweep): getSessionSchoolId was imported but never actually called —
+  // this endpoint had NO authentication check at all, and its student
+  // existence check had no school_id scoping either, so any unauthenticated
+  // request could write biometric fingerprint data against any student_id
+  // in the entire system. The audit-log insert also hardcoded `1 // Demo
+  // user ID` regardless of who made the request.
+  const session = await getSessionSchoolId(request);
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  const schoolId = session.schoolId;
+
   let connection;
   try {
     const resolvedParams = await params;
@@ -26,10 +39,10 @@ export async function POST(
 
     connection = await getConnection();
 
-    // Check if student exists
+    // Check if student exists — now tenant-scoped and deleted_at-aware.
     const [student] = await connection.execute(
-      'SELECT id FROM students WHERE id = ?',
-      [studentId]
+      'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+      [studentId, schoolId]
     );
 
     if (!Array.isArray(student) || student.length === 0) {
@@ -66,7 +79,7 @@ export async function POST(
         'CAPTURE_FINGERPRINT',
         'fingerprints',
         studentId.toString(),
-        1, // Demo user ID
+        session.userId,
         JSON.stringify({
           method: method || 'device',
           deviceInfo: deviceInfo || null,

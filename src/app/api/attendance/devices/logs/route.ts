@@ -5,6 +5,15 @@ import { logAudit, AuditAction } from '@/lib/audit';
 import { checkModule } from '@/lib/auth/requireModule';
 
 /**
+ * KNOWN BROKEN (found during the stability-roadmap deleted_at sweep,
+ * 2026-08-18): references s.first_name/s.last_name, which don't exist
+ * on `students` (name lives on `people`) -- every call crashes.
+ * DeviceLogsView.tsx calls this route but is itself never rendered from
+ * any page (checked src/app), so it's dead code, not a live crash.
+ * Not rewritten here -- fixing the name resolution needs a `people`
+ * join added to two separate SELECTs in this file; scope this out
+ * properly if the route is ever wired up to a real page.
+ *
  * GET /api/attendance/devices/logs
  * Get device logs with filtering
  * 

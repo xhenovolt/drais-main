@@ -1,28 +1,17 @@
 /**
- * ⚠️ KNOWN BROKEN — THIS ROUTE READS TABLES THAT ARE EMPTY.
+ * Stability-roadmap Phase 3: repointed at attendance_records — the
+ * table the attendance ENGINE (src/lib/attendance/engine) actually
+ * writes. Previously read student_attendance / staff_attendance, which
+ * are the pre-engine schema and were never migrated or dropped —
+ * measured 0 rows in each, vs 10,887 student + 6,750 staff rows in
+ * attendance_records. The route returned success with empty arrays
+ * rather than erroring, which is why this read as "no attendance yet"
+ * rather than as a bug for so long.
  *
- * Every query below reads `student_attendance` / `staff_attendance`. Measured
- * against production on 2026-08-06:
- *
- *     student_attendance        0 rows
- *     staff_attendance          0 rows
- *     attendance_records   15,347 rows   ← where attendance actually lives
- *     attendance_raw_events 13,914 rows
- *
- * The attendance ENGINE (src/lib/attendance/engine) writes `attendance_records`.
- * These two tables are the pre-engine schema and were never migrated or
- * dropped. So this endpoint returns success with empty arrays — it does not
- * error, which is why it reads as "no attendance yet" rather than as a bug.
- *
- * Rewriting it means switching to `attendance_records`, which is keyed by
- * (person_id, role_type) rather than student_id — so the join to students goes
- * through people, and role_type separates learners from staff. The dataset in
- * /api/reports/custom was written against attendance_records and can be used as
- * the reference.
- *
- * Not rewritten here because it also backs the /dashboard/analytics attendance
- * tab, and changing five queries is a bigger change than the fix it was bundled
- * with. Left annotated rather than silently wrong.
+ * attendance_records is keyed by (person_id, role_type), not
+ * student_id/staff_id — the join to students/staff goes through people.
+ * Reference implementation already existed at /api/reports/custom's
+ * 'attendance' dataset; this follows the same join shape.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
@@ -42,50 +31,49 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
-    // The radix belongs to parseInt, not to .get() — URLSearchParams.get takes
-    // one argument. Same slip appears in ~37 other routes; harmless (parseInt
-    // defaults to base 10) but it is a type error, so fixed where touched.
     const days = parseInt(searchParams.get('days') || '30', 10);
-    
+
     const connection = await getConnection();
-    
+
     // Student attendance trends
     const studentAttendanceTrends = await connection.execute(`
-      SELECT 
-        sa.date as attendance_date,
+      SELECT
+        ar.attendance_date as attendance_date,
         c.name as class_name,
-        COUNT(CASE WHEN sa.status = 'present' THEN 1 END) as present_count,
-        COUNT(CASE WHEN sa.status = 'absent' THEN 1 END) as absent_count,
-        COUNT(sa.id) as total_marked,
-        ROUND(COUNT(CASE WHEN sa.status = 'present' THEN 1 END) / NULLIF(COUNT(sa.id), 0) * 100, 2) as attendance_rate
-      FROM student_attendance sa
-      JOIN students s ON sa.student_id = s.id AND s.deleted_at IS NULL
+        COUNT(CASE WHEN ar.status = 'present' THEN 1 END) as present_count,
+        COUNT(CASE WHEN ar.status = 'absent' THEN 1 END) as absent_count,
+        COUNT(ar.id) as total_marked,
+        ROUND(COUNT(CASE WHEN ar.status = 'present' THEN 1 END) / NULLIF(COUNT(ar.id), 0) * 100, 2) as attendance_rate
+      FROM attendance_records ar
+      JOIN students s ON s.person_id = ar.person_id AND ar.role_type = 'student'
+        AND s.school_id = ar.school_id AND s.deleted_at IS NULL
       JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       JOIN classes c ON e.class_id = c.id
-      WHERE s.school_id = ? 
-      AND sa.date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-      GROUP BY sa.date, c.id, c.name
+      WHERE ar.school_id = ?
+      AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      GROUP BY ar.attendance_date, c.id, c.name
       ORDER BY attendance_date DESC, c.name
     `, [schoolId, days]);
 
     // Chronic absentees (students with poor attendance)
     const chronicAbsentees = await connection.execute(`
-      SELECT 
+      SELECT
         s.id as student_id,
         CONCAT(p.first_name, ' ', p.last_name) as student_name,
         s.admission_no,
         c.name as class_name,
-        COUNT(CASE WHEN sa.status = 'present' THEN 1 END) as present_days,
-        COUNT(CASE WHEN sa.status = 'absent' THEN 1 END) as absent_days,
-        COUNT(sa.id) as total_days,
-        ROUND(COUNT(CASE WHEN sa.status = 'present' THEN 1 END) / NULLIF(COUNT(sa.id), 0) * 100, 2) as attendance_rate,
-        MAX(sa.date) as last_present_date
+        COUNT(CASE WHEN ar.status = 'present' THEN 1 END) as present_days,
+        COUNT(CASE WHEN ar.status = 'absent' THEN 1 END) as absent_days,
+        COUNT(ar.id) as total_days,
+        ROUND(COUNT(CASE WHEN ar.status = 'present' THEN 1 END) / NULLIF(COUNT(ar.id), 0) * 100, 2) as attendance_rate,
+        MAX(CASE WHEN ar.status = 'present' THEN ar.attendance_date END) as last_present_date
       FROM students s
       JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       JOIN classes c ON e.class_id = c.id
-      LEFT JOIN student_attendance sa ON s.id = sa.student_id 
-        AND sa.date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      LEFT JOIN attendance_records ar ON ar.person_id = s.person_id AND ar.role_type = 'student'
+        AND ar.school_id = s.school_id
+        AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
       WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
       GROUP BY s.id, p.first_name, p.last_name, s.admission_no, c.name
       HAVING attendance_rate < 80 OR absent_days > 5
@@ -94,18 +82,19 @@ export async function GET(req: NextRequest) {
 
     // Staff attendance summary
     const staffAttendanceSummary = await connection.execute(`
-      SELECT 
+      SELECT
         st.id as staff_id,
         CONCAT(p.first_name, ' ', p.last_name) as staff_name,
         st.position,
-        COUNT(CASE WHEN sa.status = 'present' THEN 1 END) as present_days,
-        COUNT(CASE WHEN sa.status = 'absent' THEN 1 END) as absent_days,
-        COUNT(sa.id) as total_days,
-        ROUND(COUNT(CASE WHEN sa.status = 'present' THEN 1 END) / NULLIF(COUNT(sa.id), 0) * 100, 2) as attendance_rate
+        COUNT(CASE WHEN ar.status = 'present' THEN 1 END) as present_days,
+        COUNT(CASE WHEN ar.status = 'absent' THEN 1 END) as absent_days,
+        COUNT(ar.id) as total_days,
+        ROUND(COUNT(CASE WHEN ar.status = 'present' THEN 1 END) / NULLIF(COUNT(ar.id), 0) * 100, 2) as attendance_rate
       FROM staff st
       JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
-      LEFT JOIN staff_attendance sa ON st.id = sa.staff_id 
-        AND sa.date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      LEFT JOIN attendance_records ar ON ar.person_id = st.person_id AND ar.role_type = 'staff'
+        AND ar.school_id = st.school_id
+        AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
       WHERE st.school_id = ? AND st.status = 'active'
       GROUP BY st.id, p.first_name, p.last_name, st.position
       ORDER BY attendance_rate DESC
@@ -113,50 +102,35 @@ export async function GET(req: NextRequest) {
 
     // Daily attendance overview
     const dailyOverview = await connection.execute(`
-      SELECT 
-        sa.date as date,
-        'student' as type,
-        COUNT(CASE WHEN sa.status = 'present' THEN 1 END) as present,
-        COUNT(CASE WHEN sa.status = 'absent' THEN 1 END) as absent,
-        COUNT(sa.id) as total
-      FROM student_attendance sa
-      JOIN students s ON sa.student_id = s.id AND s.deleted_at IS NULL
-      WHERE s.school_id = ? 
-      AND sa.date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-      GROUP BY sa.date
-      
-      UNION ALL
-      
-      SELECT 
-        sa.date as date,
-        'staff' as type,
-        COUNT(CASE WHEN sa.status = 'present' THEN 1 END) as present,
-        COUNT(CASE WHEN sa.status = 'absent' THEN 1 END) as absent,
-        COUNT(sa.id) as total
-      FROM staff_attendance sa
-      JOIN staff st ON sa.staff_id = st.id
-      WHERE st.school_id = ?
-      AND sa.date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-      GROUP BY sa.date
-      
+      SELECT
+        ar.attendance_date as date,
+        ar.role_type as type,
+        COUNT(CASE WHEN ar.status = 'present' THEN 1 END) as present,
+        COUNT(CASE WHEN ar.status = 'absent' THEN 1 END) as absent,
+        COUNT(ar.id) as total
+      FROM attendance_records ar
+      WHERE ar.school_id = ?
+      AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      GROUP BY ar.attendance_date, ar.role_type
       ORDER BY date DESC, type
-    `, [schoolId, days, schoolId, days]);
+    `, [schoolId, days]);
 
     // Attendance correlation with performance
     const attendancePerformanceCorrelation = await connection.execute(`
-      SELECT 
+      SELECT
         s.id as student_id,
         CONCAT(p.first_name, ' ', p.last_name) as student_name,
         c.name as class_name,
-        ROUND(COUNT(CASE WHEN sa.status = 'present' THEN 1 END) / NULLIF(COUNT(sa.id), 0) * 100, 2) as attendance_rate,
+        ROUND(COUNT(CASE WHEN ar.status = 'present' THEN 1 END) / NULLIF(COUNT(ar.id), 0) * 100, 2) as attendance_rate,
         AVG(cr.score) as avg_performance,
         COUNT(cr.id) as subject_count
       FROM students s
       JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       JOIN classes c ON e.class_id = c.id
-      LEFT JOIN student_attendance sa ON s.id = sa.student_id 
-        AND sa.date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      LEFT JOIN attendance_records ar ON ar.person_id = s.person_id AND ar.role_type = 'student'
+        AND ar.school_id = s.school_id
+        AND ar.attendance_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
       LEFT JOIN class_results cr ON s.id = cr.student_id
       WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
       GROUP BY s.id, p.first_name, p.last_name, c.name

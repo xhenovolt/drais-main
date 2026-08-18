@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
                 // ── Dedup by reg_no / admission_no ────────────────────────────
                 if (regNo && options.updateExisting) {
                   const [existing] = await conn.execute(
-                    'SELECT s.id FROM students s WHERE s.admission_no = ? AND s.school_id = ? LIMIT 1',
+                    'SELECT s.id FROM students s WHERE s.admission_no = ? AND s.school_id = ? AND s.deleted_at IS NULL LIMIT 1',
                     [regNo, schoolId]
                   ) as any[];
                   if ((existing as any[]).length > 0) {

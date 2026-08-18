@@ -43,17 +43,21 @@ export async function POST(
     await connection.beginTransaction();
 
     try {
-      // Get student's school_id
+      // Tenant isolation fix (stability-roadmap Phase 3, deleted_at sweep):
+      // this previously fetched the TARGET student's school_id and used it
+      // as-is, without ever checking it against the caller's own session
+      // schoolId — a session from one school could create/update a
+      // contact for a student belonging to a DIFFERENT school as long as
+      // the student_id was known/guessed. Now verifies the student
+      // actually belongs to the caller's own school before proceeding.
       const [student]: any = await connection.execute(
-        'SELECT school_id FROM students WHERE id = ?',
-        [studentId]
+        'SELECT school_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+        [studentId, schoolId]
       );
 
       if (student.length === 0) {
         throw new Error('Student not found');
       }
-
-      const schoolId = student[0].school_id;
 
       // Check if primary contact exists
       const [existing]: any = await connection.execute(

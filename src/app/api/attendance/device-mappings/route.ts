@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
          sc.name AS class_name,
          st.position AS staff_position
        FROM zk_user_mapping m
-       LEFT JOIN students s ON m.student_id = s.id
+       LEFT JOIN students s ON m.student_id = s.id AND s.deleted_at IS NULL
        LEFT JOIN people sp ON s.person_id = sp.id
        LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
        LEFT JOIN classes sc ON e.class_id = sc.id
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
          sc.name AS class_name,
          st.position AS staff_position
        FROM device_users du
-       LEFT JOIN students s ON du.person_type = 'student' AND du.person_id = s.id
+       LEFT JOIN students s ON du.person_type = 'student' AND du.person_id = s.id AND s.deleted_at IS NULL
        LEFT JOIN staff st ON du.person_type = 'teacher' AND du.person_id = st.id
        LEFT JOIN people p ON (s.person_id = p.id OR st.person_id = p.id)
        LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'

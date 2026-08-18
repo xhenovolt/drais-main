@@ -6,6 +6,17 @@ import { checkModule } from '@/lib/auth/requireModule';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
 import { logAudit, AuditAction } from '@/lib/audit';
 
+/**
+ * KNOWN BROKEN (found during stability-roadmap deleted_at sweep, 2026-08-18):
+ * this route reads/writes student_attendance or staff_attendance -- the
+ * pre-engine legacy tables, confirmed 0 rows in production. The real
+ * attendance ENGINE (src/lib/attendance/engine) writes attendance_records
+ * instead, keyed by (person_id, role_type). No live frontend caller was
+ * found for this route -- superseded, not currently exercised. See
+ * /api/analytics/attendance's header comment for the full writeup and
+ * the reference implementation for repointing at attendance_records.
+ */
+
 function escapeCsv(value: string): string {
   if (/[",\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;

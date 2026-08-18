@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
            SET p.first_name = COALESCE(NULLIF(?, ''), p.first_name),
                p.last_name = COALESCE(NULLIF(?, ''), p.last_name),
                p.updated_at = CURRENT_TIMESTAMP
-           WHERE s.id = ? AND p.school_id = ?`,
+           WHERE s.id = ? AND p.school_id = ? AND s.deleted_at IS NULL AND p.deleted_at IS NULL`,
           [firstName, lastName, studentId, session.schoolId],
         );
         updated++;

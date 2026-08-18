@@ -35,10 +35,32 @@ export async function GET(req: NextRequest) {
     const currentTerm  = termRows[0] ?? null;
     const previousTerm = termRows[1] ?? null;
 
+    // ── Unmapped punch backlog — not term-scoped, so computed regardless
+    //    of whether a current term exists. Stability-roadmap Phase 3:
+    //    the review UI already exists (/attendance/device-control shows
+    //    per-device matched/unmatched counts), but nothing surfaced the
+    //    aggregate backlog proactively — an admin had to know to look.
+    const [unmappedRows] = await connection.execute(
+      `SELECT COUNT(*) AS cnt FROM attendance_raw_events WHERE school_id = ? AND matched = 0`,
+      [schoolId]
+    ) as any[];
+    const unmappedPunchCount = n((unmappedRows as any[])[0]?.cnt);
+
     if (!currentTerm) {
+      const signals = [];
+      if (unmappedPunchCount > 0) {
+        signals.push({
+          type: 'warning',
+          icon: '📡',
+          label: `${unmappedPunchCount} unmapped punch${unmappedPunchCount !== 1 ? 'es' : ''}`,
+          detail: 'Device scans DRAIS could not match to a person — review in Device Control',
+          value: unmappedPunchCount,
+          action: '/attendance/device-control',
+        });
+      }
       return NextResponse.json({
         ok: true,
-        signals: [],
+        signals,
         meta: { currentTerm: null, previousTerm: null },
       });
     }
@@ -172,6 +194,17 @@ export async function GET(req: NextRequest) {
 
     // ── Build signals array ──────────────────────────────────────────────────
     const signals = [];
+
+    if (unmappedPunchCount > 0) {
+      signals.push({
+        type: 'warning',
+        icon: '📡',
+        label: `${unmappedPunchCount} unmapped punch${unmappedPunchCount !== 1 ? 'es' : ''}`,
+        detail: 'Device scans DRAIS could not match to a person — review in Device Control',
+        value: unmappedPunchCount,
+        action: '/attendance/device-control',
+      });
+    }
 
     if (atRiskCount > 0) {
       signals.push({

@@ -84,8 +84,8 @@ export async function GET(req: NextRequest) {
        FROM ledger l
        JOIN wallets w        ON w.id = l.wallet_id
        LEFT JOIN finance_categories fc ON fc.id = l.category_id
-       LEFT JOIN students  st  ON st.id  = l.student_id
-       LEFT JOIN people    pe  ON pe.id  = st.person_id
+       LEFT JOIN students  st  ON st.id  = l.student_id AND st.deleted_at IS NULL
+       LEFT JOIN people    pe  ON pe.id  = st.person_id AND pe.deleted_at IS NULL
        LEFT JOIN staff     stf ON stf.id = l.staff_id
        LEFT JOIN people    pst ON pst.id = stf.person_id
        ${whereSql}

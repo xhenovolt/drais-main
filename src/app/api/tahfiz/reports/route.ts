@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         ay.name as academic_year
 
       FROM students s
-      JOIN people p ON s.person_id = p.id
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id AND c.name = 'tahfiz'
       LEFT JOIN streams st ON e.stream_id = st.id

@@ -184,8 +184,8 @@ async function handleParsed(schoolId: number, f: ParsedFilters) {
          CONCAT(COALESCE(tp.first_name, ''), ' ', COALESCE(tp.last_name, '')) AS staff_name
        FROM zk_parsed_logs p
        LEFT JOIN devices d ON d.sn = p.device_sn
-       LEFT JOIN students stu ON stu.id = p.student_id AND stu.school_id = p.school_id
-       LEFT JOIN people sp ON sp.id = stu.person_id
+       LEFT JOIN students stu ON stu.id = p.student_id AND stu.school_id = p.school_id AND stu.deleted_at IS NULL
+       LEFT JOIN people sp ON sp.id = stu.person_id AND sp.deleted_at IS NULL
        LEFT JOIN staff stf ON stf.id = p.staff_id AND stf.school_id = p.school_id
        LEFT JOIN people tp ON tp.id = stf.person_id
        WHERE ${where}

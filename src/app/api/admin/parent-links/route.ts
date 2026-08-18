@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
             psl.relationship, psl.status, psl.verified_via, psl.requested_at, psl.approved_at
        FROM parent_student_links psl
        JOIN parent_accounts pa ON pa.id = psl.parent_account_id
-       JOIN students s         ON s.id = psl.student_id
+       JOIN students s         ON s.id = psl.student_id AND s.deleted_at IS NULL
        LEFT JOIN people lp     ON lp.id = s.person_id
       WHERE psl.school_id = ?
         AND psl.status = ?

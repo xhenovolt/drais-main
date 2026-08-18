@@ -69,12 +69,15 @@ async function listFingerprints(req: NextRequest) {
         CONCAT(p.first_name, ' ', p.last_name) as student_name
       FROM student_fingerprints sf
       LEFT JOIN biometric_devices bd ON sf.device_id = bd.id
-      LEFT JOIN students s ON sf.student_id = s.id
-      LEFT JOIN people p ON s.person_id = p.id
-      WHERE 1=1
+      LEFT JOIN students s ON sf.student_id = s.id AND s.deleted_at IS NULL
+      LEFT JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
+      WHERE sf.school_id = ?
     `;
 
-    const params: any[] = [];
+    // Tenant isolation fix (stability-roadmap Phase 3, deleted_at sweep):
+    // this previously had NO school_id filter at all -- WHERE 1=1 -- any
+    // authenticated session could list every school's fingerprint records.
+    const params: any[] = [schoolId];
 
     if (studentId) {
       sql += ` AND sf.student_id = ?`;
@@ -112,6 +115,15 @@ async function listFingerprints(req: NextRequest) {
 async function registerUSBFingerprint(req: NextRequest) {
   let connection;
   try {
+    // Bug fix (stability-roadmap Phase 3, deleted_at sweep, 2026-08-18):
+    // this endpoint had NO authentication check at all, and derived its
+    // schoolId from whatever student_id was submitted rather than the
+    // caller's own session -- any unauthenticated request could write a
+    // biometric fingerprint template against any student in any school.
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const {
       student_id,
@@ -132,10 +144,10 @@ async function registerUSBFingerprint(req: NextRequest) {
 
     connection = await getConnection();
 
-    // Get student info
+    // Get student info — now tenant-scoped to the caller's own school.
     const [students] = await connection.execute(
-      'SELECT school_id FROM students WHERE id = ?',
-      [student_id]
+      'SELECT school_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
+      [student_id, schoolId]
     );
 
     if (!Array.isArray(students) || students.length === 0) {
@@ -144,8 +156,6 @@ async function registerUSBFingerprint(req: NextRequest) {
         error: 'Student not found'
       }, { status: 404 });
     }
-
-    const schoolId = (students[0] as any).school_id;
 
     // Check if this student already has a fingerprint for this position
     const [existing] = await connection.execute(
@@ -211,6 +221,14 @@ async function registerUSBFingerprint(req: NextRequest) {
 async function linkExistingFingerprint(req: NextRequest) {
   let connection;
   try {
+    // Bug fix (stability-roadmap Phase 3, deleted_at sweep, 2026-08-18):
+    // same class of gap as registerUSBFingerprint above — no
+    // authentication check, and school_id derived from the target
+    // student rather than verified against the caller's own session.
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const schoolId = session.schoolId;
+
     const body = await req.json();
     const {
       student_id,
@@ -234,9 +252,16 @@ async function linkExistingFingerprint(req: NextRequest) {
         school_id, student_id, device_id, finger_position, hand,
         biometric_uuid, status, is_active, created_at
       ) SELECT s.school_id, ?, ?, ?, ?, ?, 'active', 1, NOW()
-      FROM students s WHERE s.id = ?`,
-      [student_id, device_id, finger_position, hand, biometric_uuid, student_id]
+      FROM students s WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL`,
+      [student_id, device_id, finger_position, hand, biometric_uuid, student_id, schoolId]
     );
+
+    if ((result as any).affectedRows === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Student not found in your school'
+      }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,

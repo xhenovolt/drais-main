@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
     const [rows] = await connection.execute(
       `SELECT sa.*, p.first_name, p.last_name
        FROM student_attendance sa
-       JOIN students s ON sa.student_id = s.id
-       JOIN people p ON s.person_id = p.id
+       JOIN students s ON sa.student_id = s.id AND s.deleted_at IS NULL
+       JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
        WHERE s.school_id = ? AND sa.date = ?
        ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC`,
       [schoolId, date]
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     // Verify student belongs to this school
     connection = await getConnection();
     const [stuCheck]: any = await connection.execute(
-      'SELECT id FROM students WHERE id = ? AND school_id = ?',
+      'SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL',
       [studentId, schoolId]
     );
     if (!stuCheck || stuCheck.length === 0) {

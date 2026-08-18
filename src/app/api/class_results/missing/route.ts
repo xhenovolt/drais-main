@@ -48,8 +48,8 @@ export async function GET(req: NextRequest) {
         `SELECT e.id as enrollment_id, e.student_id, e.class_id, e.term_id,
                 p.first_name, p.last_name, s.admission_no
          FROM enrollments e
-         JOIN students s ON s.id = e.student_id
-         JOIN people p ON p.id = s.person_id
+         JOIN students s ON s.id = e.student_id AND s.deleted_at IS NULL
+         JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
          WHERE e.class_id = ? AND e.status = 'active' AND s.school_id = ?
          ORDER BY p.first_name ASC, p.last_name ASC`,
         [classId, schoolId]
@@ -61,8 +61,8 @@ export async function GET(req: NextRequest) {
         SELECT e.id as enrollment_id, e.student_id, e.class_id, e.term_id,
                p.first_name, p.last_name, s.admission_no
         FROM enrollments e
-        JOIN students s ON s.id = e.student_id
-        JOIN people p ON p.id = s.person_id
+        JOIN students s ON s.id = e.student_id AND s.deleted_at IS NULL
+        JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
         LEFT JOIN class_results r
           ON r.student_id = s.id
           AND r.class_id = e.class_id

@@ -52,9 +52,9 @@ export async function GET(req: NextRequest) {
       LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN sections st ON e.section_id = st.id
-      WHERE s.id = ?
+      WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
     `;
-    const [students] = await connection.execute(studentSql, [studentId || invoiceId]);
+    const [students] = await connection.execute(studentSql, [studentId || invoiceId, schoolId]);
     const student = students[0];
     
     if (!student) {
@@ -213,14 +213,16 @@ export async function POST(req: NextRequest) {
     connection = await getConnection();
     await connection.beginTransaction();
     
-    // Get student info
+    // Get student info — tenant-scoped: this previously had no school_id
+    // check at all, so a session from one school could create an invoice
+    // against a student_id belonging to a DIFFERENT school.
     const [students] = await connection.execute(`
       SELECT s.id, s.admission_no, p.first_name, p.last_name
       FROM students s
       JOIN people p ON s.person_id = p.id
-      WHERE s.id = ?
-    `, [student_id]);
-    
+      WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+    `, [student_id, schoolId]);
+
     if (!students.length) {
       throw new Error('Student not found');
     }

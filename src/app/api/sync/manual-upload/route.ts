@@ -161,14 +161,23 @@ export async function POST(req: NextRequest) {
           const firstName = parts.slice(0, -1).join(' ') || parts[0] || name;
           const lastName  = parts.slice(-1)[0] || '';
 
+          // Bug fix (stability-roadmap Phase 3, deleted_at sweep): name
+          // lives on `people`, not `students` -- first_name/last_name
+          // don't exist on `students` at all, so both the SELECT and the
+          // UPDATE below always threw (caught, but every name-sync
+          // attempt silently failed).
           const studRows = await query(
-            `SELECT first_name, last_name FROM students WHERE id = ? AND school_id = ? LIMIT 1`,
+            `SELECT p.first_name, p.last_name FROM students s
+               JOIN people p ON p.id = s.person_id AND p.deleted_at IS NULL
+              WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL LIMIT 1`,
             [mapping.student_id, schoolId],
           );
           const stu = studRows[0];
           if (stu && (stu.first_name !== firstName || stu.last_name !== lastName)) {
             await query(
-              `UPDATE students SET first_name = ?, last_name = ? WHERE id = ? AND school_id = ?`,
+              `UPDATE people p JOIN students s ON s.person_id = p.id
+                  SET p.first_name = ?, p.last_name = ?
+                WHERE s.id = ? AND s.school_id = ?`,
               [firstName, lastName, mapping.student_id, schoolId],
             );
             result.users_name_updated++;

@@ -36,11 +36,12 @@ export async function GET(request: NextRequest) {
           st.admission_no,
           p.photo_url as avatar
         FROM tahfiz_group_members gm
-        JOIN students st ON gm.student_id = st.id
-        JOIN people p ON st.person_id = p.id
-        WHERE gm.group_id = ?
+        JOIN students st ON gm.student_id = st.id AND st.deleted_at IS NULL
+        JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
+        JOIN tahfiz_groups g ON g.id = gm.group_id
+        WHERE gm.group_id = ? AND g.school_id = ?
         ORDER BY gm.joined_at DESC
-      `, [groupId]);
+      `, [groupId, schoolId]);
 
       return NextResponse.json({
         success: true,
@@ -60,13 +61,14 @@ export async function GET(request: NextRequest) {
           c.name as class_name,
           curr.name as curriculum_name
         FROM students s
-        JOIN people p ON s.person_id = p.id
+        JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
         LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
         LEFT JOIN classes c ON e.class_id = c.id
         LEFT JOIN student_curriculums sc ON s.id = sc.student_id AND sc.active = 1
         LEFT JOIN curriculums curr ON sc.curriculum_id = curr.id
-        WHERE s.school_id = ? 
+        WHERE s.school_id = ?
         AND s.status = 'active'
+        AND s.deleted_at IS NULL
         AND (
           -- Students in theology curriculum
           curr.code = 'theology' 
@@ -144,9 +146,9 @@ export async function POST(request: NextRequest) {
     const [studentCheck] = await connection.execute(`
       SELECT st.id, st.school_id, p.first_name, p.last_name, st.admission_no
       FROM students st
-      JOIN people p ON st.person_id = p.id
+      JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
       JOIN tahfiz_groups g ON g.school_id = st.school_id
-      WHERE st.id = ? AND g.id = ? AND st.status = 'active'
+      WHERE st.id = ? AND g.id = ? AND st.status = 'active' AND st.deleted_at IS NULL
     `, [student_id, group_id]);
 
     if ((studentCheck as any[]).length === 0) {
@@ -178,8 +180,8 @@ export async function POST(request: NextRequest) {
         st.admission_no,
         p.photo_url as avatar
       FROM tahfiz_group_members gm
-      JOIN students st ON gm.student_id = st.id
-      JOIN people p ON st.person_id = p.id
+      JOIN students st ON gm.student_id = st.id AND st.deleted_at IS NULL
+      JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
       WHERE gm.id = ?
     `, [newMemberId]);
 

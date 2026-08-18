@@ -6,6 +6,20 @@ import { checkModule } from '@/lib/auth/requireModule';
 /**
  * POST /api/attendance/reports
  * Generate attendance reports
+ *
+ * ⚠️ KNOWN BROKEN — reads `student_attendance`, the pre-engine schema
+ * table confirmed empty in production (0 rows) — same root cause already
+ * fixed in /api/analytics/attendance (see that route's header comment
+ * for the full writeup). The attendance ENGINE writes attendance_records
+ * instead, keyed by (person_id, role_type), joined through people rather
+ * than student_id directly. No frontend caller currently reaches this
+ * route (checked during the stability-roadmap deleted_at sweep), so this
+ * is annotated rather than rewritten here — same reasoning, don't expand
+ * a mechanical sweep into an untested 5-query rewrite of a route nothing
+ * currently calls. Repoint at attendance_records using
+ * /api/analytics/attendance or /api/reports/custom's 'attendance'
+ * dataset as the reference implementation when this route is next
+ * touched for real use.
  */
 export async function POST(req: NextRequest) {
   let connection;

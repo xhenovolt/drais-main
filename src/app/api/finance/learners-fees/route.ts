@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         st.name as stream_name,
         s.status as student_status
       FROM students s
-      LEFT JOIN people p ON s.person_id = p.id
+      LEFT JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       -- ONE enrollment per learner, never a fan-out.
       --
       -- Filtering on status alone multiplies every fee row by the number of
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN enrollments e ON e.id = le.id
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN streams st ON e.stream_id = st.id
-      WHERE s.school_id = ?
+      WHERE s.school_id = ? AND s.deleted_at IS NULL
       AND s.status NOT IN ('dropped_out', 'expelled', 'transferred')
     `;
 
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
       FROM student_fee_items sfi
       JOIN students s_inner    ON sfi.student_id     = s_inner.id
       LEFT JOIN terms t        ON sfi.term_id        = t.id
-      WHERE s_inner.school_id = ?
+      WHERE s_inner.school_id = ? AND s_inner.deleted_at IS NULL
     `;
 
     const feeItemsParams: any[] = [schoolId];

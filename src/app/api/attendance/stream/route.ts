@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
              LEFT JOIN attendance_raw_events re
                ON re.legacy_table = 'zk_attendance_logs' AND re.legacy_id = al.id
              LEFT JOIN devices d   ON al.device_sn = d.sn
-             LEFT JOIN students st ON al.student_id = st.id
-             LEFT JOIN people sp   ON st.person_id = sp.id
+             LEFT JOIN students st ON al.student_id = st.id AND st.deleted_at IS NULL
+             LEFT JOIN people sp   ON st.person_id = sp.id AND sp.deleted_at IS NULL
              LEFT JOIN enrollments en ON en.student_id = st.id AND en.status = 'active'
              LEFT JOIN classes cl  ON en.class_id = cl.id
              LEFT JOIN staff stf   ON al.staff_id = stf.id

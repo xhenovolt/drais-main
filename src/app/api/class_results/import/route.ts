@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
       let studentId = null;
       if (rowData.admission_no) {
         const [students]: any = await connection.execute(
-          'SELECT id FROM students WHERE admission_no = ? AND school_id = ?',
+          'SELECT id FROM students WHERE admission_no = ? AND school_id = ? AND deleted_at IS NULL',
           [rowData.admission_no, schoolId]
         );
         if (students.length > 0) {

@@ -17,21 +17,27 @@ export async function POST(req: NextRequest) {
     const connection = await getConnection();
 
     try {
+      // Tenant isolation fix (stability-roadmap Phase 3, deleted_at
+      // sweep): schoolId was derived from session but never used in
+      // either query below -- any authenticated session could bulk-
+      // create fee items for another school's students, scoped only by
+      // term_id (not globally unique to a single school).
+
       // Fetch all students who are enrolled in the term
       const [students] = await connection.execute(
         `SELECT s.id AS student_id, e.class_id
          FROM students s
          JOIN enrollments e ON s.id = e.student_id
-         WHERE e.term_id = ? AND e.status = 'active'`,
-        [term_id]
+         WHERE e.term_id = ? AND e.status = 'active' AND s.school_id = ? AND s.deleted_at IS NULL`,
+        [term_id, schoolId]
       );
 
       // Fetch fee structure items for the term
       const [feeItems] = await connection.execute(
         `SELECT class_id, item, amount
          FROM fee_structures
-         WHERE term_id = ?`,
-        [term_id]
+         WHERE term_id = ? AND school_id = ?`,
+        [term_id, schoolId]
       );
 
       if (!students.length || !feeItems.length) {

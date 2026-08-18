@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
   // 2. Confirm the chosen person belongs to the same school.
   if (studentId) {
     const ok = (await query(
-      `SELECT id FROM students WHERE id = ? AND school_id = ? LIMIT 1`,
+      `SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
       [studentId, session.schoolId],
     )) as Array<{ id: number }>;
     if (ok.length === 0) return NextResponse.json({ error: 'Student not in your school' }, { status: 404 });

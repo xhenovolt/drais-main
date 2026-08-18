@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
 
     const baseFrom = `
       FROM student_fee_items sfi
-      JOIN students s ON sfi.student_id = s.id
-      JOIN people p ON s.person_id = p.id
+      JOIN students s ON sfi.student_id = s.id AND s.deleted_at IS NULL
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       -- ONE enrollment per learner, never a fan-out.
       --
       -- Filtering on status alone multiplies every fee row by the number of
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
         SELECT s.id
         FROM students s
         JOIN enrollments e ON s.id = e.student_id
-        WHERE e.class_id = ? AND e.term_id = ? AND e.status = 'active'
+        WHERE e.class_id = ? AND e.term_id = ? AND e.status = 'active' AND s.deleted_at IS NULL
       `, [class_id, term_id]);
 
       // Create fee items for all students

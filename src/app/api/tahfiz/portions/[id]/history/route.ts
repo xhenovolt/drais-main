@@ -36,11 +36,11 @@ export async function GET(
         tg.name as group_name,
         CONCAT(tp.first_name, ' ', tp.last_name) as teacher_name
       FROM students s
-      JOIN people p ON s.person_id = p.id
+      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
       LEFT JOIN tahfiz_group_members tgm ON s.id = tgm.student_id
       LEFT JOIN tahfiz_groups tg ON tgm.group_id = tg.id
       LEFT JOIN people tp ON tg.teacher_id = tp.id
-      WHERE s.id = ? AND s.school_id = ?
+      WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
     `, [studentId, schoolId]);
 
     if ((studentRows as any[]).length === 0) {

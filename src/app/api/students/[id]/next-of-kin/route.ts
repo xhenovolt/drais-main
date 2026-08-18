@@ -5,7 +5,7 @@ import { requirePermission } from '@/lib/rbac';
 
 async function assertStudent(conn: any, studentId: string, schoolId: number) {
   const [rows]: any = await conn.execute(
-    `SELECT id FROM students WHERE id = ? AND school_id = ?`,
+    `SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL`,
     [studentId, schoolId]
   );
   return rows.length > 0;
