@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     const rows = await query(
       `SELECT
          c.id, c.status, c.command, c.device_sn, c.sent_at, c.ack_at,
-         c.error_message, c.created_at, c.expires_at,
+         c.error_message, c.created_at, c.expires_at, c.school_id,
          d.device_name
        FROM zk_device_commands c
        LEFT JOIN devices d ON c.device_sn = d.sn
@@ -48,6 +48,9 @@ export async function GET(req: NextRequest) {
     }
 
     const cmd = rows[0];
+    if (cmd.school_id != null && cmd.school_id !== session.schoolId && !session.isSuperAdmin) {
+      return NextResponse.json({ error: 'Command belongs to another school' }, { status: 403 });
+    }
 
     return NextResponse.json({
       success: true,

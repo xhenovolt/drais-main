@@ -22,13 +22,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
     }
 
-    // Verify device exists (devices are school-agnostic)
+    // Verify device exists AND belongs to the caller's school — a device
+    // with school_id set to a DIFFERENT school must be rejected, not
+    // silently adopted into the caller's school via `|| session.schoolId`
+    // (that fallback is only correct when the device has no owner yet).
     const device = await query(
       'SELECT id, sn, school_id FROM devices WHERE sn = ? AND deleted_at IS NULL',
       [device_sn],
     );
     if (!device || device.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
+    }
+    if (device[0].school_id != null && device[0].school_id !== session.schoolId && !session.isSuperAdmin) {
+      return NextResponse.json({ error: 'Device belongs to another school' }, { status: 403 });
     }
 
     const deviceSchoolId = device[0].school_id || session.schoolId;
@@ -96,12 +102,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Look up device (devices are school-agnostic)
+    // Look up device AND verify ownership — same rule as the POST handler.
     const deviceRow = await query('SELECT school_id FROM devices WHERE sn = ? AND deleted_at IS NULL', [deviceSn]);
     if (!deviceRow || deviceRow.length === 0) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
-    const deviceSchoolId = deviceRow[0].school_id || session.schoolId;
+    if (deviceRow[0].school_id != null && deviceRow[0].school_id !== session.schoolId && !session.isSuperAdmin) {
+      return NextResponse.json({ error: 'Device belongs to another school' }, { status: 403 });
+    }
 
     // Get latest USERINFO command for this device
     const cmd = await query(

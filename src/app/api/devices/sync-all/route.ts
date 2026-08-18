@@ -34,12 +34,18 @@ export async function POST(req: NextRequest) {
   const { device_sn } = body;
   if (!device_sn) return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
 
-  // Verify device exists and belongs to school
+  // Verify device exists and belongs to school. The comment above always
+  // claimed this check; the code never actually did it — any authenticated
+  // user of any school could push USERINFO updates (names included) to a
+  // device owned by a different school.
   const deviceRows = await query(
     `SELECT id, sn, school_id FROM devices WHERE sn = ? LIMIT 1`,
     [device_sn],
   );
   if (!deviceRows?.length) return NextResponse.json({ error: 'Device not found' }, { status: 404 });
+  if (deviceRows[0].school_id != null && deviceRows[0].school_id !== session.schoolId && !session.isSuperAdmin) {
+    return NextResponse.json({ error: 'Device belongs to another school' }, { status: 403 });
+  }
 
   const deviceSchoolId = deviceRows[0].school_id || session.schoolId;
 

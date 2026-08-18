@@ -44,6 +44,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const conditions: string[] = ['1=1'];
     const params: unknown[]    = [];
 
+    // Tenant scope — zdl.school_id exists on every row (see the joins
+    // below) but was never actually filtered on, despite the destructured
+    // `schoolId` above and the "scoped to school" comment on the summary
+    // query further down. Any authenticated user of any school could see
+    // every school's device logs, punches, and resolved student/staff
+    // names. Fixed here for the summary, count, and data queries alike.
+    if (!session.isSuperAdmin) {
+      conditions.push('zdl.school_id = ?');
+      params.push(schoolId);
+    }
     if (deviceSn) {
       conditions.push('zdl.device_sn = ?');
       params.push(deviceSn);
@@ -86,8 +96,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
            SUM(CASE WHEN event_type = 'PUNCH_SAVED' AND matched = 0      THEN 1 ELSE 0 END) AS unmatched_24h,
            COUNT(DISTINCT device_sn)                                                         AS active_devices_24h
          FROM zk_device_logs
-         WHERE created_at >= NOW() - INTERVAL 24 HOUR`,
-        [],
+         WHERE created_at >= NOW() - INTERVAL 24 HOUR
+           ${session.isSuperAdmin ? '' : 'AND school_id = ?'}`,
+        session.isSuperAdmin ? [] : [schoolId],
       ),
       query(
         `SELECT COUNT(*) AS total FROM zk_device_logs zdl WHERE ${where}`,

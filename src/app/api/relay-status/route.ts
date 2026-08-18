@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getSessionSchoolId } from '@/lib/auth';
+import { resolveDeviceForSession } from '@/lib/biometric/device-access';
 
 export const runtime = 'nodejs';
 
@@ -77,9 +79,18 @@ export async function GET(req: NextRequest) {
   }
 
   // ── UI Status Check ─────────────────────────────────────────────────────
-  // Check relay agent status and recent command results
+  // Check relay agent status and recent command results. Unlike the relay
+  // agent's own poll (above, gated by RELAY_KEY), this branch is reached
+  // by a browser — it had NO auth check at all before this fix, so any
+  // caller could read another school's relay/device command history by
+  // just naming its device_sn.
   let relayStatus = null;
   if (deviceSn) {
+    const session = await getSessionSchoolId(req);
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const access = await resolveDeviceForSession(session, deviceSn);
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
     const rows = await query(
       `SELECT device_sn, last_seen, status,
               TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS seconds_ago
@@ -211,10 +222,19 @@ export async function POST(req: NextRequest) {
   }
 
   // ── UI Queuing Command ─────────────────────────────────────────────────
+  // Reached by a browser (not the relay agent, which reports results via
+  // the relay_key branch above) — had NO auth check at all before this
+  // fix, so any caller could queue an arbitrary command against any
+  // school's device.
   const { device_sn, action, params } = body;
   if (!device_sn || !action) {
     return NextResponse.json({ error: 'device_sn and action are required' }, { status: 400 });
   }
+
+  const session = await getSessionSchoolId(req);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const access = await resolveDeviceForSession(session, device_sn);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const result = await query(
     `INSERT INTO relay_commands (device_sn, action, params, status, created_at)

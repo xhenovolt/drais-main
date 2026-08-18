@@ -26,10 +26,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'command_id is required' }, { status: 400 });
   }
 
+  // relay_commands has no school_id of its own — keyed by device_sn only —
+  // so scope via the owning device, same pattern as system_logs.
   const rows = await query(
-    `SELECT id, device_sn, action, params, status, result, error_message,
-            created_at, sent_at, completed_at
-     FROM relay_commands WHERE id = ? LIMIT 1`,
+    `SELECT rc.id, rc.device_sn, rc.action, rc.params, rc.status, rc.result, rc.error_message,
+            rc.created_at, rc.sent_at, rc.completed_at, d.school_id AS device_school_id
+     FROM relay_commands rc
+     LEFT JOIN devices d ON d.sn = rc.device_sn
+     WHERE rc.id = ? LIMIT 1`,
     [commandId],
   );
 
@@ -38,6 +42,9 @@ export async function GET(req: NextRequest) {
   }
 
   const cmd = rows[0];
+  if (cmd.device_school_id != null && cmd.device_school_id !== session.schoolId && !session.isSuperAdmin) {
+    return NextResponse.json({ error: 'Command belongs to a device in another school' }, { status: 403 });
+  }
 
   // Also check if relay agent is currently online for this device
   const agentRows = await query(

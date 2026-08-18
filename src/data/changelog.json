@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T15:07:46.461Z",
-  "last_commit": "8e3e5de36814fe4ed28396e094b60892f813dd38",
+  "generated_at": "2026-08-18T16:43:38.277Z",
+  "last_commit": "3222436903e89f85454fddb89482d39f47826fbb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6943,7 +6943,20 @@
         }
       ],
       "commit": "8e3e5de368"
+    },
+    {
+      "version": "1.173.72",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Extend audit logging to school/device/comm config-change routes",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Extend audit logging to school/device/comm config-change routes"
+        }
+      ],
+      "commit": "3222436903"
     }
   ],
-  "app_version": "1.173.72"
+  "app_version": "1.173.73"
 }

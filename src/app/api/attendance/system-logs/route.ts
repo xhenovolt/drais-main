@@ -29,6 +29,16 @@ export async function GET(req: NextRequest) {
     const conditions: string[] = [];
     const params: any[] = [];
 
+    // Tenant scope: system_logs has no school_id column of its own —
+    // it's keyed by device_sn only — so scope via the owning device.
+    // A super-admin sees everything; everyone else sees only logs from
+    // devices their own school owns. Logs from an unregistered/foreign
+    // device_sn (no matching devices row) are excluded for non-super-
+    // admins rather than shown — the conservative default for isolation.
+    if (!session.isSuperAdmin) {
+      conditions.push('d.school_id = ?');
+      params.push(session.schoolId);
+    }
     if (eventType) {
       conditions.push('sl.event_type = ?');
       params.push(eventType);
@@ -48,7 +58,7 @@ export async function GET(req: NextRequest) {
     let total = 0;
     if (sinceId === 0) {
       const countResult = await query(
-        `SELECT COUNT(*) AS total FROM system_logs sl ${where}`,
+        `SELECT COUNT(*) AS total FROM system_logs sl LEFT JOIN devices d ON sl.device_sn = d.sn ${where}`,
         params,
       );
       total = Number(countResult[0]?.total || 0);
@@ -68,13 +78,15 @@ export async function GET(req: NextRequest) {
     );
 
     // Device health: check which devices haven't heartbeat in 2 min
+    // (same tenant scope as the logs above)
     const offlineDevices = await query(
       `SELECT sn, device_name, last_seen,
               TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS seconds_ago
        FROM devices
        WHERE TIMESTAMPDIFF(SECOND, last_seen, NOW()) > 120
+         ${session.isSuperAdmin ? '' : 'AND school_id = ?'}
        ORDER BY last_seen DESC`,
-      [],
+      session.isSuperAdmin ? [] : [session.schoolId],
     );
 
     return NextResponse.json({
@@ -95,12 +107,18 @@ export async function GET(req: NextRequest) {
  * DELETE /api/attendance/system-logs
  *
  * Cleanup: delete HEARTBEAT logs older than 7 days.
- * Only admins can run this.
+ * system_logs isn't tenant-scoped (see the GET handler's note), so this
+ * purge is platform-wide by nature — restricted to super-admin rather
+ * than any authenticated school admin, who has no business clearing
+ * other schools' device logs.
  */
 export async function DELETE(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  if (!session.isSuperAdmin) {
+    return NextResponse.json({ error: 'Forbidden — platform-wide log cleanup requires super-admin' }, { status: 403 });
   }
 
   try {
