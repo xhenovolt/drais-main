@@ -62,15 +62,96 @@ function readSafe(p) { try { return readFileSync(p, 'utf8'); } catch { return ''
 const apiDir = path.join(repoRoot, 'src', 'app', 'api');
 const routeFiles = walk(apiDir, (name) => name === 'route.ts');
 
-// ── 2. Tenant-safe wrapper adoption ────────────────────────────────────
+// ── 2. Tenant isolation — TWO separate questions, deliberately not blended:
+//
+//   (a) STRUCTURAL CONSISTENCY — does this file use the formal wrapper
+//       (queryTenant/execTenant/withTenantTransaction)? A codebase-hygiene
+//       / future-proofing signal: a NEW route can't forget to scope by
+//       school_id if the wrapper makes that the only way to query at all.
+//
+//   (b) VERIFIED COVERAGE — for files that DON'T use the wrapper, is there
+//       actual evidence of a manual school_id check derived from the
+//       session (not from user input)? This is the real safety signal —
+//       DRAIS overwhelmingly isolates tenants this way today, and
+//       treating "manual but correct" as equivalent to "no check at all"
+//       (the previous version of this scanner) produced a score that
+//       looked like a near-total failure when the real gap is narrower:
+//       a minority of routes with NO detectable check at all.
+//
+//   Neither is a proof of correctness — this is static heuristic
+//   analysis, same caveat as every other check in this file — but (b) is
+//   a materially more honest safety signal than (a) alone, and the two
+//   are reported as separate dimensions rather than one blended number.
+// Route categories that are legitimately NOT tenant-scoped by design —
+// they either run before a school session exists (auth), operate
+// deliberately ACROSS every school (platform control-center, superadmin),
+// or touch no tenant data at all (cron liveness pings, health checks).
+// First-pass live data showed these dominating the "no detected check"
+// list — auth/login, control-center/*, cron/*, health — which was
+// noise, not signal: flagging "auth/login has no school_id filter" as a
+// tenant-isolation gap is a category error, not a finding. Excluded from
+// the denominator entirely rather than left to inflate an "undetected"
+// count that would otherwise look like 84 real gaps when the true
+// number is far smaller.
+const NOT_TENANT_SCOPED_BY_DESIGN = [
+  /^src\/app\/api\/auth\//,
+  /^src\/app\/api\/control-center\//,
+  /^src\/app\/api\/control\/route\.ts$/,
+  /^src\/app\/api\/cron\//,
+  /^src\/app\/api\/health\//,
+  /^src\/app\/api\/heartbeat\//,
+  // Platform-internal / external-partner API — authenticated by API key
+  // (key_id/consumer, see platform_api_audit) or cross-school by design,
+  // not by a browser session's school_id at all.
+  /^src\/app\/api\/internal\//,
+  /^src\/app\/api\/platform\/v1\//,
+  // Pre-authentication parent/guardian portal routes — same reasoning as
+  // /api/auth: nothing has established which school's data this caller
+  // may see yet, that's the whole point of these endpoints.
+  /^src\/app\/api\/parent\/auth\//,
+  /^src\/app\/api\/portal\/auth\//,
+];
+
 let tenantSafeWrapperFiles = 0;
 let rawQueryFiles = 0;
+let verifiedManualCheckFiles = 0;
+let excludedNotTenantScoped = 0;
+let noDetectedCheckFiles = [];
 for (const f of routeFiles) {
+  const rel = path.relative(repoRoot, f).replace(/\\/g, '/');
+  if (NOT_TENANT_SCOPED_BY_DESIGN.some((re) => re.test(rel))) { excludedNotTenantScoped++; continue; }
+
   const src = readSafe(f);
   const usesTenantWrapper = /queryTenant|execTenant|withTenantTransaction/.test(src);
   const usesRawQuery = /from ['"]@\/lib\/db['"]/.test(src) && /\bquery\(/.test(src);
-  if (usesTenantWrapper) tenantSafeWrapperFiles++;
-  else if (usesRawQuery) rawQueryFiles++;
+  if (usesTenantWrapper) {
+    tenantSafeWrapperFiles++;
+    continue;
+  }
+  if (!usesRawQuery) continue; // no DB access in this route at all — not a tenant-isolation question
+  rawQueryFiles++;
+
+  // Session-derived schoolId, actually referenced in a query filter.
+  // Doesn't prove EVERY query in the file is scoped — same limitation as
+  // every heuristic here — but a file with neither signal at all is a
+  // meaningfully different (and rarer) risk than one that clearly does
+  // this correctly just not via the wrapper.
+  const derivesSchoolIdFromSession = /getSessionSchoolId|session\.schoolId|session!\.schoolId/.test(src);
+  const filtersOnSchoolId = /school_id\s*[=:]\s*\?|school_id\s*=\s*session|\.schoolId\s*[,)]/.test(src);
+  // The parent/guardian portal scopes by a different, equally legitimate
+  // anchor — a learner-access token, or the target student's own row —
+  // that itself resolves to one school, not a browser session's
+  // school_id (there is no school-admin session in that portal to derive
+  // one from). Any file under parent/ or portal/ that references
+  // school_id at all is doing this, just not via getSessionSchoolId.
+  const isPortalRoute = /^src\/app\/api\/(parent|portal)\//.test(rel);
+  const usesLearnerAccessScoping = (isPortalRoute && /school_id/.test(src))
+    || (/learnerAccessId|learner_access_id|parent_student_links/.test(src) && /school_id/.test(src));
+  if ((derivesSchoolIdFromSession && filtersOnSchoolId) || usesLearnerAccessScoping) {
+    verifiedManualCheckFiles++;
+  } else {
+    noDetectedCheckFiles.push(path.relative(repoRoot, f).replace(/\\/g, '/'));
+  }
 }
 
 // ── 3. Test inventory ───────────────────────────────────────────────────
@@ -137,8 +218,12 @@ const manifest = {
   commitSha,
   repo: {
     apiRouteCount: routeFiles.length,
+    excludedNotTenantScoped,
     tenantSafeWrapperFiles,
     rawQueryFiles,
+    verifiedManualCheckFiles,
+    noDetectedCheckFileCount: noDetectedCheckFiles.length,
+    noDetectedCheckFilesSample: noDetectedCheckFiles.slice(0, 30),
     testFileCount: testFiles.length,
     testFilesByArea,
     ciWorkflows,

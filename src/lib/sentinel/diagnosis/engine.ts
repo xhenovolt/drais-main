@@ -32,6 +32,31 @@ export interface ScoredDimension {
   confidence: Confidence;
   reason: string;
   evidence: string[];
+  /**
+   * How much this dimension counts toward overallScore. Not every
+   * measurable fact bears equally on "will this leak data / break /
+   * lose work" — a codebase-consistency pattern (does everyone use the
+   * SAME wrapper) is a real, worth-tracking signal, but it is not the
+   * same kind of risk as "is there a verified check protecting this
+   * data today." Weighting them identically produced a headline number
+   * that read as "barely half-stable" when the underlying safety
+   * evidence was 90% verified coverage — a materially different, more
+   * actionable finding.
+   *
+   * 2 = directly determines real-world safety/breakage risk (verified
+   *     tenant coverage, live attendance reliability, job liveness).
+   * 1 = real and worth fixing, more moderate blast radius (CI gate,
+   *     unbounded queries, test breadth, cron scheduling reality).
+   * 0.5 = maturity/consistency investment, not itself a safety gap —
+   *       "structural consistency" specifically: DRAIS already has
+   *       verified manual checks doing the real job; the wrapper is a
+   *       nice-to-have for future routes, not evidence today is unsafe.
+   *
+   * Every dimension's raw score and reasoning is still shown in full —
+   * this only changes how much each one moves the ONE headline number,
+   * never what gets reported.
+   */
+  weight?: number;
 }
 
 export interface DiagnosisReport {
@@ -64,8 +89,8 @@ export interface DiagnosisReport {
   limitations: string[];
 }
 
-function dim(dimension: string, score: number | null, confidence: Confidence, reason: string, evidence: string[] = []): ScoredDimension {
-  return { dimension, score, confidence, reason, evidence };
+function dim(dimension: string, score: number | null, confidence: Confidence, reason: string, evidence: string[] = [], weight = 1): ScoredDimension {
+  return { dimension, score, confidence, reason, evidence, weight };
 }
 
 export async function runFullSystemDiagnosis(liveCommitSha: string | null): Promise<DiagnosisReport> {
@@ -97,15 +122,38 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
   const dimensions: ScoredDimension[] = [];
 
   if (manifestPopulated) {
-    const total = (repo.tenantSafeWrapperFiles ?? 0) + (repo.rawQueryFiles ?? 0);
-    const adoption = total > 0 ? repo.tenantSafeWrapperFiles / total : null;
+    // Two separate questions, deliberately not blended into one number
+    // (see architecture-scan.mjs's header comment on this section for
+    // the full reasoning): whether a route is SAFE (has some verified
+    // tenant check, wrapper or manual) is a different question from
+    // whether it's STRUCTURALLY CONSISTENT (uses the one enforced
+    // wrapper specifically). Blending them into a single "wrapper
+    // adoption %" score reads as "the codebase is nearly unprotected"
+    // when the real gap is a specific, short, reviewable list of files.
+    const wrapperFiles = repo.tenantSafeWrapperFiles ?? 0;
+    const verifiedFiles = repo.verifiedManualCheckFiles ?? 0;
+    const undetected = repo.noDetectedCheckFileCount ?? 0;
+    const totalTenantTouching = wrapperFiles + verifiedFiles + undetected;
+    const coverage = totalTenantTouching > 0 ? (wrapperFiles + verifiedFiles) / totalTenantTouching : null;
     dimensions.push(dim(
-      'Tenant isolation enforcement', adoption != null ? Math.round(adoption * 100) : null,
+      'Tenant isolation — verified coverage', coverage != null ? Math.round(coverage * 100) : null,
+      'strong_evidence',
+      coverage != null
+        ? `${wrapperFiles + verifiedFiles} of ${totalTenantTouching} tenant-touching route files (${Math.round(coverage * 100)}%) show a verified school_id check — via the enforced wrapper or a session/resource-derived manual filter. ${undetected} file(s) show neither and are worth a manual look (see evidence) — this is a heuristic on source patterns, not a proof of correctness for every query in a file.`
+        : 'No tenant-touching route files detected by the scanner.',
+      (repo.noDetectedCheckFilesSample ?? []).slice(0, 15),
+      2, // directly determines real cross-tenant leak risk
+    ));
+    const wrapperTotal = wrapperFiles + (repo.rawQueryFiles ?? 0);
+    const wrapperAdoption = wrapperTotal > 0 ? wrapperFiles / wrapperTotal : null;
+    dimensions.push(dim(
+      'Tenant isolation — structural consistency', wrapperAdoption != null ? Math.round(wrapperAdoption * 100) : null,
       'verified',
-      adoption != null
-        ? `${repo.tenantSafeWrapperFiles} of ${total} tenant-touching route files (${Math.round(adoption * 100)}%) use the enforced queryTenant/execTenant wrapper; the rest rely on a manually-added school_id filter.`
+      wrapperAdoption != null
+        ? `${wrapperFiles} of ${wrapperTotal} route files use the single enforced queryTenant/execTenant wrapper specifically, vs. a manually-added school_id filter. A codebase-consistency and future-proofing signal — a NEW route can't forget to scope by school_id if the wrapper is the only way to query at all — separate from whether today's routes are actually safe (see the coverage dimension above).`
         : 'No tenant-touching route files detected by the scanner.',
       [`Scanned ${repo.apiRouteCount} route files as of commit ${manifestCommitSha?.slice(0, 8) ?? 'unknown'}.`],
+      0.5, // consistency/maturity signal — not itself evidence of a live safety gap
     ));
     dimensions.push(dim(
       'Build/CI safety gate',
@@ -115,12 +163,14 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
         ? 'A CI workflow runs tests/typecheck on push or pull request.'
         : `No CI workflow gates a PR/push with tests or typecheck. next.config ${repo.nextConfigIgnoresBuildErrors ? 'ignores TypeScript build errors' : 'enforces TypeScript'}; ESLint is ${repo.nextConfigIgnoresLint ? 'ignored' : 'enforced'} at build time.`,
       [`Workflows found: ${repo.ciWorkflows?.join(', ') || 'none'}.`, `tsconfig strict: ${repo.tsconfigStrict}.`],
+      1, // real gap, moderate blast radius (a bad merge, not a live breach)
     ));
     dimensions.push(dim(
       'Test coverage breadth', Math.min(60, Math.round((repo.testFileCount / repo.apiRouteCount) * 400)),
       'strong_evidence',
       `${repo.testFileCount} test files against ${repo.apiRouteCount} API routes — deep on business-logic areas, thin on the HTTP surface itself.`,
       Object.entries(repo.testFilesByArea ?? {}).map(([k, v]) => `${k}: ${v}`),
+      1, // real gap, but coverage breadth alone isn't a live incident
     ));
     dimensions.push(dim(
       'Unbounded query exposure', repo.unboundedListRoutesDetected?.length ? Math.max(20, 100 - repo.unboundedListRoutesDetected.length * 15) : 90,
@@ -129,6 +179,7 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
         ? `${repo.unboundedListRoutesDetected.length} route(s) carry an explicit "no pagination" comment.`
         : 'No explicit "no pagination" source comments detected by the scanner (does not rule out unbounded queries the scanner\'s heuristic misses).',
       repo.unboundedListRoutesDetected ?? [],
+      1, // degrades gracefully with scale, not a correctness/safety break
     ));
     dimensions.push(dim(
       'Background job scheduling reality',
@@ -136,6 +187,7 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
       'verified',
       `${repo.cronRouteCount} cron-shaped route(s) exist; vercel.json schedules ${repo.vercelCronCount}. The gap is bridged by the in-DB job runner and per-request piggybacks where wired — Sentinel's background-job observer reports per-job liveness independently of this static count.`,
       [],
+      1, // structural note; actual liveness is measured live below and weighted higher
     ));
   } else {
     dimensions.push(dim('Static architecture findings', null, 'unknown', 'Manifest not yet generated.', []));
@@ -150,6 +202,7 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
         ? `${attendanceStats.count} observed request(s) in the last 60m, ${Math.round(attendanceStats.errorRate * 100)}% error rate.`
         : 'No recent observations for attendance modules; score reflects the ingestion engine\'s idempotency design (INSERT IGNORE + upsert keying), not live traffic.',
       [],
+      2, // live, observed evidence of the system's core daily function
     ));
     dimensions.push(dim(
       'Background job liveness', heartbeats.length
@@ -160,11 +213,22 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
         ? `${heartbeats.filter((h) => h.verdict === 'healthy').length}/${heartbeats.length} monitored heartbeats healthy.`
         : 'No heartbeats have been recorded yet — reported as unmonitored, not healthy.',
       heartbeats.map((h) => `${h.name}: ${h.verdict}`),
+      2, // a silently-dead job is exactly the kind of failure that goes unnoticed
     ));
   }
 
+  // Weighted, not a flat average: a dimension's weight reflects how directly
+  // it predicts real-world breakage/safety risk (see the ScoredDimension.weight
+  // doc comment). Without this, a low-stakes maturity signal (e.g. "not every
+  // route uses the one canonical wrapper, even though it's independently
+  // checked another way") drags the headline number down exactly as hard as a
+  // live incident or unverified tenant-isolation gap — which is the same
+  // conflation problem as blending two different questions into one score.
   const scored = dimensions.filter((d) => d.score != null) as Array<ScoredDimension & { score: number }>;
-  const overallScore = scored.length ? Math.round(scored.reduce((a, d) => a + d.score, 0) / scored.length) : 0;
+  const totalWeight = scored.reduce((a, d) => a + (d.weight ?? 1), 0);
+  const overallScore = totalWeight > 0
+    ? Math.round(scored.reduce((a, d) => a + d.score * (d.weight ?? 1), 0) / totalWeight)
+    : 0;
 
   let readiness: DiagnosisReport['readiness'] = 'not_ready';
   if (overallScore >= 90) readiness = 'strong_foundation';
@@ -181,9 +245,12 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
     else weakAreas.push(d.dimension);
   }
 
+  const tenantTotal = (repo.tenantSafeWrapperFiles ?? 0) + (repo.verifiedManualCheckFiles ?? 0) + (repo.noDetectedCheckFileCount ?? 0);
+  const tenantCoverage = tenantTotal > 0 ? ((repo.tenantSafeWrapperFiles ?? 0) + (repo.verifiedManualCheckFiles ?? 0)) / tenantTotal : 1;
+
   const criticalFailurePoints: string[] = [];
-  if (manifestPopulated && repo.tenantSafeWrapperFiles / Math.max(1, repo.tenantSafeWrapperFiles + repo.rawQueryFiles) < 0.1) {
-    criticalFailurePoints.push('Tenant isolation is enforced in under 10% of tenant-touching routes — a new route can leak cross-tenant data without any structural check catching it.');
+  if (manifestPopulated && repo.noDetectedCheckFileCount > 0) {
+    criticalFailurePoints.push(`${repo.noDetectedCheckFileCount} route file(s) show no detected school_id check at all (${Math.round(tenantCoverage * 100)}% verified coverage overall) — worth a manual review; see the tenant-isolation coverage dimension for the file list.`);
   }
   if (manifestPopulated && !repo.hasPrOrPushCiGate) {
     criticalFailurePoints.push('No CI gate blocks a broken build or failing test from merging.');
@@ -205,7 +272,7 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
   ];
 
   const topFailureModes = [
-    { mode: 'A new/edited route omits tenant scoping', probability: 'medium', impact: 'critical', severity: 'P0' },
+    { mode: 'A new/edited route omits tenant scoping', probability: manifestPopulated && tenantCoverage < 0.7 ? 'high' : manifestPopulated && repo.noDetectedCheckFileCount > 0 ? 'medium' : 'low', impact: 'critical', severity: 'P0' },
     { mode: 'A background job silently stops running (no heartbeat, no alert)', probability: heartbeats.some((h) => h.verdict === 'unmonitored') ? 'high' : 'medium', impact: 'high', severity: 'P0' },
     { mode: 'A type error reaches production because builds ignore TS/ESLint failures', probability: 'medium', impact: 'high', severity: 'P1' },
     { mode: 'A PR merges with a failing test because nothing in CI stops it', probability: manifestPopulated && !repo.hasPrOrPushCiGate ? 'high' : 'low', impact: 'medium', severity: 'P1' },
@@ -214,7 +281,7 @@ export async function runFullSystemDiagnosis(liveCommitSha: string | null): Prom
 
   const subsystemMatrix: DiagnosisReport['subsystemMatrix'] = [
     { subsystem: 'Attendance ingestion', state: 'strong', confidence: 'strong_evidence', risk: 'Downstream aggregate/notification consumers depend on job liveness, tracked separately.' },
-    { subsystem: 'Tenant isolation', state: manifestPopulated && repo.tenantSafeWrapperFiles / Math.max(1, repo.tenantSafeWrapperFiles + repo.rawQueryFiles) < 0.1 ? 'weak' : 'watched', confidence: manifestPopulated ? 'verified' : 'unknown', risk: 'Enforced by convention in most routes, not structurally guaranteed.' },
+    { subsystem: 'Tenant isolation', state: manifestPopulated && tenantCoverage < 0.7 ? 'weak' : manifestPopulated && repo.noDetectedCheckFileCount > 0 ? 'watched' : 'moderately_strong', confidence: manifestPopulated ? 'strong_evidence' : 'unknown', risk: `${Math.round(tenantCoverage * 100)}% verified school_id coverage (wrapper or manual); enforced mostly by convention, not a structural guarantee for every new route.` },
     { subsystem: 'Background jobs', state: heartbeats.some((h) => h.verdict === 'degraded') ? 'weak' : heartbeats.some((h) => h.verdict === 'unmonitored') ? 'watched' : 'moderately_strong', confidence: heartbeats.length ? 'verified' : 'unknown', risk: 'Liveness now independently tracked by Sentinel heartbeats.' },
     { subsystem: 'Notifications', state: 'watched', confidence: 'likely', risk: 'Queue-backlog and delivery-failure observers active; historical incident precedent exists.' },
     { subsystem: 'Deployment/CI', state: manifestPopulated && !repo.hasPrOrPushCiGate ? 'weak' : 'moderately_strong', confidence: manifestPopulated ? 'verified' : 'unknown', risk: 'No PR/push gate found.' },

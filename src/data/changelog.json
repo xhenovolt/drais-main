@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T07:55:26.163Z",
-  "last_commit": "2b51ca2c5029af8ae4b0894c4d054812181135ee",
+  "generated_at": "2026-08-18T15:07:33.444Z",
+  "last_commit": "e7c638393183af1ba0269c67735c9345dd12ddb0",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6917,7 +6917,20 @@
         }
       ],
       "commit": "2b51ca2c50"
+    },
+    {
+      "version": "1.173.70",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Student importer's REAL commit path was completely broken — never actually tested against a real insert until now",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Student importer's REAL commit path was completely broken — never actually tested against a real insert until now"
+        }
+      ],
+      "commit": "e7c6383931"
     }
   ],
-  "app_version": "1.173.70"
+  "app_version": "1.173.71"
 }
