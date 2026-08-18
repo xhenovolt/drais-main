@@ -17,10 +17,35 @@
  */
 import { query } from '@/lib/db';
 import type { CommEventPayloadMap, CommEventType, CommAudience, CommChannel } from './events';
-import { getCommSettings, isQuietHours } from './settings';
+import { getCommSettings, isQuietHours, type CommSettings } from './settings';
 import { resolveTemplate, renderTemplate, applyPrefix } from './templates';
 import { getProvider } from './providers';
 import { resolveRecipients } from './recipients';
+
+/**
+ * Channel-specific settings selection. Added alongside the WhatsApp channel
+ * (2026-08-19) — before this, every send() call site hardcoded the SMS
+ * fields (settings.defaultProvider / settings.senderName / settings.smsEnabled)
+ * regardless of rule.channel, which was harmless while SMS was the only real
+ * channel but would have made a WhatsApp rule silently resolve to the SMS
+ * provider (or fall through to the console stand-in) and ignore the WhatsApp
+ * kill-switch entirely. For channel === 'sms' this resolves to exactly the
+ * same fields as before — zero behavior change for existing SMS rules.
+ */
+function providerNameFor(settings: CommSettings, channel: CommChannel): string {
+  return channel === 'whatsapp' ? settings.whatsappProvider : settings.defaultProvider;
+}
+function senderFor(settings: CommSettings, channel: CommChannel): string | undefined {
+  return (channel === 'whatsapp' ? settings.whatsappSender : settings.senderName) ?? undefined;
+}
+function credsFor(settings: CommSettings, channel: CommChannel) {
+  return channel === 'whatsapp'
+    ? { apiKey: settings.whatsappProviderApiKey, baseUrl: settings.whatsappProviderBaseUrl }
+    : { username: settings.providerUsername, apiKey: settings.providerApiKey };
+}
+function channelEnabled(settings: CommSettings, channel: CommChannel): boolean {
+  return channel === 'whatsapp' ? settings.whatsappEnabled : settings.smsEnabled;
+}
 
 export interface DispatchSummary {
   schoolId:   number;
@@ -222,9 +247,10 @@ export async function emit<T extends CommEventType>(
       //   - rule.auto_send=0 (manual approval required)
       //   - settings.auto_mode=false AND rule.auto_send=1 (master off)
       //   - quiet hours active
-      // The per-school SMS kill-switch (platform/Jeton controlled) overrides
-      // everything — neither auto nor manual sends go out when it's off.
-      const willSend = settings.smsEnabled && (
+      // The per-channel kill-switch (SMS: platform/Jeton controlled;
+      // WhatsApp: per-school toggle) overrides everything — neither auto
+      // nor manual sends go out when it's off for this rule's channel.
+      const willSend = channelEnabled(settings, rule.channel) && (
         (rule.auto_send === 1 &&
          settings.autoMode &&
          !quiet &&
@@ -249,7 +275,7 @@ export async function emit<T extends CommEventType>(
             provider:           null,
             providerMessageId:  null,
             providerCost:       null,
-            error:              !settings.smsEnabled ? 'sms disabled' : quiet ? 'quiet hours' : (settings.autoMode ? null : 'auto_mode off'),
+            error:              !channelEnabled(settings, rule.channel) ? `${rule.channel} disabled` : quiet ? 'quiet hours' : (settings.autoMode ? null : 'auto_mode off'),
             triggeredByUserId:  payload.triggeredBy ?? null,
             source:             payload.source ?? 'auto',
             contextJson:        payload,
@@ -258,13 +284,14 @@ export async function emit<T extends CommEventType>(
           continue;
         }
 
-        const provider = getProvider(settings.defaultProvider, rule.channel);
+        const provider = getProvider(providerNameFor(settings, rule.channel), rule.channel);
         let result;
         try {
           result = await provider.send({
             to:         rec.phone,
             body:       renderedBody,
-            senderName: settings.senderName,
+            senderName: senderFor(settings, rule.channel),
+            creds:      credsFor(settings, rule.channel),
           });
         } catch (e: any) {
           result = { success: false, providerMessageId: null, cost: null, error: e?.message || 'provider threw' };
@@ -349,15 +376,16 @@ export async function manualSendFromLog(args: {
   if (!log.recipient_phone) return { success: false, error: 'No phone on file' };
 
   const settings = await getCommSettings(args.schoolId);
-  if (!settings.smsEnabled) return { success: false, error: 'SMS is disabled for this school' };
-  const provider = getProvider(settings.defaultProvider, log.channel);
+  if (!channelEnabled(settings, log.channel)) return { success: false, error: `${log.channel} is disabled for this school` };
+  const provider = getProvider(providerNameFor(settings, log.channel), log.channel);
 
   let result;
   try {
     result = await provider.send({
       to:         log.recipient_phone,
       body:       log.message_body,
-      senderName: settings.senderName,
+      senderName: senderFor(settings, log.channel),
+      creds:      credsFor(settings, log.channel),
     });
   } catch (e: any) {
     result = { success: false, providerMessageId: null, cost: null, error: e?.message || 'provider threw' };

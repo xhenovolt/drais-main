@@ -19,6 +19,16 @@ export interface CommSettings {
   providerApiKey:   string | null;
   /** Hard per-school SMS kill-switch (platform/Jeton controlled). Default on. */
   smsEnabled:       boolean;
+  /** WhatsApp channel — mirrors the SMS fields above. whatsappProvider
+   *  defaults to 'infobip_whatsapp' (see providers.ts); the base URL/API
+   *  key are an OPTIONAL per-school override of the platform Infobip
+   *  account (INFOBIP_WHATSAPP_API_BASE_URL / INFOBIP_WHATSAPP_API_KEY
+   *  env vars) — same precedence rule as SMS. */
+  whatsappEnabled:         boolean;
+  whatsappProvider:        string;
+  whatsappSender:          string | null;
+  whatsappProviderBaseUrl: string | null;
+  whatsappProviderApiKey:  string | null;
 }
 
 interface Raw {
@@ -34,6 +44,11 @@ interface Raw {
   provider_username?: string | null;
   provider_api_key?:  string | null;
   sms_enabled?:       number;
+  whatsapp_enabled?:            number;
+  whatsapp_provider?:           string;
+  whatsapp_sender?:             string | null;
+  whatsapp_provider_base_url?:  string | null;
+  whatsapp_provider_api_key?:   string | null;
 }
 
 function toSettings(r: Raw): CommSettings {
@@ -50,6 +65,11 @@ function toSettings(r: Raw): CommSettings {
     providerUsername: r.provider_username ?? null,
     providerApiKey:   r.provider_api_key ?? null,
     smsEnabled:       r.sms_enabled === undefined || r.sms_enabled === null ? true : r.sms_enabled === 1,
+    whatsappEnabled:         r.whatsapp_enabled === 1,
+    whatsappProvider:        r.whatsapp_provider ?? 'infobip_whatsapp',
+    whatsappSender:          r.whatsapp_sender ?? null,
+    whatsappProviderBaseUrl: r.whatsapp_provider_base_url ?? null,
+    whatsappProviderApiKey:  r.whatsapp_provider_api_key ?? null,
   };
 }
 
@@ -94,6 +114,14 @@ export async function updateCommSettings(
   // Keep an existing API key if the UI sends a blank (masked) value.
   if (patch.providerApiKey !== undefined && patch.providerApiKey !== '' && patch.providerApiKey !== '********') {
     fields.push('provider_api_key = ?'); params.push(patch.providerApiKey);
+  }
+  if (patch.whatsappEnabled !== undefined)         { fields.push('whatsapp_enabled = ?');            params.push(patch.whatsappEnabled ? 1 : 0); }
+  if (patch.whatsappProvider !== undefined)        { fields.push('whatsapp_provider = ?');            params.push(patch.whatsappProvider); }
+  if (patch.whatsappSender !== undefined)          { fields.push('whatsapp_sender = ?');              params.push(patch.whatsappSender || null); }
+  if (patch.whatsappProviderBaseUrl !== undefined) { fields.push('whatsapp_provider_base_url = ?');   params.push(patch.whatsappProviderBaseUrl || null); }
+  // Same masked-resubmit rule as providerApiKey above.
+  if (patch.whatsappProviderApiKey !== undefined && patch.whatsappProviderApiKey !== '' && patch.whatsappProviderApiKey !== '********') {
+    fields.push('whatsapp_provider_api_key = ?'); params.push(patch.whatsappProviderApiKey);
   }
 
   if (fields.length === 0) return getCommSettings(schoolId);

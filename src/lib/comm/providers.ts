@@ -10,16 +10,27 @@
  *   3. Allow its code from the settings UI.
  */
 import { sendSMS, normalizePhoneNumber } from '@/lib/africastalking';
+import { sendWhatsAppMessage } from './providers/infobip-whatsapp';
 import type { CommChannel } from './events';
 
 export interface SendArgs {
   to:          string;
   body:        string;
+  /** Sender identity — SMS alphanumeric sender ID, WhatsApp business
+   *  sender/number. One field, meaning depends on the provider's channel. */
   senderName?: string;
   /** Per-school provider credentials (from comm_settings). When present
    *  these win over env vars — this is what makes SMS work for schools
-   *  that configured AT in the settings UI but have no host env vars. */
-  creds?:      { username?: string | null; apiKey?: string | null };
+   *  that configured AT in the settings UI but have no host env vars.
+   *  `baseUrl` is WhatsApp-only (Infobip's per-account API host); SMS
+   *  providers ignore it. NOTE: as of this writing the dispatcher's
+   *  actual send() call sites (emit()'s auto path, manualSendFromLog())
+   *  do NOT pass creds at all — only test-sms/route.ts exercises the
+   *  per-school override today. This is a pre-existing gap in the SMS
+   *  path, not something introduced or fixed here; WhatsApp intentionally
+   *  matches the same (partial) wiring rather than special-casing itself
+   *  ahead of SMS. */
+  creds?:      { username?: string | null; apiKey?: string | null; baseUrl?: string | null };
 }
 
 export interface SendResult {
@@ -61,45 +72,83 @@ const africasTalkingSms: CommProvider = {
   },
 };
 
-/** Console "provider" — for local dev when no AT credentials. The
- *  dispatcher falls back to this if AFRICASTALKING_API_KEY isn't set,
- *  so devs can still see what *would* have been sent. */
-const consoleProvider: CommProvider = {
-  name:    'console',
-  channel: 'sms',
-  async send({ to, body, senderName }) {
-    console.log(`[COMM:console] → ${to} (from ${senderName ?? 'DRAIS'}): ${body}`);
-    return { success: true, providerMessageId: `console-${Date.now()}`, cost: '0', error: null };
+/** Infobip WhatsApp — wraps the sendWhatsAppMessage helper the same way
+ *  africasTalkingSms wraps sendSMS. senderName here carries the WhatsApp
+ *  business sender/number (comm_settings.whatsapp_sender), reusing the
+ *  same SendArgs field SMS uses for its sender ID rather than adding a
+ *  parallel one. */
+const infobipWhatsApp: CommProvider = {
+  name:    'infobip_whatsapp',
+  channel: 'whatsapp',
+  async send({ to, body, senderName, creds }) {
+    const r = await sendWhatsAppMessage(to, body, senderName, creds ?? undefined);
+    return {
+      success:           r.success,
+      providerMessageId: r.messageId ?? null,
+      cost:              null, // Infobip WhatsApp pricing isn't per-message-reported like AT SMS cost
+      error:             r.success ? null : (r.error ?? 'Unknown provider error'),
+    };
   },
 };
 
+/** Console "provider" — for local dev when no real credentials are
+ *  configured for the requested channel. The dispatcher falls back to
+ *  this so devs can still see what *would* have been sent, and so a
+ *  missing/broken provider never crashes the dispatcher. Constructed
+ *  per-channel (not a single hardcoded 'sms' object) — see getProvider()
+ *  below; a channel mismatch used to silently return an 'sms'-labeled
+ *  stand-in for a 'whatsapp' request, which was harmless only because
+ *  nothing had ever asked for a non-SMS provider before. */
+function consoleProviderFor(channel: CommChannel): CommProvider {
+  return {
+    name: 'console',
+    channel,
+    async send({ to, body, senderName }) {
+      console.log(`[COMM:console:${channel}] → ${to} (from ${senderName ?? 'DRAIS'}): ${body}`);
+      return { success: true, providerMessageId: `console-${Date.now()}`, cost: '0', error: null };
+    },
+  };
+}
+
 const PROVIDERS: Record<string, CommProvider> = {
-  africas_talking: africasTalkingSms,
-  console:         consoleProvider,
+  africas_talking:  africasTalkingSms,
+  infobip_whatsapp: infobipWhatsApp,
+  console:          consoleProviderFor('sms'),
 };
 
 /** Return a provider by name, with sensible fallback. If the requested
- *  provider isn't registered, we fall back to console (so dev/CI never
- *  crashes on "SMS service not found" — the historical bug). */
+ *  provider isn't registered (or is registered for a different channel
+ *  than asked), we fall back to a console stand-in for the REQUESTED
+ *  channel — never a hardcoded 'sms' one — so dev/CI never crashes on
+ *  "provider not found" and the fallback is at least correctly labeled. */
 export function getProvider(name: string, channel: CommChannel = 'sms'): CommProvider {
   const p = PROVIDERS[name];
   if (p && p.channel === channel) return p;
 
-  // If credentials are missing for the default provider, log loudly and
-  // use the console provider so the dispatcher keeps producing audit
-  // rows. This is the difference between "broken" and "degraded".
+  // If credentials are missing for the requested channel's real provider,
+  // log loudly and use the console stand-in so the dispatcher keeps
+  // producing audit rows. This is the difference between "broken" and
+  // "degraded".
   if (channel === 'sms') {
     const hasUser = !!(process.env.AFRICASTALKING_USERNAME || process.env.AT_USERNAME);
     const hasKey  = !!(process.env.AFRICASTALKING_API_KEY  || process.env.AT_API_KEY);
     if (!hasUser || !hasKey) {
-      console.warn(
-        `[comm] provider '${name}' unavailable (credentials missing) — falling back to console`,
-      );
+      console.warn(`[comm] provider '${name}' unavailable (credentials missing) — falling back to console`);
     } else {
-      console.warn(`[comm] unknown provider '${name}' — falling back to console`);
+      console.warn(`[comm] unknown provider '${name}' for channel '${channel}' — falling back to console`);
     }
+  } else if (channel === 'whatsapp') {
+    const hasKey = !!process.env.INFOBIP_WHATSAPP_API_KEY;
+    const hasUrl = !!process.env.INFOBIP_WHATSAPP_API_BASE_URL;
+    if (!hasKey || !hasUrl) {
+      console.warn(`[comm] provider '${name}' unavailable (Infobip credentials missing) — falling back to console`);
+    } else {
+      console.warn(`[comm] unknown provider '${name}' for channel '${channel}' — falling back to console`);
+    }
+  } else {
+    console.warn(`[comm] unknown provider '${name}' for channel '${channel}' — falling back to console`);
   }
-  return consoleProvider;
+  return consoleProviderFor(channel);
 }
 
 export function listProviders(): { name: string; channel: CommChannel }[] {

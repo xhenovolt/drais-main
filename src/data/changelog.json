@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T20:28:20.058Z",
-  "last_commit": "f891ca1872d1089d3e1acd9895ea328d8eac9169",
+  "generated_at": "2026-08-18T23:06:10.175Z",
+  "last_commit": "2459ec40c3253d3ca6146c28f4364ca9b6443cfc",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7047,7 +7047,20 @@
         }
       ],
       "commit": "f891ca1872"
+    },
+    {
+      "version": "1.173.80",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Wire up the device-status sweep, which had never run in production",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Wire up the device-status sweep, which had never run in production"
+        }
+      ],
+      "commit": "2459ec40c3"
     }
   ],
-  "app_version": "1.173.80"
+  "app_version": "1.173.81"
 }
