@@ -26,6 +26,15 @@ import type { CanonicalField, IdentityClaim, RawCellValue, RowProvenance } from 
 // 'unresolvedRequired'. Memory still wins for school-specific quirks.
 export const STUDENT_FIELDS: CanonicalField[] = [
   {
+    // Deliberately NOT required — reported live (2026-08-18): a real
+    // school's raw register often has no formal admission-number system
+    // at all, especially for a first-ever import into DRAIS. When
+    // absent, the commit path (students.ts insertStudent) generates a
+    // stable "AUTO-<id>" number from the new student's own row id, and
+    // identity resolution correctly falls back to name+class matching
+    // on any later re-import (resolveIdentity already skips straight to
+    // that fallback whenever admissionNo is absent from the claim — see
+    // studentIdentityFromRow below).
     name: 'admission_no',
     label: 'Admission Number',
     synonyms: [
@@ -36,7 +45,6 @@ export const STUDENT_FIELDS: CanonicalField[] = [
       'pin', 'pupil no', 'learner id', 'lin',
     ],
     type: 'string',
-    required: true,
   },
   {
     // Deliberately NOT required at the schema level — a name is only
@@ -138,7 +146,7 @@ export const STUDENT_FIELDS: CanonicalField[] = [
 // ─── Validated row shape ─────────────────────────────────────────────────────
 
 export interface StudentRow {
-  admission_no: string;
+  admission_no: string | null; // null = not provided; auto-generated at commit time
   first_name:   string;
   last_name:    string;
   other_name:   string | null;
@@ -173,9 +181,10 @@ export function validateStudentRow(
   mapped: Record<string, RawCellValue>,
   _provenance: RowProvenance,
 ): { ok: true; value: StudentRow } | { ok: false; error: string } {
-  // admission_no is required and must be non-empty after trimming.
+  // admission_no is OPTIONAL — a null value here means "generate one at
+  // commit time" (see students.ts insertStudent). Not every school's raw
+  // register has a formal admission-number system yet.
   const admission = coerceString(mapped.admission_no);
-  if (!admission) return { ok: false, error: 'admission_no is empty' };
 
   // Prefer separate First/Last Name columns when both are filled for
   // this row; otherwise fall back to splitting a combined Name column.
@@ -235,7 +244,11 @@ export function validateStudentRow(
 
 export function studentIdentityFromRow(row: StudentRow): IdentityClaim {
   return {
-    admissionNo: row.admission_no,
+    // undefined (not null) when absent — resolveIdentity's `if
+    // (claim.admissionNo)` check treats either falsy value the same way
+    // and falls straight through to name+class matching, but undefined
+    // is the correct "field not provided at all" signal for the type.
+    admissionNo: row.admission_no ?? undefined,
     firstName:   row.first_name,
     lastName:    row.last_name,
     otherName:   row.other_name ?? undefined,

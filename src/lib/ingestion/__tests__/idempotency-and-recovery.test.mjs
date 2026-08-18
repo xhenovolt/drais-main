@@ -92,8 +92,11 @@ describe('partial-failure recovery', () => {
   it('a large batch with scattered bad rows isolates exactly the bad ones without blocking the good ones', async () => {
     const TOTAL = 500;
     const rows = Array.from({ length: TOTAL }, (_, i) => {
-      // Every 7th row is deliberately malformed (missing admission_no).
-      if (i % 7 === 0) return { 'Admission No': '', 'First Name': `Bad${i}`, 'Last Name': 'Row', Class: 'S1' };
+      // Every 7th row is deliberately malformed (missing a name entirely —
+      // admission_no alone is no longer a validation failure trigger
+      // since it's optional and auto-generated at commit time; see
+      // students-schema.ts).
+      if (i % 7 === 0) return { 'Admission No': `XHN/${i}`, 'First Name': '', 'Last Name': '', Class: 'S1' };
       return { 'Admission No': `XHN/${i}`, 'First Name': `Good${i}`, 'Last Name': 'Row', Class: 'S1' };
     });
     const expectedBad = Math.ceil(TOTAL / 7);
@@ -111,7 +114,7 @@ describe('partial-failure recovery', () => {
     assert.equal(failedOutcomes.length, expectedBad);
     for (const o of failedOutcomes) {
       assert.ok(o.provenance.sourceRowIndex > 0);
-      assert.match(o.decision.error, /admission_no is empty/);
+      assert.match(o.decision.error, /determine the student.s name/);
     }
 
     // The retry set (just the failed row indices) is small and precise —

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T07:01:57.671Z",
-  "last_commit": "63e7fa29b4b03dcc05887621b599d643271fa403",
+  "generated_at": "2026-08-18T07:55:26.163Z",
+  "last_commit": "2b51ca2c5029af8ae4b0894c4d054812181135ee",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6904,7 +6904,20 @@
         }
       ],
       "commit": "63e7fa29b4"
+    },
+    {
+      "version": "1.173.69",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Codebase-wide deleted_at filter sweep (stability-roadmap Phase 2/3) — closes ~90 remaining gaps, finds real tenant-isolation and crash bugs along the way",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Codebase-wide deleted_at filter sweep (stability-roadmap Phase 2/3) — closes ~90 remaining gaps, finds real tenant-isolation and crash bugs along the way"
+        }
+      ],
+      "commit": "2b51ca2c50"
     }
   ],
-  "app_version": "1.173.69"
+  "app_version": "1.173.70"
 }

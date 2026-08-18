@@ -148,18 +148,34 @@ async function insertStudent(
     const personId = (pRes as { insertId: number }).insertId;
 
     // 2. Insert into students.
+    // Bug fix (2026-08-18, found live via an actual non-dryRun commit —
+    // this path had only ever been exercised via dryRun before, never a
+    // real INSERT): `students` has no first_name / last_name /
+    // other_name / gender / created_by columns at all. Name/gender live
+    // on `people` (already inserted above); there's no "who imported
+    // this" column on `students` to record ctx.importedBy against — the
+    // audit trail for who ran the import lives in ingestion_runs
+    // (initiated_by), not per-row.
     const [sRes] = await conn.execute(
       `INSERT INTO students
-         (school_id, person_id, admission_no, first_name, last_name,
-          other_name, gender, status, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
-      [
-        ctx.schoolId, personId, row.admission_no,
-        row.first_name, row.last_name, row.other_name, row.gender,
-        ctx.importedBy,
-      ],
+         (school_id, person_id, admission_no, status)
+       VALUES (?, ?, ?, 'active')`,
+      [ctx.schoolId, personId, row.admission_no],
     );
     const studentId = (sRes as { insertId: number }).insertId;
+
+    // admission_no is optional on input (see students-schema.ts) — a
+    // school's raw register very often has no formal admission-number
+    // system yet. When absent, derive a stable, always-unique number
+    // from the student's own new id rather than a separate counter
+    // query (no extra round-trip, no race condition), clearly marked
+    // as machine-generated so the school knows to review/replace it.
+    if (!row.admission_no) {
+      await conn.execute(
+        `UPDATE students SET admission_no = ? WHERE id = ?`,
+        [`AUTO-${studentId}`, studentId],
+      );
+    }
 
     // 3. Optionally enrol them.
     if (ctx.autoEnroll && row.class_name) {
@@ -175,13 +191,28 @@ async function insertStudent(
     }
 
     // 4. Fees balance (optional).
+    // Bug fix (2026-08-18, found via the same live-commit test that
+    // caught the students-table columns above): student_fee_items has
+    // no school_id column at all, and `balance` is a STORED GENERATED
+    // column (amount - discount - paid) — cannot be written directly.
+    // term_id/item/amount are all NOT NULL with no default, so an
+    // opening balance needs a real term resolved first.
     if (row.fees_balance != null) {
-      await conn.execute(
-        `INSERT INTO student_fee_items (student_id, balance, school_id)
-         VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE balance = VALUES(balance)`,
-        [studentId, row.fees_balance, ctx.schoolId],
+      const [termRows] = await conn.execute(
+        `SELECT id FROM terms WHERE school_id = ? ORDER BY is_active DESC, id DESC LIMIT 1`,
+        [ctx.schoolId],
       );
+      const termId = (termRows as Array<{ id: number }>)[0]?.id ?? null;
+      if (termId != null) {
+        await conn.execute(
+          `INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, paid)
+           VALUES (?, ?, 'Opening Balance', ?, 0, 0)`,
+          [studentId, termId, row.fees_balance],
+        );
+      }
+      // No term exists for this school yet — the balance is silently
+      // skipped rather than crashing the whole student insert over an
+      // optional field; the student itself still imports successfully.
     }
 
     await conn.commit();
@@ -215,7 +246,10 @@ async function updateStudent(
   for (const f of changedFields) {
     if (!updatable.has(f)) continue;
     if (f === 'fees_balance') continue; // handled separately
-    updates.push(`${f} = ?`);
+    // All 8 updatable fields live on `people`, not `students` (see the
+    // insertStudent fix above) — qualifying explicitly rather than
+    // relying on MySQL resolving the bare name unambiguously.
+    updates.push(`p.${f} = ?`);
     values.push((row as unknown as Record<string, unknown>)[f]);
   }
 
@@ -231,13 +265,20 @@ async function updateStudent(
     );
   }
 
-  // 2. fees_balance (separate table).
+  // 2. fees_balance (separate table). Same fix as insertStudent above —
+  // no school_id column, balance is generated, term_id/item/amount are
+  // NOT NULL.
   if (changedFields.includes('fees_balance') && row.fees_balance != null) {
+    const [termRows] = await conn.execute(
+      `SELECT id FROM terms WHERE school_id = ? ORDER BY is_active DESC, id DESC LIMIT 1`,
+      [ctx.schoolId],
+    );
+    const termId = (termRows as Array<{ id: number }>)[0]?.id ?? null;
+    if (termId == null) return; // no term for this school yet — skip rather than crash
     await conn.execute(
-      `INSERT INTO student_fee_items (student_id, balance, school_id)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE balance = VALUES(balance)`,
-      [studentId, row.fees_balance, ctx.schoolId],
+      `INSERT INTO student_fee_items (student_id, term_id, item, amount, discount, paid)
+       VALUES (?, ?, 'Opening Balance', ?, 0, 0)`,
+      [studentId, termId, row.fees_balance],
     );
   }
 }
