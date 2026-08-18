@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T06:06:31.689Z",
-  "last_commit": "b1b63a3bb7f8d7ceadfb01dc1fe4f632a514efe4",
+  "generated_at": "2026-08-18T07:01:03.487Z",
+  "last_commit": "4ac0bba469c73c04e21b710dd290996eedf2c904",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6878,7 +6878,20 @@
         }
       ],
       "commit": "b1b63a3bb7"
+    },
+    {
+      "version": "1.173.67",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Nursery division ACTUALLY showed E on real report cards — previous fix targeted the wrong file",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Nursery division ACTUALLY showed E on real report cards — previous fix targeted the wrong file"
+        }
+      ],
+      "commit": "4ac0bba469"
     }
   ],
-  "app_version": "1.173.67"
+  "app_version": "1.173.68"
 }

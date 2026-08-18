@@ -39,18 +39,44 @@ export const STUDENT_FIELDS: CanonicalField[] = [
     required: true,
   },
   {
+    // Deliberately NOT required at the schema level — a name is only
+    // required in the OR sense of (first_name AND last_name) OR
+    // full_name, which this generic per-field `required` flag can't
+    // express. The v2 route enforces that OR-requirement explicitly
+    // (see the "effective name requirement" check there); the row
+    // validator below does the actual first/last derivation.
     name: 'first_name',
     label: 'First Name',
     synonyms: ['firstname', 'fname', 'given name', 'name1', 'first names'],
     type: 'string',
-    required: true,
   },
   {
     name: 'last_name',
     label: 'Last Name',
     synonyms: ['lastname', 'lname', 'surname', 'family name', 'name2', 'last names'],
     type: 'string',
-    required: true,
+  },
+  {
+    // Very common in real school exports: ONE "Student Name"/"Name"
+    // column rather than separate First/Last Name columns. Found live
+    // (2026-08-18) — a real workbook with a "Student Name" column
+    // failed entirely with "first_name, last_name could not be mapped"
+    // even though the name was right there, just not split apart.
+    // validateStudentRow splits this into first/last automatically when
+    // separate name columns aren't mapped or aren't both filled.
+    name: 'full_name',
+    label: 'Full Name',
+    // Deliberately NOT a bare 'name'/'names' synonym — a fee sheet very
+    // commonly lists the student's name too (for readability), and a
+    // generic 'name' synonym pulled such sheets toward being misjudged
+    // as a students sheet by the purpose-guesser. Every synonym here is
+    // specific enough that a fees/results sheet won't plausibly use it.
+    synonyms: [
+      'student name', 'full name', 'learner name', 'pupil name',
+      'child name', 'candidate name', 'name of student',
+      'name of learner', 'name of pupil',
+    ],
+    type: 'string',
   },
   {
     name: 'other_name',
@@ -128,6 +154,21 @@ export interface StudentRow {
 
 // ─── Per-row validator ───────────────────────────────────────────────────────
 
+/**
+ * Split a single combined name into (first, last). Convention: the
+ * first token is the given name, everything after it is the surname —
+ * matches how most schools' own registers read a full name aloud. A
+ * genuinely single-word name (rare, but real) yields an empty-string
+ * last name rather than failing the row outright; that's a cosmetic
+ * quirk, not a reason to lose a real student from the import.
+ */
+function splitFullName(fullName: string): { first: string; last: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { first: '', last: '' };
+  if (parts.length === 1) return { first: parts[0], last: '' };
+  return { first: parts[0], last: parts.slice(1).join(' ') };
+}
+
 export function validateStudentRow(
   mapped: Record<string, RawCellValue>,
   _provenance: RowProvenance,
@@ -136,11 +177,28 @@ export function validateStudentRow(
   const admission = coerceString(mapped.admission_no);
   if (!admission) return { ok: false, error: 'admission_no is empty' };
 
-  const first = coerceString(mapped.first_name);
-  if (!first) return { ok: false, error: 'first_name is empty' };
+  // Prefer separate First/Last Name columns when both are filled for
+  // this row; otherwise fall back to splitting a combined Name column.
+  // Real schools commonly export only one of these shapes, not both —
+  // whichever is present should just work.
+  let first = coerceString(mapped.first_name);
+  let last = coerceString(mapped.last_name);
 
-  const last = coerceString(mapped.last_name);
-  if (!last) return { ok: false, error: 'last_name is empty' };
+  if (!first || !last) {
+    const full = coerceString(mapped.full_name);
+    if (full) {
+      const split = splitFullName(full);
+      if (!first) first = split.first || null;
+      if (!last) last = split.last; // may legitimately be '' — see splitFullName
+    }
+  }
+
+  if (!first) {
+    return { ok: false, error: 'Could not determine the student\'s name — map a First Name column, or a single combined Name column' };
+  }
+  if (last == null) {
+    return { ok: false, error: 'Could not determine the student\'s last name — map a Last Name column, or a single combined Name column' };
+  }
 
   // Gender enum normalisation.
   let gender: StudentRow['gender'] = null;

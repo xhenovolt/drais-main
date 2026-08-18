@@ -166,8 +166,13 @@ describe('inspectWorkbook — realistic messy workbooks', () => {
         ['XHN/001', 'John', 'Kato', 'S1'],
       ]],
       ['Term 1 Fees', [
-        ['Admission No', 'Name', 'Tuition', 'Balance', 'Amount Paid'],
-        ['XHN/001', 'John Kato', 500000, 100000, 400000],
+        // 'Name' + 'Balance' alone are real but genuinely ambiguous with a
+        // students sheet (fees_balance is a legitimate STUDENT_FIELDS
+        // synonym too) — a realistic fee-history export (matching
+        // pipelines/fees-schema.ts) also has a payment method and
+        // reference column, which a students sheet never would.
+        ['Admission No', 'Name', 'Tuition', 'Balance', 'Amount Paid', 'Payment Method', 'Reference'],
+        ['XHN/001', 'John Kato', 500000, 100000, 400000, 'Mobile Money', 'MM-4471'],
       ]],
     ]);
     const inspection = inspectWorkbook(buf);

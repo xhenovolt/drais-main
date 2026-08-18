@@ -197,6 +197,24 @@ export async function POST(req: NextRequest) {
       conflictPolicy,
       dryRun,
     });
+    // Effective name requirement (OR-group, not expressible by the
+    // generic per-field `required` flag): a name is resolvable if EITHER
+    // first_name + last_name are both mapped, OR full_name is mapped.
+    // first_name/last_name/full_name are all non-required in the schema
+    // (see students-schema.ts) precisely so this OR logic lives here
+    // instead of incorrectly blocking on either shape alone.
+    const mappedFields = new Set(
+      report.schemaInference.mappings.filter(m => m.canonicalField).map(m => m.canonicalField as string),
+    );
+    const hasSeparateName = mappedFields.has('first_name') && mappedFields.has('last_name');
+    const hasFullName = mappedFields.has('full_name');
+    if (!hasSeparateName && !hasFullName) {
+      report.schemaInference.unresolvedRequired = [
+        ...report.schemaInference.unresolvedRequired,
+        'first_name+last_name (or a single combined Name column)',
+      ];
+    }
+
     reports.push(report);
     addCounts(combinedCounts, report.counts);
 
