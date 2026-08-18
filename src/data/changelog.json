@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T23:06:54.195Z",
-  "last_commit": "e4d0b0c5a57266005fed2179bd9ca12a0766d42e",
+  "generated_at": "2026-08-18T23:07:06.033Z",
+  "last_commit": "a2d5e4817d2368ecb498651c73674873780b9e84",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7086,7 +7086,20 @@
         }
       ],
       "commit": "e4d0b0c5a5"
+    },
+    {
+      "version": "1.173.83",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "Infobip WhatsApp delivery-status webhook",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Infobip WhatsApp delivery-status webhook"
+        }
+      ],
+      "commit": "a2d5e4817d"
     }
   ],
-  "app_version": "1.173.83"
+  "app_version": "1.173.84"
 }
