@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T04:25:46.770Z",
-  "last_commit": "bbcc84406ceaccd0e8e3f0b46033a06dd8c99936",
+  "generated_at": "2026-08-18T06:06:31.689Z",
+  "last_commit": "b1b63a3bb7f8d7ceadfb01dc1fe4f632a514efe4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6865,7 +6865,20 @@
         }
       ],
       "commit": "bbcc84406c"
+    },
+    {
+      "version": "1.173.66",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Nursery report cards showed grade E regardless of real performance",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Nursery report cards showed grade E regardless of real performance"
+        }
+      ],
+      "commit": "b1b63a3bb7"
     }
   ],
-  "app_version": "1.173.66"
+  "app_version": "1.173.67"
 }

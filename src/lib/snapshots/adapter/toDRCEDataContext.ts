@@ -262,7 +262,17 @@ export function snapshotToDRCEDataContext(
 
   let assessment: DRCEAssessmentData;
   if (isNursery) {
-    const nurseryGrades = principalResults.map((r) => gradeForScore(r.score ?? 0, true));
+    // Bug fix (2026-08-18): the DRCEResultRow objects built above never
+    // carry a `score` field — they use `endTermScore`/`total` instead
+    // (see the row shape a few dozen lines up: `midTermScore: null,
+    // endTermScore: r.score, total: r.score`, no bare `score`). Reading
+    // `r.score` here always hit `undefined ?? 0`, so gradeForScore(0,
+    // true) returned 'E' for every subject regardless of how well the
+    // learner actually did — this is the ACTUAL report-rendering path
+    // (DRCEDocumentRenderer), not the /academics/reports page fixed
+    // earlier the same day, which turned out not to be what real report
+    // cards go through.
+    const nurseryGrades = principalResults.map((r) => gradeForScore(r.total ?? r.endTermScore ?? 0, true));
     const nurseryOverallGrade = getNurseryOverallGrade(nurseryGrades);
     assessment = {
       classPosition:  stu.position || null,
