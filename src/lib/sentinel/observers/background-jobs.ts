@@ -22,7 +22,15 @@ import type { Observation } from '../types';
 export const EXPECTED_JOBS: Array<{ heartbeatName: string; label: string; expectedIntervalSeconds: number }> = [
   { heartbeatName: 'job_dunning', label: 'Billing dunning sweep', expectedIntervalSeconds: 26 * 3600 },
   { heartbeatName: 'job_platform_health', label: 'Platform health snapshot', expectedIntervalSeconds: 26 * 3600 },
-  { heartbeatName: 'notification_drain', label: 'Notification outbox drain', expectedIntervalSeconds: 6 * 3600 },
+  // job-runner.ts writes every job's heartbeat as `job_${job.type}` (see
+  // its beatStart/beatSuccess/beatFailure calls) — this entry named the
+  // job-runner's OWN job type ('notification_drain') instead of the
+  // heartbeat name it actually gets beaten under ('job_notification_drain'),
+  // so this observer reported UNMONITORED for a job that had, in fact,
+  // already run successfully. Found 2026-08-18 while investigating why
+  // this and two other jobs were flagged despite platform_jobs showing
+  // real completed runs.
+  { heartbeatName: 'job_notification_drain', label: 'Notification outbox drain', expectedIntervalSeconds: 6 * 3600 },
   { heartbeatName: 'sentinel_core_sweep', label: 'Sentinel sweep', expectedIntervalSeconds: 26 * 3600 },
 ];
 

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
@@ -76,21 +76,49 @@ async function authorize(req: NextRequest): Promise<{ schoolId: number | null; u
 }
 
 export async function GET(req: NextRequest) {
-  // Piggyback the daily attendance-intelligence sweep onto the single cron
-  // this project is allowed (Vercel Hobby = one cron). This is the ZERO-VISIT
-  // floor that keeps clock-health + baselines populated so Recovery, Device
-  // Intelligence, confidence and the clock badges work even if nobody opens
-  // an intelligence page. Best-effort; never blocks the reminder dispatch.
-  import('@/lib/attendance/intelligence-sweep')
-    .then(m => m.sweepAllSchools())
-    // After the sweep populates fresh intelligence, push the daily digest so
-    // admins are TOLD what needs them (Founder-Independence Phase D) — no one
-    // has to open a page. In-app, deduped once per school per day.
-    .then(() => import('@/lib/attendance/digest').then(m => m.sendDailyDigests()))
-    // Platform job runner (Phase 18) — the ONE cron dispatches all due background
-    // jobs (dunning + anything future phases enqueue) with retry/backoff. No new
-    // cron is ever added; periodic work is a `platform_jobs` row.
-    .then(async () => {
+  // Piggyback the daily maintenance chain onto the single cron this project
+  // is allowed (Vercel Hobby = one cron). Two bugs fixed here 2026-08-18,
+  // found while investigating why job_dunning/job_platform_health had never
+  // reported a heartbeat despite being enqueued daily by this exact code:
+  //
+  //   1. This used to be a naked fire-and-forget promise chain returned
+  //      alongside `dispatch(req)` — nothing told Vercel to keep the
+  //      function alive after the response went out, so the runtime was
+  //      free to freeze/kill it mid-chain at any point. `platform_jobs`
+  //      showed dunning/platform_health rows from 2026-08-02 and -04, then
+  //      NONE for the following two weeks — the enqueue calls themselves
+  //      stopped happening, consistent with the chain never reaching that
+  //      block. `after()` (stable in this Next.js version) tells the
+  //      platform to keep the function alive until the callback settles,
+  //      which a bare "don't await, just .catch and move on" promise chain
+  //      never did.
+  //   2. The chain was ALSO a single `.then()` pipeline where the sweep
+  //      step throwing (or ever having thrown) would skip every step after
+  //      it, including the job-runner block — one system's failure
+  //      silently starving three unrelated ones (dunning, platform health,
+  //      Sentinel's own sweep, notification drain). Each concern below now
+  //      has its own try/catch so none can block the others.
+  after(async () => {
+    // ZERO-VISIT floor that keeps clock-health + baselines populated so
+    // Recovery, Device Intelligence, confidence and the clock badges work
+    // even if nobody opens an intelligence page.
+    try {
+      const { sweepAllSchools } = await import('@/lib/attendance/intelligence-sweep');
+      await sweepAllSchools();
+      // Daily digest depends on fresh intelligence, so it stays chained to
+      // the sweep succeeding — but a digest failure must not block it, and
+      // neither should ever block the job-runner block below.
+      const { sendDailyDigests } = await import('@/lib/attendance/digest');
+      await sendDailyDigests();
+    } catch (err) {
+      console.error('[result-deadlines] intelligence sweep / digest failed (non-fatal):', err);
+    }
+
+    // Platform job runner (Phase 18) — the ONE cron dispatches all due
+    // background jobs (dunning + anything future phases enqueue) with
+    // retry/backoff. No new cron is ever added; periodic work is a
+    // `platform_jobs` row. Independent of the block above by design.
+    try {
       const [{ registerCoreHandlers }, jobs] = await Promise.all([
         import('@/lib/control/job-handlers'),
         import('@/lib/control/job-runner'),
@@ -107,8 +135,10 @@ export async function GET(req: NextRequest) {
       // No-op unless an operator has explicitly opted in — see data-retention.ts.
       await jobs.enqueueJob({ type: 'data_retention_sweep', dedupKey: `data_retention_sweep:${today}` });
       await jobs.runDueJobs();
-    })
-    .catch(() => {});
+    } catch (err) {
+      console.error('[result-deadlines] job-runner block failed (non-fatal):', err);
+    }
+  });
   return dispatch(req);
 }
 export async function POST(req: NextRequest) {

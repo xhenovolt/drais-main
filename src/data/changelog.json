@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T19:42:07.859Z",
-  "last_commit": "4d182a1921655ff298256ed0ee56c264e81c9771",
+  "generated_at": "2026-08-18T20:04:34.987Z",
+  "last_commit": "1c16fca78199978057fa670956b48d1f591bbb4d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7021,7 +7021,20 @@
         }
       ],
       "commit": "4d182a1921"
+    },
+    {
+      "version": "1.173.78",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Refresh architecture manifest to current HEAD",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Refresh architecture manifest to current HEAD"
+        }
+      ],
+      "commit": "1c16fca781"
     }
   ],
-  "app_version": "1.173.78"
+  "app_version": "1.173.79"
 }
