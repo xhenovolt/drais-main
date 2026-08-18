@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T16:43:58.758Z",
-  "last_commit": "74a5d74ebfbde61213e77af60baa3895ac55a23d",
+  "generated_at": "2026-08-18T16:44:12.763Z",
+  "last_commit": "800a969a7e4316ae2b59c1cba9b88cdb4d98df4a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -6969,7 +6969,20 @@
         }
       ],
       "commit": "74a5d74ebf"
+    },
+    {
+      "version": "1.173.74",
+      "date": "2026-08-18",
+      "release_type": "patch",
+      "title": "Eliminate false positives in the tenant-isolation scanner after manually verifying every flagged file",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Eliminate false positives in the tenant-isolation scanner after manually verifying every flagged file"
+        }
+      ],
+      "commit": "800a969a7e"
     }
   ],
-  "app_version": "1.173.74"
+  "app_version": "1.173.75"
 }

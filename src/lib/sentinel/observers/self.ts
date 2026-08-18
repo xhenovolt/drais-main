@@ -15,7 +15,7 @@
  * (report degraded/unmonitored) rather than throw.
  */
 import { query } from '@/lib/db';
-import { heartbeatStatus, HEARTBEATS } from '../heartbeat';
+import { heartbeatStatus, beatSuccess, beatFailure, HEARTBEATS } from '../heartbeat';
 import type { HealthVerdict } from '../types';
 
 export interface SelfCheckResult {
@@ -38,15 +38,20 @@ async function canWrite(): Promise<boolean> {
   try {
     const { ensureSentinelSchema } = await import('../schema');
     await ensureSentinelSchema();
-    const token = `selfcheck_${Date.now()}`;
-    await query(
-      `INSERT INTO sentinel_heartbeats (name, last_started_at) VALUES (?, NOW())
-       ON DUPLICATE KEY UPDATE last_started_at = NOW()`,
-      ['sentinel_self_write_probe'],
-    );
+    // Bug fixed 2026-08-18: this used to hand-roll an INSERT that only
+    // ever set last_started_at — heartbeatStatus()/allHeartbeats() key
+    // their verdict off last_success_at/last_failure_at (see heartbeat.ts),
+    // so this probe could write successfully on every single call and
+    // STILL report "unmonitored" forever, because the column it wrote to
+    // was never the one read back. Routing through beatSuccess()/
+    // beatFailure() — the same helpers every other heartbeat source
+    // uses — makes the write-then-read round trip actually observable.
+    await query(`SELECT 1`);
+    await beatSuccess('sentinel_self_write_probe');
     const rows = (await query(`SELECT name FROM sentinel_heartbeats WHERE name = ? LIMIT 1`, ['sentinel_self_write_probe'])) as any[];
     return rows.length > 0;
-  } catch {
+  } catch (err) {
+    await beatFailure('sentinel_self_write_probe', err instanceof Error ? err.message : String(err)).catch(() => {});
     return false;
   }
 }
