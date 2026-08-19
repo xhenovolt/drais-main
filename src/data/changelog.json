@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T13:53:01.696Z",
-  "last_commit": "de3c75e8f1e643cc06139731fbc2499c579d1b5f",
+  "generated_at": "2026-08-19T15:07:09.430Z",
+  "last_commit": "f143c3589cdcba50aa26a8dd94def00c00d27a14",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7177,7 +7177,20 @@
         }
       ],
       "commit": "de3c75e8f1"
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-08-19",
+      "release_type": "minor",
+      "title": "School-scoped provisioning + three real bugs found testing it live",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "School-scoped provisioning + three real bugs found testing it live"
+        }
+      ],
+      "commit": "f143c3589c"
     }
   ],
-  "app_version": "2.1.0"
+  "app_version": "2.2.0"
 }
