@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T04:26:23.020Z",
-  "last_commit": "0b593b3168efc7a3a24bf1ee9bf28db41907002f",
+  "generated_at": "2026-08-19T04:39:27.210Z",
+  "last_commit": "0dc12b28d50ae8be2aef39327f109f6dd3549faa",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7138,7 +7138,20 @@
         }
       ],
       "commit": "0b593b3168"
+    },
+    {
+      "version": "1.173.87",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "Move better-sqlite3 to optionalDependencies — unbreak dev Vercel build",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Move better-sqlite3 to optionalDependencies — unbreak dev Vercel build"
+        }
+      ],
+      "commit": "0dc12b28d5"
     }
   ],
-  "app_version": "1.173.87"
+  "app_version": "1.173.88"
 }
