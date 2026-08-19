@@ -14,7 +14,9 @@
  *   - duplicates are re-checked INSIDE the transaction against ALL sources
  *     (the unique keys only guard same-source collisions), so a punch that
  *     arrived via ADMS after validation cannot double-import
- *   - provenance on every row: source='tcp_pull', the acquisition id in
+ *   - provenance on every row: source = the batch's own acquisition method
+ *     (tcp_pull, usb_import, ...) — never hardcoded, so a USB-imported
+ *     batch is never mislabeled as a TCP pull — plus the acquisition id in
  *     legacy_table/legacy_id, operator on the batch
  *   - all-or-nothing: any failure rolls the entire batch back
  *
@@ -92,13 +94,19 @@ export async function commitAcquisition(args: {
   await ensureAcquisitionSchema();
 
   const batches = (await query(
-    `SELECT id, school_id, device_sn, status, correction_applied, operator_drift_seconds
+    `SELECT id, school_id, device_sn, method, status, correction_applied, operator_drift_seconds
        FROM attendance_acquisitions
       WHERE id = ? AND school_id = ? LIMIT 1`,
     [acquisitionId, schoolId],
-  )) as Array<{ id: number; school_id: number; device_sn: string | null; status: string; correction_applied: number | boolean | null; operator_drift_seconds: number | null }>;
+  )) as Array<{ id: number; school_id: number; device_sn: string | null; method: string; status: string; correction_applied: number | boolean | null; operator_drift_seconds: number | null }>;
   if (!batches.length) throw new Error('Acquisition not found');
   const batch = batches[0];
+  // attendance_raw_events.source shares the acquisition method's literal
+  // values for the methods that actually flow through this committer
+  // (tcp_pull, usb_import — see the ENUM extension in ./schema.ts). Fall
+  // back to 'tcp_pull' only for pre-existing rows/paths that predate the
+  // method column being trustworthy here.
+  const source = batch.method || 'tcp_pull';
   if (batch.status !== 'validated') {
     throw new Error(`Only a validated batch can be saved (current status: ${batch.status})`);
   }
@@ -156,7 +164,7 @@ export async function commitAcquisition(args: {
             role_type, role_ref_id, punch_at, device_reported_time,
             clock_skew_seconds, time_source, time_confidence, verify_type, io_mode, source,
             matched, resolution_path, legacy_table, legacy_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'device', ?, ?, ?, 'tcp_pull', ?, ?, 'attendance_acquisitions', ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'device', ?, ?, ?, ?, ?, ?, 'attendance_acquisitions', ?)`,
         [
           schoolId, batch.device_sn, parseInt(r.device_user_id, 10) || 0,
           r.display_name, r.person_id, r.role_type, r.role_ref_id,
@@ -164,6 +172,7 @@ export async function commitAcquisition(args: {
           correctionApplied ? driftSeconds : null,
           correctionApplied ? 'corrected' : 'high',
           r.verify_type, r.io_mode,
+          source,
           r.matched ? 1 : 0,
           r.matched ? 'acquisition_committer' : null,
           acquisitionId,

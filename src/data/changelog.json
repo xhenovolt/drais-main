@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T03:41:51.582Z",
-  "last_commit": "844d4ca44748af77114e2f51e316a5f7db778397",
+  "generated_at": "2026-08-19T03:42:24.289Z",
+  "last_commit": "d9b249b5980ad23e50b3af06ceb7bd5238aa5eff",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7125,7 +7125,20 @@
         }
       ],
       "commit": "844d4ca447"
+    },
+    {
+      "version": "1.173.86",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "DRAIS V2 resilience audit + phased roadmap",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "DRAIS V2 resilience audit + phased roadmap"
+        }
+      ],
+      "commit": "d9b249b598"
     }
   ],
-  "app_version": "1.173.86"
+  "app_version": "1.173.87"
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
 import {
   Activity, Wifi, WifiOff, Server, Clock, MapPin, Hash,
   Trash2, Users, Loader, CheckCircle, AlertTriangle, Settings,
   Fingerprint, RefreshCw, Edit2, X, Save, UserPlus, Send,
   RotateCcw, ShieldAlert, Database, Power, ClipboardList,
-  Timer, Info, Download,
+  Timer, Info, Download, Eye,
   // Phase 2 — ownership ceremony actions.
   LogOut, LogIn, Archive,
 } from 'lucide-react';
@@ -426,8 +427,13 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
     setPullStage('running');
     setPullResult(null);
     try {
+      // Stages + validates only — nothing is written to attendance_raw_events
+      // here. The operator reviews the Raw Inspection screen on
+      // /attendance/device-control and explicitly saves or discards from
+      // there (docs/audits/TCP_PULL_FORENSIC_AND_REDESIGN.md, Phase 4 — the
+      // old direct-write pull_attendance action this replaced is retired).
       const body: Record<string, unknown> = {
-        action: 'pull_attendance',
+        action: 'stage_pull',
         device_sn: device.serial_number,
         device_ip: lanIp,
         mode: pullMode,
@@ -900,46 +906,65 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                   </div>
                 )}
 
-                {/* Done */}
-                {pullStage === 'done' && pullResult && (
+                {/* Staged — nothing written to DRAIS yet. Review & Save
+                    hands off to the Raw Inspection wizard, which is the ONLY
+                    path that can save these punches (docs/audits/
+                    TCP_PULL_FORENSIC_AND_REDESIGN.md, Phase 4). */}
+                {pullStage === 'done' && pullResult && !pullResult.error && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="w-5 h-5" />
-                      <span className="text-sm font-semibold">Pull complete</span>
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <Eye className="w-5 h-5" />
+                      <span className="text-sm font-semibold">Staged for review — nothing saved yet</span>
                     </div>
                     <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-3 space-y-1.5 text-xs">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Logs on device</span>
                         <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.totalOnDevice ?? '—'}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Matching date filter</span>
-                        <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.filteredCount ?? '—'}</span>
-                      </div>
                       <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-1.5 mt-1">
-                        <span className="text-green-600 font-medium">Inserted (new)</span>
-                        <span className="font-bold text-green-700 dark:text-green-400">{pullResult.inserted ?? 0}</span>
+                        <span className="text-blue-600 font-medium">Staged for this window</span>
+                        <span className="font-bold text-blue-700 dark:text-blue-400">{pullResult.staged ?? 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-blue-500 font-medium">Duplicates skipped</span>
-                        <span className="font-semibold text-blue-600">{pullResult.duplicates ?? 0}</span>
+                        <span className="text-green-500 font-medium">Matched identity</span>
+                        <span className="font-semibold text-green-600">{pullResult.validation?.matched ?? 0}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-amber-500 font-medium">Unmatched identity</span>
-                        <span className="font-semibold text-amber-600">{pullResult.unmatched ?? 0}</span>
+                        <span className="font-semibold text-amber-600">{pullResult.validation?.unmatched ?? 0}</span>
                       </div>
-                      {(pullResult.failed ?? 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-orange-500 font-medium">Already in DRAIS</span>
+                        <span className="font-semibold text-orange-600">{pullResult.validation?.duplicates ?? 0}</span>
+                      </div>
+                      {(pullResult.invalid ?? 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-red-500 font-medium">Failed</span>
-                          <span className="font-semibold text-red-600">{pullResult.failed}</span>
+                          <span className="text-red-500 font-medium">Unparseable</span>
+                          <span className="font-semibold text-red-600">{pullResult.invalid}</span>
                         </div>
                       )}
                     </div>
-                    {(pullResult.unmatched ?? 0) > 0 && (
-                      <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                        {pullResult.unmatched} punch{pullResult.unmatched !== 1 ? 'es' : ''} stored but identity pending — visible under Attendance → Logs → Unmatched tab.
-                      </p>
+                    {(pullResult.validation?.warnings?.length ?? 0) > 0 && (
+                      <div className="space-y-1">
+                        {pullResult.validation.warnings.map((w: string, i: number) => (
+                          <p key={i} className="text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                            <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />{w}
+                          </p>
+                        ))}
+                      </div>
                     )}
+                    <p className="text-[11px] text-gray-400">
+                      Nothing is saved until an operator reviews the timestamps and confirms on the Attendance Acquisition screen.
+                    </p>
+                  </div>
+                )}
+                {pullStage === 'done' && pullResult?.error && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span className="text-sm font-semibold">Pull failed</span>
+                    </div>
+                    <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{pullResult.error}</p>
                   </div>
                 )}
 
@@ -971,6 +996,12 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                   <button disabled className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium cursor-wait">
                     <Loader className="w-4 h-4 animate-spin" /> Pulling…
                   </button>
+                )}
+                {pullStage === 'done' && pullResult?.acquisitionId != null && !pullResult.error && (
+                  <Link href={`/attendance/device-control?acquisitionId=${pullResult.acquisitionId}`}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+                    <CheckCircle className="w-4 h-4" /> Review &amp; Save
+                  </Link>
                 )}
                 {(pullStage === 'done' || pullStage === 'error') && (
                   <button onClick={() => { setPullStage('idle'); setPullResult(null); }}

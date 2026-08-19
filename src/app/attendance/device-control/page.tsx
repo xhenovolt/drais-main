@@ -16,7 +16,8 @@
  *   attendance_raw_events until the Phase 4 committer is enabled.
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Wifi, WifiOff, Lock, Unlock, Fingerprint, Monitor, RefreshCw,
   Send, Loader, Users, Clock, Terminal, Type, AlertTriangle,
@@ -165,7 +166,40 @@ interface WizardState {
 const PAGE_SIZE = 50;
 const todayStr = () => toLocalDateStr();
 
-export default function DeviceControlPage() {
+/**
+ * Reconstruct the wizard's validation summary from a persisted acquisition +
+ * its staged records, for the case where the wizard is opened directly on an
+ * already-staged batch (e.g. `?acquisitionId=` from another page's quick
+ * pull) instead of arriving via startPull()'s live stage_pull response. The
+ * records are already annotated (matched/duplicate_of_event_id/
+ * validation_flags) by the server's validateAcquisition() — this only
+ * re-shapes what's already there, it never re-derives judgments.
+ */
+function deriveValidationFromRecords(acquisition: any, records: any[]): WizardValidation {
+  const sorted = [...records].sort((a, b) =>
+    a.device_wall_time < b.device_wall_time ? -1 : a.device_wall_time > b.device_wall_time ? 1 : 0);
+  const toAnchor = (r: any) => ({ pin: r.device_user_id, wall: r.device_wall_time, name: r.display_name ?? null });
+  const futureFlagged = records.filter(r => String(r.validation_flags ?? '').includes('future')).length;
+  let warnings: string[] = [];
+  try { warnings = JSON.parse(acquisition?.warnings_json || '[]'); } catch { /* best-effort */ }
+  const unmatched = acquisition?.records_unmatched ?? records.filter(r => !r.matched).length;
+  return {
+    records: records.length,
+    matched: records.length - unmatched,
+    unmatched,
+    duplicates: acquisition?.records_duplicate ?? records.filter(r => r.duplicate_of_event_id != null).length,
+    futureFlagged,
+    first3: sorted.slice(0, 3).map(toAnchor),
+    last3: sorted.slice(-3).reverse().map(toAnchor),
+    deviceWallNow: acquisition?.device_time_at_pull ?? null,
+    serverWallNow: '',
+    clockDeltaSeconds: acquisition?.clock_delta_seconds ?? null,
+    warnings,
+  };
+}
+
+function DeviceControlInner() {
+  const searchParams = useSearchParams();
   const [deviceSn, setDeviceSn] = useState('');
   const [directIp, setDirectIp] = useState('');
   const [directPort, setDirectPort] = useState('4370');
@@ -192,6 +226,52 @@ export default function DeviceControlPage() {
       else if (devices[0]) setDeviceSn(devices[0].sn);
     }
   }, [devices, deviceSn]);
+
+  // Open directly on an already-staged batch (e.g. linked from the devices
+  // list page's own quick-pull dialog) — lands on the SAME 'inspect' step,
+  // with the SAME mandatory time-check + confirm gate, as a pull started
+  // here. Nothing about the safety flow is skipped just because staging
+  // happened elsewhere; only the "pull" step is bypassed since it already ran.
+  React.useEffect(() => {
+    const idRaw = searchParams?.get('acquisitionId');
+    if (!idRaw) return;
+    const id = parseInt(idRaw, 10);
+    if (!Number.isFinite(id)) return;
+    (async () => {
+      setWiz(w => ({ ...w, step: 'pulling' }));
+      try {
+        const res = await fetch(`/api/attendance/acquisitions?id=${id}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Batch not found');
+        const acquisition = json.acquisition;
+        const records = json.records || [];
+        if (acquisition?.device_sn) setDeviceSn(acquisition.device_sn);
+        setTimeCheck({
+          device: acquisition?.device_time_at_pull ? String(acquisition.device_time_at_pull).slice(11, 19) : '',
+          real: new Date().toTimeString().slice(0, 8),
+          answered: false,
+          appliedDrift: acquisition?.correction_applied ? acquisition.operator_drift_seconds : null,
+        });
+        setWiz(w => ({
+          ...w,
+          step: 'inspect',
+          acquisitionId: id,
+          staged: records.length,
+          totalOnDevice: acquisition?.device_log_count ?? records.length,
+          validation: deriveValidationFromRecords(acquisition, records),
+          records,
+          page: 0,
+          search: '',
+        }));
+      } catch (err: any) {
+        setWiz(w => ({ ...w, step: 'error', error: err.message || 'Could not load that batch' }));
+        showToast('error', err.message || 'Could not load that batch');
+      }
+    })();
+    // Deliberately runs once on mount only — this is a one-shot "open on
+    // this batch" link, not a live subscription to the URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addResult = useCallback((action: string, data: any, success: boolean) => {
     setResults(prev => [{
@@ -318,6 +398,52 @@ export default function DeviceControlPage() {
         search: '',
       }));
       refreshAcquisitions();
+    } catch (err: any) {
+      setWiz(w => ({ ...w, step: 'error', error: err.message }));
+      showToast('error', err.message);
+    }
+  };
+
+  // ── USB import (final fallback: ADMS push failed, TCP pull failed) ─────
+  // Same staging pipeline as startPull — only the source of the raw punches
+  // differs. Lands on the identical 'inspect' step with the identical
+  // time-check + confirm gate; nothing about the safety flow is relaxed
+  // just because the file arrived via USB instead of a live TCP pull.
+  const startUsbImport = async (file: File) => {
+    if (!deviceSn) {
+      showToast('error', 'Select which device this file came from first — DRAIS cannot infer it from a USB file.');
+      return;
+    }
+    setWiz(w => ({ ...w, step: 'pulling', error: undefined, rejected: false, saveResult: undefined }));
+    setTimeCheck({ device: '', real: '', answered: false, appliedDrift: null });
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('device_sn', deviceSn);
+      const res = await fetch('/api/attendance/usb-import', { method: 'POST', body: formData });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Import failed');
+      let records: any[] = [];
+      if (json.acquisitionId != null) records = await fetchRecords(json.acquisitionId);
+      // No live device to probe here — the operator answers the time check
+      // from memory/the device's screen if they still have it, or accepts
+      // as-is; acceptClock() doesn't require the field to be filled.
+      setTimeCheck({ device: '', real: new Date().toTimeString().slice(0, 8), answered: false, appliedDrift: null });
+      setWiz(w => ({
+        ...w,
+        step: 'inspect',
+        acquisitionId: json.acquisitionId,
+        staged: json.staged,
+        totalOnDevice: json.totalOnDevice,
+        validation: json.validation,
+        records,
+        page: 0,
+        search: '',
+      }));
+      refreshAcquisitions();
+      if (json.parseErrorCount) {
+        showToast('error', `${json.parseErrorCount} line(s) in the file could not be parsed and were skipped — check the batch warnings.`);
+      }
     } catch (err: any) {
       setWiz(w => ({ ...w, step: 'error', error: err.message }));
       showToast('error', err.message);
@@ -564,7 +690,7 @@ export default function DeviceControlPage() {
 
       {/* ── 2. Attendance Acquisition (wizard) ───────────────────────────── */}
       <Section icon={<ShieldCheck className="w-5 h-5" />} title="Attendance Acquisition"
-        subtitle="Pull one date → inspect raw device times → confirm → decide. Nothing is saved without your confirmation.">
+        subtitle="Pull (TCP) or import (USB) → inspect raw device times → confirm → decide. Nothing is saved without your confirmation.">
 
         {(wiz.step === 'idle' || wiz.step === 'error' || wiz.step === 'discarded') && (
           <div className="space-y-3">
@@ -609,6 +735,28 @@ export default function DeviceControlPage() {
               </button>
               <p className="text-xs text-gray-400 dark:text-gray-500 sm:ml-2">
                 Staging only — you inspect and confirm before anything is stored.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-700 mt-1">
+              <div>
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium cursor-pointer">
+                  <FileDown className="w-4 h-4" />
+                  …or import a USB export file
+                  <input
+                    type="file"
+                    accept=".txt,.dat,.csv,text/plain,text/csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = ''; // allow re-selecting the same file
+                      if (f) startUsbImport(f);
+                    }}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Final fallback when device push and TCP pull both fail — attributed to <span className="font-mono">{deviceSn || 'the selected device above'}</span>. Same staging, same review, same confirm gate.
               </p>
             </div>
           </div>
@@ -1115,6 +1263,14 @@ export default function DeviceControlPage() {
         TCP SDK connects directly to device port 4370 — requires LAN access or relay agent
       </div>
     </div>
+  );
+}
+
+export default function DeviceControlPage() {
+  return (
+    <Suspense fallback={<div className="py-16 text-center"><Loader className="w-6 h-6 animate-spin text-indigo-600 inline" /></div>}>
+      <DeviceControlInner />
+    </Suspense>
   );
 }
 

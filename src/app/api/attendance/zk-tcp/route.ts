@@ -783,9 +783,33 @@ export async function POST(req: NextRequest) {
       // validation. ZERO writes to attendance_raw_events — persistence is
       // an explicit operator decision (Phase 4 committer).
       case 'stage_pull': {
-        const dateStr: string | null = body.date || null; // YYYY-MM-DD
-        if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          return NextResponse.json({ error: 'date (YYYY-MM-DD) is required' }, { status: 400 });
+        // Mode-aware window, mirroring the legacy pull_attendance contract
+        // (today / full / range) so this is a strict superset — no caller
+        // loses capability by moving to the safe stage→inspect→commit path.
+        // Backward compatible: a bare { date } (device-control's original
+        // call shape) is still treated as a single-day window.
+        const mode: 'today' | 'full' | 'range' = body.mode || 'today';
+        const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+        let windowFrom: string | null = null;
+        let windowTo: string | null = null;
+        if (mode === 'range') {
+          windowFrom = body.date_from || null;
+          windowTo = body.date_to || null;
+          if (!windowFrom || !windowTo || !DATE_RE.test(windowFrom) || !DATE_RE.test(windowTo)) {
+            return NextResponse.json({ error: 'date_from and date_to (YYYY-MM-DD) are required for mode=range' }, { status: 400 });
+          }
+        } else if (mode === 'full') {
+          windowFrom = null; // no filtering — every log on the device is staged
+          windowTo = null;
+        } else {
+          // 'today' (default): explicit body.date wins (device-control's
+          // single-date picker); otherwise the device's local today.
+          const dateStr: string | null = body.date || schoolLocalToday();
+          if (!dateStr || !DATE_RE.test(dateStr)) {
+            return NextResponse.json({ error: 'date (YYYY-MM-DD) is required' }, { status: 400 });
+          }
+          windowFrom = dateStr;
+          windowTo = dateStr;
         }
 
         const zk = await getConnection(ip, port);
@@ -816,12 +840,13 @@ export async function POST(req: NextRequest) {
           deviceSn: resolvedSn || null,
           deviceIp: ip,
           requestedBy: session.userId ?? null,
-          windowFrom: dateStr,
-          windowTo: dateStr,
+          windowFrom,
+          windowTo,
         });
 
         try {
-          // Filter by the DEVICE's calendar date — verbatim wall, no UTC.
+          // Filter by the DEVICE's calendar date range — verbatim wall, no
+          // UTC math (day-boundary-safe). mode='full' skips filtering entirely.
           const punches = allRecords
             .map((r: any) => ({
               seq: typeof r.userSn === 'number' ? r.userSn : null,
@@ -831,7 +856,14 @@ export async function POST(req: NextRequest) {
               statusCode: r.status ?? null,
               displayName: userNameMap[String(r.deviceUserId ?? '')] || null,
             }))
-            .filter((p: any) => p.wallTime && p.deviceUserId && wallDate(p.wallTime) === dateStr);
+            .filter((p: any) => {
+              if (!p.wallTime || !p.deviceUserId) return false;
+              if (!windowFrom && !windowTo) return true; // full
+              const d = wallDate(p.wallTime);
+              if (windowFrom && d < windowFrom) return false;
+              if (windowTo && d > windowTo) return false;
+              return true;
+            });
 
           const { staged, invalid } = await stageRecords(acquisitionId, punches);
 
@@ -859,7 +891,10 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({
             success: true,
             acquisitionId,
-            date: dateStr,
+            mode,
+            date: windowFrom && windowFrom === windowTo ? windowFrom : null,
+            windowFrom,
+            windowTo,
             deviceSn: resolvedSn || null,
             totalOnDevice: allRecords.length,
             staged,
@@ -876,236 +911,31 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // ── Pull Attendance Logs ─────────────────────────────────────────────
-      // Connects directly to the device over LAN TCP, downloads the full
-      // attendance log buffer, optionally filters by date, resolves each
-      // record's identity against biometric_enrollments / zk_user_mapping,
-      // and inserts into attendance_raw_events (INSERT IGNORE — idempotent).
-      // Unmapped PINs are stored with matched=false so they surface in the
-      // Unmatched tab and can be reconciled by the administrator later.
+      // ── Pull Attendance Logs (RETIRED — Phase 4 of the TCP-pull redesign) ──
+      // This action used to write directly to attendance_raw_events with no
+      // operator preview (mission: docs/audits/TCP_PULL_FORENSIC_AND_REDESIGN.md).
+      // It also applied the LIVE-ingest clock policy (decidePunchTime) to
+      // bulk historical pulls (RC-3) and took a free-text clock-offset
+      // minutes field that silently replaced the device timezone (RC-5) —
+      // both root causes of the July 2026 JIPRA timestamp-corruption incident.
+      //
+      // Replaced by: POST { action:'stage_pull', mode, date|date_from/date_to }
+      // (zero writes — stages + validates only) followed by
+      // POST /api/attendance/acquisitions { id, action:'commit' } once an
+      // operator has reviewed the Raw Inspection screen. Both UI callers
+      // (/attendance/device-control, /attendance/devices) were migrated to
+      // that flow in the same change that retired this action — this case
+      // is kept only so any stale client gets a clear, actionable error
+      // instead of a silent direct write.
       case 'pull_attendance': {
-        const mode: 'today' | 'full' | 'range' = body.mode || 'today';
-        const dateFrom: string | null = body.date_from || null;   // YYYY-MM-DD
-        const dateTo: string | null   = body.date_to   || null;   // YYYY-MM-DD
-        const clockOffsetMinutes      = parseInt(body.clock_offset_minutes ?? '0', 10) || 0;
-
-        // Determine date filter boundaries (device timestamps are local time,
-        // so we compare against the ISO date prefix rather than a UTC boundary).
-        const filterFrom = mode === 'today'
-          ? schoolLocalToday()
-          : mode === 'range' ? (dateFrom ?? null) : null;
-        const filterTo = mode === 'today'
-          ? schoolLocalToday()
-          : mode === 'range' ? (dateTo ?? null)   : null;
-
-        const zk = await getConnection(ip, port);
-        const pullStartedMs = Date.now();
-        const attResult = await zk.getAttendances();
-        const allRecords: any[] = attResult?.data || [];
-
-        // Get device info for the forensic report
-        let deviceInfo: any = {};
-        try { deviceInfo = await zk.getInfo(); } catch {}
-
-        // Phase 1 (acquisition backbone): every pull produces an audit batch
-        // row + verbatim staged records. Best-effort — the pull itself must
-        // never fail because audit logging did.
-        let acquisitionId: number | null = null;
-        try {
-          acquisitionId = await beginAcquisition({
-            schoolId: session.schoolId,
-            method: 'tcp_pull',
-            deviceSn: device_sn ?? null,
-            deviceIp: ip,
-            requestedBy: session.userId ?? null,
-            windowFrom: filterFrom,
-            windowTo: filterTo,
-          });
-        } catch (e) {
-          console.warn('[zk-tcp] acquisition audit unavailable:', e instanceof Error ? e.message : e);
-        }
-
-        // Filter to the requested date window (device time, no UTC conversion —
-        // node-zklib returns Date objects whose numeric value is local-time-as-UTC)
-        const toLocalDateStr = (rt: any): string => {
-          const iso = rt instanceof Date ? rt.toISOString() : new Date(rt).toISOString();
-          // Apply caller-supplied clock offset if device time is known to drift
-          if (clockOffsetMinutes) {
-            return new Date(new Date(iso).getTime() + clockOffsetMinutes * 60000)
-              .toISOString().slice(0, 10);
-          }
-          return iso.slice(0, 10);
-        };
-
-        const filtered = allRecords.filter(r => {
-          if (!filterFrom && !filterTo) return true; // mode=full → keep all
-          const d = toLocalDateStr(r.recordTime);
-          if (filterFrom && d < filterFrom) return false;
-          if (filterTo   && d > filterTo)   return false;
-          return true;
-        });
-
-        // Pull user list to enrich display_name
-        let userNameMap: Record<string, string> = {};
-        try {
-          const usersResult = await zk.getUsers();
-          for (const u of (usersResult?.data || [])) {
-            const pin = String(u.userId ?? '');
-            if (pin && u.name) userNameMap[pin] = String(u.name).trim();
-          }
-        } catch { /* name enrichment is best-effort */ }
-
-        // Resolve each record and insert
-        let inserted = 0, duplicates = 0, failed = 0, unmatched = 0;
-        const failures: Array<{ pin: string; ts: string; reason: string }> = [];
-
-        // Resolve device SN from DB if we got here via lan_ip
-        const resolvedSn: string = (device_sn as string | undefined)
-          || (await query('SELECT sn FROM devices WHERE lan_ip = ? AND school_id = ? LIMIT 1', [ip, session.schoolId]))?.[0]?.sn
-          || '';
-
-        const timePolicy = await resolveTimePolicy(session.schoolId);
-        const deviceCtx = await getDeviceTimeContext(resolvedSn || device_sn || '');
-        const effectiveOffsetMinutesForBatch = clockOffsetMinutes || (deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes);
-        // Prefer THIS pull's own measured drift over a possibly stale
-        // persisted scalar — see measureBatchOffsetSeconds doc for why.
-        const batchOffsetSeconds = measureBatchOffsetSeconds(
-          filtered.map((rec: any) => {
-            const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
-            return normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
-          }),
-          effectiveOffsetMinutesForBatch,
-        );
-        // ADAPTIVE_DRIFT_NO_MEMORY never falls back to persisted memory —
-        // see the matching comment in zk-handler/route.ts.
-        const storedOffsetSeconds = batchOffsetSeconds
-          ?? (timePolicy.policy === 'ADAPTIVE_DRIFT_NO_MEMORY' ? null : deviceCtx.clockOffsetSeconds);
-        if (batchOffsetSeconds != null && (resolvedSn || device_sn)) {
-          persistDeviceClockOffset(resolvedSn || device_sn, batchOffsetSeconds).catch(() => {});
-        }
-
-        for (const rec of filtered) {
-          const pin  = String(rec.deviceUserId ?? '');
-          const rawDate = rec.recordTime instanceof Date ? rec.recordTime : new Date(rec.recordTime);
-          const rawTs = rawDate.toISOString();
-
-          if (!pin || !rawTs) {
-            failed++;
-            failures.push({ pin, ts: rawTs, reason: 'missing pin or timestamp' });
-            continue;
-          }
-
-          const normalizedCheckTime = normalizeDeviceDateTime(rawDate instanceof Date ? formatDateTime(rawDate) : String(rec.recordTime)) || formatDateTime(rawDate);
-          const effectiveOffsetMinutes = clockOffsetMinutes || (deviceCtx.tzOffsetMinutes ?? timePolicy.offsetMinutes);
-          const decision = decidePunchTime(
-            normalizedCheckTime,
-            storedOffsetSeconds,
-            timePolicy,
-            effectiveOffsetMinutes,
-            Date.now(),
-          );
-          const punchAt = decision.punchInstant;
-          const displayName = userNameMap[pin] || null;
-
-          // Identity resolution — never blocks insertion
-          let resolution: Awaited<ReturnType<typeof resolveIdentity>> | null = null;
-          if (resolvedSn) {
-            try {
-              resolution = await resolveIdentity({
-                schoolId: session.schoolId,
-                deviceSn: resolvedSn,
-                deviceUserId: pin,
-              });
-            } catch { /* non-fatal */ }
-          }
-
-          const matched    = resolution?.resolved ?? false;
-          const personId   = resolution?.personId ?? null;
-          const roleType   = resolution?.roleType ?? null;
-          const roleRefId  = (resolution?.studentId ?? resolution?.staffId) ?? null;
-          const enrollId   = resolution?.enrollmentId ?? null;
-          const resPath    = resolution?.path ?? null;
-
-          if (!matched) unmatched++;
-
-          try {
-            const rawEventId = await recordRawEvent({
-              schoolId:     session.schoolId,
-              deviceSn:     resolvedSn || 'unknown',
-              deviceUserId: parseInt(pin, 10),
-              displayName,
-              punchAt,
-              deviceReportedTime: decision.deviceReportedTime,
-              clockSkewSeconds: decision.skewSeconds,
-              timeSource: decision.timeSource,
-              timeConfidence: decision.timeConfidence,
-              source: 'manual',
-              matched,
-              enrollmentId: enrollId,
-              personId,
-              roleType,
-              roleRefId,
-              resolutionPath: resPath,
-              resolutionScore: resolution?.resolved ? 1.0 : null,
-              legacyTable: 'zk_tcp_pull',
-              legacyId: rec.userSn ?? null,
-            });
-
-            if (rawEventId) inserted++;
-            else            duplicates++;
-          } catch (err: any) {
-            failed++;
-            failures.push({ pin, ts: rawTs, reason: err.message });
-          }
-        }
-
-        // Phase 1 — stage the verbatim raw punches + close the audit batch.
-        if (acquisitionId != null) {
-          try {
-            const rawPunches = filtered.map((r: any) => ({
-              seq: typeof r.userSn === 'number' ? r.userSn : null,
-              deviceUserId: String(r.deviceUserId ?? ''),
-              wallTime: wallFromZkRecordTime(r.recordTime)!,
-              verifyType: r.verification ?? null,
-              statusCode: r.status ?? null,
-              displayName: userNameMap[String(r.deviceUserId ?? '')] || null,
-            })).filter((p: any) => p.wallTime && p.deviceUserId);
-            const { staged, invalid } = await stageRecords(acquisitionId, rawPunches);
-            await finishAcquisition(acquisitionId, {
-              status: failed === filtered.length && filtered.length > 0 ? 'failed' : 'committed',
-              deviceLogCount: deviceInfo?.logCounts ?? null,
-              recordsReceived: filtered.length,
-              recordsStaged: staged,
-              recordsCommitted: inserted,
-              recordsDuplicate: duplicates,
-              recordsUnmatched: unmatched,
-              recordsFailed: failed + invalid,
-              durationMs: Date.now() - pullStartedMs,
-              warnings: invalid ? [`${invalid} record(s) had unparseable wall time`] : null,
-            });
-          } catch (e) {
-            console.warn('[zk-tcp] acquisition audit close failed:', e instanceof Error ? e.message : e);
-          }
-        }
-
         return NextResponse.json({
-          success: true,
-          mode,
-          filterFrom,
-          filterTo,
-          deviceIp: ip,
-          deviceSn: resolvedSn || null,
-          deviceLogCounts: deviceInfo?.logCounts ?? null,
-          deviceUserCounts: deviceInfo?.userCounts ?? null,
-          totalOnDevice: allRecords.length,
-          filteredCount: filtered.length,
-          inserted,
-          duplicates,
-          unmatched,
-          failed,
-          failures: failures.slice(0, 20), // cap at 20 for response size
-          acquisitionId, // Phase 1 — audit batch reference (null if audit unavailable)
-        });
+          error: 'The pull_attendance action has been retired — it wrote to attendance data with no operator review.',
+          replacement: {
+            step1: { action: 'stage_pull', body: { mode: "'today' | 'full' | 'range'", date: 'YYYY-MM-DD (mode=today)', date_from: 'YYYY-MM-DD (mode=range)', date_to: 'YYYY-MM-DD (mode=range)' } },
+            step2: { method: 'POST', url: '/api/attendance/acquisitions', body: { id: '<acquisitionId from step 1>', action: 'commit' } },
+          },
+          hint: 'Use the Attendance Acquisition wizard on /attendance/device-control, or call stage_pull directly.',
+        }, { status: 410 });
       }
 
       default:
