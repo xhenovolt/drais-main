@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T04:39:27.210Z",
-  "last_commit": "0dc12b28d50ae8be2aef39327f109f6dd3549faa",
+  "generated_at": "2026-08-19T04:43:16.943Z",
+  "last_commit": "b03f07cabd8e8e6b32768a3e7dff36ca609adb70",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7151,7 +7151,20 @@
         }
       ],
       "commit": "0dc12b28d5"
+    },
+    {
+      "version": "1.173.88",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "Add v1.173.87 release notes",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add v1.173.87 release notes"
+        }
+      ],
+      "commit": "b03f07cabd"
     }
   ],
-  "app_version": "1.173.88"
+  "app_version": "2.0.0"
 }
