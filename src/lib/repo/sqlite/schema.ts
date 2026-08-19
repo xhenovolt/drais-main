@@ -26,6 +26,22 @@
  *     exactly correct for a local install, which by design holds exactly
  *     one school (§9 of the architecture audit) — global and per-school
  *     uniqueness coincide here.
+ *
+ * NOT NULL discipline: match the SOURCE DDL's actual nullability, not an
+ * idealized guess at it. Found the hard way, twice, against real
+ * production data: `status`/`created_at`/`updated_at` were first declared
+ * NOT NULL here on the assumption they'd surely always have a value — but
+ * `database/consolidated_schema.sql`'s real DDL declares NONE of them
+ * NOT NULL (only `schools.name` and `students.school_id`/`person_id`
+ * actually are), and real, years-old production rows exploit exactly
+ * that permissiveness. This schema mirrors a source school's data; it is
+ * not this phase's job to retroactively impose stricter data-quality
+ * guarantees than the source database itself enforces. The repo
+ * CONTRACT (SchoolRecord/StudentRecord) still guarantees non-null
+ * timestamps to every consumer — that guarantee lives in
+ * src/lib/repo/mysql/util.ts's toIsoRequired() at the read boundary, not
+ * as an over-strict constraint here that would simply reject a row the
+ * real source happily contains.
  */
 import type { SqliteConnection } from './connection';
 
@@ -39,12 +55,12 @@ CREATE TABLE IF NOT EXISTS schools (
   short_code   TEXT,
   email        TEXT,
   phone        TEXT,
-  currency     TEXT NOT NULL DEFAULT 'UGX',
+  currency     TEXT DEFAULT 'UGX',
   address      TEXT,
   logo_url     TEXT,
-  status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','suspended')),
-  created_at   TEXT NOT NULL DEFAULT (${ISO_NOW}),
-  updated_at   TEXT NOT NULL DEFAULT (${ISO_NOW}),
+  status       TEXT DEFAULT 'active' CHECK (status IS NULL OR status IN ('active','inactive','suspended')),
+  created_at   TEXT DEFAULT (${ISO_NOW}),
+  updated_at   TEXT DEFAULT (${ISO_NOW}),
   deleted_at   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_schools_short_code ON schools(short_code);
@@ -57,10 +73,10 @@ CREATE TABLE IF NOT EXISTS students (
   admission_no   TEXT UNIQUE,
   village_id     INTEGER,
   admission_date TEXT,
-  status         TEXT NOT NULL DEFAULT 'active',
+  status         TEXT DEFAULT 'active',
   notes          TEXT,
-  created_at     TEXT NOT NULL DEFAULT (${ISO_NOW}),
-  updated_at     TEXT NOT NULL DEFAULT (${ISO_NOW}),
+  created_at     TEXT DEFAULT (${ISO_NOW}),
+  updated_at     TEXT DEFAULT (${ISO_NOW}),
   deleted_at     TEXT,
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );

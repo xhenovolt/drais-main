@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T04:43:16.943Z",
-  "last_commit": "b03f07cabd8e8e6b32768a3e7dff36ca609adb70",
+  "generated_at": "2026-08-19T13:53:01.696Z",
+  "last_commit": "de3c75e8f1e643cc06139731fbc2499c579d1b5f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7164,7 +7164,20 @@
         }
       ],
       "commit": "b03f07cabd"
+    },
+    {
+      "version": "2.0.0",
+      "date": "2026-08-19",
+      "release_type": "major",
+      "title": "Begin DRAIS V2 — version baseline 2.0.0",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Begin DRAIS V2 — version baseline 2.0.0"
+        }
+      ],
+      "commit": "de3c75e8f1"
     }
   ],
-  "app_version": "2.0.0"
+  "app_version": "2.1.0"
 }

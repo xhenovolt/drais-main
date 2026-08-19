@@ -13,6 +13,7 @@ import { createSqliteSchoolRepo } from './school-repo';
 import { createSqliteStudentRepo } from './student-repo';
 
 export { openSqliteDb, closeSqliteDb, type SqliteConnection } from './connection';
+export { seedSchool, seedStudent } from './seed';
 
 export function createSqliteRepos(db: SqliteConnection): Repos {
   return {

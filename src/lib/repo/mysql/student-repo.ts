@@ -10,34 +10,44 @@ import { query } from '@/lib/db';
 import type { StudentRepo } from '../contract/student-repo';
 import type { StudentRecord, NewStudentInput, ListOptions } from '../contract/types';
 import { RepoError } from '../contract/types';
+import { toIso, toIsoDate, toIsoRequired, toNum, toNumOrNull } from './util';
 
 interface StudentRow {
-  id: number;
-  school_id: number;
-  person_id: number;
+  id: number | string;
+  school_id: number | string;
+  person_id: number | string;
   admission_no: string | null;
-  village_id: number | null;
-  admission_date: string | null;
-  status: string;
+  village_id: number | string | null;
+  admission_date: string | Date | null;
+  status: string | null;
   notes: string | null;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+  created_at: string | Date | null;
+  updated_at: string | Date | null;
+  deleted_at: string | Date | null;
 }
 
 function toRecord(r: StudentRow): StudentRecord {
+  // created_at/updated_at can genuinely be NULL in real production rows
+  // (see toIsoRequired's header) — updated_at falls back to created_at,
+  // created_at falls back to the sentinel. Order matters: compute
+  // createdAt first so updatedAt's fallback is the real value when one
+  // exists, not the sentinel.
+  const createdAt = toIsoRequired(r.created_at);
   return {
-    id: r.id,
-    schoolId: r.school_id,
-    personId: r.person_id,
+    id: toNum(r.id),
+    schoolId: toNum(r.school_id),
+    personId: toNum(r.person_id),
     admissionNo: r.admission_no,
-    villageId: r.village_id,
-    admissionDate: r.admission_date,
-    status: r.status,
+    villageId: toNumOrNull(r.village_id),
+    admissionDate: toIsoDate(r.admission_date),
+    // Real DDL: `status VARCHAR(20) DEFAULT 'active'`, no NOT NULL — a
+    // real row can have NULL here (schema.ts's header). Falls back to
+    // the column's own declared default, not an arbitrary guess.
+    status: r.status ?? 'active',
     notes: r.notes,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-    deletedAt: r.deleted_at,
+    createdAt,
+    updatedAt: toIsoRequired(r.updated_at, createdAt),
+    deletedAt: toIso(r.deleted_at),
   };
 }
 

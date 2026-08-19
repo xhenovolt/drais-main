@@ -11,38 +11,48 @@ import { query } from '@/lib/db';
 import type { SchoolRepo } from '../contract/school-repo';
 import type { SchoolRecord, NewSchoolInput } from '../contract/types';
 import { RepoError } from '../contract/types';
+import { toIso, toIsoRequired, toNum } from './util';
 
 interface SchoolRow {
-  id: number;
+  id: number | string;
   name: string;
   legal_name: string | null;
   short_code: string | null;
   email: string | null;
   phone: string | null;
-  currency: string;
+  currency: string | null;
   address: string | null;
   logo_url: string | null;
-  status: SchoolRecord['status'];
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+  status: SchoolRecord['status'] | null;
+  created_at: string | Date | null;
+  updated_at: string | Date | null;
+  deleted_at: string | Date | null;
 }
 
 function toRecord(r: SchoolRow): SchoolRecord {
+  // Same defensive fallback as student-repo.ts's toRecord — see
+  // toIsoRequired's header. Less likely to bite for `schools` (a small,
+  // administratively-maintained table) than for `students`, but "less
+  // likely" isn't a reason to leave the same class of bug half-fixed.
+  const createdAt = toIsoRequired(r.created_at);
   return {
-    id: r.id,
+    id: toNum(r.id),
     name: r.name,
     legalName: r.legal_name,
     shortCode: r.short_code,
     email: r.email,
     phone: r.phone,
-    currency: r.currency,
+    // Real DDL for both fields below: `DEFAULT '...'`, no NOT NULL — a
+    // real row can have NULL here (see schema.ts's header on this whole
+    // class of finding). Falls back to the column's own declared
+    // default, not an arbitrary guess.
+    currency: r.currency ?? 'UGX',
     address: r.address,
     logoUrl: r.logo_url,
-    status: r.status,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-    deletedAt: r.deleted_at,
+    status: r.status ?? 'active',
+    createdAt,
+    updatedAt: toIsoRequired(r.updated_at, createdAt),
+    deletedAt: toIso(r.deleted_at),
   };
 }
 
