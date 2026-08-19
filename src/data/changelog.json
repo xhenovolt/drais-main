@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T20:20:34.589Z",
-  "last_commit": "b2dcf990eaf1844bb2c5da68f693881502ab3273",
+  "generated_at": "2026-08-19T20:29:26.051Z",
+  "last_commit": "bfaac2f6a6b1439935a516a136e45c36bbc64314",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7203,7 +7203,20 @@
         }
       ],
       "commit": "b2dcf990ea"
+    },
+    {
+      "version": "2.3.0",
+      "date": "2026-08-19",
+      "release_type": "minor",
+      "title": ".drs restore automation",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": ".drs restore automation"
+        }
+      ],
+      "commit": "bfaac2f6a6"
     }
   ],
-  "app_version": "2.3.0"
+  "app_version": "2.3.1"
 }

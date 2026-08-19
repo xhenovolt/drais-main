@@ -776,42 +776,49 @@ Caught and fixed one real bug in my own code before it ever reached tests: the o
 - **Risk:** MEDIUM-HIGH (must never overwrite a live local database in place — restore-to-new-file-then-swap only, which SQLite's single-file nature makes simpler than the local-MySQL design's restore-to-new-instance approach would have been).
 - **Completion:** DR Scenario 2 (§14) passes end-to-end on a real machine: corrupt/delete the local SQLite file, restore from the latest verified `.drs`, resume operation.
 
-### Phase 7 — `.drais` package format
+### Phase 7 — Repository layer expansion: cover the tables offline operation actually needs
+**Added 2026-08-19, in response to a direct question: "after all these phases, will we actually reach true offline capability?"** Checking that question honestly surfaced a real hole in this roadmap, not a hypothetical one — the original Phase 8 below said "verify (not build — mostly already works)", written on the strength of §2.4/§2.5's finding that attendance/DRCE are engine-agnostic. That finding was true of the *pre-existing local-MySQL* architecture (ADR-0010), which already had every table locally by construction. It does **not** carry over to the new SQLite repo layer, which — as of Phase 4 — covers exactly **2 of the ~258 live school-scoped tables** (`schools`, `students`). Nothing before this phase built the rest, and no phase in the original list owned doing so. Without this phase, Phase 8 quietly can't be true: there is no local attendance table, no local results table, no local report-card/snapshot table for it to verify anything against.
+- **Objective:** bring `@drais/repo-contract`/`repo-mysql`/`repo-sqlite` up to the ~30-table scope §9's local data contract actually specifies, prioritized by what the brief's own SUCCESS CONDITION names first — attendance and academic results and report cards, *then* staff/HR, *then* fees (§9 already flags fee transactions as its own careful SYNCABLE case, not a fast-follow). Each table domain should be its own sub-effort with its own tests, not one undifferentiated push — Phase 4 already proved that each new table surfaces its own mysql2-serialization surprises (Date objects, BigInt-as-string, unexpected NULLs on columns the idealized schema assumed were always populated). Budget for that pattern recurring, not as a one-time cost already paid.
+- **Dependency:** Phase 3/4's pattern (contract → mysql impl → sqlite impl → tests, verified against real production data before trusting it).
+- **Risk:** **This is realistically the single largest remaining body of work in this roadmap** — larger than any individually-numbered phase before or after it, even though it's one phase number. Say so plainly rather than let it hide inside a phase titled "hardening."
+- **Completion:** every table `src/lib/attendance/*` and the DRCE/snapshot rendering path actually touch for a normal school day exists in `repo-sqlite` with the same test rigor as Phases 3-4 (real-data verification, not just synthetic fixtures) — at minimum: `attendance_raw_events`, `attendance_records`, `enrollments`, `people` (students currently has no name without it), `report_snapshots`, plus whatever DRCE's render path reads.
+
+### Phase 8 — `.drais` package format
 - **Objective:** §11, wrapping Phase 5's `.drs` with branding/templates/device-config.
-- **Dependency:** Phase 5, Phase 4 (provisioning contract defines what goes in the package).
+- **Dependency:** Phase 5, Phase 4 (provisioning contract defines what goes in the package). Does not strictly depend on Phase 7 — packaging is format work, agnostic to how many tables the `.drs` inside it covers — but sequenced after it here because a `.drais` that can't yet hold a school's real data is a demo, not a deliverable.
 - **Completion:** DR Scenario 1 (§14) passes: a `.drais` exported from one machine, imported on a fresh install on different hardware, is operational.
 
-### Phase 8 — Offline academic + attendance operation hardening
-- **Objective:** verify (not build — mostly already works per §7) every core workflow end-to-end offline against the new SQLite-backed local mode: attendance, results entry, report-card generation/print/export, student management, on a machine with networking physically disabled.
-- **Risk:** LOW-MEDIUM — a verification phase, but the first one to exercise the SQLite path specifically (§2.5/§2.4's "already works locally" findings were observed against local MySQL; re-confirm against SQLite, don't assume it transfers).
+### Phase 9 — Offline academic + attendance operation, for real this time
+- **Objective:** verify every core workflow end-to-end offline against the SQLite-backed local mode: attendance, results entry, report-card generation/print/export, student management, on a machine with networking physically disabled. This is now genuinely a verification phase, because Phase 7 is what makes there be something real to verify.
+- **Risk:** LOW-MEDIUM, *contingent on Phase 7 actually landing first* — without it this phase has nothing to check.
 - **Completion:** the brief's own 25-step validation checklist (steps 1-13) passes on real hardware.
 
-### Phase 9 — Sync engine v1 (one-way, cloud → local)
+### Phase 10 — Sync engine v1 (one-way, cloud → local)
 - **Objective:** §12's pull-only direction — reference data + incremental updates, no local→cloud push yet.
-- **Dependency:** Phase 4 (provisioning is sync's "full resync" fallback path).
+- **Dependency:** Phase 4 (provisioning is sync's "full resync" fallback path), Phase 7 (nothing to sync for tables that don't exist locally yet).
 - **Risk:** LOW-MEDIUM (read-only from the local side's perspective).
 - **Completion:** a local install that's been offline can reconnect and pull changes without a full re-provision.
 
-### Phase 10 — Sync engine v2 (bidirectional, conflict UX)
+### Phase 11 — Sync engine v2 (bidirectional, conflict UX)
 - **Objective:** §12 in full, including the `MANUAL_REVIEW` UI for results/students/enrollments.
 - **Risk:** **HIGH** — explicitly the hardest phase, matching the May audit's own assessment of the equivalent phase. No true rollback once local data is touching this in production.
 - **Completion:** DR Scenario 7 (§14) passes under chaos testing (§19); a simulated multi-device conflict is surfaced to an operator and resolved without data loss.
 
-### Phase 11 — Sentinel local-mode coverage
+### Phase 12 — Sentinel local-mode coverage
 - **Objective:** §17.
-- **Dependency:** Phases 5/6 (backup-health observer needs `.drs` to exist), Phase 9 (sync-health observer needs sync to exist).
+- **Dependency:** Phases 5/6 (backup-health observer needs `.drs` to exist), Phase 10 (sync-health observer needs sync to exist).
 - **Risk:** LOW.
 - **Completion:** `scripts/sentinel/verify-live.mjs`'s pattern runs successfully against a local SQLite-mode instance; new observers appear in `sweep.ts`'s list.
 
-### Phase 12 — Chaos testing
-- **Objective:** §19, built incrementally alongside Phases 5-10 rather than saved for the end — each phase should ship its own chaos tests, not defer them.
+### Phase 13 — Chaos testing
+- **Objective:** §19, built incrementally alongside Phases 5-11 rather than saved for the end — each phase should ship its own chaos tests, not defer them.
 - **Completion:** the chaos-test matrix in §19 is green in CI.
 
-### Phase 13 — Performance hardening
+### Phase 14 — Performance hardening
 - **Objective:** §20's measurement matrix, filled in with real numbers, on the real minimal-hardware target chosen in §18.
 - **Completion:** targets are met or explicitly renegotiated with evidence, never asserted without measurement.
 
-### Phase 14 — V2 release preparation
+### Phase 15 — V2 release preparation
 - **Objective:** code signing, documentation, training material, the brief's full 25-step validation checklist end-to-end including reconnect/sync/conflict/restore-on-new-machine.
 - **Completion:** the brief's own success condition (§ "SUCCESS CONDITION," steps 1-25) is demonstrable, on real hardware, by someone who did not build it.
 
@@ -821,7 +828,9 @@ Caught and fixed one real bug in my own code before it ever reached tests: the o
 
 **DRAIS V1 FINAL** = the current online architecture + Phase 1 (acquisition-backbone completion) + Phase 2 (USB import). Both are scoped, bounded, additive to the existing online product, and don't require any of the local-mode/`.drs`/sync machinery. This matches the brief's own framing: "USB attendance importer... should be evaluated as a final V1 capability." Per the sequencing decision (§27), **this is the work that starts first.**
 
-**DRAIS V2** begins at Phase 3 and is not "done" — per the brief's own explicit instruction — merely because a repo-abstraction layer exists or because Electron boots (it already does). V2 is earned at the *end* of Phase 10, when: local operation is complete on SQLite (Phase 8), sync is real and bidirectional with conflict handling (Phase 10), `.drs`/`.drais` are protected and restorable (Phases 5-7), Sentinel covers local mode (Phase 11), and the chaos/performance suites (Phases 12-13) are green. Phases 11-14 are hardening on top of an already-true V2, not prerequisites for calling it V2.
+**DRAIS V2** begins at Phase 3 and is not "done" — per the brief's own explicit instruction — merely because a repo-abstraction layer exists or because Electron boots (it already does), and (added 2026-08-19, after Phase 7 was inserted) **not** merely because `.drs` write/restore work either, if the tables underneath them still only cover 2 of ~258. V2 is earned at the *end* of Phase 11, when: the repo layer actually covers what a school needs day-to-day (Phase 7), local operation is complete and verified against that real coverage (Phase 9), sync is real and bidirectional with conflict handling (Phase 11), `.drs`/`.drais` are protected and restorable (Phases 5-6, 8), Sentinel covers local mode (Phase 12), and the chaos/performance suites (Phases 13-14) are green. Phases 12-15 are hardening on top of an already-true V2, not prerequisites for calling it V2.
+
+**Direct answer to "after all these phases, will we reach true offline capability?" — yes, if Phase 7 is treated as the load-bearing phase it actually is, not skipped past on the way to sync/packaging work that looks more exciting.** Phases 5-6 (this session) prove the *container* works — encrypt, decrypt, restore, tamper-detect. They do not, on their own, prove a school could run its day on the data inside that container, because that data is currently 2 tables. That distinction is the honest answer to the question that prompted this edit.
 
 ---
 
