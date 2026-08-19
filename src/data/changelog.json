@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T15:07:09.430Z",
-  "last_commit": "f143c3589cdcba50aa26a8dd94def00c00d27a14",
+  "generated_at": "2026-08-19T20:20:34.589Z",
+  "last_commit": "b2dcf990eaf1844bb2c5da68f693881502ab3273",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7190,7 +7190,20 @@
         }
       ],
       "commit": "f143c3589c"
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-08-19",
+      "release_type": "minor",
+      "title": ".drs encrypted container format",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": ".drs encrypted container format"
+        }
+      ],
+      "commit": "b2dcf990ea"
     }
   ],
-  "app_version": "2.2.0"
+  "app_version": "2.3.0"
 }

@@ -14,3 +14,4 @@ export {
 export { type DrsHeader, FORMAT_VERSION as DRS_FORMAT_VERSION } from './drs-format';
 export { KDF_ALGORITHM, KDF_PARAMS } from './kdf';
 export { CIPHER_ALGORITHM } from './aes-gcm';
+export { restoreFromDrs, RestoreVerificationError, type RestoreOptions, type RestoreResult } from './restore';
