@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T04:06:12.586Z",
-  "last_commit": "844d4ca44748af77114e2f51e316a5f7db778397",
+  "generated_at": "2026-08-19T04:26:23.020Z",
+  "last_commit": "0b593b3168efc7a3a24bf1ee9bf28db41907002f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7125,7 +7125,20 @@
         }
       ],
       "commit": "844d4ca447"
+    },
+    {
+      "version": "1.173.86",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "Repository-abstraction layer, first vertical slice (schools/students)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Repository-abstraction layer, first vertical slice (schools/students)"
+        }
+      ],
+      "commit": "0b593b3168"
     }
   ],
-  "app_version": "1.173.86"
+  "app_version": "1.173.87"
 }

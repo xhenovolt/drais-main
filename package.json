@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "1.173.86",
+  "version": "1.173.87",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -87,7 +87,6 @@
     "africastalking": "^0.7.7",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
-    "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.9.0",
     "clsx": "^2.1.1",
@@ -130,6 +129,9 @@
     "xlsx": "^0.18.5",
     "zod": "^4.1.1",
     "zustand": "^5.0.8"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^13.0.3"
   },
   "devDependencies": {
     "@capacitor/android": "^8.4.0",
