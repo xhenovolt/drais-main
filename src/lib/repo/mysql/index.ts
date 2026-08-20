@@ -10,6 +10,8 @@ import { createMysqlStudentRepo } from './student-repo';
 import { createMysqlPersonRepo } from './person-repo';
 import { createMysqlAttendanceRawEventRepo } from './attendance-raw-event-repo';
 import { createMysqlAttendanceRecordRepo } from './attendance-record-repo';
+import { createMysqlClassRepo } from './class-repo';
+import { createMysqlClassResultRepo } from './class-result-repo';
 
 export function createMysqlRepos(): Repos {
   return {
@@ -18,5 +20,7 @@ export function createMysqlRepos(): Repos {
     people: createMysqlPersonRepo(),
     attendanceRawEvents: createMysqlAttendanceRawEventRepo(),
     attendanceRecords: createMysqlAttendanceRecordRepo(),
+    classes: createMysqlClassRepo(),
+    classResults: createMysqlClassResultRepo(),
   };
 }

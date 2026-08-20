@@ -217,3 +217,101 @@ export class RepoError extends Error {
     this.name = 'RepoError';
   }
 }
+
+// ── Phase 7, sub-effort 2: classes + class_results ──────────────────────
+// "Academic results + report cards" turned out to be a much larger domain
+// than attendance was — src/lib/snapshots/queries.ts's real snapshot-
+// generation query joins class_results against classes, subjects,
+// class_subjects, staff, departments, subject_groups, and terms. classes
+// is the minimum necessary slice here, not the whole thing: class_results
+// has NO school_id column at all (confirmed via a live information_schema
+// query, not any of the several conflicting historical dump files this
+// repo has for it) — every real query in this codebase scopes it via
+// `JOIN classes c ON c.id = cr.class_id WHERE c.school_id = ?`
+// (src/lib/nexus/tools.ts:195-198). Without classes existing locally,
+// class_results could not be safely tenant-scoped at all. subjects,
+// terms, staff, departments, subject_groups, academic_years, and
+// report_snapshots + DRCE's render path remain for future sub-efforts.
+
+export interface ClassRecord {
+  id: number;
+  schoolId: number | null; // nullable in the real DDL, like people.school_id
+  name: string;
+  curriculumId: number | null;
+  programId: number | null;
+  classLevel: number | null;
+  headTeacherId: number | null;
+  capacity: number | null;
+  code: string | null;
+  level: number | null;
+  nameAr: string | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewClassInput {
+  schoolId?: number | null;
+  name: string;
+  curriculumId?: number | null;
+  programId?: number | null;
+  classLevel?: number | null;
+  headTeacherId?: number | null;
+  capacity?: number | null;
+  code?: string | null;
+  level?: number | null;
+  nameAr?: string | null;
+}
+
+/** classes and class_results both carry a richer soft-delete/restore
+ *  audit trail (deleted_by, delete_reason, restored_at, restored_by) than
+ *  the simple deleted_at this repo layer used for schools/students/
+ *  people/attendance_records — DRAIS already has a real Trash/restore
+ *  system (docs/PHASE_1_CRUD_TRASH_ARCHITECTURE.md) these tables plug
+ *  into online; this shape matches it rather than inventing a simpler one. */
+export interface SoftDeleteOptions {
+  deletedBy?: number | null;
+  deleteReason?: string | null;
+}
+
+export type AcademicType = 'secular' | 'theology';
+
+export interface ClassResultRecord {
+  id: number;
+  studentId: number;
+  classId: number;
+  subjectId: number;
+  termId: number | null;
+  resultTypeId: number;
+  score: number | null;
+  grade: string | null;
+  remarks: string | null;
+  academicYearId: number | null;
+  academicType: AcademicType;
+  programId: number | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewClassResultInput {
+  studentId: number;
+  classId: number;
+  subjectId: number;
+  termId?: number | null;
+  resultTypeId: number;
+  score?: number | null;
+  grade?: string | null;
+  remarks?: string | null;
+  academicYearId?: number | null;
+  academicType?: AcademicType;
+  programId?: number | null;
+}

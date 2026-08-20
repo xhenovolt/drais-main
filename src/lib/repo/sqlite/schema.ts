@@ -187,6 +187,63 @@ CREATE TABLE IF NOT EXISTS attendance_records (
 );
 CREATE INDEX IF NOT EXISTS idx_attendance_records_school_day ON attendance_records(school_id, attendance_date);
 CREATE INDEX IF NOT EXISTS idx_attendance_records_status ON attendance_records(school_id, attendance_date, status);
+
+-- Phase 7, sub-effort 2: classes + class_results. Both real column sets
+-- confirmed via a live information_schema query (not any of the several
+-- conflicting historical per-school dump files this repo has for these
+-- two tables) — see contract/types.ts's header on why. class_results has
+-- NO school_id of its own; every query joins through classes for tenant
+-- scoping, exactly like the real system
+-- (src/lib/nexus/tools.ts:195-198).
+
+CREATE TABLE IF NOT EXISTS classes (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER,
+  name              TEXT NOT NULL,
+  curriculum_id     INTEGER,
+  program_id        INTEGER,
+  class_level       INTEGER,
+  head_teacher_id   INTEGER,
+  capacity          INTEGER,
+  code              TEXT,
+  level             INTEGER,
+  name_ar           TEXT,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_classes_school_id ON classes(school_id);
+
+CREATE TABLE IF NOT EXISTS class_results (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id        INTEGER NOT NULL,
+  class_id          INTEGER NOT NULL,
+  subject_id        INTEGER NOT NULL,
+  term_id           INTEGER,
+  result_type_id    INTEGER NOT NULL,
+  score             REAL,
+  grade             TEXT,
+  remarks           TEXT,
+  academic_year_id  INTEGER,
+  academic_type     TEXT NOT NULL DEFAULT 'secular' CHECK (academic_type IN ('secular','theology')),
+  program_id        INTEGER,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (student_id) REFERENCES students(id),
+  FOREIGN KEY (class_id) REFERENCES classes(id)
+);
+CREATE INDEX IF NOT EXISTS idx_class_results_class_subject ON class_results(class_id, subject_id, term_id);
+CREATE INDEX IF NOT EXISTS idx_class_results_student ON class_results(student_id);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();

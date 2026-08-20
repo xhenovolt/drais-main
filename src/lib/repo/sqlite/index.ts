@@ -14,6 +14,8 @@ import { createSqliteStudentRepo } from './student-repo';
 import { createSqlitePersonRepo } from './person-repo';
 import { createSqliteAttendanceRawEventRepo } from './attendance-raw-event-repo';
 import { createSqliteAttendanceRecordRepo } from './attendance-record-repo';
+import { createSqliteClassRepo } from './class-repo';
+import { createSqliteClassResultRepo } from './class-result-repo';
 
 export { openSqliteDb, closeSqliteDb, type SqliteConnection } from './connection';
 export { seedSchool, seedStudent, seedPerson } from './seed';
@@ -25,5 +27,7 @@ export function createSqliteRepos(db: SqliteConnection): Repos {
     people: createSqlitePersonRepo(db),
     attendanceRawEvents: createSqliteAttendanceRawEventRepo(db),
     attendanceRecords: createSqliteAttendanceRecordRepo(db),
+    classes: createSqliteClassRepo(db),
+    classResults: createSqliteClassResultRepo(db),
   };
 }

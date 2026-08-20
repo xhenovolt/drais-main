@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-20T02:49:24.837Z",
-  "last_commit": "bbb2d3a7492be17ba568a742511bbdf9167f816f",
+  "generated_at": "2026-08-20T03:06:13.132Z",
+  "last_commit": "df7f5047b711bc53fe0b8c507619bb59f88d550d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7242,7 +7242,20 @@
         }
       ],
       "commit": "bbb2d3a749"
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-08-20",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 1 - people + core attendance repo layer",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 1 - people + core attendance repo layer"
+        }
+      ],
+      "commit": "df7f5047b7"
     }
   ],
-  "app_version": "2.4.0"
+  "app_version": "2.5.0"
 }
