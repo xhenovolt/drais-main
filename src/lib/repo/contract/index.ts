@@ -6,6 +6,7 @@ export type { AttendanceRawEventRepo, CreateRawEventResult } from './attendance-
 export type { AttendanceRecordRepo } from './attendance-record-repo';
 export type { ClassRepo } from './class-repo';
 export type { ClassResultRepo } from './class-result-repo';
+export type { StaffRepo } from './staff-repo';
 
 import type { SchoolRepo } from './school-repo';
 import type { StudentRepo } from './student-repo';
@@ -14,6 +15,7 @@ import type { AttendanceRawEventRepo } from './attendance-raw-event-repo';
 import type { AttendanceRecordRepo } from './attendance-record-repo';
 import type { ClassRepo } from './class-repo';
 import type { ClassResultRepo } from './class-result-repo';
+import type { StaffRepo } from './staff-repo';
 
 /** The registry every consumer of this layer actually depends on — never
  *  a concrete repo-mysql or repo-sqlite import directly (§8's boundary
@@ -27,4 +29,5 @@ export interface Repos {
   attendanceRecords: AttendanceRecordRepo;
   classes: ClassRepo;
   classResults: ClassResultRepo;
+  staff: StaffRepo;
 }

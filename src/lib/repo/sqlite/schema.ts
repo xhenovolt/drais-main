@@ -244,6 +244,49 @@ CREATE TABLE IF NOT EXISTS class_results (
 );
 CREATE INDEX IF NOT EXISTS idx_class_results_class_subject ON class_results(class_id, subject_id, term_id);
 CREATE INDEX IF NOT EXISTS idx_class_results_student ON class_results(student_id);
+
+-- Phase 7, sub-effort 3: staff. Real column set confirmed via a live
+-- information_schema query. Two things intentionally NOT in this table:
+--   1. salary, bank_name, bank_account_no, nssf_no, tin_no — real
+--      payroll/financial columns on the source table, deliberately
+--      excluded here on security grounds (this file is plain, not
+--      SQLCipher-encrypted, at rest — see contract/types.ts's header).
+--   2. created_at — the source table genuinely has none; only
+--      updated_at/deleted_at/restored_at exist, so updated_at is left
+--      nullable here rather than defaulted to a fabricated "now".
+-- Unlike classes/people, both school_id and person_id are NOT NULL on
+-- the real table, so both get real FOREIGN KEYs here (safe to add: staff
+-- is a brand-new table with no pre-existing tests assuming a looser
+-- shape, unlike students.person_id — see the note above on that one).
+
+CREATE TABLE IF NOT EXISTS staff (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  branch_id         INTEGER,
+  person_id         INTEGER NOT NULL,
+  staff_no          TEXT,
+  department_id     INTEGER,
+  role_id           INTEGER,
+  position          TEXT,
+  position_id       INTEGER,
+  employment_type   TEXT CHECK (employment_type IS NULL OR employment_type IN ('permanent','contract','volunteer','part-time')),
+  qualification     TEXT,
+  experience_years  INTEGER,
+  hire_date         TEXT,
+  status            TEXT,
+  manager_id        INTEGER,
+  updated_at        TEXT,
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  FOREIGN KEY (person_id) REFERENCES people(id)
+);
+CREATE INDEX IF NOT EXISTS idx_staff_school_id ON staff(school_id);
+CREATE INDEX IF NOT EXISTS idx_staff_person_id ON staff(person_id);
+CREATE INDEX IF NOT EXISTS idx_staff_staff_no ON staff(staff_no);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();

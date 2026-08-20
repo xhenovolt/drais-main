@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-20T03:07:58.143Z",
-  "last_commit": "ab515b30809cd6a450537dc8e7675add1a768c85",
+  "generated_at": "2026-08-20T03:18:04.546Z",
+  "last_commit": "8b9d0be0c6a304240109fd495cc257b5e1ca28f1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7268,7 +7268,20 @@
         }
       ],
       "commit": "ab515b3080"
+    },
+    {
+      "version": "2.5.1",
+      "date": "2026-08-20",
+      "release_type": "patch",
+      "title": "Add v1.173.61-v1.173.87 milestone history entries",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add v1.173.61-v1.173.87 milestone history entries"
+        }
+      ],
+      "commit": "8b9d0be0c6"
     }
   ],
-  "app_version": "2.5.1"
+  "app_version": "2.6.0"
 }

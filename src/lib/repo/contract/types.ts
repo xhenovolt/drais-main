@@ -315,3 +315,77 @@ export interface NewClassResultInput {
   academicType?: AcademicType;
   programId?: number | null;
 }
+
+// ── Phase 7, sub-effort 3: staff ────────────────────────────────────────
+// Confirmed via a live information_schema query, same discipline as every
+// prior sub-effort. Two real surprises, both deliberately handled rather
+// than papered over:
+//
+// 1. SCOPE CUT, security-driven, not an oversight: the real `staff` table
+//    also carries `salary DECIMAL(14,2)`, `bank_name`, `bank_account_no`,
+//    `nssf_no`, `tin_no` — genuine payroll/financial PII. §15 of the
+//    architecture audit already flags that repo-sqlite's local file is
+//    plain better-sqlite3, NOT SQLCipher-encrypted-at-rest (a documented,
+//    open gap, not yet closed). Syncing salary/bank-account/tax-ID data
+//    into that unencrypted local file today would be a real security
+//    regression, not a hypothetical one — so those five columns are
+//    deliberately EXCLUDED from StaffRecord/NewStaffInput entirely. They
+//    stay cloud-authoritative until repo-sqlite has at-rest encryption;
+//    revisit this exclusion when that lands, not before.
+// 2. NO created_at COLUMN AT ALL — the first table in this repo layer
+//    without one (every prior table had both). updatedAt is therefore
+//    genuinely nullable here (real rows can have NULL updated_at with no
+//    created_at to fall back to) rather than forced non-null via
+//    toIsoRequired's fallback chain, which would fabricate a fake
+//    timestamp this table's own source data doesn't support.
+//
+// staff.first_name/last_name/first_name_ar/last_name_ar (redundant with
+// person_id → people.first_name/last_name) are also deliberately left out
+// here: person_id is NOT NULL on every real row, so `people` stays the
+// single canonical name source for this repo layer, matching how
+// students already work. If a caller ever needs the raw redundant
+// staff-table name columns specifically, that's a real, separate need to
+// add later — not assumed now.
+
+export type StaffEmploymentType = 'permanent' | 'contract' | 'volunteer' | 'part-time';
+
+export interface StaffRecord {
+  id: number;
+  schoolId: number;
+  branchId: number | null;
+  personId: number;
+  staffNo: string | null;
+  departmentId: number | null;
+  roleId: number | null;
+  position: string | null;
+  positionId: number | null;
+  employmentType: StaffEmploymentType | null;
+  qualification: string | null;
+  experienceYears: number | null;
+  hireDate: IsoDate | null;
+  status: string | null;
+  managerId: number | null;
+  updatedAt: IsoDateTime | null; // nullable — see header, no created_at to fall back to
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewStaffInput {
+  schoolId: number;
+  personId: number;
+  branchId?: number | null;
+  staffNo?: string | null;
+  departmentId?: number | null;
+  roleId?: number | null;
+  position?: string | null;
+  positionId?: number | null;
+  employmentType?: StaffEmploymentType | null;
+  qualification?: string | null;
+  experienceYears?: number | null;
+  hireDate?: IsoDate | null;
+  status?: string | null;
+  managerId?: number | null;
+}
