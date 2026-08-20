@@ -100,14 +100,16 @@ export function createMysqlStudentRepo(): StudentRepo {
     async update(schoolId, id, patch) {
       const existing = await findById(schoolId, id);
       if (!existing) throw new RepoError(`Student ${id} not found in school ${schoolId}`, 'NOT_FOUND');
+      // `!== undefined`, not `??`, for nullable fields — see
+      // school-repo.ts's update() for why.
       const merged: NewStudentInput = {
         schoolId,
         personId: patch.personId ?? existing.personId,
-        admissionNo: patch.admissionNo ?? existing.admissionNo,
-        villageId: patch.villageId ?? existing.villageId,
-        admissionDate: patch.admissionDate ?? existing.admissionDate,
+        admissionNo: patch.admissionNo !== undefined ? patch.admissionNo : existing.admissionNo,
+        villageId: patch.villageId !== undefined ? patch.villageId : existing.villageId,
+        admissionDate: patch.admissionDate !== undefined ? patch.admissionDate : existing.admissionDate,
         status: patch.status ?? existing.status,
-        notes: patch.notes ?? existing.notes,
+        notes: patch.notes !== undefined ? patch.notes : existing.notes,
       };
       await query(
         `UPDATE students SET person_id=?, admission_no=?, village_id=?, admission_date=?, status=?, notes=?

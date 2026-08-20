@@ -78,6 +78,136 @@ export interface ListOptions {
   includeDeleted?: boolean;
 }
 
+// ── Phase 7: repository layer expansion ─────────────────────────────────
+// docs/architecture/DRAIS_V2_ARCHITECTURE_AUDIT.md §25 Phase 7. `people`
+// first because a StudentRecord has no name without it (Phase 3's own
+// scope note); the attendance pair next because it's the brief's own
+// first-named success-condition workflow ("record attendance").
+
+export interface PersonRecord {
+  id: number;
+  schoolId: number | null; // real DDL: nullable, unlike almost every other school-scoped table
+  firstName: string;
+  lastName: string;
+  otherName: string | null;
+  gender: string | null;
+  dateOfBirth: IsoDate | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  photoUrl: string | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  deletedAt: IsoDateTime | null;
+}
+
+export interface NewPersonInput {
+  schoolId?: number | null;
+  firstName: string;
+  lastName: string;
+  otherName?: string | null;
+  gender?: string | null;
+  dateOfBirth?: IsoDate | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  photoUrl?: string | null;
+}
+
+/** Matches attendance_raw_events.source's live ENUM (extended by
+ *  src/lib/attendance/acquisition/schema.ts's ALTER — the base migration
+ *  file only shows the original 4 values, exactly the "one file doesn't
+ *  represent current state" gap this doc's §2.2 already flagged). */
+export type AttendanceEventSource =
+  | 'zkteco_push' | 'dahua_pull' | 'manual' | 'relay' | 'tcp_pull' | 'usb_import' | 'csv_import';
+export type AttendanceRoleType = 'student' | 'staff' | 'visitor';
+
+export interface AttendanceRawEventRecord {
+  id: number;
+  schoolId: number;
+  deviceSn: string;
+  deviceUserId: number;
+  displayName: string | null;
+  enrollmentId: number | null;
+  personId: number | null;
+  roleType: AttendanceRoleType | null;
+  roleRefId: number | null;
+  punchAt: IsoDateTime;
+  verifyType: number | null;
+  ioMode: number | null;
+  source: AttendanceEventSource;
+  matched: boolean;
+  resolutionPath: string | null;
+  resolutionScore: number | null;
+  legacyTable: string | null;
+  legacyId: number | null;
+  ingestedAt: IsoDateTime;
+}
+
+export interface NewAttendanceRawEventInput {
+  schoolId: number;
+  deviceSn: string;
+  deviceUserId: number;
+  displayName?: string | null;
+  enrollmentId?: number | null;
+  personId?: number | null;
+  roleType?: AttendanceRoleType | null;
+  roleRefId?: number | null;
+  punchAt: IsoDateTime;
+  verifyType?: number | null;
+  ioMode?: number | null;
+  source: AttendanceEventSource;
+  matched?: boolean;
+  resolutionPath?: string | null;
+  resolutionScore?: number | null;
+  legacyTable?: string | null;
+  legacyId?: number | null;
+}
+
+export type AttendanceDayRoleType = 'student' | 'staff';
+export type AttendanceDayStatus = 'present' | 'late' | 'absent' | 'half_day' | 'early_leave' | 'holiday' | 'weekend';
+
+export interface AttendanceRecordRecord {
+  id: number;
+  schoolId: number;
+  personId: number;
+  roleType: AttendanceDayRoleType;
+  attendanceDate: IsoDate;
+  firstInAt: IsoDateTime | null;
+  lastOutAt: IsoDateTime | null;
+  firstInDevice: string | null;
+  lastOutDevice: string | null;
+  status: AttendanceDayStatus;
+  lateMinutes: number;
+  earlyMinutes: number;
+  totalMinutes: number;
+  ruleId: number | null;
+  rawEventCount: number;
+  evaluatedAt: IsoDateTime;
+}
+
+/** One row per (personId, attendanceDate) — the real table's own
+ *  uk_person_day unique key. upsertAttendanceRecord() (not create/update)
+ *  is the repo method, matching how the real evaluator actually writes
+ *  this table (recompute-and-replace the day's summary, not an ordinary
+ *  single-row create). */
+export interface UpsertAttendanceRecordInput {
+  schoolId: number;
+  personId: number;
+  roleType: AttendanceDayRoleType;
+  attendanceDate: IsoDate;
+  firstInAt?: IsoDateTime | null;
+  lastOutAt?: IsoDateTime | null;
+  firstInDevice?: string | null;
+  lastOutDevice?: string | null;
+  status: AttendanceDayStatus;
+  lateMinutes?: number;
+  earlyMinutes?: number;
+  totalMinutes?: number;
+  ruleId?: number | null;
+  rawEventCount?: number;
+}
+
 /** Thrown by a repo implementation for a caller-fixable input problem
  *  (not found, duplicate key, etc.) — distinguishes expected outcomes from
  *  genuine driver/connection failures, which propagate as-is. */

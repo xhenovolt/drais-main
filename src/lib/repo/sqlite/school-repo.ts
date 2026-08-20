@@ -82,15 +82,17 @@ export function createSqliteSchoolRepo(db: SqliteConnection): SchoolRepo {
     async update(id, patch) {
       const existing = await findById(id);
       if (!existing) throw new RepoError(`School ${id} not found`, 'NOT_FOUND');
+      // `!== undefined`, not `??`, for nullable fields — see
+      // mysql/school-repo.ts's update() for why.
       const merged: NewSchoolInput = {
         name: patch.name ?? existing.name,
-        legalName: patch.legalName ?? existing.legalName,
-        shortCode: patch.shortCode ?? existing.shortCode,
-        email: patch.email ?? existing.email,
-        phone: patch.phone ?? existing.phone,
-        currency: patch.currency ?? existing.currency,
-        address: patch.address ?? existing.address,
-        logoUrl: patch.logoUrl ?? existing.logoUrl,
+        legalName: patch.legalName !== undefined ? patch.legalName : existing.legalName,
+        shortCode: patch.shortCode !== undefined ? patch.shortCode : existing.shortCode,
+        email: patch.email !== undefined ? patch.email : existing.email,
+        phone: patch.phone !== undefined ? patch.phone : existing.phone,
+        currency: patch.currency !== undefined ? patch.currency : existing.currency,
+        address: patch.address !== undefined ? patch.address : existing.address,
+        logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : existing.logoUrl,
         status: patch.status ?? existing.status,
       };
       db.prepare(

@@ -7,10 +7,16 @@
 import type { Repos } from '../contract';
 import { createMysqlSchoolRepo } from './school-repo';
 import { createMysqlStudentRepo } from './student-repo';
+import { createMysqlPersonRepo } from './person-repo';
+import { createMysqlAttendanceRawEventRepo } from './attendance-raw-event-repo';
+import { createMysqlAttendanceRecordRepo } from './attendance-record-repo';
 
 export function createMysqlRepos(): Repos {
   return {
     schools: createMysqlSchoolRepo(),
     students: createMysqlStudentRepo(),
+    people: createMysqlPersonRepo(),
+    attendanceRawEvents: createMysqlAttendanceRawEventRepo(),
+    attendanceRecords: createMysqlAttendanceRecordRepo(),
   };
 }

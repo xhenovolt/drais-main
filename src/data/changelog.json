@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-20T01:18:58.578Z",
-  "last_commit": "1041b1c2fbf934b2f05c26fb275798070320a264",
+  "generated_at": "2026-08-20T02:49:24.837Z",
+  "last_commit": "bbb2d3a7492be17ba568a742511bbdf9167f816f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7229,7 +7229,20 @@
         }
       ],
       "commit": "1041b1c2fb"
+    },
+    {
+      "version": "2.3.2",
+      "date": "2026-08-20",
+      "release_type": "patch",
+      "title": "Record decision 5 - keep local-MySQL alongside SQLite, not retire it",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Record decision 5 - keep local-MySQL alongside SQLite, not retire it"
+        }
+      ],
+      "commit": "bbb2d3a749"
     }
   ],
-  "app_version": "2.3.2"
+  "app_version": "2.4.0"
 }

@@ -21,7 +21,7 @@
  * re-provisioning the same school (refresh from cloud) is safe to re-run.
  */
 import type { SqliteConnection } from './connection';
-import type { SchoolRecord, StudentRecord } from '../contract/types';
+import type { SchoolRecord, StudentRecord, PersonRecord } from '../contract/types';
 
 export function seedSchool(db: SqliteConnection, r: SchoolRecord): void {
   db.prepare(`
@@ -50,5 +50,21 @@ export function seedStudent(db: SqliteConnection, r: StudentRecord): void {
     id: r.id, schoolId: r.schoolId, personId: r.personId, admissionNo: r.admissionNo,
     villageId: r.villageId, admissionDate: r.admissionDate, status: r.status, notes: r.notes,
     createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
+  });
+}
+
+export function seedPerson(db: SqliteConnection, r: PersonRecord): void {
+  db.prepare(`
+    INSERT INTO people (id, school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url, created_at, updated_at, deleted_at)
+    VALUES (@id, @schoolId, @firstName, @lastName, @otherName, @gender, @dateOfBirth, @phone, @email, @address, @photoUrl, @createdAt, @updatedAt, @deletedAt)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, first_name=excluded.first_name, last_name=excluded.last_name,
+      other_name=excluded.other_name, gender=excluded.gender, date_of_birth=excluded.date_of_birth,
+      phone=excluded.phone, email=excluded.email, address=excluded.address, photo_url=excluded.photo_url,
+      updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
+  `).run({
+    id: r.id, schoolId: r.schoolId, firstName: r.firstName, lastName: r.lastName, otherName: r.otherName,
+    gender: r.gender, dateOfBirth: r.dateOfBirth, phone: r.phone, email: r.email, address: r.address,
+    photoUrl: r.photoUrl, createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
   });
 }
