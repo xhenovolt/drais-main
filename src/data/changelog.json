@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T20:29:26.051Z",
-  "last_commit": "bfaac2f6a6b1439935a516a136e45c36bbc64314",
+  "generated_at": "2026-08-20T01:18:58.578Z",
+  "last_commit": "1041b1c2fbf934b2f05c26fb275798070320a264",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7216,7 +7216,20 @@
         }
       ],
       "commit": "bfaac2f6a6"
+    },
+    {
+      "version": "2.3.1",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "Insert Phase 7 (repo layer expansion) - a real gap the roadmap missed",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Insert Phase 7 (repo layer expansion) - a real gap the roadmap missed"
+        }
+      ],
+      "commit": "1041b1c2fb"
     }
   ],
-  "app_version": "2.3.1"
+  "app_version": "2.3.2"
 }
