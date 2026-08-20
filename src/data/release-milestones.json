@@ -970,6 +970,134 @@
         "v1.173.49 Read the provider key from the environment as well as settings",
         "v1.173.50 Say why it failed, and show whether it is set up"
       ]
+    },
+    {
+      "version": "1.173.61",
+      "period": {
+        "from": "2026-08-16",
+        "to": "2026-08-17"
+      },
+      "milestone_title": "DRAIS Sentinel — Self-Healing Infrastructure Monitor",
+      "summary": "A background monitor that watches DRAIS's own health — background jobs, notifications, security, device fleet, academics, imports — instead of waiting for someone to notice something's wrong.",
+      "significance": "The first system in DRAIS built to answer 'is DRAIS itself okay' on its own, continuously, with a real incident model (severity, dedup, escalation) instead of scattered console logs.",
+      "key_capabilities": [
+        "Observers for background jobs, notifications, security, device fleet, academics, and API health",
+        "Incident tracking with severity and escalation — 10,000 identical failures collapse into one incident, not 10,000 alerts",
+        "Bulk and manual results-import failure detection",
+        "Per-school API-health breakdown and a dedicated Sentinel nav section"
+      ],
+      "architectural_changes": [
+        "sentinel_incidents table with dedup keys and status lifecycle",
+        "Observer framework other subsystems plug detectors into"
+      ],
+      "business_impact": [
+        "Real problems (see the Stability & Security Hardening milestone below) were found because Sentinel's incident log was checked, not because a school reported them first"
+      ],
+      "related_commits": [
+        "v1.173.61 Self-healing infrastructure monitor for DRAIS",
+        "v1.173.62 Detect bulk results-import failures",
+        "v1.173.63 Close the manual results-submission monitoring gap",
+        "v1.173.64 Add nav entry, break API-health down per school"
+      ]
+    },
+    {
+      "version": "1.173.71",
+      "period": {
+        "from": "2026-08-18",
+        "to": "2026-08-18"
+      },
+      "milestone_title": "Student & Fee Import Redesign",
+      "summary": "Replaced 4–5 inconsistent, overlapping Excel/CSV import code paths with one pipeline — real header detection, sheet-name understanding, and a fees path consolidated onto the same atomic payment recorder finance already trusts. Shipped opt-in, alongside the legacy importer, never forced on anyone.",
+      "significance": "Every school's roster and fee history starts as someone else's spreadsheet. The old importer assumed a rigid shape and rejected anything else; this one is built for what real schools actually export.",
+      "key_capabilities": [
+        "Header-row and sheet-purpose detection (students vs fees vs results) instead of assuming row 0 / sheet 0",
+        "Sheet-name understanding — a workbook with one sheet per class and no class column now imports correctly",
+        "Accepts a single combined \"Student Name\" column, not just separate First/Last",
+        "Admission numbers are no longer required — auto-generated when a school's register doesn't have one yet",
+        "Consolidated fees pipeline through the existing atomic recordPayment(), not new raw SQL",
+        "Nursery report cards fixed to show a learner's real division instead of a hardcoded E"
+      ],
+      "architectural_changes": [
+        "Workbook-intelligence layer: header detection, sheet-name context, purpose-guessing",
+        "Dry-run stage added to the ingestion pipeline core",
+        "Sentinel import-health observer watching failure rate and repeated failures"
+      ],
+      "business_impact": [
+        "A real reported import failure (combined name column, missing admission numbers) fixed within the same day it was reported",
+        "A real, previously-undiscovered nursery-report bug (grade E regardless of real performance) traced to its actual cause and fixed"
+      ],
+      "related_commits": [
+        "v1.173.65 Phase A of the student/fee import redesign — foundation",
+        "v1.173.66 Phase B — students, wired to a real opt-in experience",
+        "v1.173.68 Phases C, D, E — fees, Sentinel, scale testing to 10k rows",
+        "v1.173.69 Nursery division actually showed E on real report cards — root cause fixed",
+        "v1.173.72 Student importer's real database-write path was broken — found and fixed by testing an actual commit, not just a dry run"
+      ]
+    },
+    {
+      "version": "1.173.73",
+      "period": {
+        "from": "2026-08-18",
+        "to": "2026-08-18"
+      },
+      "milestone_title": "Stability & Security Hardening",
+      "summary": "A wide pass closing real, live gaps: 7 cross-tenant data leaks, ~90 more soft-delete filter gaps, three background jobs that had silently stopped running (one for two weeks), and a rebuild of Sentinel's own scoring so its headline stability number reflects genuine risk instead of flattening two different questions into one.",
+      "significance": "The kind of hardening that matters precisely because nobody asked for it — these were found by auditing DRAIS itself, not by a school reporting a breach or an outage.",
+      "key_capabilities": [
+        "7 real cross-tenant leaks closed, including a device-relay endpoint with no authentication at all",
+        "~90 more routes given the soft-delete filter they were missing, surfacing several genuine tenant-isolation bypasses and unauthenticated write endpoints along the way",
+        "Billing dunning and platform-health snapshots — found silently dead for two weeks — fixed at the root cause, not just restarted",
+        "A device-offline sweep that had never run in production, ever, wired up and verified live",
+        "A real CI gate — no workflow previously blocked a broken build or failing test from merging",
+        "Audit logging extended to 9 previously-silent configuration routes"
+      ],
+      "architectural_changes": [
+        "Sentinel's tenant-isolation scanner rewritten to recognize verified manual checks, not just one canonical wrapper pattern",
+        "Weighted scoring — a live safety signal now counts more toward the headline number than a maturity/consistency one",
+        "Serverless-safe background job dispatch (after()) replacing a fire-and-forget pattern that let one failing job silently starve others"
+      ],
+      "business_impact": [
+        "DRAIS's own stability score moved from 47/100 to 81/100 — from real fixes, not a change to how the number is calculated"
+      ],
+      "related_commits": [
+        "v1.173.73 Close remaining Phase 1 security gaps from the readiness audit",
+        "v1.173.75 Codebase-wide soft-delete filter sweep — ~90 gaps closed, real bugs found along the way",
+        "v1.173.77 Stop conflating tenant-isolation coverage with wrapper adoption",
+        "v1.173.78 Close real cross-tenant leaks found while auditing the tenant-isolation scanner",
+        "v1.173.80 Dunning/platform-health stopped enqueueing for two weeks — root cause fixed",
+        "v1.173.80 Wire up the device-status sweep, which had never run in production"
+      ]
+    },
+    {
+      "version": "1.173.85",
+      "period": {
+        "from": "2026-08-19",
+        "to": "2026-08-19"
+      },
+      "milestone_title": "WhatsApp Business Messaging",
+      "summary": "WhatsApp added as a first-class messaging channel alongside SMS, in both the school admin panel and the platform Control Center, built on Infobip and following the existing SMS architecture's own conventions throughout.",
+      "significance": "Parents and staff increasingly expect WhatsApp, not SMS. This makes it a real channel choice per school and per automation rule, not a bolt-on.",
+      "key_capabilities": [
+        "Per-school WhatsApp settings — enable, business sender, optional own Infobip credentials, test-send",
+        "WhatsApp selectable on any automation rule (attendance, fees, exam results) using the same templates SMS already uses",
+        "Delivery-status tracking: queued → sent → delivered → read → failed",
+        "Control Center communications overview — delivery volume and rate by channel and by school"
+      ],
+      "architectural_changes": [
+        "Provider abstraction extended beyond SMS — a second WhatsApp provider can be added later without a rewrite",
+        "comm_dispatch_log's status column widened for WhatsApp's delivery states",
+        "First-ever automated test suite for the communications module"
+      ],
+      "business_impact": [
+        "A school can offer WhatsApp as a real option once a business sender number and approved message templates are in place"
+      ],
+      "related_commits": [
+        "v1.173.81 WhatsApp channel foundation — Infobip provider, schema, channel-aware dispatch",
+        "v1.173.82 WhatsApp school-level settings UI + test-send endpoint",
+        "v1.173.83 Infobip WhatsApp delivery-status webhook",
+        "v1.173.84 Control Center cross-school communications overview",
+        "v1.173.85 First-ever tests for the communications module"
+      ]
     }
   ]
 }

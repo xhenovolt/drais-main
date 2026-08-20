@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-20T03:06:13.132Z",
-  "last_commit": "df7f5047b711bc53fe0b8c507619bb59f88d550d",
+  "generated_at": "2026-08-20T03:07:58.143Z",
+  "last_commit": "ab515b30809cd6a450537dc8e7675add1a768c85",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7255,7 +7255,20 @@
         }
       ],
       "commit": "df7f5047b7"
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-08-20",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 2 - classes + class_results repo layer",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 2 - classes + class_results repo layer"
+        }
+      ],
+      "commit": "ab515b3080"
     }
   ],
-  "app_version": "2.5.0"
+  "app_version": "2.5.1"
 }
