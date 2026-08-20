@@ -13,6 +13,9 @@ import { createMysqlAttendanceRecordRepo } from './attendance-record-repo';
 import { createMysqlClassRepo } from './class-repo';
 import { createMysqlClassResultRepo } from './class-result-repo';
 import { createMysqlStaffRepo } from './staff-repo';
+import { createMysqlSubjectRepo } from './subject-repo';
+import { createMysqlTermRepo } from './term-repo';
+import { createMysqlAcademicYearRepo } from './academic-year-repo';
 
 export function createMysqlRepos(): Repos {
   return {
@@ -24,5 +27,8 @@ export function createMysqlRepos(): Repos {
     classes: createMysqlClassRepo(),
     classResults: createMysqlClassResultRepo(),
     staff: createMysqlStaffRepo(),
+    subjects: createMysqlSubjectRepo(),
+    terms: createMysqlTermRepo(),
+    academicYears: createMysqlAcademicYearRepo(),
   };
 }

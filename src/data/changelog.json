@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-20T03:18:04.546Z",
-  "last_commit": "8b9d0be0c6a304240109fd495cc257b5e1ca28f1",
+  "generated_at": "2026-08-20T03:39:53.996Z",
+  "last_commit": "16350b4aafafc19f7fe90991c909da8d7fa55966",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7281,7 +7281,20 @@
         }
       ],
       "commit": "8b9d0be0c6"
+    },
+    {
+      "version": "2.6.0",
+      "date": "2026-08-20",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 3 - staff repository layer",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 3 - staff repository layer"
+        }
+      ],
+      "commit": "16350b4aaf"
     }
   ],
-  "app_version": "2.6.0"
+  "app_version": "2.7.0"
 }

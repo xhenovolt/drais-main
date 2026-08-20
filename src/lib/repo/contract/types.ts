@@ -389,3 +389,111 @@ export interface NewStaffInput {
   status?: string | null;
   managerId?: number | null;
 }
+
+// ── Phase 7, sub-effort 4: subjects, terms, academic_years ─────────────
+// The three reference tables class_results already points at via
+// subjectId/termId/academicYearId (sub-effort 2) but that don't exist
+// locally yet — without them those ids are floating integers with no
+// record behind them. Real schemas confirmed live, same discipline as
+// every prior sub-effort. `subjects` reuses the `AcademicType` type
+// already defined for class_results (`secular` | `theology` — the real
+// `subjects.academic_type` ENUM matches it exactly, not a coincidence:
+// it's the same real-world distinction).
+//
+// A third, genuinely new "missing timestamp" shape, distinct from both
+// prior ones: `academic_years` has **neither `created_at` nor
+// `updated_at` at all** — the first table in this repo layer missing
+// both (staff, sub-effort 3, was missing only `created_at`). Its record
+// type simply has no timestamp fields, not nullable ones — inventing
+// nullable fields for columns that don't exist at all would be worse
+// than omitting them, the same reasoning already applied to staff.
+
+export interface SubjectRecord {
+  id: number;
+  schoolId: number;
+  name: string;
+  nameAr: string | null;
+  code: string | null;
+  subjectType: string | null;
+  academicType: AcademicType;
+  departmentId: number | null;
+  subjectGroupId: number | null;
+  createdAt: IsoDateTime | null;
+  updatedAt: IsoDateTime | null;
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewSubjectInput {
+  schoolId: number;
+  name: string;
+  nameAr?: string | null;
+  code?: string | null;
+  subjectType?: string | null;
+  academicType?: AcademicType;
+  departmentId?: number | null;
+  subjectGroupId?: number | null;
+}
+
+export interface TermRecord {
+  id: number;
+  schoolId: number;
+  name: string;
+  nameAr: string | null;
+  code: string | null;
+  startDate: IsoDate;
+  endDate: IsoDate;
+  academicYearId: number | null;
+  isActive: boolean | null;
+  termNumber: number | null;
+  status: string | null;
+  notes: string | null;
+  createdAt: IsoDateTime | null;
+  updatedAt: IsoDateTime | null;
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewTermInput {
+  schoolId: number;
+  name: string;
+  nameAr?: string | null;
+  code?: string | null;
+  startDate: IsoDate;
+  endDate: IsoDate;
+  academicYearId?: number | null;
+  isActive?: boolean | null;
+  termNumber?: number | null;
+  status?: string | null;
+  notes?: string | null;
+}
+
+/** No created_at/updated_at at all on the real table (see header above) —
+ *  deliberately no timestamp fields, not nullable ones. */
+export interface AcademicYearRecord {
+  id: number;
+  schoolId: number;
+  name: string;
+  startDate: IsoDate | null;
+  endDate: IsoDate | null;
+  status: string | null;
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewAcademicYearInput {
+  schoolId: number;
+  name: string;
+  startDate?: IsoDate | null;
+  endDate?: IsoDate | null;
+  status?: string | null;
+}

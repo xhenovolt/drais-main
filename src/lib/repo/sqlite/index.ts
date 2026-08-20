@@ -17,6 +17,9 @@ import { createSqliteAttendanceRecordRepo } from './attendance-record-repo';
 import { createSqliteClassRepo } from './class-repo';
 import { createSqliteClassResultRepo } from './class-result-repo';
 import { createSqliteStaffRepo } from './staff-repo';
+import { createSqliteSubjectRepo } from './subject-repo';
+import { createSqliteTermRepo } from './term-repo';
+import { createSqliteAcademicYearRepo } from './academic-year-repo';
 
 export { openSqliteDb, closeSqliteDb, type SqliteConnection } from './connection';
 export { seedSchool, seedStudent, seedPerson } from './seed';
@@ -31,5 +34,8 @@ export function createSqliteRepos(db: SqliteConnection): Repos {
     classes: createSqliteClassRepo(db),
     classResults: createSqliteClassResultRepo(db),
     staff: createSqliteStaffRepo(db),
+    subjects: createSqliteSubjectRepo(db),
+    terms: createSqliteTermRepo(db),
+    academicYears: createSqliteAcademicYearRepo(db),
   };
 }

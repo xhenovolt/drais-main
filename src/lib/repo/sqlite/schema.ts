@@ -287,6 +287,81 @@ CREATE TABLE IF NOT EXISTS staff (
 CREATE INDEX IF NOT EXISTS idx_staff_school_id ON staff(school_id);
 CREATE INDEX IF NOT EXISTS idx_staff_person_id ON staff(person_id);
 CREATE INDEX IF NOT EXISTS idx_staff_staff_no ON staff(staff_no);
+
+-- Phase 7, sub-effort 4: subjects, terms, academic_years — the reference
+-- tables class_results already points at via subject_id/term_id/
+-- academic_year_id (sub-effort 2) but that don't exist locally yet. Real
+-- schemas confirmed live. academic_years genuinely has NEITHER created_at
+-- NOR updated_at on the real table (the first table in this schema
+-- missing both) — neither column is declared below, matching that
+-- exactly rather than inventing timestamps the source data doesn't have.
+-- No FOREIGN KEY from subjects/terms to academic_years/departments/
+-- subject_group_id targets: those tables don't exist locally yet
+-- (department_id, subject_group_id, academic_year_id are plain nullable
+-- integers here, same treatment as classes.head_teacher_id).
+
+CREATE TABLE IF NOT EXISTS subjects (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  name              TEXT NOT NULL,
+  name_ar           TEXT,
+  code              TEXT,
+  subject_type      TEXT,
+  academic_type     TEXT NOT NULL DEFAULT 'secular' CHECK (academic_type IN ('secular','theology')),
+  department_id     INTEGER,
+  subject_group_id  INTEGER,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_subjects_school_id ON subjects(school_id);
+
+CREATE TABLE IF NOT EXISTS terms (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  name              TEXT NOT NULL,
+  name_ar           TEXT,
+  code              TEXT,
+  start_date        TEXT NOT NULL,
+  end_date          TEXT NOT NULL,
+  academic_year_id  INTEGER,
+  is_active         INTEGER,
+  term_number       INTEGER,
+  status            TEXT,
+  notes             TEXT,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_terms_school_id ON terms(school_id);
+CREATE INDEX IF NOT EXISTS idx_terms_academic_year_id ON terms(academic_year_id);
+
+-- Deliberately no created_at/updated_at columns here — see header above.
+CREATE TABLE IF NOT EXISTS academic_years (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  name              TEXT NOT NULL,
+  start_date        TEXT,
+  end_date          TEXT,
+  status            TEXT,
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_academic_years_school_id ON academic_years(school_id);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();
