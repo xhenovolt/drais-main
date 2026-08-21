@@ -34,8 +34,10 @@ const SELECT_COLS = `id, user_id, role_id, is_active, assigned_by, assigned_at, 
 export function createSqliteUserRoleRepo(db: SqliteConnection): UserRoleRepo {
   return {
     async listByUser(schoolId, userId) {
+      // (school_id = ? OR school_id IS NULL) — see mysql/user-role-repo.ts's
+      // matching comment: mirrors src/lib/auth.ts's real super-admin check.
       const rows = db.prepare(
-        `SELECT ${SELECT_COLS} FROM user_roles WHERE user_id = ? AND school_id = ? AND is_active = 1`,
+        `SELECT ${SELECT_COLS} FROM user_roles WHERE user_id = ? AND (school_id = ? OR school_id IS NULL) AND is_active = 1`,
       ).all(userId, schoolId) as UserRoleRow[];
       return rows.map(toRecord);
     },

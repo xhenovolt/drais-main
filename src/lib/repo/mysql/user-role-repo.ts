@@ -35,8 +35,14 @@ const BASE_SELECT = `SELECT id, user_id, role_id, is_active, assigned_by, assign
 export function createMysqlUserRoleRepo(): UserRoleRepo {
   return {
     async listByUser(schoolId, userId) {
+      // (school_id = ? OR school_id IS NULL) — matches src/lib/auth.ts's
+      // own real super-admin EXISTS check exactly: a NULL user_roles.
+      // school_id is a platform-wide grant, not scoped to one school, and
+      // a plain `= ?` would silently miss it (a real gap, caught before
+      // it was built on top of — see offline-auth/session-validate.ts's
+      // header, sub-effort 9).
       const rows = (await query(
-        `${BASE_SELECT} WHERE user_id = ? AND school_id = ? AND is_active = TRUE`,
+        `${BASE_SELECT} WHERE user_id = ? AND (school_id = ? OR school_id IS NULL) AND is_active = TRUE`,
         [userId, schoolId],
       )) as UserRoleRow[];
       return rows.map(toRecord);

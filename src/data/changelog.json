@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-21T20:59:42.586Z",
-  "last_commit": "79a7f408b9f15e3839d4fcc6aca6d255110836f4",
+  "generated_at": "2026-08-21T21:13:43.728Z",
+  "last_commit": "c263a80f81a421baafa01f2254e87cbe073a2a90",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7346,7 +7346,20 @@
         }
       ],
       "commit": "79a7f408b9"
+    },
+    {
+      "version": "2.11.0",
+      "date": "2026-08-21",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 8 - complete offline login flow",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 8 - complete offline login flow"
+        }
+      ],
+      "commit": "c263a80f81"
     }
   ],
-  "app_version": "2.11.0"
+  "app_version": "2.12.0"
 }
