@@ -48,20 +48,39 @@ import type { SqliteConnection } from './connection';
 const ISO_NOW = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 
 const SCHEMA_SQL = `
+-- schools.subscription_* columns added in Phase 7, sub-effort 7: a local
+-- install carries its own subscription state at provisioning time (the
+-- user's own confirmed design, 2026-08-21) so offline login can evaluate
+-- access with no network call, reusing src/lib/subscription.ts's already-
+-- pure classifyPlan() unmodified against this carried snapshot. deleted_by/
+-- delete_reason/restored_at/restored_by added alongside — the real schools
+-- table has them too (confirmed live), Phase 3's original build predates
+-- and never captured them.
 CREATE TABLE IF NOT EXISTS schools (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  name         TEXT NOT NULL,
-  legal_name   TEXT,
-  short_code   TEXT,
-  email        TEXT,
-  phone        TEXT,
-  currency     TEXT DEFAULT 'UGX',
-  address      TEXT,
-  logo_url     TEXT,
-  status       TEXT DEFAULT 'active' CHECK (status IS NULL OR status IN ('active','inactive','suspended')),
-  created_at   TEXT DEFAULT (${ISO_NOW}),
-  updated_at   TEXT DEFAULT (${ISO_NOW}),
-  deleted_at   TEXT
+  id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                      TEXT NOT NULL,
+  legal_name                TEXT,
+  short_code                TEXT,
+  email                     TEXT,
+  phone                     TEXT,
+  currency                  TEXT DEFAULT 'UGX',
+  address                   TEXT,
+  logo_url                  TEXT,
+  status                    TEXT DEFAULT 'active' CHECK (status IS NULL OR status IN ('active','inactive','suspended')),
+  created_at                TEXT DEFAULT (${ISO_NOW}),
+  updated_at                TEXT DEFAULT (${ISO_NOW}),
+  deleted_at                TEXT,
+  subscription_status       TEXT CHECK (subscription_status IS NULL OR subscription_status IN ('active','inactive','trial','expired')),
+  subscription_plan         TEXT,
+  subscription_type         TEXT CHECK (subscription_type IS NULL OR subscription_type IN ('none','trial','monthly','yearly')),
+  trial_start_date          TEXT,
+  trial_end_date            TEXT,
+  subscription_start_date   TEXT,
+  subscription_end_date     TEXT,
+  deleted_by                INTEGER,
+  delete_reason             TEXT,
+  restored_at               TEXT,
+  restored_by               INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_schools_short_code ON schools(short_code);
 CREATE INDEX IF NOT EXISTS idx_schools_status ON schools(status);

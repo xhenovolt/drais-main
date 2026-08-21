@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-21T20:18:47.437Z",
-  "last_commit": "307c840ff1d9267ac672e894e484f38b311ba4a6",
+  "generated_at": "2026-08-21T20:45:54.312Z",
+  "last_commit": "d8d2ec8da6d86f3529620b9b87c2d134d8559401",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7320,7 +7320,20 @@
         }
       ],
       "commit": "307c840ff1"
+    },
+    {
+      "version": "2.9.0",
+      "date": "2026-08-21",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 6 - offline-authentication data layer",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 6 - offline-authentication data layer"
+        }
+      ],
+      "commit": "d8d2ec8da6"
     }
   ],
-  "app_version": "2.9.0"
+  "app_version": "2.10.0"
 }

@@ -11,7 +11,7 @@ import { query } from '@/lib/db';
 import type { SchoolRepo } from '../contract/school-repo';
 import type { SchoolRecord, NewSchoolInput } from '../contract/types';
 import { RepoError } from '../contract/types';
-import { toIso, toIsoRequired, toNum } from './util';
+import { toIso, toIsoRequired, toNum, toNumOrNull } from './util';
 
 interface SchoolRow {
   id: number | string;
@@ -27,6 +27,17 @@ interface SchoolRow {
   created_at: string | Date | null;
   updated_at: string | Date | null;
   deleted_at: string | Date | null;
+  subscription_status: SchoolRecord['subscriptionStatus'];
+  subscription_plan: string | null;
+  subscription_type: SchoolRecord['subscriptionType'];
+  trial_start_date: string | Date | null;
+  trial_end_date: string | Date | null;
+  subscription_start_date: string | Date | null;
+  subscription_end_date: string | Date | null;
+  deleted_by: number | string | null;
+  delete_reason: string | null;
+  restored_at: string | Date | null;
+  restored_by: number | string | null;
 }
 
 function toRecord(r: SchoolRow): SchoolRecord {
@@ -53,16 +64,29 @@ function toRecord(r: SchoolRow): SchoolRecord {
     createdAt,
     updatedAt: toIsoRequired(r.updated_at, createdAt),
     deletedAt: toIso(r.deleted_at),
+    subscriptionStatus: r.subscription_status,
+    subscriptionPlan: r.subscription_plan,
+    subscriptionType: r.subscription_type,
+    trialStartDate: toIso(r.trial_start_date),
+    trialEndDate: toIso(r.trial_end_date),
+    subscriptionStartDate: toIso(r.subscription_start_date),
+    subscriptionEndDate: toIso(r.subscription_end_date),
+    deletedBy: toNumOrNull(r.deleted_by),
+    deleteReason: r.delete_reason,
+    restoredAt: toIso(r.restored_at),
+    restoredBy: toNumOrNull(r.restored_by),
   };
 }
 
+const BASE_SELECT = `SELECT id, name, legal_name, short_code, email, phone, currency, address,
+                             logo_url, status, created_at, updated_at, deleted_at,
+                             subscription_status, subscription_plan, subscription_type,
+                             trial_start_date, trial_end_date, subscription_start_date,
+                             subscription_end_date, deleted_by, delete_reason, restored_at, restored_by
+                        FROM schools`;
+
 async function findById(id: number): Promise<SchoolRecord | null> {
-  const rows = (await query(
-    `SELECT id, name, legal_name, short_code, email, phone, currency, address,
-            logo_url, status, created_at, updated_at, deleted_at
-       FROM schools WHERE id = ? LIMIT 1`,
-    [id],
-  )) as SchoolRow[];
+  const rows = (await query(`${BASE_SELECT} WHERE id = ? LIMIT 1`, [id])) as SchoolRow[];
   return rows.length ? toRecord(rows[0]) : null;
 }
 
@@ -75,12 +99,16 @@ export function createMysqlSchoolRepo(): SchoolRepo {
 
     async create(input: NewSchoolInput) {
       const res = (await query(
-        `INSERT INTO schools (name, legal_name, short_code, email, phone, currency, address, logo_url, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO schools (name, legal_name, short_code, email, phone, currency, address, logo_url, status,
+                               subscription_status, subscription_plan, subscription_type, trial_start_date,
+                               trial_end_date, subscription_start_date, subscription_end_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.name, input.legalName ?? null, input.shortCode ?? null, input.email ?? null,
           input.phone ?? null, input.currency ?? 'UGX', input.address ?? null, input.logoUrl ?? null,
-          input.status ?? 'active',
+          input.status ?? 'active', input.subscriptionStatus ?? null, input.subscriptionPlan ?? null,
+          input.subscriptionType ?? null, input.trialStartDate ?? null, input.trialEndDate ?? null,
+          input.subscriptionStartDate ?? null, input.subscriptionEndDate ?? null,
         ],
       )) as unknown as { insertId?: number };
       if (!res?.insertId) throw new RepoError('Insert did not return an id', 'INVALID_INPUT');
@@ -107,14 +135,25 @@ export function createMysqlSchoolRepo(): SchoolRepo {
         address: patch.address !== undefined ? patch.address : existing.address,
         logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : existing.logoUrl,
         status: patch.status ?? existing.status,
+        subscriptionStatus: patch.subscriptionStatus !== undefined ? patch.subscriptionStatus : existing.subscriptionStatus,
+        subscriptionPlan: patch.subscriptionPlan !== undefined ? patch.subscriptionPlan : existing.subscriptionPlan,
+        subscriptionType: patch.subscriptionType !== undefined ? patch.subscriptionType : existing.subscriptionType,
+        trialStartDate: patch.trialStartDate !== undefined ? patch.trialStartDate : existing.trialStartDate,
+        trialEndDate: patch.trialEndDate !== undefined ? patch.trialEndDate : existing.trialEndDate,
+        subscriptionStartDate: patch.subscriptionStartDate !== undefined ? patch.subscriptionStartDate : existing.subscriptionStartDate,
+        subscriptionEndDate: patch.subscriptionEndDate !== undefined ? patch.subscriptionEndDate : existing.subscriptionEndDate,
       };
       await query(
-        `UPDATE schools SET name=?, legal_name=?, short_code=?, email=?, phone=?, currency=?, address=?, logo_url=?, status=?
+        `UPDATE schools SET name=?, legal_name=?, short_code=?, email=?, phone=?, currency=?, address=?, logo_url=?, status=?,
+                subscription_status=?, subscription_plan=?, subscription_type=?, trial_start_date=?, trial_end_date=?,
+                subscription_start_date=?, subscription_end_date=?
           WHERE id = ?`,
         [
           merged.name, merged.legalName ?? null, merged.shortCode ?? null, merged.email ?? null,
           merged.phone ?? null, merged.currency ?? 'UGX', merged.address ?? null, merged.logoUrl ?? null,
-          merged.status ?? 'active', id,
+          merged.status ?? 'active', merged.subscriptionStatus ?? null, merged.subscriptionPlan ?? null,
+          merged.subscriptionType ?? null, merged.trialStartDate ?? null, merged.trialEndDate ?? null,
+          merged.subscriptionStartDate ?? null, merged.subscriptionEndDate ?? null, id,
         ],
       );
       const updated = await findById(id);

@@ -23,17 +23,36 @@
 import type { SqliteConnection } from './connection';
 import type { SchoolRecord, StudentRecord, PersonRecord } from '../contract/types';
 
+/**
+ * subscription_* fields are carried through here deliberately (Phase 7,
+ * sub-effort 7) — this is the actual mechanism behind the user's confirmed
+ * design (2026-08-21): "the subscription is carried with them" the first
+ * time a school is provisioned offline. Re-provisioning (this function is
+ * an upsert) refreshes the carried snapshot to whatever the source
+ * currently says, same as every other field here.
+ */
 export function seedSchool(db: SqliteConnection, r: SchoolRecord): void {
   db.prepare(`
-    INSERT INTO schools (id, name, legal_name, short_code, email, phone, currency, address, logo_url, status, created_at, updated_at, deleted_at)
-    VALUES (@id, @name, @legalName, @shortCode, @email, @phone, @currency, @address, @logoUrl, @status, @createdAt, @updatedAt, @deletedAt)
+    INSERT INTO schools (id, name, legal_name, short_code, email, phone, currency, address, logo_url, status,
+                          subscription_status, subscription_plan, subscription_type, trial_start_date,
+                          trial_end_date, subscription_start_date, subscription_end_date, created_at, updated_at, deleted_at)
+    VALUES (@id, @name, @legalName, @shortCode, @email, @phone, @currency, @address, @logoUrl, @status,
+            @subscriptionStatus, @subscriptionPlan, @subscriptionType, @trialStartDate, @trialEndDate,
+            @subscriptionStartDate, @subscriptionEndDate, @createdAt, @updatedAt, @deletedAt)
     ON CONFLICT(id) DO UPDATE SET
       name=excluded.name, legal_name=excluded.legal_name, short_code=excluded.short_code,
       email=excluded.email, phone=excluded.phone, currency=excluded.currency, address=excluded.address,
-      logo_url=excluded.logo_url, status=excluded.status, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
+      logo_url=excluded.logo_url, status=excluded.status, subscription_status=excluded.subscription_status,
+      subscription_plan=excluded.subscription_plan, subscription_type=excluded.subscription_type,
+      trial_start_date=excluded.trial_start_date, trial_end_date=excluded.trial_end_date,
+      subscription_start_date=excluded.subscription_start_date, subscription_end_date=excluded.subscription_end_date,
+      updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
   `).run({
     id: r.id, name: r.name, legalName: r.legalName, shortCode: r.shortCode, email: r.email,
     phone: r.phone, currency: r.currency, address: r.address, logoUrl: r.logoUrl, status: r.status,
+    subscriptionStatus: r.subscriptionStatus, subscriptionPlan: r.subscriptionPlan,
+    subscriptionType: r.subscriptionType, trialStartDate: r.trialStartDate, trialEndDate: r.trialEndDate,
+    subscriptionStartDate: r.subscriptionStartDate, subscriptionEndDate: r.subscriptionEndDate,
     createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
   });
 }

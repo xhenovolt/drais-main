@@ -35,7 +35,39 @@ export interface SchoolRecord {
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
   deletedAt: IsoDateTime | null;
+  // ── Phase 7, sub-effort 7: subscription state ──────────────────────────
+  // Added specifically so a local install can evaluate subscription access
+  // OFFLINE, with no network call — the explicit design the user confirmed
+  // (2026-08-21): "the subscription is carried with them" at provisioning
+  // time, evaluated locally against that carried snapshot from then on
+  // (necessarily as fresh as the last provision/sync, same as any offline
+  // system). These fields map 1:1 onto src/lib/subscription.ts's own
+  // classifyPlan()'s expected row shape — that function is already pure
+  // (zero DB calls) — so the EXISTING online evaluation logic can run
+  // unmodified against a SchoolRecord's carried snapshot; no separate
+  // "offline subscription logic" needed or built. Also added here: the
+  // richer deleted_by/delete_reason/restored_at/restored_by audit trail
+  // schools genuinely has (confirmed live) that Phase 3's original build
+  // predates and never captured.
+  subscriptionStatus: SubscriptionStatus | null;
+  subscriptionPlan: string | null;
+  subscriptionType: SubscriptionType | null;
+  trialStartDate: IsoDateTime | null;
+  trialEndDate: IsoDateTime | null;
+  subscriptionStartDate: IsoDateTime | null;
+  subscriptionEndDate: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
 }
+
+/** Matches src/lib/subscription.ts's own SubscriptionStatus/SubscriptionType
+ *  exactly (confirmed against the real schools.subscription_status/
+ *  subscription_type ENUMs live) — not redefined independently, so the two
+ *  can never silently drift apart. */
+export type SubscriptionStatus = 'active' | 'inactive' | 'trial' | 'expired';
+export type SubscriptionType = 'none' | 'trial' | 'monthly' | 'yearly';
 
 export interface NewSchoolInput {
   name: string;
@@ -47,6 +79,13 @@ export interface NewSchoolInput {
   address?: string | null;
   logoUrl?: string | null;
   status?: SchoolStatus;
+  subscriptionStatus?: SubscriptionStatus | null;
+  subscriptionPlan?: string | null;
+  subscriptionType?: SubscriptionType | null;
+  trialStartDate?: IsoDateTime | null;
+  trialEndDate?: IsoDateTime | null;
+  subscriptionStartDate?: IsoDateTime | null;
+  subscriptionEndDate?: IsoDateTime | null;
 }
 
 export interface StudentRecord {

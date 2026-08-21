@@ -24,6 +24,17 @@ interface SchoolRow {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  subscription_status: SchoolRecord['subscriptionStatus'];
+  subscription_plan: string | null;
+  subscription_type: SchoolRecord['subscriptionType'];
+  trial_start_date: string | null;
+  trial_end_date: string | null;
+  subscription_start_date: string | null;
+  subscription_end_date: string | null;
+  deleted_by: number | null;
+  delete_reason: string | null;
+  restored_at: string | null;
+  restored_by: number | null;
 }
 
 function toRecord(r: SchoolRow): SchoolRecord {
@@ -41,18 +52,30 @@ function toRecord(r: SchoolRow): SchoolRecord {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deletedAt: r.deleted_at,
+    subscriptionStatus: r.subscription_status,
+    subscriptionPlan: r.subscription_plan,
+    subscriptionType: r.subscription_type,
+    trialStartDate: r.trial_start_date,
+    trialEndDate: r.trial_end_date,
+    subscriptionStartDate: r.subscription_start_date,
+    subscriptionEndDate: r.subscription_end_date,
+    deletedBy: r.deleted_by,
+    deleteReason: r.delete_reason,
+    restoredAt: r.restored_at,
+    restoredBy: r.restored_by,
   };
 }
+
+const SELECT_COLS = `id, name, legal_name, short_code, email, phone, currency, address, logo_url,
+                      status, created_at, updated_at, deleted_at, subscription_status, subscription_plan,
+                      subscription_type, trial_start_date, trial_end_date, subscription_start_date,
+                      subscription_end_date, deleted_by, delete_reason, restored_at, restored_by`;
 
 const nowIso = () => new Date().toISOString();
 
 export function createSqliteSchoolRepo(db: SqliteConnection): SchoolRepo {
   const findById = async (id: number): Promise<SchoolRecord | null> => {
-    const row = db.prepare(
-      `SELECT id, name, legal_name, short_code, email, phone, currency, address,
-              logo_url, status, created_at, updated_at, deleted_at
-         FROM schools WHERE id = ?`,
-    ).get(id) as SchoolRow | undefined;
+    const row = db.prepare(`SELECT ${SELECT_COLS} FROM schools WHERE id = ?`).get(id) as SchoolRow | undefined;
     return row ? toRecord(row) : null;
   };
 
@@ -61,8 +84,12 @@ export function createSqliteSchoolRepo(db: SqliteConnection): SchoolRepo {
 
     async create(input: NewSchoolInput) {
       const res = db.prepare(
-        `INSERT INTO schools (name, legal_name, short_code, email, phone, currency, address, logo_url, status)
-         VALUES (@name, @legalName, @shortCode, @email, @phone, @currency, @address, @logoUrl, @status)`,
+        `INSERT INTO schools (name, legal_name, short_code, email, phone, currency, address, logo_url, status,
+                               subscription_status, subscription_plan, subscription_type, trial_start_date,
+                               trial_end_date, subscription_start_date, subscription_end_date)
+         VALUES (@name, @legalName, @shortCode, @email, @phone, @currency, @address, @logoUrl, @status,
+                 @subscriptionStatus, @subscriptionPlan, @subscriptionType, @trialStartDate, @trialEndDate,
+                 @subscriptionStartDate, @subscriptionEndDate)`,
       ).run({
         name: input.name,
         legalName: input.legalName ?? null,
@@ -73,6 +100,13 @@ export function createSqliteSchoolRepo(db: SqliteConnection): SchoolRepo {
         address: input.address ?? null,
         logoUrl: input.logoUrl ?? null,
         status: input.status ?? 'active',
+        subscriptionStatus: input.subscriptionStatus ?? null,
+        subscriptionPlan: input.subscriptionPlan ?? null,
+        subscriptionType: input.subscriptionType ?? null,
+        trialStartDate: input.trialStartDate ?? null,
+        trialEndDate: input.trialEndDate ?? null,
+        subscriptionStartDate: input.subscriptionStartDate ?? null,
+        subscriptionEndDate: input.subscriptionEndDate ?? null,
       });
       const created = await findById(Number(res.lastInsertRowid));
       if (!created) throw new RepoError('School vanished immediately after insert', 'NOT_FOUND');
@@ -94,17 +128,31 @@ export function createSqliteSchoolRepo(db: SqliteConnection): SchoolRepo {
         address: patch.address !== undefined ? patch.address : existing.address,
         logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : existing.logoUrl,
         status: patch.status ?? existing.status,
+        subscriptionStatus: patch.subscriptionStatus !== undefined ? patch.subscriptionStatus : existing.subscriptionStatus,
+        subscriptionPlan: patch.subscriptionPlan !== undefined ? patch.subscriptionPlan : existing.subscriptionPlan,
+        subscriptionType: patch.subscriptionType !== undefined ? patch.subscriptionType : existing.subscriptionType,
+        trialStartDate: patch.trialStartDate !== undefined ? patch.trialStartDate : existing.trialStartDate,
+        trialEndDate: patch.trialEndDate !== undefined ? patch.trialEndDate : existing.trialEndDate,
+        subscriptionStartDate: patch.subscriptionStartDate !== undefined ? patch.subscriptionStartDate : existing.subscriptionStartDate,
+        subscriptionEndDate: patch.subscriptionEndDate !== undefined ? patch.subscriptionEndDate : existing.subscriptionEndDate,
       };
       db.prepare(
         `UPDATE schools SET name=@name, legal_name=@legalName, short_code=@shortCode, email=@email,
                 phone=@phone, currency=@currency, address=@address, logo_url=@logoUrl, status=@status,
-                updated_at=@updatedAt
+                subscription_status=@subscriptionStatus, subscription_plan=@subscriptionPlan,
+                subscription_type=@subscriptionType, trial_start_date=@trialStartDate,
+                trial_end_date=@trialEndDate, subscription_start_date=@subscriptionStartDate,
+                subscription_end_date=@subscriptionEndDate, updated_at=@updatedAt
           WHERE id=@id`,
       ).run({
         id,
         name: merged.name, legalName: merged.legalName ?? null, shortCode: merged.shortCode ?? null,
         email: merged.email ?? null, phone: merged.phone ?? null, currency: merged.currency ?? 'UGX',
         address: merged.address ?? null, logoUrl: merged.logoUrl ?? null, status: merged.status ?? 'active',
+        subscriptionStatus: merged.subscriptionStatus ?? null, subscriptionPlan: merged.subscriptionPlan ?? null,
+        subscriptionType: merged.subscriptionType ?? null, trialStartDate: merged.trialStartDate ?? null,
+        trialEndDate: merged.trialEndDate ?? null, subscriptionStartDate: merged.subscriptionStartDate ?? null,
+        subscriptionEndDate: merged.subscriptionEndDate ?? null,
         updatedAt: nowIso(),
       });
       const updated = await findById(id);
