@@ -10,6 +10,11 @@ export type { StaffRepo } from './staff-repo';
 export type { SubjectRepo } from './subject-repo';
 export type { TermRepo } from './term-repo';
 export type { AcademicYearRepo } from './academic-year-repo';
+export type { UserRepo } from './user-repo';
+export type { RoleRepo } from './role-repo';
+export type { UserRoleRepo } from './user-role-repo';
+export type { PermissionRepo } from './permission-repo';
+export type { RolePermissionRepo } from './role-permission-repo';
 
 import type { SchoolRepo } from './school-repo';
 import type { StudentRepo } from './student-repo';
@@ -22,6 +27,11 @@ import type { StaffRepo } from './staff-repo';
 import type { SubjectRepo } from './subject-repo';
 import type { TermRepo } from './term-repo';
 import type { AcademicYearRepo } from './academic-year-repo';
+import type { UserRepo } from './user-repo';
+import type { RoleRepo } from './role-repo';
+import type { UserRoleRepo } from './user-role-repo';
+import type { PermissionRepo } from './permission-repo';
+import type { RolePermissionRepo } from './role-permission-repo';
 
 /** The registry every consumer of this layer actually depends on — never
  *  a concrete repo-mysql or repo-sqlite import directly (§8's boundary
@@ -39,4 +49,9 @@ export interface Repos {
   subjects: SubjectRepo;
   terms: TermRepo;
   academicYears: AcademicYearRepo;
+  users: UserRepo;
+  roles: RoleRepo;
+  userRoles: UserRoleRepo;
+  permissions: PermissionRepo;
+  rolePermissions: RolePermissionRepo;
 }

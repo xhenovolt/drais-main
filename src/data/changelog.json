@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-21T19:23:29.828Z",
-  "last_commit": "61d724d75654066c8afa23cb17f579fcb83adbf9",
+  "generated_at": "2026-08-21T20:18:47.437Z",
+  "last_commit": "307c840ff1d9267ac672e894e484f38b311ba4a6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7307,7 +7307,20 @@
         }
       ],
       "commit": "61d724d756"
+    },
+    {
+      "version": "2.8.0",
+      "date": "2026-08-21",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 5 - db-mode.ts three-way wiring",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 5 - db-mode.ts three-way wiring"
+        }
+      ],
+      "commit": "307c840ff1"
     }
   ],
-  "app_version": "2.8.0"
+  "app_version": "2.9.0"
 }

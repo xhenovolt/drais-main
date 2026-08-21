@@ -18,6 +18,11 @@ import { createMysqlStaffRepo } from './staff-repo';
 import { createMysqlSubjectRepo } from './subject-repo';
 import { createMysqlTermRepo } from './term-repo';
 import { createMysqlAcademicYearRepo } from './academic-year-repo';
+import { createMysqlUserRepo } from './user-repo';
+import { createMysqlRoleRepo } from './role-repo';
+import { createMysqlUserRoleRepo } from './user-role-repo';
+import { createMysqlPermissionRepo } from './permission-repo';
+import { createMysqlRolePermissionRepo } from './role-permission-repo';
 
 export function createMysqlRepos(): Repos {
   return {
@@ -32,5 +37,10 @@ export function createMysqlRepos(): Repos {
     subjects: createMysqlSubjectRepo(),
     terms: createMysqlTermRepo(),
     academicYears: createMysqlAcademicYearRepo(),
+    users: createMysqlUserRepo(),
+    roles: createMysqlRoleRepo(),
+    userRoles: createMysqlUserRoleRepo(),
+    permissions: createMysqlPermissionRepo(),
+    rolePermissions: createMysqlRolePermissionRepo(),
   };
 }

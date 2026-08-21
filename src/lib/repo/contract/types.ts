@@ -497,3 +497,187 @@ export interface NewAcademicYearInput {
   endDate?: IsoDate | null;
   status?: string | null;
 }
+
+// ── Phase 7, sub-effort 6: users, roles, user_roles, role_permissions,
+// permissions — the offline-authentication data layer ────────────────────
+//
+// Prompted by a real finding, not the next item on a pre-set list:
+// src/lib/auth.ts's getSessionSchoolId() — the function EVERY protected API
+// route calls first — reads sessions/users/staff/schools/roles/user_roles
+// via raw query() with zero SQLite path. No offline route, however well
+// built, is reachable until a user can authenticate without internet. This
+// sub-effort builds the DATA layer that requires (real schemas confirmed
+// live, same discipline as every prior sub-effort); it deliberately does
+// NOT touch auth.ts, the login route, or any live session-validation code
+// — see the roadmap doc's Phase 7 sub-effort 6 entry for the real, open
+// policy questions (subscription checks offline? lockout state offline?
+// audit logging offline?) that a real offline-login ROUTE needs answered
+// first, which are product decisions, not something to invent unilaterally
+// here.
+//
+// SECURITY SCOPE CUT, same reasoning as staff's salary/bank exclusion
+// (repo-sqlite has no SQLCipher at-rest encryption yet): `users` really
+// has `password_reset_token`, `verification_token`, `email_verification_
+// token` (ephemeral, email-flow-only, meaningless without network anyway),
+// `passcode_hash` (unused by the login flow actually read — src/app/api/
+// auth/login/route.ts only ever checks password_hash — not proven needed,
+// excluded until it is), `two_factor_secret` and `biometric_key` (raw
+// secret/key material, NOT one-way-hashed — genuinely sensitive, same
+// category as staff's bank_account_no). `password_hash` itself IS
+// included — a one-way bcrypt hash is exactly the kind of secret that's
+// safe to store even at rest unencrypted (that's what hashing is for),
+// and offline password verification is impossible without it.
+// `two_factor_enabled`/`biometric_enabled` (booleans, not the secrets
+// themselves) are safe and included.
+//
+// `permissions` and `role_permissions` are GLOBAL/platform tables — no
+// school_id at all, confirmed live — the first tables in this repo layer
+// that are not tenant data. `role_permissions` additionally has NO `id`
+// column (role_id+permission_id is the real composite key) — its repo
+// methods are shaped around that (listByRole/grant/revoke), not the usual
+// findById/create/update CRUD shape used everywhere else in this layer.
+
+export type UserStatus = string; // real column has no DB-level ENUM constraint
+
+export interface UserRecord {
+  id: number;
+  schoolId: number | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  /** One-way bcrypt hash — see this section's header for why this is the
+   *  one "secret-shaped" column deliberately included. */
+  passwordHash: string;
+  roleId: number | null; // legacy single-role FK; user_roles is the real many-to-many
+  isActive: boolean | null;
+  isVerified: boolean | null;
+  lastLoginAt: IsoDateTime | null;
+  lastPasswordChange: IsoDateTime | null;
+  failedLoginAttempts: number | null;
+  lockedUntil: IsoDateTime | null;
+  createdBy: number | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  deletedAt: IsoDateTime | null;
+  username: string | null;
+  personId: number | null;
+  status: UserStatus | null;
+  profilePhoto: string | null;
+  emailVerified: boolean | null;
+  loginAttempts: number | null;
+  lastActivity: IsoDateTime | null;
+  /** JSON column — mysql2 auto-parses JSON columns to a JS value; SQLite
+   *  stores it as a TEXT column, JSON.stringify/parse at the repo boundary. */
+  preferences: Record<string, unknown> | null;
+  twoFactorEnabled: boolean | null;
+  biometricEnabled: boolean | null;
+  mustChangePassword: boolean;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+  lastFailedLoginAt: IsoDateTime | null;
+}
+
+export interface NewUserInput {
+  schoolId?: number | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  passwordHash: string;
+  roleId?: number | null;
+  isActive?: boolean | null;
+  isVerified?: boolean | null;
+  createdBy?: number | null;
+  username?: string | null;
+  personId?: number | null;
+  status?: UserStatus | null;
+  profilePhoto?: string | null;
+  emailVerified?: boolean | null;
+  preferences?: Record<string, unknown> | null;
+  twoFactorEnabled?: boolean | null;
+  biometricEnabled?: boolean | null;
+  mustChangePassword?: boolean;
+}
+
+export interface RoleRecord {
+  id: number;
+  schoolId: number;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  isSuperAdmin: boolean | null;
+  isActive: boolean | null;
+  isSystemRole: boolean | null;
+  /** JSON column, distinct from (and possibly redundant with) the
+   *  role_permissions join table below — real, kept as-is, not invented
+   *  away; some code paths may read this directly instead of joining. */
+  permissions: unknown | null;
+  hierarchyLevel: number | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewRoleInput {
+  schoolId: number;
+  name: string;
+  slug?: string | null;
+  description?: string | null;
+  isSuperAdmin?: boolean | null;
+  isActive?: boolean | null;
+  isSystemRole?: boolean | null;
+  permissions?: unknown | null;
+  hierarchyLevel?: number | null;
+}
+
+/** No soft-delete audit trail on the real table — just is_active. */
+export interface UserRoleRecord {
+  id: number;
+  userId: number;
+  roleId: number;
+  isActive: boolean | null;
+  assignedBy: number | null;
+  assignedAt: IsoDateTime | null;
+  schoolId: number | null;
+}
+
+export interface NewUserRoleInput {
+  userId: number;
+  roleId: number;
+  isActive?: boolean | null;
+  assignedBy?: number | null;
+  schoolId?: number | null;
+}
+
+/** Global platform catalog — no school_id at all (confirmed live). */
+export interface PermissionRecord {
+  id: number;
+  code: string;
+  module: string | null;
+  resource: string | null;
+  action: string | null;
+  description: string | null;
+  isActive: boolean | null;
+  name: string | null;
+  category: string | null;
+  createdAt: IsoDateTime | null;
+  updatedAt: IsoDateTime | null;
+}
+
+/** Pure join — role_id+permission_id is the real key, no own `id` column
+ *  (confirmed live). Not a Record with an id; grant/revoke are the actual
+ *  operations, not create/update/delete of a row with independent identity. */
+export interface RolePermissionGrant {
+  roleId: number;
+  permissionId: number;
+  createdAt: IsoDateTime | null;
+}

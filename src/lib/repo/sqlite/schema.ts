@@ -362,6 +362,136 @@ CREATE TABLE IF NOT EXISTS academic_years (
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_academic_years_school_id ON academic_years(school_id);
+
+-- Phase 7, sub-effort 6: users, roles, user_roles, role_permissions,
+-- permissions — the offline-authentication data layer. Prompted by a real
+-- finding: src/lib/auth.ts's getSessionSchoolId(), which every protected
+-- route calls first, has no SQLite path at all — no offline route is
+-- reachable until a user can authenticate without internet. This table
+-- set is that prerequisite; it does NOT itself wire up login (see the
+-- roadmap doc's Phase 7 sub-effort 6 entry for the real open policy
+-- questions a login route would still need answered).
+--
+-- SECURITY SCOPE CUT (same reasoning as staff's salary/bank exclusion):
+-- password_reset_token, verification_token, email_verification_token,
+-- passcode_hash, two_factor_secret, biometric_key are all real columns on
+-- the source users table, deliberately NOT included here. password_hash
+-- IS included — a one-way bcrypt hash, safe at rest even unencrypted, and
+-- required for offline password verification to be possible at all.
+--
+-- permissions/role_permissions are GLOBAL tables (confirmed live: no
+-- school_id column on either) — the first tables in this schema with no
+-- tenant column at all. role_permissions genuinely has no id/unique
+-- constraint on the real table either (confirmed via information_schema.
+-- STATISTICS, not assumed) — UNIQUE(role_id, permission_id) is added here
+-- anyway, safe to do locally even though the source lacks it, since this
+-- is a fresh local copy, not a constraint retrofitted onto existing rows.
+
+CREATE TABLE IF NOT EXISTS users (
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id              INTEGER,
+  first_name             TEXT NOT NULL,
+  last_name              TEXT NOT NULL,
+  email                  TEXT NOT NULL,
+  phone                  TEXT,
+  avatar_url             TEXT,
+  password_hash          TEXT NOT NULL,
+  role_id                INTEGER,
+  is_active              INTEGER,
+  is_verified            INTEGER,
+  last_login_at          TEXT,
+  last_password_change   TEXT,
+  failed_login_attempts  INTEGER,
+  locked_until           TEXT,
+  created_by             INTEGER,
+  created_at             TEXT DEFAULT (${ISO_NOW}),
+  updated_at             TEXT DEFAULT (${ISO_NOW}),
+  deleted_at             TEXT,
+  username               TEXT,
+  person_id              INTEGER,
+  status                 TEXT,
+  profile_photo          TEXT,
+  email_verified         INTEGER,
+  login_attempts         INTEGER,
+  last_activity          TEXT,
+  preferences            TEXT, -- JSON, stringified at the repo boundary
+  two_factor_enabled     INTEGER,
+  biometric_enabled      INTEGER,
+  must_change_password   INTEGER NOT NULL DEFAULT 0,
+  deleted_by             INTEGER,
+  delete_reason          TEXT,
+  restored_at            TEXT,
+  restored_by            INTEGER,
+  last_failed_login_at   TEXT,
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  FOREIGN KEY (person_id) REFERENCES people(id)
+);
+CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+CREATE TABLE IF NOT EXISTS roles (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  name              TEXT NOT NULL,
+  slug              TEXT,
+  description       TEXT,
+  is_super_admin    INTEGER,
+  is_active         INTEGER,
+  is_system_role    INTEGER,
+  permissions       TEXT, -- JSON, stringified at the repo boundary
+  hierarchy_level   INTEGER,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_roles_school_id ON roles(school_id);
+
+-- No soft-delete audit trail on the real table — just is_active.
+CREATE TABLE IF NOT EXISTS user_roles (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id       INTEGER NOT NULL,
+  role_id       INTEGER NOT NULL,
+  is_active     INTEGER,
+  assigned_by   INTEGER,
+  assigned_at   TEXT DEFAULT (${ISO_NOW}),
+  school_id     INTEGER,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user ON user_roles(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role_id, is_active);
+
+-- Global — no school_id (confirmed live).
+CREATE TABLE IF NOT EXISTS permissions (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  code          TEXT NOT NULL UNIQUE,
+  module        TEXT,
+  resource      TEXT,
+  action        TEXT,
+  description   TEXT,
+  is_active     INTEGER,
+  name          TEXT,
+  category      TEXT,
+  created_at    TEXT DEFAULT (${ISO_NOW}),
+  updated_at    TEXT DEFAULT (${ISO_NOW})
+);
+
+-- Global, pure join — see header above on why UNIQUE is added here even
+-- though the real online table has no constraint at all.
+CREATE TABLE IF NOT EXISTS role_permissions (
+  role_id        INTEGER NOT NULL,
+  permission_id  INTEGER NOT NULL,
+  created_at     TEXT DEFAULT (${ISO_NOW}),
+  UNIQUE (role_id, permission_id),
+  FOREIGN KEY (role_id) REFERENCES roles(id),
+  FOREIGN KEY (permission_id) REFERENCES permissions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions(role_id);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();

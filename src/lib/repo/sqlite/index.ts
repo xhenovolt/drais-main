@@ -20,6 +20,11 @@ import { createSqliteStaffRepo } from './staff-repo';
 import { createSqliteSubjectRepo } from './subject-repo';
 import { createSqliteTermRepo } from './term-repo';
 import { createSqliteAcademicYearRepo } from './academic-year-repo';
+import { createSqliteUserRepo } from './user-repo';
+import { createSqliteRoleRepo } from './role-repo';
+import { createSqliteUserRoleRepo } from './user-role-repo';
+import { createSqlitePermissionRepo } from './permission-repo';
+import { createSqliteRolePermissionRepo } from './role-permission-repo';
 
 export { openSqliteDb, closeSqliteDb, type SqliteConnection } from './connection';
 export { seedSchool, seedStudent, seedPerson } from './seed';
@@ -37,5 +42,10 @@ export function createSqliteRepos(db: SqliteConnection): Repos {
     subjects: createSqliteSubjectRepo(db),
     terms: createSqliteTermRepo(db),
     academicYears: createSqliteAcademicYearRepo(db),
+    users: createSqliteUserRepo(db),
+    roles: createSqliteRoleRepo(db),
+    userRoles: createSqliteUserRoleRepo(db),
+    permissions: createSqlitePermissionRepo(db),
+    rolePermissions: createSqliteRolePermissionRepo(db),
   };
 }
