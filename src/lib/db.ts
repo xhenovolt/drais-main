@@ -10,7 +10,10 @@ import { getPool as getPoolForMode, resetPool, activeDatabaseName, configFor } f
 // the ~435 call sites are untouched and online behaviour is identical.
 // ============================================================================
 
-/** Pool for the currently-resolved mode (online by default / forced on prod). */
+/** Pool for the currently-resolved mode (online by default / forced on prod).
+ *  Throws clearly, rather than silently defaulting to the online TiDB pool,
+ *  if the resolved mode is 'local-sqlite' — this module's ~435 query() call
+ *  sites have no SQLite-reading path; see pools.ts's assertMysqlMode(). */
 export async function getPool(): Promise<mysql.Pool> {
   return getPoolForMode(getDbMode());
 }
@@ -116,5 +119,5 @@ export async function getActiveDatabase() {
   return activeDatabaseName(getDbMode());
 }
 export const getTiDBConfig = () => configFor('online');
-export const getLocalMySQLConfig = () => configFor('local');
+export const getLocalMySQLConfig = () => configFor('local-mysql');
 

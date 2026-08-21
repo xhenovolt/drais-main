@@ -13,11 +13,13 @@ import path from 'node:path';
 import os from 'node:os';
 import mysql from 'mysql2/promise';
 import { resetPool } from '@/lib/db/pools';
-import type { DbMode } from '@/lib/db/db-mode';
 
 const ONLINE_KEYS = ['TIDB_HOST', 'TIDB_PORT', 'TIDB_USER', 'TIDB_PASSWORD', 'TIDB_DB'] as const;
 const LOCAL_KEYS = ['LOCAL_MYSQL_HOST', 'LOCAL_MYSQL_PORT', 'LOCAL_MYSQL_USER', 'LOCAL_MYSQL_PASSWORD', 'LOCAL_MYSQL_DATABASE'] as const;
-const FLAG_KEYS = ['DRAIS_ALLOW_LOCAL', 'DRAIS_DB_MODE'] as const;
+// DRAIS_SQLITE_PATH is read-only surfaced here (not editable via
+// buildCfg/testConfig, which are mysql-only) — it's consumed directly by
+// src/lib/repo/resolve.ts, not by this module's apply/test flow.
+const FLAG_KEYS = ['DRAIS_ALLOW_LOCAL', 'DRAIS_DB_MODE', 'DRAIS_SQLITE_PATH'] as const;
 export const EDITABLE_KEYS = [...ONLINE_KEYS, ...LOCAL_KEYS, ...FLAG_KEYS] as const;
 type EditableKey = typeof EDITABLE_KEYS[number];
 
@@ -43,8 +45,12 @@ export function readConfig() {
   return { fields: out, configFile: configFilePath() };
 }
 
-function buildCfg(mode: DbMode, v: Partial<Record<EditableKey, string>>) {
-  if (mode === 'local') {
+/** ONLINE_KEYS/LOCAL_KEYS are both mysql-flavored (TIDB_* / LOCAL_MYSQL_*)
+ *  — this function only ever makes sense for the two mysql2 modes.
+ *  local-sqlite has no credentials to test/apply here (it's a file path,
+ *  not a server) — see src/lib/repo/resolve.ts for where that's handled. */
+function buildCfg(mode: 'online' | 'local-mysql', v: Partial<Record<EditableKey, string>>) {
+  if (mode === 'local-mysql') {
     return {
       host: v.LOCAL_MYSQL_HOST || process.env.LOCAL_MYSQL_HOST || '127.0.0.1',
       port: parseInt(v.LOCAL_MYSQL_PORT || process.env.LOCAL_MYSQL_PORT || '3306', 10),
@@ -64,9 +70,9 @@ function buildCfg(mode: DbMode, v: Partial<Record<EditableKey, string>>) {
 }
 
 /** Test a connection with the given (or current) creds — never persists. */
-export async function testConfig(mode: DbMode, overrides: Partial<Record<EditableKey, string>> = {}) {
+export async function testConfig(mode: 'online' | 'local-mysql', overrides: Partial<Record<EditableKey, string>> = {}) {
   const cfg = buildCfg(mode, overrides);
-  if (!cfg.user) return { ok: false, error: `${mode === 'local' ? 'Local' : 'Online'} user is required` };
+  if (!cfg.user) return { ok: false, error: `${mode === 'local-mysql' ? 'Local' : 'Online'} user is required` };
   let conn: mysql.Connection | null = null;
   try {
     conn = await mysql.createConnection({ ...cfg, connectTimeout: 12000 });
@@ -90,9 +96,9 @@ export async function applyConfig(values: Partial<Record<EditableKey, string>>) 
     process.env[k] = v;
     changed.push(k);
   }
-  // 2. Reset both pools so new connections pick up the new config.
+  // 2. Reset both mysql pools so new connections pick up the new config.
   resetPool('online');
-  resetPool('local');
+  resetPool('local-mysql');
 
   // 3. Persist by merging into the config file (preserve unrelated keys).
   const file = configFilePath();

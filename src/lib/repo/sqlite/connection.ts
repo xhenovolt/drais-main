@@ -7,11 +7,16 @@
  * `Repos` contract (§8) so callers never need to know which engine they're
  * talking to; the synchronous call underneath just resolves immediately.
  *
- * NOT wired into src/lib/db/db-mode.ts or src/lib/db/pools.ts — this is a
- * standalone connection helper for this repo layer only, per §8.1's
- * isolation rule. A future integration point (not built here) would have
- * db-mode.ts hand a SQLite path to this module instead of local MySQL
- * credentials to pools.ts.
+ * Still not imported by src/lib/db/db-mode.ts or src/lib/db/pools.ts
+ * directly, and never will be — per §8.1's isolation rule, and because
+ * db-mode.ts must stay free of any better-sqlite3 knowledge (see
+ * ../resolve.ts's header). The actual integration point is one layer up:
+ * ./singleton.ts opens the one long-lived local file this function
+ * describes, and ../resolve.ts's getActiveRepos() is what a caller
+ * actually asks for a mode-aware Repos — this module itself remains a
+ * standalone connection helper, used directly only by tests and
+ * provisioning, which intentionally manage their own connection lifecycle
+ * rather than sharing the singleton.
  */
 import Database from 'better-sqlite3';
 import { ensureSchema } from './schema';

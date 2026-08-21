@@ -1,8 +1,10 @@
 /**
  * @drais/repo-mysql — assembled registry.
- * Used when getDbMode() (src/lib/db/db-mode.ts, UNTOUCHED by this layer)
- * resolves to 'online' or 'local'-against-MySQL. Delegates to db.ts's
- * existing pool selection — this factory does not choose a pool itself.
+ * Used (via ../resolve.ts's getActiveRepos()) when getDbMode()
+ * (src/lib/db/db-mode.ts) resolves to 'online' or 'local-mysql'. Delegates
+ * to db.ts's existing pool selection — this factory does not choose a pool
+ * itself, and nothing in this file was touched to add the third DbMode
+ * value (that only added a case resolve.ts branches on, not anything here).
  */
 import type { Repos } from '../contract';
 import { createMysqlSchoolRepo } from './school-repo';

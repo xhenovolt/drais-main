@@ -11,11 +11,19 @@
  * Reads GET /api/db-mode for the current mode + health; POSTs to switch (only
  * offered when the server reports allowLocal). After a successful switch the
  * session may be DB-bound, so we reload to /login.
+ *
+ * The server's DbMode also has a third value, 'local-sqlite' (DRAIS V2) —
+ * deliberately not modeled here, since /api/db-mode's POST refuses it (see
+ * that route's header) and nothing in this app can reach it except by
+ * hand-editing env/config outside the UI. If that ever happened, this
+ * component would render it as if it were 'online' (a cosmetic mislabel
+ * only) — the real symptom would be src/lib/db.ts's query() throwing on
+ * every page anyway, since that mode has no mysql2 pool at all.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Cloud, HardDrive, Loader2 } from 'lucide-react';
 
-type DbMode = 'online' | 'local';
+type DbMode = 'online' | 'local-mysql';
 interface Health { ok: boolean; mode: DbMode; database: string; host: string; error?: string }
 interface ModeInfo {
   mode: DbMode;
@@ -71,7 +79,7 @@ export default function DbModeBadge({ variant = 'badge' }: { variant?: 'badge' |
   const { info, switching, error, switchTo } = useDbMode();
   if (!info) return null;
 
-  const isLocal = info.mode === 'local';
+  const isLocal = info.mode === 'local-mysql';
   const Icon = isLocal ? HardDrive : Cloud;
   const tone = isLocal
     ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
@@ -81,16 +89,16 @@ export default function DbModeBadge({ variant = 'badge' }: { variant?: 'badge' |
   if (variant === 'login') {
     const choose = (m: DbMode) => {
       if (m === info.mode) return;
-      if (m === 'local' && !info.allowLocal) return;
+      if (m === 'local-mysql' && !info.allowLocal) return;
       switchTo(m);
     };
     return (
       <div className="space-y-2">
         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Connection</p>
         <div className="grid grid-cols-2 gap-2">
-          {(['online', 'local'] as DbMode[]).map((m) => {
+          {(['online', 'local-mysql'] as DbMode[]).map((m) => {
             const active = info.mode === m;
-            const disabled = m === 'local' && !info.allowLocal;
+            const disabled = m === 'local-mysql' && !info.allowLocal;
             const h = m === info.mode ? info.health : info.otherHealth;
             return (
               <button
@@ -104,8 +112,8 @@ export default function DbModeBadge({ variant = 'badge' }: { variant?: 'badge' |
                     : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-400'
                 } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
-                {m === 'local' ? <HardDrive className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
-                <span className="flex-1 text-left">{m === 'local' ? 'Local Server' : 'Online Cloud'}</span>
+                {m === 'local-mysql' ? <HardDrive className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
+                <span className="flex-1 text-left">{m === 'local-mysql' ? 'Local Server' : 'Online Cloud'}</span>
                 {switching === m ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : h ? <Dot ok={h.ok} /> : null}
               </button>
             );
@@ -120,7 +128,7 @@ export default function DbModeBadge({ variant = 'badge' }: { variant?: 'badge' |
   }
 
   const canSwitch = info.allowLocal;
-  const target: DbMode = isLocal ? 'online' : 'local';
+  const target: DbMode = isLocal ? 'online' : 'local-mysql';
 
   // ── Drawer row ──
   if (variant === 'drawer') {
@@ -137,7 +145,7 @@ export default function DbModeBadge({ variant = 'badge' }: { variant?: 'badge' |
             disabled={switching !== null}
             className="mt-1 w-full text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
           >
-            {switching ? 'Switching…' : `Switch to ${target === 'local' ? 'Local Server' : 'Online Cloud'}`}
+            {switching ? 'Switching…' : `Switch to ${target === 'local-mysql' ? 'Local Server' : 'Online Cloud'}`}
           </button>
         )}
         {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}

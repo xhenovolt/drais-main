@@ -1,14 +1,37 @@
 /**
  * DRAIS connection-pool manager (mode-aware).
  *
- * Caches ONE pool per DB mode (online / local) and hands it out. The pool
- * creation logic — connection retry/backoff, keep-alive, TiDB-safe options
- * (timezone 'Z', bigNumberStrings) — is preserved verbatim from the original
- * single-pool implementation so online TiDB behaviour is unchanged. The only
- * new thing is "which config" is chosen by mode, and the cache is keyed by mode.
+ * Caches ONE pool per DB mode (online / local-mysql) and hands it out. The
+ * pool creation logic — connection retry/backoff, keep-alive, TiDB-safe
+ * options (timezone 'Z', bigNumberStrings) — is preserved verbatim from the
+ * original single-pool implementation so online TiDB behaviour is unchanged.
+ * The only new thing is "which config" is chosen by mode, and the cache is
+ * keyed by mode.
+ *
+ * This module is mysql2-only, deliberately. DbMode (db-mode.ts) has a third
+ * value, 'local-sqlite', that this file must NEVER resolve a config for —
+ * assertMysqlMode() below throws a loud, specific error rather than letting
+ * 'local-sqlite' silently fall through to the online TiDB config (the `? :`
+ * pattern every function here uses would otherwise do exactly that, since
+ * 'local-sqlite' !== 'local-mysql'). Reaching that throw today would mean
+ * DRAIS_DB_MODE=local-sqlite was hand-set in an env/config file — the
+ * mode-switch UI/API deliberately don't expose it yet (see
+ * src/app/api/db-mode/route.ts's header) because src/lib/db.ts's ~435
+ * query() call sites have no SQLite-reading path; local-sqlite is real only
+ * for code written against @drais/repo-sqlite via src/lib/repo/resolve.ts.
  */
 import mysql from 'mysql2/promise';
 import type { DbMode } from './db-mode';
+
+function assertMysqlMode(mode: DbMode): asserts mode is 'online' | 'local-mysql' {
+  if (mode !== 'online' && mode !== 'local-mysql') {
+    throw new Error(
+      `[Database] pools.ts (mysql2) does not support DB mode '${mode}'. ` +
+      `local-sqlite data must be read through @drais/repo-sqlite ` +
+      `(src/lib/repo/resolve.ts's getActiveRepos()), not src/lib/db.ts's query().`,
+    );
+  }
+}
 
 export interface PoolConfig {
   host: string;
@@ -43,14 +66,15 @@ export function localConfig(): PoolConfig {
 }
 
 export function configFor(mode: DbMode): PoolConfig {
-  return mode === 'local' ? localConfig() : onlineConfig();
+  assertMysqlMode(mode);
+  return mode === 'local-mysql' ? localConfig() : onlineConfig();
 }
 
 function assertCredentials(mode: DbMode, cfg: PoolConfig): void {
   if (!cfg.user) {
     throw new Error(
-      mode === 'local'
-        ? '[Database] FATAL: LOCAL_MYSQL_USER must be set for local mode.'
+      mode === 'local-mysql'
+        ? '[Database] FATAL: LOCAL_MYSQL_USER must be set for local-mysql mode.'
         : '[Database] FATAL: TIDB_USER and TIDB_PASSWORD must be set for online mode.',
     );
   }
@@ -85,7 +109,7 @@ async function createPool(mode: DbMode): Promise<mysql.Pool> {
   const cfg = configFor(mode);
   assertCredentials(mode, cfg);
 
-  const label = mode === 'local' ? 'Local MySQL' : 'TiDB Cloud';
+  const label = mode === 'local-mysql' ? 'Local MySQL' : 'TiDB Cloud';
   console.log(`[Database] Connecting to ${label} → ${cfg.host}:${cfg.port}/${cfg.database} as ${cfg.user}`);
 
   const MAX_RETRIES = 3;
@@ -143,7 +167,14 @@ export function activeDatabaseName(mode: DbMode): string {
   return configFor(mode).database;
 }
 
-/** Lightweight health probe — never throws; safe to expose mode/db/host. */
+/** Lightweight health probe — never throws; safe to expose mode/db/host.
+ *  Genuinely never throws now, including for a non-mysql mode like
+ *  'local-sqlite' — configFor()'s assertMysqlMode() throw is caught too,
+ *  not just the connection attempt, so this function's contract holds for
+ *  any DbMode value a caller passes, not only the two normally expected.
+ *  database/host stay '' in that specific case (there is no mysql config
+ *  to report), but are still populated from cfg on a genuine mysql
+ *  connection failure, same as before. */
 export async function healthCheck(mode: DbMode): Promise<{
   ok: boolean;
   mode: DbMode;
@@ -151,8 +182,9 @@ export async function healthCheck(mode: DbMode): Promise<{
   host: string;
   error?: string;
 }> {
-  const cfg = configFor(mode);
+  let cfg: PoolConfig | null = null;
   try {
+    cfg = configFor(mode);
     const p = await getPool(mode);
     await p.query('SELECT 1');
     return { ok: true, mode, database: cfg.database, host: cfg.host };
@@ -161,8 +193,8 @@ export async function healthCheck(mode: DbMode): Promise<{
     return {
       ok: false,
       mode,
-      database: cfg.database,
-      host: cfg.host,
+      database: cfg?.database ?? '',
+      host: cfg?.host ?? '',
       error: err instanceof Error ? err.message : String(err),
     };
   }
