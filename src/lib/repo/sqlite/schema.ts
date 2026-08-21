@@ -511,6 +511,35 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   FOREIGN KEY (permission_id) REFERENCES permissions(id)
 );
 CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions(role_id);
+
+-- Phase 7, sub-effort 8: local sessions. Deliberately NOT a copy of the
+-- real online sessions table (real columns confirmed live, sub-effort
+-- 6's recon) — a provisioned copy of session rows would be stale the
+-- instant it's copied, since sessions are ephemeral per-login artifacts,
+-- not stable reference data. This table is populated ONLY by a local
+-- login actually happening on this install (offline-auth/session.ts) —
+-- never by provisioning or sync. impersonated_by_control_user (a real
+-- online column) is intentionally omitted: Control-Center impersonation
+-- is an online-only concept with no offline equivalent.
+CREATE TABLE IF NOT EXISTS sessions (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id            INTEGER NOT NULL,
+  school_id          INTEGER,
+  session_token      TEXT NOT NULL UNIQUE,
+  expires_at         TEXT NOT NULL,
+  ip_address         TEXT,
+  user_agent         TEXT,
+  is_active          INTEGER NOT NULL DEFAULT 1,
+  created_at         TEXT DEFAULT (${ISO_NOW}),
+  updated_at         TEXT DEFAULT (${ISO_NOW}),
+  last_activity_at   TEXT,
+  device_info        TEXT,
+  logout_time        TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, is_active);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();

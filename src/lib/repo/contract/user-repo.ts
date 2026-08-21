@@ -26,4 +26,19 @@ export interface UserRepo {
   update(schoolId: number, id: number, patch: Partial<NewUserInput>): Promise<UserRecord>;
   softDelete(schoolId: number, id: number, opts?: SoftDeleteOptions): Promise<void>;
   restore(schoolId: number, id: number, restoredBy?: number | null): Promise<UserRecord>;
+
+  // ── Phase 7, sub-effort 8: login bookkeeping ────────────────────────
+  // Deliberately separate from update()/NewUserInput: failedLoginAttempts,
+  // lockedUntil, lastFailedLoginAt, lastLoginAt are system-managed fields
+  // a normal create/update caller never sets directly — mirrors
+  // src/lib/auth/login-lockout.ts's own three UPDATE shapes exactly
+  // (registerFailedAttempt, clearFailedAttempts, and the login route's
+  // own `UPDATE users SET last_login_at = NOW()`), just against a local
+  // UserRecord instead of a raw query().
+  recordFailedLogin(
+    schoolId: number, id: number,
+    opts: { failedLoginAttempts: number; lockedUntil: string | null; lastFailedLoginAt: string },
+  ): Promise<void>;
+  clearLoginLockout(schoolId: number, id: number): Promise<void>;
+  recordSuccessfulLogin(schoolId: number, id: number, lastLoginAt: string): Promise<void>;
 }

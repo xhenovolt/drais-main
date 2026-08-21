@@ -224,5 +224,25 @@ export function createMysqlUserRepo(): UserRepo {
       if (!restored) throw new RepoError(`User ${id} vanished after restore`, 'NOT_FOUND');
       return restored;
     },
+
+    async recordFailedLogin(schoolId, id, opts) {
+      await query(
+        `UPDATE users SET failed_login_attempts = ?, locked_until = ?, last_failed_login_at = ?
+          WHERE id = ? AND school_id = ?`,
+        [opts.failedLoginAttempts, opts.lockedUntil, opts.lastFailedLoginAt, id, schoolId],
+      );
+    },
+
+    async clearLoginLockout(schoolId, id) {
+      await query(
+        `UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_failed_login_at = NULL
+          WHERE id = ? AND school_id = ?`,
+        [id, schoolId],
+      );
+    },
+
+    async recordSuccessfulLogin(schoolId, id, lastLoginAt) {
+      await query(`UPDATE users SET last_login_at = ? WHERE id = ? AND school_id = ?`, [lastLoginAt, id, schoolId]);
+    },
   };
 }

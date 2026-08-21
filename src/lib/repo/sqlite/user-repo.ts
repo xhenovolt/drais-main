@@ -222,5 +222,27 @@ export function createSqliteUserRepo(db: SqliteConnection): UserRepo {
       if (!restored) throw new RepoError(`User ${id} vanished after restore`, 'NOT_FOUND');
       return restored;
     },
+
+    async recordFailedLogin(schoolId, id, opts) {
+      db.prepare(
+        `UPDATE users SET failed_login_attempts = @attempts, locked_until = @lockedUntil, last_failed_login_at = @lastFailedLoginAt
+          WHERE id = @id AND school_id = @schoolId`,
+      ).run({
+        id, schoolId, attempts: opts.failedLoginAttempts, lockedUntil: opts.lockedUntil,
+        lastFailedLoginAt: opts.lastFailedLoginAt,
+      });
+    },
+
+    async clearLoginLockout(schoolId, id) {
+      db.prepare(
+        `UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_failed_login_at = NULL
+          WHERE id = @id AND school_id = @schoolId`,
+      ).run({ id, schoolId });
+    },
+
+    async recordSuccessfulLogin(schoolId, id, lastLoginAt) {
+      db.prepare(`UPDATE users SET last_login_at = @lastLoginAt WHERE id = @id AND school_id = @schoolId`)
+        .run({ id, schoolId, lastLoginAt });
+    },
   };
 }

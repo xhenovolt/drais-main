@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-21T20:45:54.312Z",
-  "last_commit": "d8d2ec8da6d86f3529620b9b87c2d134d8559401",
+  "generated_at": "2026-08-21T20:59:42.586Z",
+  "last_commit": "79a7f408b9f15e3839d4fcc6aca6d255110836f4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7333,7 +7333,20 @@
         }
       ],
       "commit": "d8d2ec8da6"
+    },
+    {
+      "version": "2.10.0",
+      "date": "2026-08-21",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 7 - carried subscription state + offline access",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 7 - carried subscription state + offline access"
+        }
+      ],
+      "commit": "79a7f408b9"
     }
   ],
-  "app_version": "2.10.0"
+  "app_version": "2.11.0"
 }
