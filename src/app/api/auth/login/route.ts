@@ -6,6 +6,7 @@ import { getSubscriptionInfo } from '@/lib/subscription';
 import { randomBytes } from 'crypto';
 import { shouldEnforceForcedPasswordReset } from '@/lib/auth/password-reset-policy';
 import { getLockState, registerFailedAttempt, clearFailedAttempts } from '@/lib/auth/login-lockout';
+import { getDbMode } from '@/lib/db/db-mode';
 
 // Session configuration
 const SESSION_CONFIG = {
@@ -41,6 +42,17 @@ function getClientIp(request: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
+  // Offline branch — additive only, per docs/architecture/
+  // DRAIS_V2_ARCHITECTURE_AUDIT.md §25a. Dynamic import for the same
+  // reason as src/lib/auth.ts's own offline branch: keeps better-sqlite3
+  // out of this route's module graph on every deployment that never uses
+  // local-sqlite mode. Everything below this block is unmodified from
+  // before this branch existed.
+  if (getDbMode() === 'local-sqlite') {
+    const { handleOfflineLogin } = await import('@/lib/repo/offline-auth/route-bridge');
+    return handleOfflineLogin(request);
+  }
+
   try {
     const body = await request.json();
     const { email, password } = body;

@@ -1,11 +1,12 @@
 /**
  * Session-based authentication helpers for multi-tenant school isolation.
- * 
+ *
  * Every API route MUST use getSessionSchoolId() to derive the school_id
  * from the authenticated session — never from query params or request body.
  */
 import { NextRequest } from 'next/server';
 import { query } from '@/lib/db';
+import { getDbMode } from '@/lib/db/db-mode';
 
 const SESSION_COOKIE_NAME = 'drais_session';
 
@@ -46,6 +47,18 @@ export interface SessionInfo {
  *   const schoolId = session.schoolId;  // TRUSTED — derived from DB session
  */
 export async function getSessionSchoolId(request: NextRequest): Promise<SessionInfo | null> {
+  // Offline branch — additive only, per docs/architecture/
+  // DRAIS_V2_ARCHITECTURE_AUDIT.md §25a. Dynamic import, not static:
+  // this file is loaded by ~every API route, including on hosted/
+  // serverless where better-sqlite3 may not even be installed (it's an
+  // optionalDependency) — a static import would pull it into every
+  // request's module graph regardless of mode. Everything below this
+  // block is completely unmodified from before this branch existed.
+  if (getDbMode() === 'local-sqlite') {
+    const { getOfflineSessionInfo } = await import('@/lib/repo/offline-auth/route-bridge');
+    return getOfflineSessionInfo(request);
+  }
+
   try {
     const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     if (!sessionToken) return null;

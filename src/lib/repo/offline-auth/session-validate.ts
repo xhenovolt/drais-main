@@ -44,6 +44,30 @@ function isSuperAdminRole(role: { isActive: boolean | null; isSuperAdmin: boolea
   return name === 'super admin' || name === 'superadmin';
 }
 
+export interface OfflineRoleInfo {
+  /** Role NAMES (not slugs) an active assignment resolved to, in
+   *  assignment order — matches what the online login route puts in
+   *  userData.roles, used for the drais_role cookie's primaryRole value. */
+  roleNames: string[];
+  isSuperAdmin: boolean;
+}
+
+/** Shared by validateOfflineSession() and route-bridge.ts's login handler
+ *  — both need the same "walk this user's active role assignments" work,
+ *  extracted once rather than duplicated. */
+export async function resolveOfflineUserRoles(repos: Repos, schoolId: number, userId: number): Promise<OfflineRoleInfo> {
+  const userRoles = await repos.userRoles.listByUser(schoolId, userId);
+  const roleNames: string[] = [];
+  let isSuperAdmin = false;
+  for (const ur of userRoles) {
+    const role = await repos.roles.findById(schoolId, ur.roleId);
+    if (!role) continue;
+    roleNames.push(role.name);
+    if (isSuperAdminRole(role)) isSuperAdmin = true;
+  }
+  return { roleNames, isSuperAdmin };
+}
+
 export async function validateOfflineSession(db: SqliteConnection, repos: Repos, sessionToken: string, now: Date = new Date()): Promise<SessionInfo | null> {
   const session = findActiveOfflineSession(db, sessionToken, now);
   if (!session || session.schoolId == null) return null;
@@ -57,13 +81,7 @@ export async function validateOfflineSession(db: SqliteConnection, repos: Repos,
   if (!evaluateOfflineSubscriptionAccess(school, now).hasAccess) return null;
 
   const staff = user.personId != null ? await repos.staff.findByPersonId(session.schoolId, user.personId) : null;
-
-  const userRoles = await repos.userRoles.listByUser(session.schoolId, user.id);
-  let isSuperAdmin = false;
-  for (const ur of userRoles) {
-    const role = await repos.roles.findById(session.schoolId, ur.roleId);
-    if (role && isSuperAdminRole(role)) { isSuperAdmin = true; break; }
-  }
+  const { isSuperAdmin } = await resolveOfflineUserRoles(repos, session.schoolId, user.id);
 
   // Best-effort activity bump, mirrors online's own fire-and-forget UPDATE.
   db.prepare(`UPDATE sessions SET last_activity_at = ? WHERE id = ?`).run(now.toISOString(), session.id);

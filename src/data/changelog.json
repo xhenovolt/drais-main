@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-21T21:13:43.728Z",
-  "last_commit": "c263a80f81a421baafa01f2254e87cbe073a2a90",
+  "generated_at": "2026-08-22T03:41:34.640Z",
+  "last_commit": "bb2a9cc90458f52114819725faa54d7b0a5af0f9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7359,7 +7359,20 @@
         }
       ],
       "commit": "c263a80f81"
+    },
+    {
+      "version": "2.12.0",
+      "date": "2026-08-22",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 9 - offline session validation",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 9 - offline session validation"
+        }
+      ],
+      "commit": "bb2a9cc904"
     }
   ],
-  "app_version": "2.12.0"
+  "app_version": "2.13.0"
 }
