@@ -11,7 +11,7 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, ArrowRigh
 import { useCurrency } from '@/hooks/useCurrency';
 
 type Step = 'upload' | 'map' | 'preview' | 'done';
-const FIELDS = ['admission_no', 'item', 'amount'] as const;
+const FIELDS = ['admission_no', 'item', 'amount', 'balance'] as const;
 type Field = typeof FIELDS[number];
 
 function guessMap(headers: string[]): Record<Field, string> {
@@ -20,6 +20,7 @@ function guessMap(headers: string[]): Record<Field, string> {
     admission_no: find('admission', 'regno', 'studentno', 'pupilno'),
     item: find('item', 'fee', 'feename', 'description', 'particular'),
     amount: find('amount', 'fees', 'value', 'charge'),
+    balance: find('balance', 'outstanding', 'due', 'arrears'),
   };
 }
 
@@ -62,6 +63,7 @@ export default function ImportFeesPage() {
     admission_no: mapping.admission_no ? String(r[mapping.admission_no] ?? '').trim() : '',
     item: mapping.item ? String(r[mapping.item] ?? '').trim() : '',
     amount: mapping.amount ? Number(String(r[mapping.amount]).replace(/[^\d.-]/g, '')) : NaN,
+    balance: mapping.balance ? Number(String(r[mapping.balance]).replace(/[^\d.-]/g, '')) : NaN,  
   })), [fileRows, mapping]);
 
   const run = useCallback(async (commit: boolean) => {

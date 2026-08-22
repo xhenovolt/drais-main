@@ -27,6 +27,12 @@ export interface NormalizedRow {
   admission_no?: string | null;
   student_name?: string | null;
   amount?: number | null;
+  /** Outstanding balance owed right now (e.g. a sheet's "Balance" column).
+   * For opening_balances imports this takes priority over `amount` — a
+   * rate/fees-charged figure is NOT what's currently owed once payments are
+   * netted, and silently charging the rate instead of the balance is exactly
+   * the kind of double-charge this field exists to prevent. */
+  balance?: number | null;
   reference?: string | null;
   payment_date?: string | null;
   method?: string | null;
@@ -81,7 +87,9 @@ export async function createPreview(input: PreviewInput) {
   // 3. Match + dedup each row.
   const seenInFile = new Set<string>();
   const staged = rows.map((r) => {
-    const amount = r.amount != null ? Number(r.amount) : null;
+    const amount = importType === 'opening_balances' && r.balance != null
+      ? Number(r.balance)
+      : (r.amount != null ? Number(r.amount) : null);
     const ref = r.reference ? String(r.reference).trim() : null;
     let match_status: MatchStatus = 'unmatched';
     let matched_student_id: number | null = null;
@@ -213,12 +221,12 @@ export async function commitBatch(schoolId: number, batchId: number, userId?: nu
   for (const r of rows) {
     try {
       if (batch.import_type === 'opening_balances') {
-        // positive = owes (debit), negative = credit
+        // positive = owes (debit), negative = credit; 0 = already cleared, nothing to post.
         const amt = Number(r.amount) || 0;
-        if (amt >= 0) {
+        if (amt > 0) {
           await addDebitEntry({ studentId: r.matched_student_id, schoolId, amount: amt,
             reference: r.reference || 'Opening Balance', termId: batch.term_id ?? undefined, createdBy: userId ?? undefined } as any);
-        } else {
+        } else if (amt < 0) {
           await addCreditEntry({ studentId: r.matched_student_id, schoolId, amount: Math.abs(amt),
             reference: r.reference || 'Opening Balance', termId: batch.term_id ?? undefined, createdBy: userId ?? undefined } as any);
         }

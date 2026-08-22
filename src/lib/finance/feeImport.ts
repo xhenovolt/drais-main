@@ -13,7 +13,13 @@
  */
 import { query } from '@/lib/db';
 
-export interface FeeImportRow { admission_no?: string; item?: string; amount?: number | string }
+export interface FeeImportRow {
+  admission_no?: string; item?: string; amount?: number | string;
+  /** Outstanding balance owed right now. Preferred over `amount` when present
+   * — a sheet's rate/fees-charged column is not the same as what's still
+   * owed once payments are netted. */
+  balance?: number | string;
+}
 export type FeeAction = 'insert' | 'update' | 'not_found' | 'invalid';
 export interface FeeImportPreviewRow { admission_no: string; item: string; amount: number; action: FeeAction; old_amount?: number | null }
 export interface FeeImportResult {
@@ -25,11 +31,14 @@ export async function runFeeImport(
   schoolId: number, rawRows: FeeImportRow[], termId: number,
   opts: { commit?: boolean } = {}, userId?: number | null,
 ): Promise<FeeImportResult> {
-  const rows = (rawRows || []).map((r) => ({
-    admission_no: String(r.admission_no ?? '').trim(),
-    item: String(r.item ?? '').trim(),
-    amount: Number(r.amount),
-  }));
+  const rows = (rawRows || []).map((r) => {
+    const balance = r.balance !== undefined && r.balance !== null && r.balance !== '' ? Number(r.balance) : null;
+    return {
+      admission_no: String(r.admission_no ?? '').trim(),
+      item: String(r.item ?? '').trim(),
+      amount: balance != null ? balance : Number(r.amount),
+    };
+  });
 
   // Resolve admission numbers → student ids (school-scoped).
   const admnos = [...new Set(rows.map((r) => r.admission_no).filter(Boolean))];

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-22T13:41:12.791Z",
-  "last_commit": "844d4ca44748af77114e2f51e316a5f7db778397",
+  "generated_at": "2026-08-22T14:26:10.158Z",
+  "last_commit": "4923c2f13823c2770403c5e9b6214cc5e81adc27",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7125,7 +7125,20 @@
         }
       ],
       "commit": "844d4ca447"
+    },
+    {
+      "version": "1.173.86",
+      "date": "2026-08-22",
+      "release_type": "patch",
+      "title": "fix(finance): auto-import unique student-name matches in fee import",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "fix(finance): auto-import unique student-name matches in fee import"
+        }
+      ],
+      "commit": "4923c2f138"
     }
   ],
-  "app_version": "1.173.86"
+  "app_version": "1.173.87"
 }
