@@ -100,6 +100,19 @@ export interface StudentRecord {
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
   deletedAt: IsoDateTime | null;
+  // Added for the first offline-students slice (2026-08-22) — the real
+  // Trash system (docs/PHASE_1_CRUD_TRASH_ARCHITECTURE.md,
+  // src/lib/trash/service.ts's archiveEntity()/restoreEntity()) genuinely
+  // sets these on `students` (confirmed via the trash registry's own
+  // displaySelect SQL: `e.deleted_by, e.delete_reason, e.restored_at,
+  // e.restored_by` selected directly off the students table alias) —
+  // Phase 3's original StudentRecord predates this session's later
+  // discovery of the richer audit-trail pattern (classes/staff/etc.) and
+  // never captured it. Purely additive.
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
 }
 
 export interface NewStudentInput {

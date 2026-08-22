@@ -8,7 +8,7 @@
  */
 import { query } from '@/lib/db';
 import type { StudentRepo } from '../contract/student-repo';
-import type { StudentRecord, NewStudentInput, ListOptions } from '../contract/types';
+import type { StudentRecord, NewStudentInput, ListOptions, SoftDeleteOptions } from '../contract/types';
 import { RepoError } from '../contract/types';
 import { toIso, toIsoDate, toIsoRequired, toNum, toNumOrNull } from './util';
 
@@ -24,6 +24,10 @@ interface StudentRow {
   created_at: string | Date | null;
   updated_at: string | Date | null;
   deleted_at: string | Date | null;
+  deleted_by: number | string | null;
+  delete_reason: string | null;
+  restored_at: string | Date | null;
+  restored_by: number | string | null;
 }
 
 function toRecord(r: StudentRow): StudentRecord {
@@ -48,11 +52,16 @@ function toRecord(r: StudentRow): StudentRecord {
     createdAt,
     updatedAt: toIsoRequired(r.updated_at, createdAt),
     deletedAt: toIso(r.deleted_at),
+    deletedBy: toNumOrNull(r.deleted_by),
+    deleteReason: r.delete_reason,
+    restoredAt: toIso(r.restored_at),
+    restoredBy: toNumOrNull(r.restored_by),
   };
 }
 
 const BASE_SELECT = `SELECT id, school_id, person_id, admission_no, village_id, admission_date,
-                             status, notes, created_at, updated_at, deleted_at
+                             status, notes, created_at, updated_at, deleted_at,
+                             deleted_by, delete_reason, restored_at, restored_by
                         FROM students`;
 
 async function findById(schoolId: number, id: number): Promise<StudentRecord | null> {
@@ -125,12 +134,25 @@ export function createMysqlStudentRepo(): StudentRepo {
       return updated;
     },
 
-    async softDelete(schoolId, id) {
+    async softDelete(schoolId, id, opts: SoftDeleteOptions = {}) {
       const res = (await query(
-        `UPDATE students SET deleted_at = UTC_TIMESTAMP() WHERE id = ? AND school_id = ? AND deleted_at IS NULL`,
-        [id, schoolId],
+        `UPDATE students SET deleted_at = UTC_TIMESTAMP(), deleted_by = ?, delete_reason = ?
+          WHERE id = ? AND school_id = ? AND deleted_at IS NULL`,
+        [opts.deletedBy ?? null, opts.deleteReason ?? null, id, schoolId],
       )) as unknown as { affectedRows?: number };
       if (!res?.affectedRows) throw new RepoError(`Student ${id} not found in school ${schoolId} or already deleted`, 'NOT_FOUND');
+    },
+
+    async restore(schoolId, id, restoredBy = null) {
+      const res = (await query(
+        `UPDATE students SET deleted_at = NULL, restored_at = UTC_TIMESTAMP(), restored_by = ?
+          WHERE id = ? AND school_id = ? AND deleted_at IS NOT NULL`,
+        [restoredBy, id, schoolId],
+      )) as unknown as { affectedRows?: number };
+      if (!res?.affectedRows) throw new RepoError(`Student ${id} not found in school ${schoolId} or not deleted`, 'NOT_FOUND');
+      const restored = await findById(schoolId, id);
+      if (!restored) throw new RepoError(`Student ${id} vanished after restore`, 'NOT_FOUND');
+      return restored;
     },
   };
 }

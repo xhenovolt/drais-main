@@ -16,7 +16,7 @@
  * StudentRepo consumer will need a PersonRepo alongside this one before
  * it's useful for anything beyond identity bookkeeping.
  */
-import type { StudentRecord, NewStudentInput, ListOptions } from './types';
+import type { StudentRecord, NewStudentInput, ListOptions, SoftDeleteOptions } from './types';
 
 export interface StudentRepo {
   findById(schoolId: number, id: number): Promise<StudentRecord | null>;
@@ -24,5 +24,10 @@ export interface StudentRepo {
   listBySchool(schoolId: number, opts?: ListOptions): Promise<StudentRecord[]>;
   create(input: NewStudentInput): Promise<StudentRecord>;
   update(schoolId: number, id: number, patch: Partial<NewStudentInput>): Promise<StudentRecord>;
-  softDelete(schoolId: number, id: number): Promise<void>;
+  /** Added for the first offline-students slice — the real Trash system
+   *  sets deleted_by/delete_reason on this table (see types.ts's header
+   *  on StudentRecord's audit fields); opts is optional so every existing
+   *  caller (none live yet, but the shape matters) keeps working unchanged. */
+  softDelete(schoolId: number, id: number, opts?: SoftDeleteOptions): Promise<void>;
+  restore(schoolId: number, id: number, restoredBy?: number | null): Promise<StudentRecord>;
 }

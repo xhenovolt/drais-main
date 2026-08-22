@@ -97,6 +97,13 @@ CREATE TABLE IF NOT EXISTS students (
   created_at     TEXT DEFAULT (${ISO_NOW}),
   updated_at     TEXT DEFAULT (${ISO_NOW}),
   deleted_at     TEXT,
+  -- Added for the first offline-students slice (2026-08-22) — see
+  -- contract/types.ts's StudentRecord header on why these exist (the
+  -- real Trash system genuinely sets them on the real students table).
+  deleted_by     INTEGER,
+  delete_reason  TEXT,
+  restored_at    TEXT,
+  restored_by    INTEGER,
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_students_school_status ON students(school_id, status);

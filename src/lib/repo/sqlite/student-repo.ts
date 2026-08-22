@@ -8,7 +8,7 @@
  */
 import type { SqliteConnection } from './connection';
 import type { StudentRepo } from '../contract/student-repo';
-import type { StudentRecord, NewStudentInput, ListOptions } from '../contract/types';
+import type { StudentRecord, NewStudentInput, ListOptions, SoftDeleteOptions } from '../contract/types';
 import { RepoError } from '../contract/types';
 
 interface StudentRow {
@@ -23,6 +23,10 @@ interface StudentRow {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  deleted_by: number | null;
+  delete_reason: string | null;
+  restored_at: string | null;
+  restored_by: number | null;
 }
 
 function toRecord(r: StudentRow): StudentRecord {
@@ -38,11 +42,16 @@ function toRecord(r: StudentRow): StudentRecord {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deletedAt: r.deleted_at,
+    deletedBy: r.deleted_by,
+    deleteReason: r.delete_reason,
+    restoredAt: r.restored_at,
+    restoredBy: r.restored_by,
   };
 }
 
 const BASE_SELECT = `SELECT id, school_id, person_id, admission_no, village_id, admission_date,
-                             status, notes, created_at, updated_at, deleted_at
+                             status, notes, created_at, updated_at, deleted_at,
+                             deleted_by, delete_reason, restored_at, restored_by
                         FROM students`;
 
 const nowIso = () => new Date().toISOString();
@@ -127,11 +136,23 @@ export function createSqliteStudentRepo(db: SqliteConnection): StudentRepo {
       return updated;
     },
 
-    async softDelete(schoolId, id) {
+    async softDelete(schoolId, id, opts: SoftDeleteOptions = {}) {
       const res = db.prepare(
-        `UPDATE students SET deleted_at = @now, updated_at = @now WHERE id = @id AND school_id = @schoolId AND deleted_at IS NULL`,
-      ).run({ id, schoolId, now: nowIso() });
+        `UPDATE students SET deleted_at = @now, deleted_by = @deletedBy, delete_reason = @deleteReason, updated_at = @now
+          WHERE id = @id AND school_id = @schoolId AND deleted_at IS NULL`,
+      ).run({ id, schoolId, now: nowIso(), deletedBy: opts.deletedBy ?? null, deleteReason: opts.deleteReason ?? null });
       if (!res.changes) throw new RepoError(`Student ${id} not found in school ${schoolId} or already deleted`, 'NOT_FOUND');
+    },
+
+    async restore(schoolId, id, restoredBy = null) {
+      const res = db.prepare(
+        `UPDATE students SET deleted_at = NULL, restored_at = @now, restored_by = @restoredBy, updated_at = @now
+          WHERE id = @id AND school_id = @schoolId AND deleted_at IS NOT NULL`,
+      ).run({ id, schoolId, now: nowIso(), restoredBy });
+      if (!res.changes) throw new RepoError(`Student ${id} not found in school ${schoolId} or not deleted`, 'NOT_FOUND');
+      const restored = await findById(schoolId, id);
+      if (!restored) throw new RepoError(`Student ${id} vanished after restore`, 'NOT_FOUND');
+      return restored;
     },
   };
 }
