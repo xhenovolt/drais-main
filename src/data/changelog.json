@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-18T23:08:04.275Z",
-  "last_commit": "464ae5d559d4014037f05b406cced392c1bef69f",
+  "generated_at": "2026-08-22T13:41:12.791Z",
+  "last_commit": "844d4ca44748af77114e2f51e316a5f7db778397",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7112,7 +7112,20 @@
         }
       ],
       "commit": "464ae5d559"
+    },
+    {
+      "version": "1.173.85",
+      "date": "2026-08-19",
+      "release_type": "patch",
+      "title": "First-ever tests for src/lib/comm/ — WhatsApp provider, webhook, fallback",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "First-ever tests for src/lib/comm/ — WhatsApp provider, webhook, fallback"
+        }
+      ],
+      "commit": "844d4ca447"
     }
   ],
-  "app_version": "1.173.85"
+  "app_version": "1.173.86"
 }

@@ -2,9 +2,11 @@
  * Finance import / reconciliation engine (Track B, Batch 3).
  *
  * Two-phase, trust-first:
- *   1. PREVIEW  — stage rows, match learners (admission number first; name only
- *                 with review), detect duplicates against already-recorded
- *                 payments and within the file, and summarise. Nothing posted.
+ *   1. PREVIEW  — stage rows, match learners (admission number, or a UNIQUE
+ *                 name hit — both auto-import; multiple name candidates still
+ *                 require manual review), detect duplicates against
+ *                 already-recorded payments and within the file, and
+ *                 summarise. Nothing posted.
  *   2. COMMIT   — after operator confirmation, post only the rows marked
  *                 `import` with a resolved student through the CANONICAL payment
  *                 path (recordPayment) or the opening-balance ledger writer.
@@ -102,9 +104,13 @@ export async function createPreview(input: PreviewInput) {
         match_status = 'matched';
         matched_student_id = byAdmission.get(adm)!;
       } else if (r.student_name) {
-        // Name match — ALWAYS needs review (ambiguous), even when unique.
+        // Name match: a UNIQUE hit is trusted (auto-import eligible), same as
+        // admission number. Only multiple candidates require manual review —
+        // schools without admission numbers on file (e.g. paper registers)
+        // must not be forced to add them just to bulk-import.
         const cands = byName.get(tokenKey(r.student_name)) || [];
-        if (cands.length >= 1) { match_status = 'ambiguous'; candidates = cands; matched_student_id = cands.length === 1 ? cands[0] : null; }
+        if (cands.length === 1) { match_status = 'matched'; matched_student_id = cands[0]; }
+        else if (cands.length > 1) { match_status = 'ambiguous'; candidates = cands; }
         else match_status = 'unmatched';
       } else {
         match_status = 'unmatched';
