@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-22T05:21:07.366Z",
-  "last_commit": "e94d2fd5185cf769edc1b38c56013eacc48ab32b",
+  "generated_at": "2026-08-24T21:20:22.713Z",
+  "last_commit": "1601068cee1c08c62822fb90b48fc64667d66818",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7385,7 +7385,20 @@
         }
       ],
       "commit": "e94d2fd518"
+    },
+    {
+      "version": "2.14.0",
+      "date": "2026-08-22",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 11 - first complete offline module: students",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 11 - first complete offline module: students"
+        }
+      ],
+      "commit": "1601068cee"
     }
   ],
-  "app_version": "2.14.0"
+  "app_version": "2.14.1"
 }

@@ -59,7 +59,7 @@ export async function handleCreate(request: NextRequest): Promise<NextResponse> 
   const db = getSqliteDb();
   const repos = createSqliteRepos(db);
   try {
-    const student = await createOfflineStudent(repos, session.schoolId, body);
+    const student = await createOfflineStudent(repos, session.schoolId, body, db);
     return NextResponse.json({ success: true, student }, { status: 201 });
   } catch (err) {
     return errorResponse(err);

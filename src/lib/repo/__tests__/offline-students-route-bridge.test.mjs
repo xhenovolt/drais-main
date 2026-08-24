@@ -156,4 +156,20 @@ describe('offline-students route-bridge', () => {
     const body = await res.json();
     assert.equal(body.error.code, 'INVALID_INPUT');
   });
+
+  it('rolls back the person insert when the student insert fails', async () => {
+    const first = await handleCreate(reqWithSession('http://localhost/api/students/offline', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ firstName: 'Existing', lastName: 'Admission', admissionNo: 'TX-001' }),
+    }));
+    assert.equal(first.status, 201);
+    const before = db.prepare('SELECT COUNT(*) AS count FROM people').get().count;
+
+    const duplicate = await handleCreate(reqWithSession('http://localhost/api/students/offline', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ firstName: 'Rolled', lastName: 'Back', admissionNo: 'TX-001' }),
+    }));
+    assert.equal(duplicate.status, 409);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM people').get().count, before);
+  });
 });

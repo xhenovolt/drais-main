@@ -27,6 +27,7 @@
 import type { Repos } from '../contract';
 import type { StudentRecord, NewStudentInput, PersonRecord, NewPersonInput } from '../contract/types';
 import { RepoError } from '../contract/types';
+import type { SqliteConnection } from '../sqlite/connection';
 
 /** The merged shape this minimal screen actually needs — a student
  *  joined to its person record, composed here from two clean repo calls
@@ -120,15 +121,16 @@ export interface NewOfflineStudentInput {
   notes?: string | null;
 }
 
-/** Creates the person AND the student together — the real online "quick
- *  create" route (src/app/api/students/route.ts) does the same two-insert
- *  pattern. Not wrapped in a DB transaction: better-sqlite3 is
- *  synchronous and single-writer, so there's no concurrent-interleaving
- *  risk here the way there would be against a networked MySQL pool — if
- *  the second insert throws, the first has already committed, which is
- *  an acceptable, honestly-documented gap for this minimal slice rather
- *  than an invisible one. */
-export async function createOfflineStudent(repos: Repos, schoolId: number, input: NewOfflineStudentInput): Promise<OfflineStudentView> {
+/** Creates the person AND the student together. The route supplies the
+ * SQLite connection so both inserts share one transaction; the optional
+ * connection keeps pure service tests and future repo implementations
+ * compatible with the same service contract. */
+export async function createOfflineStudent(
+  repos: Repos,
+  schoolId: number,
+  input: NewOfflineStudentInput,
+  db?: SqliteConnection,
+): Promise<OfflineStudentView> {
   if (!input.firstName?.trim() || !input.lastName?.trim()) {
     throw new RepoError('firstName and lastName are required', 'INVALID_INPUT');
   }
@@ -137,12 +139,44 @@ export async function createOfflineStudent(repos: Repos, schoolId: number, input
     otherName: input.otherName ?? null, gender: input.gender ?? null, dateOfBirth: input.dateOfBirth ?? null,
     phone: input.phone ?? null, email: input.email ?? null, address: input.address ?? null,
   };
-  const person = await repos.people.create(personInput);
   const studentInput: NewStudentInput = {
-    schoolId, personId: person.id, admissionNo: input.admissionNo ?? null,
+    schoolId, personId: 0, admissionNo: input.admissionNo ?? null,
     admissionDate: input.admissionDate ?? null, status: input.status ?? 'active', notes: input.notes ?? null,
   };
-  const student = await repos.students.create(studentInput);
+
+  if (db) {
+    try {
+      const create = db.transaction(() => {
+        const personResult = db.prepare(
+          `INSERT INTO people (school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address)
+           VALUES (@schoolId, @firstName, @lastName, @otherName, @gender, @dateOfBirth, @phone, @email, @address)`,
+        ).run({
+          schoolId: personInput.schoolId, firstName: personInput.firstName, lastName: personInput.lastName,
+          otherName: personInput.otherName, gender: personInput.gender, dateOfBirth: personInput.dateOfBirth,
+          phone: personInput.phone, email: personInput.email, address: personInput.address,
+        });
+        const personId = Number(personResult.lastInsertRowid);
+        const studentResult = db.prepare(
+          `INSERT INTO students (school_id, person_id, admission_no, admission_date, status, notes)
+           VALUES (@schoolId, @personId, @admissionNo, @admissionDate, @status, @notes)`,
+        ).run({ ...studentInput, personId });
+        return { personId, studentId: Number(studentResult.lastInsertRowid) };
+      });
+      const ids = create();
+      const person = await repos.people.findById(ids.personId);
+      const student = await repos.students.findById(schoolId, ids.studentId);
+      if (!person || !student) throw new RepoError('Student vanished immediately after transaction', 'NOT_FOUND');
+      return toView(student, person);
+    } catch (err: any) {
+      if (String(err?.code) === 'SQLITE_CONSTRAINT_UNIQUE' || /UNIQUE constraint failed/i.test(String(err?.message))) {
+        throw new RepoError('Admission number already exists', 'DUPLICATE');
+      }
+      throw err;
+    }
+  }
+
+  const person = await repos.people.create(personInput);
+  const student = await repos.students.create({ ...studentInput, personId: person.id });
   return toView(student, person);
 }
 

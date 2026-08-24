@@ -252,6 +252,15 @@ export const DOCS: DocMeta[] = [
     keywords: ['fetch', 'fetcher', 'apifetch', 'useswr', 'swr key', 'conditional fetch', 'null key', 'envelope', 'success data', 'unwrap', 'response shape', 'add an api', 'restructure', 'mutate', 'revalidate', 'refreshinterval', 'transform', 'normalise', 'normalize'],
     minutes: 14,
   },
+  {
+    slug: 'offline-sqlite',
+    section: 'Backend & Data',
+    title: 'Offline SQLite',
+    blurb: 'The additive local SQLite subsystem: current readiness, the student proof of concept, and the path to offline-first.',
+    topics: ['sqlite', 'offline', 'architecture'],
+    keywords: ['offline', 'offline-first', 'sqlite', 'better-sqlite3', 'local-sqlite', 'drais_sqlite_path', 'repository', 'migration', 'transaction', 'rollback', 'sync', 'conflict', 'electron', 'capacitor', 'android', 'vercel', 'api/students/offline', 'proof of concept', 'roadmap'],
+    minutes: 18,
+  },
 
   // ── Modules ────────────────────────────────────────────────────────────────
   {
