@@ -20,7 +20,7 @@
  * only) — the real symptom would be src/lib/db.ts's query() throwing on
  * every page anyway, since that mode has no mysql2 pool at all.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Cloud, HardDrive, Loader2 } from 'lucide-react';
 
 type DbMode = 'online' | 'local-mysql';
@@ -46,6 +46,20 @@ function useDbMode(onSelected?: () => void) {
   const [switching, setSwitching] = useState<DbMode | null>(null);
   const [selectedMode, setSelectedMode] = useState<DbMode | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/db-mode', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((current: ModeInfo | null) => {
+        if (!cancelled && current) {
+          setInfo(current);
+          setSelectedMode(current.mode);
+        }
+      })
+      .catch(() => { /* mode display remains usable while the server starts */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const switchTo = useCallback(async (mode: DbMode) => {
     setError(null);
@@ -102,7 +116,7 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Connection</p>
         <div className="grid grid-cols-2 gap-2">
           {(['local-mysql', 'online'] as DbMode[]).map((m) => {
-            const active = selectedMode === m;
+            const active = (selectedMode ?? info.mode) === m;
             const disabled = m === 'local-mysql' && !info.allowLocal;
             const h = m === info.mode ? info.health : info.otherHealth;
             return (

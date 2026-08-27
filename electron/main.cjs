@@ -102,7 +102,7 @@ function waitForServer(cb, attempts = 0) {
   function retry() {
     if (attempts >= 60) {
       logToFile('FATAL: server never reachable');
-      showDiagnostic({ ok: false, server: false, db: { connected: false, error: 'Server did not start within ~90s.' } });
+      showServerStartupDiagnostic('The local application server did not start within ~90 seconds.');
       return;
     }
     setTimeout(() => waitForServer(cb, attempts + 1), 500);
@@ -147,8 +147,8 @@ function openApp() {
   ensureWindow().loadURL(`http://127.0.0.1:${PORT}/login`);
 }
 
-/** Instant local splash so the window paints immediately while the server boots
- *  and the DB is probed — removes the perceived multi-second blank start. */
+/** Instant local splash while the local application server boots. This is not
+ * a database connection state: neither TiDB nor Local MySQL is contacted here. */
 function showSplash() {
   const html = `<!doctype html><meta charset="utf-8"><title>DRAIS</title>
   <style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;
@@ -159,11 +159,23 @@ function showSplash() {
   border-top-color:#6366f1;border-radius:50%;animation:r .8s linear infinite;display:inline-block}
   @keyframes r{to{transform:rotate(360deg)}}.t{color:#94a3b8;font-size:13px;margin-top:10px}</style>
   <div class="box"><div class="logo">D</div><div>Starting DRAIS…</div><div class="s"></div>
-  <div class="t">Connecting to the database</div></div>`;
+  <div class="t">Preparing the login screen…</div></div>`;
   ensureWindow().loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
 }
 
 function esc(s) { return String(s).replace(/[<>]/g, ''); }
+
+function showServerStartupDiagnostic(reason) {
+  const w = ensureWindow();
+  const html = `<!doctype html><meta charset="utf-8"><title>DRAIS — Startup issue</title>
+  <style>body{font:14px/1.6 system-ui,Segoe UI,Arial;background:#0f172a;color:#e2e8f0;margin:0;padding:40px}
+  .card{max-width:680px;margin:auto;background:#111827;border:1px solid #1f2937;border-radius:16px;padding:28px}
+  h1{font-size:20px;margin:0 0 4px}.sub{color:#94a3b8;margin:0 0 20px}code{background:#0b1220;padding:2px 6px;border-radius:6px;color:#fca5a5;word-break:break-all}</style>
+  <div class="card"><h1>DRAIS could not prepare the login screen</h1>
+  <p class="sub">${esc(reason)}</p><p>This happens before any Local MySQL or TiDB connection is attempted.</p>
+  <p>Logs: <code>${esc(logPath())}</code></p></div>`;
+  w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+}
 
 function showDiagnostic(health) {
   const w = ensureWindow();
