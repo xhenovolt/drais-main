@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-27T20:04:30.659Z",
-  "last_commit": "fd1eb98740fdd116357239086f82461ee29b9018",
+  "generated_at": "2026-08-27T20:20:54.706Z",
+  "last_commit": "7024165aad75bf8cb0d314eb94703b2a2b562de6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7153,6 +7153,19 @@
       "commit": "0dc12b28d5"
     },
     {
+      "version": "1.173.87",
+      "date": "2026-08-22",
+      "release_type": "patch",
+      "title": "fix(finance): auto-import unique student-name matches in fee import",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "fix(finance): auto-import unique student-name matches in fee import"
+        }
+      ],
+      "commit": "4923c2f138"
+    },
+    {
       "version": "1.173.88",
       "date": "2026-08-19",
       "release_type": "patch",
@@ -7411,7 +7424,20 @@
         }
       ],
       "commit": "fd1eb98740"
+    },
+    {
+      "version": "2.14.2",
+      "date": "2026-08-27",
+      "release_type": "patch",
+      "title": "Make local login explicit and brand shortcuts",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Make local login explicit and brand shortcuts"
+        }
+      ],
+      "commit": "7024165aad"
     }
   ],
-  "app_version": "2.14.2"
+  "app_version": "2.14.3"
 }
