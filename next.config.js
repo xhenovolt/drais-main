@@ -35,7 +35,7 @@ const nextConfig = {
   // tracer can copy those 15 .afm files into the deployment and pdfkit will
   // still look somewhere else and throw ENOENT. Tracing puts the files on disk;
   // externalising is what keeps `__dirname` pointing at them. Both are needed.
-  serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium', 'pdfkit'],
+  serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium', 'pdfkit', 'better-sqlite3'],
 
   // @sparticuz/chromium locates its bin/ payload via fs at runtime, which
   // the static tracer cannot see — without these includes the lambda dies

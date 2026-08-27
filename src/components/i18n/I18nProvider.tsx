@@ -65,7 +65,7 @@ function warnMissingKey(key: string, lang: string) {
   console.warn(`[i18n] missing key "${key}" for lang "${lang}"`);
 }
 
-export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefault?: boolean }> = ({ children, loadSchoolDefault = true }) => {
   const lang = useThemeStore(s=>s.language);
   const setLanguage = useThemeStore(s=>s.setLanguage);
   const languageExplicit = useThemeStore(s=>s.languageExplicit);
@@ -82,7 +82,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * (column absent) all just leave the existing language in place.
    */
   useEffect(() => {
-    if (languageExplicit) return; // user choice wins
+    if (!loadSchoolDefault || languageExplicit) return; // public/login routes must not touch the DB
     let cancelled = false;
     fetch('/api/school-config')
       .then(r => r.ok ? r.json() : null)
@@ -98,7 +98,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Intentionally NOT depending on `lang` — only on the explicit flag.
     // We hydrate at most once per mount when the user is implicit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [languageExplicit]);
+  }, [languageExplicit, loadSchoolDefault]);
 
   useEffect(() => {
     let active = true;

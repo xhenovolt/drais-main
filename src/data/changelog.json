@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-24T21:20:22.713Z",
-  "last_commit": "1601068cee1c08c62822fb90b48fc64667d66818",
+  "generated_at": "2026-08-27T20:04:30.659Z",
+  "last_commit": "fd1eb98740fdd116357239086f82461ee29b9018",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7398,7 +7398,20 @@
         }
       ],
       "commit": "1601068cee"
+    },
+    {
+      "version": "2.14.1",
+      "date": "2026-08-25",
+      "release_type": "patch",
+      "title": "Add additive offline SQLite foundation docs",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add additive offline SQLite foundation docs"
+        }
+      ],
+      "commit": "fd1eb98740"
     }
   ],
-  "app_version": "2.14.1"
+  "app_version": "2.14.2"
 }

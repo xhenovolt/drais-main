@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import SystemThemeWrapper from '@/components/auth/SystemThemeWrapper';
@@ -12,12 +12,20 @@ import DbModeBadge from '@/components/db/DbModeBadge';
 export default function LoginPage() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionSelected, setConnectionSelected] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // This runs only after hydration: fields and the connection selector can
+  // receive input. Electron records it as the genuine login-ready milestone.
+  useEffect(() => {
+    const bridge = (window as Window & { draisStartup?: { mark: (stage: string, detail?: Record<string, number>) => void } }).draisStartup;
+    bridge?.mark('login-interactive', { navigation_ms: Math.round(performance.now()) });
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,7 +59,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoginError(null);
 
-    if (!validateForm()) {
+    if (!connectionSelected || !validateForm()) {
       return;
     }
 
@@ -157,18 +165,18 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !connectionSelected}
               className="w-full px-4 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-semibold rounded-lg 
                          hover:bg-indigo-700 dark:hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed
                          transition duration-200 mt-6 shadow-sm"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? 'Signing in...' : connectionSelected ? 'Sign In' : 'Choose a connection first'}
             </button>
           </form>
 
           {/* DB connection mode (online cloud / local server) + health */}
           <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <DbModeBadge variant="login" />
+            <DbModeBadge variant="login" onSelected={() => setConnectionSelected(true)} />
           </div>
 
           {/* Signup Link */}

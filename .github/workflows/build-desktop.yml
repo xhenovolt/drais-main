@@ -12,9 +12,6 @@ name: Build Desktop
 # Builds are UNSIGNED for now (see docs/BUILD_PIPELINE.md for signing TODOs).
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:

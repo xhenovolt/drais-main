@@ -16,14 +16,14 @@ Electron (`electron@33`) + `electron-builder@25`, Next.js **`output: 'standalone
 ## 4. Packaging config changed
 Standalone still shipped as `extraResources/standalone`. Added optional bundled `.env.production`. `asar: true`, `asarUnpack: []` (correct — no native deps). Win NSIS + portable retained; Linux + macOS added.
 
-## 5. Runtime boot model (Model A)
-load config → start in-process Next standalone server (0.0.0.0:3210) → poll until reachable → **GET /api/health** → if `db.connected` open `http://127.0.0.1:3210/`, else render the diagnostic screen. Single-instance lock; LAN-reachable for ZK devices.
+## 5. Runtime boot model
+load config → start in-process Next standalone server (0.0.0.0:3210) → poll until the local `/login` route is reachable → open `http://127.0.0.1:3210/`. Startup does not call `/api/health`, query a database, or perform a session lookup. The login connection selector's explicit POST to `/api/db-mode` is the boundary that permits a TiDB/local-MySQL health check. Single-instance lock; LAN-reachable for ZK devices.
 
 ## 6. Env/config strategy
 No developer `.env` required. Admin can drop `userData/drais.env` (e.g. `%APPDATA%/DRAIS/drais.env` on Windows) **without reinstalling**; or the build can bundle `build/.env.production`. System env overrides both. Secrets masked in `drais.log`.
 
 ## 7. DB mode result
-Online TiDB only (no SQLite/offline). Internet required. The fix delivers `TIDB_*` to the server; `/api/health` confirms connectivity at boot and on demand.
+Online TiDB and local MySQL modes are available. Internet is required only for the explicitly selected TiDB workflow. The `/api/health` endpoint remains available for explicit diagnostics, but it is not a startup gate.
 
 ## 8. Native module handling
 None required (`bcryptjs`, `mysql2`, `pdfkit`, `qrcode`, `xlsx` are pure-JS). `bcrypt@6` is unused → recommend removing from deps. If a native dep is added later: set `asarUnpack` + `nodeGypRebuild` and rebuild for Electron's ABI (note: server runs in Electron's main process, so native ABI must match Electron, not system Node).

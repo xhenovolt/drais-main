@@ -12,8 +12,8 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, ArrowRigh
 import { useCurrency } from '@/hooks/useCurrency';
 
 type Step = 'upload' | 'map' | 'preview' | 'done';
-const FIELDS = ['admission_no', 'student_name', 'amount', 'reference', 'payment_date', 'method'] as const;
-type Field = typeof FIELDS[number];
+const FIELDS = ['admission_no', 'student_name', 'amount', 'reference', 'payment_date', 'method', 'balance'] as const;
+type Field = typeof FIELDS[number] | 'balance';
 
 const SOURCES = [
   { id: 'manual_excel', label: 'Manual Excel' },
@@ -28,12 +28,13 @@ function guessMap(headers: string[]): Record<Field, string> {
   const m = {} as Record<Field, string>;
   const find = (...keys: string[]) =>
     headers.find((h) => keys.some((k) => h.toLowerCase().replace(/[^a-z0-9]/g, '').includes(k))) || '';
-  m.admission_no = find('admission', 'regno', 'studentno', 'pupilno');
+  m.admission_no = find('admission', 'regno', 'studentno', 'pupilno', 'S/N');
   m.student_name = find('name', 'student', 'pupil');
-  m.amount = find('amount', 'amountpaid', 'paid', 'credit', 'value');
+  m.amount = find('amount', 'amountpaid', 'paid', 'credit', 'value', 'fees rate', 'fees', 'payment');
   m.reference = find('reference', 'ref', 'txnid', 'transactionid', 'receipt');
   m.payment_date = find('date', 'paymentdate', 'txndate');
   m.method = find('method', 'channel', 'mode', 'paymentmethod');
+  m.balance = find('balance', 'outstanding', 'due', 'arrears');
   return m;
 }
 
@@ -90,6 +91,7 @@ export default function FinanceImportPage() {
       reference: mapping.reference ? String(r[mapping.reference] ?? '').trim() : null,
       payment_date: mapping.payment_date ? String(r[mapping.payment_date] ?? '').trim() || null : null,
       method: mapping.method ? String(r[mapping.method] ?? '').trim() : null,
+      balance:mapping.balance ? Number(String(r[mapping.balance]).replace(/[^\d.-]/g, '')) : null,
       raw: r,
     }));
   }, [fileRows, mapping]);

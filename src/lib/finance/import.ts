@@ -2,9 +2,11 @@
  * Finance import / reconciliation engine (Track B, Batch 3).
  *
  * Two-phase, trust-first:
- *   1. PREVIEW  — stage rows, match learners (admission number first; name only
- *                 with review), detect duplicates against already-recorded
- *                 payments and within the file, and summarise. Nothing posted.
+ *   1. PREVIEW  — stage rows, match learners (admission number, or a UNIQUE
+ *                 name hit — both auto-import; multiple name candidates still
+ *                 require manual review), detect duplicates against
+ *                 already-recorded payments and within the file, and
+ *                 summarise. Nothing posted.
  *   2. COMMIT   — after operator confirmation, post only the rows marked
  *                 `import` with a resolved student through the CANONICAL payment
  *                 path (recordPayment) or the opening-balance ledger writer.
@@ -25,6 +27,12 @@ export interface NormalizedRow {
   admission_no?: string | null;
   student_name?: string | null;
   amount?: number | null;
+  /** Outstanding balance owed right now (e.g. a sheet's "Balance" column).
+   * For opening_balances imports this takes priority over `amount` — a
+   * rate/fees-charged figure is NOT what's currently owed once payments are
+   * netted, and silently charging the rate instead of the balance is exactly
+   * the kind of double-charge this field exists to prevent. */
+  balance?: number | null;
   reference?: string | null;
   payment_date?: string | null;
   method?: string | null;
@@ -79,7 +87,9 @@ export async function createPreview(input: PreviewInput) {
   // 3. Match + dedup each row.
   const seenInFile = new Set<string>();
   const staged = rows.map((r) => {
-    const amount = r.amount != null ? Number(r.amount) : null;
+    const amount = importType === 'opening_balances' && r.balance != null
+      ? Number(r.balance)
+      : (r.amount != null ? Number(r.amount) : null);
     const ref = r.reference ? String(r.reference).trim() : null;
     let match_status: MatchStatus = 'unmatched';
     let matched_student_id: number | null = null;
@@ -102,9 +112,13 @@ export async function createPreview(input: PreviewInput) {
         match_status = 'matched';
         matched_student_id = byAdmission.get(adm)!;
       } else if (r.student_name) {
-        // Name match — ALWAYS needs review (ambiguous), even when unique.
+        // Name match: a UNIQUE hit is trusted (auto-import eligible), same as
+        // admission number. Only multiple candidates require manual review —
+        // schools without admission numbers on file (e.g. paper registers)
+        // must not be forced to add them just to bulk-import.
         const cands = byName.get(tokenKey(r.student_name)) || [];
-        if (cands.length >= 1) { match_status = 'ambiguous'; candidates = cands; matched_student_id = cands.length === 1 ? cands[0] : null; }
+        if (cands.length === 1) { match_status = 'matched'; matched_student_id = cands[0]; }
+        else if (cands.length > 1) { match_status = 'ambiguous'; candidates = cands; }
         else match_status = 'unmatched';
       } else {
         match_status = 'unmatched';
@@ -207,12 +221,12 @@ export async function commitBatch(schoolId: number, batchId: number, userId?: nu
   for (const r of rows) {
     try {
       if (batch.import_type === 'opening_balances') {
-        // positive = owes (debit), negative = credit
+        // positive = owes (debit), negative = credit; 0 = already cleared, nothing to post.
         const amt = Number(r.amount) || 0;
-        if (amt >= 0) {
+        if (amt > 0) {
           await addDebitEntry({ studentId: r.matched_student_id, schoolId, amount: amt,
             reference: r.reference || 'Opening Balance', termId: batch.term_id ?? undefined, createdBy: userId ?? undefined } as any);
-        } else {
+        } else if (amt < 0) {
           await addCreditEntry({ studentId: r.matched_student_id, schoolId, amount: Math.abs(amt),
             reference: r.reference || 'Opening Balance', termId: batch.term_id ?? undefined, createdBy: userId ?? undefined } as any);
         }

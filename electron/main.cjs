@@ -6,9 +6,8 @@
  * BrowserWindow at http://127.0.0.1:<port>. The server binds 0.0.0.0 so ZKTeco
  * devices + other LAN operators can reach it.
  *
- * Boot model (Model A): load config → start server → wait reachable →
- * check /api/health (DB) → open app, or a DIAGNOSTIC screen if the DB is down.
- * Never a blank white window.
+ * Boot model: load config → start server → wait reachable → open app.
+ * Database connectivity begins only after the user chooses a connection mode.
  *
  * Config: loaded by electron/config.cjs from system env / userData/drais.env /
  * bundled .env.production — the installed app never needs a developer .env.
@@ -36,6 +35,13 @@ const windowIcon = fs.existsSync(iconPath) ? iconPath : undefined;
 let mainWindow = null;
 let serverReady = false;
 let cfg = null;
+const startupT0 = process.hrtime.bigint();
+
+function startupMark(stage, detail) {
+  const elapsedMs = Number(process.hrtime.bigint() - startupT0) / 1e6;
+  const suffix = detail ? ` ${JSON.stringify(detail)}` : '';
+  logToFile(`STARTUP ${stage} +${elapsedMs.toFixed(1)}ms${suffix}`);
+}
 
 function logDir() { return app.getPath('userData'); }
 function logPath() { return path.join(logDir(), 'drais.log'); }
@@ -70,6 +76,7 @@ function startNextServer() {
   process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   process.chdir(standaloneDir);
   try {
+    startupMark('next-server-require');
     logToFile(`Starting Next standalone server on 0.0.0.0:${PORT} (config: ${cfg ? cfg.source : 'n/a'})`);
     captureConsole();
     require(serverEntry);
@@ -82,11 +89,13 @@ function startNextServer() {
   }
 }
 
-/** Poll until the server answers on /api/health (any HTTP response = up). */
+/** Poll until the local Next server answers; this must remain DB-independent. */
 function waitForServer(cb, attempts = 0) {
-  const req = http.get({ hostname: '127.0.0.1', port: PORT, path: '/api/health', timeout: 1500 }, (res) => {
+  const req = http.get({ hostname: '127.0.0.1', port: PORT, path: '/login', timeout: 1500 }, (res) => {
     res.resume();
-    serverReady = true; cb();
+    serverReady = true;
+    startupMark('login-route-ready', { attempts });
+    cb();
   });
   req.on('error', retry);
   req.on('timeout', () => { req.destroy(); retry(); });
@@ -100,7 +109,7 @@ function waitForServer(cb, attempts = 0) {
   }
 }
 
-/** GET /api/health → parsed JSON (or a server-down shape). */
+/** GET /api/health for explicit diagnostics, never as a boot gate. */
 function checkHealth() {
   return new Promise((resolve) => {
     const req = http.get({ hostname: '127.0.0.1', port: PORT, path: '/api/health', timeout: 4000 }, (res) => {
@@ -121,7 +130,10 @@ function ensureWindow() {
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
   });
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  startupMark('window-created');
+  mainWindow.once('ready-to-show', () => { startupMark('window-ready-to-show'); mainWindow.show(); });
+  mainWindow.webContents.on('did-start-loading', () => startupMark('renderer-start-loading'));
+  mainWindow.webContents.on('did-finish-load', () => startupMark('renderer-finish-load'));
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (!url.startsWith(`http://127.0.0.1:${PORT}`) && !url.startsWith(`http://localhost:${PORT}`)) { shell.openExternal(url); return { action: 'deny' }; }
     return { action: 'allow' };
@@ -130,7 +142,10 @@ function ensureWindow() {
   return mainWindow;
 }
 
-function openApp() { ensureWindow().loadURL(`http://127.0.0.1:${PORT}/`); }
+function openApp() {
+  startupMark('login-navigation');
+  ensureWindow().loadURL(`http://127.0.0.1:${PORT}/login`);
+}
 
 /** Instant local splash so the window paints immediately while the server boots
  *  and the DB is probed — removes the perceived multi-second blank start. */
@@ -182,9 +197,7 @@ function showFatal(title, msg) {
 }
 
 async function boot() {
-  const health = await checkHealth();
-  logToFile(`health: ok=${health.ok} server=${health.server} db=${health.db && health.db.connected} ${health.db && health.db.error ? '("' + health.db.error + '")' : ''}`);
-  if (health.ok) openApp(); else showDiagnostic(health);
+  openApp();
 }
 
 function buildMenu() {
@@ -207,6 +220,7 @@ if (!gotLock) { app.quit(); }
 else {
   app.on('second-instance', () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } });
   app.whenReady().then(() => {
+    startupMark('electron-ready');
     cfg = loadConfig({ userDataDir: app.getPath('userData'), resourcesPath: app.isPackaged ? process.resourcesPath : null, isPackaged: app.isPackaged });
     logToFile(`config source: ${cfg.source}; ${cfg.summary.join('; ')}`);
     if (!cfg.hasDbCreds) logToFile('WARN: no DB credentials resolved — diagnostic screen will show until configured.');
@@ -217,6 +231,9 @@ else {
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && serverReady) boot(); });
   });
 }
+
+// Instrumentation only: the preload exposes no other IPC capability.
+require('electron').ipcMain.on('drais-startup-mark', (_event, stage, detail) => startupMark(`renderer-${stage}`, detail));
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 process.on('uncaughtException', (err) => logToFile('UNCAUGHT: ' + (err && err.stack ? err.stack : String(err))));

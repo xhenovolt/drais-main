@@ -4,8 +4,8 @@
  * 'local' (the pre-V2 value) is still accepted here as a synonym for
  * 'local-mysql', matching db-mode.ts's own envDefaultMode() backward-compat
  * mapping — an existing admin-panel client sending the old value keeps
- * working. This endpoint only ever tests mysql2 credentials (TIDB_*/
- * LOCAL_MYSQL_*); it has no local-sqlite equivalent to test.
+ * working. This endpoint only ever tests mysql2 credentials (TIDB_ and
+ * LOCAL_MYSQL_ prefixed vars); it has no local-sqlite equivalent to test.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';

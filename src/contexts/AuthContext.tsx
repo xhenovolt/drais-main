@@ -131,8 +131,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check auth on mount
   useEffect(() => {
+    const publicAuthRoute = pathname === '/login' || pathname === '/auth/login' ||
+      pathname === '/signup' || pathname === '/auth/signup';
+    if (publicAuthRoute) {
+      setUser(null);
+      setSetupComplete(true);
+      setIsLoading(false);
+      return;
+    }
     checkAuth();
-  }, [checkAuth]);
+  }, [checkAuth, pathname]);
 
   // ========================================
   // CLIENT-SIDE ROUTE PROTECTION

@@ -30,22 +30,12 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const mode = getDbMode();
   const allowLocal = isLocalAllowed();
-  // healthCheck() (pools.ts) is genuinely never-throwing, including for a
-  // non-mysql mode like 'local-sqlite' — it returns {ok:false, ...} rather
-  // than probing a pool that doesn't exist for that mode. `mode` itself
-  // can't actually BE 'local-sqlite' here today anyway (see POST's guard;
-  // nothing reachable through this app sets runtimeMode to it), but this
-  // call is safe regardless.
-  const health = await healthCheck(mode);
-  // On desktop, also surface the other mode's reachability for the selector.
-  const other: DbMode = mode === 'online' ? 'local-mysql' : 'online';
-  const otherHealth = allowLocal ? await healthCheck(other) : null;
 
   return NextResponse.json({
     ...describeMode(mode),
     allowLocal,
-    health,
-    otherHealth,
+    health: null,
+    otherHealth: null,
   });
 }
 

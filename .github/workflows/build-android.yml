@@ -13,9 +13,6 @@ name: Build Android (debug APK)
 # APK is attached to the same draft GitHub Release as the desktop installers.
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       stability:

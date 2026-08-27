@@ -1,8 +1,8 @@
 # DRAIS — Build & Release Pipeline
 
 GitHub Actions pipeline that turns a `vX.Y.Z` tag into downloadable desktop
-release artifacts. Android is an experimental manual build; iOS is a readiness
-report only.
+and Android release artifacts. iOS is a readiness report only because no iOS
+Capacitor project exists in this repository.
 
 ## 1. Audit summary (what's in the repo)
 
@@ -19,13 +19,15 @@ report only.
 | Node | `engines.node = 24.x` → CI pins Node 24 |
 | Mobile (Android) | **Capacitor 8 + nodejs-mobile**, `android/` project committed (gradlew, build.gradle), `capacitor.config.ts`, `scripts/build-mobile.mjs` → debug APK is buildable (experimental) |
 | Mobile (iOS) | **No `ios/` project** → readiness report only |
-| Existing workflows | **None** (nothing to preserve) |
+| Existing workflows | `release-all.yml` is the tagged-release entry point; desktop and Android workflows remain manual fallbacks |
 | Runtime config | env-based (`.env.production` bundled if present, else `userData/drais.env` / system env) |
 
-## 2. Workflows created
+## 2. Workflows
 
-- **`.github/workflows/build-desktop.yml`** — matrix `windows-latest` / `ubuntu-latest` / `macos-latest`. Trigger: push tag `v*` or manual. Per OS: checkout → setup-node 24 (npm cache) → `npm ci` → `npm run build:electron` → `electron-builder` (unsigned) → upload artifacts. A final `release` job downloads all artifacts and attaches them to one **draft** GitHub Release (`softprops/action-gh-release`). `fail-fast: false` so one OS can't sink the others. Windows is first in the matrix.
-- **`.github/workflows/build-android.yml`** — **experimental, manual only** (`workflow_dispatch`). setup-node + JDK 17 + Android SDK → `npm ci` → `npm run mobile:build` → `npx cap sync android` → `./gradlew assembleDebug` → upload **unsigned debug APK**.
+- **`.github/workflows/release-all.yml`** — one tagged/manual workflow for Windows x64, Linux x64, macOS x64, macOS arm64 and Android debug APK. Tagged runs create one draft GitHub Release after all required artifact jobs complete. Manual runs upload artifacts only.
+
+- **`.github/workflows/build-desktop.yml`** — manual desktop-only fallback.
+- **`.github/workflows/build-android.yml`** — manual Android-only fallback.
 
 ## 3. Config changes
 
@@ -80,13 +82,15 @@ git tag v1.48.0
 git push origin v1.48.0
 ```
 
-That triggers `build-desktop.yml`, which builds all three OSes and creates a
-**draft** GitHub Release with the artifacts attached. Review it under
+That triggers `release-all.yml`, which builds all available desktop and Android
+targets and creates a **draft** GitHub Release with the artifacts attached. Review it under
 **Releases**, then click **Publish**. Re-running: delete the tag
 (`git push origin :v1.48.0`) and re-push, or use **Actions → Build Desktop → Run
 workflow** (manual).
 
-Android (manual): **Actions → Build Android (debug APK) → Run workflow**.
+Manual artifact run: **Actions → Release All Platforms → Run workflow**.
+Desktop-only fallback: **Actions → Build Desktop → Run workflow**.
+Android-only fallback: **Actions → Build Android (debug APK) → Run workflow**.
 
 ## 9. Remaining limitations
 

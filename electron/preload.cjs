@@ -1,9 +1,14 @@
 /**
- * Empty preload. DRAIS runs as a normal web app inside the
- * BrowserWindow — there is no IPC surface to expose. Keeping the
- * preload script registered (rather than dropping it) lets us turn
- * sandbox + contextIsolation on without warnings, and gives us a
- * single place to add `contextBridge.exposeInMainWorld(...)` later
- * if we ever need a native shell capability (file picker for an
- * import, printer dialog, etc.).
+ * The only renderer-to-main surface is a one-way startup timing marker. It
+ * carries no credentials, filesystem access, or command capability. Keeping
+ * this in preload means production startup timings can be captured without
+ * enabling nodeIntegration in the login renderer.
  */
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('draisStartup', {
+  mark: (stage, detail) => {
+    if (typeof stage !== 'string') return;
+    ipcRenderer.send('drais-startup-mark', stage.slice(0, 80), detail && typeof detail === 'object' ? detail : undefined);
+  },
+});

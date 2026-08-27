@@ -4,37 +4,20 @@ import "./globals.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
-import { useTheme } from "@/components/theme/ThemeProvider";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import FeatureUpdateNotification from '@/components/notifications/FeatureUpdateNotification';
-import ImpersonationBanner from '@/components/control/ImpersonationBanner';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { OnboardingProvider } from '@/contexts/OnboardingContext';
-import { TermProvider } from '@/contexts/TermContext';
 import { ProgressProvider } from '@/contexts/ProgressContext';
-import ProgressOverlay from '@/components/ui/ProgressOverlay';
-import OnboardingOrchestrator from '@/components/onboarding/OnboardingOrchestrator';
-import OnboardingCompletionBanner from '@/components/onboarding/OnboardingCompletionBanner';
 import dynamic from 'next/dynamic';
-import { MainLayout } from "@/components/layout/MainLayout";
-import HeartbeatProvider from '@/components/providers/HeartbeatProvider';
-import { ToastProvider } from '@/components/ui/Toast';
-import { Toaster } from 'react-hot-toast';
-import { SWRConfig } from 'swr';
-import { swrFetcher } from '@/lib/apiClient';
-import ErrorBoundary from '@/components/ErrorBoundary';
+const AuthenticatedShell = dynamic(() => import('@/components/layout/AuthenticatedShell'), { ssr: false });
 
-const MobileOnboarding = dynamic(() => import('@/components/mobile/MobileOnboarding'), { ssr: false });
-const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
-// Phase 7 — global live-scan popup. Was previously mounted only on
-// /students/list (F10 in the audit). Lives at the app shell layer so
-// every authenticated route shows scan events in real time. Users can
-// opt out via localStorage['drais.liveScan.disabled']='1'.
-const LiveIdentityPopup = dynamic(
-  () => import('@/components/students/LiveIdentityPopup').then(m => m.LiveIdentityPopup),
-  { ssr: false },
-);
+function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isPreConnectionRoute = pathname === '/' || pathname === '/login' || pathname === '/signup' ||
+    pathname.startsWith('/auth') || pathname === '/forgot-password' || pathname.startsWith('/reset-password') ||
+    pathname === '/unauthorized' || pathname === '/forbidden' || pathname === '/server-error';
+  return <I18nProvider loadSchoolDefault={!isPreConnectionRoute}>{children}</I18nProvider>;
+}
 
 // Create a stable QueryClient instance
 const queryClient = new QueryClient({
@@ -92,51 +75,21 @@ function getPageTitle(pathname: string): string {
 
 function DynamicTitle() {
   const pathname = usePathname();
-  
-  useEffect(() => {
-    const title = getPageTitle(pathname);
-    document.title = title;
-  }, [pathname]);
-  
+  useEffect(() => { document.title = getPageTitle(pathname); }, [pathname]);
   return null;
 }
 
-// Lock the PWA to portrait orientation when the Screen Orientation API is available
-// (works in Chrome Android when installed as PWA / fullscreen)
 function OrientationLock() {
   useEffect(() => {
     const nav = navigator as any;
     const orientation = screen.orientation || nav.mozOrientation || nav.msOrientation;
-    if (orientation && typeof orientation.lock === 'function') {
-      orientation.lock('portrait').catch(() => {
-        // lock() throws if not in fullscreen — ignore silently
-      });
-    }
+    orientation?.lock?.('portrait').catch(() => {});
   }, []);
   return null;
 }
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showMobileOnboarding, setShowMobileOnboarding] = useState(false);
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return !sessionStorage.getItem('drais_splash_shown');
-  });
-
-  // Check if this is the first visit for mobile onboarding
-  useEffect(() => {
-    const hasSeenMobileOnboarding = localStorage.getItem('drais_mobile_onboarding_seen');
-    if (!hasSeenMobileOnboarding && typeof window !== 'undefined') {
-      setShowMobileOnboarding(true);
-    }
-  }, []);
-
-  const handleOnboardingComplete = () => {
-    localStorage.setItem('drais_mobile_onboarding_seen', 'true');
-    setShowMobileOnboarding(false);
-  };
 
   // Routes where Sidebar and Navbar should be hidden
   // These are public/auth routes that don't need the main app shell
@@ -172,30 +125,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       ) : (
-        <>
-          <ImpersonationBanner />
-          <MainLayout>
-            <HeartbeatProvider />
-            {/* Phase 7 — global live-scan popup (was /students/list only). */}
-            <LiveIdentityPopup />
-            {children}
-          </MainLayout>
-          <FeatureUpdateNotification />
-          {/* Onboarding system — global modals, tour, help search */}
-          <OnboardingOrchestrator />
-          <OnboardingCompletionBanner />
-          {/* Mobile onboarding slides */}
-          {showMobileOnboarding && <MobileOnboarding onComplete={handleOnboardingComplete} />}
-          {/* Splash screen — shown once per session */}
-          {showSplash && (
-            <SplashScreen
-              onFinished={() => {
-                sessionStorage.setItem('drais_splash_shown', '1');
-                setShowSplash(false);
-              }}
-            />
-          )}
-        </>
+        <AuthenticatedShell>{children}</AuthenticatedShell>
       )}
     </div>
   );
@@ -247,24 +177,10 @@ export default function RootLayout({
         <QueryClientProvider client={queryClient}>
           <ProgressProvider>
             <AuthProvider>
-              <OnboardingProvider>
-                <TermProvider>
-                  <ThemeProvider>
-                    <I18nProvider>
-                      <ToastProvider>
-                        <SWRConfig value={{ fetcher: swrFetcher, revalidateOnFocus: false, shouldRetryOnError: false }}>
-                          <ErrorBoundary>
-                            <LayoutContent>{children}</LayoutContent>
-                          </ErrorBoundary>
-                          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
-                        </SWRConfig>
-                      </ToastProvider>
-                    </I18nProvider>
-                  </ThemeProvider>
-                </TermProvider>
-              </OnboardingProvider>
+              <ThemeProvider>
+                <RouteScopedI18nProvider><LayoutContent>{children}</LayoutContent></RouteScopedI18nProvider>
+              </ThemeProvider>
             </AuthProvider>
-            <ProgressOverlay />
           </ProgressProvider>
         </QueryClientProvider>
       </body>

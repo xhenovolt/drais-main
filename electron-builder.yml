@@ -73,14 +73,14 @@ nodeGypRebuild: false
 buildDependenciesFromSource: false
 asar: true
 asarUnpack: []
+forceCodeSigning: false
 
 win:
-  # DRAIS ships unsigned (no code-signing certificate). Disabling sign+edit
-  # stops electron-builder from downloading/extracting winCodeSign — whose
-  # bundled macOS symlinks cannot be created on Windows without Developer Mode
-  # or admin, which previously aborted the build. The installer/shortcut icon
-  # still comes from `win.icon` below.
-  signAndEditExecutable: false
+  # This remains an unsigned build, but electron-builder must edit the copied
+  # Electron executable to embed build/icon.ico. When this is false Windows
+  # shortcuts inherit Electron's default icon even though the installer config
+  # names a DRAIS icon.
+  signAndEditExecutable: true
   target:
     - target: nsis
       arch:

@@ -110,14 +110,14 @@ SQLite → outbox/sync engine → TiDB Cloud`}</Diagram>
       <h2>First SQLite route</h2>
       <Table head={['Item', 'Implementation']} rows={[
         [<strong>Endpoint</strong>, <><code>/api/students/offline</code> and <code>/api/students/offline/[id]</code></>],
-        [<strong>Database</strong>, <code>~/.drais/local.sqlite</code>, overridden by <code>DRAIS_SQLITE_PATH</code>],
-        [<strong>Tables</strong>, <code>people</code> and <code>students</code>, with <code>schools</code> tenant anchor],
+        [<strong>Database</strong>, <><code>~/.drais/local.sqlite</code>, overridden by <code>DRAIS_SQLITE_PATH</code></>],
+        [<strong>Tables</strong>, <><code>people</code> and <code>students</code>, with <code>schools</code> tenant anchor</>],
         [<strong>Read</strong>, 'List/search and get compose typed repository records.'],
         [<strong>Write</strong>, 'Create, update, soft-delete and restore.'],
         [<strong>Validation</strong>, 'Required names, numeric ids, mode gate, session gate and typed repository errors.'],
         [<strong>Transactions</strong>, 'Create inserts person and student in one SQLite transaction; duplicate admission rolls back both.'],
         [<strong>Errors</strong>, '401 unauthenticated, 400 invalid input/id, 404 missing record, 409 duplicate, 500 unexpected failure.'],
-        [<strong>Tests</strong>, <code>npm run test:repo</code> uses real SQLite memory and file connections plus real NextRequest/NextResponse bridges.'],
+        [<strong>Tests</strong>, <><code>npm run test:repo</code> uses real SQLite memory and file connections plus real NextRequest/NextResponse bridges.</>],
       ]} />
 
       <h2>Route development pattern</h2>
