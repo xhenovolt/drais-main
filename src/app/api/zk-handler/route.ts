@@ -25,7 +25,7 @@ import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
 import { completeAdmsInventoryRun, refreshLiveCountFromDirectory } from '@/lib/biometric/inventory-service';
 import { drainOutboxOpportunistically, drainNotificationOutbox } from '@/lib/notifications/drain';
 import { runDeviceStatusSweepOpportunistically } from '@/lib/devices/device-status-sweep';
-import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
+import { ensureDevicesCanonicalSchema, ensureDeviceSchoolIdNullable } from '@/lib/devices/migrations/devices-canonical-schema';
 import { admsUploadAck, normalizeDeviceDateTime, parseZKBody } from '@/lib/attendance/adms-protocol';
 
 /**
@@ -1147,6 +1147,11 @@ export async function GET(req: NextRequest) {
     // found the sn-keyed table existed only as runtime drift). Gated
     // per-process; a no-op after the first call.
     ensureDevicesCanonicalSchema().catch(() => {});
+    // A never-seen SN resolves to schoolId=null below, which used to
+    // violate school_id NOT NULL on every table this handler writes to
+    // and get silently swallowed — see ensureDeviceSchoolIdNullable's
+    // doc comment. Gated per-process; a no-op once already nullable.
+    ensureDeviceSchoolIdNullable().catch(() => {});
 
     if (!sn) {
       zkLog('warn', 'NO_SERIAL_NUMBER', { ip, qs });
@@ -1233,6 +1238,11 @@ export async function POST(req: NextRequest) {
   const ua = req.headers.get('user-agent') || '';
   const table = (url.searchParams.get('table') || 'ATTLOG').toUpperCase();
   const path = (url.searchParams.get('path') || '').toLowerCase();
+
+  // Same self-heal as GET — POST can arrive first (e.g. a device that
+  // reconnects mid-sync) and would hit the same NOT NULL violation.
+  ensureDevicesCanonicalSchema().catch(() => {});
+  ensureDeviceSchoolIdNullable().catch(() => {});
 
   // Capture select headers (avoid leaking auth tokens — only device-relevant ones)
   const headerObj: Record<string, string> = {};

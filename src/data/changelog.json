@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-05T18:28:31.718Z",
-  "last_commit": "3f86a1175f85a22e8797b79ded3315c5a5ef5b3e",
+  "generated_at": "2026-09-05T19:39:06.421Z",
+  "last_commit": "d6f5097742edc3f796c2d18431d88f9d886c7607",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7450,7 +7450,20 @@
         }
       ],
       "commit": "3f86a1175f"
+    },
+    {
+      "version": "2.14.5",
+      "date": "2026-09-05",
+      "release_type": "patch",
+      "title": "Wire expense edit/approve actions, fix 403-as-500 permission bug, harden against .map crashes, use school-finance wording",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Wire expense edit/approve actions, fix 403-as-500 permission bug, harden against .map crashes, use school-finance wording"
+        }
+      ],
+      "commit": "d6f5097742"
     }
   ],
-  "app_version": "2.14.5"
+  "app_version": "2.14.6"
 }

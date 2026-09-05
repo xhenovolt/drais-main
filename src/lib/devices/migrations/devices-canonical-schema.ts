@@ -127,3 +127,56 @@ async function hasIndex(table: string, indexName: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Every table the ADMS pipeline writes school_id into on a brand-new,
+ * never-seen device serial. These predate multitenancy and were
+ * declared `school_id BIGINT NOT NULL DEFAULT 1` — `getDeviceSchoolId`
+ * correctly resolves an unknown SN to `null` so the device registers
+ * as UNASSIGNED, but every INSERT bound to that null then violated the
+ * NOT NULL constraint and was swallowed by the handler's fire-and-
+ * forget try/catch (required so a device only ever sees HTTP 200
+ * "OK"). Net effect: new devices heartbeated forever but never got a
+ * row in `devices`, so they never appeared — assigned OR unassigned —
+ * in /control/devices.
+ *
+ * database/migrations/tidb/046_devices_school_id_nullable.sql is the
+ * managed fix; this is the runtime defensive fallback for databases
+ * that haven't had it applied yet (see migrate.mjs's own doc comment:
+ * "Runtime ensure* modules remain as DEFENSIVE FALLBACK only").
+ */
+const SCHOOL_ID_NULLABLE_TABLES = [
+  'devices',
+  'zk_raw_logs',
+  'zk_device_logs',
+  'zk_parsed_logs',
+  'device_sync_state',
+] as const;
+
+let schoolIdNullableEnsured: Promise<void> | null = null;
+
+export function ensureDeviceSchoolIdNullable(): Promise<void> {
+  if (schoolIdNullableEnsured) return schoolIdNullableEnsured;
+  schoolIdNullableEnsured = (async () => {
+    for (const table of SCHOOL_ID_NULLABLE_TABLES) {
+      try {
+        const rows = (await query(
+          `SELECT IS_NULLABLE
+             FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = ?
+              AND COLUMN_NAME = 'school_id'`,
+          [table],
+        )) as Array<{ IS_NULLABLE: string }>;
+        // No row = table/column doesn't exist here yet — nothing to fix.
+        if (rows[0]?.IS_NULLABLE === 'NO') {
+          await query(`ALTER TABLE ${table} MODIFY COLUMN school_id BIGINT DEFAULT NULL`, []);
+          console.log(`[devices-schema] relaxed ${table}.school_id to accept NULL (unassigned devices)`);
+        }
+      } catch (err) {
+        console.warn(`[devices-schema] could not relax ${table}.school_id:`, err);
+      }
+    }
+  })();
+  return schoolIdNullableEnsured;
+}
