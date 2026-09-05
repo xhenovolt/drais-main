@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Income Statement (Profit & Loss).
+ * Income & Expenditure Statement (school-finance equivalent of a P&L).
  *
  * Generated entirely from recorded transactions — nothing here is hand-entered.
  * Revenue has TWO sources and both are shown separately, because for a school
@@ -57,7 +57,16 @@ export default function IncomeStatementPage() {
   );
 
   if (isLoading) return <ReportLoading />;
-  if (error) return <ReportError message={String((error as Error)?.message ?? error)} onRetry={() => mutate()} />;
+  if (error) {
+    const status = (error as any)?.status;
+    return (
+      <ReportError
+        message={String((error as Error)?.message ?? error)}
+        onRetry={() => mutate()}
+        accessDenied={status === 401 || status === 403}
+      />
+    );
+  }
   if (data && data.success === false) return <ReportError message={data.error} onRetry={() => mutate()} />;
 
   const d = data?.data;
@@ -83,8 +92,8 @@ export default function IncomeStatementPage() {
 
   return (
     <ReportShell
-      title={t('finance.incomeStatement', 'Income Statement')}
-      subtitle={t('finance.incomeStatementSub', 'Profit and loss, generated from recorded transactions')}
+      title={t('finance.incomeStatement', 'Income & Expenditure Statement')}
+      subtitle={t('finance.incomeStatementSub', 'Income and expenses, generated from recorded transactions')}
       periodLabel={`${range.start} → ${range.end}`}
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -155,7 +164,7 @@ export default function IncomeStatementPage() {
           </p>
           {totalIncome > 0 && (
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              {s.profit_margin}% {t('finance.margin', 'margin')}
+              {s.profit_margin}% {t('finance.margin', 'surplus margin')}
             </p>
           )}
         </div>
@@ -244,7 +253,7 @@ export default function IncomeStatementPage() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
             {t(
               'finance.onlyFeesHint',
-              'No categorised ledger income or expenses were recorded for this period. Record expenses under Expenditures, and other income in the Ledger, to see a full profit and loss.',
+              'No categorised ledger income or expenses were recorded for this period. Record expenses under Expenditures, and other income in the Ledger, to see a full income and expenditure statement.',
             )}
           </p>
         </div>

@@ -5,12 +5,12 @@
  *
  *   ASSETS        cash across money locations + outstanding fees receivable
  *   LIABILITIES   pending expenditures payable + student advance deposits
- *   EQUITY        net assets (assets − liabilities)
+ *   EQUITY        net school funds (assets − liabilities)
  *
- * The accounting identity ASSETS = LIABILITIES + EQUITY is asserted visibly on
- * the statement rather than assumed. If it ever fails a director must see it
- * immediately — a balance sheet that silently does not balance is worse than no
- * balance sheet at all.
+ * The accounting identity ASSETS = LIABILITIES + NET SCHOOL FUNDS is asserted
+ * visibly on the statement rather than assumed. If it ever fails a director
+ * must see it immediately — a balance sheet that silently does not balance is
+ * worse than no balance sheet at all.
  *
  * Replaces a 13-line "Coming Soon" stub. The API already existed; nothing
  * rendered it, and its receivables query was leaking across tenants (now fixed).
@@ -40,7 +40,16 @@ export default function BalanceSheetPage() {
   );
 
   if (isLoading) return <ReportLoading />;
-  if (error) return <ReportError message={String((error as Error)?.message ?? error)} onRetry={() => mutate()} />;
+  if (error) {
+    const status = (error as any)?.status;
+    return (
+      <ReportError
+        message={String((error as Error)?.message ?? error)}
+        onRetry={() => mutate()}
+        accessDenied={status === 401 || status === 403}
+      />
+    );
+  }
   if (data && data.success === false) return <ReportError message={data.error} onRetry={() => mutate()} />;
 
   const d = data?.data;
@@ -99,7 +108,7 @@ export default function BalanceSheetPage() {
         </div>
         <div className="rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-            {t('finance.netAssets', 'Net assets')}
+            {t('finance.netAssets', 'Net school funds')}
           </p>
           <p className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 tabular-nums">
             {format(netAssets)}
@@ -132,8 +141,8 @@ export default function BalanceSheetPage() {
       )}
 
       <Line
-        label={t('finance.accountsReceivable', 'Accounts receivable')}
-        hint={t('finance.outstandingFees', 'Outstanding student fees')}
+        label={t('finance.accountsReceivable', 'Fees receivable')}
+        hint={t('finance.outstandingFees', 'Outstanding student fees not yet collected')}
         value={format(totalReceivable)}
       />
       {totalReceivable > 0 && (
@@ -170,8 +179,8 @@ export default function BalanceSheetPage() {
       <SectionTitle>{t('finance.liabilities', 'Liabilities')}</SectionTitle>
 
       <Line
-        label={t('finance.accountsPayable', 'Accounts payable')}
-        hint={`${Number(payable.count ?? 0)} ${t('finance.pendingExpenditures', 'pending expenditures')}`}
+        label={t('finance.accountsPayable', 'Amounts payable')}
+        hint={`${Number(payable.count ?? 0)} ${t('finance.pendingExpenditures', 'pending expenses awaiting payment')}`}
         value={format(totalPayable)}
       />
       <Line
@@ -185,22 +194,22 @@ export default function BalanceSheetPage() {
         emphasis="subtotal"
       />
 
-      {/* Equity */}
-      <SectionTitle>{t('finance.equity', 'Equity')}</SectionTitle>
+      {/* Net school funds (assets less liabilities — the nonprofit equivalent of equity) */}
+      <SectionTitle>{t('finance.equity', 'Net School Funds')}</SectionTitle>
       <Line
-        label={t('finance.accumulatedValue', 'Accumulated school value')}
+        label={t('finance.accumulatedValue', 'Net school funds')}
         hint={t('finance.assetsMinusLiabilities', 'Assets less liabilities')}
         value={format(netAssets)}
       />
       <Line
-        label={t('finance.totalEquity', 'Total equity')}
+        label={t('finance.totalEquity', 'Total net school funds')}
         value={format(Number(equity.total_equity ?? netAssets))}
         emphasis="subtotal"
       />
 
       <div className="mt-4">
         <Line
-          label={t('finance.liabilitiesPlusEquity', 'Liabilities + equity')}
+          label={t('finance.liabilitiesPlusEquity', 'Liabilities + net school funds')}
           value={format(totalLiabilities + netAssets)}
           emphasis="total"
         />
@@ -226,7 +235,7 @@ export default function BalanceSheetPage() {
             }`}
           >
             {balances
-              ? t('finance.balanced', 'Balanced — assets equal liabilities plus equity')
+              ? t('finance.balanced', 'Balanced — assets equal liabilities plus net school funds')
               : t('finance.notBalanced', 'This statement does not balance')}
           </p>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 tabular-nums">

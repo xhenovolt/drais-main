@@ -35,16 +35,42 @@ export default function FinanceDashboard() {
   const { t } = useI18n();
   const [d, setD] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      try { const r = await fetch('/api/finance/dashboard', { cache: 'no-store' }); setD(await r.json()); }
-      finally { setLoading(false); }
+      try {
+        const r = await fetch('/api/finance/dashboard', { cache: 'no-store' });
+        const body = await r.json().catch(() => null);
+        if (!r.ok || body?.success === false) {
+          setLoadError(body?.error || `Failed to load dashboard (${r.status})`);
+          setD(null);
+          return;
+        }
+        setD(body);
+      } catch {
+        setLoadError('Network error. Check your connection.');
+        setD(null);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
-  if (!d?.success) return <div className="max-w-5xl mx-auto p-6 text-sm text-red-600">{t('financeDash.failedLoad', 'Failed to load dashboard.')}</div>;
+  if (!d?.success) {
+    const denied = loadError?.toLowerCase().includes('forbidden') || loadError?.toLowerCase().includes('permission');
+    return (
+      <div className="max-w-5xl mx-auto p-6 text-sm text-red-600">
+        {denied ? t('financeDash.accessDenied', 'You do not have permission to view the finance dashboard.') : (loadError || t('financeDash.failedLoad', 'Failed to load dashboard.'))}
+      </div>
+    );
+  }
+
+  const warnings = Array.isArray(d.warnings) ? d.warnings : [];
+  const balancesByClass = Array.isArray(d.balancesByClass) ? d.balancesByClass : [];
+  const recentReceipts = Array.isArray(d.recentReceipts) ? d.recentReceipts : [];
+  const moneyByType = d.money?.byType && typeof d.money.byType === 'object' ? d.money.byType : {};
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
@@ -54,9 +80,9 @@ export default function FinanceDashboard() {
       </div>
 
       {/* Warnings */}
-      {d.warnings?.length > 0 && (
+      {warnings.length > 0 && (
         <div className="space-y-2">
-          {d.warnings.map((w: any, i: number) => (
+          {warnings.map((w: any, i: number) => (
             <div key={i} className={`flex items-center gap-2 p-3 rounded-lg text-sm ${w.level === 'danger' ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
               <AlertTriangle className="w-4 h-4" />{w.message}
             </div>
@@ -78,10 +104,10 @@ export default function FinanceDashboard() {
           <div className="flex items-center justify-between mb-3"><h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Wallet className="w-4 h-4 text-indigo-500" />{t('financeDash.moneyByLocation', 'Money by location')}</h2><Link href="/finance/locations" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">{t('financeDash.manage', 'Manage')} <ArrowRight className="w-3 h-3" /></Link></div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{format(d.money.total)} <span className="text-xs font-normal text-gray-400">{t('financeDash.totalHeld', 'total held')}</span></p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {Object.entries(d.money.byType).map(([mt, v]: any) => (
+            {Object.entries(moneyByType).map(([mt, v]: any) => (
               <div key={mt} className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-900/40"><p className="text-[11px] text-gray-500">{t(`financeDash.types.${mt}`, TYPE_LABEL[mt] || mt)}</p><p className="text-sm font-semibold text-gray-900 dark:text-white">{format(v)}</p></div>
             ))}
-            {Object.keys(d.money.byType).length === 0 && <p className="text-xs text-gray-400">{t('financeDash.noMoneyLocations', 'No money locations yet.')}</p>}
+            {Object.keys(moneyByType).length === 0 && <p className="text-xs text-gray-400">{t('financeDash.noMoneyLocations', 'No money locations yet.')}</p>}
           </div>
         </div>
 
@@ -107,8 +133,8 @@ export default function FinanceDashboard() {
           <table className="w-full text-sm">
             <thead className="text-gray-500"><tr><th className="text-left py-1">{t('financeDash.colClass', 'Class')}</th><th className="text-right">{t('financeDash.colExpected', 'Expected')}</th><th className="text-right">{t('financeDash.colOutstanding', 'Outstanding')}</th></tr></thead>
             <tbody>
-              {d.balancesByClass.length === 0 && <tr><td colSpan={3} className="py-3 text-center text-gray-400">{t('financeDash.noFeeData', 'No fee data.')}</td></tr>}
-              {d.balancesByClass.map((c: any, i: number) => (
+              {balancesByClass.length === 0 && <tr><td colSpan={3} className="py-3 text-center text-gray-400">{t('financeDash.noFeeData', 'No fee data.')}</td></tr>}
+              {balancesByClass.map((c: any, i: number) => (
                 <tr key={i} className="border-t border-gray-100 dark:border-gray-700/50"><td className="py-1.5">{c.class_name}</td><td className="text-right">{format(c.expected)}</td><td className="text-right text-red-600">{format(c.outstanding)}</td></tr>
               ))}
             </tbody>
@@ -119,9 +145,9 @@ export default function FinanceDashboard() {
         <div className="space-y-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Receipt className="w-4 h-4 text-indigo-500" />{t('financeDash.recentReceipts', 'Recent receipts')}</h2><Link href="/finance/payments" className="text-xs text-indigo-600 hover:underline">{t('financeDash.all', 'All')}</Link></div>
-            {d.recentReceipts.length === 0 ? <p className="text-xs text-gray-400">{t('financeDash.noReceipts', 'No receipts yet.')}</p> : (
+            {recentReceipts.length === 0 ? <p className="text-xs text-gray-400">{t('financeDash.noReceipts', 'No receipts yet.')}</p> : (
               <ul className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                {d.recentReceipts.map((r: any, i: number) => (
+                {recentReceipts.map((r: any, i: number) => (
                   <li key={i} className="py-1.5 flex items-center justify-between text-sm"><span className="text-gray-700 dark:text-gray-300">{r.student_name || '—'} <span className="text-xs text-gray-400 font-mono">{r.receipt_no}</span></span><span className="font-medium">{format(r.amount)}</span></li>
                 ))}
               </ul>

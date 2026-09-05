@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Printer, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Printer, Loader2, AlertTriangle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 
 export function ReportShell({
@@ -88,7 +88,21 @@ export function ReportLoading() {
   );
 }
 
-export function ReportError({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+export function ReportError({
+  message, onRetry, accessDenied,
+}: { message?: string; onRetry?: () => void; accessDenied?: boolean }) {
+  if (accessDenied) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-center px-6">
+        <ShieldAlert className="w-8 h-8 text-amber-500" />
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Access denied</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
+          Your account does not have permission to view this statement. Ask a school administrator to grant you
+          finance reports access.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center justify-center h-64 gap-3 text-center px-6">
       <AlertTriangle className="w-8 h-8 text-amber-500" />

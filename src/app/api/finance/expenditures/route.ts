@@ -4,6 +4,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { checkModule } from '@/lib/auth/requireModule';
+import { errorResponse } from '@/lib/apiError';
 // GET /api/finance/expenditures
 // List expenditures with filtering
 export async function GET(req: NextRequest) {
@@ -133,10 +134,7 @@ export async function GET(req: NextRequest) {
     
   } catch (error: any) {
     console.error('Expenditures fetch error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to fetch expenditures'
-    }, { status: 500 });
+    return errorResponse(error, 'Failed to fetch expenditures');
   } finally {
     if (connection) await connection.end();
   }
@@ -209,10 +207,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     if (connection) await connection.rollback();
     console.error('Expenditure creation error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to create expenditure'
-    }, { status: 500 });
+    return errorResponse(error, 'Failed to create expenditure');
   } finally {
     if (connection) await connection.end();
   }
@@ -242,8 +237,7 @@ export async function PUT(req: NextRequest) {
       vendor_contact,
       invoice_number,
       expense_date,
-      status,
-      approved_by } = body;
+      status } = body;
     
     if (!id) {
       return NextResponse.json({
@@ -295,8 +289,11 @@ export async function PUT(req: NextRequest) {
       updateFields.push('status = ?');
       params.push(status);
       if (status === 'approved') {
+        // Never trust a client-supplied approver id — it silently defaulted to
+        // user id 1 when omitted, corrupting the audit trail for who approved
+        // spending. Always record the authenticated session user.
         updateFields.push('approved_by = ?');
-        params.push(approved_by || 1);
+        params.push(session.userId);
         updateFields.push('approved_at = NOW()');
       }
     }
@@ -319,10 +316,7 @@ export async function PUT(req: NextRequest) {
   } catch (error: any) {
     if (connection) await connection.rollback();
     console.error('Expenditure update error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to update expenditure'
-    }, { status: 500 });
+    return errorResponse(error, 'Failed to update expenditure');
   } finally {
     if (connection) await connection.end();
   }
@@ -368,10 +362,7 @@ export async function DELETE(req: NextRequest) {
     
   } catch (error: any) {
     console.error('Expenditure deletion error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to delete expenditure'
-    }, { status: 500 });
+    return errorResponse(error, 'Failed to delete expenditure');
   } finally {
     if (connection) await connection.end();
   }

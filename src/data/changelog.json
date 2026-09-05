@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-27T22:36:52.742Z",
-  "last_commit": "2b4161a30b9daecb718e6d0ff5e23aeb2a4857e4",
+  "generated_at": "2026-09-05T18:28:31.718Z",
+  "last_commit": "3f86a1175f85a22e8797b79ded3315c5a5ef5b3e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7437,7 +7437,20 @@
         }
       ],
       "commit": "7024165aad"
+    },
+    {
+      "version": "2.14.4",
+      "date": "2026-08-28",
+      "release_type": "patch",
+      "title": "Fix offline startup and database mode selection",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Fix offline startup and database mode selection"
+        }
+      ],
+      "commit": "3f86a1175f"
     }
   ],
-  "app_version": "2.14.4"
+  "app_version": "2.14.5"
 }

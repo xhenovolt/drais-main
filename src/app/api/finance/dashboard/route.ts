@@ -15,11 +15,24 @@ import { listLocations } from '@/lib/finance/locations';
 import { listBudgets, budgetWarnings } from '@/lib/finance/budgets';
 import { listAccounts as listPocket } from '@/lib/finance/pocketMoney';
 import { checkModule } from '@/lib/auth/requireModule';
+import { errorResponse } from '@/lib/apiError';
 
 export const runtime = 'nodejs';
 const num = (v: any) => Number(v) || 0;
 
 export async function GET(req: NextRequest) {
+  try {
+    return await buildDashboard(req);
+  } catch (error: any) {
+    // Nothing below was wrapped before — a permission denial or any SQL error
+    // (e.g. a bad column) threw uncaught, so Next.js returned a bare 500 HTML
+    // error page instead of JSON, which the client couldn't parse.
+    console.error('Finance dashboard error:', error);
+    return errorResponse(error, 'Failed to load finance dashboard');
+  }
+}
+
+async function buildDashboard(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const modDenied = await checkModule(session.schoolId, 'finance');

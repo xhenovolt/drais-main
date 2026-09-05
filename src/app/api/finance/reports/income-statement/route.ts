@@ -4,6 +4,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { checkModule } from '@/lib/auth/requireModule';
+import { errorResponse } from '@/lib/apiError';
 // GET /api/finance/reports/income-statement
 // Get income statement report
 export async function GET(req: NextRequest) {
@@ -198,10 +199,7 @@ export async function GET(req: NextRequest) {
     
   } catch (error: any) {
     console.error('Income statement error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to generate income statement'
-    }, { status: 500 });
+    return errorResponse(error, 'Failed to generate income statement');
   } finally {
     if (connection) await connection.end();
   }

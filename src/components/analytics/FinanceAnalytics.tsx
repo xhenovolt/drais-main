@@ -46,7 +46,17 @@ export default function FinanceAnalytics({ schoolId, termId }: {
       const result = await response.json();
       
       if (result.success) {
-        setData(result.data);
+        // The API's five array fields are trusted as arrays here; guard
+        // against any future partial/malformed response so a bad shape
+        // shows "no data" instead of crashing every .map/.reduce below.
+        const d = result.data || {};
+        setData({
+          feeCollectionSummary: Array.isArray(d.feeCollectionSummary) ? d.feeCollectionSummary : [],
+          paymentTrends: Array.isArray(d.paymentTrends) ? d.paymentTrends : [],
+          outstandingBalances: Array.isArray(d.outstandingBalances) ? d.outstandingBalances : [],
+          incomeExpenses: Array.isArray(d.incomeExpenses) ? d.incomeExpenses : [],
+          walletBalances: Array.isArray(d.walletBalances) ? d.walletBalances : [],
+        });
       } else {
         setError(result.error || 'Failed to fetch data');
       }

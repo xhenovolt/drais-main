@@ -34,6 +34,7 @@ export default function ExpendituresPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Expenditure | null>(null);
   const [formData, setFormData] = useState({
     category_id: '', amount: '', description: '', vendor_name: '', vendor_contact: '', invoice_number: '', expense_date: ''
   });
@@ -86,7 +87,7 @@ export default function ExpendituresPage() {
       const response = await apiFetch<{ data: Expenditure[], summary: any }>(url, { silent: true });
       setExpenditures(response);
     } catch (error) {
-      showToast('error', 'Failed to load expenditures');
+      showToast('error', 'Failed to load expenses');
     } finally {
       setIsLoading(false);
     }
@@ -97,17 +98,53 @@ export default function ExpendituresPage() {
   const entries = expenditures?.data || [];
   const summary = expenditures?.summary || {};
 
+  const emptyForm = { category_id: '', amount: '', description: '', vendor_name: '', vendor_contact: '', invoice_number: '', expense_date: '' };
+
+  const openAddModal = () => {
+    setEditingItem(null);
+    setFormData(emptyForm);
+    setShowModal(true);
+  };
+
+  const openEditModal = (item: Expenditure) => {
+    setEditingItem(item);
+    setFormData({
+      category_id: String(item.category_id ?? ''),
+      amount: String(item.amount ?? ''),
+      description: item.description || '',
+      vendor_name: item.vendor_name || '',
+      vendor_contact: item.vendor_contact || '',
+      invoice_number: item.invoice_number || '',
+      expense_date: item.expense_date ? String(item.expense_date).slice(0, 10) : '',
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingItem(null);
+    setFormData(emptyForm);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiFetch('/api/finance/expenditures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, amount: parseFloat(formData.amount) }),
-        successMessage: 'Expenditure added successfully',
-      });
-      setShowModal(false);
-      setFormData({ category_id: '', amount: '', description: '', vendor_name: '', vendor_contact: '', invoice_number: '', expense_date: '' });
+      if (editingItem) {
+        await apiFetch('/api/finance/expenditures', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingItem.id, ...formData, amount: parseFloat(formData.amount) }),
+          successMessage: 'Expense updated successfully',
+        });
+      } else {
+        await apiFetch('/api/finance/expenditures', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, amount: parseFloat(formData.amount) }),
+          successMessage: 'Expense added successfully',
+        });
+      }
+      closeModal();
       loadData();
     } catch (error) {
       // apiFetch already showed error toast
@@ -115,11 +152,41 @@ export default function ExpendituresPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!await confirmAction('Delete expenditure?', 'This action cannot be undone.', 'Delete')) return;
+    if (!await confirmAction('Delete expense?', 'This action cannot be undone.', 'Delete')) return;
     try {
       await apiFetch(`/api/finance/expenditures?id=${id}`, {
         method: 'DELETE',
-        successMessage: 'Expenditure deleted',
+        successMessage: 'Expense deleted',
+      });
+      loadData();
+    } catch (error) {
+      // apiFetch already showed error toast
+    }
+  };
+
+  const handleApprove = async (id: number) => {
+    if (!await confirmAction('Approve this expense?', 'This confirms the spending is authorized.', 'Approve')) return;
+    try {
+      await apiFetch('/api/finance/expenditures', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'approved' }),
+        successMessage: 'Expense approved',
+      });
+      loadData();
+    } catch (error) {
+      // apiFetch already showed error toast
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    if (!await confirmAction('Reject this expense?', 'This marks the expense as cancelled.', 'Reject')) return;
+    try {
+      await apiFetch('/api/finance/expenditures', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'cancelled' }),
+        successMessage: 'Expense rejected',
       });
       loadData();
     } catch (error) {
@@ -151,15 +218,15 @@ export default function ExpendituresPage() {
           <button onClick={() => setShowCatModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Plus className="w-4 h-4" />Category
           </button>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-            <Plus className="w-4 h-4" />Add Expenditure
+          <button onClick={openAddModal} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+            <Plus className="w-4 h-4" />Add Expense
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expenditure</p><p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{format(Number(summary.total_amount || 0))}</p></div>
+              <div><p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expenses</p><p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{format(Number(summary.total_amount || 0))}</p></div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center"><DollarSign className="w-6 h-6 text-white" /></div>
             </div>
           </motion.div>
@@ -213,7 +280,7 @@ export default function ExpendituresPage() {
               {isLoading ? (
                 <tr><td colSpan={7} className="px-6 py-12 text-center"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div><p className="text-gray-500">Loading...</p></td></tr>
               ) : entries.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-12 text-center"><DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" /><p className="text-gray-500">No expenditures found</p></td></tr>
+                <tr><td colSpan={7} className="px-6 py-12 text-center"><DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" /><p className="text-gray-500">No expenses found</p></td></tr>
               ) : entries.map((item, index) => (
                 <motion.tr key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 20) * 0.02 }} className="hover:bg-gray-50 dark:hover:bg-slate-700">
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{item.expense_date}</td>
@@ -223,8 +290,14 @@ export default function ExpendituresPage() {
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">{format(Number(item.amount))}</td>
                   <td className="px-6 py-4 text-center"><span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>{item.status}</span></td>
                   <td className="px-6 py-4"><div className="flex items-center justify-center gap-2">
-                    <button className="p-2 rounded text-blue-600 hover:bg-blue-50"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(item.id)} className="p-2 rounded text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                    {item.status === 'pending' && (
+                      <>
+                        <button onClick={() => handleApprove(item.id)} className="p-2 rounded text-green-600 hover:bg-green-50" title="Approve"><CheckCircle className="w-4 h-4" /></button>
+                        <button onClick={() => handleReject(item.id)} className="p-2 rounded text-orange-600 hover:bg-orange-50" title="Reject"><XCircle className="w-4 h-4" /></button>
+                      </>
+                    )}
+                    <button onClick={() => openEditModal(item)} className="p-2 rounded text-blue-600 hover:bg-blue-50" title="Edit"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => handleDelete(item.id)} className="p-2 rounded text-red-600 hover:bg-red-50" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </div></td>
                 </motion.tr>
               ))}
@@ -286,7 +359,7 @@ export default function ExpendituresPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add Expenditure</h2>
+            <h2 className="text-xl font-bold mb-4">{editingItem ? 'Edit Expense' : 'Add Expense'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -308,8 +381,8 @@ export default function ExpendituresPage() {
               <div><label className="block text-sm font-medium mb-1">Description</label><textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
               <div><label className="block text-sm font-medium mb-1">Vendor Name</label><input type="text" value={formData.vendor_name} onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })} className="w-full px-4 py-2 border rounded-lg" /></div>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Add</button>
+                <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">{editingItem ? 'Save Changes' : 'Add'}</button>
               </div>
             </form>
           </motion.div>

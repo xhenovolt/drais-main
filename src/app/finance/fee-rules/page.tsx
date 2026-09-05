@@ -13,6 +13,21 @@ import { useCurrency } from '@/hooks/useCurrency';
 
 const emptyRule = { name: '', class_ids: [] as number[], gender: '', boarding: '', term_id: '', amount: '', priority: 100 };
 
+// class_ids arrives as a JSON string or array depending on write path, and is
+// occasionally malformed. Parsing it directly crashed the whole page render
+// (JSON.parse throw) or fed a non-array into .map ("classNameOf is not a
+// function") — this always yields a real array.
+function parseClassIds(raw: any): number[] {
+  if (Array.isArray(raw)) return raw;
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function FeeRulesPage() {
   const { format } = useCurrency();
   const searchParams = useSearchParams();
@@ -89,7 +104,7 @@ export default function FeeRulesPage() {
   }, [draftPayload, editingId, selected, loadRules, resetDraft]);
 
   const editRule = useCallback((r: any) => {
-    const classIds = r.class_ids ? JSON.parse(typeof r.class_ids === 'string' ? r.class_ids : JSON.stringify(r.class_ids)) : [];
+    const classIds = parseClassIds(r.class_ids);
     setDraft({
       name: r.name || '', class_ids: classIds || [], gender: r.gender || '', boarding: r.boarding || '',
       term_id: r.term_id ? String(r.term_id) : '', amount: r.amount != null ? String(r.amount) : '', priority: r.priority ?? 100,
@@ -118,7 +133,7 @@ export default function FeeRulesPage() {
   if (!items.length) return <div className="max-w-3xl mx-auto p-6 text-sm text-gray-500">Create a fee item first on <a href="/finance/fee-items" className="text-indigo-600 underline">Fee Items</a>.</div>;
 
   const describe = (r: any) => [
-    r.class_ids ? `classes: ${(JSON.parse(typeof r.class_ids === 'string' ? r.class_ids : JSON.stringify(r.class_ids)) || []).map(classNameOf).join(', ')}` : null,
+    r.class_ids ? `classes: ${parseClassIds(r.class_ids).map(classNameOf).join(', ')}` : null,
     r.gender ? `gender: ${r.gender}` : null,
     r.boarding ? r.boarding : null,
     r.term_id ? `term ${r.term_id}` : null,
