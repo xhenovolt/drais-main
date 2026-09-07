@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-07T06:01:10.776Z",
-  "last_commit": "a92b996717f61aa08687d794140923044cba2032",
+  "generated_at": "2026-09-07T09:08:21.202Z",
+  "last_commit": "3b66f0c5232a6ec394647ac375c9ef3b3c3a8282",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7515,7 +7515,20 @@
         }
       ],
       "commit": "a92b996717"
+    },
+    {
+      "version": "2.14.10",
+      "date": "2026-09-07",
+      "release_type": "patch",
+      "title": "Allow hosted online connection selection",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Allow hosted online connection selection"
+        }
+      ],
+      "commit": "3b66f0c523"
     }
   ],
-  "app_version": "2.14.10"
+  "app_version": "2.14.11"
 }
