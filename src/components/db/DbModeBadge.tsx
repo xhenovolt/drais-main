@@ -64,6 +64,12 @@ function useDbMode(onSelected?: () => void) {
   const switchTo = useCallback(async (mode: DbMode) => {
     setError(null);
     setSwitching(mode);
+    if (mode === 'online' && !info.allowLocal) {
+      setSelectedMode('online');
+      onSelected?.();
+      setSwitching(null);
+      return;
+    }
     try {
       const r = await fetch('/api/db-mode', {
         method: 'POST',

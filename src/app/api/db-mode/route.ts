@@ -40,19 +40,23 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isLocalAllowed()) {
-    return NextResponse.json(
-      { error: 'DB mode switching is disabled on this deployment (online only).' },
-      { status: 403 },
-    );
-  }
-
   let body: { mode?: DbMode } = {};
   try { body = await req.json(); } catch { /* empty */ }
   const target = body.mode;
   // 'local-sqlite' intentionally excluded — see this file's header.
   if (target !== 'online' && target !== 'local-mysql') {
     return NextResponse.json({ error: "mode must be 'online' or 'local-mysql'" }, { status: 400 });
+  }
+
+  // Hosted deployments are already forced online; selecting Online is a no-op.
+  if (!isLocalAllowed() && target === 'online') {
+    return NextResponse.json({ ...describeMode('online'), allowLocal: false, health: null, reauthRequired: false });
+  }
+  if (!isLocalAllowed()) {
+    return NextResponse.json(
+      { error: 'DB mode switching is disabled on this deployment (online only).' },
+      { status: 403 },
+    );
   }
 
   // Probe the target BEFORE committing the switch so we don't strand the app on
