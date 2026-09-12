@@ -126,6 +126,68 @@ export default function Page() {
         <li><strong>Settle or write off the fee balance</strong>, so outstanding figures stay meaningful.</li>
       </ul>
 
+      <h2>Importing learners from Start</h2>
+
+      <p>
+        The import flow works best when the file is organised the way DRAIS expects. DRAIS can auto-detect
+        many columns, but the school must still give it a predictable structure. This is the main reason a
+        weak Start export feels confusing: the system is smart, but the file layout still matters.
+      </p>
+
+      <Callout kind="tip" title="Expected structure">
+        <p>Prepare one row per learner. The most common columns are:</p>
+        <ul>
+          <li><strong>name</strong> or <strong>first_name</strong> + <strong>last_name</strong></li>
+          <li><strong>reg_no</strong> or admission number</li>
+          <li><strong>class</strong> and optional <strong>section</strong> / stream</li>
+          <li><strong>gender</strong>, <strong>date_of_birth</strong>, <strong>phone</strong>, <strong>address</strong></li>
+        </ul>
+        <p>
+          If the import file only has one name column, map it to <strong>Full Name</strong>. If it has separate
+          first and last name columns, map both separately. Do not mix the two into one column unless you are
+          intentionally using a single full-name field.
+        </p>
+      </Callout>
+
+      <DefTable
+        rows={[
+          ['Required', 'At least one name field must be present. If you have first_name and last_name, both are better.'] ,
+          ['Admission number', 'Use reg_no if available. DRAIS matches duplicates by registration number first, then by name + class.'],
+          ['Class names', 'Use the exact class names already in DRAIS, for example Senior One, Form 1, Primary 4.'],
+          ['Streams', 'Use the same stream names your school already uses, or create them before import if needed.'],
+          ['Dates', 'Keep DOB in a clear date format such as YYYY-MM-DD.'],
+        ]}
+      />
+
+      <p>Example of the shape DRAIS expects:</p>
+      <pre className="overflow-x-auto rounded-md bg-slate-100 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+name,first_name,last_name,reg_no,class,section,gender,date_of_birth,phone,address
+Ali Hassan,, ,ADM-001,Senior One,A,M,2010-05-14,0700000001,Kampala
+Fatuma Nuru,Fatuma,Nuru,ADM-002,Senior Two,B,F,2009-08-22,0700000002,Entebbe
+      </pre>
+
+      <Steps>
+        <Step title="Prepare the file from Start">
+          Export the learner list with one row per learner and standard headers. Remove blank sheets and duplicate rows before uploading.
+        </Step>
+        <Step title="Upload and preview">
+          Open the import screen, upload the file, and review the first rows. DRAIS will show the detected columns and warnings.
+        </Step>
+        <Step title="Map the columns">
+          If DRAIS does not match the fields correctly, map each field to the correct source column. This is where the school usually corrects name and class mismatches.
+        </Step>
+        <Step title="Import and verify">
+          Run the import, check the summary, and verify a few learners in their classes before moving on.
+        </Step>
+      </Steps>
+
+      <Callout kind="warning" title="Common issue to avoid">
+        <p>
+          A file with two name columns but the same data in both places can confuse DRAIS. If first_name and
+          last_name both point to the same source column, the import is blocked until you remap the fields.
+        </p>
+      </Callout>
+
       <h2>Duplicates</h2>
 
       <p>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-07T09:08:21.202Z",
-  "last_commit": "3b66f0c5232a6ec394647ac375c9ef3b3c3a8282",
+  "generated_at": "2026-09-12T17:28:46.053Z",
+  "last_commit": "547b1cc52a1ca063034f3c4d9f8527803a654a1b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7528,7 +7528,20 @@
         }
       ],
       "commit": "3b66f0c523"
+    },
+    {
+      "version": "2.14.11",
+      "date": "2026-09-07",
+      "release_type": "patch",
+      "title": "Expose db mode metadata before login",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Expose db mode metadata before login"
+        }
+      ],
+      "commit": "547b1cc52a"
     }
   ],
-  "app_version": "2.14.11"
+  "app_version": "2.14.12"
 }

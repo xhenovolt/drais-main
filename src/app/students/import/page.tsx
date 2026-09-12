@@ -101,6 +101,20 @@ Ali Hassan,ADM-001,Senior One,,5000,M,2010-05-14,0700000001,Kampala
 Fatuma Nuru,ADM-002,Senior Two,Stream A,12500,F,2009-08-22,0700000002,Entebbe
 Ibrahim Sali,,Senior One,,0,M,2011-01-30,0700000003,,`;
 
+const START_IMPORT_GUIDE = {
+  title: 'Expected file structure from Start export',
+  body: [
+    'Use one row per learner. DRAIS can auto-map many columns, but it works best when the export is organised like this:',
+    'Column names should be close to: name OR first_name + last_name, reg_no, class, section, gender, date_of_birth, phone, address.',
+    'If a Start export has only one name column, map that column to Full Name. If it has separate first and last name columns, keep them separate.',
+    'Class names and streams must match the names already in DRAIS. If a class does not exist yet, DRAIS can create it during preview, but it is safer to create them before import.',
+    'Duplicates are matched by admission / reg number first. If the reg number is missing, DRAIS falls back to a name + class match.',
+  ],
+  example: `name,first_name,last_name,reg_no,class,section,gender,date_of_birth,phone,address
+Ali Hassan,, ,ADM-001,Senior One,A,M,2010-05-14,0700000001,Kampala
+Fatuma Nuru,Fatuma,Nuru,ADM-002,Senior Two,B,F,2009-08-22,0700000002,Entebbe`,
+};
+
 const TYPE_BADGES: Record<string, { label: string; color: string }> = {
   text:     { label: 'Text',     color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
   number:   { label: 'Number',   color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
@@ -544,13 +558,28 @@ export default function BulkImportPage() {
               </div>
 
               {showTemplate && (
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 space-y-4">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">CSV Column Headers</p>
                     <button onClick={downloadTemplate} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                       <Download size={12} /> Download .csv
                     </button>
                   </div>
+
+                  <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300 mb-2">{START_IMPORT_GUIDE.title}</p>
+                    <ul className="space-y-1.5 text-xs text-blue-800 dark:text-blue-200">
+                      {START_IMPORT_GUIDE.body.map((item, index) => (
+                        <li key={index}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Example expected structure</p>
+                    <pre className="text-xs overflow-x-auto text-gray-700 dark:text-gray-300">{START_IMPORT_GUIDE.example}</pre>
+                  </div>
+
                   <pre className="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto text-gray-700 dark:text-gray-300">{TEMPLATE_CSV}</pre>
                 </div>
               )}
