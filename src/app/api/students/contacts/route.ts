@@ -60,11 +60,14 @@ export async function GET(req: NextRequest) {
       JOIN people cp ON c.person_id = cp.id
       JOIN students s ON sc.student_id = s.id AND s.deleted_at IS NULL
       JOIN people sp ON s.person_id = sp.id
-      LEFT JOIN classes cl ON cl.id = (
-        SELECT e.class_id FROM enrollments e
-        WHERE e.student_id = s.id AND e.status = 'active'
-        ORDER BY e.id DESC LIMIT 1
-      )
+      LEFT JOIN (
+        SELECT student_id, MAX(id) AS latest_enrollment_id
+        FROM enrollments
+        WHERE status = 'active'
+        GROUP BY student_id
+      ) latest_e ON latest_e.student_id = s.id
+      LEFT JOIN enrollments e ON e.id = latest_e.latest_enrollment_id
+      LEFT JOIN classes cl ON cl.id = e.class_id
       WHERE s.school_id = ?
     `;
     const params: any[] = [schoolId, schoolId];

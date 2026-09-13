@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-13T15:11:54.211Z",
-  "last_commit": "8f1d90a25c96c0ccfde61e74e8caceba5b8fbfe3",
+  "generated_at": "2026-09-13T15:47:00.941Z",
+  "last_commit": "a8b1487d4a7d25faa9c912bab138a2b0a980926d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7554,7 +7554,20 @@
         }
       ],
       "commit": "8f1d90a25c"
+    },
+    {
+      "version": "2.14.13",
+      "date": "2026-09-13",
+      "release_type": "patch",
+      "title": "Bulk import student contacts",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Bulk import student contacts"
+        }
+      ],
+      "commit": "a8b1487d4a"
     }
   ],
-  "app_version": "2.14.13"
+  "app_version": "2.14.14"
 }
