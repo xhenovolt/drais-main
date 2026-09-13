@@ -1,11 +1,12 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Phone, Mail, User, Users, Heart, Edit2, MessageSquare } from 'lucide-react';
+import { Search, Plus, Phone, Mail, User, Users, Heart, Edit2, MessageSquare, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import AddContactModal from '@/components/students/AddContactModal';
+import ImportContactsModal from '@/components/students/ImportContactsModal';
 import ContactsListModal from '@/components/students/ContactsListModal';
 import Pagination from '@/components/ui/Pagination';
 
@@ -16,6 +17,7 @@ const ContactsPage: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showContactsList, setShowContactsList] = useState(false);
 
@@ -64,13 +66,22 @@ const ContactsPage: React.FC = () => {
               {pagination?.total ?? filteredContacts.length} contact records
             </p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            <Plus className="w-5 h-5" />
-            Add Contact
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="rounded-lg border border-emerald-300 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 dark:bg-slate-800 dark:text-emerald-300"
+            >
+              <FileSpreadsheet className="mr-2 inline h-5 w-5" />
+              Import Excel
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-white shadow-lg transition-all duration-200 hover:shadow-xl"
+            >
+              <Plus className="h-5 w-5" />
+              Add Contact
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -252,6 +263,12 @@ const ContactsPage: React.FC = () => {
           setShowAddModal(false);
           mutate();
         }}
+      />
+
+      <ImportContactsModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => { mutate(); }}
       />
 
       {/* Contacts List Modal (Edit, Delete, SMS, Call) */}

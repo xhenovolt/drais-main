@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-12T17:28:46.053Z",
-  "last_commit": "547b1cc52a1ca063034f3c4d9f8527803a654a1b",
+  "generated_at": "2026-09-13T15:11:54.211Z",
+  "last_commit": "8f1d90a25c96c0ccfde61e74e8caceba5b8fbfe3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7541,7 +7541,20 @@
         }
       ],
       "commit": "547b1cc52a"
+    },
+    {
+      "version": "2.14.12",
+      "date": "2026-09-12",
+      "release_type": "patch",
+      "title": "Clarify Start learner import structure",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Clarify Start learner import structure"
+        }
+      ],
+      "commit": "8f1d90a25c"
     }
   ],
-  "app_version": "2.14.12"
+  "app_version": "2.14.13"
 }
