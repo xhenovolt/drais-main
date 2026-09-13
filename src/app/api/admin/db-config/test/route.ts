@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { testConfig, EDITABLE_KEYS } from '@/lib/db/runtime-config';
+import { verifyDatabaseSettingsPasskey } from '@/lib/control/db-settings-passkey';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +18,8 @@ export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   if (!session.isSuperAdmin) return NextResponse.json({ error: 'Super-admin only' }, { status: 403 });
+  const passkey = req.headers.get('x-database-settings-passkey') || '';
+  if (!(await verifyDatabaseSettingsPasskey(passkey))) return NextResponse.json({ error: 'Database settings passkey required' }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const mode = (body?.mode === 'local' || body?.mode === 'local-mysql') ? 'local-mysql' : 'online';

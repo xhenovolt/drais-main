@@ -6,7 +6,7 @@
  * live (resets pools) and persists to the desktop config file.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Database, Cloud, HardDrive, Loader2, CheckCircle, XCircle, Save } from 'lucide-react';
+import { Database, Cloud, HardDrive, Loader2, CheckCircle, XCircle, Save, KeyRound } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const ONLINE = [
@@ -35,10 +35,18 @@ export default function DatabaseSettingsPage() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [passkey, setPasskey] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return window.sessionStorage.getItem('drais_database_settings_passkey') || '';
+  });
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  const authHeaders = () => ({ 'x-database-settings-passkey': passkey });
 
   useEffect(() => {
     (async () => {
-      const r = await fetch('/api/admin/db-config', { cache: 'no-store' });
+      const r = await fetch('/api/admin/db-config', { cache: 'no-store', headers: authHeaders() });
+      if (r.status === 401) { setAccessDenied(true); setLoading(false); return; }
       if (r.status === 403) { setForbidden(true); setLoading(false); return; }
       const j = await r.json();
       const v: Record<string, string> = {}; const sf: Record<string, boolean> = {};
@@ -59,7 +67,7 @@ export default function DatabaseSettingsPage() {
     try {
       const body: any = { mode: m };
       for (const f of fields) if (vals[f.k] !== '') body[f.k] = vals[f.k];
-      const r = await fetch('/api/admin/db-config/test', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const r = await fetch('/api/admin/db-config/test', { method: 'POST', headers: { 'content-type': 'application/json', ...authHeaders() }, body: JSON.stringify(body) });
       const j = await r.json();
       setTestResult((p) => ({ ...p, [m]: j }));
     } finally { setTesting(null); }
@@ -74,7 +82,7 @@ export default function DatabaseSettingsPage() {
         if (f.secret) { if (vals[f.k]) body[f.k] = vals[f.k]; }
         else if (vals[f.k] !== undefined) body[f.k] = vals[f.k];
       }
-      const r = await fetch('/api/admin/db-config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const r = await fetch('/api/admin/db-config', { method: 'POST', headers: { 'content-type': 'application/json', ...authHeaders() }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!r.ok) { toast.error(j.error || 'Save failed'); return; }
       toast.success('Database settings saved & applied');
@@ -83,6 +91,7 @@ export default function DatabaseSettingsPage() {
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
   if (forbidden) return <div className="max-w-3xl mx-auto p-6 text-sm text-red-600">Database settings are restricted to super-admins.</div>;
+  if (accessDenied) return <DatabasePasskeyGate passkey={passkey} setPasskey={setPasskey} onUnlock={() => { window.sessionStorage.setItem('drais_database_settings_passkey', passkey); setAccessDenied(false); setLoading(true); window.location.reload(); }} />;
 
   const Card = ({ title, icon, fields, m }: any) => {
     const tr = testResult[m];
@@ -139,6 +148,15 @@ export default function DatabaseSettingsPage() {
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save & apply
         </button>
       </div>
+    </div>
+  );
+}
+
+function DatabasePasskeyGate({ passkey, setPasskey, onUnlock }: { passkey: string; setPasskey: (value: string) => void; onUnlock: () => void }) {
+  return (
+    <div className="max-w-md mx-auto mt-16 rounded-xl border border-amber-200 bg-white p-6 shadow-sm dark:border-amber-800 dark:bg-gray-800">
+      <div className="flex items-center gap-3 mb-4"><div className="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30"><KeyRound className="h-5 w-5 text-amber-600 dark:text-amber-400" /></div><div><h1 className="font-semibold text-gray-900 dark:text-white">Protected database settings</h1><p className="text-xs text-gray-500">Enter the Xhenvolt passkey to continue.</p></div></div>
+      <form onSubmit={(event) => { event.preventDefault(); onUnlock(); }} className="space-y-3"><input autoFocus type="password" value={passkey} onChange={(event) => setPasskey(event.target.value)} placeholder="Xhenvolt passkey" className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" /><button type="submit" disabled={!passkey} className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Unlock database settings</button></form>
     </div>
   );
 }

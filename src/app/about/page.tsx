@@ -13,10 +13,12 @@
  * This page is the seed of the future DRAIS Control Center.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
 import {
   Info, ChevronDown, ChevronRight, CheckCircle, AlertTriangle,
   GitCommit, Package, Server, Database, Shield, ShieldCheck, Milestone as MilestoneIcon,
+  Users, Upload, KeyRound, BookOpen, Fingerprint,
 } from 'lucide-react';
 import { SENTINEL_VERSION } from '@/lib/sentinel/types';
 import changelog from '@/data/changelog.json';
@@ -64,10 +66,71 @@ const fmtDate = (d: string) =>
 /** In-page sections — drive the sticky side/top navigation and scrollspy. */
 const SECTIONS: Array<{ id: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'overview',  label: 'Overview',          Icon: Package },
+  { id: 'capabilities', label: 'Current capabilities', Icon: ShieldCheck },
   { id: 'evolution', label: 'Product evolution',  Icon: MilestoneIcon },
   { id: 'history',   label: 'Release history',    Icon: GitCommit },
   { id: 'system',    label: 'System information',  Icon: Server },
 ];
+
+const CURRENT_CAPABILITIES = [
+  {
+    Icon: Upload,
+    title: 'Import learners from real school files',
+    description: 'Preview CSV and Excel files, map columns, detect name collisions, identify missing classes, and review the import before anything is written.',
+    href: '/students/import',
+    action: 'Open learner import',
+    tone: 'emerald',
+  },
+  {
+    Icon: Users,
+    title: 'Bulk-import student contacts',
+    description: 'Upload an Excel workbook, validate each row, detect duplicates within the file and against existing contacts, and download invalid-row reports.',
+    href: '/students/contacts',
+    action: 'Open contacts',
+    tone: 'sky',
+  },
+  {
+    Icon: Fingerprint,
+    title: 'Operate attendance with identity intelligence',
+    description: 'Connect fingerprint attendance, monitor device identity matching, trace corrections, and surface roster or synchronization problems before they spread.',
+    href: '/attendance/health',
+    action: 'View attendance health',
+    tone: 'amber',
+  },
+  {
+    Icon: Shield,
+    title: 'Keep the school system under watch',
+    description: 'DRAIS Sentinel monitors attendance, notifications, and background processes so operational issues can be investigated with evidence instead of guesswork.',
+    href: '/control/sentinel',
+    action: 'Open Sentinel',
+    tone: 'indigo',
+  },
+  {
+    Icon: KeyRound,
+    title: 'Protect high-trust database operations',
+    description: 'Database credentials are masked, protected by a separate Xhenvolt passkey, and reset only from the authenticated Control Center with an audit record.',
+    href: '/settings/database',
+    action: 'Open database settings',
+    tone: 'rose',
+  },
+  {
+    Icon: BookOpen,
+    title: 'Explain the work, not just the buttons',
+    description: 'The Help Center now documents the school setup order, learner lifecycle, Start exports, import structure, reports, fees, attendance, and recovery workflows.',
+    href: '/help',
+    action: 'Open Help Center',
+    tone: 'violet',
+  },
+];
+
+const CAPABILITY_STYLE: Record<string, { card: string; icon: string; link: string }> = {
+  emerald: { card: 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-900/10', icon: 'text-emerald-600 dark:text-emerald-400', link: 'text-emerald-700 dark:text-emerald-300' },
+  sky: { card: 'border-sky-200 bg-sky-50/60 dark:border-sky-900/50 dark:bg-sky-900/10', icon: 'text-sky-600 dark:text-sky-400', link: 'text-sky-700 dark:text-sky-300' },
+  amber: { card: 'border-amber-200 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-900/10', icon: 'text-amber-600 dark:text-amber-400', link: 'text-amber-700 dark:text-amber-300' },
+  indigo: { card: 'border-indigo-200 bg-indigo-50/60 dark:border-indigo-900/50 dark:bg-indigo-900/10', icon: 'text-indigo-600 dark:text-indigo-400', link: 'text-indigo-700 dark:text-indigo-300' },
+  rose: { card: 'border-rose-200 bg-rose-50/60 dark:border-rose-900/50 dark:bg-rose-900/10', icon: 'text-rose-600 dark:text-rose-400', link: 'text-rose-700 dark:text-rose-300' },
+  violet: { card: 'border-violet-200 bg-violet-50/60 dark:border-violet-900/50 dark:bg-violet-900/10', icon: 'text-violet-600 dark:text-violet-400', link: 'text-violet-700 dark:text-violet-300' },
+};
 
 function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -210,6 +273,31 @@ export default function AboutPage() {
         </div>
       )}
 
+      </section>
+
+      {/* ── Section · Current capabilities ── */}
+      <section id="capabilities" className="scroll-mt-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> What DRAIS can do now</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The current product surface, described by the workflows that are actually available.</p>
+          </div>
+          <span className="text-[10px] uppercase tracking-wide text-gray-400 whitespace-nowrap">Current capabilities</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {CURRENT_CAPABILITIES.map(({ Icon, title, description, href, action, tone }) => (
+            <div key={title} className={`rounded-lg border p-4 ${CAPABILITY_STYLE[tone].card}`}>
+              <div className="flex items-start gap-3">
+                <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${CAPABILITY_STYLE[tone].icon}`} />
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">{description}</p>
+                  <Link href={href} className={`inline-block mt-2 text-xs font-medium hover:underline ${CAPABILITY_STYLE[tone].link}`}>{action} <span aria-hidden="true">→</span></Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── Section · Product evolution (milestone layer) ── */}
