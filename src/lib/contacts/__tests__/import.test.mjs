@@ -44,3 +44,13 @@ test('maps common Excel headers into the import row', () => {
   assert.equal(row.contactFirstName, 'Sara');
   assert.equal(row.phone, '+256700000003');
 });
+
+test('maps guardian phone from a student-style workbook', () => {
+  const row = rowFromRecord({ admission_no: 'ADM-4', first_name: 'Omar', last_name: 'Khan', guardian_phone: '+256 700 000 004' }, {
+    admissionNo: 'admission_no', contactFirstName: 'first_name', contactLastName: 'last_name', phone: 'guardian_phone',
+  }, 2);
+  assert.equal(row.contactFirstName, 'Omar');
+  assert.equal(row.contactLastName, 'Khan');
+  assert.equal(row.phone, '+256 700 000 004');
+  assert.equal(normalizePhone(row.phone), '+256700000004');
+});

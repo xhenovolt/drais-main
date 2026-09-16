@@ -23,7 +23,7 @@ const HEADER_ALIASES: Record<keyof Omit<ContactImportRow, 'rowNumber'>, string[]
   admissionNo: ['admission_no', 'admission no', 'admission number', 'adm_no', 'adm no', 'reg_no', 'registration number'],
   contactFirstName: ['contact_first_name', 'contact first name', 'guardian_first_name', 'guardian first name', 'first_name', 'first name'],
   contactLastName: ['contact_last_name', 'contact last name', 'guardian_last_name', 'guardian last name', 'last_name', 'last name', 'surname'],
-  phone: ['phone', 'phone_number', 'phone number', 'contact_phone', 'contact phone', 'mobile', 'mobile number'],
+  phone: ['phone', 'phone_number', 'phone number', 'contact_phone', 'contact phone', 'guardian_phone', 'guardian phone', 'parent_phone', 'parent phone', 'mobile', 'mobile number'],
   email: ['email', 'email_address', 'email address', 'contact_email', 'contact email'],
   address: ['address', 'contact_address', 'contact address'],
   relationship: ['relationship', 'relation'],
