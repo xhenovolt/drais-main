@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-17T03:25:58.157Z",
-  "last_commit": "9838d6d3189952efbf59329de79e17ab4ae23c8e",
+  "generated_at": "2026-09-17T03:48:24.909Z",
+  "last_commit": "9fb5191428f6311bd5328e2ad84fa8a7bd67cc46",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7619,7 +7619,20 @@
         }
       ],
       "commit": "9838d6d318"
+    },
+    {
+      "version": "2.14.18",
+      "date": "2026-09-17",
+      "release_type": "patch",
+      "title": "Repair SMS provider page build",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Repair SMS provider page build"
+        }
+      ],
+      "commit": "9fb5191428"
     }
   ],
-  "app_version": "2.14.18"
+  "app_version": "2.14.20"
 }

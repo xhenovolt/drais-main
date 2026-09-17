@@ -7,8 +7,9 @@
  * Allocate credits so one school can't burn another's.
  */
 import React, { useState } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
-import { MessageSquare, Loader2, Wallet, Save, TrendingUp, Send, CheckCircle2, XCircle } from 'lucide-react';
+import { MessageSquare, Loader2, Wallet, Save, TrendingUp, Send, CheckCircle2, XCircle, ArrowRight, Settings2 } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 const nf = (n: any) => Number(n || 0).toLocaleString();
@@ -70,7 +71,15 @@ export default function ControlSms() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-400">SMS economics — provider balance, per-school allocation & usage, and internal cost vs retail price profit.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-400">SMS economics — central provider wallet, per-school allocation & usage, and internal cost vs retail price profit.</p>
+        <Link href="/control/sms/providers" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"><Settings2 className="w-4 h-4" /> Manage providers <ArrowRight className="w-3.5 h-3.5" /></Link>
+      </div>
+
+      <section className="bg-slate-900 border border-indigo-700/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div><div className="text-[11px] uppercase tracking-wide text-slate-500">Active platform provider</div><div className="text-lg font-semibold text-slate-100 mt-1">{provider?.provider || (isLoading ? 'Loading…' : 'No active provider')}</div><div className="text-xs text-slate-400 mt-1">All new SMS from every school use this provider. School provider settings do not override it.</div></div>
+        <Link href="/control/sms/providers" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs"><Settings2 className="w-4 h-4" /> Switch provider</Link>
+      </section>
 
       <section className="bg-slate-900 border border-amber-800/60 rounded-xl p-4 space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-100"><Send className="w-4 h-4 text-amber-300" /> SMS Test / Send Test Message</div>
@@ -86,14 +95,14 @@ export default function ControlSms() {
       {/* Provider overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-1"><span className="text-xs text-slate-400">Provider balance</span><Wallet className="w-4 h-4 text-emerald-400" /></div>
+          <div className="flex items-center justify-between mb-1"><span className="text-xs text-slate-400">Wallet balance</span><Wallet className="w-4 h-4 text-emerald-400" /></div>
           <div className="text-2xl font-bold text-slate-100 tabular-nums">
             {provider?.ok ? `${provider.currency} ${nf(provider.amount)}` : (isLoading ? '…' : '—')}
           </div>
           <div className="text-[11px] text-slate-500">
             {provider?.provider || 'No active central provider'}{provider?.source === 'school' ? ` · legacy via school #${provider.source_school_id} credentials` : provider?.source === 'central' ? ' · centralized platform account' : ' · legacy environment fallback'}
           </div>
-          {provider && !provider.ok && <div className="text-[11px] text-rose-400 mt-1">{provider.error}</div>}
+          {provider && !provider.ok && <div className="text-[11px] text-amber-300 mt-1">Balance unavailable: {provider.error}</div>}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div className="text-xs text-slate-400 mb-1">Estimated capacity</div>

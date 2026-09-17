@@ -5,12 +5,20 @@ import { createSmsProvider, listSmsProviders } from '@/lib/control/sms-providers
 import { SMS_PROVIDER_ADAPTERS } from '@/lib/sms/providers';
 
 export const runtime = 'nodejs';
+const PROVIDER_LIST_TIMEOUT_MS = 10_000;
 
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   if (!controlCan(user.role, 'sms.provider.view')) return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
-  return NextResponse.json({ success: true, providers: await listSmsProviders(), supported: Object.values(SMS_PROVIDER_ADAPTERS).map((adapter) => ({ type: adapter.type, name: adapter.displayName, required_fields: adapter.requiredFields })) });
+  const providers = await Promise.race([
+    listSmsProviders(),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Provider database request timed out')), PROVIDER_LIST_TIMEOUT_MS)),
+  ]).catch((error: any) => {
+    return NextResponse.json({ error: error?.message || 'Provider list unavailable' }, { status: 503 });
+  });
+  if (providers instanceof NextResponse) return providers;
+  return NextResponse.json({ success: true, providers, supported: Object.values(SMS_PROVIDER_ADAPTERS).map((adapter) => ({ type: adapter.type, name: adapter.displayName, required_fields: adapter.requiredFields })) });
 }
 
 export async function POST(req: NextRequest) {

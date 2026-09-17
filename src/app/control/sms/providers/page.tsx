@@ -5,13 +5,24 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { CheckCircle2, CircleAlert, Loader2, Plus, RefreshCw, Send, ShieldCheck, Trash2, Zap } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then((response) => response.json());
+const fetcher = async (url: string) => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || `Provider API returned HTTP ${response.status}`);
+    return body;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+};
 const inputClass = 'w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 text-sm';
 type ProviderForm = { provider_type: string; display_name: string; apiKey: string; username: string; password: string; senderId: string; baseUrl: string; clientId: string; clientSecret: string };
 const emptyForm = (): ProviderForm => ({ provider_type: 'yoola', display_name: '', apiKey: '', username: '', password: '', senderId: '', baseUrl: '', clientId: '', clientSecret: '' });
 
 export default function SmsProvidersPage() {
-  const { data, isLoading, mutate } = useSWR<any>('/api/control-center/sms/providers', fetcher, { refreshInterval: 30_000 });
+  const { data, error, isLoading, mutate } = useSWR<any>('/api/control-center/sms/providers', fetcher, { refreshInterval: 30_000, shouldRetryOnError: false });
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -99,6 +110,8 @@ export default function SmsProvidersPage() {
           ))}
         </div>
       </section>
+
+      {error && <section className="bg-rose-950/40 border border-rose-800/60 rounded-xl p-4"><div className="text-sm font-semibold text-rose-200">Provider list could not load</div><p className="text-xs text-rose-300 mt-1">{error.name === 'AbortError' ? 'The provider API timed out after 15 seconds.' : error.message}. Check that you are signed in to the Control Center, then reload.</p><button onClick={() => mutate()} className="mt-3 px-3 py-2 rounded-lg bg-rose-900 text-xs text-rose-100">Retry</button></section>}
 
       {showAdd && (
         <section className="bg-slate-900 border border-indigo-700/50 rounded-xl p-4 space-y-3">
