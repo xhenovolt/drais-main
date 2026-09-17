@@ -95,7 +95,7 @@ export function toObservation(
     module,
     severity: Math.abs(result.effectiveOffsetHours) >= 3 ? 'high' : 'medium',
     confidence: result.confidence,
-    probableCause: 'Device timezone / application timezone mismatch, or an uncorrected device clock, is offsetting attendance timestamps for this school.',
+    probableCause: `Device timezone / application timezone mismatch, or an uncorrected device clock, is offsetting attendance timestamps for ${schoolName} school.`,
     userImpact: `Administrators viewing ${module} may interpret attendance times incorrectly — records look ${Math.abs(result.effectiveOffsetHours)}h ${direction} of when the punch actually happened.`,
     technicalImpact: `${module} returns HTTP 200 with real records; the anomaly is in the data, not the route.`,
     evidence,

@@ -9,7 +9,7 @@
  *   2. Register it in PROVIDERS below.
  *   3. Allow its code from the settings UI.
  */
-import { sendSMS, normalizePhoneNumber } from '@/lib/africastalking';
+import { sendAfricasTalkingSMS, normalizePhoneNumber } from '@/lib/africastalking';
 import { sendWhatsAppMessage } from './providers/infobip-whatsapp';
 import type { CommChannel } from './events';
 
@@ -62,7 +62,7 @@ const africasTalkingSms: CommProvider = {
     const senderId = (senderName && senderName.trim()) || undefined;
     // sendSMS(phone, message, recipientName?, shortCode?, creds?) — pass
     // per-school credentials as the 5th arg (env fallback handled inside).
-    const r = await sendSMS(normalised, body, undefined, senderId, creds ?? undefined);
+    const r = await sendAfricasTalkingSMS(normalised, body, undefined, senderId, creds ?? undefined);
     return {
       success:           r.success,
       providerMessageId: r.messageId ?? null,

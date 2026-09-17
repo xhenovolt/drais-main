@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-16T14:44:24.208Z",
-  "last_commit": "490e00fad7fd07ef4d70b77b4c51ec66d68fc123",
+  "generated_at": "2026-09-17T01:54:07.698Z",
+  "last_commit": "7ff8fc79cfd8128fe1df58a7da855426950e74f3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7593,7 +7593,20 @@
         }
       ],
       "commit": "490e00fad7"
+    },
+    {
+      "version": "2.14.16",
+      "date": "2026-09-16",
+      "release_type": "patch",
+      "title": "Support guardian phone in contact imports",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Support guardian phone in contact imports"
+        }
+      ],
+      "commit": "7ff8fc79cf"
     }
   ],
-  "app_version": "2.14.16"
+  "app_version": "2.14.17"
 }

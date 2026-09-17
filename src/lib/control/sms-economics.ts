@@ -10,6 +10,8 @@
  */
 import { query } from '@/lib/db';
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
+import { getActiveSmsProvider } from '@/lib/sms/central';
+import { SMS_PROVIDER_ADAPTERS } from '@/lib/sms/providers';
 
 // ── Pure maths ──────────────────────────────────────────────────────────────
 
@@ -94,7 +96,20 @@ export async function resolveProviderCreds(): Promise<{ username: string; apiKey
 }
 
 /** Live provider balance from Africa's Talking (platform account). */
-export async function fetchProviderBalance(): Promise<{ ok: boolean; currency: string; amount: number; raw: string | null; source?: 'env' | 'school'; sourceSchoolId?: number; error?: string }> {
+export async function fetchProviderBalance(): Promise<{ ok: boolean; currency: string; amount: number; raw: string | null; provider?: string; source?: 'central' | 'env' | 'school'; sourceSchoolId?: number; error?: string }> {
+  const active = await getActiveSmsProvider();
+  if (active) {
+    const balance = await SMS_PROVIDER_ADAPTERS[active.providerType].getBalance(active.config);
+    return {
+      ok: balance.ok,
+      currency: balance.currency || '',
+      amount: balance.amount ?? 0,
+      raw: balance.amount == null ? null : `${balance.currency || ''} ${balance.amount}`.trim(),
+      provider: active.displayName,
+      source: 'central',
+      error: balance.error,
+    };
+  }
   const creds = await resolveProviderCreds();
   if (!creds) return { ok: false, currency: '', amount: 0, raw: null, error: 'Provider credentials not configured' };
   const { username, apiKey, source, schoolId } = creds;

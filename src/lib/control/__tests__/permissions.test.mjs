@@ -18,12 +18,14 @@ describe('controlCan', () => {
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'schools.hard_delete'), false);
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'plans.catalog'), false);
     assert.equal(controlCan('XHENVOLT_OPERATOR', 'operators.manage'), false);
+    assert.equal(controlCan('XHENVOLT_OPERATOR', 'sms.test'), true);
   });
 
   it('viewer is read-only', () => {
     assert.equal(controlCan('XHENVOLT_VIEWER', 'platform.view'), true);
     assert.equal(controlCan('XHENVOLT_VIEWER', 'schools.manage'), false);
     assert.equal(controlCan('XHENVOLT_VIEWER', 'devices.manage'), false);
+    assert.equal(controlCan('XHENVOLT_VIEWER', 'sms.test'), false);
   });
 
   it('unknown / null role gets nothing', () => {

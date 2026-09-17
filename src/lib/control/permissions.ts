@@ -24,6 +24,14 @@ export const CONTROL_PERMISSIONS = {
   'impersonate':        'Start and revoke school impersonations',
   'operators.manage':   'Create and manage Control Center operators',
   'sentinel.manage':    'Acknowledge/resolve/suppress Sentinel incidents, trigger a Full System Diagnosis, configure the Sentinel alert phone number',
+  'sms.test':            'Send a single controlled SMS infrastructure test',
+  'sms.provider.view':   'View centralized SMS providers and status',
+  'sms.provider.create': 'Add a centralized SMS provider',
+  'sms.provider.update': 'Update centralized SMS provider configuration',
+  'sms.provider.delete': 'Delete a disabled SMS provider',
+  'sms.provider.activate':'Activate a centralized SMS provider platform-wide',
+  'sms.provider.test':    'Send a controlled test through a selected provider',
+  'sms.balance.view':    'View centralized SMS provider balance',
 } as const;
 export type ControlPermission = keyof typeof CONTROL_PERMISSIONS;
 
@@ -31,8 +39,8 @@ const ALL = Object.keys(CONTROL_PERMISSIONS) as ControlPermission[];
 
 const ROLE_PERMISSIONS: Record<ControlRoleName, ControlPermission[]> = {
   XHENVOLT_SUPER_ADMIN: ALL,
-  XHENVOLT_OPERATOR: ['platform.view', 'schools.manage', 'devices.manage', 'billing.manage', 'impersonate', 'sentinel.manage'],
-  XHENVOLT_VIEWER: ['platform.view'],
+  XHENVOLT_OPERATOR: ['platform.view', 'schools.manage', 'devices.manage', 'billing.manage', 'impersonate', 'sentinel.manage', 'sms.test', 'sms.provider.view', 'sms.provider.create', 'sms.provider.update', 'sms.provider.delete', 'sms.provider.activate', 'sms.provider.test', 'sms.balance.view'],
+  XHENVOLT_VIEWER: ['platform.view', 'sms.provider.view', 'sms.balance.view'],
 };
 
 /** PURE: may this control role perform this permission? Unknown role → no. */

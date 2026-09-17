@@ -55,10 +55,17 @@ export function ensureControlSchema(): Promise<void> {
          ip VARCHAR(64) DEFAULT NULL,
          user_agent VARCHAR(255) DEFAULT NULL,
          expires_at DATETIME NOT NULL,
+         last_activity_at DATETIME DEFAULT NULL,
+         revoked_at DATETIME DEFAULT NULL,
          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
          UNIQUE KEY uk_control_token (token_hash),
          KEY idx_user (user_id)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, []);
+    for (const ddl of [
+      `ADD COLUMN last_activity_at DATETIME DEFAULT NULL`,
+      `ADD COLUMN revoked_at DATETIME DEFAULT NULL`,
+      `ADD INDEX idx_control_session_user_active (user_id, revoked_at, expires_at)`,
+    ]) { await query(`ALTER TABLE control_sessions ${ddl}`, []).catch(() => {}); }
     // Optional 2FA columns (additive; opt-in per operator).
     for (const ddl of [
       `ADD COLUMN totp_secret VARCHAR(64) DEFAULT NULL`,
@@ -154,6 +161,7 @@ export async function loginControl(
   const ok = u ? await verifyPassword(password, u.password_hash) : (await verifyPassword(password, 'scrypt$00$00'), false);
   if (!u || !ok || u.status !== 'active') {
     await recordLoginAttempt(normEmail, ip ?? null, false);
+    await controlAudit(null, 'login_failed', 'session', { email: normEmail }, ip ?? null);
     return u && u.status !== 'active' && ok
       ? { ok: false, reason: 'Account is disabled' }
       : { ok: false, reason: 'Invalid email or password' };
@@ -176,14 +184,16 @@ export async function loginControl(
     }
     if (!passed) {
       await recordLoginAttempt(normEmail, ip ?? null, false);
+      await controlAudit(u.id, 'login_failed', 'session', { reason: 'invalid_twofactor' }, ip ?? null);
       return { ok: false, needs2fa: true, reason: 'Invalid authenticator code' };
     }
   }
 
+  await cleanupControlSessions();
   const token = randomBytes(48).toString('hex');
   await query(
-    `INSERT INTO control_sessions (user_id, token_hash, ip, user_agent, expires_at)
-     VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))`,
+    `INSERT INTO control_sessions (user_id, token_hash, ip, user_agent, expires_at, last_activity_at)
+     VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR), NOW())`,
     [u.id, hashToken(token), ip ?? null, (userAgent || '').slice(0, 250) || null, SESSION_HOURS],
   );
   await query(`UPDATE control_users SET last_login = NOW() WHERE id = ?`, [u.id]);
@@ -239,7 +249,7 @@ export async function disableTotp(userId: number, code: string, ip?: string | nu
 
 export async function logoutControl(token: string): Promise<void> {
   await ensureControlSchema();
-  await query(`DELETE FROM control_sessions WHERE token_hash = ?`, [hashToken(token)]).catch(() => {});
+  await query(`UPDATE control_sessions SET revoked_at = NOW() WHERE token_hash = ?`, [hashToken(token)]).catch(() => {});
 }
 
 export async function getControlSession(req: NextRequest): Promise<ControlUser | null> {
@@ -249,11 +259,69 @@ export async function getControlSession(req: NextRequest): Promise<ControlUser |
   const rows = (await query(
     `SELECT u.id, u.name, u.email, u.role, u.status
        FROM control_sessions s JOIN control_users u ON u.id = s.user_id
-      WHERE s.token_hash = ? AND s.expires_at > NOW() AND u.status = 'active' LIMIT 1`,
+      WHERE s.token_hash = ? AND s.expires_at > NOW() AND s.revoked_at IS NULL AND u.status = 'active' LIMIT 1`,
     [hashToken(token)],
   )) as any[];
   const u = rows[0];
+  if (u) await query(`UPDATE control_sessions SET last_activity_at = NOW() WHERE token_hash = ?`, [hashToken(token)]).catch(() => {});
   return u ? { id: Number(u.id), name: u.name, email: u.email, role: u.role, status: u.status } : null;
+}
+
+export async function listControlSessions(req: NextRequest, userId: number) {
+  const currentToken = req.cookies.get(CONTROL_COOKIE)?.value;
+  const rows = (await query(
+    `SELECT id, ip, user_agent, created_at, expires_at, last_activity_at, revoked_at,
+            (token_hash = ?) AS is_current
+       FROM control_sessions
+      WHERE user_id = ? AND revoked_at IS NULL AND expires_at > NOW()
+      ORDER BY last_activity_at DESC, created_at DESC`,
+    [currentToken ? hashToken(currentToken) : '', userId],
+  )) as any[];
+  return rows.map((row) => ({
+    id: Number(row.id),
+    session_ref: hashToken(String(row.id)).slice(0, 12),
+    ip: row.ip,
+    user_agent: row.user_agent,
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+    last_activity_at: row.last_activity_at,
+    is_current: Number(row.is_current) === 1,
+  }));
+}
+
+export async function revokeControlSession(userId: number, sessionId: number, currentToken?: string | null): Promise<boolean> {
+  const result = (await query(
+    `UPDATE control_sessions SET revoked_at = NOW()
+      WHERE id = ? AND user_id = ? AND revoked_at IS NULL
+        AND token_hash <> ?`,
+    [sessionId, userId, currentToken ? hashToken(currentToken) : ''],
+  )) as any;
+  return Number(result?.affectedRows || 0) > 0;
+}
+
+export async function revokeOtherControlSessions(userId: number, currentToken: string): Promise<number> {
+  const result = (await query(
+    `UPDATE control_sessions SET revoked_at = NOW()
+      WHERE user_id = ? AND revoked_at IS NULL AND token_hash <> ?`,
+    [userId, hashToken(currentToken)],
+  )) as any;
+  return Number(result?.affectedRows || 0);
+}
+
+export async function revokeAllControlSessions(userId: number): Promise<number> {
+  const result = (await query(
+    `UPDATE control_sessions SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL`,
+    [userId],
+  )) as any;
+  return Number(result?.affectedRows || 0);
+}
+
+export async function cleanupControlSessions(): Promise<number> {
+  const result = (await query(
+    `DELETE FROM control_sessions WHERE expires_at <= NOW() OR revoked_at IS NOT NULL`,
+    [],
+  )) as any;
+  return Number(result?.affectedRows || 0);
 }
 
 export const clientIp = (req: NextRequest): string | null =>

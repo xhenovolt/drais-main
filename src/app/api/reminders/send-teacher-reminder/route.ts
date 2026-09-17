@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConnection } from "@/lib/db";
 import { getSessionSchoolId } from "@/lib/auth";
-import AfricasTalking from "africastalking";
-
-function getAfricasTalkingClient() {
-  const apiKey = process.env.AFRICASTALKING_API_KEY;
-  const username = process.env.AFRICASTALKING_USERNAME;
-  if (!apiKey || !username) {
-    throw new Error('Africa\'s Talking credentials not configured in environment');
-  }
-  return AfricasTalking({ apiKey, username });
-}
+import { sendSMS, normalizePhoneNumber } from '@/lib/africastalking';
 
 async function formatPhoneNumber(contact: string): Promise<string> {
   if (/^0\d{9}$/.test(contact)) {
@@ -37,9 +28,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const client = getAfricasTalkingClient();
-    const sms = client.SMS;
-
     const connection = await getConnection();
     const [rows] = await connection.execute(
       'SELECT p.phone FROM staff s JOIN people p ON s.person_id = p.id WHERE s.school_id = ? AND s.status = "active" AND p.phone IS NOT NULL',
@@ -53,9 +41,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Send SMS to all teacher contacts
-    const formattedContacts = await Promise.all(contacts.map(formatPhoneNumber));
-    const response = await sms.send({ to: formattedContacts, message });
-    return NextResponse.json({ success: true, message: 'SMS sent to all teachers.', response });
+    const formattedContacts = (await Promise.all(contacts.map(formatPhoneNumber))).map(normalizePhoneNumber).filter((phone): phone is string => !!phone);
+    const results = await Promise.all(formattedContacts.map((phone) => sendSMS(phone, message)));
+    const successful = results.filter((result) => result.success).length;
+    return NextResponse.json({ success: successful > 0, message: `SMS accepted for ${successful}/${formattedContacts.length} teachers.`, results });
   } catch (error: any) {
     console.error('Error sending reminders:', error.message);
     return NextResponse.json({ error: 'Failed to send reminders. Please try again later.' }, { status: 500 });

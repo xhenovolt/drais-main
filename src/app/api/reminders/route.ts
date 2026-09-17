@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConnection } from "@/lib/db";
 import { getSessionSchoolId } from '@/lib/auth';
-import AfricasTalking from "africastalking";
+import { sendSMS, normalizePhoneNumber } from '@/lib/africastalking';
 
 // Credentials come from the environment — never hardcode a provider key in
 // source (it leaks into git history). Set AFRICASTALKING_API_KEY /
@@ -12,16 +12,6 @@ import AfricasTalking from "africastalking";
 // constructor throws if apiKey is empty, and at build time — during Next.js
 // page-data collection — the env var is absent, which would fail the build.
 // Constructing on first send keeps import side-effect-free.
-let smsClient: ReturnType<typeof AfricasTalking>['SMS'] | null = null;
-function getSms() {
-  if (smsClient) return smsClient;
-  const apiKey = process.env.AFRICASTALKING_API_KEY;
-  const username = process.env.AFRICASTALKING_USERNAME || 'xhenovolt';
-  if (!apiKey) throw new Error('SMS is not configured (AFRICASTALKING_API_KEY is not set).');
-  smsClient = AfricasTalking({ apiKey, username }).SMS;
-  return smsClient;
-}
-
 async function formatPhoneNumber(contact: string): Promise<string> {
   if (/^0\d{9}$/.test(contact)) {
     return '+256' + contact.substring(1);
@@ -31,32 +21,6 @@ async function formatPhoneNumber(contact: string): Promise<string> {
     return contact;
   } else {
     return contact.startsWith('+') ? contact : '+' + contact;
-  }
-}
-
-async function sendSMS(to: string, message: string) {
-  const options = {
-    to: [to],
-    message,
-    from: 'XHENVOLT UG', // Replace with your sender ID or short code
-  };
-
-  try {
-    const response = await getSms().send(options);
-    const recipients = response.SMSMessageData?.Recipients || [];
-    if (recipients.length > 0 && recipients[0].status === 'Success') {
-      return {
-        success: true,
-        status: recipients[0].status,
-        messageId: recipients[0].messageId,
-        cost: recipients[0].cost,
-      };
-    } else {
-      throw new Error(`SMS failed with status: ${recipients[0]?.status || 'Unknown'}`);
-    }
-  } catch (error) {
-    console.error('Error sending SMS:', error);
-    throw new Error('Failed to send SMS. Please try again later.');
   }
 }
 
@@ -94,7 +58,8 @@ export async function POST(req: NextRequest) {
       }
 
       const contact = (rowsArray[0] as { contact: string }).contact;
-      const formattedContact = await formatPhoneNumber(contact);
+      const formattedContact = normalizePhoneNumber(await formatPhoneNumber(contact));
+      if (!formattedContact) return NextResponse.json({ error: 'Invalid member contact' }, { status: 400 });
 
       const smsResponse = await sendSMS(formattedContact, body.message);
 

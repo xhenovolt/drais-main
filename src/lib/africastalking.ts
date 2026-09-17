@@ -24,7 +24,7 @@ export interface SmsCredentials {
   apiKey?: string | null;
 }
 
-export async function sendSMS(
+export async function sendAfricasTalkingSMS(
   phoneNumber: string,
   message: string,
   recipientName?: string,
@@ -140,6 +140,20 @@ export async function sendSMS(
       error: error.message || 'Failed to send SMS'
     };
   }
+}
+
+/** Platform SMS entry point. Central provider configuration is authoritative
+ * when present; the legacy Africa's Talking environment path remains a
+ * compatibility fallback until a provider is configured in Control Center. */
+export async function sendSMS(
+  phoneNumber: string,
+  message: string,
+  recipientName?: string,
+  shortCode?: string,
+  creds?: SmsCredentials,
+): Promise<SMSResponse> {
+  const { sendCentralSMS } = await import('@/lib/sms/central');
+  return sendCentralSMS(phoneNumber, message, recipientName, shortCode, creds);
 }
 
 /**

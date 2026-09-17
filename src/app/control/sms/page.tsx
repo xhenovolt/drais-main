@@ -8,7 +8,7 @@
  */
 import React, { useState } from 'react';
 import useSWR from 'swr';
-import { MessageSquare, Loader2, Wallet, Save, TrendingUp } from 'lucide-react';
+import { MessageSquare, Loader2, Wallet, Save, TrendingUp, Send, CheckCircle2, XCircle } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 const nf = (n: any) => Number(n || 0).toLocaleString();
@@ -58,9 +58,30 @@ export default function ControlSms() {
 
   const priceDirty = priceEdits.internal_cost !== undefined || priceEdits.retail_price !== undefined;
 
+  const [testPhone, setTestPhone] = useState('');
+  const [testMessage, setTestMessage] = useState('DRAIS Control Center SMS test');
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testing, setTesting] = useState(false);
+  const sendTest = async () => {
+    if (!window.confirm('Send one controlled SMS test now? This uses the configured provider and may consume one SMS credit.')) return;
+    setTesting(true); setTestResult(null);
+    try { const r = await fetch('/api/control-center/sms-test', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone: testPhone, message: testMessage }) }); setTestResult(await r.json()); } finally { setTesting(false); }
+  };
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-400">SMS economics — provider balance, per-school allocation & usage, and internal cost vs retail price profit.</p>
+
+      <section className="bg-slate-900 border border-amber-800/60 rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-100"><Send className="w-4 h-4 text-amber-300" /> SMS Test / Send Test Message</div>
+        <p className="text-xs text-slate-400">Infrastructure troubleshooting only. One recipient, one short message, and one test per administrator every 10 minutes. This does not change school balances or pricing.</p>
+        <div className="grid grid-cols-1 md:grid-cols-[14rem_1fr_auto] gap-2 items-end">
+          <label className="text-xs text-slate-400">Phone number<input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="0741341483" className="mt-1 w-full px-2 py-2 rounded bg-slate-800 border border-slate-700 text-slate-100" /></label>
+          <label className="text-xs text-slate-400">Short test message<input value={testMessage} maxLength={160} onChange={(e) => setTestMessage(e.target.value)} className="mt-1 w-full px-2 py-2 rounded bg-slate-800 border border-slate-700 text-slate-100" /></label>
+          <button onClick={sendTest} disabled={testing || !testPhone || !testMessage.trim()} className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs disabled:opacity-40">{testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send test</button>
+        </div>
+        {testResult && <div className={`text-xs rounded-lg p-3 ${testResult.accepted_by_provider ? 'bg-emerald-950/50 text-emerald-200' : 'bg-rose-950/50 text-rose-200'}`}><div className="flex items-center gap-2 font-semibold">{testResult.accepted_by_provider ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}{testResult.accepted_by_provider ? 'Provider accepted the request' : 'Provider rejected the request'}</div><div className="mt-1">Internal message ID: {testResult.internal_message_id || 'none'} · Delivery status: {testResult.delivery_status || 'not available'}</div>{testResult.error && <div className="mt-1">Failure reason: {testResult.error}</div>}</div>}
+      </section>
 
       {/* Provider overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -70,7 +91,7 @@ export default function ControlSms() {
             {provider?.ok ? `${provider.currency} ${nf(provider.amount)}` : (isLoading ? '…' : '—')}
           </div>
           <div className="text-[11px] text-slate-500">
-            Africa&apos;s Talking{provider?.source === 'school' ? ` · via school #${provider.source_school_id} credentials` : ' (platform)'}
+            {provider?.provider || 'No active central provider'}{provider?.source === 'school' ? ` · legacy via school #${provider.source_school_id} credentials` : provider?.source === 'central' ? ' · centralized platform account' : ' · legacy environment fallback'}
           </div>
           {provider && !provider.ok && <div className="text-[11px] text-rose-400 mt-1">{provider.error}</div>}
         </div>

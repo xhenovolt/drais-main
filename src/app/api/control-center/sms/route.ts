@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     success: true,
     provider: {
-      ok: balance.ok, currency: balance.currency, amount: balance.amount, raw: balance.raw,
+      ok: balance.ok, provider: balance.provider ?? null, currency: balance.currency, amount: balance.amount, raw: balance.raw,
       error: balance.error ?? null,
       source: balance.source ?? null,
       source_school_id: balance.sourceSchoolId ?? null,

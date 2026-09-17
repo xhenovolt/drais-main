@@ -21,6 +21,7 @@ import { getCommSettings, isQuietHours, type CommSettings } from './settings';
 import { resolveTemplate, renderTemplate, applyPrefix } from './templates';
 import { getProvider } from './providers';
 import { resolveRecipients } from './recipients';
+import { sendSMS } from '@/lib/africastalking';
 
 /**
  * Channel-specific settings selection. Added alongside the WhatsApp channel
@@ -287,12 +288,14 @@ export async function emit<T extends CommEventType>(
         const provider = getProvider(providerNameFor(settings, rule.channel), rule.channel);
         let result;
         try {
-          result = await provider.send({
-            to:         rec.phone,
-            body:       renderedBody,
-            senderName: senderFor(settings, rule.channel),
-            creds:      credsFor(settings, rule.channel),
-          });
+          result = rule.channel === 'sms'
+            ? await sendSMS(rec.phone, renderedBody, rec.name, senderFor(settings, rule.channel))
+            : await provider.send({
+              to:         rec.phone,
+              body:       renderedBody,
+              senderName: senderFor(settings, rule.channel),
+              creds:      credsFor(settings, rule.channel),
+            });
         } catch (e: any) {
           result = { success: false, providerMessageId: null, cost: null, error: e?.message || 'provider threw' };
         }
@@ -309,7 +312,7 @@ export async function emit<T extends CommEventType>(
           recipientStaffId:   rec.staffId ?? (payload as any).staffId ?? null,
           body:               renderedBody,
           status:             result.success ? 'sent' : 'failed',
-          provider:           provider.name,
+          provider:           rule.channel === 'sms' ? 'central_sms' : provider.name,
           providerMessageId:  result.providerMessageId,
           providerCost:       result.cost,
           error:              result.error,
@@ -405,7 +408,7 @@ export async function manualSendFromLog(args: {
      WHERE id = ?`,
     [
       result.success ? 'sent' : 'failed',
-      provider.name,
+      rule.channel === 'sms' ? 'central_sms' : provider.name,
       result.providerMessageId,
       result.cost,
       result.error,

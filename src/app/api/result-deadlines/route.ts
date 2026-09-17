@@ -2,7 +2,6 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
-import AfricasTalking from 'africastalking';
 import { emit } from '@/lib/comm';
 
 /**
@@ -36,23 +35,6 @@ interface Recipient {
   staff_id: number;
   phone:    string;
   name:     string;
-}
-
-function smsClient() {
-  const apiKey   = process.env.AT_API_KEY;
-  const username = process.env.AT_USERNAME;
-  if (!apiKey || !username) return null;
-  const at = AfricasTalking({ apiKey, username });
-  return at.SMS;
-}
-
-async function sendOne(sms: any, to: string, message: string) {
-  const r = await sms.send({ to: [to], message, from: process.env.AT_SENDER_ID || 'DRAIS' });
-  const rec = r.SMSMessageData?.Recipients?.[0];
-  return {
-    status:    rec?.status ?? 'Unknown',
-    messageId: rec?.messageId ?? null,
-  };
 }
 
 async function authorize(req: NextRequest): Promise<{ schoolId: number | null; userId: number | null } | NextResponse> {
@@ -151,13 +133,6 @@ export async function POST(req: NextRequest) {
 async function dispatch(req: NextRequest) {
   const auth = await authorize(req);
   if (auth instanceof NextResponse) return auth;
-
-  const sms = smsClient();
-  if (!sms) {
-    return NextResponse.json({
-      error: 'SMS credentials not configured. Set AT_API_KEY and AT_USERNAME env vars.',
-    }, { status: 503 });
-  }
 
   let connection;
   try {

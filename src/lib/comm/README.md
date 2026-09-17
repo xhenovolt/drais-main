@@ -67,7 +67,13 @@ Placeholders are `{{key}}`, filled from the event payload at dispatch time. **Un
 
 ## Adding a provider
 
-Implement `CommProvider` in `providers.ts` (or `providers/<name>.ts`), register it in `PROVIDERS`, and allow its code from the settings UI.
+SMS providers are platform infrastructure. Implement a provider adapter in
+`src/lib/sms/providers.ts`, register its provider type in the Control Center
+provider registry, and route sends through `sendSMS()` / `sendCentralSMS()`.
+The legacy school `comm_settings` provider fields remain only as a fallback
+until a central provider is configured; they must not override an active
+Control Center provider. WhatsApp continues to use the channel-specific
+provider registry.
 
 ## Working in this folder
 
