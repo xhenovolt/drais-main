@@ -16,7 +16,10 @@ import LiveScanSmsIndicator from '@/components/notifications/LiveScanSmsIndicato
 import CommandPalette from '@/components/search/CommandPalette';
 import CommandSearchTrigger from '@/components/search/CommandSearchTrigger';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api';
+// Relative by default — an absolute localhost:3000 fallback resolves to
+// the DEVICE's own loopback in the Android/Electron packaged builds
+// (no dev server there), not wherever the app's own API actually runs.
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 interface NavbarProps {

@@ -7,17 +7,19 @@ import type { CapacitorConfig } from '@capacitor/cli';
  *   - nodejs-mobile boots a real Node.js runtime inside the APK.
  *   - Inside that runtime, mobile/nodejs-project/main.js requires the
  *     Next standalone server (server.js) which listens on 127.0.0.1:3210.
- *   - The WebView loads http://127.0.0.1:3210/ via `server.url` below,
- *     so the user sees the full Next.js App Router experience —
- *     dynamic routes, API routes, server components, SSE, all of it —
- *     exactly as if they had run `npm start` and opened the browser
- *     to localhost. No static export, no API rewrite, no feature loss.
- *
- * webDir is required by Capacitor but only used as a fallback
- * placeholder; when server.url is set the WebView never loads it.
- * We point it at a tiny splash page in mobile/webview-placeholder/
- * which says "DRAIS is starting…" so a cold-launch race never shows
- * a blank screen.
+ *   - webDir points at a tiny placeholder page (mobile/webview-placeholder/)
+ *     that the WebView loads FIRST. Its script calls nodejs.start('main.js')
+ *     over the Cordova bridge, polls 127.0.0.1:3210 until the embedded Next
+ *     server answers, then navigates the WebView there — so the user ends
+ *     up seeing the full Next.js App Router experience (dynamic routes,
+ *     API routes, server components, SSE, all of it), just one boot step
+ *     later than a plain `server.url` would give. No static export, no
+ *     API rewrite, no feature loss.
+ *   - There is deliberately NO `server.url` below — see the comment in
+ *     the `server` block for why (it was tried and removed: the Cordova
+ *     bridge that starts Node is only injected into pages served from
+ *     webDir, not into a page loaded via server.url, so setting it made
+ *     every launch race Node and lose with ERR_CONNECTION_REFUSED).
  */
 
 const config: CapacitorConfig = {

@@ -335,7 +335,10 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
       };
 
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api';
+        // Relative by default — an absolute localhost:3000 fallback resolves
+        // to the DEVICE's own loopback in the Android/Electron packaged
+        // builds (no dev server there), not wherever the app's API runs.
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || '/api';
         // Try new unified school-config endpoint first
         const response = await fetch(`${API_BASE_URL}/school-config`);
         if (response.ok) {

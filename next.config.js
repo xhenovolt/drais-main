@@ -82,13 +82,21 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // Optimize images
+  // Optimize images. (Merged from next.config.ts, which Next.js never
+  // actually loads — next.config.js takes precedence when both exist,
+  // per node_modules/next/dist/shared/lib/constants.js's CONFIG_FILES
+  // order — so these remotePatterns were silently inert. Deleted
+  // next.config.ts to remove the dead duplicate.)
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000, // 1 year
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost', port: '3000', pathname: '/uploads/students/**' },
+      { protocol: 'https', hostname: 'res.cloudinary.com', pathname: '/**' },
+    ],
   },
 
   // Enable compression

@@ -10,9 +10,10 @@
  *   3. We require .next/standalone/server.js after setting PORT and
  *      HOSTNAME, mirroring the Electron main process (electron/main.cjs).
  *   4. The standalone server listens on 127.0.0.1:3210.
- *   5. capacitor.config.ts has `server.url = http://127.0.0.1:3210`,
- *      so the WebView swaps from the splash placeholder to the live
- *      Next.js app as soon as it answers.
+ *   5. The webview-placeholder page (loaded first, per capacitor.config.ts's
+ *      webDir — there is deliberately no `server.url`) polls 127.0.0.1:3210
+ *      and navigates the WebView there once it answers, swapping from the
+ *      splash placeholder to the live Next.js app.
  *
  * Bundling: scripts/build-mobile.mjs copies the Next standalone tree
  * (.next/standalone/**) into mobile/nodejs-project/ before running

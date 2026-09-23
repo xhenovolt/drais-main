@@ -2,15 +2,20 @@
 import React, { useState } from 'react';
 import useSWR from 'swr';
 import { t } from '@/lib/i18n';
+import { BackendUnavailableNotice } from '@/components/ui/BackendUnavailableNotice';
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 const fetcher=(u:string)=>fetch(u).then(r=>r.json());
 export const TermRequirementsManager: React.FC<{ termId:number }> = ({ termId }) => {
-  const { data, mutate } = useSWR(`${API_BASE}/term_requirement_items.php?term_id=${termId}`, fetcher);
+  // Depends on a legacy PHP backend that doesn't exist in this deployment
+  // (DRAIS is Next.js end-to-end) — check `error` so a failed fetch shows
+  // as "unavailable" rather than indistinguishable from "no requirements".
+  const { data, error, mutate } = useSWR(`${API_BASE}/term_requirement_items.php?term_id=${termId}`, fetcher);
   const items = data?.data || [];
   const [name,setName]=useState('');
   const [mand,setMand]=useState(true);
   const add=async()=>{ if(!name) return; await fetch(`${API_BASE}/term_requirement_items.php`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({term_id:termId,name,mandatory:mand})}); setName(''); setMand(true); mutate(); };
   const del=async(id:number)=>{ await fetch(`${API_BASE}/term_requirement_items.php`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}); mutate(); };
+  if (error) return <BackendUnavailableNotice feature={t('terms.requirements','Term requirements')} />;
   return (
     <div className="rounded-2xl overflow-hidden border border-blue-200 dark:border-indigo-700 backdrop-blur bg-gradient-to-br from-white/80 via-blue-50/60 to-pink-50/60 dark:from-slate-900/80 dark:via-indigo-900/60 dark:to-purple-900/60 shadow-2xl mx-20">
       <table className="w-full text-sm">

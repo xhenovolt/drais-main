@@ -6,12 +6,26 @@ import { TermProgress } from './TermProgress';
 import { TermReports } from './TermReports';
 import { TermRequirementsManager } from './TermRequirementsManager';
 import { t } from '@/lib/i18n';
+import { BackendUnavailableNotice } from '@/components/ui/BackendUnavailableNotice';
 
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 const fetcher=(u:string)=>fetch(u).then(r=>r.json());
 
 export default function TermDetail({ id }: { id:string }){
-  const { data } = useSWR(`${API_BASE}/term_item.php?id=${id}`, fetcher);
+  // This page's own term_item.php fetch, and the three sub-managers below,
+  // all depend on a legacy PHP backend that doesn't exist in this
+  // deployment (DRAIS is Next.js end-to-end). Checking `error` here
+  // matters: without it, a failed fetch left `data` undefined forever and
+  // this page never left "Loading term..." — an infinite spinner rather
+  // than a clear explanation.
+  const { data, error } = useSWR(`${API_BASE}/term_item.php?id=${id}`, fetcher);
+  if (error) {
+    return (
+      <div className="p-6">
+        <BackendUnavailableNotice feature={t('terms.progress', 'Term detail')} />
+      </div>
+    );
+  }
   if(!data) return <div className="text-sm text-gray-500">{t('terms.loading','Loading term...')}</div>;
   return (
     <div className="rounded-2xl border border-blue-200 dark:border-indigo-700 bg-gradient-to-br from-white/80 via-blue-50/60 to-pink-50/60 dark:from-slate-900/80 dark:via-indigo-900/60 dark:to-purple-900/60 shadow-2xl p-8 mx-20">

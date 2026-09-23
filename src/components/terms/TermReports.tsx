@@ -2,10 +2,16 @@
 import React, { useState } from 'react';
 import useSWRImmutable from 'swr/immutable';
 import { t } from '@/lib/i18n';
+import { BackendUnavailableNotice } from '@/components/ui/BackendUnavailableNotice';
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
-const fetcher=(u:string)=>fetch(u).then(r=>r.json()).catch(()=>({}));
+// This used to .catch(()=>({})) — silently turning a failed fetch (this
+// depends on a legacy PHP backend that doesn't exist in this deployment)
+// into a truthy empty object, which then rendered "No students reported"
+// as if the term genuinely had none. Letting the rejection through lets
+// useSWR's `error` distinguish "actually empty" from "backend unreachable".
+const fetcher=(u:string)=>fetch(u).then(r=>r.json());
 export const TermReports: React.FC<{ termId:number }> = ({ termId }) => {
-  const { data, mutate } = useSWRImmutable(`${API_BASE}/term_reports.php?term_id=${termId}`, fetcher);
+  const { data, error, mutate } = useSWRImmutable(`${API_BASE}/term_reports.php?term_id=${termId}`, fetcher);
   const reports = Array.isArray(data?.data) ? data.data : [];
   const reqItems = Array.isArray(data?.requirements) ? data.requirements : [];
   const reqStatus = Array.isArray(data?.requirement_status) ? data.requirement_status : [];
@@ -25,6 +31,8 @@ export const TermReports: React.FC<{ termId:number }> = ({ termId }) => {
     }
     setStudentId(''); setDate(''); setSelectedReq({}); mutate(); };
   
+  if (error) return <BackendUnavailableNotice feature={t('terms.reports','Term reports')} />;
+
   // Show loading state while data is being fetched
   if (!data) {
     return (
