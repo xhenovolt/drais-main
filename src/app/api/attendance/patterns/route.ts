@@ -53,12 +53,33 @@ export async function GET(req: NextRequest) {
     let groupAlerts: any[] = [];
     if (role === 'student') {
       const cls = (await list(
+        // A student may hold 2+ simultaneous active enrollments (multi-program).
+        // Joining every match double-counts their attendance rows across
+        // classes and inflates each class's present/late/absent/total.
+        // Pick one deterministic "primary" enrollment per student instead.
+        // (Can't pick it via "JOIN enrollments e ON e.id = (correlated
+        // SELECT)" — TiDB rejects subqueries in a JOIN's ON condition — so
+        // the pick happens in a derived table instead.)
         `SELECT c.name AS name,
                 SUM(r.status = 'present') AS present, SUM(r.status = 'late') AS late,
                 SUM(r.status = 'absent') AS absent, COUNT(*) AS total
            FROM attendance_records r
-           JOIN students s ON s.id IN (SELECT id FROM students WHERE person_id = r.person_id AND school_id = r.school_id)
-           JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
+           -- Pre-existing bug, found while fixing the fan-out above: this was
+           -- "JOIN students s ON s.id IN (SELECT id FROM students WHERE
+           -- person_id = r.person_id AND school_id = r.school_id)" — also a
+           -- subquery inside a JOIN's ON condition, which TiDB rejects. A
+           -- plain equi-join on the same two columns is equivalent and safe.
+           JOIN students s ON s.person_id = r.person_id AND s.school_id = r.school_id
+           JOIN (
+             SELECT e2.id, e2.student_id, e2.class_id,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY e2.student_id
+                      ORDER BY pr2.is_default DESC, e2.id DESC
+                    ) AS rn
+               FROM enrollments e2
+               LEFT JOIN programs pr2 ON pr2.id = e2.program_id
+              WHERE e2.status = 'active'
+           ) e ON e.student_id = s.id AND e.rn = 1
            JOIN classes c ON c.id = e.class_id
           WHERE r.school_id = ? AND r.role_type = 'student' AND r.attendance_date >= ?
           GROUP BY c.id, c.name`,

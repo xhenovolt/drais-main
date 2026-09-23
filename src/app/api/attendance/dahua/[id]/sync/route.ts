@@ -195,9 +195,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           device.late_threshold_minutes || 30
         );
 
-        // Insert normalized log
+        // Insert normalized log. IGNORE + uk_dahua_event (device_id, user_id,
+        // event_time, event_type) — re-syncing an overlapping window is a
+        // normal operational action ("re-sync device") and previously
+        // duplicated every record in that window verbatim (no unique
+        // constraint existed at all). See migration 047.
         await connection.execute(
-          `INSERT INTO dahua_attendance_logs (
+          `INSERT IGNORE INTO dahua_attendance_logs (
             device_id, student_id, card_no, user_id, event_time, event_type,
             method, status, raw_log_id, matched_at, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,

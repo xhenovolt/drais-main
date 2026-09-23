@@ -54,6 +54,17 @@ export interface AttendanceRule {
   boarding_scope: 'all' | 'boarding' | 'day';
   applies_to: 'students' | 'teachers' | 'all';
   ignore_duplicate_scans_within_minutes: number;
+  /** Phase 4 — boarding continuous-presence policy. 'daily' (default):
+   *  unchanged behaviour, a boarding student needs a punch like anyone
+   *  else. 'continuous': the ENGINE layer (not this pure evaluator) may
+   *  short-circuit a punch-less day to a policy-derived 'present' verdict
+   *  when src/lib/attendance/boarding-presence.ts reports the student as
+   *  checked in and within the validity window. Optional because most
+   *  callers (including every existing test) don't set it. */
+  boarding_presence_mode?: 'daily' | 'continuous';
+  /** Days a check-in remains valid with no new punch before continuous
+   *  presence lapses. null/undefined = indefinite (until explicit leave). */
+  boarding_presence_validity_days?: number | null;
 }
 
 export interface RawPunch {

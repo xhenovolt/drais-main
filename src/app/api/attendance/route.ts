@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     connection = await getConnection();
 
     let sql = `
-      SELECT DISTINCT
+      SELECT
         s.id as student_id,
         p.first_name,
         p.last_name,
@@ -39,13 +39,27 @@ export async function GET(req: NextRequest) {
         CASE WHEN sf.id IS NOT NULL THEN 1 ELSE 0 END as has_fingerprint
       FROM students s
       JOIN people p ON s.person_id = p.id
-      JOIN enrollments e ON s.id = e.student_id
+      -- A student may hold 2+ simultaneous active enrollments (multi-program).
+      -- Pick a single deterministic "primary" one instead of joining every
+      -- match, or this fans one student out into one row per enrollment.
+      -- (A plain "JOIN enrollments e ON e.id = (correlated SELECT)" isn't
+      -- usable here — TiDB rejects subqueries in a JOIN's ON condition — so
+      -- the pick has to happen in a derived table instead.)
+      JOIN (
+        SELECT e2.id, e2.student_id, e2.class_id, e2.stream_id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY e2.student_id
+                 ORDER BY pr2.is_default DESC, e2.id DESC
+               ) AS rn
+          FROM enrollments e2
+          LEFT JOIN programs pr2 ON pr2.id = e2.program_id
+         WHERE e2.status = 'active'
+      ) e ON e.student_id = s.id AND e.rn = 1
       LEFT JOIN classes c ON e.class_id = c.id
       LEFT JOIN streams st ON e.stream_id = st.id
       LEFT JOIN student_attendance sa ON s.id = sa.student_id AND sa.date = ?
       LEFT JOIN student_fingerprints sf ON s.id = sf.student_id AND sf.is_active = 1
-      WHERE e.status = 'active' 
-        AND s.status IN ('active', 'suspended', 'on_leave')
+      WHERE s.status IN ('active', 'suspended', 'on_leave')
         AND s.deleted_at IS NULL
         AND s.school_id = ?
     `;
@@ -125,19 +139,36 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const timeIn = status === 'present' || status === 'late' ? now.toTimeString().split(' ')[0] : null;
 
-    // Insert or update attendance record
-    await connection.execute(
-      `INSERT INTO student_attendance (student_id, date, status, method, time_in, notes, class_id, marked_by, marked_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-         status = VALUES(status),
-         method = VALUES(method),
-         time_in = VALUES(time_in),
-         notes = VALUES(notes),
-         marked_by = VALUES(marked_by),
-         marked_at = VALUES(marked_at)`,
-      [student_id, date, status, method, timeIn, notes, classId, marked_by, now]
+    // Insert or update attendance record. NOTE: uk_student_date_session
+    // (student_id, date, attendance_session_id) can't be relied on for an
+    // upsert here — this endpoint never sets attendance_session_id, so it's
+    // always NULL, and MySQL/TiDB treat every NULL in a unique index as
+    // distinct from every other NULL. An ON DUPLICATE KEY UPDATE against
+    // that key therefore never collides and inserts a new row on every
+    // repeat manual mark. Look the existing (student_id, date) row up
+    // explicitly instead.
+    const [existingRows] = await connection.execute(
+      'SELECT id FROM student_attendance WHERE student_id = ? AND date = ? LIMIT 1',
+      [student_id, date],
     );
+    const existingId = Array.isArray(existingRows) && existingRows.length > 0
+      ? (existingRows[0] as any).id
+      : null;
+
+    if (existingId) {
+      await connection.execute(
+        `UPDATE student_attendance
+            SET status = ?, method = ?, time_in = ?, notes = ?, class_id = ?, marked_by = ?, marked_at = ?
+          WHERE id = ?`,
+        [status, method, timeIn, notes, classId, marked_by, now, existingId],
+      );
+    } else {
+      await connection.execute(
+        `INSERT INTO student_attendance (student_id, date, status, method, time_in, notes, class_id, marked_by, marked_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [student_id, date, status, method, timeIn, notes, classId, marked_by, now],
+      );
+    }
 
     return NextResponse.json({
       success: true,

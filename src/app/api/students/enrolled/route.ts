@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
          s.admission_no,
          s.status                               AS student_status,
          s.admission_date,
+         s.residency_status,
          p.first_name,
          p.last_name,
          p.other_name,

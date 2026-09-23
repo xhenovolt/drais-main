@@ -139,6 +139,13 @@ export async function GET(req: NextRequest) {
       conditions.push('p.gender = ?');
       params.push(gender);
     }
+    // Drill-down from the consolidated daily view (one row per person per
+    // day) into the raw punches behind it for a specific person.
+    const personId = url.searchParams.get('person_id');
+    if (personId) {
+      conditions.push('ar.person_id = ?');
+      params.push(Number(personId));
+    }
 
     // Arrival-status quick filter (derived_event stamped by the engine).
     const derived = url.searchParams.get('derived');
@@ -264,12 +271,30 @@ export async function GET(req: NextRequest) {
          dud.device_name AS device_known_name,
          rec.rule_id AS rec_rule_id,
          (rec.id IS NOT NULL) AS has_verdict,
-         ob.status AS sms_status,
+         -- Scalar correlated subqueries, NOT a JOIN-with-subquery-in-ON
+         -- (TiDB: "ON condition doesn't support subqueries yet"). A student
+         -- may hold 2+ simultaneous active enrollments (multi-program,
+         -- migration 027) and a person may get >1 notification the same day
+         -- — pick one deterministic row for each rather than joining every
+         -- match, or a single punch fans out into duplicate displayed rows.
+         (SELECT c2.name
+            FROM enrollments e2
+            LEFT JOIN programs pr2 ON pr2.id = e2.program_id
+            JOIN classes c2 ON c2.id = e2.class_id
+           WHERE e2.student_id = s.id AND e2.status = 'active'
+           ORDER BY pr2.is_default DESC, e2.id DESC
+           LIMIT 1) AS class_name,
+         (SELECT ob2.status
+            FROM notification_outbox ob2
+           WHERE ob2.school_id = ar.school_id
+             AND ob2.subject_person_id = ar.person_id
+             AND DATE(ob2.created_at) = DATE(ar.punch_at)
+           ORDER BY ob2.created_at DESC
+           LIMIT 1) AS sms_status,
          p.first_name,
          p.last_name,
          p.photo_url,
          p.gender,
-         c.name AS class_name,
          s.admission_no,
          stf.position AS staff_position,
          dep.name AS staff_department
@@ -279,8 +304,6 @@ export async function GET(req: NextRequest) {
        LEFT JOIN staff stf ON ar.role_type = 'staff' AND stf.person_id = ar.person_id AND stf.school_id = ar.school_id AND stf.deleted_at IS NULL
        LEFT JOIN departments dep ON dep.id = stf.department_id
        LEFT JOIN students s ON p.id = s.person_id AND s.school_id = ar.school_id
-       LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
-       LEFT JOIN classes c ON e.class_id = c.id
        LEFT JOIN device_user_directory dud
          ON dud.school_id = ar.school_id
         AND dud.device_sn = ar.device_sn
@@ -291,10 +314,6 @@ export async function GET(req: NextRequest) {
        LEFT JOIN attendance_records rec
          ON rec.school_id = ar.school_id AND rec.person_id = ar.person_id
         AND rec.attendance_date = DATE(DATE_ADD(ar.punch_at, INTERVAL 180 MINUTE))
-       LEFT JOIN notification_outbox ob
-         ON ob.school_id = ar.school_id
-        AND ob.subject_person_id = ar.person_id
-        AND DATE(ob.created_at) = DATE(ar.punch_at)
        WHERE ${where}
        ORDER BY ${orderBy}
        LIMIT ${limit} OFFSET ${offset}`,

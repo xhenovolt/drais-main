@@ -110,28 +110,79 @@ export function ensureAttendanceEngineSchema(): Promise<void> {
         [],
       );
 
-      // Phase 0 dedup key for tables created before uk_raw_punch
-      // existed. Fails harmlessly while duplicate rows are present —
-      // apply database/migrations/020_attendance_trust_phase0.sql to
-      // dedupe first; this then succeeds on the next cold start.
+      // Dedup key for attendance_raw_events. The true dedup identity is
+      // (school_id, device_sn, device_user_id, device_reported_time, source)
+      // — punch_at is the corrected/server-receive instant and is NOT
+      // stable per punch (a backlog batch can share a second, and clock
+      // auto-correct recomputes it), so a unique key on punch_at can
+      // silently reject legitimate distinct punches. Migration 016 moved
+      // the real key to uk_raw_identity and migration 017 exists purely
+      // because migration 016's DROP INDEX silently no-op'd on TiDB Cloud
+      // in some environments. This runtime ensure previously re-added the
+      // stale punch_at-based key on every cold start whenever it was
+      // absent, undoing 017 — see database/migrations/tidb/016/017. Do the
+      // same self-heal here instead: drop the stale key if present, ensure
+      // the real one exists.
       try {
-        const idx = (await query(
-          `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        const hasDeviceReportedTime = ((await query(
+          `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = DATABASE()
               AND TABLE_NAME = 'attendance_raw_events'
-              AND INDEX_NAME = 'uk_raw_punch'
+              AND COLUMN_NAME = 'device_reported_time'
             LIMIT 1`,
           [],
-        )) as unknown[];
-        if (idx.length === 0) {
-          await query(
-            `ALTER TABLE attendance_raw_events
-               ADD UNIQUE KEY uk_raw_punch (school_id, device_sn, device_user_id, punch_at, source)`,
+        )) as unknown[]).length > 0;
+
+        if (hasDeviceReportedTime) {
+          const staleIdx = (await query(
+            `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'attendance_raw_events'
+                AND INDEX_NAME = 'uk_raw_punch'
+              LIMIT 1`,
             [],
-          );
+          )) as unknown[];
+          if (staleIdx.length > 0) {
+            await query(`ALTER TABLE attendance_raw_events DROP INDEX uk_raw_punch`, []);
+          }
+
+          const idx = (await query(
+            `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'attendance_raw_events'
+                AND INDEX_NAME = 'uk_raw_identity'
+              LIMIT 1`,
+            [],
+          )) as unknown[];
+          if (idx.length === 0) {
+            await query(
+              `ALTER TABLE attendance_raw_events
+                 ADD UNIQUE KEY uk_raw_identity (school_id, device_sn, device_user_id, device_reported_time, source)`,
+              [],
+            );
+          }
+        } else {
+          // device_reported_time not present yet (very old/fresh DB ahead of
+          // migration 016) — fall back to the punch_at-based key so exact
+          // same-second resends are still guarded until that migration runs.
+          const idx = (await query(
+            `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'attendance_raw_events'
+                AND INDEX_NAME = 'uk_raw_punch'
+              LIMIT 1`,
+            [],
+          )) as unknown[];
+          if (idx.length === 0) {
+            await query(
+              `ALTER TABLE attendance_raw_events
+                 ADD UNIQUE KEY uk_raw_punch (school_id, device_sn, device_user_id, punch_at, source)`,
+              [],
+            );
+          }
         }
       } catch {
-        /* duplicates still present or no ALTER privilege — migration 020 handles it */
+        /* duplicates still present or no ALTER privilege — numbered migrations handle it */
       }
 
       try {

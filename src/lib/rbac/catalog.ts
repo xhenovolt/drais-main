@@ -48,6 +48,8 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   // ─── Academics ───────────────────────────────────────────────────────────
   p('academics', 'secular',     'view',     'View secular curriculum data, results, classes'),
   p('academics', 'secular',     'manage',   'Create / update secular records (classes, marks, allocations)'),
+  p('academics', 'residency',   'manage',   'Classify students as day scholar or boarding, individually or in bulk'),
+  p('academics', 'boarding_presence', 'manage', 'Check boarding students in/out and record temporary leave'),
   p('academics', 'theology',    'view',     'View theology / Quran curriculum data'),
   p('academics', 'theology',    'manage',   'Create / update theology records'),
   p('academics', 'classes',     'view',     'View class roster'),

@@ -37,6 +37,7 @@ import {
   Radio,
   DollarSign,
   FolderOpen,
+  Home,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReassignClassModal from '../_client/ReassignClassModal';
@@ -87,6 +88,9 @@ interface Student {
   gender: string;
   photo_url?: string;
   admission_date?: string;
+  // Stable per-student day/boarding classification (students.residency_status,
+  // migration 048) — separate from study_mode_id, which is per-enrollment.
+  residency_status?: 'day' | 'boarding' | null;
 }
 
 interface EnrolledStudent extends Student {
@@ -160,6 +164,8 @@ export default function StudentsListPage() {
   const [quickEdit, setQuickEdit] = useState<QuickEditLearner | null>(null);
   const [showBulkStatusMenu, setShowBulkStatusMenu] = useState(false);
   const [bulkStatusBusy, setBulkStatusBusy] = useState(false);
+  const [showBulkResidencyMenu, setShowBulkResidencyMenu] = useState(false);
+  const [bulkResidencyBusy, setBulkResidencyBusy] = useState(false);
   const [snapshot, setSnapshot] = useState<{ id: number; name: string } | null>(null);
   const [showBulkSms, setShowBulkSms] = useState(false);
   const [showBulkMessage, setShowBulkMessage] = useState(false);
@@ -778,6 +784,43 @@ export default function StudentsListPage() {
     });
   };
 
+  // ── Residency (day/boarding) inline editing — separate endpoint from
+  // updateStudentField above: residency_status lives on `students`, set via
+  // PATCH /api/students/:id/residency (audited, permission-gated), not the
+  // generic /api/students/edit (people-table fields).
+  const updateStudentResidency = (student: Student, value: 'day' | 'boarding') => {
+    const original = student.residency_status ?? 'day';
+    if (value === original) return;
+
+    const savingToast = toast.loading('Saving…', { duration: Infinity });
+    setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: value } : s));
+    setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: value } : s));
+
+    startNameTransition(async () => {
+      try {
+        const result = await apiFetch(`/api/students/${student.id}/residency`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ residency_status: value }),
+          silent: true,
+        });
+        toast.dismiss(savingToast);
+        if (result?.success) {
+          toast.success(`Residency updated to ${value}`);
+        } else {
+          setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
+          setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
+          toast.error(result?.error || 'Failed to update residency');
+        }
+      } catch (err) {
+        toast.dismiss(savingToast);
+        setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
+        setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
+        toast.error('Failed to save changes');
+      }
+    });
+  };
+
   // Enrollment Modal Handlers
   const openEnrollModal = (student: Student) => {
     setEnrollingStudent(student);
@@ -1009,6 +1052,7 @@ export default function StudentsListPage() {
       'Admission No': s.admission_no,
       'First Name': s.first_name,
       'Last Name': s.last_name,
+      'Residency': s.residency_status === 'boarding' ? 'Boarding' : 'Day',
       ...(activeTab === 'enrolled' && {
         'Class': s.class_name || '-',
         'Programs': s.programs?.map((p: any) => p.name).join('; ') || '-',
@@ -1024,6 +1068,7 @@ export default function StudentsListPage() {
       'Admission No': s.admission_no,
       'First Name': s.first_name,
       'Last Name': s.last_name,
+      'Residency': s.residency_status === 'boarding' ? 'Boarding' : 'Day',
       ...(activeTab === 'enrolled' && {
         'Class': s.class_name || '-',
         'Programs': s.programs?.map((p: any) => p.name).join('; ') || '-',
@@ -1061,6 +1106,32 @@ export default function StudentsListPage() {
       showToast('error', 'Bulk status update failed');
     } finally {
       setBulkStatusBusy(false);
+    }
+  };
+
+  // Bulk day/boarding reclassification — separate audited endpoint from
+  // handleBulkStatus above (students.residency_status, not students.status).
+  const handleBulkResidency = async (residency_status: 'day' | 'boarding') => {
+    if (selectedIds.size === 0) { showToast('error', 'Select learners first'); return; }
+    setShowBulkResidencyMenu(false);
+    setBulkResidencyBusy(true);
+    const ids = Array.from(selectedIds);
+    try {
+      const data = await apiFetch<any>('/api/students/bulk/residency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: ids, residency_status }),
+        successMessage: `${ids.length} learner(s) reclassified as ${residency_status}`,
+      });
+      if (data?.success !== false) {
+        setEnrolledStudents(prev => prev.map(s => selectedIds.has(s.id) ? { ...s, residency_status } : s));
+        setAdmittedStudents(prev => prev.map(s => selectedIds.has(s.id) ? { ...s, residency_status } : s));
+        setSelectedIds(new Set());
+      }
+    } catch {
+      showToast('error', 'Bulk residency update failed');
+    } finally {
+      setBulkResidencyBusy(false);
     }
   };
 
@@ -1326,6 +1397,25 @@ export default function StudentsListPage() {
       >
         {label}
       </button>
+    );
+  };
+
+  // Day scholar / boarding classification — stable per-student attribute
+  // (students.residency_status), not inferred from biometric activity.
+  // Feeds attendance_rules.boarding_scope once a school configures a
+  // day-only or boarding-only attendance rule.
+  const ResidencyCell = ({ student }: { student: Student }) => {
+    const current = student.residency_status === 'boarding' ? 'boarding' : 'day';
+    return (
+      <select
+        value={current}
+        onChange={e => updateStudentResidency(student, e.target.value as 'day' | 'boarding')}
+        className="h-7 px-1.5 rounded-md border border-transparent hover:border-slate-300 dark:hover:border-slate-600 bg-transparent text-xs text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 capitalize cursor-pointer"
+        title="Day scholar or boarding — feeds day/boarding-scoped attendance rules"
+      >
+        <option value="day">Day</option>
+        <option value="boarding">Boarding</option>
+      </select>
     );
   };
 
@@ -1735,6 +1825,7 @@ export default function StudentsListPage() {
                 )}
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('studentsList.colStatus', 'Status')}</th>
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">{t('studentsList.colGender', 'Gender')}</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">{t('studentsList.colResidency', 'Residency')}</th>
                 {activeTab === 'enrolled' && showFees && (
                   <th className="px-3 py-2.5 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell whitespace-nowrap">{t('studentsList.colBalance', 'Balance')}</th>
                 )}
@@ -1901,6 +1992,11 @@ export default function StudentsListPage() {
                       {/* Gender (inline editable for quick correction) */}
                       <td className="px-3 py-2.5 hidden lg:table-cell whitespace-nowrap">
                         <GenderCell student={student} />
+                      </td>
+
+                      {/* Residency: day scholar / boarding (inline editable) */}
+                      <td className="px-3 py-2.5 hidden lg:table-cell whitespace-nowrap">
+                        <ResidencyCell student={student} />
                       </td>
 
                       {/* Balance (enrolled only, gated by the Fees toggle) */}
@@ -2132,6 +2228,29 @@ export default function StudentsListPage() {
                         className="w-full text-left px-3 py-1.5 text-xs capitalize text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
                         {st}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowBulkResidencyMenu(v => !v)}
+                  disabled={bulkResidencyBusy}
+                  className="flex items-center gap-1.5 h-7 px-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
+                >
+                  {bulkResidencyBusy ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Home className="w-3.5 h-3.5" />}
+                  Residency
+                </button>
+                {showBulkResidencyMenu && (
+                  <div className="absolute bottom-full mb-2 left-0 w-36 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden py-1">
+                    {(['day', 'boarding'] as const).map(rs => (
+                      <button
+                        key={rs}
+                        onClick={() => handleBulkResidency(rs)}
+                        className="w-full text-left px-3 py-1.5 text-xs capitalize text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      >
+                        {rs}
                       </button>
                     ))}
                   </div>

@@ -53,6 +53,8 @@ import { publishEvent } from '@/lib/events/eventbus';
 // the engine's emit path — the drainer cron is what actually sends.
 import { installNotificationFanout, fanoutAttendanceRecord } from '@/lib/notifications/fanout';
 import { getProvisionalAttendanceMeta } from '@/lib/attendance/provisional';
+import { getResidencyStatus } from '@/lib/attendance/residency';
+import { getBoardingPresenceState, isWithinValidityWindow } from '@/lib/attendance/boarding-presence';
 installNotificationFanout();
 
 export type AttendanceSource = 'zkteco_push' | 'dahua_pull' | 'manual' | 'relay';
@@ -255,11 +257,15 @@ export async function evaluateDay(
 ): Promise<void> {
   await ensureAttendanceEngineSchema();
 
+  // 0. Residency status (day/boarding) — the signal boarding_scope rules
+  //    gate on. Student-only; staff always get null (see residency.ts).
+  const boardingStatus = await getResidencyStatus(schoolId, personId, roleType);
+
   // 1. Load rule. Staff with an assigned shift are classified against THAT
   //    shift; everyone else uses the school's attendance_rules. Opt-in per
   //    school — no shift assignment ⇒ identical to the pre-shift behaviour.
   const baseRule = (roleType === 'staff' ? await loadStaffShiftAsRule(schoolId, personId, attendanceDate) : null)
-    ?? await loadActiveRule(schoolId, roleType);
+    ?? await loadActiveRule(schoolId, roleType, boardingStatus);
   // Per-weekday override (e.g. "Saturday arrival ends 10:00") — a no-op
   // for schools without override rows and for shift-derived rules.
   const rule = baseRule ? await applyWeekdayOverride(baseRule, attendanceDate) : null;
@@ -305,16 +311,47 @@ export async function evaluateDay(
       attendanceDate: dayStart,
       isHoliday,
       personRole: roleType,
-      // Phase 3 doesn't yet read boarding status off the student
-      // record — that's wired in the Phase 3 follow-up commit that
-      // also extends the UI. Until then evaluator treats all
-      // boarding_scope='all' rules as covering everyone.
-      personIsBoarding: undefined,
+      personIsBoarding: boardingStatus === null ? undefined : boardingStatus === 'boarding',
     },
   );
 
+  // 5b. Phase 4 — boarding continuous-presence policy. Only ever consulted
+  //     when there is NO biometric evidence for the day (rawPunches empty)
+  //     and the winning rule opted into 'continuous' mode for a boarding
+  //     student. A day with real punches is always evaluated normally —
+  //     policy inference never overrides actual evidence.
+  let policyDerivedReason: string | null = null;
+  if (
+    boardingStatus === 'boarding'
+    && rule.boarding_presence_mode === 'continuous'
+    && rawPunches.length === 0
+    && verdict.status === 'absent'
+  ) {
+    try {
+      const studentRow = (await query(
+        `SELECT id FROM students WHERE person_id = ? AND school_id = ? LIMIT 1`,
+        [personId, schoolId],
+      )) as Array<{ id: number }>;
+      const studentId = studentRow[0]?.id;
+      if (studentId) {
+        const state = await getBoardingPresenceState(schoolId, studentId);
+        if (state?.status === 'checked_in' && isWithinValidityWindow(state, dayStart, rule.boarding_presence_validity_days)) {
+          verdict.status = 'present';
+          verdict.trace = 'boarding_continuous_presence';
+          policyDerivedReason = 'boarding_continuous_presence';
+        } else if (state?.status === 'on_leave') {
+          // Stays 'absent' — but flagged so this doesn't read as an
+          // unexplained absence to reports/notifications.
+          policyDerivedReason = 'boarding_leave';
+        }
+      }
+    } catch (err) {
+      console.warn('[attendance-engine] boarding-presence lookup failed', err);
+    }
+  }
+
   // 6. UPSERT the day verdict.
-  await persistVerdict(schoolId, personId, roleType, dayStart, rule.id ?? null, verdict);
+  await persistVerdict(schoolId, personId, roleType, dayStart, rule.id ?? null, verdict, policyDerivedReason);
 
   // 6b. Stamp the DERIVED per-punch lifecycle onto each raw event so
   //     logs/popup show "ARRIVED / LATE / CHECKED OUT" — not the device
@@ -322,7 +359,8 @@ export async function evaluateDay(
   //     a day). Best-effort; never blocks the verdict.
   try {
     const events = deriveEvents(rule, rawPunches, {
-      attendanceDate: dayStart, isHoliday, personRole: roleType, personIsBoarding: undefined,
+      attendanceDate: dayStart, isHoliday, personRole: roleType,
+      personIsBoarding: boardingStatus === null ? undefined : boardingStatus === 'boarding',
     });
     for (let i = 0; i < events.length && i < punchRows.length; i++) {
       const ev = events[i];
@@ -353,6 +391,8 @@ export async function evaluateDay(
     earlyMinutes: verdict.earlyMinutes,
     totalMinutes: verdict.totalMinutes,
     ruleId: rule.id ?? null,
+    isPolicyDerived: policyDerivedReason != null,
+    policyDerivedReason,
   };
   publishEvent('attendance.record.upserted', recordEvent);
   // Also enqueue notifications DIRECTLY (awaited) — the bus listener is
@@ -384,22 +424,35 @@ async function loadPreviousStatus(
 async function loadActiveRule(
   schoolId: number,
   roleType: 'student' | 'staff',
+  boardingStatus: 'boarding' | 'day' | null = null,
 ): Promise<(AttendanceRule & { id: number }) | null> {
   try {
     const appliesTo = roleType === 'staff' ? "('teachers','all')" : "('students','all')";
+    // Candidate rules are restricted to boarding_scope='all' OR an exact
+    // match on the person's residency — a rule scoped to the OTHER
+    // population is never eligible, so this can't select a mismatched
+    // rule. Among eligible rules, prefer the more specific one
+    // (boarding_scope matching the person over 'all'), then applies_to
+    // specificity, then priority/id — same precedence as before this
+    // column was considered, just with boarding_scope now part of it.
+    // boardingStatus is null for staff (and for students with no
+    // residency_status resolved) — COALESCE(?, 'all') then only matches
+    // 'all'-scoped rules, i.e. identical to the pre-residency behaviour.
     const rows = (await query(
       `SELECT id, arrival_start_time, arrival_end_time, late_threshold_minutes,
               absence_cutoff_time, closing_time,
               departure_start_time, departure_end_time,
               early_leave_threshold_minutes, half_day_threshold_minutes,
               weekday_mask, applies_on_holidays, boarding_scope,
-              applies_to, ignore_duplicate_scans_within_minutes
+              applies_to, ignore_duplicate_scans_within_minutes,
+              boarding_presence_mode, boarding_presence_validity_days
          FROM attendance_rules
         WHERE school_id = ? AND is_active = 1
           AND applies_to IN ${appliesTo}
-        ORDER BY (applies_to = 'all') ASC, priority ASC, id DESC
+          AND (boarding_scope = 'all' OR boarding_scope = COALESCE(?, 'all'))
+        ORDER BY (applies_to = 'all') ASC, (boarding_scope = 'all') ASC, priority ASC, id DESC
         LIMIT 1`,
-      [schoolId],
+      [schoolId, boardingStatus],
     )) as Array<Record<string, unknown>>;
     if (rows.length === 0) return null;
     const r = rows[0] as Record<string, unknown>;
@@ -419,6 +472,8 @@ async function loadActiveRule(
       boarding_scope:      (r.boarding_scope as 'all' | 'boarding' | 'day') ?? 'all',
       applies_to: (r.applies_to as 'students' | 'teachers' | 'all') ?? 'students',
       ignore_duplicate_scans_within_minutes: Number(r.ignore_duplicate_scans_within_minutes ?? 2),
+      boarding_presence_mode: (r.boarding_presence_mode as 'daily' | 'continuous') ?? 'daily',
+      boarding_presence_validity_days: r.boarding_presence_validity_days != null ? Number(r.boarding_presence_validity_days) : null,
     };
   } catch {
     return null;
@@ -484,14 +539,15 @@ async function persistVerdict(
   attendanceDate: Date,
   ruleId: number | null,
   v: AttendanceVerdict,
+  policyDerivedReason: string | null = null,
 ): Promise<void> {
   await query(
     `INSERT INTO attendance_records
        (school_id, person_id, role_type, attendance_date,
         first_in_at, last_out_at, first_in_device, last_out_device,
         status, late_minutes, early_minutes, total_minutes,
-        rule_id, raw_event_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        rule_id, raw_event_count, is_policy_derived, policy_derived_reason)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        first_in_at     = VALUES(first_in_at),
        last_out_at     = VALUES(last_out_at),
@@ -502,12 +558,14 @@ async function persistVerdict(
        early_minutes   = VALUES(early_minutes),
        total_minutes   = VALUES(total_minutes),
        rule_id         = VALUES(rule_id),
-       raw_event_count = VALUES(raw_event_count)`,
+       raw_event_count = VALUES(raw_event_count),
+       is_policy_derived    = VALUES(is_policy_derived),
+       policy_derived_reason = VALUES(policy_derived_reason)`,
     [
       schoolId, personId, roleType, formatDate(attendanceDate),
       v.firstInAt, v.lastOutAt, v.firstInDevice, v.lastOutDevice,
       v.status, v.lateMinutes, v.earlyMinutes, v.totalMinutes,
-      ruleId, v.rawEventCount,
+      ruleId, v.rawEventCount, policyDerivedReason != null, policyDerivedReason,
     ],
   );
 }

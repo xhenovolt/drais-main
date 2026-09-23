@@ -86,6 +86,17 @@ interface RecipientResolution {
 export async function fanoutAttendanceRecord(
   event: AttendanceRecordUpsertedEvent,
 ): Promise<void> {
+  // Phase 4 — a policy-derived verdict (boarding continuous-presence
+  // covering a punch-less day, or an authorized leave still showing as
+  // 'absent' with the reason attached) is not evidence of anything
+  // parents/staff need alerting about. Skip notification matching
+  // entirely rather than risk a false "your child is absent today" SMS
+  // for a boarding student who is on approved leave or simply didn't
+  // need to re-punch. A school that explicitly wants to be notified on
+  // boarding leave can be served by a future, deliberate opt-in — this is
+  // the safe default.
+  if (event.isPolicyDerived) return;
+
   await ensureNotificationSchema();
 
   const policies = (await query(

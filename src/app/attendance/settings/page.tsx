@@ -19,9 +19,13 @@ interface AttendanceRule {
   applies_to_classes: string | null;
   ignore_duplicate_scans_within_minutes: number;
   weekday_mask: number | null;
+  boarding_scope?: 'all' | 'boarding' | 'day';
+  boarding_presence_mode?: 'daily' | 'continuous';
+  boarding_presence_validity_days?: number | null;
 }
 
 type AppliesTo = 'students' | 'teachers' | 'all';
+type BoardingScope = 'all' | 'boarding' | 'day';
 
 interface FormState {
   rule_name: string;
@@ -35,6 +39,9 @@ interface FormState {
   applies_to_classes: string;
   ignore_duplicate_scans_within_minutes: number;
   weekday_mask: number;
+  boarding_scope: BoardingScope;
+  boarding_presence_mode: 'daily' | 'continuous';
+  boarding_presence_validity_days: string; // '' = indefinite
 }
 
 const defaultForm: FormState = {
@@ -49,6 +56,15 @@ const defaultForm: FormState = {
   applies_to_classes: '',
   ignore_duplicate_scans_within_minutes: 2,
   weekday_mask: 31, // Mon–Fri
+  boarding_scope: 'all',
+  boarding_presence_mode: 'daily',
+  boarding_presence_validity_days: '',
+};
+
+const BOARDING_SCOPE_LABEL: Record<BoardingScope, string> = {
+  all: 'Everyone (day + boarding)',
+  boarding: 'Boarding students only',
+  day: 'Day scholars only',
 };
 
 function formatTimeForInput(t: string | null): string {
@@ -95,11 +111,12 @@ function dayOverridesFromApi(rows: any[] | undefined): DayOverrideMap {
 }
 
 /** Build a form state from a saved rule (or the defaults for a given scope). */
-function formFromRule(rule: AttendanceRule | null, scope: AppliesTo): FormState {
+function formFromRule(rule: AttendanceRule | null, scope: AppliesTo, boardingScope: BoardingScope): FormState {
   if (!rule) {
     return {
       ...defaultForm,
       applies_to: scope,
+      boarding_scope: boardingScope,
       rule_name: scope === 'students' ? 'Learners' : scope === 'teachers' ? 'Staff' : 'Everyone',
     };
   }
@@ -115,19 +132,30 @@ function formFromRule(rule: AttendanceRule | null, scope: AppliesTo): FormState 
     applies_to_classes: rule.applies_to_classes || '',
     ignore_duplicate_scans_within_minutes: rule.ignore_duplicate_scans_within_minutes ?? 2,
     weekday_mask: rule.weekday_mask ?? 31,
+    boarding_scope: rule.boarding_scope ?? boardingScope,
+    boarding_presence_mode: rule.boarding_presence_mode ?? 'daily',
+    boarding_presence_validity_days: rule.boarding_presence_validity_days != null ? String(rule.boarding_presence_validity_days) : '',
   };
 }
 
+const ruleKey = (scope: AppliesTo, boardingScope: BoardingScope) => `${scope}:${boardingScope}`;
+
 export default function AttendanceSettingsPage() {
   const [scope, setScope] = useState<AppliesTo>('students');
+  // Boarding population sub-selector — only meaningful (and shown) for the
+  // 'students' scope. A day/boarding-scoped rule is a DIFFERENT rule row
+  // from the 'all' one for the same role, not a variant of it, so it needs
+  // its own keyed slot alongside rulesByScope rather than replacing it.
+  const [boardingScope, setBoardingScope] = useState<BoardingScope>('all');
   const [rulesByScope, setRulesByScope] = useState<Partial<Record<AppliesTo, AttendanceRule>>>({});
-  const [form, setForm] = useState<FormState>(() => formFromRule(null, 'students'));
+  const [rulesByKey, setRulesByKey] = useState<Record<string, AttendanceRule>>({});
+  const [form, setForm] = useState<FormState>(() => formFromRule(null, 'students', 'all'));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [existingId, setExistingId] = useState<number | null>(null);
-  // Per-scope, per-weekday override drafts (Saturday 10:00 etc.).
-  const [dayOvByScope, setDayOvByScope] = useState<Partial<Record<AppliesTo, DayOverrideMap>>>({});
+  // Per-(scope,boardingScope), per-weekday override drafts (Saturday 10:00 etc.).
+  const [dayOvByKey, setDayOvByKey] = useState<Record<string, DayOverrideMap>>({});
   const [dayOv, setDayOv] = useState<DayOverrideMap>(emptyDayOverrides());
 
   // Load existing settings (all scopes)
@@ -136,31 +164,40 @@ export default function AttendanceSettingsPage() {
       .then((r) => r.json())
       .then((data) => {
         const rules: Partial<Record<AppliesTo, AttendanceRule>> = data.rules || {};
+        const byKey: Record<string, AttendanceRule> = data.rules_by_key || {};
         setRulesByScope(rules);
+        setRulesByKey(byKey);
         // Default to the first configured scope, else learners.
         const initial: AppliesTo = rules.students ? 'students' : rules.teachers ? 'teachers' : rules.all ? 'all' : 'students';
         setScope(initial);
-        setForm(formFromRule(rules[initial] || null, initial));
-        setExistingId(rules[initial]?.id ?? null);
-        const ovByScope: Partial<Record<AppliesTo, DayOverrideMap>> = {};
-        for (const k of ['students', 'teachers', 'all'] as const) {
-          ovByScope[k] = dayOverridesFromApi(data.day_overrides?.[k]);
+        setBoardingScope('all');
+        const initialKey = ruleKey(initial, 'all');
+        setForm(formFromRule(byKey[initialKey] || rules[initial] || null, initial, 'all'));
+        setExistingId((byKey[initialKey] || rules[initial])?.id ?? null);
+        const ovByKey: Record<string, DayOverrideMap> = {};
+        const dayOverridesByKey = data.day_overrides_by_key || {};
+        for (const k of Object.keys(byKey)) {
+          ovByKey[k] = dayOverridesFromApi(dayOverridesByKey[k]);
         }
-        setDayOvByScope(ovByScope);
-        setDayOv(ovByScope[initial] || emptyDayOverrides());
+        setDayOvByKey(ovByKey);
+        setDayOv(ovByKey[initialKey] || emptyDayOverrides());
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  // Switch which person-group's window is being edited.
-  const switchScope = (next: AppliesTo) => {
-    // Keep the current scope's override drafts before switching.
-    setDayOvByScope((prev) => ({ ...prev, [scope]: dayOv }));
-    setScope(next);
-    setForm(formFromRule(rulesByScope[next] || null, next));
-    setExistingId(rulesByScope[next]?.id ?? null);
-    setDayOv(dayOvByScope[next] || emptyDayOverrides());
+  // Switch which person-group's window is being edited (role and/or
+  // boarding population — both share this one handler).
+  const switchScope = (nextScope: AppliesTo, nextBoarding: BoardingScope = nextScope === 'students' ? boardingScope : 'all') => {
+    // Keep the current combination's override drafts before switching.
+    setDayOvByKey((prev) => ({ ...prev, [ruleKey(scope, boardingScope)]: dayOv }));
+    setScope(nextScope);
+    setBoardingScope(nextBoarding);
+    const key = ruleKey(nextScope, nextBoarding);
+    const rule = rulesByKey[key] || (nextBoarding === 'all' ? rulesByScope[nextScope] : undefined) || null;
+    setForm(formFromRule(rule, nextScope, nextBoarding));
+    setExistingId(rule?.id ?? null);
+    setDayOv(dayOvByKey[key] || emptyDayOverrides());
     setToast(null);
   };
 
@@ -184,18 +221,33 @@ export default function AttendanceSettingsPage() {
       const res = await fetch('/api/attendance/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, applies_to: scope, day_overrides }),
+        body: JSON.stringify({
+          ...form,
+          applies_to: scope,
+          boarding_scope: boardingScope,
+          boarding_presence_validity_days: form.boarding_presence_validity_days === '' ? null : parseInt(form.boarding_presence_validity_days, 10),
+          day_overrides,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
       setExistingId(data.rule_id);
-      // Remember this scope as configured so the badge + switching reflect it.
-      setRulesByScope((prev) => ({
+      const savedKey = ruleKey(scope, boardingScope);
+      setRulesByKey((prev) => ({
         ...prev,
-        [scope]: { ...(prev[scope] || {}), id: data.rule_id, ...form, applies_to: scope } as AttendanceRule,
+        [savedKey]: { ...(prev[savedKey] || {}), id: data.rule_id, ...form, applies_to: scope, boarding_scope: boardingScope } as AttendanceRule,
       }));
-      setDayOvByScope((prev) => ({ ...prev, [scope]: dayOv }));
-      setToast({ type: 'success', msg: `${SCOPE_LABEL[scope]} window saved` });
+      // Remember this scope as configured so the badge + switching reflect it
+      // (back-compat map — only the generic 'all'-boarding-scope rule per
+      // role counts as "the" scope's window for the tab badge).
+      if (boardingScope === 'all') {
+        setRulesByScope((prev) => ({
+          ...prev,
+          [scope]: { ...(prev[scope] || {}), id: data.rule_id, ...form, applies_to: scope } as AttendanceRule,
+        }));
+      }
+      setDayOvByKey((prev) => ({ ...prev, [savedKey]: dayOv }));
+      setToast({ type: 'success', msg: `${SCOPE_LABEL[scope]}${boardingScope !== 'all' ? ` — ${BOARDING_SCOPE_LABEL[boardingScope]}` : ''} window saved` });
     } catch (err: any) {
       setToast({ type: 'error', msg: err.message || 'Failed to save' });
     } finally {
@@ -277,6 +329,90 @@ export default function AttendanceSettingsPage() {
             : `No ${SCOPE_LABEL[scope]} window yet — fill the fields below and save to create one.`}
         </p>
       </div>
+
+      {/* Boarding population sub-selector (Phase 3/4) — learners only. A
+          day-only or boarding-only rule is a SEPARATE rule row from the
+          Everyone default for the same role, not a variant of it. */}
+      {scope === 'students' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Day scholars vs. boarding students</h2>
+          <p className="text-xs text-gray-500">
+            Leave this on <strong>Everyone</strong> if your day and boarding populations share one policy. To give
+            boarding students a different window (or the continuous-presence policy below), switch here and save a
+            separate rule — it only applies to students classified as boarding on the{' '}
+            <a href="/students/list" className="underline">student list</a>.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {(['all', 'boarding', 'day'] as const).map((opt) => {
+              const configured = !!rulesByKey[ruleKey('students', opt)];
+              const active = boardingScope === opt;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => switchScope('students', opt)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
+                    active
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
+                  }`}
+                >
+                  {BOARDING_SCOPE_LABEL[opt]}
+                  {configured && <CheckCircle className={`w-3.5 h-3.5 ${active ? 'text-white' : 'text-green-500'}`} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Boarding continuous-presence policy (Phase 4) — only offered on the
+          boarding-only rule; meaningless anywhere else. */}
+      {scope === 'students' && boardingScope === 'boarding' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Boarding presence policy</h2>
+          <p className="text-xs text-gray-500">
+            Boarding students generally reside at school. <strong>Daily</strong> (default) means a boarding student
+            still needs a biometric punch like anyone else. <strong>Continuous presence</strong> means a boarding
+            student who is checked in stays policy-recognized present on days with no new punch, until checked out
+            or put on leave — check a student in or record leave from their profile. This never overrides an actual
+            punch; it only fills in when there is none.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {(['daily', 'continuous'] as const).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => set('boarding_presence_mode', opt)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors capitalize ${
+                  form.boarding_presence_mode === opt
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+          {form.boarding_presence_mode === 'continuous' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Presence validity window (days)
+              </label>
+              <input
+                type="number"
+                min={1}
+                placeholder="Indefinite — until explicit leave/checkout"
+                value={form.boarding_presence_validity_days}
+                onChange={(e) => set('boarding_presence_validity_days', e.target.value)}
+                className="w-full sm:w-72 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Leave blank for indefinite (a check-in stays valid until someone explicitly checks the student out or
+                records leave). Set a number of days to require fresh evidence periodically instead.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Time Settings */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">

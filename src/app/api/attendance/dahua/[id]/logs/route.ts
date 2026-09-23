@@ -185,9 +185,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           device.late_threshold_minutes || 30
         );
 
-        // Insert normalized log
+        // Insert normalized log. IGNORE + uk_dahua_event (device_id, user_id,
+        // event_time, event_type) — see migration 047; re-syncing an
+        // overlapping window previously duplicated every record verbatim.
         const [insertResult] = await connection.execute(
-          `INSERT INTO dahua_attendance_logs (
+          `INSERT IGNORE INTO dahua_attendance_logs (
             device_id, student_id, card_no, user_id, event_time, event_type,
             method, status, raw_log_id, matched_at, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,

@@ -54,6 +54,13 @@ export interface AttendanceRecordUpsertedEvent {
   earlyMinutes: number;
   totalMinutes: number;
   ruleId: number | null;
+  /** Phase 4 — true when this verdict has no biometric evidence for the
+   *  day and was inferred from a policy instead (e.g. boarding
+   *  continuous-presence, or an authorized leave). Consumers such as the
+   *  notification fanout treat this differently from a real, punch-backed
+   *  absence detection. */
+  isPolicyDerived?: boolean;
+  policyDerivedReason?: string | null;
 }
 
 /**

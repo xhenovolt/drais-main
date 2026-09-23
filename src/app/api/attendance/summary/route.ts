@@ -49,12 +49,21 @@ export async function GET(req: NextRequest) {
       startDate = d.toISOString().split('T')[0];
     }
 
-    // Base WHERE clause
-    let classFilter = '';
+    // Base WHERE clause. Restricting to actively-enrolled students (and
+    // optionally a specific class) via EXISTS rather than a JOIN — a
+    // student may hold 2+ simultaneous active enrollments (multi-program),
+    // and no enrollment column is needed in these two queries' output, so
+    // EXISTS avoids both the double-counting risk and (TiDB doesn't allow
+    // a subquery inside a JOIN's ON clause) the need to pick a "primary" one.
+    let enrollmentFilter = `AND EXISTS (
+      SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.status = 'active'
+    )`;
     const params: any[] = [startDate, endDate, schoolId];
-    
+
     if (classId) {
-      classFilter = 'AND e.class_id = ?';
+      enrollmentFilter = `AND EXISTS (
+        SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.status = 'active' AND e.class_id = ?
+      )`;
       params.push(classId);
     }
 
@@ -87,14 +96,13 @@ export async function GET(req: NextRequest) {
         COUNT(CASE WHEN sa.method = 'hybrid' THEN 1 END) as hybrid_marked
         
       FROM students s
-      JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
       JOIN people p ON s.person_id = p.id
-      LEFT JOIN student_attendance sa ON s.id = sa.student_id 
+      LEFT JOIN student_attendance sa ON s.id = sa.student_id
         AND sa.date BETWEEN ? AND ?
       WHERE s.school_id = ?
         AND s.status IN ('active', 'suspended', 'on_leave')
         AND s.deleted_at IS NULL
-        ${classFilter}`,
+        ${enrollmentFilter}`,
       params
     );
 
@@ -110,13 +118,12 @@ export async function GET(req: NextRequest) {
         COUNT(CASE WHEN COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as late,
         ROUND(COUNT(CASE WHEN COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) * 100.0 / COUNT(s.id), 1) as attendance_rate
       FROM students s
-      JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
-      LEFT JOIN student_attendance sa ON s.id = sa.student_id 
+      LEFT JOIN student_attendance sa ON s.id = sa.student_id
         AND sa.date BETWEEN ? AND ?
       WHERE s.school_id = ?
         AND s.status IN ('active', 'suspended', 'on_leave')
         AND s.deleted_at IS NULL
-        ${classFilter}
+        ${enrollmentFilter}
       GROUP BY sa.date
       ORDER BY sa.date ASC`,
       params
@@ -145,12 +152,15 @@ export async function GET(req: NextRequest) {
         sa.time_in,
         sa.method,
         CONCAT(p.first_name, ' ', p.last_name) as student_name,
-        c.name as class_name
+        (SELECT c2.name FROM enrollments e2
+           LEFT JOIN programs pr2 ON pr2.id = e2.program_id
+           JOIN classes c2 ON c2.id = e2.class_id
+          WHERE e2.student_id = s.id AND e2.status = 'active'
+          ORDER BY pr2.is_default DESC, e2.id DESC
+          LIMIT 1) as class_name
       FROM student_attendance sa
       JOIN students s ON sa.student_id = s.id
       JOIN people p ON s.person_id = p.id
-      LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
-      LEFT JOIN classes c ON e.class_id = c.id
       WHERE sa.date = ?
       ORDER BY sa.marked_at DESC
       LIMIT 10`,

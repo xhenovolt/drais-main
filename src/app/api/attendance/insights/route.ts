@@ -31,12 +31,24 @@ export async function GET(req: NextRequest) {
   }
 
   const perRole = async (role: 'staff' | 'student') => {
+    // A student may hold 2+ simultaneous active enrollments (multi-program).
+    // A JOIN over every match would double-count the SUM()/COUNT() aggregates
+    // below (computed BEFORE the GROUP BY collapses the duplicate rows), so
+    // absents/lates/presents/days would inflate 2x for those students. A
+    // scalar correlated subquery avoids both that AND the JOIN-with-
+    // subquery-in-ON TiDB rejects — it picks one deterministic "primary"
+    // enrollment per row without joining anything.
     const detailJoin = role === 'staff'
       ? `LEFT JOIN staff st ON st.person_id = r.person_id AND st.school_id = r.school_id AND st.deleted_at IS NULL`
-      : `LEFT JOIN students s ON s.person_id = r.person_id AND s.school_id = r.school_id
-         LEFT JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
-         LEFT JOIN classes c ON c.id = e.class_id`;
-    const detailCol = role === 'staff' ? 'MAX(st.position)' : 'MAX(c.name)';
+      : '';
+    const detailCol = role === 'staff'
+      ? 'MAX(st.position)'
+      : `MAX((SELECT c3.name FROM students s3
+                JOIN enrollments e3 ON e3.student_id = s3.id AND e3.status = 'active'
+                LEFT JOIN programs pr3 ON pr3.id = e3.program_id
+                JOIN classes c3 ON c3.id = e3.class_id
+               WHERE s3.person_id = r.person_id AND s3.school_id = r.school_id
+               ORDER BY pr3.is_default DESC, e3.id DESC LIMIT 1))`;
     const rows = (await query(
       `SELECT r.person_id,
               TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS name,

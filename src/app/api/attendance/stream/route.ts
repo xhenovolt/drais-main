@@ -58,26 +58,37 @@ export async function GET(req: NextRequest) {
                   re.derived_event, re.derived_detail,
                   al.matched,
                   sp.first_name AS student_first_name, sp.last_name AS student_last_name,
-                  sp.photo_url AS student_photo, cl.name AS class_name,
+                  sp.photo_url AS student_photo,
+                  -- Scalar correlated subqueries, NOT a JOIN-with-subquery-in-ON
+                  -- (TiDB rejects subqueries in a JOIN's ON condition). A
+                  -- student may hold 2+ simultaneous active enrollments
+                  -- (multi-program) and a person may get >1 notification the
+                  -- same day — pick one deterministic row for each, or this
+                  -- fans a single live punch into duplicate SSE events.
+                  (SELECT cl2.name FROM enrollments en2
+                     LEFT JOIN programs pr2 ON pr2.id = en2.program_id
+                     JOIN classes cl2 ON cl2.id = en2.class_id
+                    WHERE en2.student_id = st.id AND en2.status = 'active'
+                    ORDER BY pr2.is_default DESC, en2.id DESC
+                    LIMIT 1) AS class_name,
                   stf.first_name AS staff_first_name, stf.last_name AS staff_last_name,
                   dud.device_name AS device_known_name, d.device_name,
-                  ob.status AS sms_status
+                  (SELECT ob2.status FROM notification_outbox ob2
+                    WHERE ob2.school_id = al.school_id
+                      AND ob2.subject_person_id = COALESCE(st.person_id, stf.person_id)
+                      AND DATE(ob2.created_at) = DATE(al.check_time)
+                    ORDER BY ob2.created_at DESC
+                    LIMIT 1) AS sms_status
              FROM zk_attendance_logs al
              LEFT JOIN attendance_raw_events re
                ON re.legacy_table = 'zk_attendance_logs' AND re.legacy_id = al.id
              LEFT JOIN devices d   ON al.device_sn = d.sn
              LEFT JOIN students st ON al.student_id = st.id AND st.deleted_at IS NULL
              LEFT JOIN people sp   ON st.person_id = sp.id AND sp.deleted_at IS NULL
-             LEFT JOIN enrollments en ON en.student_id = st.id AND en.status = 'active'
-             LEFT JOIN classes cl  ON en.class_id = cl.id
              LEFT JOIN staff stf   ON al.staff_id = stf.id
              LEFT JOIN device_user_directory dud
                ON dud.school_id = al.school_id AND dud.device_sn = al.device_sn
               AND dud.device_user_id = al.device_user_id
-             LEFT JOIN notification_outbox ob
-               ON ob.school_id = al.school_id
-              AND ob.subject_person_id = COALESCE(st.person_id, stf.person_id)
-              AND DATE(ob.created_at) = DATE(al.check_time)
              WHERE al.id > ? AND al.school_id = ?
              ORDER BY al.id ASC
              LIMIT 30`,
