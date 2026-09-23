@@ -3,6 +3,7 @@ import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
+import { genderMatchSql, isGenderFilter } from '@/lib/attendance/gender';
 
 export const runtime = 'nodejs';
 
@@ -53,9 +54,10 @@ export async function GET(req: NextRequest) {
       conditions.push('r.status = ?');
       params.push(status);
     }
-    if (gender) {
-      conditions.push('p.gender = ?');
-      params.push(gender);
+    if (isGenderFilter(gender)) {
+      const g = genderMatchSql('p.gender', gender);
+      conditions.push(g.sql);
+      params.push(...g.params);
     }
     if (classId) {
       conditions.push(

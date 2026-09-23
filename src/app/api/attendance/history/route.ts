@@ -10,6 +10,7 @@ import { scoreRecord } from '@/lib/attendance/confidence-scoring';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { autoCorrectDay, settledDevices } from '@/lib/attendance/time-intelligence/autoCorrect';
 import { sentinelObserveAttendanceLogs } from '@/lib/sentinel/wiring/attendance-logs-hook';
+import { genderMatchSql, isGenderFilter } from '@/lib/attendance/gender';
 
 export const runtime = 'nodejs';
 
@@ -135,9 +136,13 @@ export async function GET(req: NextRequest) {
       );
       params.push(Number(classId));
     }
-    if (gender) {
-      conditions.push('p.gender = ?');
-      params.push(gender);
+    // p.gender is free text with dirty production data ('male'/'Male'/'M'
+    // all mean the same thing) — an exact match silently misses most real
+    // rows. See src/lib/attendance/gender.ts.
+    if (isGenderFilter(gender)) {
+      const g = genderMatchSql('p.gender', gender);
+      conditions.push(g.sql);
+      params.push(...g.params);
     }
     // Drill-down from the consolidated daily view (one row per person per
     // day) into the raw punches behind it for a specific person.

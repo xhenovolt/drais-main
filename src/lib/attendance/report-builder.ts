@@ -28,6 +28,7 @@
 import { query } from '@/lib/db';
 import { ensureAggregatesSchema } from '@/lib/attendance/migrations/aggregates-schema';
 import { refreshDailyAggregates } from '@/lib/attendance/aggregates';
+import { genderMatchAnySql, type GenderFilter } from '@/lib/attendance/gender';
 
 const STALENESS_THRESHOLD_MS = 10 * 60 * 1000; // 10 min
 
@@ -42,6 +43,10 @@ export interface ReportFilter {
   roleType?: 'student' | 'staff';
   classIds?: number[];
   statusIn?: AttendanceStatus[];
+  /** Gender filter (Phase 5) — matches every raw stored variant of the
+   *  requested value(s); a person with unspecified gender never matches
+   *  either filter. See src/lib/attendance/gender.ts. */
+  genders?: GenderFilter[];
   /** Default 5000. Hard ceiling at 50000 to defend the API. */
   limit?: number;
 }
@@ -104,6 +109,11 @@ export async function buildDetailReport(filter: ReportFilter): Promise<DetailRow
     );
     params.push(...filter.classIds);
   }
+  if (filter.genders && filter.genders.length > 0) {
+    const g = genderMatchAnySql('p.gender', filter.genders);
+    where.push(g.sql);
+    params.push(...g.params);
+  }
 
   const rows = (await query(
     `SELECT
@@ -130,6 +140,15 @@ export async function buildDetailReport(filter: ReportFilter): Promise<DetailRow
 // ── Aggregate report ──────────────────────────────────────────────────
 
 export async function buildAggregateReport(filter: ReportFilter): Promise<AggregateBucket[]> {
+  // attendance_daily_aggregates has no gender dimension in its bucket key
+  // (school_id, class_id, attendance_date, role_type, status) — adding one
+  // would mean re-bucketing a table other code paths and its refresh cron
+  // depend on. A gender-filtered request computes live instead of reading
+  // the precomputed table; every other request is unaffected.
+  if (filter.genders && filter.genders.length > 0) {
+    return buildAggregateReportLive(filter);
+  }
+
   await ensureAggregatesSchema();
 
   // Check freshness for the requested window. If any (school, date)
@@ -179,6 +198,59 @@ export async function buildAggregateReport(filter: ReportFilter): Promise<Aggreg
        LEFT JOIN classes c ON c.id = agg.class_id
       WHERE ${where.join(' AND ')}
       ORDER BY agg.attendance_date DESC, agg.class_id, agg.status`,
+    params,
+  )) as AggregateBucket[];
+
+  return rows;
+}
+
+/** Same shape as buildAggregateReport, computed directly from
+ *  attendance_records (with the same "primary enrollment" class
+ *  attribution as aggregates.ts) rather than the precomputed bucket
+ *  table — used only when a gender filter is present. */
+async function buildAggregateReportLive(filter: ReportFilter): Promise<AggregateBucket[]> {
+  const where: string[] = ['ar.school_id = ?', 'ar.attendance_date BETWEEN ? AND ?'];
+  const params: unknown[] = [filter.schoolId, filter.fromDate, filter.toDate];
+
+  if (filter.roleType) {
+    where.push('ar.role_type = ?');
+    params.push(filter.roleType);
+  }
+  if (filter.statusIn && filter.statusIn.length > 0) {
+    where.push(`ar.status IN (${filter.statusIn.map(() => '?').join(',')})`);
+    params.push(...filter.statusIn);
+  }
+  if (filter.classIds && filter.classIds.length > 0) {
+    where.push(
+      `EXISTS (
+         SELECT 1 FROM students s
+          WHERE s.person_id = ar.person_id
+            AND s.class_id IN (${filter.classIds.map(() => '?').join(',')})
+       )`,
+    );
+    params.push(...filter.classIds);
+  }
+  if (filter.genders && filter.genders.length > 0) {
+    const g = genderMatchAnySql('p.gender', filter.genders);
+    where.push(g.sql);
+    params.push(...g.params);
+  }
+
+  const rows = (await query(
+    `SELECT
+       ar.attendance_date,
+       COALESCE(s.class_id, 0) AS class_id,
+       c.name AS class_name,
+       ar.role_type,
+       ar.status,
+       COUNT(*) AS count
+       FROM attendance_records ar
+       LEFT JOIN people   p ON p.id = ar.person_id
+       LEFT JOIN students s ON s.person_id = ar.person_id
+       LEFT JOIN classes  c ON c.id = s.class_id
+      WHERE ${where.join(' AND ')}
+      GROUP BY ar.attendance_date, class_id, c.name, ar.role_type, ar.status
+      ORDER BY ar.attendance_date DESC, class_id, ar.status`,
     params,
   )) as AggregateBucket[];
 

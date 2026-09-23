@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { buildAggregateReport, type AttendanceStatus } from '@/lib/attendance/report-builder';
+import { isGenderFilter, type GenderFilter } from '@/lib/attendance/gender';
 
 export const runtime = 'nodejs';
 
@@ -62,8 +63,13 @@ export async function GET(req: NextRequest) {
     ? classIdsParam.split(',').map(s => Number(s.trim())).filter(n => Number.isFinite(n) && n > 0)
     : undefined;
 
+  const genderParam = url.searchParams.get('gender');
+  const genders: GenderFilter[] | undefined = genderParam
+    ? genderParam.split(',').map(s => s.trim()).filter(isGenderFilter)
+    : undefined;
+
   const buckets = await buildAggregateReport({
-    schoolId, fromDate: from, toDate: to, roleType, statusIn, classIds,
+    schoolId, fromDate: from, toDate: to, roleType, statusIn, classIds, genders,
   });
 
   return NextResponse.json({

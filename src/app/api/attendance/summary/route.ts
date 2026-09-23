@@ -78,17 +78,19 @@ export async function GET(req: NextRequest) {
         COUNT(CASE WHEN COALESCE(sa.status, 'not_marked') = 'excused' THEN 1 END) as excused,
         COUNT(CASE WHEN COALESCE(sa.status, 'not_marked') = 'not_marked' THEN 1 END) as not_marked,
         
-        -- Male breakdown
-        COUNT(CASE WHEN p.gender = 'Male' THEN 1 END) as male_total,
-        COUNT(CASE WHEN p.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as male_present,
-        COUNT(CASE WHEN p.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as male_absent,
-        COUNT(CASE WHEN p.gender = 'Male' AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as male_late,
-        
-        -- Female breakdown
-        COUNT(CASE WHEN p.gender = 'Female' THEN 1 END) as female_total,
-        COUNT(CASE WHEN p.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as female_present,
-        COUNT(CASE WHEN p.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as female_absent,
-        COUNT(CASE WHEN p.gender = 'Female' AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as female_late,
+        -- Male/female breakdown. p.gender is free text with dirty
+        -- production data ('male'/'Male'/'M' all mean the same thing) —
+        -- an exact 'Male'/'Female' match silently misses most real rows.
+        -- See src/lib/attendance/gender.ts for the canonical normalization.
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('male','m') THEN 1 END) as male_total,
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('male','m') AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as male_present,
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('male','m') AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as male_absent,
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('male','m') AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as male_late,
+
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('female','f') THEN 1 END) as female_total,
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('female','f') AND COALESCE(sa.status, 'not_marked') = 'present' THEN 1 END) as female_present,
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('female','f') AND COALESCE(sa.status, 'not_marked') = 'absent' THEN 1 END) as female_absent,
+        COUNT(CASE WHEN LOWER(TRIM(p.gender)) IN ('female','f') AND COALESCE(sa.status, 'not_marked') = 'late' THEN 1 END) as female_late,
         
         -- Method breakdown
         COUNT(CASE WHEN sa.method = 'biometric' THEN 1 END) as biometric_marked,

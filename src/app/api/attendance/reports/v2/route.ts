@@ -15,6 +15,7 @@
  *   role         student | staff
  *   status       present | late | absent | half_day | early_leave (comma-separated)
  *   class_ids    comma-separated numeric class ids
+ *   gender       male | female (comma-separated for both; omit for all)
  *   limit        default 5000, max 50000
  *   format       json (default) | csv
  *   school_id    super-admin only
@@ -26,6 +27,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
 import { buildDetailReport, type AttendanceStatus } from '@/lib/attendance/report-builder';
+import { isGenderFilter, type GenderFilter } from '@/lib/attendance/gender';
 
 export const runtime = 'nodejs';
 
@@ -82,10 +84,15 @@ export async function GET(req: NextRequest) {
     ? classIdsParam.split(',').map(s => Number(s.trim())).filter(n => Number.isFinite(n) && n > 0)
     : undefined;
 
+  const genderParam = url.searchParams.get('gender');
+  const genders: GenderFilter[] | undefined = genderParam
+    ? genderParam.split(',').map(s => s.trim()).filter(isGenderFilter)
+    : undefined;
+
   const limit = Number(url.searchParams.get('limit')) || undefined;
 
   const rows = await buildDetailReport({
-    schoolId, fromDate: from, toDate: to, roleType, statusIn, classIds, limit,
+    schoolId, fromDate: from, toDate: to, roleType, statusIn, classIds, genders, limit,
   });
 
   const format = url.searchParams.get('format');
