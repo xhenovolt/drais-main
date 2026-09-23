@@ -75,7 +75,8 @@ export default function SmsProvidersPage() {
       const response = await fetch(`/api/control-center/sms/providers/${id}`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(values),
       });
-      setResults((current) => ({ ...current, [id]: await response.json() }));
+      const result = await response.json();
+      setResults((current) => ({ ...current, [id]: result }));
     } finally {
       setBusy(null);
     }
