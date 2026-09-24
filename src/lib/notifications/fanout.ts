@@ -43,6 +43,12 @@
 import { query } from '@/lib/db';
 import { getEventBus, type AttendanceRecordUpsertedEvent } from '@/lib/events/eventbus';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
+import {
+  evaluateAttendanceSmsEligibility, loadBiometricEvidence, schoolLocalDate, isPunchBackedStatus, NO_EVIDENCE,
+} from '@/lib/notifications/attendance-sms-eligibility';
+
+/** Punch-backed verdicts carry their own evidence; skip the enrolment read. */
+const needsEvidence = (event: AttendanceRecordUpsertedEvent): boolean => !isPunchBackedStatus(event.status);
 
 // ── Public subscriber registration ────────────────────────────────────
 
@@ -110,6 +116,22 @@ export async function fanoutAttendanceRecord(
   )) as PolicyRow[];
 
   if (policies.length === 0) return;
+
+  const verdict = evaluateAttendanceSmsEligibility({
+    status: event.status,
+    attendanceDate: event.attendanceDate,
+    todayLocal: schoolLocalDate(),
+    firstInAt: event.firstInAt,
+    isPolicyDerived: event.isPolicyDerived,
+    evidence: needsEvidence(event) ? await loadBiometricEvidence(event.schoolId, event.personId) : NO_EVIDENCE,
+  });
+  if (!verdict.eligible) {
+    console.log(JSON.stringify({
+      ts: new Date().toISOString(), type: 'ATTENDANCE_SMS_SUPPRESSED',
+      schoolId: event.schoolId, status: event.status, reason: verdict.reason,
+    }));
+    return;
+  }
 
   // Resolve the subject's name + school name ONCE for this event so
   // templates can address parents properly ("your child {name}…").

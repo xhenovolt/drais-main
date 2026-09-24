@@ -24,6 +24,7 @@ import { query } from '@/lib/db';
 import { getProvider } from '@/lib/comm/providers';
 import { getCommSettings } from '@/lib/comm/settings';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
+import { revalidateQueuedAttendanceMessage } from '@/lib/notifications/attendance-sms-eligibility';
 
 const BATCH = 50;
 
@@ -44,12 +45,25 @@ interface OutboxRow {
   recipient_name: string | null;
   attempts: number;
   max_attempts: number;
+  dedup_key: string | null;
 }
 
 export async function drainNotificationOutbox(): Promise<DrainResult> {
   const result: DrainResult = { attempted: 0, delivered: 0, failed: 0, requeued: 0 };
 
   await ensureNotificationSchema();
+
+  // A drainer that died mid-batch leaves rows in 'sending' forever. Whether
+  // the provider already accepted them is unknowable, so retrying could
+  // double-text a parent; close them out instead of resending.
+  await query(
+    `UPDATE notification_outbox
+        SET status = 'expired',
+            last_error = 'Interrupted while sending; delivery unknown - not retried'
+      WHERE status = 'sending'
+        AND attempted_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)`,
+    [],
+  ).catch(() => undefined);
 
   // Atomically claim a batch by flipping to 'sending'.
   const claim = (await query(
@@ -68,7 +82,7 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
   // Re-select the rows we just claimed (no RETURNING in MySQL).
   const rows = (await query(
     `SELECT id, school_id, channel, body, recipient_phone,
-            recipient_email, recipient_name, attempts, max_attempts
+            recipient_email, recipient_name, attempts, max_attempts, dedup_key
        FROM notification_outbox
       WHERE status = 'sending'
         AND attempted_at >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
@@ -95,6 +109,15 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
     try {
       if (row.channel !== 'sms') {
         await markFailed(row.id, `Channel ${row.channel} not implemented`);
+        result.failed++;
+        continue;
+      }
+      const stillValid = await revalidateQueuedAttendanceMessage(row.school_id, row.dedup_key);
+      if (!stillValid.eligible) {
+        await query(
+          `UPDATE notification_outbox SET status = 'expired', last_error = ? WHERE id = ?`,
+          [`Suppressed before send: ${stillValid.reason}`, row.id],
+        );
         result.failed++;
         continue;
       }

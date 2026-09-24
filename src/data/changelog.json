@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T12:48:19.926Z",
-  "last_commit": "0dcaabf7bf14f009fb4e091b3e029adf5be0cf44",
+  "generated_at": "2026-09-24T13:19:16.735Z",
+  "last_commit": "0092b7856f61d7191b272838f6eb0ad752a45bf7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7710,7 +7710,20 @@
         }
       ],
       "commit": "0dcaabf7bf"
+    },
+    {
+      "version": "2.14.27",
+      "date": "2026-09-24",
+      "release_type": "patch",
+      "title": "Embedded Node has no ICU — rewrite \\p{} regexes; stop aapt stripping .next/",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Embedded Node has no ICU — rewrite \\p{} regexes; stop aapt stripping .next/"
+        }
+      ],
+      "commit": "0092b7856f"
     }
   ],
-  "app_version": "2.14.27"
+  "app_version": "2.14.28"
 }
