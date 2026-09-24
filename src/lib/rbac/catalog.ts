@@ -89,6 +89,7 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   p('learners', 'photos',       'manage',   'Upload / replace learner photos'),
   p('learners', 'documents',    'manage',   'Manage learner documents and attachments'),
   p('learners', 'bulk',         'import',   'Bulk-import learners from CSV / Excel'),
+  p('learners', 'idcards',      'manage',   'Design ID card templates and generate/print ID cards'),
   p('learners', 'transfer',     'manage',   'Reassign learners between classes'),
   p('learners', 'contacts',     'manage',   'Manage parent / guardian contacts'),
   p('learners', 'lifecycle',    'manage',   'Status transitions: admit / suspend / withdraw / graduate'),

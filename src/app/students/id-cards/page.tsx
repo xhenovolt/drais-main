@@ -238,6 +238,12 @@ export default function IDCardsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/students/id-cards/studio"
+            className="px-3 py-2 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 text-sm font-semibold transition-colors"
+          >
+            Two-sided &amp; Excel studio
+          </Link>
           <OpenInDRCEButton />
           <button
             onClick={() => { setConfig(DEFAULT_ID_CARD_CONFIG); setSaved(false); }}

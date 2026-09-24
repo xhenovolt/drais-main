@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T14:15:01.877Z",
-  "last_commit": "1b7065afc46693fe99184bf82c9ce9e99b3df298",
+  "generated_at": "2026-09-24T18:16:39.557Z",
+  "last_commit": "5a370f67b226314390062d02399f577db978951d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7736,7 +7736,20 @@
         }
       ],
       "commit": "1b7065afc4"
+    },
+    {
+      "version": "2.14.29",
+      "date": "2026-09-24",
+      "release_type": "patch",
+      "title": "Add Nakifuma onboarding scripts (inspect/probe/enrich/enroll/verify)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add Nakifuma onboarding scripts (inspect/probe/enrich/enroll/verify)"
+        }
+      ],
+      "commit": "5a370f67b2"
     }
   ],
-  "app_version": "2.14.29"
+  "app_version": "2.15.0"
 }
