@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "2.14.26",
+  "version": "2.14.27",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -138,6 +138,8 @@
     "better-sqlite3": "^13.0.3"
   },
   "devDependencies": {
+    "@babel/core": "^8.0.6",
+    "@babel/plugin-transform-unicode-property-regex": "^8.0.1",
     "@capacitor/android": "^8.4.0",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
@@ -152,6 +154,7 @@
     "eslint": "^9",
     "eslint-config-next": "^15.5.12",
     "nodejs-mobile-react-native": "^18.20.4",
+    "regexpu-core": "^6.4.0",
     "tailwindcss": "^4.1.12",
     "typescript": "^5"
   },

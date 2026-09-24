@@ -76,6 +76,25 @@ async function copyTree(src, dst) {
 await copyTree(standalone, nodeProj);
 console.log(`  copied ${standalone} → ${nodeProj}`);
 
+// ── 3a. Android-only fix: rewrite \p{...}/\P{...} Unicode-property
+// regex literals (and plain-string new RegExp(...) patterns) into
+// ICU-independent equivalents. CONFIRMED root cause (direct binary
+// inspection, not assumed): the embedded Node 18.20.4 runtime shipped by
+// nodejs-mobile-react-native was compiled with --without-intl (zero ICU
+// symbols anywhere in libnode.so), and V8 gates \p{}/\P{} regex support
+// behind ICU at compile time — so ANY such literal throws
+// "SyntaxError: Invalid regular expression: ... Invalid property name in
+// character class" the moment it's parsed, unconditionally on this
+// runtime. Electron and Vercel both run a normal full-ICU Node.js and
+// never hit this, so this step only touches mobile/nodejs-project/ (the
+// Android-bound copy), never .next/standalone itself. See
+// scripts/patch-unicode-regex-android.mjs for the full analysis.
+console.log('\n▶ Patching \\p{}/\\P{} Unicode-property regexes for the ICU-less Android runtime');
+const { patchUnicodeRegexForAndroid } = await import('./patch-unicode-regex-android.mjs');
+const patchResult = await patchUnicodeRegexForAndroid(nodeProj);
+console.log(`  scanned ${patchResult.scanned} JS files, patched ${patchResult.patched}.`);
+for (const f of patchResult.patchedFiles) console.log(`    - ${f}`);
+
 // ── 3b. Bundle DB config, mirroring the Electron packaging flow ──
 // electron-builder ships build/.env.production into resources/; the APK
 // equivalent is a copy next to main.js, which mobile/nodejs-project/main.js

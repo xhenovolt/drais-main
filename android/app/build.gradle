@@ -34,7 +34,27 @@ android {
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+             //
+             // CRITICAL: the original bare `.*` rule (Capacitor's stock
+             // template default) excludes any file/dir whose name starts with
+             // a dot — including `.next/`, the Next.js standalone server's
+             // OWN required directory (server-side page handlers, chunks,
+             // routes-manifest.json, prerender-manifest.json — genuinely
+             // required at runtime, not build cache). This silently dropped
+             // ~63% of the embedded Node project's files from the APK
+             // (confirmed: 2952 of 7973 files shipped without this fix) — the
+             // server boots but then fails to serve any real page/route.
+             // Adding a `!.next` exception did NOT override it (empirically
+             // verified — aapt's `!name` exceptions un-ignore names from its
+             // OWN hardcoded default ignore list, they don't create
+             // exceptions to a separate glob you also list yourself). Fixed
+             // by dropping the blanket `.*` rule outright: this staged
+             // assets/www/nodejs-project tree is generated build output, not
+             // a raw source checkout, so there's no actual .svn/.git/.DS_Store
+             // junk here for `.*` to protect against (confirmed — `.next` was
+             // the ONLY dot-prefixed entry present) — the other explicit
+             // exclusions below remain as a defensive baseline regardless.
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
     buildTypes {
