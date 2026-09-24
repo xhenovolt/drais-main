@@ -54,6 +54,7 @@ import { publishEvent } from '@/lib/events/eventbus';
 import { installNotificationFanout, fanoutAttendanceRecord } from '@/lib/notifications/fanout';
 import { getProvisionalAttendanceMeta } from '@/lib/attendance/provisional';
 import { getResidencyStatus } from '@/lib/attendance/residency';
+import { onRawPunchForLessons } from '@/lib/attendance/lessons/service';
 import { getBoardingPresenceState, isWithinValidityWindow } from '@/lib/attendance/boarding-presence';
 installNotificationFanout();
 
@@ -241,6 +242,9 @@ export async function evaluatePunch(rawEventId: number): Promise<void> {
   const punchAt = r.punch_at instanceof Date ? r.punch_at : new Date(r.punch_at);
   const attendanceDate = startOfDay(punchAt);
   await evaluateDay(r.school_id, r.person_id, r.role_type, attendanceDate);
+  // Lesson-level attendance is a separate derived layer fed by the same raw event.
+  // No-op (one cached read) unless the school enabled it; never throws.
+  await onRawPunchForLessons(r.school_id, r.person_id, r.role_type, punchAt.getTime());
 }
 
 /**

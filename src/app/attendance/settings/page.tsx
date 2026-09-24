@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Clock, Save, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import LivePopupSettings from '@/components/attendance/LivePopupSettings';
 import AttendanceSmsPolicies from '@/components/attendance/AttendanceSmsPolicies';
+import LessonAttendanceSettings from '@/components/attendance/LessonAttendanceSettings';
 import DeviceTimePolicySettings from '@/components/attendance/DeviceTimePolicySettings';
 
 interface AttendanceRule {
@@ -660,6 +661,9 @@ export default function AttendanceSettingsPage() {
 
       {/* Live popup configuration (own save) */}
       <LivePopupSettings />
+
+      {/* Lesson (timetable) attendance policy + device scopes (own save) */}
+      <LessonAttendanceSettings />
 
       {/* Attendance SMS / notification policies (own CRUD) */}
       <AttendanceSmsPolicies />

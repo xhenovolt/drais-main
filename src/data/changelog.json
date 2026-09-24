@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T18:56:13.117Z",
-  "last_commit": "aee4ff7b35a10e2b6ec6ec5cd08148d6702655ce",
+  "generated_at": "2026-09-24T18:56:24.965Z",
+  "last_commit": "b3f69a93e96b35641e9c392c76e3e010340874aa",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7775,7 +7775,20 @@
         }
       ],
       "commit": "aee4ff7b35"
+    },
+    {
+      "version": "2.15.2",
+      "date": "2026-09-24",
+      "release_type": "patch",
+      "title": "Accept the admin role as a working grant for ID Card Studio",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Accept the admin role as a working grant for ID Card Studio"
+        }
+      ],
+      "commit": "b3f69a93e9"
     }
   ],
-  "app_version": "2.15.2"
+  "app_version": "2.16.0"
 }

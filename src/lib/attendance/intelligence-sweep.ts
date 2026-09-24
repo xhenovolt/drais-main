@@ -48,6 +48,13 @@ export async function sweepSchoolIntelligence(schoolId: number, force = false): 
     await finalizeRecentDays(schoolId, 7);
   } catch { /* finalization is best-effort */ }
 
+  // Close out today's lessons (absent verdicts once the finalisation delay has passed).
+  // Returns immediately for schools that have not enabled lesson attendance.
+  try {
+    const { finalizeLessonDay } = await import('@/lib/attendance/lessons/service');
+    await finalizeLessonDay(schoolId);
+  } catch { /* best-effort */ }
+
   return { devices: n };
 }
 

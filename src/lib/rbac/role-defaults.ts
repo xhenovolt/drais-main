@@ -80,6 +80,7 @@ export const ROLE_DEFAULTS: Record<RoleSlug, readonly string[]> = {
     'academics.snapshots.generate',
     'attendance.record.view', 'attendance.record.mark',
     'attendance.sessions.view',
+    'attendance.lessons.view', 'attendance.lessons.correct',
     'learners.profile.view',
     'staff.profile.view', 'staff.workload.view',
     'tahfiz.records.view', 'tahfiz.records.manage',

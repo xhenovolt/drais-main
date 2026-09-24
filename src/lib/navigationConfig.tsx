@@ -399,7 +399,8 @@ export function getNavigationItems(
       children: [
         { key: 'att-dashboard',      label: 'Dashboard',         icon: <UserCheck className="w-4 h-4" />,    href: '/attendance' },
         { key: 'att-logs',           label: 'Attendance Logs',   icon: <FileSearch className="w-4 h-4" />,   href: '/attendance/logs' },
-        { key: 'att-shifts',         label: 'Shifts',            icon: <Clock className="w-4 h-4" />,        href: '/attendance/shifts', roles: ['admin', 'super_admin'] },
+        { key: 'att-lessons',        label: 'Lesson Attendance', icon: <Users className="w-4 h-4" />,        href: '/attendance/lessons' },
+        { key: 'att-shifts',         label: 'Shifts',           icon: <Clock className="w-4 h-4" />,        href: '/attendance/shifts', roles: ['admin', 'super_admin'] },
         { key: 'att-holidays',       label: 'Holidays',          icon: <Calendar className="w-4 h-4" />,    href: '/attendance/holidays', roles: ['admin', 'super_admin'] },
         { key: 'att-health',         label: 'Health Center',     icon: <Activity className="w-4 h-4" />,     href: '/attendance/health', roles: ['admin', 'super_admin'] },
         { key: 'att-recovery',       label: 'Recovery Center',   icon: <LifeBuoy className="w-4 h-4" />,     href: '/attendance/recovery', roles: ['admin', 'super_admin'] },
