@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T18:56:24.965Z",
-  "last_commit": "b3f69a93e96b35641e9c392c76e3e010340874aa",
+  "generated_at": "2026-09-24T20:40:44.102Z",
+  "last_commit": "349428fb87ba0af6ef265d3515f7e20a77cc7395",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7788,7 +7788,20 @@
         }
       ],
       "commit": "b3f69a93e9"
+    },
+    {
+      "version": "2.16.0",
+      "date": "2026-09-24",
+      "release_type": "minor",
+      "title": "Timetable-aware biometric lesson attendance and automatic lesson rosters",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Timetable-aware biometric lesson attendance and automatic lesson rosters"
+        }
+      ],
+      "commit": "349428fb87"
     }
   ],
-  "app_version": "2.16.0"
+  "app_version": "2.16.1"
 }

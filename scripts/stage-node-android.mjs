@@ -89,8 +89,10 @@ async function main() {
  * its after-prepare hook (install/hooks/android/after-prepare-build-node-
  * assets-lists.js); this replicates it against the staged tree.
  *
- * Same skip rules as the hook: dotfiles, *.gz, *~ (aapt strips dotfiles from
- * APK assets anyway, so the list must match what actually ships).
+ * Skip rules must match what aapt actually ships (android/app/build.gradle
+ * ignoreAssetsPattern): VCS/OS junk, *.gz, *~. Dot-prefixed build output (.next) is
+ * shipped and therefore listed — an earlier version skipped every dotfile and the
+ * app died at startup with "Could not find a production build in ./.next".
  */
 async function writeAssetLists() {
   const assetsRoot = path.join(root, 'android', 'capacitor-cordova-android-plugins', 'src', 'main', 'assets');
@@ -99,7 +101,9 @@ async function writeAssetLists() {
   async function enumFolder(rel) {
     for (const entry of await fs.readdir(path.join(assetsRoot, rel), { withFileTypes: true })) {
       const name = entry.name;
-      if (name.startsWith('.')) continue;
+      // Mirror android/app/build.gradle ignoreAssetsPattern exactly. Dot-directories such as
+      // `.next` MUST be listed: the Next server needs ./.next at runtime, and the APK ships it.
+      if (/^\.(svn|git|ds_store)$/i.test(name) || /^(cvs|thumbs\.db|picasa\.ini)$/i.test(name)) continue;
       const relPath = `${rel}/${name}`;
       if (entry.isDirectory()) {
         dirs.push(relPath);
