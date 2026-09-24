@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T13:19:16.735Z",
-  "last_commit": "0092b7856f61d7191b272838f6eb0ad752a45bf7",
+  "generated_at": "2026-09-24T14:15:01.877Z",
+  "last_commit": "1b7065afc46693fe99184bf82c9ce9e99b3df298",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7723,7 +7723,20 @@
         }
       ],
       "commit": "0092b7856f"
+    },
+    {
+      "version": "2.14.28",
+      "date": "2026-09-24",
+      "release_type": "patch",
+      "title": "Gate attendance SMS on biometric evidence and freshness",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Gate attendance SMS on biometric evidence and freshness"
+        }
+      ],
+      "commit": "1b7065afc4"
     }
   ],
-  "app_version": "2.14.28"
+  "app_version": "2.14.29"
 }
