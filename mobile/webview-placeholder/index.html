@@ -158,10 +158,15 @@
       // ── Poll the server; navigate the moment it answers ───────────────
       (function poll() {
         if (failed) return;
-        fetch(SERVER, { cache: 'no-store' })
-          .then(function (res) {
-            if (res.ok) { setPhase('up', 'Ready — opening DRAIS'); location.replace(SERVER); return; }
-            setTimeout(poll, 1000);
+        // This page is served from http://localhost, the server from http://127.0.0.1:3210 — a
+        // different origin, and the Next server sends no CORS headers. A normal fetch is therefore
+        // ALWAYS blocked ("Access-Control-Allow-Origin" missing) and this loop would spin forever
+        // while the server is perfectly healthy. With mode:'no-cors' the request resolves (opaque
+        // response) as soon as the server ANSWERS at all, and still rejects while nothing is
+        // listening yet (connection refused) — which is exactly the readiness signal we need.
+        fetch(SERVER, { cache: 'no-store', mode: 'no-cors' })
+          .then(function () {
+            setPhase('up', 'Ready — opening DRAIS'); location.replace(SERVER);
           })
           .catch(function () { setTimeout(poll, 1000); });
       })();

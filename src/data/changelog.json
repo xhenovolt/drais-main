@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T20:40:44.102Z",
-  "last_commit": "349428fb87ba0af6ef265d3515f7e20a77cc7395",
+  "generated_at": "2026-09-24T21:14:39.222Z",
+  "last_commit": "3f71c7d0298157be4a6b2e6b84a9c2db0acc5a31",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7801,7 +7801,20 @@
         }
       ],
       "commit": "349428fb87"
+    },
+    {
+      "version": "2.16.1",
+      "date": "2026-09-24",
+      "release_type": "patch",
+      "title": "Include .next in the first-launch asset list",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Include .next in the first-launch asset list"
+        }
+      ],
+      "commit": "3f71c7d029"
     }
   ],
-  "app_version": "2.16.1"
+  "app_version": "2.16.2"
 }
