@@ -1,17 +1,22 @@
 /**
- * Isolated ID-card jobs backed by `id_card_jobs` (migration 050).
+ * Isolated ID-card jobs backed by `id_card_jobs` (migrations 050/051).
+ *
+ * The workbook itself lives in PRIVATE Cloudinary storage (see storage.ts);
+ * this table holds only metadata and the storage reference.
  *
  * Isolation guarantees
  *  - Every read/write is scoped by school_id AND created_by (a job is private to
  *    the uploader; another user in the same school gets a 404, not a 403, so job
  *    ids can't be probed).
- *  - The workbook lives only in the DB row (LONGBLOB). There is no URL to it.
- *  - Jobs expire (default 24 h) and expired rows are purged opportunistically on
- *    every create/list; users can also delete immediately (bytes are nulled).
+ *  - There is no URL to the workbook: Cloudinary assets are `authenticated` and
+ *    only readable through server-signed requests.
+ *  - Jobs expire (default 24 h). Expiry and explicit delete both destroy the
+ *    Cloudinary asset, then the row.
  *  - No table touched here is a student/people/enrollment table.
  */
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { query } from '@/lib/db';
+import { destroyWorkbook, downloadWorkbook } from './storage';
 
 export const JOB_TTL_HOURS = 24;
 
@@ -36,30 +41,33 @@ const META_COLS = `id, job_uuid, school_id, created_by, status, file_name, file_
 
 let purgedAt = 0;
 
-/** Hard-delete expired or soft-deleted jobs (bytes included). Throttled to once a minute per process. */
+/** Destroy expired jobs (Cloudinary asset first, then the row). Throttled to once a minute per process. */
 export async function purgeExpiredJobs(force = false): Promise<number> {
   const now = Date.now();
   if (!force && now - purgedAt < 60_000) return 0;
   purgedAt = now;
-  const res = (await query(
-    `DELETE FROM id_card_jobs WHERE expires_at < UTC_TIMESTAMP() OR deleted_at IS NOT NULL`,
+  const stale = (await query(
+    `SELECT id, storage_ref FROM id_card_jobs WHERE expires_at < UTC_TIMESTAMP() OR deleted_at IS NOT NULL LIMIT 200`,
     [],
-  )) as unknown as { affectedRows?: number };
-  return res?.affectedRows ?? 0;
+  )) as Array<{ id: number; storage_ref: string | null }>;
+  for (const row of stale) {
+    await destroyWorkbook(row.storage_ref);
+    await query('DELETE FROM id_card_jobs WHERE id = ?', [row.id]);
+  }
+  return stale.length;
 }
 
 export async function createJob(p: {
-  schoolId: number; userId: number; fileName: string; data: Buffer; ttlHours?: number;
+  schoolId: number; userId: number; fileName: string; storageRef: string; size: number; sha256: string; ttlHours?: number;
 }): Promise<{ uuid: string; expiresAt: Date }> {
   await purgeExpiredJobs();
   const uuid = randomUUID();
   const expiresAt = new Date(Date.now() + (p.ttlHours ?? JOB_TTL_HOURS) * 3_600_000);
-  const sha = createHash('sha256').update(p.data).digest('hex');
   await query(
     `INSERT INTO id_card_jobs
-       (job_uuid, school_id, created_by, status, file_name, file_size, file_sha256, file_data, expires_at)
+       (job_uuid, school_id, created_by, status, file_name, file_size, file_sha256, storage_ref, expires_at)
      VALUES (?, ?, ?, 'uploaded', ?, ?, ?, ?, ?)`,
-    [uuid, p.schoolId, p.userId, p.fileName.slice(0, 255), p.data.length, sha, p.data, toSqlUtc(expiresAt)],
+    [uuid, p.schoolId, p.userId, p.fileName.slice(0, 255), p.size, p.sha256, p.storageRef, toSqlUtc(expiresAt)],
   );
   return { uuid, expiresAt };
 }
@@ -78,12 +86,14 @@ export async function getJob(uuid: string, schoolId: number, userId: number): Pr
 export async function getJobData(uuid: string, schoolId: number, userId: number): Promise<Buffer | null> {
   if (!/^[0-9a-f-]{36}$/i.test(uuid)) return null;
   const rows = (await query(
-    `SELECT file_data FROM id_card_jobs
+    `SELECT storage_ref FROM id_card_jobs
       WHERE job_uuid = ? AND school_id = ? AND created_by = ?
         AND deleted_at IS NULL AND expires_at > UTC_TIMESTAMP() LIMIT 1`,
     [uuid, schoolId, userId],
-  )) as Array<{ file_data: Buffer | null }>;
-  return rows[0]?.file_data ?? null;
+  )) as Array<{ storage_ref: string | null }>;
+  const ref = rows[0]?.storage_ref;
+  if (!ref) return null;
+  return downloadWorkbook(ref);
 }
 
 export async function listJobs(schoolId: number, userId: number): Promise<JobRow[]> {
@@ -109,8 +119,14 @@ export async function saveMapping(
   return (res?.affectedRows ?? 0) > 0;
 }
 
-/** Immediate removal: the workbook bytes are destroyed, not just flagged. */
+/** Immediate removal: the stored workbook is destroyed, then the row. */
 export async function deleteJob(uuid: string, schoolId: number, userId: number): Promise<boolean> {
+  const rows = (await query(
+    `SELECT storage_ref FROM id_card_jobs WHERE job_uuid = ? AND school_id = ? AND created_by = ? LIMIT 1`,
+    [uuid, schoolId, userId],
+  )) as Array<{ storage_ref: string | null }>;
+  if (!rows[0]) return false;
+  await destroyWorkbook(rows[0].storage_ref);
   const res = (await query(
     `DELETE FROM id_card_jobs WHERE job_uuid = ? AND school_id = ? AND created_by = ?`,
     [uuid, schoolId, userId],

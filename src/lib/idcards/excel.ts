@@ -12,7 +12,7 @@
 import * as XLSX from 'xlsx';
 import type { CardRecord } from './spec';
 
-export const MAX_XLSX_BYTES = 4 * 1024 * 1024;   // fits a single TiDB row comfortably
+export const MAX_XLSX_BYTES = 60 * 1024 * 1024;  // must match storage.ts MAX_WORKBOOK_BYTES
 export const MAX_ROWS = 2000;
 const MAX_COLS = 60;
 const HEADER_SCAN_ROWS = 15;
@@ -81,6 +81,24 @@ function gridOf(ws: XLSX.WorkSheet): Grid {
     out.push(row);
   }
   return out;
+}
+
+/**
+ * Compact copy of a workbook: text values only (dates already ISO), capped rows/
+ * columns, no styles/images/charts/macros. Runs in the BROWSER for workbooks
+ * that exceed the storage plan's per-file limit, so only the data a card job can
+ * actually use is uploaded. The original file is not preserved in that case.
+ */
+export function slimWorkbook(data: ArrayBuffer | Uint8Array): Uint8Array {
+  const wb = XLSX.read(data instanceof Uint8Array ? data : new Uint8Array(data), {
+    type: 'array', cellFormula: false, cellHTML: false, cellStyles: false,
+    cellNF: true, cellDates: false, bookVBA: false, sheetRows: MAX_ROWS + HEADER_SCAN_ROWS + 5,
+  });
+  const out = XLSX.utils.book_new();
+  for (const name of wb.SheetNames) {
+    XLSX.utils.book_append_sheet(out, XLSX.utils.aoa_to_sheet(gridOf(wb.Sheets[name])), name.slice(0, 31));
+  }
+  return new Uint8Array(XLSX.write(out, { type: 'array', bookType: 'xlsx', compression: true }));
 }
 
 /** The row (0-based) most likely to be the header: many short non-numeric text cells. */

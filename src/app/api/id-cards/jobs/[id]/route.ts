@@ -9,6 +9,7 @@ import { inspectWorkbook, suggestMapping } from '@/lib/idcards/excel';
 import { logAudit } from '@/lib/audit';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, ctx: Ctx) {

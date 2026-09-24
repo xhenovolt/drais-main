@@ -6,7 +6,7 @@ import {
 } from '@/lib/idcards/spec.ts';
 import { layoutPages, computeGrid } from '@/lib/idcards/layout.ts';
 import {
-  inspectWorkbook, suggestMapping, extractRows, looksLikeWorkbook, formatDisplayDate,
+  inspectWorkbook, suggestMapping, extractRows, looksLikeWorkbook, formatDisplayDate, slimWorkbook,
 } from '@/lib/idcards/excel.ts';
 
 const A4 = { widthMm: 210, heightMm: 297, marginMm: 10, gapMm: 4 };
@@ -222,6 +222,38 @@ describe('excel parsing', () => {
     assert.equal(formatDisplayDate('2010-03-04'), '04 Mar 2010');
     assert.equal(formatDisplayDate('4/3/10'), '04 Mar 2010');
     assert.equal(formatDisplayDate('32/13/2010'), null);
+  });
+});
+
+describe('slimWorkbook (client-side reduction for oversize files)', () => {
+  it('extraction from the compact copy equals extraction from the original, dates included', () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['REG', 'Name', 'DOB', 'Class'],
+      ['R1', 'Ann Lee', new Date(Date.UTC(2010, 2, 4)), 'S1'],
+      ['R2', 'Bob Ray', '2011-06-05', 'S2'],
+    ], { cellDates: true });
+    ws['C2'].z = 'dd/mm/yyyy';
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['note'], ['x']]), 'Other');
+    const original = Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx', cellDates: true }));
+    const slim = Buffer.from(slimWorkbook(original));
+
+    assert.deepEqual(inspectWorkbook(slim).sheets.map((s) => s.name), ['Data', 'Other']);
+    const map = { full_name: 'Name', admission_no: 'REG', dob: 'DOB', class: 'Class' };
+    const a = extractRows(original, { sheetName: 'Data', headerRow: 1, mapping: map });
+    const b = extractRows(slim, { sheetName: 'Data', headerRow: 1, mapping: map });
+    assert.deepEqual(b.rows.map((r) => r.record), a.rows.map((r) => r.record));
+    assert.equal(b.rows[0].record.dob, '04 Mar 2010');
+  });
+
+  it('caps very tall sheets so the copy stays small', () => {
+    const aoa = [['Name']]; for (let i = 0; i < 6000; i++) aoa.push([`Learner ${i}`]);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'S');
+    const slim = Buffer.from(slimWorkbook(Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }))));
+    const r = extractRows(slim, { sheetName: 'S', headerRow: 1, mapping: { full_name: 'Name' } });
+    assert.equal(r.rows.length, 2000);
+    assert.equal(r.truncated, true);
   });
 });
 

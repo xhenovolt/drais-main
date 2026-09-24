@@ -14,6 +14,7 @@ import { query } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {

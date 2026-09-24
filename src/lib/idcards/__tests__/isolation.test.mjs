@@ -10,6 +10,7 @@ const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf
 
 const ROUTES = [
   'app/api/id-cards/jobs/route.ts',
+  'app/api/id-cards/jobs/upload-ticket/route.ts',
   'app/api/id-cards/jobs/[id]/route.ts',
   'app/api/id-cards/jobs/[id]/extract/route.ts',
   'app/api/id-cards/designs/route.ts',
@@ -41,7 +42,7 @@ describe('id_card_jobs queries', () => {
 
   it('every per-job statement filters on job_uuid AND school_id AND created_by', () => {
     const perJob = stmts.filter((s) => /job_uuid = \?/.test(s));
-    assert.equal(perJob.length, 4, 'getJob, getJobData, saveMapping, deleteJob');
+    assert.equal(perJob.length, 5, 'getJob, getJobData, saveMapping, deleteJob (select + delete)');
     for (const s of perJob) {
       assert.match(s, /school_id = \?/, s.slice(0, 80));
       assert.match(s, /created_by = \?/, s.slice(0, 80));
@@ -55,14 +56,17 @@ describe('id_card_jobs queries', () => {
     assert.match(list, /created_by = \?/);
   });
 
-  it('jobs expire and never expose a URL', () => {
+  it('jobs expire, and expiry/delete destroy the stored workbook before the row', () => {
     assert.match(src, /expires_at > UTC_TIMESTAMP\(\)/);
-    assert.match(src, /DELETE FROM id_card_jobs WHERE expires_at < UTC_TIMESTAMP\(\)/);
-    assert.doesNotMatch(src, /cloudinary|https?:\/\//i);
+    assert.match(src, /expires_at < UTC_TIMESTAMP\(\)/);
+    assert.ok(src.indexOf('destroyWorkbook(row.storage_ref)') < src.indexOf("DELETE FROM id_card_jobs WHERE id = ?"));
+    assert.ok(src.indexOf('await destroyWorkbook(rows[0].storage_ref)') < src.indexOf('DELETE FROM id_card_jobs WHERE job_uuid'));
+    assert.doesNotMatch(src, /https?:\/\//i, 'no URL is ever stored or returned');
+    assert.doesNotMatch(src, /file_data/, 'workbook bytes are never kept in the database');
   });
 
   it('job code never touches student, people, enrollment, attendance or notification tables', () => {
-    for (const f of ['lib/idcards/jobs.ts', 'lib/idcards/excel.ts', 'app/api/id-cards/jobs/route.ts', 'app/api/id-cards/jobs/[id]/route.ts', 'app/api/id-cards/jobs/[id]/extract/route.ts']) {
+    for (const f of ['lib/idcards/jobs.ts', 'lib/idcards/storage.ts', 'lib/idcards/excel.ts', 'app/api/id-cards/jobs/route.ts', 'app/api/id-cards/jobs/upload-ticket/route.ts', 'app/api/id-cards/jobs/[id]/route.ts', 'app/api/id-cards/jobs/[id]/extract/route.ts']) {
       const s = read(f);
       for (const t of ['students', 'people', 'enrollments', 'attendance_records', 'attendance_raw_events', 'notification_outbox', 'student_contacts']) {
         assert.doesNotMatch(s, new RegExp(`(FROM|INTO|UPDATE|JOIN)\\s+${t}\\b`, 'i'), `${f} must not touch ${t}`);

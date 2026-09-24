@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T18:16:39.557Z",
-  "last_commit": "5a370f67b226314390062d02399f577db978951d",
+  "generated_at": "2026-09-24T18:29:45.915Z",
+  "last_commit": "4d8837f91afc80df9222b741f301cfc90760fdc6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7749,7 +7749,20 @@
         }
       ],
       "commit": "5a370f67b2"
+    },
+    {
+      "version": "2.15.0",
+      "date": "2026-09-24",
+      "release_type": "minor",
+      "title": "Two-sided ID Card Studio with artwork import and isolated Excel card jobs",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Two-sided ID Card Studio with artwork import and isolated Excel card jobs"
+        }
+      ],
+      "commit": "4d8837f91a"
     }
   ],
-  "app_version": "2.15.0"
+  "app_version": "2.15.1"
 }

@@ -16,6 +16,9 @@ interface SheetInfo { name: string; hidden: boolean; rowCount: number; headerRow
 interface Issue { row: number; field: string; severity: 'error' | 'warning'; message: string; }
 interface ExRow { row: number; record: CardRecord; status: 'ok' | 'warning' | 'error'; }
 
+/** Cloudinary's Free plan rejects files over 10 MB; stay safely under it. */
+const STORAGE_SAFE_BYTES = 9 * 1024 * 1024;
+
 interface Props {
   spec: IdCardSpec;
   schoolName: string;
@@ -101,11 +104,55 @@ export function IdCardGenerate({ spec, schoolName, logoUrl, onExcelHeaders }: Pr
     setExRows([]); setIssues([]); setSummary(null);
   };
 
+  const [progress, setProgress] = useState<number | null>(null);
+  const [note, setNote] = useState('');
+
+  // Direct browser → private Cloudinary upload (no server body-size limit), then register the job.
+  const sendToStorage = (file: File, t: any): Promise<void> => new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('api_key', t.apiKey);
+    fd.append('timestamp', String(t.timestamp));
+    fd.append('signature', t.signature);
+    fd.append('public_id', t.publicId);
+    fd.append('type', t.type);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', t.uploadUrl);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let msg = 'Upload to storage failed';
+      try { msg = JSON.parse(xhr.responseText)?.error?.message || msg; } catch { /* keep default */ }
+      reject(new Error(msg));
+    };
+    xhr.onerror = () => reject(new Error('Network error while uploading'));
+    xhr.send(fd);
+  });
+
   const upload = async (file: File) => {
-    setBusy(true); setErr('');
+    setBusy(true); setErr(''); setProgress(0);
     try {
-      const fd = new FormData(); fd.append('file', file);
-      const res = await fetch('/api/id-cards/jobs', { method: 'POST', body: fd });
+      const tk = await fetch('/api/id-cards/jobs/upload-ticket', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, size: file.size }),
+      });
+      const tj = await tk.json();
+      if (!tk.ok) { setErr(tj.error || 'Could not start the upload'); return; }
+      let toSend: File = file;
+      if (file.size > STORAGE_SAFE_BYTES) {
+        // Above the storage plan's per-file limit: keep only the text data a card job can use.
+        setNote('Large workbook — preparing a compact copy (images and formatting are dropped; all cell text is kept)…');
+        const { slimWorkbook } = await import('@/lib/idcards/excel');
+        const slim = slimWorkbook(await file.arrayBuffer());
+        if (slim.length > STORAGE_SAFE_BYTES) { setErr('Even the compact copy is too large. Remove unused columns/sheets and try again.'); return; }
+        toSend = new File([slim as BlobPart], file.name.replace(/\.xls$/i, '.xlsx'), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      }
+      await sendToStorage(toSend, tj.ticket);
+      setProgress(100);
+      const res = await fetch('/api/id-cards/jobs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicId: tj.ticket.publicId, fileName: file.name }),
+      });
       const json = await res.json();
       if (!res.ok) { setErr(json.error || 'Upload failed'); return; }
       const sg: Record<string, Record<string, string>> = {};
@@ -113,8 +160,8 @@ export function IdCardGenerate({ spec, schoolName, logoUrl, onExcelHeaders }: Pr
       setJobId(json.jobId); setFileName(json.fileName); setSheets(json.sheets); setSuggested(sg); setExpiresAt(json.expiresAt);
       const best = [...(json.sheets as SheetInfo[])].filter((s) => !s.hidden).sort((a, b) => b.rowCount - a.rowCount)[0] ?? json.sheets[0];
       chooseSheet(best.name, json.sheets, sg);
-    } catch { setErr('Upload failed'); }
-    finally { setBusy(false); }
+    } catch (e: any) { setErr(e?.message || 'Upload failed'); }
+    finally { setBusy(false); setProgress(null); setNote(''); }
   };
 
   const applyMapping = async () => {
@@ -178,13 +225,15 @@ export function IdCardGenerate({ spec, schoolName, logoUrl, onExcelHeaders }: Pr
       {source === 'excel' && (
         <section style={card}>
           <div style={{ padding: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 12, marginBottom: 10, color: '#14532d' }}>
-            Cards made from a spreadsheet are for printing only. No learner records are created or changed, and no attendance or SMS activity is triggered. Your file is stored privately, visible only to you, and deleted automatically after 24 hours (or immediately when you discard it).
+            Cards made from a spreadsheet are for printing only. No learner records are created or changed, and no attendance or SMS activity is triggered. Your file is stored in private storage with no public link, readable only by you, and deleted automatically after 24 hours (or immediately when you discard it).
           </div>
 
           {!jobId && (
             <>
               <input type="file" accept=".xlsx,.xls" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
-              <p style={{ fontSize: 12, color: '#64748b' }}>.xlsx or .xls, up to 4 MB, up to 2000 rows. Photos can be supplied as https links in a column; images embedded inside the workbook are not read.</p>
+              {note && <p style={{ fontSize: 12, color: '#b45309' }}>{note}</p>}
+              {progress !== null && <p style={{ fontSize: 12 }}>Uploading… {progress}%</p>}
+              <p style={{ fontSize: 12, color: '#64748b' }}>.xlsx or .xls, up to 60 MB, up to 2000 rows read. Workbooks over 9 MB are reduced in your browser to a compact text-only copy before upload. Photos can be supplied as https links in a column; images embedded inside the workbook are not read.</p>
             </>
           )}
           {err && <p style={{ color: '#b91c1c', fontSize: 13 }}>{err}</p>}
