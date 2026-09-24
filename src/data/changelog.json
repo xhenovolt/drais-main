@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T18:29:45.915Z",
-  "last_commit": "4d8837f91afc80df9222b741f301cfc90760fdc6",
+  "generated_at": "2026-09-24T18:56:13.117Z",
+  "last_commit": "aee4ff7b35a10e2b6ec6ec5cd08148d6702655ce",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7762,7 +7762,20 @@
         }
       ],
       "commit": "4d8837f91a"
+    },
+    {
+      "version": "2.15.1",
+      "date": "2026-09-24",
+      "release_type": "patch",
+      "title": "Store Excel jobs in private Cloudinary storage, uploaded directly from the browser",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Store Excel jobs in private Cloudinary storage, uploaded directly from the browser"
+        }
+      ],
+      "commit": "aee4ff7b35"
     }
   ],
-  "app_version": "2.15.1"
+  "app_version": "2.15.2"
 }

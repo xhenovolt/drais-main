@@ -32,7 +32,7 @@ describe('id-cards routes', () => {
   it('access gate resolves the school from the session and checks the permission', () => {
     const src = read('lib/idcards/access.ts');
     assert.match(src, /getSessionSchoolId\(req\)/);
-    assert.match(src, /userCan\(session\.userId, session\.schoolId, CARDS_PERMISSION\)/);
+    assert.match(src, /canAny\(s, \[CARDS_PERMISSION\], CARDS_ROLE_FALLBACK\)/);
   });
 });
 
