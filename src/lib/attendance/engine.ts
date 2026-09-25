@@ -55,6 +55,7 @@ import { installNotificationFanout, fanoutAttendanceRecord } from '@/lib/notific
 import { getProvisionalAttendanceMeta } from '@/lib/attendance/provisional';
 import { getResidencyStatus } from '@/lib/attendance/residency';
 import { onRawPunchForLessons } from '@/lib/attendance/lessons/service';
+import { getBoardingPolicy, modeForDate, getPeriodFor, recordBoardingReport, hasReported } from '@/lib/attendance/boarding-policy';
 import { getBoardingPresenceState, isWithinValidityWindow } from '@/lib/attendance/boarding-presence';
 installNotificationFanout();
 
@@ -354,6 +355,43 @@ export async function evaluateDay(
     }
   }
 
+  // 5c. School boarding policy. DAILY_PUNCH (default) changes nothing. REPORTED_ONCE: a boarder is
+  //     "reported" after their first valid punch in the reporting period and is not treated as absent
+  //     for not punching again. Reported != present today; both facts stay separate.
+  let residenceForEvent: 'day' | 'boarding' | null = boardingStatus === null ? null : (boardingStatus === 'boarding' ? 'boarding' : 'day');
+  let boardingModeForEvent: 'DAILY_PUNCH' | 'REPORTED_ONCE' | null = null;
+  let boardingReport: { periodKey: string; periodLabel: string; isNew: boolean } | null = null;
+  let studentIdForEvent: number | null = null;
+  if (roleType === 'student' && boardingStatus === 'boarding') {
+    try {
+      const dateStr = formatDate(dayStart);
+      const bp = await getBoardingPolicy(schoolId);
+      boardingModeForEvent = modeForDate(bp, dateStr);
+      const sRow = (await query(`SELECT id FROM students WHERE person_id = ? AND school_id = ? LIMIT 1`, [personId, schoolId])) as Array<{ id: number }>;
+      studentIdForEvent = sRow[0]?.id ?? null;
+      if (boardingModeForEvent === 'REPORTED_ONCE' && studentIdForEvent) {
+        const period = await getPeriodFor(schoolId, bp, dateStr);
+        if (rawPunches.length > 0) {
+          const rep = await recordBoardingReport({
+            schoolId, studentId: studentIdForEvent, personId, period, attendanceDate: dateStr,
+            reportedAt: rawPunches[0].punch_at, firstPunchEventId: punchRows[0]?.id ?? null,
+          });
+          boardingReport = { periodKey: period.key, periodLabel: period.label, isNew: rep.isNew };
+        } else if (verdict.status === 'absent') {
+          if (await hasReported(schoolId, studentIdForEvent, period.key)) {
+            verdict.status = 'present';
+            verdict.trace = 'boarding_reported_once';
+            policyDerivedReason = 'boarding_reported_once';
+          } else {
+            policyDerivedReason = policyDerivedReason ?? 'boarding_not_reported';
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[attendance-engine] boarding policy step failed', err);
+    }
+  }
+
   // 6. UPSERT the day verdict.
   await persistVerdict(schoolId, personId, roleType, dayStart, rule.id ?? null, verdict, policyDerivedReason);
 
@@ -397,6 +435,10 @@ export async function evaluateDay(
     ruleId: rule.id ?? null,
     isPolicyDerived: policyDerivedReason != null,
     policyDerivedReason,
+    residence: residenceForEvent,
+    boardingMode: boardingModeForEvent,
+    studentId: studentIdForEvent,
+    boardingReport,
   };
   publishEvent('attendance.record.upserted', recordEvent);
   // Also enqueue notifications DIRECTLY (awaited) — the bus listener is

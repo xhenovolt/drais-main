@@ -46,6 +46,8 @@ import { ensureNotificationSchema } from '@/lib/notifications/migrations/notific
 import {
   evaluateAttendanceSmsEligibility, loadBiometricEvidence, schoolLocalDate, isPunchBackedStatus, NO_EVIDENCE,
 } from '@/lib/notifications/attendance-sms-eligibility';
+import { decideAttendanceNotification, type Decision } from '@/lib/attendance/notification-decision';
+import { getBoardingPolicy } from '@/lib/attendance/boarding-policy';
 
 /** Punch-backed verdicts carry their own evidence; skip the enrolment read. */
 const needsEvidence = (event: AttendanceRecordUpsertedEvent): boolean => !isPunchBackedStatus(event.status);
@@ -101,37 +103,52 @@ export async function fanoutAttendanceRecord(
   // need to re-punch. A school that explicitly wants to be notified on
   // boarding leave can be served by a future, deliberate opt-in — this is
   // the safe default.
-  if (event.isPolicyDerived) return;
-
+  // (Policy-derived verdicts are now handled INSIDE the central decision below, so the reason is
+  // recorded instead of silently returning.)
   await ensureNotificationSchema();
 
-  const policies = (await query(
+  const allPolicies = (await query(
     `SELECT id, school_id, name, event_type, target_role, channel,
             conditions, template_body, daily_cap
        FROM notification_policies
       WHERE school_id = ?
-        AND event_type = 'attendance.record.upserted'
+        AND event_type IN ('attendance.record.upserted', 'attendance.boarding.reported')
         AND is_active = 1`,
     [event.schoolId],
   )) as PolicyRow[];
+  if (allPolicies.length === 0) return;
 
-  if (policies.length === 0) return;
-
-  const verdict = evaluateAttendanceSmsEligibility({
+  // ── The single decision point (attendance/notification-decision.ts) ──────
+  const residence = event.residence ?? null;
+  const boardingMode = event.boardingMode ?? null;
+  const bp = residence === 'boarding' ? await getBoardingPolicy(event.schoolId) : null;
+  const eligibility = evaluateAttendanceSmsEligibility({
     status: event.status,
     attendanceDate: event.attendanceDate,
     todayLocal: schoolLocalDate(),
     firstInAt: event.firstInAt,
     isPolicyDerived: event.isPolicyDerived,
-    evidence: needsEvidence(event) ? await loadBiometricEvidence(event.schoolId, event.personId) : NO_EVIDENCE,
+    evidence: needsEvidence(event) && !event.isPolicyDerived ? await loadBiometricEvidence(event.schoolId, event.personId) : NO_EVIDENCE,
   });
-  if (!verdict.eligible) {
+  const decision = decideAttendanceNotification({
+    status: event.status, attendanceDate: event.attendanceDate, firstInAt: event.firstInAt,
+    isPolicyDerived: !!event.isPolicyDerived, policyDerivedReason: event.policyDerivedReason ?? null,
+    residence, boardingMode, boardingReport: event.boardingReport ?? null,
+    reportedSmsEnabled: bp ? bp.reportedSmsEnabled : true, eligibility, ruleId: event.ruleId,
+  });
+  const decisionId = await recordDecision(event, decision);
+
+  if (decision.decision === 'DO_NOT_SEND') {
     console.log(JSON.stringify({
       ts: new Date().toISOString(), type: 'ATTENDANCE_SMS_SUPPRESSED',
-      schoolId: event.schoolId, status: event.status, reason: verdict.reason,
+      schoolId: event.schoolId, notificationType: decision.notificationType, reason: decision.reasonCode,
     }));
     return;
   }
+
+  const wantEventType = decision.notificationType === 'BOARDING_REPORTED' ? 'attendance.boarding.reported' : 'attendance.record.upserted';
+  const policies = allPolicies.filter((p) => p.event_type === wantEventType);
+  if (policies.length === 0) return;
 
   // Resolve the subject's name + school name ONCE for this event so
   // templates can address parents properly ("your child {name}…").
@@ -143,11 +160,34 @@ export async function fanoutAttendanceRecord(
     const recipients = await resolveRecipients(policy, event);
     if (recipients.length === 0) continue;
     const body = renderTemplate(policy.template_body, event, meta);
+    let idx = 0;
     for (const r of recipients) {
       if (policy.channel === 'sms' && !r.phone) continue;
       if (policy.channel === 'email' && !r.email) continue;
-      await enqueue(policy, event, r, body);
+      await enqueue(policy, event, r, body, decision, decisionId, idx++);
     }
+  }
+}
+
+/** Persist the structured decision ("why was / wasn't this SMS sent"). Idempotent per key. */
+async function recordDecision(event: AttendanceRecordUpsertedEvent, d: Decision): Promise<number | null> {
+  try {
+    await query(
+      `INSERT IGNORE INTO attendance_sms_decisions
+         (school_id, person_id, student_id, attendance_date, notification_type, decision, reason_code, decision_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [event.schoolId, event.personId, event.studentId ?? null, event.attendanceDate, d.notificationType, d.decision, d.reasonCode,
+        JSON.stringify({ explanation: d.explanation, facts: d.facts })],
+    );
+    const r = (await query(
+      `SELECT id FROM attendance_sms_decisions
+        WHERE school_id = ? AND person_id = ? AND attendance_date = ? AND notification_type = ? AND decision = ? AND reason_code = ? LIMIT 1`,
+      [event.schoolId, event.personId, event.attendanceDate, d.notificationType, d.decision, d.reasonCode],
+    )) as Array<{ id: number }>;
+    return r[0] ? Number(r[0].id) : null;
+  } catch (err) {
+    console.warn('[notifications/fanout] could not record decision:', err);
+    return null;
   }
 }
 
@@ -358,6 +398,9 @@ function renderTemplate(
 function defaultTemplate(event: AttendanceRecordUpsertedEvent, meta: SubjectMeta): string {
   const child = meta.name ? meta.name : 'your child';
   const school = meta.school ? meta.school : 'school';
+  if (event.boardingReport) {
+    return `Dear Parent/Guardian, ${child} has reported to ${school} on {date}. Thank you.`;
+  }
   switch (event.status) {
     case 'late':
       return `Dear Parent/Guardian, this is to notify you that ${child} arrived late to ${school} on {date} at {time} ({late_minutes} min late). Thank you.`;
@@ -375,20 +418,40 @@ function defaultTemplate(event: AttendanceRecordUpsertedEvent, meta: SubjectMeta
   }
 }
 
+/**
+ * Deterministic logical-event key. BOARDING_REPORTED is keyed by REPORTING PERIOD (never by day), so a
+ * second punch, a re-evaluation or a replayed callback can never send it twice. Every other type keeps
+ * the historical per-day/per-status key. Recipient #1 keeps the exact historical key (so nothing already
+ * queued is re-sent on deploy); further guardians get a phone suffix — previously only the first guardian
+ * of a learner was ever texted because all shared one key.
+ */
+export function buildDedupKey(
+  policyId: number, event: Pick<AttendanceRecordUpsertedEvent, 'personId' | 'attendanceDate' | 'status' | 'boardingReport'>,
+  notificationType: string, recipientIndex: number, phone: string | null,
+): string {
+  const base = notificationType === 'BOARDING_REPORTED'
+    ? `${policyId}:${event.personId}:boarding.reported:${event.boardingReport?.periodKey ?? event.attendanceDate}`
+    : `${policyId}:${event.personId}:attendance.record.upserted:${event.attendanceDate}:${event.status}`;
+  return recipientIndex === 0 ? base : `${base}:r${String(phone ?? '').replace(/\D/g, '').slice(-6)}`;
+}
+
 async function enqueue(
   policy: PolicyRow,
   event: AttendanceRecordUpsertedEvent,
   recipient: RecipientResolution,
   body: string,
+  decision: Decision,
+  decisionId: number | null,
+  recipientIndex: number,
 ): Promise<void> {
-  const dedupKey =
-    `${policy.id}:${event.personId}:attendance.record.upserted:${event.attendanceDate}:${event.status}`;
+  const dedupKey = buildDedupKey(policy.id, event, decision.notificationType, recipientIndex, recipient.phone);
   try {
     await query(
       `INSERT IGNORE INTO notification_outbox
          (policy_id, school_id, subject_person_id, recipient_phone,
-          recipient_email, recipient_name, channel, body, status, dedup_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?)`,
+          recipient_email, recipient_name, channel, body, status, dedup_key,
+          notification_type, attendance_date, subject_student_id, decision_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?)`,
       [
         policy.id,
         event.schoolId,
@@ -399,6 +462,10 @@ async function enqueue(
         policy.channel,
         body.slice(0, 480),
         dedupKey,
+        decision.notificationType,
+        event.attendanceDate,
+        event.studentId ?? null,
+        decisionId,
       ],
     );
   } catch (err) {

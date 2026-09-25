@@ -6,6 +6,7 @@ import LivePopupSettings from '@/components/attendance/LivePopupSettings';
 import AttendanceSmsPolicies from '@/components/attendance/AttendanceSmsPolicies';
 import LessonAttendanceSettings from '@/components/attendance/LessonAttendanceSettings';
 import DeviceTimePolicySettings from '@/components/attendance/DeviceTimePolicySettings';
+import BoardingPolicySettings from '@/components/attendance/BoardingPolicySettings';
 
 interface AttendanceRule {
   id: number;
@@ -141,6 +142,15 @@ function formFromRule(rule: AttendanceRule | null, scope: AppliesTo, boardingSco
 
 const ruleKey = (scope: AppliesTo, boardingScope: BoardingScope) => `${scope}:${boardingScope}`;
 
+type SettingsTab = 'schedule' | 'boarding' | 'sms' | 'devices' | 'lessons';
+const SETTINGS_TABS: Array<{ key: SettingsTab; label: string }> = [
+  { key: 'schedule', label: 'Schedules & late rules' },
+  { key: 'boarding', label: 'Day & boarding' },
+  { key: 'sms', label: 'SMS notifications' },
+  { key: 'devices', label: 'Devices & clock' },
+  { key: 'lessons', label: 'Lessons' },
+];
+
 export default function AttendanceSettingsPage() {
   const [scope, setScope] = useState<AppliesTo>('students');
   // Boarding population sub-selector — only meaningful (and shown) for the
@@ -158,6 +168,19 @@ export default function AttendanceSettingsPage() {
   // Per-(scope,boardingScope), per-weekday override drafts (Saturday 10:00 etc.).
   const [dayOvByKey, setDayOvByKey] = useState<Record<string, DayOverrideMap>>({});
   const [dayOv, setDayOv] = useState<DayOverrideMap>(emptyDayOverrides());
+
+  // Section tabs, deep-linkable via #boarding, #sms, … (all panels stay mounted; see the render).
+  const [tab, setTab] = useState<SettingsTab>('schedule');
+  useEffect(() => {
+    const fromHash = () => {
+      const h = window.location.hash.replace('#', '') as SettingsTab;
+      if (SETTINGS_TABS.some((t) => t.key === h)) setTab(h);
+    };
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
+    return () => window.removeEventListener('hashchange', fromHash);
+  }, []);
+  const selectTab = (k: SettingsTab) => { setTab(k); window.history.replaceState(null, '', `#${k}`); };
 
   // Load existing settings (all scopes)
   useEffect(() => {
@@ -267,7 +290,7 @@ export default function AttendanceSettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
@@ -295,6 +318,24 @@ export default function AttendanceSettingsPage() {
         </div>
       )}
 
+      {/* Section tabs. Every panel stays MOUNTED (just hidden) so unsaved edits survive switching tabs. */}
+      <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label="Attendance settings sections">
+        {SETTINGS_TABS.map((t) => (
+          <button
+            key={t.key} role="tab" aria-selected={tab === t.key} id={`tab-${t.key}`} aria-controls={`panel-${t.key}`}
+            onClick={() => selectTab(t.key)}
+            className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+              tab === t.key
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      <div hidden={tab !== 'schedule'} role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" className="space-y-6">
       {/* Scope selector — configure each person group separately */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white">Who are you configuring?</h2>
@@ -330,6 +371,12 @@ export default function AttendanceSettingsPage() {
             : `No ${SCOPE_LABEL[scope]} window yet — fill the fields below and save to create one.`}
         </p>
       </div>
+
+      </div>
+
+      <div hidden={tab !== 'boarding'} role="tabpanel" id="panel-boarding" aria-labelledby="tab-boarding" className="space-y-6">
+      {/* School boarding attendance policy: Daily punch / Reported once (school-level, own save) */}
+      <BoardingPolicySettings />
 
       {/* Boarding population sub-selector (Phase 3/4) — learners only. A
           day-only or boarding-only rule is a SEPARATE rule row from the
@@ -415,6 +462,17 @@ export default function AttendanceSettingsPage() {
         </div>
       )}
 
+      {scope === 'students' && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-gray-500">The choices above (population and manual check-in presence) are part of the attendance rule and are saved with it.</p>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save rule'}
+          </button>
+        </div>
+      )}
+      </div>
+
+      <div hidden={tab !== 'schedule'} role="tabpanel" aria-labelledby="tab-schedule" className="space-y-6">
       {/* Time Settings */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -656,17 +714,25 @@ export default function AttendanceSettingsPage() {
         </button>
       </div>
 
-      {/* Device time policy (own save) */}
-      <DeviceTimePolicySettings />
+      </div>
 
-      {/* Live popup configuration (own save) */}
-      <LivePopupSettings />
+      <div hidden={tab !== 'sms'} role="tabpanel" id="panel-sms" aria-labelledby="tab-sms" className="space-y-6">
+        {/* Attendance SMS / notification policies (own CRUD) */}
+        <AttendanceSmsPolicies />
+      </div>
 
-      {/* Lesson (timetable) attendance policy + device scopes (own save) */}
-      <LessonAttendanceSettings />
+      <div hidden={tab !== 'devices'} role="tabpanel" id="panel-devices" aria-labelledby="tab-devices" className="space-y-6">
+        {/* Device time policy (own save) */}
+        <DeviceTimePolicySettings />
 
-      {/* Attendance SMS / notification policies (own CRUD) */}
-      <AttendanceSmsPolicies />
+        {/* Live popup configuration (own save) */}
+        <LivePopupSettings />
+      </div>
+
+      <div hidden={tab !== 'lessons'} role="tabpanel" id="panel-lessons" aria-labelledby="tab-lessons" className="space-y-6">
+        {/* Lesson (timetable) attendance policy + device scopes (own save) */}
+        <LessonAttendanceSettings />
+      </div>
     </div>
   );
 }

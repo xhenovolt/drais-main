@@ -9,6 +9,7 @@ import {
   Radio, ChevronDown, ChevronUp, Trash2, Wand2, GitBranch,
 } from 'lucide-react';
 import useSWR from 'swr';
+import FilterAccordion, { FilterField, filterInputCls, type FilterChip } from '@/components/ui/FilterAccordion';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
@@ -565,6 +566,7 @@ export default function UnifiedAttendancePage() {
   const [liveFeedOpen, setLiveFeedOpen] = useState(false); // collapsed — data first
   const [classId, setClassId] = useState('');
   const [gender, setGender] = useState('');
+  const [residence, setResidence] = useState<'' | 'day' | 'boarding'>('');
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState('');
@@ -637,6 +639,7 @@ export default function UnifiedAttendancePage() {
     if (search) p.set('search', search);
     if (classId) p.set('class_id', classId);
     if (gender) p.set('gender', gender);
+    if (residence) p.set('residence', residence);
     if (timeframe === 'custom') {
       if (customTimeFrom) p.set('time_from', customTimeFrom);
       if (customTimeTo) p.set('time_to', customTimeTo);
@@ -646,7 +649,7 @@ export default function UnifiedAttendancePage() {
     }
     return p.toString();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender, timeframe, customTimeFrom, customTimeTo, rowsPerPage, derivedFilter, sortBy, sortDir]);
+  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender, residence, timeframe, customTimeFrom, customTimeTo, rowsPerPage, derivedFilter, sortBy, sortDir]);
 
   const { data, isLoading, mutate } = useSWR<any>(
     `/api/attendance/history?${params}`,
@@ -981,6 +984,89 @@ export default function UnifiedAttendancePage() {
           })}
         </div>
 
+        {/* ── Filters — collapsed by default: "Filters • N active" + removable chips ── */}
+        <div className="mb-3">
+          <FilterAccordion
+            chips={[
+              timeframe !== 'all' ? { key: 'time', label: timeframe === 'custom' ? `Time ${customTimeFrom || '…'}–${customTimeTo || '…'}` : (TIMEFRAMES[timeframe]?.label ?? timeframe), onRemove: () => { setTimeframe('all'); setCustomTimeFrom(''); setCustomTimeTo(''); setPage(1); } } : null,
+              derivedFilter ? { key: 'derived', label: `Arrival: ${derivedFilter === 'ontime' ? 'on time / early' : derivedFilter}`, onRemove: () => { setDerivedFilter(''); setPage(1); } } : null,
+              deviceSn ? { key: 'device', label: `Device: ${devices.find((d: any) => d.sn === deviceSn)?.device_name || deviceSn}`, onRemove: () => { setDeviceSn(''); setPage(1); } } : null,
+              classId ? { key: 'class', label: `Class: ${classes.find((c: any) => String(c.id) === String(classId))?.name || classId}`, onRemove: () => { setClassId(''); setPage(1); } } : null,
+              gender ? { key: 'gender', label: `Gender: ${gender === 'male' ? 'Boys' : 'Girls'}`, onRemove: () => { setGender(''); setPage(1); } } : null,
+              residence ? { key: 'res', label: `Residence: ${residence === 'boarding' ? 'Boarding' : 'Day scholars'}`, onRemove: () => { setResidence(''); setPage(1); } } : null,
+            ].filter(Boolean) as FilterChip[]}
+            onClear={() => {
+              setTimeframe('all'); setCustomTimeFrom(''); setCustomTimeTo(''); setDerivedFilter(''); setDeviceSn('');
+              setClassId(''); setGender(''); setResidence(''); setPage(1);
+            }}
+          >
+            <FilterField label="Time of day">
+              <select
+                value={timeframe} className={filterInputCls}
+                onChange={(e) => {
+                  const tf = e.target.value as typeof timeframe; setTimeframe(tf); setPage(1);
+                  if (tf !== 'all' && !dateFrom && !dateTo) {
+                    const today = toLocalDateStr();
+                    setDateFrom(today); setDateTo(today); setDatePreset('today');
+                  }
+                }}
+              >
+                <option value="all">All day</option>
+                <option value="morning">Morning</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+                <option value="custom">Custom time…</option>
+              </select>
+              {timeframe === 'custom' && (
+                <div className="flex items-center gap-1 mt-1">
+                  <input type="time" value={customTimeFrom} onChange={(e) => { setCustomTimeFrom(e.target.value); setPage(1); }} className={filterInputCls} />
+                  <span className="text-gray-400 text-xs">→</span>
+                  <input type="time" value={customTimeTo} onChange={(e) => { setCustomTimeTo(e.target.value); setPage(1); }} className={filterInputCls} />
+                </div>
+              )}
+            </FilterField>
+            <FilterField label="Arrival status">
+              <select value={derivedFilter} onChange={(e) => { setDerivedFilter(e.target.value as any); setPage(1); }} className={filterInputCls}>
+                <option value="">All</option>
+                <option value="late">Late only</option>
+                <option value="early">Early only</option>
+                <option value="ontime">On time / early</option>
+              </select>
+            </FilterField>
+            <FilterField label="Residence">
+              <select value={residence} onChange={(e) => { setResidence(e.target.value as any); setPage(1); }} className={filterInputCls}>
+                <option value="">All learners</option>
+                <option value="day">Day scholars</option>
+                <option value="boarding">Boarding</option>
+              </select>
+            </FilterField>
+            <FilterField label="Gender">
+              <select value={gender} onChange={(e) => { setGender(e.target.value); setPage(1); }} className={filterInputCls}>
+                <option value="">All</option>
+                <option value="male">Boys</option>
+                <option value="female">Girls</option>
+              </select>
+            </FilterField>
+            <FilterField label="Class">
+              <select value={classId} onChange={(e) => { setClassId(e.target.value); setPage(1); }} className={filterInputCls}>
+                <option value="">All classes</option>
+                {classes.map((c: any) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+              </select>
+            </FilterField>
+            <FilterField label="Device">
+              <select value={deviceSn} onChange={(e) => { setDeviceSn(e.target.value); setPage(1); }} className={filterInputCls}>
+                <option value="">All devices</option>
+                {devices.map((d: any) => (<option key={d.sn || d.id} value={d.sn}>{d.device_name || d.sn}</option>))}
+              </select>
+            </FilterField>
+            <FilterField label="Rows per page">
+              <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(e.target.value); setPage(1); }} className={filterInputCls}>
+                {['10', '20', '50', '100', '250', 'all'].map(n => (<option key={n} value={n}>{n === 'all' ? 'All rows' : `${n} rows`}</option>))}
+              </select>
+            </FilterField>
+          </FilterAccordion>
+        </div>
+
         {/* ── Unified toolbar — one compact row, data first ────────────── */}
         <div className="card bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 mb-3 flex flex-wrap items-center gap-2">
           <select
@@ -1007,71 +1093,6 @@ export default function UnifiedAttendancePage() {
             </>
           )}
 
-          <select
-            value={timeframe}
-            onChange={(e) => {
-              const tf = e.target.value as typeof timeframe; setTimeframe(tf); setPage(1);
-              if (tf !== 'all' && !dateFrom && !dateTo) {
-                const today = toLocalDateStr();
-                setDateFrom(today); setDateTo(today); setDatePreset('today');
-              }
-            }}
-            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
-            title="Time of day"
-          >
-            <option value="all">All day</option>
-            <option value="morning">Morning</option>
-            <option value="afternoon">Afternoon</option>
-            <option value="evening">Evening</option>
-            <option value="custom">Custom time…</option>
-          </select>
-          {timeframe === 'custom' && (
-            <>
-              <input type="time" value={customTimeFrom} onChange={(e) => { setCustomTimeFrom(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" />
-              <span className="text-gray-400 text-xs">→</span>
-              <input type="time" value={customTimeTo} onChange={(e) => { setCustomTimeTo(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" />
-            </>
-          )}
-
-          <select value={derivedFilter} onChange={(e) => { setDerivedFilter(e.target.value as any); setPage(1); }}
-            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" title="Arrival status">
-            <option value="">All statuses</option>
-            <option value="late">Late only</option>
-            <option value="early">Early only</option>
-            <option value="ontime">On time / early</option>
-          </select>
-
-          <select value={deviceSn} onChange={(e) => { setDeviceSn(e.target.value); setPage(1); }}
-            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs max-w-36" title="Device">
-            <option value="">All devices</option>
-            {devices.map((d: any) => (
-              <option key={d.sn || d.id} value={d.sn}>{d.device_name || d.sn}</option>
-            ))}
-          </select>
-
-          <select value={classId} onChange={(e) => { setClassId(e.target.value); setPage(1); }}
-            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs max-w-32" title="Class">
-            <option value="">All classes</option>
-            {classes.map((c: any) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-
-          <select value={gender} onChange={(e) => { setGender(e.target.value); setPage(1); }}
-            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" title="Gender">
-            <option value="">All</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-          </select>
-
-          <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(e.target.value); setPage(1); }}
-            className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs" title="Rows per page">
-            {['10', '20', '50', '100', '250', 'all'].map(n => (
-              <option key={n} value={n}>{n === 'all' ? 'All rows' : `${n} rows`}</option>
-            ))}
-          </select>
 
           <div className="relative flex-1 min-w-36 max-w-56">
             <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />

@@ -264,6 +264,15 @@ export const DOCS: DocMeta[] = [
 
   // ── Modules ────────────────────────────────────────────────────────────────
   {
+    slug: 'attendance-decisions',
+    section: 'Modules',
+    title: 'Attendance SMS decisions',
+    blurb: 'The single decision point for attendance SMS, the boarding policy, and how an operator explains any message.',
+    topics: ['attendance', 'notifications'],
+    keywords: ['boarding', 'reported once', 'daily punch', 'outbox', 'decision', 'idempotency', 'dedup', 'sms', 'delivery report'],
+    minutes: 8,
+  },
+  {
     slug: 'module-attendance',
     section: 'Modules',
     title: 'Attendance',

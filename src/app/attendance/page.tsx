@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import IntelligenceStrip from '@/components/attendance/IntelligenceStrip';
+import AttendanceBreakdown from '@/components/attendance/AttendanceBreakdown';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const verifyLabel = (v: number | null) => {
@@ -116,6 +117,9 @@ export default function AttendanceDashboard() {
 
         {/* ── Attendance Intelligence strip (health, behaviour, gaps, …) ── */}
         <IntelligenceStrip />
+
+        {/* ── Day / Boarding × Gender breakdown (reconciled) ───── */}
+        <AttendanceBreakdown date={date} />
 
         {/* ── Metric Cards ─────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

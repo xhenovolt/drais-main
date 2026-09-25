@@ -136,6 +136,25 @@ export async function GET(req: NextRequest) {
       );
       params.push(Number(classId));
     }
+    // Stream (within the selected class, or on its own).
+    const streamId = Number(url.searchParams.get('stream_id'));
+    if (Number.isFinite(streamId) && streamId > 0) {
+      conditions.push(
+        `EXISTS (SELECT 1 FROM students s JOIN enrollments e ON e.student_id = s.id
+                  WHERE s.person_id = ar.person_id AND s.school_id = ? AND e.status = 'active' AND e.stream_id = ?)`,
+      );
+      params.push(schoolId, streamId);
+    }
+    // Residence: 'day' | 'boarding' (students.residency_status — the single source of truth).
+    // Unclassified learners count as day scholars, matching the dashboard breakdown.
+    const residence = url.searchParams.get('residence');
+    if (residence === 'day' || residence === 'boarding') {
+      conditions.push(
+        `EXISTS (SELECT 1 FROM students s WHERE s.person_id = ar.person_id AND s.school_id = ?
+                    AND COALESCE(NULLIF(s.residency_status, ''), 'day') = ?)`,
+      );
+      params.push(schoolId, residence);
+    }
     // p.gender is free text with dirty production data ('male'/'Male'/'M'
     // all mean the same thing) — an exact match silently misses most real
     // rows. See src/lib/attendance/gender.ts.

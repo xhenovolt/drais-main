@@ -61,6 +61,12 @@ export interface AttendanceRecordUpsertedEvent {
    *  absence detection. */
   isPolicyDerived?: boolean;
   policyDerivedReason?: string | null;
+  /** Facts the notification decision layer needs (see attendance/notification-decision.ts). */
+  residence?: 'day' | 'boarding' | null;
+  boardingMode?: 'DAILY_PUNCH' | 'REPORTED_ONCE' | null;
+  studentId?: number | null;
+  /** Set for boarders under REPORTED_ONCE when this evaluation saw a punch. isNew = first report of the period. */
+  boardingReport?: { periodKey: string; periodLabel: string; isNew: boolean } | null;
 }
 
 /**

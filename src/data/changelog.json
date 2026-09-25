@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-25T14:06:22.610Z",
-  "last_commit": "ffe27e9e42709e0424628717f289029c9abcb87a",
+  "generated_at": "2026-09-25T15:13:58.914Z",
+  "last_commit": "887dea7f30059f774dd39095ceaf272d928adae9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7853,7 +7853,77 @@
         }
       ],
       "commit": "ffe27e9e42"
+    },
+    {
+      "version": "2.16.5",
+      "date": "2026-09-25",
+      "release_type": "patch",
+      "title": "Every send path now counts against the school's SMS allowance, and the dashboard shows SMS left",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Every send path now counts against the school's SMS allowance, and the dashboard shows SMS left"
+        }
+      ],
+      "commit": "887dea7f30"
+    },
+    {
+      "version": "2.17.0",
+      "date": "2026-09-25",
+      "release_type": "minor",
+      "title": "Attendance intelligence, boarding policies and the SMS Outbox",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Boarding attendance policy: choose Daily punch (boarders scan every day like day scholars) or Reported once (a boarder is reported after their first arrival scan of the term, week or a period you choose, and is not marked absent for not scanning again). Set per school, applies from the day you change it, and every change records who, when and what it was before."
+        },
+        {
+          "category": "NEW",
+          "description": "\"Has reported to school\" SMS for boarders: one message per learner per reporting period, with a message you can edit. It says the learner has reported, never that they were late, and is never sent twice for the same period."
+        },
+        {
+          "category": "NEW",
+          "description": "Attendance dashboard now shows day scholars and boarding learners, boys and girls, and boarding by gender, with present, absent and not-yet-recorded for each group. Learners with no gender on file are counted in their own group, and a red notice appears if any totals fail to add up."
+        },
+        {
+          "category": "NEW",
+          "description": "SMS Outbox rebuilt: search by parent, phone or learner; filter by status, message type, channel and date; open any message to see its full journey and the reason DRAIS sent it. Only a provider delivery report can mark a message Delivered; messages the provider merely accepted show as Sent to provider."
+        },
+        {
+          "category": "NEW",
+          "description": "Every attendance SMS now records why it was sent or not sent (residence, boarding policy, attendance result, reporting period, rule) so administrators can answer \"why did this parent get this message?\" without help."
+        },
+        {
+          "category": "NEW",
+          "description": "Administrator guide \"Boarding, SMS and the Outbox\" in Help, and a Control Center reference for how attendance SMS decisions are made."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Attendance Settings is now organised in sections (Schedules & late rules, Day & boarding, SMS notifications, Devices & clock, Lessons) that you can link to directly, without losing unsaved changes when you switch."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Attendance logs: rarely-used filters move into a Filters panel that shows how many are active, with a chip for each; new Residence filter (day scholars / boarding)."
+        },
+        {
+          "category": "FIXED",
+          "description": "A learner with two guardians only had the first guardian texted; every guardian with a phone number now receives the message."
+        },
+        {
+          "category": "FIXED",
+          "description": "Parents were texted about absences for learners who were never set up on a fingerprint device and for old dates; attendance SMS is now only sent when there is real evidence and the date is current."
+        },
+        {
+          "category": "FIXED",
+          "description": "Sending to All parents failed with \"Unknown column 'c.phone'\"; guardian phones are now read correctly."
+        },
+        {
+          "category": "SECURITY",
+          "description": "The notification outbox is now restricted to authorised administrators (it was readable by any signed-in user); phone numbers are masked in lists and shown in full only when a single message is opened."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.16.5"
+  "app_version": "2.17.0"
 }

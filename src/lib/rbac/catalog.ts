@@ -89,6 +89,7 @@ const ENTRIES: Array<[string, PermissionDescriptor]> = [
   p('learners', 'photos',       'manage',   'Upload / replace learner photos'),
   p('learners', 'documents',    'manage',   'Manage learner documents and attachments'),
   p('learners', 'bulk',         'import',   'Bulk-import learners from CSV / Excel'),
+  p('attendance', 'boarding_policy', 'manage', 'Change the school boarding attendance policy (Daily punch / Reported once)'),
   p('attendance', 'lessons',    'view',      'View lesson (timetable) attendance rosters'),
   p('attendance', 'lessons',    'correct',   'Correct a learner\'s lesson attendance with a recorded reason'),
   p('attendance', 'lessons',    'configure', 'Configure lesson attendance policy and device scopes; see all teachers\' lessons'),

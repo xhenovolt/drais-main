@@ -151,7 +151,8 @@ export async function revalidateQueuedAttendanceMessage(
 export function parseAttendanceDedupKey(key: string | null | undefined):
   { policyId: number; personId: number; attendanceDate: string; status: string } | null {
   if (!key) return null;
-  const m = /^(\d+):(\d+):attendance\.record\.upserted:(\d{4}-\d{2}-\d{2}):([a-z_]+)$/.exec(key);
+  // Optional ":r<last-6-phone-digits>" suffix = the 2nd+ guardian of the same logical event.
+  const m = /^(\d+):(\d+):attendance\.record\.upserted:(\d{4}-\d{2}-\d{2}):([a-z_]+)(?::r\d{0,6})?$/.exec(key);
   if (!m) return null;
   return { policyId: Number(m[1]), personId: Number(m[2]), attendanceDate: m[3], status: m[4] };
 }
