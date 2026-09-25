@@ -4,6 +4,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { getCommSettings } from '@/lib/comm/settings';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { getSchoolSmsPosition, getProviderBalanceCached, getSmsPricing } from '@/lib/control/sms-economics';
+import { recordSmsUsage, smsSegments } from '@/lib/sms/usage';
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,11 +45,12 @@ export async function POST(req: NextRequest) {
 
     // P5 allocation enforcement: a school can't consume beyond its SMS quota
     // (uncapped when no allocation is set). Prevents one school burning another's.
+    const segmentsNeeded = smsSegments(message);
     const pos = await getSchoolSmsPosition(session.schoolId).catch(() => null);
-    if (pos && pos.quota != null && pos.remaining <= 0) {
+    if (pos && pos.quota != null && pos.remaining < segmentsNeeded) {
       return NextResponse.json({
         success: false,
-        error: `SMS allocation exhausted (${pos.used}/${pos.quota} used). Ask the platform administrator to top up this school's allocation.`,
+        error: `SMS allocation exhausted (${pos.used}/${pos.quota} used, ${pos.remaining} left, this message needs ${segmentsNeeded}). Ask the platform administrator to top up this school's allocation.`,
         code: 'SMS_QUOTA_EXCEEDED',
       }, { status: 403 });
     }
@@ -86,14 +88,16 @@ export async function POST(req: NextRequest) {
       smsResult.messageId
     );
 
-    // Accountability (P2) + usage foundation (P5): who sent what, to whom, how
-    // many segments, at what cost.
+    // The allowance counter: every successful send is appended to the usage ledger.
+    await recordSmsUsage({ schoolId: session.schoolId, source: 'single', body: message, success: smsResult.success });
+
+    // Accountability (P2): who sent what, to whom, how many segments, at what cost.
     void logAudit({
       schoolId: session.schoolId, userId: (session as any).userId ?? null,
       action: AuditAction.SMS_SENT, entityType: 'sms',
       details: {
         recipient: phone, recipient_name: recipient_name || null,
-        segments: Math.max(1, Math.ceil((message?.length || 0) / 160)),
+        segments: smsSegments(message),
         length: message?.length || 0, success: smsResult.success,
         message_id: smsResult.messageId || null, cost: smsResult.cost ?? null,
       },

@@ -25,6 +25,7 @@ import { getProvider } from '@/lib/comm/providers';
 import { getCommSettings } from '@/lib/comm/settings';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
 import { revalidateQueuedAttendanceMessage } from '@/lib/notifications/attendance-sms-eligibility';
+import { recordSmsUsage } from '@/lib/sms/usage';
 
 const BATCH = 50;
 
@@ -163,6 +164,9 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
             WHERE id = ?`,
           [row.id],
         );
+        // Charge the school's allowance. Attendance SMS is safety-relevant, so it is RECORDED
+        // (dashboard + Control Center stay accurate) but never blocked by the allowance.
+        await recordSmsUsage({ schoolId: row.school_id, source: 'attendance', body: row.body, ref: `ob:${row.id}` });
         result.delivered++;
       } else if (row.attempts >= row.max_attempts) {
         await markFailed(row.id, sendResult.error ?? 'Provider rejected');

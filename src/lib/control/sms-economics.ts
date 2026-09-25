@@ -12,6 +12,7 @@ import { query } from '@/lib/db';
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
 import { getActiveSmsProvider } from '@/lib/sms/central';
 import { SMS_PROVIDER_ADAPTERS } from '@/lib/sms/providers';
+import { getSmsPosition } from '@/lib/sms/usage';
 
 // ── Pure maths ──────────────────────────────────────────────────────────────
 
@@ -139,16 +140,21 @@ export async function getProviderBalanceCached(ttlMs = 60_000): Promise<Awaited<
   return val;
 }
 
-/** Per-school SMS usage (segments) from the SMS_SENT audit events. */
+/**
+ * Per-school SMS usage (segments) from the usage ledger, counting only sends made since the
+ * school's current allocation was set (a school with no allocation counts everything).
+ * Every send path — composer, broadcast, attendance, event dispatch — records into the ledger.
+ */
 export async function getUsageBySchool(): Promise<Record<number, { segments: number; sends: number }>> {
   const rows = (await query(
-    `SELECT school_id,
-            COALESCE(SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(details, '$.segments')) AS UNSIGNED)), 0) AS segments,
+    `SELECT u.school_id,
+            COALESCE(SUM(u.segments), 0) AS segments,
             COUNT(*) AS sends
-       FROM audit_logs
-      WHERE action = 'SMS_SENT'
-        AND JSON_EXTRACT(details, '$.success') = true
-      GROUP BY school_id`,
+       FROM sms_usage_events u
+       LEFT JOIN sms_allocations a ON a.school_id = u.school_id
+      WHERE u.success = 1
+        AND (a.updated_at IS NULL OR u.created_at >= a.updated_at)
+      GROUP BY u.school_id`,
   ).catch(() => [])) as any[];
   const out: Record<number, { segments: number; sends: number }> = {};
   for (const r of rows) out[Number(r.school_id)] = { segments: Number(r.segments || 0), sends: Number(r.sends || 0) };
@@ -223,15 +229,6 @@ export async function setAllocation(schoolId: number, quotaSms: number, updatedB
 /** A single school's live SMS position — used by the send-path enforcement. */
 export async function getSchoolSmsPosition(schoolId: number): Promise<{ quota: number | null; used: number; remaining: number }> {
   await ensureSchema();
-  const [alloc, usage] = await Promise.all([
-    query(`SELECT quota_sms FROM sms_allocations WHERE school_id = ? LIMIT 1`, [schoolId]).catch(() => []) as Promise<any[]>,
-    query(
-      `SELECT COALESCE(SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(details, '$.segments')) AS UNSIGNED)), 0) AS segments
-         FROM audit_logs WHERE action = 'SMS_SENT' AND school_id = ? AND JSON_EXTRACT(details, '$.success') = true`,
-      [schoolId],
-    ).catch(() => [{ segments: 0 }]) as Promise<any[]>,
-  ]);
-  const quota = alloc[0]?.quota_sms != null ? Number(alloc[0].quota_sms) : null;
-  const used = Number(usage[0]?.segments || 0);
-  return { quota, used, remaining: remainingQuota(quota, used) };
+  const pos = await getSmsPosition(schoolId);
+  return { quota: pos.quota, used: pos.used, remaining: remainingQuota(pos.quota, pos.used) };
 }

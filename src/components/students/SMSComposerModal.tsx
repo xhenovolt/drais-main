@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, MessageSquare, Phone, Send } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { mutate as globalMutate } from 'swr';
 
 interface SMSComposerModalProps {
   open: boolean;
@@ -44,6 +45,7 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
       if (response.ok) {
         const data = await response.json();
         toast.success(`✓ SMS sent to ${contact.contact_first_name}`);
+        globalMutate('/api/sms/quota');
         setSentCount(sentCount + 1);
         setMessage('');
         

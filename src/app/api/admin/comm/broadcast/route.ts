@@ -26,6 +26,8 @@ import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
 import { applyPrefix, getCommSettings, getProvider, isQuietHours } from '@/lib/comm';
 import { resolveBroadcastAudience, type BroadcastAudience } from '@/lib/comm/audience-resolver';
+import { getSchoolSmsPosition } from '@/lib/control/sms-economics';
+import { recordSmsUsage, smsSegments } from '@/lib/sms/usage';
 
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -70,6 +72,9 @@ export async function POST(req: NextRequest) {
       previewBody:    renderedBody,
       recipientCount: recipients.length,
       recipients:     recipients.slice(0, 200),   // cap preview list
+      segmentsPerMessage: smsSegments(renderedBody),
+      smsNeeded:      smsSegments(renderedBody) * recipients.length,
+      smsRemaining:   await getSchoolSmsPosition(session.schoolId).then((p) => (p.quota != null ? p.remaining : null)).catch(() => null),
     });
   }
 
@@ -78,6 +83,20 @@ export async function POST(req: NextRequest) {
   }
 
   const quiet = isQuietHours(settings);
+
+  // Allowance gate: a bulk send must fit in what the school has left. Checked for the WHOLE
+  // audience before anything is sent, so a school never gets a half-delivered broadcast.
+  const perMessage = smsSegments(renderedBody);
+  const needed = perMessage * recipients.length;
+  const pos = await getSchoolSmsPosition(session.schoolId).catch(() => null);
+  if (!(quiet && !force) && pos && pos.quota != null && pos.remaining < needed) {
+    return NextResponse.json({
+      error: `Not enough SMS left: this broadcast needs ${needed} (${recipients.length} recipients × ${perMessage}) but only ${pos.remaining} remain. Reduce the audience or ask the administrator to top up.`,
+      code: 'SMS_QUOTA_EXCEEDED',
+      needed, remaining: pos.remaining, recipients: recipients.length, perMessage,
+    }, { status: 403 });
+  }
+
   const provider = getProvider(settings.defaultProvider, 'sms');
 
   let sent = 0, failed = 0, queued = 0;
@@ -130,12 +149,17 @@ export async function POST(req: NextRequest) {
       ],
     );
 
-    if (result.success) sent += 1; else failed += 1;
+    if (result.success) {
+      sent += 1;
+      await recordSmsUsage({ schoolId: session.schoolId, source: 'broadcast', body: renderedBody });
+    } else failed += 1;
   }
 
+  const after = await getSchoolSmsPosition(session.schoolId).catch(() => null);
   return NextResponse.json({
     success: true,
     sent, failed, queued,
     total: recipients.length,
+    remaining: after && after.quota != null ? after.remaining : null,
   });
 }

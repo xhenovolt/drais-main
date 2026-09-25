@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-25T14:06:20.546Z",
-  "last_commit": "9e93401198d6253bcb80347f52c9d29be544d987",
+  "generated_at": "2026-09-25T14:06:22.610Z",
+  "last_commit": "ffe27e9e42709e0424628717f289029c9abcb87a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7840,7 +7840,20 @@
         }
       ],
       "commit": "9e93401198"
+    },
+    {
+      "version": "2.16.4",
+      "date": "2026-09-25",
+      "release_type": "patch",
+      "title": "Status and navigation bars follow the app colours",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Status and navigation bars follow the app colours"
+        }
+      ],
+      "commit": "ffe27e9e42"
     }
   ],
-  "app_version": "2.16.4"
+  "app_version": "2.16.5"
 }

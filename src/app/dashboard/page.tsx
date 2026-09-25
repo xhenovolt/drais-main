@@ -23,6 +23,7 @@ import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
 import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
 import IntelligenceStrip from '@/components/attendance/IntelligenceStrip';
 import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
+import SmsBalanceCard from '@/components/dashboard/SmsBalanceCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
@@ -288,6 +289,7 @@ const DashboardPage: React.FC = () => {
               the role-labeled attendance cards at the top already carry
               today's staff/learner numbers; it was a duplicate.) */}
           <div className="space-y-4">
+            <SmsBalanceCard />
             <DeviceStatusWidget />
           </div>
         </div>

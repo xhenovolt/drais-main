@@ -22,6 +22,7 @@ import { resolveTemplate, renderTemplate, applyPrefix } from './templates';
 import { getProvider } from './providers';
 import { resolveRecipients } from './recipients';
 import { sendSMS } from '@/lib/africastalking';
+import { recordSmsUsage } from '@/lib/sms/usage';
 
 /**
  * Channel-specific settings selection. Added alongside the WhatsApp channel
@@ -300,6 +301,10 @@ export async function emit<T extends CommEventType>(
           result = { success: false, providerMessageId: null, cost: null, error: e?.message || 'provider threw' };
         }
 
+        if (rule.channel === 'sms') {
+          await recordSmsUsage({ schoolId: payload.schoolId, source: 'dispatch', body: renderedBody, success: result.success });
+        }
+
         await writeLog({
           schoolId:           payload.schoolId,
           eventType,
@@ -408,7 +413,7 @@ export async function manualSendFromLog(args: {
      WHERE id = ?`,
     [
       result.success ? 'sent' : 'failed',
-      rule.channel === 'sms' ? 'central_sms' : provider.name,
+      log.channel === 'sms' ? 'central_sms' : provider.name,
       result.providerMessageId,
       result.cost,
       result.error,
@@ -417,6 +422,10 @@ export async function manualSendFromLog(args: {
       args.logId,
     ],
   );
+
+  if (log.channel === 'sms') {
+    await recordSmsUsage({ schoolId: args.schoolId, source: 'dispatch', body: log.message_body, success: result.success, ref: `dl:${args.logId}` });
+  }
 
   return { success: result.success, error: result.error ?? undefined };
 }

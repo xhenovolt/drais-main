@@ -7,6 +7,7 @@
  * server-side; quiet hours respected unless force.
  */
 import React, { useState } from 'react';
+import { mutate as globalMutate } from 'swr';
 import { X, Loader, Send, Users, AlertTriangle } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
@@ -52,7 +53,8 @@ export default function BulkSmsModal({
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error || 'Send failed'); return; }
-      onSent?.(data.sentCount ?? preview?.count ?? 0);
+      globalMutate('/api/sms/quota');
+      onSent?.(data.sent ?? data.sentCount ?? preview?.count ?? 0);
       onClose();
     } catch { setErr('Network error'); }
     finally { setBusy(false); }

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useMemo } from 'react';
-import useSWR from 'swr';
+import useSWR, { mutate as globalMutate } from 'swr';
 import {
   MessageSquare, Settings as SettingsIcon, FileText, Workflow, Activity,
   Loader2, Send, RotateCcw, AlertCircle, CheckCircle2, Clock, Ban, ShieldAlert, Eye,
@@ -148,7 +148,10 @@ function BroadcastPanel() {
   async function doSend() {
     if (!preview) { await doPreview(); return; }
     if (preview.recipientCount === 0) { toast.error('No valid recipients'); return; }
-    if (!confirm(`Send to ${preview.recipientCount} recipient${preview.recipientCount === 1 ? '' : 's'}?`)) return;
+    const cost = preview.smsNeeded != null
+      ? ` This uses ${preview.smsNeeded} SMS${preview.smsRemaining != null ? ` of the ${preview.smsRemaining} you have left` : ''}.`
+      : '';
+    if (!confirm(`Send to ${preview.recipientCount} recipient${preview.recipientCount === 1 ? '' : 's'}?${cost}`)) return;
     setBusy('send');
     try {
       const r = await fetch('/api/admin/comm/broadcast', {
@@ -157,7 +160,8 @@ function BroadcastPanel() {
       });
       const j = await r.json();
       if (!r.ok || !j.success) throw new Error(j.error || 'Send failed');
-      toast.success(`Sent ${j.sent} · failed ${j.failed}${j.queued ? ` · queued ${j.queued}` : ''}`);
+      toast.success(`Sent ${j.sent} · failed ${j.failed}${j.queued ? ` · queued ${j.queued}` : ''}${j.remaining != null ? ` · ${j.remaining} SMS left` : ''}`);
+      globalMutate('/api/sms/quota');
       setPreview(null);
       setMessage('');
       setPaste('');
