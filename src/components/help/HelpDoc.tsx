@@ -37,6 +37,7 @@ export const GUIDES: GuideMeta[] = [
   { slug: 'enrol-fingerprints',section: 'Attendance', title: 'Enrolling fingerprints',     blurb: 'Getting fingerprints onto a device and fixing wrong identity links.',   minutes: 8 },
   { slug: 'attendance-daily',  section: 'Attendance', title: 'Attendance day to day',      blurb: 'The register, absences, corrections and the reports staff ask for.',    minutes: 8 },
   { slug: 'boarding-and-sms',  section: 'Attendance', title: 'Boarding, SMS and the Outbox', blurb: 'Day vs boarding rules, why a parent got an SMS, and checking what was sent.', minutes: 9 },
+  { slug: 'buying-sms',        section: 'Comms',      title: 'Buying SMS',                 blurb: 'Top up your SMS yourself with Mobile Money — how it works and what to do if a payment does not show.', minutes: 4 },
   { slug: 'marks-and-reports', section: 'Academics',  title: 'Marks and report cards',     blurb: 'Entering marks, generating report cards and printing them.',            minutes: 9 },
   { slug: 'fees',              section: 'Finance',    title: 'Fees and payments',          blurb: 'Billing a term, recording payments, receipts and balances.',            minutes: 8 },
   { slug: 'messages',          section: 'Comms',      title: 'Messaging guardians',        blurb: 'Arrival alerts, absence notices and bulk SMS — without wasting credits.', minutes: 7 },

@@ -60,9 +60,14 @@ export default function SmsBalanceCard() {
             <MessageSquare className="w-4 h-4" />
             {isAr ? 'رصيد الرسائل' : 'SMS balance'}
           </h3>
-          <Link href="/admin/communications" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-            {isAr ? 'إرسال' : 'Send'} <ArrowRight className="w-3 h-3 rtl-flip" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/admin/sms/buy" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              {isAr ? 'شراء رسائل' : 'Buy SMS'}
+            </Link>
+            <Link href="/admin/communications" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+              {isAr ? 'إرسال' : 'Send'} <ArrowRight className="w-3 h-3 rtl-flip" />
+            </Link>
+          </div>
         </div>
 
         {level === 'unlimited' ? (

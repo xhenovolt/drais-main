@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-25T15:47:09.236Z",
-  "last_commit": "7097c7067465296f606602e1eac3fe4721b5ccd2",
+  "generated_at": "2026-09-25T21:28:16.940Z",
+  "last_commit": "a8d93de762e1ab7c17d603419677c3f82b3b0f1e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7952,7 +7952,36 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.19.0",
+      "date": "2026-09-26",
+      "release_type": "minor",
+      "title": "Schools can buy SMS themselves with Mobile Money",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Buy SMS: a school administrator pays by MTN or Airtel Mobile Money (through MarzPay) and the SMS are added to the school's balance automatically as soon as the payment is confirmed — no need to contact Xhenvolt first. The page shows exactly how many SMS an amount buys (for example UGX 300,000 at UGX 30 per SMS = 10,000 SMS) and lists every purchase."
+        },
+        {
+          "category": "NEW",
+          "description": "Control Center → SMS Pricing & Top-ups: set the price per SMS for all schools by default, or a different price for one school, a selection of schools, or all schools; switch online buying on or off per school; follow every purchase; and re-check a payment with MarzPay."
+        },
+        {
+          "category": "NEW",
+          "description": "\"Buy SMS\" link on the dashboard SMS balance card and in the menu."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Payments are confirmed directly with MarzPay before any SMS is added. A payment is added only once, only when it is really completed for the exact amount, and test (sandbox) payments never add SMS. The price and number of SMS are locked in when the school starts paying."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Adding SMS by purchase keeps the school's earlier usage counted, so the balance always reflects what was actually used."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.18.0"
+  "app_version": "2.19.0"
 }
