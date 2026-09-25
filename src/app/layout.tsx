@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProgressProvider } from '@/contexts/ProgressContext';
 import dynamic from 'next/dynamic';
+import MobileStatusBarSync from '@/components/mobile/MobileStatusBarSync';
 const AuthenticatedShell = dynamic(() => import('@/components/layout/AuthenticatedShell'), { ssr: false });
 
 function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {
@@ -116,6 +117,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <DynamicTitle />
       <OrientationLock />
+      <MobileStatusBarSync />
       {hideSidebarAndNavbar ? (
         // For public/auth/print routes: no layout, no global overlays.
         // The overlays below (onboarding, splash, etc.) intentionally

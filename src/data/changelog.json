@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-25T14:06:17.393Z",
-  "last_commit": "64f8a479dfe7c9f51ce90f34ee3f96fd7b7c4b4d",
+  "generated_at": "2026-09-25T14:06:20.546Z",
+  "last_commit": "9e93401198d6253bcb80347f52c9d29be544d987",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7827,7 +7827,20 @@
         }
       ],
       "commit": "64f8a479df"
+    },
+    {
+      "version": "2.16.3",
+      "date": "2026-09-25",
+      "release_type": "patch",
+      "title": "Resolve guardian phones through people, not contacts",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Resolve guardian phones through people, not contacts"
+        }
+      ],
+      "commit": "9e93401198"
     }
   ],
-  "app_version": "2.16.3"
+  "app_version": "2.16.4"
 }
