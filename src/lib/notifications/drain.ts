@@ -26,6 +26,7 @@ import { getCommSettings } from '@/lib/comm/settings';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
 import { revalidateQueuedAttendanceMessage } from '@/lib/notifications/attendance-sms-eligibility';
 import { recordSmsUsage } from '@/lib/sms/usage';
+import { sendViaSchoolRoute } from '@/lib/sms/school-routing';
 
 const BATCH = 50;
 
@@ -134,13 +135,23 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
         result.failed++;
         continue;
       }
+      // Control Center → SMS → School routing: an explicit route wins. With none, behaviour is unchanged
+      // (the school's own Africa's Talking credentials, then the platform's).
+      const routed = await sendViaSchoolRoute(row.school_id, { to: recipient, body: row.body, senderName: undefined });
       const provider = getProvider('africas_talking', 'sms');
-      const sendResult = await provider.send({
-        to: recipient,
-        body: row.body,
-        senderName: undefined,
-        creds: { username: creds.username, apiKey: creds.apiKey },
-      });
+      const sendResult = routed
+        ? {
+            success: routed.response.success,
+            providerMessageId: routed.response.messageId ?? null,
+            cost: routed.response.cost ?? null,
+            error: routed.response.error ?? null,
+          }
+        : await provider.send({
+            to: recipient,
+            body: row.body,
+            senderName: undefined,
+            creds: { username: creds.username, apiKey: creds.apiKey },
+          });
 
       await query(
         `INSERT INTO notification_deliveries
@@ -149,7 +160,7 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
         [
           row.id,
           row.school_id,
-          provider.name,
+          routed ? routed.provider : provider.name,
           sendResult.providerMessageId,
           sendResult.cost,
           sendResult.success ? 1 : 0,

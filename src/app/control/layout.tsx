@@ -18,6 +18,7 @@ const NAV = [
   { href: '/control/plans', label: 'Plans', icon: CreditCard },
   { href: '/control/sms', label: 'SMS', icon: MessageSquare },
   { href: '/control/sms/providers', label: 'SMS Providers', icon: ShieldCheck },
+  { href: '/control/sms/routing', label: 'School SMS Routing', icon: Send },
   // Distinct from SMS (billing/quota economics): Comms is cross-channel
   // message oversight (delivery/history), starting with WhatsApp.
   { href: '/control/comm', label: 'Comms', icon: Send },

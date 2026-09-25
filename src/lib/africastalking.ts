@@ -22,6 +22,8 @@ export interface SMSResponse {
 export interface SmsCredentials {
   username?: string | null;
   apiKey?: string | null;
+  /** The sending school. Lets the platform apply that school's explicit provider route (Control Center). */
+  schoolId?: number | null;
 }
 
 export async function sendAfricasTalkingSMS(

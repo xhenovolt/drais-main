@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { sendAfricasTalkingSMS, type SMSResponse, type SmsCredentials } from '@/lib/africastalking';
 import { decryptProviderConfig, sendWithAdapter, type SmsProviderConfig, type SmsProviderType } from './providers';
+import { sendViaSchoolRoute } from './school-routing';
 
 export interface ActiveSmsProvider {
   id: number;
@@ -72,6 +73,12 @@ export async function getActiveSmsProvider(): Promise<ActiveSmsProvider | null> 
 }
 
 export async function sendCentralSMS(phone: string, message: string, recipientName?: string, senderId?: string, legacyCreds?: SmsCredentials): Promise<SMSResponse> {
+  // An explicit per-school route (Control Center → SMS → School routing) takes precedence over the
+  // platform-wide active provider. Schools without one keep the behaviour below, unchanged.
+  if (legacyCreds?.schoolId) {
+    const routed = await sendViaSchoolRoute(legacyCreds.schoolId, { to: phone, body: message, senderName: senderId, recipientName });
+    if (routed) return routed.response;
+  }
   const active = await getActiveSmsProvider();
   if (!active) {
     return sendAfricasTalkingSMS(phone, message, recipientName, senderId, legacyCreds);

@@ -290,7 +290,7 @@ export async function emit<T extends CommEventType>(
         let result;
         try {
           result = rule.channel === 'sms'
-            ? await sendSMS(rec.phone, renderedBody, rec.name, senderFor(settings, rule.channel))
+            ? await sendSMS(rec.phone, renderedBody, rec.name, senderFor(settings, rule.channel), { schoolId: payload.schoolId })
             : await provider.send({
               to:         rec.phone,
               body:       renderedBody,

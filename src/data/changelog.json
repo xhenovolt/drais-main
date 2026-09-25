@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-25T15:13:58.914Z",
-  "last_commit": "887dea7f30059f774dd39095ceaf272d928adae9",
+  "generated_at": "2026-09-25T15:47:09.236Z",
+  "last_commit": "7097c7067465296f606602e1eac3fe4721b5ccd2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7923,7 +7923,36 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.18.0",
+      "date": "2026-09-25",
+      "release_type": "minor",
+      "title": "Choose which SMS provider each school uses",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Control Center → School SMS Routing: choose which SMS provider or account each school sends through — one school, a selection of schools, or all schools. A school can also use the same provider as another school (for example, Nakifuma using Albayan's account) without any password being copied; it follows that school's account automatically."
+        },
+        {
+          "category": "NEW",
+          "description": "\"Check account\" for any school confirms with the provider that the account is accepted, without sending an SMS. Every routing change is recorded in the audit log."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "The chosen route is used by every kind of school SMS — attendance alerts, bulk messages, the message composer and event messages. Schools with no route chosen behave exactly as before."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "If a route is broken (for example it points at a school with no account), the message fails with a clear reason instead of quietly using a different account."
+        },
+        {
+          "category": "FIXED",
+          "description": "Messages that were left stuck in \"Sending\" after an interrupted send are now closed out rather than waiting forever, and are not re-sent when they are days old."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.17.0"
+  "app_version": "2.18.0"
 }

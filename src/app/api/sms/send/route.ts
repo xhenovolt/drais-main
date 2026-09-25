@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       message,
       recipient_name,
       effectiveSender,
-      { username: cs?.providerUsername, apiKey: cs?.providerApiKey },
+      { username: cs?.providerUsername, apiKey: cs?.providerApiKey, schoolId: session.schoolId },
     );
 
     // Log activity

@@ -28,6 +28,7 @@ import { applyPrefix, getCommSettings, getProvider, isQuietHours } from '@/lib/c
 import { resolveBroadcastAudience, type BroadcastAudience } from '@/lib/comm/audience-resolver';
 import { getSchoolSmsPosition } from '@/lib/control/sms-economics';
 import { recordSmsUsage, smsSegments } from '@/lib/sms/usage';
+import { sendViaSchoolRoute } from '@/lib/sms/school-routing';
 
 export async function POST(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -120,13 +121,21 @@ export async function POST(req: NextRequest) {
     }
 
     let result;
+    let usedProvider = provider.name;
     try {
-      result = await provider.send({
-        to:         rec.phone,
-        body:       renderedBody,
-        senderName: settings.senderName,
-        creds:      { username: settings.providerUsername, apiKey: settings.providerApiKey },
-      });
+      // An explicit school route (Control Center → SMS → School routing) wins; otherwise unchanged.
+      const routed = await sendViaSchoolRoute(session.schoolId, { to: rec.phone, body: renderedBody, senderName: settings.senderName, recipientName: rec.name });
+      if (routed) {
+        usedProvider = routed.provider;
+        result = { success: routed.response.success, providerMessageId: routed.response.messageId ?? null, cost: routed.response.cost ?? null, error: routed.response.error ?? null };
+      } else {
+        result = await provider.send({
+          to:         rec.phone,
+          body:       renderedBody,
+          senderName: settings.senderName,
+          creds:      { username: settings.providerUsername, apiKey: settings.providerApiKey },
+        });
+      }
     } catch (e: any) {
       result = { success: false, providerMessageId: null, cost: null, error: e?.message || 'provider threw' };
     }
@@ -141,7 +150,7 @@ export async function POST(req: NextRequest) {
       [
         session.schoolId, rec.phone, rec.name, renderedBody,
         result.success ? 'sent' : 'failed',
-        provider.name, result.providerMessageId, result.cost,
+        usedProvider, result.providerMessageId, result.cost,
         result.error,
         session.userId,
         JSON.stringify({ audienceType: audience.type, meta: rec.meta ?? null }),

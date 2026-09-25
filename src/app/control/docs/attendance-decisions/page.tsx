@@ -67,6 +67,24 @@ export default function Page() {
         with the provider). Without it, nothing is ever labelled delivered.
       </p>
 
+      <h2>Which SMS account sends it (School SMS routing)</h2>
+      <p>
+        Control Center → <b>School SMS Routing</b> decides, per school, which provider or account sends that school&apos;s messages — for one school, a selection, or all.
+        Modes: <b>Default</b> (no explicit route: unchanged behaviour), <b>A provider</b> (a central provider such as Yoola or UgaText),
+        <b> The school&apos;s own account</b>, and <b>Same as another school</b> (&quot;school A uses whatever school B uses&quot;). Table: <code>school_sms_routes</code>.
+      </p>
+      <Box kind="invariant" title="No secret is ever copied">
+        <p>
+          <code>same_as</code> is resolved live in <code>lib/sms/school-routing.ts</code>: Nakifuma pointing at Albayan reads Albayan&apos;s stored credentials at send time.
+          Rotating Albayan&apos;s key updates every school that follows it; removing the route restores the school&apos;s own account. Loops
+          (A→B→A) are rejected on save and detected at send time. A broken route fails the message with a stated reason — it never silently switches accounts.
+        </p>
+      </Box>
+      <p>
+        Honoured by every send path: the attendance outbox drain, bulk broadcast, the message composer and event dispatches. (OTP codes, reminders and Sentinel alerts still use the platform account.)
+        &quot;Check account&quot; asks the provider whether the credentials are accepted and sends nothing. Changes need the <code>sms.route.manage</code> control permission and are audited.
+      </p>
+
       <h2>Operating it</h2>
       <ul>
         <li>Message → <code>/admin/notifications/outbox</code>, click the row: lifecycle, provider reference, decision and explanation.</li>
