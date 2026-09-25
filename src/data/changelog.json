@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-24T21:14:39.222Z",
-  "last_commit": "3f71c7d0298157be4a6b2e6b84a9c2db0acc5a31",
+  "generated_at": "2026-09-25T14:06:17.393Z",
+  "last_commit": "64f8a479dfe7c9f51ce90f34ee3f96fd7b7c4b4d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7814,7 +7814,20 @@
         }
       ],
       "commit": "3f71c7d029"
+    },
+    {
+      "version": "2.16.2",
+      "date": "2026-09-25",
+      "release_type": "patch",
+      "title": "Loading page readiness poll was blocked by CORS forever",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Loading page readiness poll was blocked by CORS forever"
+        }
+      ],
+      "commit": "64f8a479df"
     }
   ],
-  "app_version": "2.16.2"
+  "app_version": "2.16.3"
 }

@@ -43,17 +43,19 @@ export async function resolveRecipients(args: {
     case 'parents':
     case 'guardians': {
       if (!studentId) return [];
-      // student_contacts → contacts.phone (the modern table) — fall back
+      // student_contacts → contacts → people.phone (the modern shape) — fall back
       // to parents if a school still uses the legacy student_parents
       // shape. Both queries are school-scoped.
       const viaContacts = (await query(
-        `SELECT c.phone AS phone, c.full_name AS name, sc.student_id
+        `SELECT cp.phone AS phone, TRIM(CONCAT_WS(' ', cp.first_name, cp.last_name)) AS name, sc.student_id
            FROM student_contacts sc
            JOIN contacts c ON c.id = sc.contact_id
+           JOIN people   cp ON cp.id = c.person_id
            JOIN students s ON s.id = sc.student_id
           WHERE s.school_id = ?
             AND sc.student_id = ?
-            AND c.phone IS NOT NULL AND c.phone <> ''
+            AND c.deleted_at IS NULL
+            AND cp.phone IS NOT NULL AND cp.phone <> ''
             ${audience === 'guardians' ? "AND sc.relationship IN ('guardian','grandparent','aunt','uncle')" : ''}`,
         [schoolId, studentId],
       )) as ParentRow[];

@@ -11,6 +11,9 @@
 import { query } from '@/lib/db';
 import { normalizePhoneNumber } from '@/lib/africastalking';
 
+/** contacts holds only person_id, occupation, etc.; the phone and name live on people. */
+const CONTACT_NAME = `TRIM(CONCAT_WS(' ', cp.first_name, cp.last_name))`;
+
 export interface BroadcastTarget {
   phone: string;
   name:  string;
@@ -50,12 +53,14 @@ export async function resolveBroadcastAudience(
       // Union over student_contacts → contacts and legacy student_parents
       // → parents. School-scoped via students.school_id.
       const via1 = (await query(
-        `SELECT DISTINCT c.phone, c.full_name AS name
+        `SELECT DISTINCT cp.phone AS phone, ${CONTACT_NAME} AS name
            FROM student_contacts sc
            JOIN contacts c   ON c.id = sc.contact_id
+           JOIN people   cp  ON cp.id = c.person_id
            JOIN students s   ON s.id = sc.student_id
           WHERE s.school_id = ?
-            AND c.phone IS NOT NULL AND c.phone <> ''`,
+            AND c.deleted_at IS NULL AND s.deleted_at IS NULL
+            AND cp.phone IS NOT NULL AND cp.phone <> ''`,
         [schoolId],
       )) as Array<{ phone: string; name: string }>;
       const via2 = (await query(
@@ -77,15 +82,17 @@ export async function resolveBroadcastAudience(
       if (audience.streamId != null) params.push(audience.streamId);
       // Same union as all_parents, narrowed to one class via active enrollments
       const via1 = (await query(
-        `SELECT DISTINCT c.phone, c.full_name AS name
+        `SELECT DISTINCT cp.phone AS phone, ${CONTACT_NAME} AS name
            FROM student_contacts sc
            JOIN contacts    c ON c.id = sc.contact_id
+           JOIN people      cp ON cp.id = c.person_id
            JOIN students    s ON s.id = sc.student_id
            JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
           WHERE s.school_id = ?
             AND e.class_id  = ?
             ${streamFilter}
-            AND c.phone IS NOT NULL AND c.phone <> ''`,
+            AND c.deleted_at IS NULL AND s.deleted_at IS NULL
+            AND cp.phone IS NOT NULL AND cp.phone <> ''`,
         params,
       )) as Array<{ phone: string; name: string }>;
       const via2 = (await query(
@@ -111,12 +118,14 @@ export async function resolveBroadcastAudience(
       if (!ids.length) { raw = []; break; }
       const ph = ids.map(() => '?').join(',');
       const via1 = (await query(
-        `SELECT DISTINCT c.phone, c.full_name AS name
+        `SELECT DISTINCT cp.phone AS phone, ${CONTACT_NAME} AS name
            FROM student_contacts sc
            JOIN contacts c ON c.id = sc.contact_id
+           JOIN people   cp ON cp.id = c.person_id
            JOIN students s ON s.id = sc.student_id
           WHERE s.school_id = ? AND sc.student_id IN (${ph})
-            AND c.phone IS NOT NULL AND c.phone <> ''`,
+            AND c.deleted_at IS NULL AND s.deleted_at IS NULL
+            AND cp.phone IS NOT NULL AND cp.phone <> ''`,
         [schoolId, ...ids],
       )) as Array<{ phone: string; name: string }>;
       const via2 = (await query(
