@@ -87,3 +87,21 @@ export function parseSignatureHeader(header: string | null | undefined): { t: st
   const m = /t=(\d+)\s*,\s*v1=([0-9a-fA-F]+)/.exec(String(header ?? ''));
   return m ? { t: m[1], v1: m[2].toLowerCase() } : null;
 }
+
+const thousands = (n: number) => Math.round(n).toLocaleString('en-US');
+
+/**
+ * The confirmation a school receives after its payment is credited. One SMS segment (<= 160 plain characters),
+ * so it costs a single SMS to send. `remaining` is null when the school has no SMS limit set.
+ */
+export function buildTopupConfirmationSms(p: { school: string; amountUgx: number; units: number; remaining: number | null; ref: number | string }): string {
+  const plain = (s: string) => s.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+  const name = plain(p.school) || 'Your school';
+  const build = (schoolName: string, withBalance: boolean) =>
+    `${schoolName}: payment of UGX ${thousands(p.amountUgx)} received. ${thousands(p.units)} SMS added` +
+    `${withBalance && p.remaining != null ? `, ${thousands(p.remaining)} SMS now available` : ''}. Ref ${p.ref}. Thank you - DRAIS`;
+  let msg = build(name, true);
+  if (msg.length > 160) msg = build(name, false);
+  for (let cut = name.length; msg.length > 160 && cut > 8; cut -= 2) msg = build(`${name.slice(0, cut - 1).trim()}.`, false);
+  return msg.slice(0, 160);
+}

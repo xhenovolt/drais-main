@@ -17,6 +17,7 @@ export default function Page() {
         <Step title="Choose an amount">Type an amount or tap a quick amount. The page shows exactly how many SMS you will get. For example, at UGX 30 per SMS, UGX 300,000 gives you 10,000 SMS.</Step>
         <Step title="Enter the phone to pay from">The Mobile Money number that will pay. You will get a prompt on that phone.</Step>
         <Step title="Approve on the phone">Enter your Mobile Money PIN. Keep the page open — it updates by itself and your SMS are added as soon as the payment is confirmed.</Step>
+        <Step title="Get your confirmation">When the SMS are added you receive a text message on the same phone that paid, saying how much was paid, how many SMS were added and how many you now have. It is sent from DRAIS and does not use up your own SMS.</Step>
       </Steps>
       <p><GoTo href="/admin/sms/buy">Buy SMS</GoTo></p>
 

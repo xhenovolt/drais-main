@@ -13,7 +13,9 @@ import { getConnection, query } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { getSmsPricing } from '@/lib/control/sms-economics';
 import { collectMoney, getCollection, marzConfigured } from '@/lib/payments/marzpay';
-import { judgePayment, maskPhone, normalizeUgPhone, quoteTopup } from './topup-math';
+import { sendCentralSMS } from '@/lib/sms/central';
+import { getSmsPosition } from './usage';
+import { buildTopupConfirmationSms, judgePayment, maskPhone, normalizeUgPhone, quoteTopup } from './topup-math';
 
 export type TopupStatus = 'initiated' | 'processing' | 'paid' | 'credited' | 'failed' | 'expired' | 'review';
 const FINAL: TopupStatus[] = ['credited', 'failed', 'review'];
@@ -53,6 +55,8 @@ export async function createTopup(p: {
     [reference, p.schoolId, p.userId, quote.amountUgx, quote.priceUgx, quote.units, maskPhone(phone)],
   )) as unknown as { insertId?: number };
   const id = Number(ins?.insertId);
+  // Kept only until the confirmation SMS is sent. Best-effort: a payment never depends on it.
+  await query(`UPDATE sms_topups SET notify_phone = ? WHERE id = ?`, [phone, id]).catch(() => undefined);
 
   const r = await collectMoney({
     amountUgx: quote.amountUgx, phone, reference,
@@ -97,6 +101,47 @@ export async function creditTopup(id: number): Promise<boolean> {
   }
 }
 
+const MAX_CONFIRM_ATTEMPTS = 3;
+
+/**
+ * Tell the payer their SMS were added. Sent from the platform SMS account, so it never uses up the school's own
+ * SMS balance. At most once per purchase: a short database claim stops two requests sending together, the number is
+ * cleared once the message is accepted (or after the last attempt), and it never throws into the payment flow.
+ */
+export async function sendTopupConfirmation(id: number): Promise<boolean> {
+  try {
+    const claim = (await query(
+      `UPDATE sms_topups SET confirm_attempts = confirm_attempts + 1, confirm_claimed_at = UTC_TIMESTAMP()
+        WHERE id = ? AND status = 'credited' AND notify_phone IS NOT NULL AND confirm_sent_at IS NULL AND confirm_attempts < ?
+          AND (confirm_claimed_at IS NULL OR confirm_claimed_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 2 MINUTE))`,
+      [id, MAX_CONFIRM_ATTEMPTS],
+    )) as unknown as { affectedRows?: number };
+    if (!claim?.affectedRows) return false;
+
+    const row = ((await query(`SELECT school_id, amount_ugx, sms_units, notify_phone, confirm_attempts FROM sms_topups WHERE id = ? LIMIT 1`, [id])) as any[])[0];
+    if (!row?.notify_phone) return false;
+    const school = ((await query(`SELECT name FROM schools WHERE id = ? LIMIT 1`, [row.school_id]).catch(() => [])) as any[])[0];
+    const position = await getSmsPosition(Number(row.school_id)).catch(() => null);
+    const text = buildTopupConfirmationSms({
+      school: String(school?.name ?? ''), amountUgx: Number(row.amount_ugx), units: Number(row.sms_units),
+      remaining: position?.remaining ?? null, ref: id,
+    });
+
+    // No school credentials are passed on purpose: this is a platform message, not one of the school's own.
+    const res = await sendCentralSMS(String(row.notify_phone), text, undefined, undefined);
+    if (res.success) {
+      await query(`UPDATE sms_topups SET confirm_sent_at = UTC_TIMESTAMP(), notify_phone = NULL, confirm_error = NULL WHERE id = ?`, [id]);
+      return true;
+    }
+    const last = Number(row.confirm_attempts) >= MAX_CONFIRM_ATTEMPTS;
+    await query(`UPDATE sms_topups SET confirm_error = ?, notify_phone = IF(?, NULL, notify_phone) WHERE id = ?`, [String(res.error || 'SMS not accepted').slice(0, 160), last ? 1 : 0, id]);
+    return false;
+  } catch (e: any) {
+    console.error('[sms-topup] confirmation failed:', e?.message);
+    return false;
+  }
+}
+
 /**
  * Bring one purchase up to date with MarzPay and credit it if (and only if) it is truly paid.
  * Safe to call any number of times, from the webhook, the status poll and the operator's recheck button.
@@ -109,10 +154,14 @@ export async function syncTopup(id: number, opts: { force?: boolean } = {}): Pro
   let status = row.status as TopupStatus;
   if (status === 'paid') {                       // a previous credit attempt did not finish: finish it
     const credited = await creditTopup(id);
+    if (credited) await sendTopupConfirmation(id);
     return { status: credited ? 'credited' : 'paid', credited, failureReason: null };
   }
   // Final states are left alone; a failed/review purchase is re-checked only when an operator forces it.
-  if (status === 'credited') return { status, credited: false, failureReason: row.failure_reason };
+  if (status === 'credited') {
+    await sendTopupConfirmation(id);             // no-op unless a confirmation is still owed (e.g. the provider was down)
+    return { status, credited: false, failureReason: row.failure_reason };
+  }
   if (FINAL.includes(status) && !(opts.force && (status === 'failed' || status === 'review') && row.provider_uuid)) {
     return { status, credited: false, failureReason: row.failure_reason };
   }
@@ -141,6 +190,7 @@ export async function syncTopup(id: number, opts: { force?: boolean } = {}): Pro
     )) as unknown as { affectedRows?: number };
     void moved;
     const credited = await creditTopup(id);
+    if (credited) await sendTopupConfirmation(id);
     return { status: credited ? 'credited' : 'paid', credited, failureReason: null };
   }
   if (verdict.kind === 'fail') {

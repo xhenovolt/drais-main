@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-26T20:42:50.510Z",
-  "last_commit": "796e33635e4496780dc984da6b1a890ebb32164c",
+  "generated_at": "2026-09-26T20:54:19.135Z",
+  "last_commit": "19fd801181d3a3a2f4fea826e95da5692aab6880",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8052,7 +8052,28 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.21.0",
+      "date": "2026-09-26",
+      "release_type": "minor",
+      "title": "Confirmation SMS after a successful SMS purchase",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "When a school pays for SMS and the payment is confirmed, DRAIS now sends a confirmation text to the phone that paid: the amount received, how many SMS were added, and how many the school now has."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "The confirmation is sent from the DRAIS platform SMS account, so it never uses up the school's own SMS balance. It is sent once per purchase; if the SMS network is briefly unavailable DRAIS retries a few times, and the payer's number is deleted as soon as the message is sent."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "The Help Center guide \"Buying SMS\" now explains the confirmation message."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.20.2"
+  "app_version": "2.21.0"
 }
