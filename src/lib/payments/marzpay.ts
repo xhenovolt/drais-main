@@ -80,13 +80,29 @@ async function call(method: 'GET' | 'POST', path: string, body?: unknown): Promi
 
 export interface CollectInput { amountUgx: number; phone: string; reference: string; description: string; callbackUrl?: string | null; metadata?: Array<Record<string, string>> }
 
+/**
+ * MarzPay accepts each metadata entry as exactly ONE field name (plus an optional isPII flag), so
+ * `[{a:'1'},{b:'2'}]` is valid and `[{a:'1',b:'2'}]` is refused. Flatten any multi-field object to that shape.
+ */
+export function marzMetadata(entries?: Array<Record<string, string>>): Array<Record<string, string>> {
+  const out: Array<Record<string, string>> = [];
+  for (const e of entries ?? []) for (const [k, v] of Object.entries(e)) if (k && k !== 'isPII') out.push({ [k]: String(v) });
+  return out.slice(0, 10);
+}
+
 export async function collectMoney(i: CollectInput): Promise<{ ok: boolean; tx: MarzTransaction | null; error?: string }> {
-  const r = await call('POST', '/collect-money', {
+  const base = {
     amount: i.amountUgx, country: 'UG', reference: i.reference, phone_number: i.phone,
     description: i.description.slice(0, 255),
     ...(i.callbackUrl ? { callback_url: i.callbackUrl.slice(0, 255) } : {}),
-    ...(i.metadata?.length ? { metadata: i.metadata.slice(0, 10) } : {}),
-  });
+  };
+  const metadata = marzMetadata(i.metadata);
+  let r = await call('POST', '/collect-money', metadata.length ? { ...base, metadata } : base);
+  // Metadata is only a convenience label (payments are matched by reference / provider id). If MarzPay refuses it
+  // with a validation error, no prompt was sent, so it is safe to try once more without it rather than fail the payment.
+  if (!r.ok && metadata.length && r.status >= 400 && r.status < 500 && /metadata/i.test(JSON.stringify(r.json ?? {}))) {
+    r = await call('POST', '/collect-money', base);
+  }
   if (!r.ok || String(r.json?.status ?? '').toLowerCase() === 'error') {
     const msg = r.json?.message || r.json?.error || `MarzPay returned HTTP ${r.status}`;
     return { ok: false, tx: null, error: String(msg).slice(0, 240) };

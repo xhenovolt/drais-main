@@ -58,7 +58,7 @@ export async function createTopup(p: {
     amountUgx: quote.amountUgx, phone, reference,
     description: `DRAIS SMS top-up: ${quote.units.toLocaleString('en-US')} SMS`,
     callbackUrl: p.callbackUrl,
-    metadata: [{ topup_id: String(id), school_id: String(p.schoolId) }],
+    metadata: [{ topup_id: String(id) }, { school_id: String(p.schoolId) }],
   });
   if (!r.ok || !r.tx?.uuid) {
     await query(`UPDATE sms_topups SET status = 'failed', failure_reason = ? WHERE id = ? AND status = 'initiated'`, [(r.error || 'Could not start the payment').slice(0, 250), id]);

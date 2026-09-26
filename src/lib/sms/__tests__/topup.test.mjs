@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHmac } from 'node:crypto';
 import { quoteTopup, normalizeUgPhone, judgePayment, normalizeProviderStatus, maskPhone, parseSignatureHeader, MIN_TOPUP_UGX } from '@/lib/sms/topup-math.ts';
-import { readTransaction, verifyWebhookSignature } from '@/lib/payments/marzpay.ts';
+import { readTransaction, verifyWebhookSignature, marzMetadata } from '@/lib/payments/marzpay.ts';
 
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 
@@ -89,6 +89,27 @@ describe('MarzPay payloads and webhook signatures', () => {
     assert.equal(verifyWebhookSignature(body, 'garbage', secret, now), 'invalid');
     assert.equal(verifyWebhookSignature(body, null, secret, now), 'unsigned');
     assert.deepEqual(parseSignatureHeader('t=12,v1=ABCDEF'), { t: '12', v1: 'abcdef' });
+  });
+});
+
+describe('MarzPay metadata shape ("metadata[0] must contain exactly one field name plus optional isPII")', () => {
+  it('splits a multi-field object into one entry per field, as MarzPay requires', () => {
+    assert.deepEqual(marzMetadata([{ topup_id: '12', school_id: '5' }]), [{ topup_id: '12' }, { school_id: '5' }]);
+  });
+  it('the top-up sends one field per entry', () => {
+    const svc = read('lib/sms/topup.ts');
+    assert.ok(svc.includes('metadata: [{ topup_id: String(id) }, { school_id: String(p.schoolId) }]'));
+    for (const e of marzMetadata([{ a: '1', b: '2' }, { c: '3' }])) assert.equal(Object.keys(e).length, 1);
+  });
+  it('never sends more than 10 entries, drops empty names, stringifies values', () => {
+    const many = Object.fromEntries(Array.from({ length: 15 }, (_, i) => ['k' + i, i]));
+    assert.equal(marzMetadata([many]).length, 10);
+    assert.deepEqual(marzMetadata([{ '': 'x', n: 5 }]), [{ n: '5' }]);
+    assert.deepEqual(marzMetadata(undefined), []);
+  });
+  it('retries once without metadata only for a metadata validation refusal', () => {
+    const client = read('lib/payments/marzpay.ts');
+    assert.ok(client.includes('r.status >= 400 && r.status < 500 && /metadata/i.test('));
   });
 });
 

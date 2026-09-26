@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-26T18:22:29.603Z",
-  "last_commit": "9b2c032060cca495fbb34aff981a6333afe908e2",
+  "generated_at": "2026-09-26T20:42:50.510Z",
+  "last_commit": "796e33635e4496780dc984da6b1a890ebb32164c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8035,7 +8035,24 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.20.2",
+      "date": "2026-09-26",
+      "release_type": "patch",
+      "title": "Fix: Buy SMS payment refused by MarzPay",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Paying for SMS with Mobile Money failed with \"metadata[0] must contain exactly one field name plus optional isPII\". The payment request is now sent in the format MarzPay requires, so the approval prompt reaches the payer's phone."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "If MarzPay ever refuses the optional label on a payment, DRAIS now retries once without it instead of failing the whole purchase (no prompt is sent on a refused request, so the payer is never charged twice)."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.20.1"
+  "app_version": "2.20.2"
 }
