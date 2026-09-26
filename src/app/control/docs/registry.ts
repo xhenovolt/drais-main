@@ -273,6 +273,15 @@ export const DOCS: DocMeta[] = [
     minutes: 8,
   },
   {
+    slug: 'id-card-studio',
+    section: 'Modules',
+    title: 'ID Card Studio',
+    blurb: 'Two-sided ID cards, side-by-side printing, Publisher template import and how sample text becomes placeholders.',
+    topics: ['students', 'printing'],
+    keywords: ['id card', 'student id', 'publisher', 'pub', 'template', 'placeholder', 'token', 'side by side', 'duplex', 'front back', 'layout', 'fold_pair', 'side_by_side', 'excel', 'spec', 'shrink', 'school_address', 'issue_date', 'valid_until'],
+    minutes: 10,
+  },
+  {
     slug: 'module-attendance',
     section: 'Modules',
     title: 'Attendance',

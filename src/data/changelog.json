@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-26T14:28:54.266Z",
-  "last_commit": "8d2d1af3333b04b75f5150794a331d77e8737dd8",
+  "generated_at": "2026-09-26T18:22:29.603Z",
+  "last_commit": "9b2c032060cca495fbb34aff981a6333afe908e2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8014,7 +8014,28 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.20.1",
+      "date": "2026-09-26",
+      "release_type": "patch",
+      "title": "Documentation for ID cards, and the About page brought up to date",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Help Center guide \"Student ID cards\": making two-sided cards from a template, printing front left and back right, how the school name and learner details on a template are filled in for you, and what to do with a Publisher file."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "About → What DRAIS can do now lists the ID Card Studio and Buying SMS with Mobile Money; the Help Center description now includes ID cards and buying SMS."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Developer documentation added: Control Center → Docs → ID Card Studio (spec, print modes, Publisher import pipeline and placeholder rules) and docs/guides/ID_CARD_STUDIO.md."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.20.0"
+  "app_version": "2.20.1"
 }

@@ -18,7 +18,7 @@ import useSWR from 'swr';
 import {
   Info, ChevronDown, ChevronRight, CheckCircle, AlertTriangle,
   GitCommit, Package, Server, Database, Shield, ShieldCheck, Milestone as MilestoneIcon,
-  Users, Upload, KeyRound, BookOpen, Fingerprint,
+  Users, Upload, KeyRound, BookOpen, Fingerprint, IdCard, Smartphone,
 } from 'lucide-react';
 import { SENTINEL_VERSION } from '@/lib/sentinel/types';
 import changelog from '@/data/changelog.json';
@@ -114,9 +114,25 @@ const CURRENT_CAPABILITIES = [
     tone: 'rose',
   },
   {
+    Icon: IdCard,
+    title: 'Print two-sided student ID cards',
+    description: "Start from a ready-made design (including the school's Publisher ID), or design your own. DRAIS understands that the school name, learner names, class, ID and dates on an imported template are sample text and fills them per learner and per school. Cards print with each learner's front on the left and back on the right, from enrolled learners or an Excel list.",
+    href: '/students/id-cards/studio',
+    action: 'Open ID Card Studio',
+    tone: 'sky',
+  },
+  {
+    Icon: Smartphone,
+    title: 'Buy SMS with Mobile Money',
+    description: "Schools top up their own SMS with MTN or Airtel Mobile Money at a per-school price set in the Control Center, and the balance updates as soon as the payment is confirmed. Each school's SMS can be sent through the provider account chosen for it.",
+    href: '/admin/sms/buy',
+    action: 'Buy SMS',
+    tone: 'emerald',
+  },
+  {
     Icon: BookOpen,
     title: 'Explain the work, not just the buttons',
-    description: 'The Help Center now documents the school setup order, learner lifecycle, Start exports, import structure, reports, fees, attendance, and recovery workflows.',
+    description: 'The Help Center documents the school setup order, learner lifecycle, Start exports, import structure, reports, fees, attendance, ID cards, buying SMS, and recovery workflows.',
     href: '/help',
     action: 'Open Help Center',
     tone: 'violet',

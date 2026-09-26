@@ -34,6 +34,7 @@ export interface GuideMeta {
 export const GUIDES: GuideMeta[] = [
   { slug: 'first-week',        section: 'Start here', title: 'Your first week',            blurb: 'The order to set things up in so nothing has to be redone.',            minutes: 8 },
   { slug: 'learners',          section: 'Learners',   title: 'Learners day to day',        blurb: 'Admitting, transferring, promoting, leavers and duplicates.',           minutes: 9 },
+  { slug: 'id-cards',          section: 'Learners',   title: 'Student ID cards',           blurb: 'Make two-sided ID cards from a ready-made design, print front left and back right, and how templates fill in your school details.', minutes: 6 },
   { slug: 'enrol-fingerprints',section: 'Attendance', title: 'Enrolling fingerprints',     blurb: 'Getting fingerprints onto a device and fixing wrong identity links.',   minutes: 8 },
   { slug: 'attendance-daily',  section: 'Attendance', title: 'Attendance day to day',      blurb: 'The register, absences, corrections and the reports staff ask for.',    minutes: 8 },
   { slug: 'boarding-and-sms',  section: 'Attendance', title: 'Boarding, SMS and the Outbox', blurb: 'Day vs boarding rules, why a parent got an SMS, and checking what was sent.', minutes: 9 },

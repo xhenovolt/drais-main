@@ -118,6 +118,8 @@ Things you can actually follow, step by step.
 
 **Attendance:** [`ATTENDANCE_POLICY_SCOPING.md`](guides/ATTENDANCE_POLICY_SCOPING.md)
 
+**Student ID cards:** [`ID_CARD_STUDIO.md`](guides/ID_CARD_STUDIO.md) — spec, printing modes, Publisher template import and placeholder rules
+
 ## Audits — `audits/`
 
 Investigation reports, most written before a body of work as a "what is actually true right now" pass. They are **findings, not specifications** — several conclude with recommendations that were never implemented, and some are explicitly marked plan-only or awaiting approval.
