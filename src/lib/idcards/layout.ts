@@ -2,20 +2,27 @@
  * Print-sheet layout for ID cards (pure, mm-based).
  *
  * Modes
+ *  - side_by_side : DEFAULT for two-sided designs. Works on any printer (no duplex
+ *                   unit needed): each learner occupies one row with the FRONT on the
+ *                   left and the BACK on the right, so a learner's two faces are
+ *                   always together, ready to cut out and laminate.
  *  - front_only   : one face per learner (single-sided designs, or fronts only).
- *  - duplex_long  : page N = fronts, page N+1 = backs. Backs mirror column order so
+ *  - duplex_long  : for printers that print on both sides of the paper. Page N = all
+ *                   the fronts, page N+1 = all the backs. Backs mirror column order so
  *                   each back lands behind its own front when the sheet is flipped
  *                   on the LONG edge (the usual "flip on long edge" duplex setting
- *                   for portrait sheets).
+ *                   for portrait sheets). Fronts and backs are on different pages by
+ *                   design: they only meet once the paper is turned over.
  *  - duplex_short : same, but backs mirror ROW order (flip on the SHORT edge).
- *  - fold_pair    : single-sided print, each learner occupies one row-unit with the
- *                   BACK on the left and the FRONT on the right, ready to cut/fold.
  *
  * The grid is centred on the sheet in every mode. That symmetry is what makes the
  * mirrored back page register with the front page.
  */
 
-export type PrintMode = 'front_only' | 'duplex_long' | 'duplex_short' | 'fold_pair';
+export type PrintMode = 'side_by_side' | 'front_only' | 'duplex_long' | 'duplex_short';
+
+/** The sensible default for a design: faces together when there is a back, else fronts only. */
+export const defaultPrintMode = (hasBack: boolean): PrintMode => (hasBack ? 'side_by_side' : 'front_only');
 
 export interface SheetSpec {
   widthMm: number;
@@ -57,7 +64,8 @@ export function computeGrid(
   sheet: SheetSpec,
   paired: boolean,
 ): SheetGrid {
-  const unitW = paired ? card.widthMm * 2 : card.widthMm;
+  // A front+back pair is two cards with one gap between them.
+  const unitW = paired ? card.widthMm * 2 + sheet.gapMm : card.widthMm;
   const usableW = sheet.widthMm - sheet.marginMm * 2;
   const usableH = sheet.heightMm - sheet.marginMm * 2;
   const cols = Math.max(0, Math.floor((usableW + sheet.gapMm) / (unitW + sheet.gapMm)));
@@ -84,7 +92,7 @@ export function layoutPages(opts: {
   const { count, card, sheet, hasBack } = opts;
   // A single-sided design has no back to pair or flip.
   const mode: PrintMode = !hasBack && opts.mode !== 'front_only' ? 'front_only' : opts.mode;
-  const paired = mode === 'fold_pair';
+  const paired = mode === 'side_by_side';
   const grid = computeGrid(card, sheet, paired);
   if (grid.perPage < 1) {
     throw new Error(`A ${card.widthMm}×${card.heightMm} mm card${paired ? ' pair' : ''} does not fit on the selected sheet with these margins`);
@@ -106,9 +114,9 @@ export function layoutPages(opts: {
       const row = Math.floor(k / grid.cols);
       const col = k % grid.cols;
       const p = pos(col, row);
-      if (mode === 'fold_pair') {
-        pair.push({ index, face: 'back', xMm: p.xMm, yMm: p.yMm });
-        pair.push({ index, face: 'front', xMm: round(p.xMm + card.widthMm), yMm: p.yMm });
+      if (mode === 'side_by_side') {
+        pair.push({ index, face: 'front', xMm: p.xMm, yMm: p.yMm });
+        pair.push({ index, face: 'back', xMm: round(p.xMm + card.widthMm + sheet.gapMm), yMm: p.yMm });
       } else {
         front.push({ index, face: 'front', ...p });
         if (mode === 'duplex_long') {
@@ -118,7 +126,7 @@ export function layoutPages(opts: {
         }
       }
     }
-    if (mode === 'fold_pair') pages.push({ kind: 'pair', cells: pair });
+    if (mode === 'side_by_side') pages.push({ kind: 'pair', cells: pair });
     else {
       pages.push({ kind: 'front', cells: front });
       if (back.length) pages.push({ kind: 'back', cells: back });

@@ -7,7 +7,7 @@
  */
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { resolveTokens, type IdCardSpec, type IdCardElement, type CardRecord } from '@/lib/idcards/spec';
+import { resolveTokens, shrinkFactor, type IdCardSpec, type IdCardElement, type CardRecord } from '@/lib/idcards/spec';
 
 export type FaceUnit = 'mm' | number;
 
@@ -73,13 +73,19 @@ function renderElement(el: IdCardElement, record: CardRecord, logoUrl: string | 
     case 'text': {
       let text = resolveTokens(el.text, record);
       if (el.uppercase) text = text.toUpperCase();
+      const pt = el.shrink ? el.fontSizePt * shrinkFactor(text, el.fontSizePt, el.w, { bold: el.bold, upper: el.uppercase }) : el.fontSizePt;
       return (
         <div style={{
-          width: '100%', height: '100%', overflow: 'hidden', lineHeight: 1.15,
-          fontSize: fontLen(el.fontSizePt, unit), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal',
-          color: el.color, textAlign: el.align ?? 'left', fontFamily: el.fontFamily || 'Inter, Arial, sans-serif',
-          wordBreak: 'break-word',
-        }}>{text}</div>
+          width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+          justifyContent: el.valign === 'middle' ? 'center' : el.valign === 'bottom' ? 'flex-end' : 'flex-start',
+        }}>
+          <div style={{
+            width: '100%', maxHeight: '100%', overflow: 'hidden', lineHeight: 1.15,
+            fontSize: fontLen(pt, unit), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal',
+            color: el.color, textAlign: el.align ?? 'left', fontFamily: el.fontFamily || 'Inter, Arial, sans-serif',
+            wordBreak: 'break-word', whiteSpace: el.shrink ? 'nowrap' : undefined,
+          }}>{text}</div>
+        </div>
       );
     }
     case 'image': {

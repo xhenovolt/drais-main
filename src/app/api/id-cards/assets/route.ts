@@ -43,8 +43,11 @@ export async function POST(req: NextRequest) {
   const kind = sniff(buf);
   if (kind === 'pdf' || kind === 'psd' || kind === 'ole') {
     const what = kind === 'pdf' ? 'PDF' : kind === 'psd' ? 'Photoshop (PSD)' : 'Publisher/Office';
+    const hint = kind === 'ole'
+      ? ' In Publisher use File > Export > Change File Type > PNG/JPEG (300 DPI), or start from a ready-made template in the Studio.'
+      : '';
     return NextResponse.json({
-      error: `${what} files can't be imported directly. Export each side as a PNG or JPEG (300 DPI, card size) from the design program and upload that.`,
+      error: `${what} files can't be imported directly. Export each side as a PNG or JPEG (300 DPI, card size) from the design program and upload that.${hint}`,
       code: 'UNSUPPORTED_FORMAT',
     }, { status: 415 });
   }

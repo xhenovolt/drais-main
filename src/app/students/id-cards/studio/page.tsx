@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { IdCardDesigner } from '@/components/idcards/IdCardDesigner';
 import { IdCardGenerate } from '@/components/idcards/IdCardGenerate';
 import { starterSpec, specFromLegacyConfig, isTwoSided, type IdCardSpec, type CardRecord, type SourceKind } from '@/lib/idcards/spec';
+import { ID_CARD_TEMPLATES, cloneSpec } from '@/lib/idcards/templates';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { showToast } from '@/lib/toast';
 
@@ -32,7 +33,8 @@ export default function IdCardStudioPage() {
   const sample: CardRecord = {
     full_name: 'Namatovu Sarah B.', first_name: 'Namatovu', last_name: 'Sarah', admission_no: 'ADM/2026/0042',
     class: 'Senior 4 Arts', gender: 'Female', dob: '15 Mar 2009', photo_url: '', school: schoolName || 'Your School Name',
-    academic_year: '2026', valid_until: 'Dec 2026', guardian_phone: '0700 000 000',
+    academic_year: '2026', valid_until: '31/12/2026', issue_date: '11/04/2026', guardian_phone: '0700 000 000',
+    school_address: school?.address || 'P.O. Box 123, Your Town', school_phone: school?.phone || '0700 000 000', school_email: school?.email || '',
   };
 
   const loadList = useCallback(async () => {
@@ -118,6 +120,18 @@ export default function IdCardStudioPage() {
             <button style={btn} onClick={() => { if (!dirty || confirm('Discard unsaved changes?')) { setSpec(starterSpec(true)); setName('New two-sided design'); setDesignId(null); setSourceKind('designed'); setDirty(false); } }}>New two-sided</button>
             <button style={btn} onClick={() => { if (!dirty || confirm('Discard unsaved changes?')) { setSpec(starterSpec(false)); setName('New single-sided design'); setDesignId(null); setSourceKind('designed'); setDirty(false); } }}>New single-sided</button>
             <button style={btn} onClick={fromLegacy}>Start from classic design</button>
+            <select
+              style={field} value="" title="Ready-made designs with your school's name, logo and details filled in automatically"
+              onChange={(e) => {
+                const t = ID_CARD_TEMPLATES.find((x) => x.id === e.target.value);
+                if (!t) return;
+                if (dirty && !confirm('Discard unsaved changes?')) return;
+                setSpec(cloneSpec(t.spec)); setName(t.name); setDesignId(null); setSourceKind('imported'); setDirty(true);
+              }}
+            >
+              <option value="">Start from a template…</option>
+              {ID_CARD_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
           </div>
           <IdCardDesigner
             spec={spec} onChange={(s) => { change(s); if (sourceKind === 'designed' && s.front.backgroundImage) setSourceKind('imported'); }}
@@ -127,7 +141,10 @@ export default function IdCardStudioPage() {
       )}
 
       {tab === 'generate' && (
-        <IdCardGenerate spec={spec} schoolName={schoolName} logoUrl={logoUrl} onExcelHeaders={setExtraTokens} />
+        <IdCardGenerate
+          spec={spec} schoolName={schoolName} logoUrl={logoUrl} onExcelHeaders={setExtraTokens}
+          schoolInfo={{ address: school?.address, phone: school?.phone, email: school?.email }}
+        />
       )}
     </div>
   );

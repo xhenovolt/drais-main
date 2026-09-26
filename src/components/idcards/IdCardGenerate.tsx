@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { IdCardSheets, PrintPortal } from './IdCardSheets';
 import { IdCardFace } from './IdCardFace';
 import { CARD_FIELDS } from '@/lib/idcards/fields';
-import { SHEET_PRESETS, type PrintMode, type SheetSpec } from '@/lib/idcards/layout';
+import { SHEET_PRESETS, defaultPrintMode, type PrintMode, type SheetSpec } from '@/lib/idcards/layout';
 import type { CardRecord, IdCardSpec } from '@/lib/idcards/spec';
 
 interface SheetInfo { name: string; hidden: boolean; rowCount: number; headerRow: number; headers: string[]; sample: string[][]; }
@@ -22,9 +22,13 @@ const STORAGE_SAFE_BYTES = 9 * 1024 * 1024;
 interface Props {
   spec: IdCardSpec;
   schoolName: string;
+  schoolInfo?: { address?: string; phone?: string; email?: string };
   logoUrl?: string;
   onExcelHeaders?: (headers: string[]) => void;
 }
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const fmtDmy = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
 
 const fmtDate = (v?: string) => {
   if (!v) return '';
@@ -32,17 +36,20 @@ const fmtDate = (v?: string) => {
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-export function IdCardGenerate({ spec, schoolName, logoUrl, onExcelHeaders }: Props) {
+export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelHeaders }: Props) {
   const [source, setSource] = useState<'learners' | 'excel'>('learners');
+  // Dates printed on every card that does not bring its own (e.g. from a spreadsheet column).
+  const [issueDate, setIssueDate] = useState(() => fmtDmy(new Date()));
+  const [validUntil, setValidUntil] = useState(() => `31/12/${new Date().getFullYear()}`);
 
   // ── printing options ──
   const [preset, setPreset] = useState('A4 portrait');
   const [margin, setMargin] = useState(10);
   const [gap, setGap] = useState(4);
-  const [mode, setMode] = useState<PrintMode>(spec.back ? 'duplex_long' : 'front_only');
+  const [mode, setMode] = useState<PrintMode>(defaultPrintMode(!!spec.back));
   const [cutMarks, setCutMarks] = useState(true);
   const [printTick, setPrintTick] = useState(0);
-  useEffect(() => { setMode((m) => (spec.back ? (m === 'front_only' ? 'duplex_long' : m) : 'front_only')); }, [!!spec.back]);
+  useEffect(() => { setMode(defaultPrintMode(!!spec.back)); }, [!!spec.back]);
   const sheet: SheetSpec = { ...SHEET_PRESETS[preset], marginMm: margin, gapMm: gap };
 
   // ── learners source ──
@@ -187,10 +194,25 @@ export function IdCardGenerate({ spec, schoolName, logoUrl, onExcelHeaders }: Pr
 
   // ── records to render ──
   const records: CardRecord[] = useMemo(() => {
-    if (source === 'excel') return exRows.filter((r) => includeErrors || r.status !== 'error').map((r) => r.record);
-    const ids = selected.size ? [...selected] : filtered.map(({ i }) => i);
-    return ids.map((i) => learners[i]).filter(Boolean);
-  }, [source, exRows, includeErrors, selected, filtered, learners]);
+    let base: CardRecord[];
+    if (source === 'excel') base = exRows.filter((r) => includeErrors || r.status !== 'error').map((r) => r.record);
+    else {
+      const ids = selected.size ? [...selected] : filtered.map(({ i }) => i);
+      base = ids.map((i) => learners[i]).filter(Boolean);
+    }
+    const year = validUntil.match(/\d{4}/)?.[0] ?? String(new Date().getFullYear());
+    // Values the card itself carries win; everything else falls back to the school / print options.
+    return base.map((r) => ({
+      ...r,
+      school: r.school || schoolName,
+      school_address: r.school_address || schoolInfo?.address || '',
+      school_phone: r.school_phone || schoolInfo?.phone || '',
+      school_email: r.school_email || schoolInfo?.email || '',
+      academic_year: r.academic_year || year,
+      issue_date: r.issue_date || issueDate,
+      valid_until: r.valid_until || validUntil,
+    }));
+  }, [source, exRows, includeErrors, selected, filtered, learners, schoolName, schoolInfo?.address, schoolInfo?.phone, schoolInfo?.email, issueDate, validUntil]);
 
   const excluded = source === 'excel' && summary ? (includeErrors ? 0 : summary.errors) : 0;
 
@@ -322,17 +344,27 @@ export function IdCardGenerate({ spec, schoolName, logoUrl, onExcelHeaders }: Pr
           <label>Mode{' '}
             <select style={input} value={mode} disabled={!spec.back} onChange={(e) => setMode(e.target.value as PrintMode)}>
               {!spec.back && <option value="front_only">Single-sided</option>}
-              {spec.back && <option value="duplex_long">Duplex — flip on long edge</option>}
-              {spec.back && <option value="duplex_short">Duplex — flip on short edge</option>}
-              {spec.back && <option value="fold_pair">Back + front side by side (fold)</option>}
+              {spec.back && <option value="side_by_side">Front left, back right (side by side)</option>}
+              {spec.back && <option value="duplex_long">Double-sided printer — flip on long edge</option>}
+              {spec.back && <option value="duplex_short">Double-sided printer — flip on short edge</option>}
               {spec.back && <option value="front_only">Fronts only</option>}
             </select>
           </label>
           <label><input type="checkbox" checked={cutMarks} onChange={(e) => setCutMarks(e.target.checked)} /> Cut guides</label>
         </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 13, marginTop: 8 }}>
+          <label>Date of issue <input style={{ ...input, width: 110 }} value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></label>
+          <label>Valid until <input style={{ ...input, width: 110 }} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></label>
+          <span style={{ fontSize: 12, color: '#64748b' }}>Printed where the design uses {'{issue_date}'} / {'{valid_until}'}; a spreadsheet column mapped to Valid until takes priority.</span>
+        </div>
+        {spec.back && mode === 'side_by_side' && (
+          <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
+            Each learner's front is printed on the left and the back on the right of the same row, so both faces are always together. Works on any printer — cut out and laminate.
+          </p>
+        )}
         {spec.back && mode.startsWith('duplex') && (
           <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
-            Print double-sided on your printer with "flip on {mode === 'duplex_long' ? 'long' : 'short'} edge", or print pages one by one — the back pages are already mirrored so each back lines up behind its front. Do a one-sheet test on plain paper first; printer feed offsets vary.
+            For printers that print on both sides of the paper: all the fronts are on one page and all the backs on the next, so each back lands behind its own front once the paper is turned. Print double-sided with "flip on {mode === 'duplex_long' ? 'long' : 'short'} edge" — the back pages are already mirrored. Do a one-sheet test on plain paper first; printer feed offsets vary. If your printer cannot print on both sides, use "Front left, back right" instead.
           </p>
         )}
         <div style={{ marginTop: 10, display: 'flex', gap: 12, alignItems: 'center' }}>

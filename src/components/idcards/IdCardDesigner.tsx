@@ -167,7 +167,7 @@ export function IdCardDesigner({ spec, onChange, previewRecord, logoUrl, extraTo
           <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadArtwork(f); }} />
           <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0' }}>
-            PNG, JPEG or WebP. From Photoshop, Publisher, Canva or a PDF, export each side as an image at 300 DPI, then import it here — names and photos are added on top as live fields.
+            PNG, JPEG or WebP. From Photoshop, Publisher, Canva or a PDF, export each side as an image at 300 DPI, then import it here — names and photos are added on top as live fields. Publisher (.pub) files cannot be opened directly; use “Start from a template” or ask for the file to be converted.
           </p>
           {uploadMsg && <p style={{ fontSize: 12, marginTop: 6, color: uploadMsg.kind === 'err' ? '#b91c1c' : uploadMsg.kind === 'warn' ? '#b45309' : '#15803d' }}>{uploadMsg.text}</p>}
         </fieldset>
@@ -201,6 +201,12 @@ export function IdCardDesigner({ spec, onChange, previewRecord, logoUrl, extraTo
                     <label><input type="checkbox" checked={!!selected.uppercase} onChange={(e) => setElement(selected.id, { uppercase: e.target.checked })} /> CAPS</label>
                     <select style={inputStyle} value={selected.align ?? 'left'} onChange={(e) => setElement(selected.id, { align: e.target.value as 'left' | 'center' | 'right' })}>
                       <option value="left">Left</option><option value="center">Center</option><option value="right">Right</option>
+                    </select>
+                  </div>
+                  <div style={row}>
+                    <label title="Keeps a long name on one line by making it slightly smaller"><input type="checkbox" checked={!!selected.shrink} onChange={(e) => setElement(selected.id, { shrink: e.target.checked || undefined })} /> Shrink long text</label>
+                    <select style={inputStyle} value={selected.valign ?? 'top'} onChange={(e) => setElement(selected.id, { valign: e.target.value === 'top' ? undefined : (e.target.value as 'middle' | 'bottom') })}>
+                      <option value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option>
                     </select>
                   </div>
                 </>

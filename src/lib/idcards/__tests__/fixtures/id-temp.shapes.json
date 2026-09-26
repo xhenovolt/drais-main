@@ -1,0 +1,1232 @@
+{
+ "source": "ID TEMP.pub (anonymised sample)",
+ "page": {
+  "widthPt": 612,
+  "heightPt": 792
+ },
+ "pages": [
+  {
+   "index": 1,
+   "shapes": [
+    {
+     "name": "AutoShape 1",
+     "type": 1,
+     "z": 0,
+     "group": null,
+     "left": 309.4228515625,
+     "top": 171.9755859375,
+     "width": 251.4693603515625,
+     "height": 0.1325196921825409,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#ff0000",
+      "weight": 1,
+      "dash": 1
+     }
+    },
+    {
+     "name": "Text Box 2",
+     "type": 17,
+     "z": 1,
+     "group": null,
+     "left": 311.986328125,
+     "top": 174.935546875,
+     "width": 246.8000030517578,
+     "height": 12.800000190734863,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "If found please return to the above address",
+       "align": 1,
+       "left": 340.32489013671875,
+       "top": 177.4877166748047,
+       "width": 187.53488159179688,
+       "height": 10.046456336975098,
+       "segments": [
+        {
+         "text": "If found please return to the above address",
+         "left": 340.32489013671875,
+         "top": 177.4877166748047,
+         "width": 187.53488159179688,
+         "height": 10.046456336975098,
+         "font": "Times New Roman",
+         "size": 11,
+         "bold": false,
+         "italic": true,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 4",
+     "type": 17,
+     "z": 2,
+     "group": "Group 3",
+     "left": 311.888671875,
+     "top": 44.9521484375,
+     "width": 252,
+     "height": 158.39999389648438,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#5b9bd5",
+      "weight": 5,
+      "dash": 1
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "     P . o . Box 1645, Wanje road, Jinja  City",
+       "align": 1,
+       "left": 352.04583740234375,
+       "top": 103.81330871582031,
+       "width": 170.79071044921875,
+       "height": 18.418582916259766,
+       "segments": [
+        {
+         "text": "P . o . Box 1645, Wanje road, Jinja",
+         "left": 363.76678466796875,
+         "top": 103.81330871582031,
+         "width": 135.62786865234375,
+         "height": 18.418582916259766,
+         "font": "Apple Chancery",
+         "size": 10,
+         "bold": false,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "City",
+         "left": 511.1156005859375,
+         "top": 103.81330871582031,
+         "width": 11.720945358276367,
+         "height": 18.418582916259766,
+         "font": "Apple Chancery",
+         "size": 10,
+         "bold": false,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      },
+      {
+       "text": "Tel: 0700000001 / 0700000002 ",
+       "align": 1,
+       "left": 372.1388244628906,
+       "top": 122.23188781738281,
+       "width": 135.62796020507812,
+       "height": 16.744173049926758,
+       "segments": [
+        {
+         "text": "Tel: 0700000001 / 0700000002",
+         "left": 372.1388244628906,
+         "top": 122.23188781738281,
+         "width": 130.60464477539062,
+         "height": 16.744173049926758,
+         "font": "Apple Chancery",
+         "size": 10,
+         "bold": false,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      },
+      {
+       "text": " This identity card is a property of Jinja progressive     secondary school",
+       "align": 1,
+       "left": 318.5574951171875,
+       "top": 138.97605895996094,
+       "width": 237.76739501953125,
+       "height": 26.790708541870117,
+       "segments": [
+        {
+         "text": "This identity card is a property of Jinja progressive",
+         "left": 323.5807189941406,
+         "top": 138.97605895996094,
+         "width": 180.837158203125,
+         "height": 10.04653549194336,
+         "font": "Apple Chancery",
+         "size": 10,
+         "bold": false,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "secondary school",
+         "left": 420.697021484375,
+         "top": 138.97605895996094,
+         "width": 135.62786865234375,
+         "height": 26.790708541870117,
+         "font": "Apple Chancery",
+         "size": 10,
+         "bold": false,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 5",
+     "type": 17,
+     "z": 3,
+     "group": "Group 3",
+     "left": 316.3974609375,
+     "top": 49.935546875,
+     "width": 243.15786743164062,
+     "height": 49.578975677490234,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "JINJA PROGRESSIVE SECONDARY ",
+       "align": 1,
+       "left": 345.3481140136719,
+       "top": 53.58070755004883,
+       "width": 190.88369750976562,
+       "height": 18.41866111755371,
+       "segments": [
+        {
+         "text": "JINJA PROGRESSIVE SECONDARY",
+         "left": 345.3481140136719,
+         "top": 53.58070755004883,
+         "width": 185.8604736328125,
+         "height": 18.41866111755371,
+         "font": "Gadugi",
+         "size": 12,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      },
+      {
+       "text": "SCHOOL",
+       "align": 1,
+       "left": 413.9992980957031,
+       "top": 71.9993667602539,
+       "width": 46.88370132446289,
+       "height": 18.418582916259766,
+       "segments": [
+        {
+         "text": "SCHOOL",
+         "left": 413.9992980957031,
+         "top": 71.9993667602539,
+         "width": 46.88370132446289,
+         "height": 18.418582916259766,
+         "font": "Gadugi",
+         "size": 12,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "AutoShape 6",
+     "type": 1,
+     "z": 4,
+     "group": "Group 3",
+     "left": 312.0888671875,
+     "top": 99.513671875,
+     "width": 251.4693603515625,
+     "height": 0.1325196921825409,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00ba00",
+      "weight": 1,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 7",
+     "type": 1,
+     "z": 5,
+     "group": "Group 3",
+     "left": 312.2451171875,
+     "top": 100.9345703125,
+     "width": 251.4693603515625,
+     "height": 0.1325196921825409,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#ff0000",
+      "weight": 1,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 8",
+     "type": 1,
+     "z": 6,
+     "group": "Group 3",
+     "left": 311.7705078125,
+     "top": 179.6015625,
+     "width": 251.4693603515625,
+     "height": 0.1325196921825409,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#ff0000",
+      "weight": 1,
+      "dash": 1
+     }
+    },
+    {
+     "name": "Text Box 9",
+     "type": 17,
+     "z": 7,
+     "group": "Group 3",
+     "left": 314.091796875,
+     "top": 182.4873046875,
+     "width": 246.8000030517578,
+     "height": 15.75,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "If found please return to the above address",
+       "align": 1,
+       "left": 341.9992980957031,
+       "top": 185.85975646972656,
+       "width": 187.53488159179688,
+       "height": 11.720945358276367,
+       "segments": [
+        {
+         "text": "If found please return to the above address",
+         "left": 341.9992980957031,
+         "top": 185.85975646972656,
+         "width": 187.53488159179688,
+         "height": 11.720945358276367,
+         "font": "Times New Roman",
+         "size": 11,
+         "bold": false,
+         "italic": true,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 10",
+     "type": 17,
+     "z": 8,
+     "group": null,
+     "left": 49.6025390625,
+     "top": 44.9521484375,
+     "width": 252,
+     "height": 158.39999389648438,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#5b9bd5",
+      "weight": 5,
+      "dash": 1
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": []
+    },
+    {
+     "name": "Text Box 11",
+     "type": 17,
+     "z": 9,
+     "group": null,
+     "left": 57.705078125,
+     "top": 46.7412109375,
+     "width": 237.8639373779297,
+     "height": 39.10086441040039,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "JINJA PROGRESSIVE SECONDARY ",
+       "align": 1,
+       "left": 117.62724304199219,
+       "top": 50.23189163208008,
+       "width": 159.06976318359375,
+       "height": 15.069764137268066,
+       "segments": [
+        {
+         "text": "JINJA PROGRESSIVE SECONDARY",
+         "left": 117.62724304199219,
+         "top": 50.23189163208008,
+         "width": 157.39535522460938,
+         "height": 15.069764137268066,
+         "font": "Gadugi",
+         "size": 10,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      },
+      {
+       "text": "SCHOOL",
+       "align": 1,
+       "left": 177.9062957763672,
+       "top": 65.30165100097656,
+       "width": 38.511653900146484,
+       "height": 16.744173049926758,
+       "segments": [
+        {
+         "text": "SCHOOL",
+         "left": 177.9062957763672,
+         "top": 65.30165100097656,
+         "width": 38.511653900146484,
+         "height": 16.744173049926758,
+         "font": "Gadugi",
+         "size": 10,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 12",
+     "type": 17,
+     "z": 10,
+     "group": null,
+     "left": 124.5322265625,
+     "top": 83.6474609375,
+     "width": 141.4286651611328,
+     "height": 11.08039379119873,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "STUDENT IDENTITY CARD",
+       "align": 1,
+       "left": 142.74354553222656,
+       "top": 87.06913757324219,
+       "width": 102.1395263671875,
+       "height": 6.697637557983398,
+       "segments": [
+        {
+         "text": "STUDENT IDENTITY CARD",
+         "left": 142.74354553222656,
+         "top": 87.06913757324219,
+         "width": 102.1395263671875,
+         "height": 6.697637557983398,
+         "font": "Times New Roman",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 14",
+     "type": 17,
+     "z": 11,
+     "group": null,
+     "left": 135.599609375,
+     "top": 105.2431640625,
+     "width": 160.55615234375,
+     "height": 15.398897171020508,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 0.5,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": " NAME:     OKELLO DAVID",
+       "align": 0,
+       "left": 139.39463806152344,
+       "top": 108.83653259277344,
+       "width": 93.7674789428711,
+       "height": 11.720945358276367,
+       "segments": [
+        {
+         "text": "NAME:",
+         "left": 141.06906127929688,
+         "top": 108.83653259277344,
+         "width": 25.11629867553711,
+         "height": 11.720945358276367,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "OKELLO DAVID",
+         "left": 176.2318878173828,
+         "top": 108.83653259277344,
+         "width": 56.93023681640625,
+         "height": 11.720945358276367,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 15",
+     "type": 17,
+     "z": 12,
+     "group": null,
+     "left": 136.3447265625,
+     "top": 120.6416015625,
+     "width": 157.3260498046875,
+     "height": 11.478188514709473,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#ff0000",
+      "weight": 0.5,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "CLASS:  S.6                ID NO:   JPA/A/001",
+       "align": 0,
+       "left": 139.39463806152344,
+       "top": 123.90629577636719,
+       "width": 138.97677612304688,
+       "height": 6.69771671295166,
+       "segments": [
+        {
+         "text": "CLASS:",
+         "left": 139.39463806152344,
+         "top": 123.90629577636719,
+         "width": 25.11629867553711,
+         "height": 6.69771671295166,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "S.6",
+         "left": 169.5341796875,
+         "top": 123.90629577636719,
+         "width": 10.04653549194336,
+         "height": 6.69771671295166,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "ID NO:",
+         "left": 214.74346923828125,
+         "top": 123.90629577636719,
+         "width": 20.09307098388672,
+         "height": 6.69771671295166,
+         "font": "Century Gothic",
+         "size": 7,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "JPA/A/001",
+         "left": 244.88307189941406,
+         "top": 123.90629577636719,
+         "width": 33.488346099853516,
+         "height": 6.69771671295166,
+         "font": "Special Elite",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 16",
+     "type": 17,
+     "z": 13,
+     "group": null,
+     "left": 135.916015625,
+     "top": 137.95703125,
+     "width": 157.3260498046875,
+     "height": 11.837164878845215,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 0.5,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "HEAD TEACHER’S SIGN: ",
+       "align": 0,
+       "left": 139.39463806152344,
+       "top": 140.6504669189453,
+       "width": 87.06976318359375,
+       "height": 8.372125625610352,
+       "segments": [
+        {
+         "text": "HEAD TEACHER’S SIGN:",
+         "left": 139.39463806152344,
+         "top": 140.6504669189453,
+         "width": 87.06976318359375,
+         "height": 8.372125625610352,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 17",
+     "type": 17,
+     "z": 14,
+     "group": null,
+     "left": 135.916015625,
+     "top": 152.4365234375,
+     "width": 159.65220642089844,
+     "height": 12.003622055053711,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 0.5,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "HOLDER’S SIGN:   ",
+       "align": 0,
+       "left": 139.39463806152344,
+       "top": 155.72023010253906,
+       "width": 65.30236053466797,
+       "height": 8.372125625610352,
+       "segments": [
+        {
+         "text": "HOLDER’S SIGN:",
+         "left": 139.39463806152344,
+         "top": 155.72023010253906,
+         "width": 60.279056549072266,
+         "height": 8.372125625610352,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 18",
+     "type": 17,
+     "z": 15,
+     "group": null,
+     "left": 135.916015625,
+     "top": 166.150390625,
+     "width": 157.3260498046875,
+     "height": 16.336929321289062,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 0.5,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "DATE:   \t       11TH/04/2024",
+       "align": 0,
+       "left": 139.39463806152344,
+       "top": 169.11558532714844,
+       "width": 93.7674789428711,
+       "height": 11.720945358276367,
+       "segments": [
+        {
+         "text": "DATE:",
+         "left": 139.39463806152344,
+         "top": 169.11558532714844,
+         "width": 20.09307098388672,
+         "height": 11.720945358276367,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "11TH/04/2024",
+         "left": 187.9528350830078,
+         "top": 169.11558532714844,
+         "width": 45.20928955078125,
+         "height": 11.720945358276367,
+         "font": "Calibri",
+         "size": 8,
+         "bold": false,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Text Box 19",
+     "type": 17,
+     "z": 16,
+     "group": null,
+     "left": 135.916015625,
+     "top": 180.38671875,
+     "width": 157.3260498046875,
+     "height": 12.474960327148438,
+     "rotation": 0,
+     "fill": {
+      "visible": true,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 0.75,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": [
+      {
+       "text": "EXPIRY DATE: \t31ST/12/2025",
+       "align": 0,
+       "left": 139.39463806152344,
+       "top": 184.1853485107422,
+       "width": 120.55818939208984,
+       "height": 8.372125625610352,
+       "segments": [
+        {
+         "text": "EXPIRY DATE:",
+         "left": 139.39463806152344,
+         "top": 184.1853485107422,
+         "width": 48.558189392089844,
+         "height": 8.372125625610352,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": true,
+         "italic": false,
+         "color": "#000000"
+        },
+        {
+         "text": "31ST/12/2025",
+         "left": 211.39463806152344,
+         "top": 184.1853485107422,
+         "width": 48.558189392089844,
+         "height": 8.372125625610352,
+         "font": "Century Gothic",
+         "size": 8,
+         "bold": false,
+         "italic": false,
+         "color": "#000000"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "AutoShape 20",
+     "type": 1,
+     "z": 17,
+     "group": null,
+     "left": 49.900390625,
+     "top": 98.90234375,
+     "width": 251.4693603515625,
+     "height": 0.1325196921825409,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00ba00",
+      "weight": 1,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 21",
+     "type": 1,
+     "z": 18,
+     "group": null,
+     "left": 160.791015625,
+     "top": 180.1220703125,
+     "width": 138.65188598632812,
+     "height": 0.24007874727249146,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00b0f0",
+      "weight": 0.75,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 22",
+     "type": 1,
+     "z": 19,
+     "group": null,
+     "left": 49.900390625,
+     "top": 100.302734375,
+     "width": 251.4693603515625,
+     "height": 0.1325196921825409,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#ff0000",
+      "weight": 1,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 23",
+     "type": 1,
+     "z": 20,
+     "group": null,
+     "left": 49.7001953125,
+     "top": 101.9033203125,
+     "width": 251.4693603515625,
+     "height": 0.1325196921825409,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#ffff00",
+      "weight": 1,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 24",
+     "type": 1,
+     "z": 21,
+     "group": null,
+     "left": 187.685546875,
+     "top": 194.55078125,
+     "width": 113.43779754638672,
+     "height": 0.24007874727249146,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00b0f0",
+      "weight": 0.75,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 25",
+     "type": 1,
+     "z": 22,
+     "group": null,
+     "left": 198.0322265625,
+     "top": 164.4404296875,
+     "width": 104.1510238647461,
+     "height": 0.23992125689983368,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00b0f0",
+      "weight": 0.75,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 26",
+     "type": 1,
+     "z": 23,
+     "group": null,
+     "left": 162.3369140625,
+     "top": 122.1162109375,
+     "width": 139.31724548339844,
+     "height": 0.24007874727249146,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00b0f0",
+      "weight": 0.75,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 27",
+     "type": 1,
+     "z": 24,
+     "group": null,
+     "left": 164.5771484375,
+     "top": 134.8408203125,
+     "width": 52.137245178222656,
+     "height": 0.00007874015864217654,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00b0f0",
+      "weight": 0.75,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 28",
+     "type": 1,
+     "z": 25,
+     "group": null,
+     "left": 224.8916015625,
+     "top": 149.7958984375,
+     "width": 76.05432891845703,
+     "height": 0.23992125689983368,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00b0f0",
+      "weight": 0.75,
+      "dash": 1
+     }
+    },
+    {
+     "name": "AutoShape 29",
+     "type": 1,
+     "z": 26,
+     "group": null,
+     "left": 238.609375,
+     "top": 135.3193359375,
+     "width": 63.207244873046875,
+     "height": 0.00007874015864217654,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#ffffff",
+      "transparency": 0
+     },
+     "line": {
+      "visible": true,
+      "color": "#00b0f0",
+      "weight": 0.75,
+      "dash": 1
+     }
+    },
+    {
+     "name": "Text Box 30",
+     "type": 17,
+     "z": 27,
+     "group": null,
+     "left": 53.8623046875,
+     "top": 103.490234375,
+     "width": 79.16866302490234,
+     "height": 94.74755859375,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     },
+     "text_margins": {
+      "left": 2.880000114440918,
+      "top": 2.880000114440918,
+      "right": 2.880000114440918,
+      "bottom": 2.880000114440918
+     },
+     "lines": []
+    },
+    {
+     "name": "Picture 31",
+     "type": 13,
+     "z": 28,
+     "group": null,
+     "left": 55.6865234375,
+     "top": 106.45703125,
+     "width": 75.25811004638672,
+     "height": 88.09378051757812,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     }
+    },
+    {
+     "name": "Picture 32",
+     "type": 13,
+     "z": 29,
+     "group": null,
+     "left": 52.5234375,
+     "top": 47.9130859375,
+     "width": 49.12354278564453,
+     "height": 49.12354278564453,
+     "rotation": 0,
+     "fill": {
+      "visible": false,
+      "color": "#5b9bd5",
+      "transparency": 0
+     },
+     "line": {
+      "visible": false,
+      "color": "#000000",
+      "weight": 2,
+      "dash": -2
+     }
+    }
+   ]
+  }
+ ]
+}

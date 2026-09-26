@@ -63,10 +63,10 @@ describe('IdCardSheets', () => {
     assert.match(html, /@page \{ size: 210mm 297mm/);
   });
 
-  it('fold_pair puts back before front in each unit on a single page', () => {
-    const html = renderToStaticMarkup(h(IdCardSheets, { spec: starterSpec(true), records: records.slice(0, 1), sheet: A4, mode: 'fold_pair', variant: 'print' }));
+  it('side_by_side puts front before back in each unit on a single page', () => {
+    const html = renderToStaticMarkup(h(IdCardSheets, { spec: starterSpec(true), records: records.slice(0, 1), sheet: A4, mode: 'side_by_side', variant: 'print' }));
     assert.equal((html.match(/class="idc-page"/g) ?? []).length, 1);
-    assert.ok(html.indexOf('Valid until') < html.indexOf('Learner 0<'), 'back (left) precedes front (right)');
+    assert.ok(html.indexOf('Learner 0<') < html.indexOf('Valid until'), 'front (left) precedes back (right)');
   });
 
   it('single-sided design ignores duplex request', () => {

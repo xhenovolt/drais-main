@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   resolveTokens, sanitizeSpec, starterSpec, specTokens, isTwoSided, specFromLegacyConfig, blankSpec,
 } from '@/lib/idcards/spec.ts';
-import { layoutPages, computeGrid } from '@/lib/idcards/layout.ts';
+import { layoutPages, computeGrid, defaultPrintMode } from '@/lib/idcards/layout.ts';
 import {
   inspectWorkbook, suggestMapping, extractRows, looksLikeWorkbook, formatDisplayDate, slimWorkbook,
 } from '@/lib/idcards/excel.ts';
@@ -105,15 +105,34 @@ describe('print layout', () => {
     }
   });
 
-  it('fold_pair puts BACK on the left and FRONT on the right of one unit', () => {
-    const { pages } = layoutPages({ count: 3, card: CARD, sheet: A4, mode: 'fold_pair', hasBack: true });
+  it('side_by_side puts FRONT on the left and BACK on the right of one unit, one gap apart', () => {
+    const { pages, effectiveMode } = layoutPages({ count: 3, card: CARD, sheet: A4, mode: 'side_by_side', hasBack: true });
+    assert.equal(effectiveMode, 'side_by_side');
     assert.equal(pages.length, 1);
     const one = pages[0].cells.filter((c) => c.index === 0);
     const back = one.find((c) => c.face === 'back');
     const front = one.find((c) => c.face === 'front');
-    assert.ok(Math.abs(front.xMm - back.xMm - CARD.widthMm) < 0.01);
+    assert.ok(front.xMm < back.xMm, 'front is left of back');
+    assert.ok(Math.abs(back.xMm - front.xMm - (CARD.widthMm + A4.gapMm)) < 0.01);
     assert.equal(front.yMm, back.yMm);
     assert.equal(pages[0].cells.length, 6);
+  });
+
+  it('side_by_side keeps every learner\'s two faces on the same page, in reading order', () => {
+    const { pages, grid } = layoutPages({ count: 9, card: CARD, sheet: A4, mode: 'side_by_side', hasBack: true });
+    assert.equal(grid.cols, 1);            // a pair (2 cards + gap) is wider than half an A4 sheet
+    assert.equal(pages.length, Math.ceil(9 / grid.perPage));
+    for (const page of pages) {
+      for (const idx of new Set(page.cells.map((c) => c.index))) {
+        const faces = page.cells.filter((c) => c.index === idx).map((c) => c.face).sort();
+        assert.deepEqual(faces, ['back', 'front']);
+      }
+    }
+  });
+
+  it('defaults to side_by_side for a two-sided design and front_only for one side', () => {
+    assert.equal(defaultPrintMode(true), 'side_by_side');
+    assert.equal(defaultPrintMode(false), 'front_only');
   });
 
   it('paginates beyond one sheet and pairs each learner exactly once per face', () => {
@@ -127,7 +146,7 @@ describe('print layout', () => {
 
   it('throws a clear error when the card cannot fit', () => {
     assert.throws(() => layoutPages({ count: 1, card: { widthMm: 200, heightMm: 54 }, sheet: A4, mode: 'front_only', hasBack: false }), /does not fit/);
-    assert.throws(() => layoutPages({ count: 1, card: CARD, sheet: { ...A4, widthMm: 150 }, mode: 'fold_pair', hasBack: true }), /does not fit/);
+    assert.throws(() => layoutPages({ count: 1, card: CARD, sheet: { ...A4, widthMm: 150 }, mode: 'side_by_side', hasBack: true }), /does not fit/);
   });
 });
 

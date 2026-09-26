@@ -22,8 +22,11 @@ export type IdCardElement =
       italic?: boolean;
       color: string;
       align?: 'left' | 'center' | 'right';
+      valign?: 'top' | 'middle' | 'bottom';
       uppercase?: boolean;
       fontFamily?: string;
+      /** One line only; a value longer than the box gets a smaller font instead of wrapping and being clipped. */
+      shrink?: boolean;
     })
   | (ElementBase & {
       kind: 'image';
@@ -64,6 +67,18 @@ export interface IdCardSpec {
 
 export type SourceKind = 'designed' | 'imported' | 'legacy';
 
+/**
+ * Font scale (0.55–1) that keeps `text` on one line inside a box `boxMm` wide.
+ * A width estimate (no DOM measuring) so server rendering and printing agree exactly.
+ */
+export function shrinkFactor(text: string, fontPt: number, boxMm: number, opts: { bold?: boolean; upper?: boolean } = {}): number {
+  if (!text) return 1;
+  const em = opts.upper ? 0.68 : opts.bold ? 0.6 : 0.55;     // average glyph width in em
+  const textMm = text.length * fontPt * em * (25.4 / 72);
+  if (textMm <= boxMm) return 1;
+  return Math.max(0.55, boxMm / textMm);
+}
+
 /** Tokens available to every design. Excel jobs add `col:<Header>` tokens. */
 export const STANDARD_TOKENS: Array<{ token: string; label: string }> = [
   { token: 'full_name', label: 'Full name' },
@@ -74,7 +89,11 @@ export const STANDARD_TOKENS: Array<{ token: string; label: string }> = [
   { token: 'gender', label: 'Gender' },
   { token: 'dob', label: 'Date of birth' },
   { token: 'school', label: 'School name' },
+  { token: 'school_address', label: 'School address' },
+  { token: 'school_phone', label: 'School phone' },
+  { token: 'school_email', label: 'School email' },
   { token: 'academic_year', label: 'Academic year' },
+  { token: 'issue_date', label: 'Date of issue' },
   { token: 'valid_until', label: 'Valid until' },
   { token: 'guardian_phone', label: 'Guardian phone' },
 ];
@@ -147,6 +166,8 @@ function sanitizeElement(raw: any, idx: number): IdCardElement | null {
         bold: !!raw.bold, italic: !!raw.italic,
         color: safeColor(raw.color, '#000000')!,
         align: ['left', 'center', 'right'].includes(raw.align) ? raw.align : 'left',
+        valign: ['middle', 'bottom'].includes(raw.valign) ? raw.valign : undefined,
+        shrink: raw.shrink ? true : undefined,
         uppercase: !!raw.uppercase,
         fontFamily: /^[\w\s,'"-]{1,80}$/.test(raw.fontFamily ?? '') ? raw.fontFamily : undefined,
       };

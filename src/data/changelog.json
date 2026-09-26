@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-25T21:28:16.940Z",
-  "last_commit": "a8d93de762e1ab7c17d603419677c3f82b3b0f1e",
+  "generated_at": "2026-09-26T14:28:54.266Z",
+  "last_commit": "8d2d1af3333b04b75f5150794a331d77e8737dd8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -7981,7 +7981,40 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.20.0",
+      "date": "2026-09-26",
+      "release_type": "minor",
+      "title": "Publisher ID template, smart placeholders, and front-left / back-right printing",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "ID Card Studio → \"Start from a template\": the school's Microsoft Publisher student ID design is now built in as a two-sided template. DRAIS cannot open .pub files itself, so the design was read out of Publisher and rebuilt as editable text, lines, photo and logo slots at the real card size (88.9 × 55.9 mm)."
+        },
+        {
+          "category": "NEW",
+          "description": "DRAIS now understands that the school name, learner name, class, ID number, dates, address and phone in an imported template are sample text, not final. It turns them into fields ({school}, {full_name}, {class}, {admission_no}, {issue_date}, {valid_until}, {school_address}, {school_phone}) so every school and learner gets its own details on the same design, while labels and fixed wording such as STUDENT IDENTITY CARD are kept."
+        },
+        {
+          "category": "NEW",
+          "description": "New card fields: school address, school phone, school email and date of issue. Date of issue and Valid until can be set when printing (a spreadsheet column still takes priority); they used to print blank."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Printing two-sided cards now defaults to \"Front left, back right\": each learner's front and back are side by side on the same row, which works on any printer. The double-sided-printer options remain for printers that can print on both sides of the paper (all fronts on one page, all backs on the next, mirrored so each back lands behind its own front)."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Long names shrink slightly to stay on one line instead of wrapping and being cut off, a school name can be vertically centred, and a value never runs into the next field on its line."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "Uploading a Publisher file as artwork now explains how to export it as a picture or use a template."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.19.0"
+  "app_version": "2.20.0"
 }
