@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-27T21:50:48.196Z",
-  "last_commit": "792803f26f33f4fbe510746ec91644c4711f7b23",
+  "generated_at": "2026-09-27T22:37:52.499Z",
+  "last_commit": "bfaf0d3e8c23efa49f5b6fc21d651f894b8752d3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8115,7 +8115,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.22.2",
+      "date": "2026-09-28",
+      "release_type": "patch",
+      "title": "Set honest expectations on the Android app's first launch",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "The Android app now tells people up front, at every stage of starting up, that the very first launch after installing normally takes a minute or two (sometimes longer on an older phone) while it copies its files onto the device, and that every launch after that is fast. Previously this only appeared as a warning after the wait had already gone on for 90 seconds."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.22.1"
+  "app_version": "2.22.2"
 }

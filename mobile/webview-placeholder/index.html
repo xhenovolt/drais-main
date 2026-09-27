@@ -60,7 +60,7 @@
     <div class="spinner" id="spinner"></div>
     <div class="phase" id="phase">Waiting for app bridge…</div>
     <div class="elapsed" id="elapsed"></div>
-    <div class="note" id="note"></div>
+    <div class="note" id="note">The first launch after installing usually takes a minute or two while the app sets itself up. Every launch after that is much faster. Please don't close the app — it hasn't frozen.</div>
     <div class="err" id="err"></div>
     <button class="retry" id="retry" onclick="location.reload()">Retry</button>
     <div class="log" id="log"></div>
@@ -109,7 +109,7 @@
         var b; try { b = JSON.parse(raw); } catch (e) { return; }
         if (!b || !b.drais) return;
         log('node: ' + b.stage + (b.detail ? ' — ' + b.detail : ''));
-        if (b.stage === 'node-started') setPhase('server', 'Starting DRAIS server…');
+        if (b.stage === 'node-started') { setPhase('server', 'Starting DRAIS server…'); el('note').textContent = 'Almost there — usually just a few more seconds.'; }
         if (b.stage === 'server-starting') el('note').textContent = 'Server is booting — almost there.';
         if (b.stage === 'server-missing') fail('The embedded server files are missing from this build (server.js not found). Reinstall the app; if it persists this APK was built without the server bundle.');
         if (b.stage === 'server-crash') fail('The DRAIS server crashed while starting: ' + b.detail + ' — reinstall the app; if it persists, connect the phone and run: adb logcat | grep drais');
@@ -132,7 +132,7 @@
           started = true;
           hookChannel();
           setPhase('prepare', 'Preparing app files…');
-          el('note').textContent = 'First launch copies ~4,000 files out of the app package. This happens ONCE per install and is skipped on every later launch.';
+          el('note').textContent = 'First launch copies thousands of app files onto your phone — this typically takes a minute or two, sometimes longer on an older phone. It happens ONCE per install; every later launch is fast. Please leave the app open.';
           try {
             window.nodejs.start('main.js', function (err) {
               if (err && /already started/i.test(String(err))) {
