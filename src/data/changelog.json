@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-27T21:18:57.266Z",
-  "last_commit": "227498c2ff4bc0349831eb696ef265b828b27fa0",
+  "generated_at": "2026-09-27T21:50:48.196Z",
+  "last_commit": "792803f26f33f4fbe510746ec91644c4711f7b23",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8102,7 +8102,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.22.1",
+      "date": "2026-09-28",
+      "release_type": "patch",
+      "title": "Control Center tables become cards on a phone",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Several Control Center pages (SMS overview, SMS pricing, SMS routing, Audit Log, Comms, Operators, Account Locks) listed schools and other records in wide multi-column tables that only worked with horizontal scrolling on a phone, so names and figures rendered cramped or cut off. Those tables now become one card per row on a phone screen, and switch back to a normal table from tablet width up."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.22.0"
+  "app_version": "2.22.1"
 }

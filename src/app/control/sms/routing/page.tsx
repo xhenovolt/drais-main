@@ -148,7 +148,35 @@ export default function SmsRoutingPage() {
             <button onClick={() => mutate()} className="sm:ml-auto inline-flex items-center gap-1 text-xs text-slate-300"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
           </div>
 
-          <div className="rounded-xl border border-slate-700 overflow-x-auto">
+          {/* Cards on phone, table from md up */}
+          <div className="md:hidden space-y-2">
+            {shown.map((s) => {
+              const c = checks[s.id];
+              return (
+                <div key={s.id} className="rounded-xl border border-slate-700 bg-slate-900 p-3 space-y-2">
+                  <label className="flex items-start gap-2">
+                    <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`Select ${s.name}`} disabled={!canManage} className="mt-0.5" />
+                    <span className="text-slate-100 text-sm">{s.name}{!s.smsEnabled && <span className="ml-2 text-[10px] text-amber-400">SMS switched off</span>}</span>
+                  </label>
+                  <div>
+                    <div className={`text-sm font-medium ${s.effective.ok ? 'text-slate-100' : 'text-red-300'}`}>{s.mode === 'same_as' && s.sourceSchoolName ? `Same as ${s.sourceSchoolName}` : s.effective.label}</div>
+                    <div className="text-xs text-slate-400">{s.mode === 'same_as' ? s.effective.label + ' · ' + s.effective.detail : s.effective.detail}</div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400">{s.hasOwnCredentials ? 'Has own credentials' : 'No own account'}</span>
+                    <button onClick={() => verify(s.id)} disabled={c?.busy} className="text-indigo-300 hover:text-indigo-200 underline disabled:opacity-50">{c?.busy ? 'Checking…' : 'Check account'}</button>
+                  </div>
+                  {c && !c.busy && (
+                    <div className={`text-xs flex items-start gap-1 ${c.ok ? 'text-emerald-400' : 'text-red-300'}`}>
+                      {c.ok ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : <CircleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />}{c.message}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {shown.length === 0 && <div className="text-center text-slate-500 text-sm py-8">No schools match.</div>}
+          </div>
+          <div className="hidden md:block rounded-xl border border-slate-700 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-800 text-[11px] uppercase tracking-wider text-slate-400">
                 <tr><th className="px-3 py-2 w-8" /><th className="px-3 py-2 text-left">School</th><th className="px-3 py-2 text-left">Sends through</th><th className="px-3 py-2 text-left">Own account</th><th className="px-3 py-2 text-left">Check</th></tr>

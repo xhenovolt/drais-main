@@ -162,8 +162,45 @@ export default function ControlSms() {
         <p className="text-[11px] text-slate-500 mt-2">Africa&apos;s Talking&apos;s actual per-SMS charge varies by network/sender-ID/volume — verify against the live rate on the AT account and correct it here rather than guessing.</p>
       </div>
 
-      {/* Per-school allocation */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      {/* Per-school allocation — cards on phone, table from md up (a 7-column table is unreadable at phone width) */}
+      <div className="md:hidden space-y-2">
+        {isLoading && <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400 inline" /></div>}
+        {!isLoading && rows.length === 0 && <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-500 text-sm">No schools.</div>}
+        {rows.map((r: any) => {
+          const editing = edits[r.school_id] ?? (r.quota ?? '');
+          const dirty = edits[r.school_id] !== undefined && Number(edits[r.school_id]) !== (r.quota ?? 0);
+          const over = r.quota != null && r.used > r.quota;
+          return (
+            <div key={r.school_id} className="rounded-xl border border-slate-800 bg-slate-900 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-slate-100 font-medium text-sm">{r.name}</div>
+                <button onClick={() => save(r.school_id)} disabled={!dirty || saving === r.school_id}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs disabled:opacity-40 shrink-0">
+                  {saving === r.school_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <div className="text-slate-500 text-[10px] uppercase">Allocated</div>
+                  <input type="number" min="0" value={editing}
+                    onChange={(e) => setEdits((prev) => ({ ...prev, [r.school_id]: e.target.value }))}
+                    placeholder="unlimited"
+                    className="w-full mt-0.5 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs tabular-nums" />
+                </div>
+                <div><div className="text-slate-500 text-[10px] uppercase">Used</div><div className="tabular-nums text-amber-300 mt-1.5">{nf(r.used)}</div></div>
+                <div>
+                  <div className="text-slate-500 text-[10px] uppercase">Remaining</div>
+                  <div className={`tabular-nums mt-1.5 ${over ? 'text-rose-400 font-semibold' : 'text-emerald-300'}`}>{r.remaining == null ? '∞' : nf(r.remaining)}{over ? ' (over)' : ''}</div>
+                </div>
+                <div><div className="text-slate-500 text-[10px] uppercase">Revenue</div><div className="tabular-nums text-slate-300 mt-1.5">{money(r.revenue)}</div></div>
+                <div><div className="text-slate-500 text-[10px] uppercase">Cost</div><div className="tabular-nums text-slate-300 mt-1.5">{money(r.cost)}</div></div>
+                <div><div className="text-slate-500 text-[10px] uppercase">Profit</div><div className="tabular-nums text-emerald-300 font-medium mt-1.5">{money(r.profit)}</div></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-slate-500 border-b border-slate-800 text-xs uppercase">
             <tr>

@@ -48,7 +48,23 @@ export default function ControlOperators() {
         {msg && <p className="text-xs text-slate-400 mt-2">{msg}</p>}
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      {/* Cards on phone, table from md up */}
+      <div className="md:hidden space-y-2">
+        {(data?.rows || []).map((u: any) => (
+          <div key={u.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3 space-y-1 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-200 text-sm">{u.name}</span>
+              <span className="text-indigo-300 shrink-0">{String(u.role).replace('XHENVOLT_', '')}</span>
+            </div>
+            <div className="text-slate-400">{u.email}</div>
+            <div className="flex items-center justify-between text-slate-500">
+              <span>{u.status}</span>
+              <span>{u.last_login ? new Date(u.last_login).toLocaleString() : 'never'}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="text-slate-500 border-b border-slate-800">
             <tr><th className="px-3 py-2 text-left">Name</th><th className="px-3 py-2 text-left">Email</th><th className="px-3 py-2 text-left">Role</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">Last login</th></tr>

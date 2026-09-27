@@ -125,7 +125,27 @@ export default function SmsPricingPage() {
               <button onClick={() => setSelected(new Set(shown.map((s) => s.id)))} className="text-xs text-slate-300 underline">Select all shown</button>
               <button onClick={() => setSelected(new Set())} className="text-xs text-slate-400 underline">Clear</button>
             </div>
-            <div className="rounded-lg border border-slate-700 overflow-x-auto">
+            {/* Cards on phone, table from md up — a 5-column table (with a checkbox column) is unreadable at phone width */}
+            <div className="md:hidden space-y-2">
+              {shown.map((s) => (
+                <div key={s.id} className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 min-w-0">
+                      <input type="checkbox" checked={selected.has(s.id)} disabled={!can} aria-label={`Select ${s.name}`}
+                        onChange={() => setSelected((p) => { const n = new Set(p); n.has(s.id) ? n.delete(s.id) : n.add(s.id); return n; })} />
+                      <span className="text-slate-100 text-sm truncate">{s.name}</span>
+                    </label>
+                    <span className="text-xs shrink-0">{s.topupEnabled ? <span className="text-emerald-400">Buying on</span> : <span className="text-amber-300">Buying off</span>}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span className="tabular-nums text-slate-100">UGX {fmt(s.priceUgx)}{s.overrideUgx == null && <span className="text-slate-500"> (default)</span>}</span>
+                    <span>{s.purchases > 0 ? `${fmt(s.sms)} SMS · UGX ${fmt(s.paidUgx)}` : '—'}</span>
+                  </div>
+                </div>
+              ))}
+              {shown.length === 0 && <div className="text-center text-slate-500 text-sm py-8">No schools match.</div>}
+            </div>
+            <div className="hidden md:block rounded-lg border border-slate-700 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-800 text-[11px] uppercase tracking-wider text-slate-400"><tr><th className="w-8 px-3 py-2" /><th className="px-3 py-2 text-left">School</th><th className="px-3 py-2 text-right">Price / SMS</th><th className="px-3 py-2 text-left">Buying online</th><th className="px-3 py-2 text-right">Bought</th></tr></thead>
                 <tbody className="divide-y divide-slate-800">
@@ -145,7 +165,34 @@ export default function SmsPricingPage() {
 
           <section className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-2">
             <div className="flex items-center justify-between"><h2 className="text-sm font-semibold text-white">Recent purchases</h2><button onClick={() => mutate()} className="text-xs text-slate-300 inline-flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button></div>
-            <div className="overflow-x-auto">
+            {/* Cards on phone, table from md up */}
+            <div className="md:hidden space-y-2">
+              {data.recent.map((t) => {
+                const recheck = can && t.status !== 'credited' && (
+                  <button disabled={busy === `re${t.id}`} onClick={async () => { const b = await send(`re${t.id}`, 'POST', { action: 'recheck', topupId: t.id }); if (b) setMsg({ ok: b.credited || b.status === 'processing', text: b.credited ? 'Confirmed with MarzPay — SMS added.' : `MarzPay says: ${b.status}${b.reason ? ' — ' + b.reason : ''}` }); }}
+                    className="text-indigo-300 underline text-xs disabled:opacity-40">{busy === `re${t.id}` ? 'Checking…' : 'Recheck'}</button>
+                );
+                return (
+                  <div key={t.id} className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-slate-100 text-sm truncate">{t.school ?? `School ${t.schoolId}`}</div>
+                        <div className="text-[11px] text-slate-500">{t.phone}</div>
+                      </div>
+                      <div className={`text-xs shrink-0 ${TONE[t.status] ?? 'text-slate-300'}`}>{t.status}</div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>{new Date(t.createdAt).toLocaleString()}</span>
+                      <span className="tabular-nums text-slate-200">UGX {fmt(t.amountUgx)} · {fmt(t.sms)} SMS</span>
+                    </div>
+                    {t.reason && <div className="text-xs text-slate-500">{t.reason}</div>}
+                    {recheck}
+                  </div>
+                );
+              })}
+              {data.recent.length === 0 && <div className="text-center text-slate-500 text-sm py-8">No purchases yet.</div>}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-slate-400"><tr><th className="px-3 py-2 text-left">When</th><th className="px-3 py-2 text-left">School</th><th className="px-3 py-2 text-right">UGX</th><th className="px-3 py-2 text-right">SMS</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2" /></tr></thead>
                 <tbody className="divide-y divide-slate-800">

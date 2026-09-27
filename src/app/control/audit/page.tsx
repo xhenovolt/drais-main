@@ -52,7 +52,23 @@ export default function ControlAudit() {
           ]} />
         </div>
       </div>
-    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+    {/* Cards on phone, table from md up — six dense columns don't fit a phone width */}
+    <div className="md:hidden space-y-2">
+      {isLoading && rows.length === 0 && <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400 inline" /></div>}
+      {!isLoading && rows.length === 0 && <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-500 text-sm">No matching audit entries.</div>}
+      {rows.map((r: any) => (
+        <div key={r.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3 space-y-1 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-indigo-300 font-mono">{r.action}</span>
+            <span className="text-slate-500 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</span>
+          </div>
+          <div className="text-slate-300">{r.user_name || '—'}{r.ip ? <span className="text-slate-600 font-mono"> · {r.ip}</span> : null}</div>
+          {r.resource && <div className="text-slate-400 font-mono">{r.resource}</div>}
+          {r.metadata && <div className="text-slate-500 break-words">{r.metadata}</div>}
+        </div>
+      ))}
+    </div>
+    <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
       <table className="w-full text-xs">
         <thead className="text-slate-500 border-b border-slate-800">
           <tr>

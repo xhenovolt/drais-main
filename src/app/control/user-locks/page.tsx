@@ -122,7 +122,56 @@ export default function ControlUserLocks() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200">{msg}</div>
       )}
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      {/* Cards on phone, table from md up — seven columns (incl. two timestamps and an action) don't fit a phone width */}
+      <div className="md:hidden space-y-2">
+        {isLoading && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-400">
+            <Loader2 className="w-4 h-4 animate-spin inline mr-2" /> Loading…
+          </div>
+        )}
+        {!isLoading && rows.length === 0 && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-400 text-sm">
+            No locked accounts and no recent failed sign-ins. Nothing needs attention.
+          </div>
+        )}
+        {rows.map((r) => (
+          <div key={r.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-slate-200 text-sm">{r.name || '—'}</div>
+                <div className="text-xs text-slate-500 truncate">{r.email}</div>
+              </div>
+              {r.is_locked ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
+                  <Lock className="w-3 h-3" /> Locked · {countdown(r.retry_after_sec)}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 border border-slate-700 shrink-0">Failing</span>
+              )}
+            </div>
+            <div className="text-xs text-slate-300">{r.school_name || (r.school_id ? `#${r.school_id}` : '—')}</div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div><div className="text-slate-500 text-[10px] uppercase">Failures</div><div className="tabular-nums text-slate-300 mt-0.5">{r.failed_attempts}</div></div>
+              <div><div className="text-slate-500 text-[10px] uppercase">Last failed</div><div className="text-slate-400 mt-0.5">{when(r.last_failed_login_at)}</div></div>
+              <div><div className="text-slate-500 text-[10px] uppercase">Last login</div><div className="text-slate-400 mt-0.5">{when(r.last_login_at)}</div></div>
+            </div>
+            <div className="flex justify-end">
+              {r.is_locked ? (
+                <button disabled={busy === r.id} onClick={() => act(r.id, 'unlock')}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600/90 hover:bg-emerald-600 text-white text-xs flex items-center gap-1 disabled:opacity-50">
+                  {busy === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Unlock className="w-3 h-3" />} Unlock
+                </button>
+              ) : (
+                <button disabled={busy === r.id} onClick={() => act(r.id, 'lock')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 disabled:opacity-50">
+                  {busy === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lock className="w-3 h-3" />} Lock
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

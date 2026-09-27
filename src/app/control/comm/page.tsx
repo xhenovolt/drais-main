@@ -71,7 +71,19 @@ export default function ControlComm() {
       {bySchool.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-800 text-xs font-semibold text-slate-300">By school</div>
-          <div className="overflow-x-auto">
+          {/* Cards on phone, table from md up */}
+          <div className="md:hidden divide-y divide-slate-800">
+            {bySchool.map((r: any, i: number) => (
+              <div key={i} className="px-4 py-2.5 flex items-center justify-between gap-2 text-sm">
+                <div className="min-w-0">
+                  <div className="text-slate-300 truncate">{r.school_name ?? `#${r.school_id}`}</div>
+                  <div className="text-xs text-slate-500">{CHANNEL_LABEL[r.channel] ?? r.channel}</div>
+                </div>
+                <div className="text-slate-200 tabular-nums shrink-0">{nf(r.n)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-[11px] text-slate-500 uppercase">
                 <tr>
