@@ -21,6 +21,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getEnrolledFingerIndices } from '@/lib/biometric/template-service';
+import { suggestNextFinger, fingerLabel } from '@/lib/biometric/fingers';
 
 export const runtime = 'nodejs';
 
@@ -49,7 +51,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { student_id, device_sn, finger = 0 } = body;
+  const { student_id, device_sn, finger } = body;
+  const explicitFinger = finger !== undefined && finger !== null && finger !== '';
 
   if (!student_id) {
     return NextResponse.json({ error: 'student_id is required' }, { status: 400 });
@@ -57,8 +60,6 @@ export async function POST(req: NextRequest) {
   if (!device_sn || typeof device_sn !== 'string' || device_sn.length > 64) {
     return NextResponse.json({ error: 'device_sn is required' }, { status: 400 });
   }
-
-  const fingerIdx = Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0));
 
   // ── 1. Verify device exists ─────────────────────────────────────────────────
   const deviceRows = await query(
@@ -69,6 +70,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Device not found' }, { status: 404 });
   }
   const deviceSchoolId = Number(deviceRows[0].school_id) || session.schoolId;
+
+  // Which finger? Same rule as local-enroll: a second click adds a NEW finger by default rather than
+  // overwriting the first one (biometric_templates is keyed by (enrollment_id, finger_index)).
+  let fingerIdx: number;
+  if (explicitFinger) {
+    fingerIdx = Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0));
+  } else {
+    const existing = ((await query(
+      `SELECT id FROM biometric_enrollments WHERE school_id = ? AND role_type = 'student' AND role_ref_id = ?
+         AND status IN ('active','pending_capture') LIMIT 1`,
+      [deviceSchoolId, student_id],
+    ).catch(() => [])) as any[])[0];
+    const already = existing ? await getEnrolledFingerIndices(Number(existing.id)) : [];
+    const next = suggestNextFinger(already);
+    if (next === null) return NextResponse.json({ error: 'All 10 fingers are already enrolled for this student.' }, { status: 409 });
+    fingerIdx = next;
+  }
 
   // ── 2. Resolve student name ─────────────────────────────────────────────────
   const studentRows = await query(
@@ -250,7 +268,9 @@ export async function POST(req: NextRequest) {
         student_name: studentName,
         device_sn,
         local_warmup: true,
-        message: `Identity Synchronized for ${studentName}. Machine is ready for scanning.`,
+        finger_index: fingerIdx,
+        finger_label: fingerLabel(fingerIdx),
+        message: `Identity Synchronized for ${studentName}. Scan the ${fingerLabel(fingerIdx)} now.`,
       });
     } catch (warmupErr: any) {
       // Local attempt failed — fall through to relay queue
@@ -284,6 +304,8 @@ export async function POST(req: NextRequest) {
     student_name: studentName,
     device_sn,
     relay_online: relayOnline,
+    finger_index: fingerIdx,
+    finger_label: fingerLabel(fingerIdx),
     message: relayOnline
       ? `Relay command queued for ${studentName} (UID ${uid}). Device will show scan prompt.`
       : `Command queued for ${studentName} (UID ${uid}). Waiting for relay agent to connect.`,

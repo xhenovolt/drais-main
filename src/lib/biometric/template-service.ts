@@ -190,6 +190,20 @@ export async function lookupActiveEnrollment(
   }
 }
 
+/** Finger slots (0-9) already captured for one enrollment — the input to "which finger is free next?". */
+export async function getEnrolledFingerIndices(enrollmentId: number): Promise<number[]> {
+  if (!enrollmentId) return [];
+  try {
+    const rows = (await query(
+      `SELECT finger_index FROM biometric_templates WHERE enrollment_id = ? ORDER BY finger_index`,
+      [enrollmentId],
+    )) as Array<{ finger_index: number }>;
+    return rows.map((r) => Number(r.finger_index));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Phase 1B — capture-time lookup. Unlike lookupActiveEnrollment, this
  * also matches 'pending_capture' enrollments (created by the local TCP

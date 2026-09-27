@@ -43,6 +43,8 @@ import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { upsertEnrollment, setCaptureStatus, looksLikeIpAddress } from '@/lib/biometric/enrollment-service';
 import { ensureDevicesCanonicalSchema } from '@/lib/devices/migrations/devices-canonical-schema';
+import { getEnrolledFingerIndices } from '@/lib/biometric/template-service';
+import { suggestNextFinger, fingerLabel } from '@/lib/biometric/fingers';
 
 export const runtime = 'nodejs';
 
@@ -125,7 +127,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { device_ip, device_port = 4370, finger = 0 } = body;
+  const { device_ip, device_port = 4370, finger } = body;
+  const explicitFinger = finger !== undefined && finger !== null && finger !== '';
   const explicitSn: string | null =
     typeof body.device_sn === 'string' && body.device_sn.trim() && !looksLikeIpAddress(body.device_sn)
       ? body.device_sn.trim()
@@ -147,7 +150,27 @@ export async function POST(req: NextRequest) {
 
   const schoolId = session.schoolId;
   const port = Math.max(1, Math.min(65535, parseInt(String(device_port), 10) || 4370));
-  const fingerIdx = Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0));
+
+  // ── 0. Which finger? A second (or third…) click must add a NEW finger, not silently overwrite the
+  //    first one — biometric_templates is keyed by (enrollment_id, finger_index), so re-using the same
+  //    index just replaces that finger's template. Explicit `finger` (the finger picker) always wins;
+  //    otherwise pick the best finger this person has not enrolled yet.
+  let fingerIdx: number;
+  if (explicitFinger) {
+    fingerIdx = Math.max(0, Math.min(9, parseInt(String(finger), 10) || 0));
+  } else {
+    const existing = ((await query(
+      `SELECT id FROM biometric_enrollments WHERE school_id = ? AND role_type = ? AND role_ref_id = ?
+         AND status IN ('active','pending_capture') LIMIT 1`,
+      [schoolId, roleType, roleRefId],
+    ).catch(() => [])) as any[])[0];
+    const already = existing ? await getEnrolledFingerIndices(Number(existing.id)) : [];
+    const next = suggestNextFinger(already);
+    if (next === null) {
+      return NextResponse.json({ error: 'All 10 fingers are already enrolled for this person.' }, { status: 409 });
+    }
+    fingerIdx = next;
+  }
 
   // ── 1. Resolve person name (school-scoped) ──────────────────────────────────
   let personName = roleType === 'student' ? 'Student' : 'Staff';
@@ -464,6 +487,8 @@ export async function POST(req: NextRequest) {
     person_name: personName,
     device_ip,
     status: 'awaiting_capture',
-    message: `Device ready — ${personName} should scan their finger now (slot ${deviceSlot}). Enrollment completes when the fingerprint template reaches DRAIS.`,
+    finger_index: fingerIdx,
+    finger_label: fingerLabel(fingerIdx),
+    message: `Device ready — ${personName} should scan their ${fingerLabel(fingerIdx)} now (slot ${deviceSlot}). Enrollment completes when the fingerprint template reaches DRAIS.`,
   });
 }

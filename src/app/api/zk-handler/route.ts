@@ -19,6 +19,8 @@ import {
   completeEnrollmentCapture,
   touchEnrollmentSeen,
 } from '@/lib/biometric/template-service';
+import { classifyBioRecord, type BioRecord } from '@/lib/biometric/biodata';
+import { recordFaceCaptured } from '@/lib/biometric/face-service';
 import { publishEvent } from '@/lib/events/eventbus';
 import { upsertEnrollment, decideNameMatchAction } from '@/lib/biometric/enrollment-service';
 import { recordPendingDeviceUser } from '@/lib/biometric/pending-device-users';
@@ -929,6 +931,21 @@ async function processUserInfo(
 }
 
 /**
+ * A FACE template arrived (BIODATA TYPE 2 / 9). Only the fact is recorded — never the bytes — and it is
+ * never treated as a fingerprint. A person whose first biometric is a face becomes active like a fingerprint would.
+ */
+async function processFace(deviceSn: string, bio: BioRecord, schoolId: number): Promise<void> {
+  const enrollment = await lookupEnrollmentForCapture(schoolId, parseInt(bio.pin, 10) || 0);
+  if (!enrollment) {
+    zkLog('info', 'FACE_UNMAPPED', { deviceSn, pin: bio.pin, type: bio.type });
+    return;
+  }
+  await recordFaceCaptured({ schoolId, enrollmentId: enrollment.enrollmentId, deviceSn, size: bio.size, bioType: bio.type });
+  const activated = await completeEnrollmentCapture(enrollment.enrollmentId);
+  zkLog('info', 'FACE_CAPTURED', { deviceSn, pin: bio.pin, type: bio.type, size: bio.size, enrollmentId: enrollment.enrollmentId, enrollmentActivated: activated });
+}
+
+/**
  * Process a fingerprint template received from the device via OPERLOG.
  * Format: FP PIN={pin}\tFID={fid}\tSize={size}\tValid={v}\tTMP={base64data}
  *
@@ -1452,17 +1469,19 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < records.length; i++) {
         const rec = records[i];
         const rawLine = lines[i] || '';
-        const pin = rec.PIN || rec.No || '';
-        const fid = rec.FID || rec.Idx || '0';
-        const size = rec.SIZE || rec.Size || '0';
-        const valid = rec.VALID || rec.Valid || '1';
-        const tmp = rec.TMP || rec.Template || '';
+        // BIODATA carries fingers AND faces (TYPE) and puts the finger slot in NO — see lib/biometric/biodata.ts.
+        const bio = classifyBioRecord(rec);
+        const pin = bio.pin;
+        const tmp = bio.template;
 
         if (pin && tmp) {
           try {
-            await processFingerprint(sn, pin, fid, size, valid, tmp, schoolId);
+            if (bio.kind === 'face') await processFace(sn, bio, schoolId);
+            else if (bio.kind === 'finger') {
+              await processFingerprint(sn, pin, String(bio.fingerIndex), String(bio.size), bio.valid, tmp, schoolId);
+            } else zkLog('info', 'BIODATA_UNSUPPORTED_TYPE', { sn, pin, type: bio.type });
           } catch (err) {
-            zkLog('warn', `${table}_FP_ERROR`, { sn, pin, fid, error: String(err) });
+            zkLog('warn', `${table}_FP_ERROR`, { sn, pin, fid: bio.fingerIndex, kind: bio.kind, error: String(err) });
           }
           await saveParsedLog({
             rawLogId: rawLogId!, deviceSn: sn, schoolId,

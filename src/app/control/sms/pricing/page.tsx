@@ -120,8 +120,8 @@ export default function SmsPricingPage() {
               <button disabled={!can || selected.size === 0 || busy === 'toggle'} onClick={() => toggleBuying([...selected], false)} className="px-3 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-sm disabled:opacity-40">Switch buying off</button>
               <button disabled={!can || selected.size === 0 || busy === 'toggle'} onClick={() => toggleBuying([...selected], true)} className="px-3 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-sm disabled:opacity-40">Switch buying on</button>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input className={`${input} pl-9 w-64`} placeholder="Find a school…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative w-full sm:w-64"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input className={`${input} pl-9 w-full`} placeholder="Find a school…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
               <button onClick={() => setSelected(new Set(shown.map((s) => s.id)))} className="text-xs text-slate-300 underline">Select all shown</button>
               <button onClick={() => setSelected(new Set())} className="text-xs text-slate-400 underline">Clear</button>
             </div>

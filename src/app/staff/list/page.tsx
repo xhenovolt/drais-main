@@ -12,6 +12,7 @@ import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 import StaffBiometricModal from '@/components/staff/StaffBiometricModal';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import Pagination from '@/components/ui/Pagination';
+import { fingerprintLevel, describeFingers } from '@/lib/biometric/fingers';
 
 const StaffListPage: React.FC = () => {
   const { t } = useI18n();
@@ -50,6 +51,10 @@ const StaffListPage: React.FC = () => {
   const { data: departmentsData } = useSWR(
     `/api/departments/list`
   );
+
+  // Canonical biometric status (level color + finger count + face) — same source the students list uses.
+  const { data: fpStatusData, mutate: mutateFpStatus } = useSWR('/api/staff/fingerprint-status', { refreshInterval: 30000 });
+  const fpStatuses: Record<string, any> = fpStatusData?.statuses || {};
 
   const allStaff = staffData?.data || [];
   const pagination = staffData?.pagination;
@@ -477,17 +482,27 @@ const StaffListPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-1 flex-wrap">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedStaffForBiometric(member);
-                                setShowBiometricModal(true);
-                              }}
-                              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
-                              title="Enroll Biometric"
-                            >
-                              <Fingerprint className="w-4 h-4" />
-                            </button>
+                            {(() => {
+                              const s = fpStatuses[member.id];
+                              const fingerCount = s?.finger_count ?? 0;
+                              const lvl = fingerprintLevel({ label: s?.label ?? null, fingerCount, hasFace: s?.face_captured });
+                              const fingerNote = s?.finger_indices?.length ? ` · ${describeFingers(s.finger_indices)}` : '';
+                              const faceNote = s?.face_captured ? ' · face enrolled' : s?.face_requested ? ' · face capture requested' : '';
+                              return (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedStaffForBiometric(member);
+                                    setShowBiometricModal(true);
+                                  }}
+                                  className="p-2 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors whitespace-nowrap text-xs sm:text-base"
+                                  style={{ color: lvl.color }}
+                                  title={`${lvl.text}${fingerNote}${faceNote} — enroll fingerprint or face`}
+                                >
+                                  <Fingerprint className="w-4 h-4" />
+                                </button>
+                              );
+                            })()}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -560,11 +575,13 @@ const StaffListPage: React.FC = () => {
           onClose={() => {
             setShowBiometricModal(false);
             setSelectedStaffForBiometric(null);
+            mutateFpStatus();
           }}
           staffId={selectedStaffForBiometric.id}
           staffName={`${selectedStaffForBiometric.first_name} ${selectedStaffForBiometric.last_name}`}
           onSuccess={() => {
             mutate();
+            mutateFpStatus();
           }}
         />
       )}

@@ -32,6 +32,7 @@ import {
   MoreHorizontal,
   Upload,
   Fingerprint,
+  ScanFace,
   Wifi,
   Globe,
   Radio,
@@ -54,6 +55,7 @@ import { showToast, confirmAction } from '@/lib/toast';
 import { toast } from 'react-hot-toast';
 import { apiFetch } from '@/lib/apiClient';
 import DeviceSelector, { getPreferredDevice } from '@/components/modals/DeviceSelector';
+import { fingerprintLevel, describeFingers } from '@/lib/biometric/fingers';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 import { StudentsListLivePopup } from '@/components/students/StudentsListLivePopup';
 import {
@@ -203,9 +205,14 @@ export default function StudentsListPage() {
 
   // Fingerprint Quick-Capture State
   const [fingerprintEnrolledIds, setFingerprintEnrolledIds] = useState<Set<number>>(new Set());
-  const [fingerprintStatuses, setFingerprintStatuses] = useState<Record<number, { label?: string; capture_status?: string; pin?: number; device_name?: string; device_sn?: string }>>({});
+  const [fingerprintStatuses, setFingerprintStatuses] = useState<Record<number, {
+    label?: string; capture_status?: string; pin?: number; device_name?: string; device_sn?: string;
+    finger_count?: number; finger_indices?: number[]; face_captured?: boolean; face_requested?: boolean;
+  }>>({});
+  const [faceBusyIds, setFaceBusyIds] = useState<Set<number>>(new Set());
   const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [captureStudentId, setCaptureStudentId] = useState<number | null>(null);
+  const [captureAction, setCaptureAction] = useState<'fingerprint' | 'face'>('fingerprint');
   // Enrollment lifecycle: studentId → { step, commandId, deviceName }
   type EnrollStep = 'waking' | 'sent' | 'waiting' | 'success' | 'failed';
   const [enrollProgress, setEnrollProgress] = useState<Map<number, { step: EnrollStep; commandId?: number; deviceName?: string; message?: string }>>(new Map());
@@ -540,16 +547,52 @@ export default function StudentsListPage() {
       sendEnrollCommand(studentId, preferred.sn, preferred.name);
     } else {
       setCaptureStudentId(studentId);
+      setCaptureAction('fingerprint');
+      setShowDeviceSelector(true);
+    }
+  };
+
+  // Face enrolment: always via ADMS (queues an identity push + a face-capture request on the device;
+  // there is no local/relay TCP path for face, unlike fingerprints).
+  const sendFaceEnrollCommand = async (studentId: number, deviceSn: string) => {
+    setFaceBusyIds(prev => new Set(prev).add(studentId));
+    try {
+      const res = await apiFetch('/api/students/enroll-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, device_sn: deviceSn }),
+        silent: true,
+      });
+      if (!res?.success) throw new Error(res?.error || 'Face enrolment failed');
+      showToast('success', res.message || 'Face capture requested');
+      fetchFingerprintStatus();
+    } catch (err: any) {
+      showToast('error', err?.message || 'Face enrolment failed');
+    } finally {
+      setFaceBusyIds(prev => { const s = new Set(prev); s.delete(studentId); return s; });
+    }
+  };
+
+  const handleFaceCapture = (studentId: number) => {
+    if (faceBusyIds.has(studentId)) return;
+    const preferred = getPreferredDevice();
+    if (preferred) {
+      sendFaceEnrollCommand(studentId, preferred.sn);
+    } else {
+      setCaptureStudentId(studentId);
+      setCaptureAction('face');
       setShowDeviceSelector(true);
     }
   };
 
   const handleDeviceSelected = (deviceSn: string, deviceName: string) => {
     if (captureStudentId) {
-      sendEnrollCommand(captureStudentId, deviceSn, deviceName);
+      if (captureAction === 'face') sendFaceEnrollCommand(captureStudentId, deviceSn);
+      else sendEnrollCommand(captureStudentId, deviceSn, deviceName);
     }
     setShowDeviceSelector(false);
     setCaptureStudentId(null);
+    setCaptureAction('fingerprint');
   };
 
   const setStudentEnrollStep = (studentId: number, data: { step: EnrollStep; commandId?: number; deviceName?: string; message?: string }) => {
@@ -1808,8 +1851,11 @@ export default function StudentsListPage() {
                     {allPageSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4" />}
                   </button>
                 </th>
-                <th className="w-9 px-2 py-2.5 text-center" title="Fingerprint Enrollment">
-                  <Fingerprint className="w-3.5 h-3.5 text-slate-400 mx-auto" />
+                <th className="w-[52px] px-1 py-2.5 text-center" title="Biometric enrollment — fingerprint and face">
+                  <div className="flex items-center justify-center gap-1">
+                    <Fingerprint className="w-3.5 h-3.5 text-slate-400" />
+                    <ScanFace className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
                 </th>
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('studentsList.colStudent', 'Student')}</th>
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('studentsList.colRegNo', 'Reg No')}</th>
@@ -1869,8 +1915,9 @@ export default function StudentsListPage() {
                         </button>
                       </td>
 
-                      {/* Fingerprint Quick-Capture with Waiting Room */}
-                      <td className="px-2 py-2.5 w-9 text-center">
+                      {/* Fingerprint + Face Quick-Capture with Waiting Room */}
+                      <td className="px-1 py-2.5 w-[52px] text-center">
+                        <div className="flex items-center justify-center gap-1">
                         {(() => {
                           const progress = enrollProgress.get(student.id);
                           if (progress) {
@@ -1904,32 +1951,61 @@ export default function StudentsListPage() {
                               );
                             }
                           }
-                          // Default: idle fingerprint button. Phase 2K —
-                          // the title and color reflect the REAL
-                          // lifecycle state, not a fake boolean.
+                          // Default: idle fingerprint button, colored by how many fingers DRAIS can
+                          // actually prove (fingerprintLevel — none/pending/problem/unknown/one/two/many),
+                          // not a fake boolean. Clicking again adds the NEXT finger, it never overwrites.
                           const fpStatus = fingerprintStatuses[student.id];
                           const fpLabel = fpStatus?.label
                             ?? (fingerprintEnrolledIds.has(student.id) ? 'Active' : 'Not enrolled');
+                          const fingerCount = fpStatus?.finger_count ?? (fingerprintEnrolledIds.has(student.id) ? 1 : 0);
+                          const lvl = fingerprintLevel({ label: fpLabel, fingerCount, hasFace: fpStatus?.face_captured });
+                          const fingerNote = fpStatus?.finger_indices?.length
+                            ? ` · ${describeFingers(fpStatus.finger_indices)}`
+                            : fingerCount > 0 ? ` · ${fingerCount} finger${fingerCount === 1 ? '' : 's'}` : '';
                           const fpTitle = fpStatus
-                            ? `${fpLabel}${fpStatus.pin ? ` · PIN ${fpStatus.pin}` : ''}${fpStatus.device_name || fpStatus.device_sn ? ` · ${fpStatus.device_name || fpStatus.device_sn}` : ''}`
+                            ? `${lvl.text}${fingerNote}${fpStatus.pin ? ` · PIN ${fpStatus.pin}` : ''}${fpStatus.device_name || fpStatus.device_sn ? ` · ${fpStatus.device_name || fpStatus.device_sn}` : ''} — click to enroll another finger`
                             : 'Enroll fingerprint';
-                          const fpColor = fpLabel === 'Active'
-                            ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                            : fpLabel === 'Failed' || fpLabel === 'Expired' || fpLabel === 'Revoked'
-                              ? 'text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                              : fpLabel === 'Not enrolled'
-                                ? 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-                                : 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20';
                           return (
                             <button
                               onClick={() => handleQuickCapture(student.id)}
                               title={fpTitle}
-                              className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors mx-auto ${fpColor}`}
+                              className="flex items-center justify-center w-6 h-6 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                              style={{ color: lvl.color }}
                             >
                               <Fingerprint className="w-4 h-4" />
                             </button>
                           );
                         })()}
+                        {(() => {
+                          const fpStatus = fingerprintStatuses[student.id];
+                          const busy = faceBusyIds.has(student.id);
+                          if (busy) {
+                            return (
+                              <div className="flex items-center justify-center w-6 h-6" title="Requesting face capture…">
+                                <Loader className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+                              </div>
+                            );
+                          }
+                          const faceCaptured = !!fpStatus?.face_captured;
+                          const faceRequested = !!fpStatus?.face_requested;
+                          const faceColor = faceCaptured ? '#22c55e' : faceRequested ? '#f59e0b' : '#9ca3af';
+                          const faceTitle = faceCaptured
+                            ? 'Face enrolled'
+                            : faceRequested
+                              ? 'Face capture requested — waiting for the device'
+                              : 'Enroll face';
+                          return (
+                            <button
+                              onClick={() => handleFaceCapture(student.id)}
+                              title={faceTitle}
+                              className="flex items-center justify-center w-6 h-6 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                              style={{ color: faceColor }}
+                            >
+                              <ScanFace className="w-4 h-4" />
+                            </button>
+                          );
+                        })()}
+                        </div>
                       </td>
 
                       {/* Student name (inline editable) */}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Fingerprint, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Fingerprint, ScanFace, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface StaffBiometricModalProps {
@@ -28,10 +28,12 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
   const [commandId, setCommandId] = useState<string | null>(null);
   const [enrollmentStatus, setEnrollmentStatus] = useState<'idle' | 'queued' | 'synced' | 'captured'>('idle');
   const [fingerprints, setFingerprints] = useState<any[]>([]);
+  const [canonicalStatus, setCanonicalStatus] = useState<{ finger_count?: number; finger_indices?: number[]; face_captured?: boolean; face_requested?: boolean; label?: string } | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   // Local Direct Enrollment (mirrors the students list local-enroll flow).
   const [localDeviceIp, setLocalDeviceIp] = useState('');
   const localPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [faceLoading, setFaceLoading] = useState(false);
 
   // Load devices when modal opens
   useEffect(() => {
@@ -100,6 +102,15 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
     } catch (error) {
       console.error('Error loading biometric status:', error);
     }
+    // Canonical source (ZK device pipeline) — the legacy call above reads a WebAuthn-era table that
+    // stays empty for device enrolments, so it alone would always say "0 fingerprints".
+    try {
+      const response = await fetch('/api/staff/fingerprint-status');
+      const data = await response.json();
+      if (data?.success) setCanonicalStatus(data.statuses?.[staffId] ?? null);
+    } catch (error) {
+      console.error('Error loading canonical biometric status:', error);
+    }
   };
 
   const handleStartEnrollment = async () => {
@@ -135,6 +146,27 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Face has no local/relay TCP path (unlike fingerprints) — it always goes through ADMS: sync the
+  // identity, then queue a device-side face capture request. Never touches the staff's fingerprints.
+  const handleEnrollFace = async () => {
+    if (!deviceSn) { toast.error('Please select a device'); return; }
+    setFaceLoading(true);
+    try {
+      const response = await fetch('/api/staff/enroll-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: staffId, device_sn: deviceSn }),
+      });
+      const data = await response.json();
+      if (data.success) toast.success(data.message || 'Face capture requested');
+      else toast.error(data.error || 'Failed to request face enrollment');
+    } catch (error: any) {
+      toast.error(error.message || 'Error requesting face enrollment');
+    } finally {
+      setFaceLoading(false);
     }
   };
 
@@ -293,12 +325,21 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
                   )}
                 </div>
 
-                {/* Current Fingerprints */}
-                {fingerprints.length > 0 && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                    <p className="text-sm text-green-800 dark:text-green-200 font-medium">
-                      ✓ {fingerprints.length} fingerprint{fingerprints.length !== 1 ? 's' : ''} enrolled
-                    </p>
+                {/* Current biometric status */}
+                {((canonicalStatus?.finger_count ?? 0) > 0 || fingerprints.length > 0 || canonicalStatus?.face_captured) && (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 space-y-1">
+                    {(canonicalStatus?.finger_count ?? fingerprints.length) > 0 && (
+                      <p className="text-sm text-green-800 dark:text-green-200 font-medium">
+                        ✓ {canonicalStatus?.finger_count ?? fingerprints.length} finger{(canonicalStatus?.finger_count ?? fingerprints.length) !== 1 ? 's' : ''} enrolled
+                        {canonicalStatus?.finger_count ? ' — click "Start Enrollment" or "Local Direct Enrollment" again to add another' : ''}
+                      </p>
+                    )}
+                    {canonicalStatus?.face_captured && (
+                      <p className="text-sm text-green-800 dark:text-green-200 font-medium">✓ Face enrolled</p>
+                    )}
+                    {!canonicalStatus?.face_captured && canonicalStatus?.face_requested && (
+                      <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">⏳ Face capture requested — waiting for the device</p>
+                    )}
                   </div>
                 )}
 
@@ -309,6 +350,15 @@ export const StaffBiometricModal: React.FC<StaffBiometricModalProps> = ({
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   {loading ? 'Starting...' : 'Start Enrollment'}
+                </button>
+
+                <button
+                  onClick={handleEnrollFace}
+                  disabled={faceLoading || !deviceSn}
+                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  {faceLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanFace className="w-4 h-4" />}
+                  {faceLoading ? 'Requesting...' : 'Enroll Face'}
                 </button>
 
                 {/* Local Direct Enrollment — enroll straight to a device on the LAN */}

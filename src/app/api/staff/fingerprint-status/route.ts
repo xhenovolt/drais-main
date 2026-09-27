@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
-import { getFingerprintStatuses } from '@/lib/biometric/fingerprint-status';
+import { getFingerprintStatuses, statusToApi } from '@/lib/biometric/fingerprint-status';
 
 export const runtime = 'nodejs';
 
@@ -24,19 +24,7 @@ export async function GET(req: NextRequest) {
     const statusMap: Record<number, unknown> = {};
     for (const [refId, s] of statuses) {
       if (s.usable) usableIds.push(refId);
-      statusMap[refId] = {
-        label: s.label,
-        status: s.status,
-        capture_status: s.captureStatus,
-        pin: s.pin,
-        device_sn: s.deviceSn,
-        device_name: s.deviceName,
-        template_count: s.templateCount,
-        captured_at: s.capturedAt,
-        last_seen_on_device_at: s.lastSeenOnDeviceAt,
-        enrollment_id: s.enrollmentId,
-        source: s.enrollmentSource,
-      };
+      statusMap[refId] = statusToApi(s);
     }
     return NextResponse.json({ success: true, data: usableIds, statuses: statusMap });
   } catch (err: any) {

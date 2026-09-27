@@ -154,7 +154,7 @@ export default function ControlSms() {
             <div className="text-lg font-bold text-emerald-300 tabular-nums">{money(pricing?.margin_pct)}%</div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-800">
           <div><div className="text-[11px] text-slate-500">Total revenue</div><div className="text-sm font-semibold text-slate-200 tabular-nums">UGX {money(totals?.revenue)}</div></div>
           <div><div className="text-[11px] text-slate-500">Total cost</div><div className="text-sm font-semibold text-slate-200 tabular-nums">UGX {money(totals?.cost)}</div></div>
           <div><div className="text-[11px] text-slate-500">Total profit</div><div className="text-sm font-semibold text-emerald-300 tabular-nums">UGX {money(totals?.profit)}</div></div>

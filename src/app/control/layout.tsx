@@ -148,20 +148,23 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
       `}</style>
       {/* Top chrome */}
       <header className="no-print border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-40">
-        <div className="w-full px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Shield className="w-5 h-5 text-indigo-400" />
-            <span className="font-bold tracking-wide">DRAIS CONTROL CENTER</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold uppercase">Xhenvolt internal</span>
+        <div className="w-full px-3 sm:px-4 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+            <Shield className="w-5 h-5 text-indigo-400 shrink-0" />
+            <span className="font-bold tracking-wide text-sm sm:text-base whitespace-nowrap">
+              <span className="hidden sm:inline">DRAIS CONTROL CENTER</span>
+              <span className="sm:hidden">DRAIS CONTROL</span>
+            </span>
+            <span className="hidden md:inline text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold uppercase shrink-0">Xhenvolt internal</span>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-slate-400 hidden sm:inline">{user?.name} · <span className="text-slate-500">{user?.role?.replace('XHENVOLT_', '')}</span></span>
+          <div className="flex items-center gap-2 sm:gap-3 text-sm shrink-0">
+            <span className="text-slate-400 hidden lg:inline">{user?.name} · <span className="text-slate-500">{user?.role?.replace('XHENVOLT_', '')}</span></span>
             <button onClick={cycleTheme} title={`Theme: ${theme} (click to change)`}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs capitalize">
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs capitalize">
               {theme === 'system' ? <Monitor className="w-3.5 h-3.5" /> : theme === 'light' ? <Sun className="w-3.5 h-3.5" /> : theme === 'contrast' ? <Contrast className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{theme}</span>
             </button>
-            <button onClick={logout} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs"><LogOut className="w-3.5 h-3.5" /> Sign out</button>
+            <button onClick={logout} title="Sign out" className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs"><LogOut className="w-3.5 h-3.5" /><span className="hidden sm:inline">Sign out</span></button>
           </div>
         </div>
         <nav className="w-full px-4 flex gap-1 overflow-x-auto lg:flex-wrap lg:overflow-visible">

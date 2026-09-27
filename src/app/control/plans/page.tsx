@@ -120,7 +120,7 @@ export default function ControlPlans() {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {LIMITS.map(([key, label]) => (
                 <div key={key} className="text-center">
                   <div className="text-[10px] text-slate-500">{label}</div>
@@ -171,7 +171,7 @@ export default function ControlPlans() {
             {/* Billing */}
             <div>
               <p className="text-[11px] text-slate-400 mb-1">Billing</p>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <label className="text-[10px] text-slate-500 col-span-2">Subscription price ({draft.currency}) / cycle
                   <input type="number" value={draft.price ?? 0} onChange={e => setDraft((d: any) => ({ ...d, price: Number(e.target.value) }))}
                     className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100" />
@@ -188,7 +188,7 @@ export default function ControlPlans() {
                   <input type="number" min={1} value={draft.installments ?? 1} onChange={e => setDraft((d: any) => ({ ...d, installments: Math.max(1, Number(e.target.value)) }))}
                     className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100" />
                 </label>
-                <label className="text-[10px] text-slate-500 col-span-4">Billing cycle
+                <label className="text-[10px] text-slate-500 col-span-2 sm:col-span-4">Billing cycle
                   <select value={draft.billing_cycle} onChange={e => setDraft((d: any) => ({ ...d, billing_cycle: e.target.value }))}
                     className="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-slate-100">
                     {CYCLES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -217,7 +217,7 @@ export default function ControlPlans() {
 
             <div>
               <p className="text-[11px] text-slate-400 mb-1">Limits (blank / 0 = unlimited)</p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {LIMITS.map(([key, label]) => (
                   <label key={key} className="text-center text-[10px] text-slate-500">{label}
                     <input type="number" value={draft.limits?.[key] ?? ''} placeholder="∞"

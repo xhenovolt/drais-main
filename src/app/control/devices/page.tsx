@@ -74,11 +74,11 @@ export default function ControlDevices() {
           {Number(pg.total).toLocaleString()} device{pg.total === 1 ? '' : 's'} on the platform
           {unassigned > 0 && <span className="ml-2 text-amber-300">· {unassigned} unassigned on this page</span>}
         </p>
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search SN / name / location"
-              className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-100 w-64" />
+              className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-100 w-full" />
           </div>
           <select value={status} onChange={e => setStatus(e.target.value)}
             className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-300">

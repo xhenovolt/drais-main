@@ -32,13 +32,13 @@ export default function ControlAudit() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="relative">
+        <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Search action, resource, operator, IP…"
-            className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 w-72 max-w-full"
+            className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 w-full"
           />
         </div>
         <div className="flex items-center gap-3">

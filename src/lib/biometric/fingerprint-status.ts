@@ -14,6 +14,8 @@
  * pre-refactor enrollments that never got a canonical template row.
  */
 import { query } from '@/lib/db';
+import { getFaceStatuses } from '@/lib/biometric/face-service';
+import { fingerprintLevel } from '@/lib/biometric/fingers';
 
 export interface FingerprintStatusRow {
   roleType: 'student' | 'staff';
@@ -27,6 +29,12 @@ export interface FingerprintStatusRow {
   /** capture pipeline state */
   captureStatus: string | null;
   templateCount: number;
+  /** Finger slots (0-9) DRAIS holds a template for. */
+  fingerIndices: number[];
+  /** Fingers DRAIS can prove: canonical templates, or legacy student_fingerprints rows if there are more. */
+  fingerCount: number;
+  faceCaptured: boolean;
+  faceRequested: boolean;
   legacyTemplate: boolean;
   capturedAt: string | null;
   lastSeenOnDeviceAt: string | null;
@@ -87,6 +95,30 @@ export function deriveFingerprintLabel(input: {
   }
 }
 
+/** The JSON shape both status routes return for one person (snake_case, like the rest of the API). */
+export function statusToApi(s: FingerprintStatusRow) {
+  const lvl = fingerprintLevel({ label: s.label, fingerCount: s.fingerCount, hasFace: s.faceCaptured });
+  return {
+    label: s.label,
+    status: s.status,
+    capture_status: s.captureStatus,
+    pin: s.pin,
+    device_sn: s.deviceSn,
+    device_name: s.deviceName,
+    template_count: s.templateCount,
+    finger_indices: s.fingerIndices,
+    finger_count: s.fingerCount,
+    level: lvl.level,
+    face_captured: s.faceCaptured,
+    face_requested: s.faceRequested,
+    legacy_template: s.legacyTemplate,
+    captured_at: s.capturedAt,
+    last_seen_on_device_at: s.lastSeenOnDeviceAt,
+    enrollment_id: s.enrollmentId,
+    source: s.enrollmentSource,
+  };
+}
+
 /**
  * Batch status for a role. refIds omitted → all enrolled people of
  * that role in the school (people with NO enrollment simply don't
@@ -113,7 +145,8 @@ export async function getFingerprintStatuses(
               be.captured_at, be.last_seen_on_device_at, be.origin_device_sn,
               be.legacy_source,
               d.device_name,
-              (SELECT COUNT(*) FROM biometric_templates bt WHERE bt.enrollment_id = be.id) AS template_count
+              (SELECT COUNT(*) FROM biometric_templates bt WHERE bt.enrollment_id = be.id) AS template_count,
+              (SELECT GROUP_CONCAT(bt.finger_index ORDER BY bt.finger_index) FROM biometric_templates bt WHERE bt.enrollment_id = be.id) AS finger_list
          FROM biometric_enrollments be
          LEFT JOIN devices d ON d.sn = be.origin_device_sn
         WHERE be.school_id = ?
@@ -128,22 +161,28 @@ export async function getFingerprintStatuses(
 
   // Compatibility hint: students whose template lives only in the
   // legacy student_fingerprints table (pre-refactor captures).
-  const legacyIds = new Set<number>();
+  const legacyCounts = new Map<number, number>();
   if (roleType === 'student') {
     try {
       const legacyRows = (await query(
-        `SELECT DISTINCT student_id FROM student_fingerprints
-          WHERE school_id = ? AND status = 'active' AND student_id IS NOT NULL`,
+        `SELECT student_id, COUNT(*) AS n FROM student_fingerprints
+          WHERE school_id = ? AND status = 'active' AND student_id IS NOT NULL
+          GROUP BY student_id`,
         [schoolId],
-      )) as Array<{ student_id: number }>;
-      for (const r of legacyRows) legacyIds.add(Number(r.student_id));
+      )) as Array<{ student_id: number; n: number }>;
+      for (const r of legacyRows) legacyCounts.set(Number(r.student_id), Number(r.n));
     } catch { /* legacy table optional */ }
   }
+
+  const faces = await getFaceStatuses(schoolId, roleType, refIds).catch(() => new Map());
 
   for (const r of rows) {
     const refId = Number(r.role_ref_id);
     const templateCount = Number(r.template_count ?? 0);
-    const legacyTemplate = legacyIds.has(refId);
+    const legacyTemplate = legacyCounts.has(refId);
+    const fingerIndices = String(r.finger_list ?? '').split(',').map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n));
+    const fingerCount = Math.max(fingerIndices.length, legacyCounts.get(refId) ?? 0);
+    const face = faces.get(refId);
     const label = deriveFingerprintLabel({
       status: r.status,
       captureStatus: r.capture_status,
@@ -163,6 +202,10 @@ export async function getFingerprintStatuses(
       status: r.status ?? null,
       captureStatus: r.capture_status ?? null,
       templateCount,
+      fingerIndices,
+      fingerCount,
+      faceCaptured: !!face?.captured,
+      faceRequested: !!face?.requested,
       legacyTemplate,
       capturedAt: r.captured_at ?? null,
       lastSeenOnDeviceAt: r.last_seen_on_device_at ?? null,

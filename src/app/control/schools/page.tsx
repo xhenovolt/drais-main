@@ -59,14 +59,14 @@ export default function ControlSchools() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Search name, code, district…"
-              className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 w-64 max-w-full"
+              className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 w-full"
             />
           </div>
           <p className="text-sm text-slate-400 whitespace-nowrap">{Number(pg.total).toLocaleString()} school{pg.total === 1 ? '' : 's'} {showDeleted ? '(incl. deleted)' : ''}</p>

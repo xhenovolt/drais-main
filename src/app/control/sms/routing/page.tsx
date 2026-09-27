@@ -138,14 +138,14 @@ export default function SmsRoutingPage() {
             {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-400' : 'text-red-300'}`}>{msg.text}</p>}
           </section>
 
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a school…" className={`${inputClass} pl-9 w-64`} />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a school…" className={`${inputClass} pl-9 w-full`} />
             </div>
             <button onClick={() => setSelected(new Set(shown.map((s) => s.id)))} className="text-xs text-slate-300 underline">Select all shown</button>
             <button onClick={() => setSelected(new Set())} className="text-xs text-slate-400 underline">Clear</button>
-            <button onClick={() => mutate()} className="ml-auto inline-flex items-center gap-1 text-xs text-slate-300"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
+            <button onClick={() => mutate()} className="sm:ml-auto inline-flex items-center gap-1 text-xs text-slate-300"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
           </div>
 
           <div className="rounded-xl border border-slate-700 overflow-x-auto">
