@@ -41,13 +41,24 @@
  *     daily_cap rows per (policy, day).
  */
 import { query } from '@/lib/db';
-import { getEventBus, type AttendanceRecordUpsertedEvent } from '@/lib/events/eventbus';
+import { getEventBus, type AttendanceRecordUpsertedEvent, type AttendanceDepartureRecordedEvent } from '@/lib/events/eventbus';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
 import {
   evaluateAttendanceSmsEligibility, loadBiometricEvidence, schoolLocalDate, isPunchBackedStatus, NO_EVIDENCE,
 } from '@/lib/notifications/attendance-sms-eligibility';
 import { decideAttendanceNotification, type Decision } from '@/lib/attendance/notification-decision';
 import { getBoardingPolicy } from '@/lib/attendance/boarding-policy';
+
+/** Fields both attendance.record.upserted and attendance.departure.recorded events carry —
+ *  enough for recipient resolution, targeting and outbox enqueueing. */
+interface NotifiableEvent {
+  schoolId: number;
+  personId: number;
+  roleType: 'student' | 'staff';
+  attendanceDate: string;
+  studentId?: number | null;
+  residence?: 'day' | 'boarding' | null;
+}
 
 /** Punch-backed verdicts carry their own evidence; skip the enrolment read. */
 const needsEvidence = (event: AttendanceRecordUpsertedEvent): boolean => !isPunchBackedStatus(event.status);
@@ -153,9 +164,10 @@ export async function fanoutAttendanceRecord(
   // Resolve the subject's name + school name ONCE for this event so
   // templates can address parents properly ("your child {name}…").
   const meta = await fetchSubjectMeta(event.personId, event.schoolId);
+  const classId = await resolveClassId(event.schoolId, event.personId, event.roleType);
 
   for (const policy of policies) {
-    if (!matchesConditions(policy, event)) continue;
+    if (!matchesConditions(policy, event, classId)) continue;
     if (await dailyCapReached(policy)) continue;
     const recipients = await resolveRecipients(policy, event);
     if (recipients.length === 0) continue;
@@ -166,6 +178,73 @@ export async function fanoutAttendanceRecord(
       if (policy.channel === 'email' && !r.email) continue;
       await enqueue(policy, event, r, body, decision, decisionId, idx++);
     }
+  }
+}
+
+/**
+ * Departure notification — event_type 'attendance.departure.recorded'. Independent of the day-status
+ * matrix above: fires on a genuine final exit regardless of whether attendance.record.upserted's own
+ * `status` ends up 'present'/'late'/'early_leave'/etc. Toggled purely by whether a school has an active
+ * policy of this event_type (same is_active mechanism as every other rule — see
+ * src/components/attendance/AttendanceSmsPolicies.tsx). No eligibility/boarding matrix: a departure is
+ * always real punch evidence (it can only be computed from an actual exit punch), so none of the
+ * "was this backed by a real scan" gates from decideAttendanceNotification apply here.
+ */
+export async function fanoutDeparture(event: AttendanceDepartureRecordedEvent): Promise<void> {
+  await ensureNotificationSchema();
+
+  const policies = (await query(
+    `SELECT id, school_id, name, event_type, target_role, channel,
+            conditions, template_body, daily_cap
+       FROM notification_policies
+      WHERE school_id = ? AND event_type = 'attendance.departure.recorded' AND is_active = 1`,
+    [event.schoolId],
+  )) as PolicyRow[];
+  if (policies.length === 0) return;
+
+  const decision: Decision = {
+    decision: 'SEND', notificationType: 'DEPARTED', reasonCode: 'departure_recorded',
+    explanation: [`Departure result: ${event.departureType.replace('_', ' ').toLowerCase()}`],
+    facts: { departureType: event.departureType, departureAt: event.departureAt, detailMinutes: event.detailMinutes, residence: event.residence },
+  };
+  const decisionId = await recordDepartureDecision(event, decision);
+
+  const meta = await fetchSubjectMeta(event.personId, event.schoolId);
+  const classId = await resolveClassId(event.schoolId, event.personId, event.roleType);
+
+  for (const policy of policies) {
+    if (!matchesDepartureConditions(policy, event, classId)) continue;
+    if (await dailyCapReached(policy)) continue;
+    const recipients = await resolveRecipients(policy, event);
+    if (recipients.length === 0) continue;
+    const body = renderDepartureTemplate(policy.template_body, event, meta);
+    let idx = 0;
+    for (const r of recipients) {
+      if (policy.channel === 'sms' && !r.phone) continue;
+      if (policy.channel === 'email' && !r.email) continue;
+      await enqueue(policy, event, r, body, decision, decisionId, idx++);
+    }
+  }
+}
+
+async function recordDepartureDecision(event: AttendanceDepartureRecordedEvent, d: Decision): Promise<number | null> {
+  try {
+    await query(
+      `INSERT IGNORE INTO attendance_sms_decisions
+         (school_id, person_id, student_id, attendance_date, notification_type, decision, reason_code, decision_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [event.schoolId, event.personId, event.studentId ?? null, event.attendanceDate, d.notificationType, d.decision, d.reasonCode,
+        JSON.stringify({ explanation: d.explanation, facts: d.facts })],
+    );
+    const r = (await query(
+      `SELECT id FROM attendance_sms_decisions
+        WHERE school_id = ? AND person_id = ? AND attendance_date = ? AND notification_type = ? AND decision = ? AND reason_code = ? LIMIT 1`,
+      [event.schoolId, event.personId, event.attendanceDate, d.notificationType, d.decision, d.reasonCode],
+    )) as Array<{ id: number }>;
+    return r[0] ? Number(r[0].id) : null;
+  } catch (err) {
+    console.warn('[notifications/fanout] could not record departure decision:', err);
+    return null;
   }
 }
 
@@ -191,34 +270,84 @@ async function recordDecision(event: AttendanceRecordUpsertedEvent, d: Decision)
   }
 }
 
+function parsePolicyConditions(policy: PolicyRow): Record<string, unknown> | null {
+  if (!policy.conditions) return {};
+  try {
+    const conds = typeof policy.conditions === 'string' ? JSON.parse(policy.conditions) : (policy.conditions as Record<string, unknown>);
+    return conds && typeof conds === 'object' ? conds : {};
+  } catch {
+    return null; // malformed JSON — never matches, rather than silently ignoring the filter
+  }
+}
+
+/**
+ * "Applies to who" — shared by every event type. All optional, ANDed:
+ *   role_type: 'student' | 'staff'
+ *   boarding_scope: 'all' | 'boarding' | 'day'  (students only; a staff event has residence=null,
+ *                                                 so a policy with boarding_scope set never matches staff)
+ *   class_ids: number[]  (student's current active class must be one of these)
+ */
+export function matchesTargeting(
+  conds: Record<string, unknown>,
+  ctx: { roleType: 'student' | 'staff'; residence: 'day' | 'boarding' | null; classId: number | null },
+): boolean {
+  if (typeof conds.role_type === 'string' && conds.role_type !== ctx.roleType) return false;
+  if (typeof conds.boarding_scope === 'string' && conds.boarding_scope !== 'all') {
+    if (ctx.residence !== conds.boarding_scope) return false;
+  }
+  if (Array.isArray(conds.class_ids) && conds.class_ids.length > 0) {
+    const wanted = conds.class_ids.map(Number);
+    if (ctx.classId == null || !wanted.includes(ctx.classId)) return false;
+  }
+  return true;
+}
+
 function matchesConditions(
   policy: PolicyRow,
   event: AttendanceRecordUpsertedEvent,
+  classId: number | null,
 ): boolean {
-  if (!policy.conditions) return true;
-  let conds: Record<string, unknown>;
-  try {
-    conds = typeof policy.conditions === 'string'
-      ? JSON.parse(policy.conditions)
-      : (policy.conditions as Record<string, unknown>);
-  } catch {
-    return false;
-  }
-  if (!conds || typeof conds !== 'object') return true;
+  const conds = parsePolicyConditions(policy);
+  if (conds === null) return false;
+  if (Object.keys(conds).length === 0) return true;
 
   // status_in: ['late','absent']
   const statusIn = conds.status_in;
   if (Array.isArray(statusIn) && !statusIn.includes(event.status)) return false;
 
-  // role_type: 'student' | 'staff'
-  if (typeof conds.role_type === 'string' && conds.role_type !== event.roleType) return false;
-
   // status_changed: true — only emit when verdict transitioned
-  if (conds.status_changed === true) {
-    if (event.previousStatus === event.status) return false;
-  }
+  if (conds.status_changed === true && event.previousStatus === event.status) return false;
 
-  return true;
+  return matchesTargeting(conds, { roleType: event.roleType, residence: event.residence ?? null, classId });
+}
+
+function matchesDepartureConditions(
+  policy: PolicyRow,
+  event: AttendanceDepartureRecordedEvent,
+  classId: number | null,
+): boolean {
+  const conds = parsePolicyConditions(policy);
+  if (conds === null) return false;
+  return matchesTargeting(conds, { roleType: event.roleType, residence: event.residence, classId });
+}
+
+/** A student's current active class — null for staff or an unenrolled/unclassified student.
+ *  Same (student -> active enrollment -> class) join used across the attendance surfaces. */
+async function resolveClassId(schoolId: number, personId: number, roleType: 'student' | 'staff'): Promise<number | null> {
+  if (roleType !== 'student') return null;
+  try {
+    const rows = (await query(
+      `SELECT e.class_id
+         FROM students s
+         JOIN enrollments e ON e.student_id = s.id
+        WHERE s.person_id = ? AND s.school_id = ? AND e.status = 'active'
+        ORDER BY e.id DESC LIMIT 1`,
+      [personId, schoolId],
+    )) as Array<{ class_id: number | null }>;
+    return rows[0]?.class_id != null ? Number(rows[0].class_id) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function dailyCapReached(policy: PolicyRow): Promise<boolean> {
@@ -238,7 +367,7 @@ async function dailyCapReached(policy: PolicyRow): Promise<boolean> {
 
 async function resolveRecipients(
   policy: PolicyRow,
-  event: AttendanceRecordUpsertedEvent,
+  event: NotifiableEvent,
 ): Promise<RecipientResolution[]> {
   if (policy.target_role === 'self') {
     return resolveSelf(event.personId);
@@ -390,6 +519,28 @@ function renderTemplate(
     .replace(/\{early_minutes\}/g, String(event.earlyMinutes));
 }
 
+function renderDepartureTemplate(
+  template: string | null,
+  event: AttendanceDepartureRecordedEvent,
+  meta: SubjectMeta,
+): string {
+  const body = template ?? defaultDepartureTemplate(event, meta);
+  return body
+    .replace(/\{name\}/g, meta.name || 'your child')
+    .replace(/\{first_name\}/g, meta.firstName || meta.name || 'your child')
+    .replace(/\{school\}/g, meta.school || 'the school')
+    .replace(/\{time\}/g, friendlyTime(event.departureAt))
+    .replace(/\{last_out\}/g, friendlyTime(event.departureAt))
+    .replace(/\{date\}/g, event.attendanceDate)
+    .replace(/\{early_minutes\}/g, event.departureType === 'EARLY_DEPARTURE' ? String(Math.max(0, event.detailMinutes)) : '0');
+}
+
+function defaultDepartureTemplate(event: AttendanceDepartureRecordedEvent, meta: SubjectMeta): string {
+  const child = meta.name ? meta.name : 'your child';
+  const school = meta.school ? meta.school : 'school';
+  return `Dear Parent/Guardian, ${child} has left ${school} on {date} at {time}. Thank you.`;
+}
+
 /**
  * Professional, parent-facing default messages. Used when a policy has no
  * custom template_body. Kept warm and courteous; the school can override
@@ -426,18 +577,23 @@ function defaultTemplate(event: AttendanceRecordUpsertedEvent, meta: SubjectMeta
  * of a learner was ever texted because all shared one key.
  */
 export function buildDedupKey(
-  policyId: number, event: Pick<AttendanceRecordUpsertedEvent, 'personId' | 'attendanceDate' | 'status' | 'boardingReport'>,
+  policyId: number,
+  event: Pick<AttendanceRecordUpsertedEvent, 'personId' | 'attendanceDate'> & Partial<Pick<AttendanceRecordUpsertedEvent, 'status' | 'boardingReport'>>,
   notificationType: string, recipientIndex: number, phone: string | null,
 ): string {
+  // DEPARTED: one per (policy, person, day) — no status/time component. A person may leave and
+  // return (lunch, an errand) several times; only the first genuine final departure notifies.
   const base = notificationType === 'BOARDING_REPORTED'
     ? `${policyId}:${event.personId}:boarding.reported:${event.boardingReport?.periodKey ?? event.attendanceDate}`
-    : `${policyId}:${event.personId}:attendance.record.upserted:${event.attendanceDate}:${event.status}`;
+    : notificationType === 'DEPARTED'
+      ? `${policyId}:${event.personId}:attendance.departure.recorded:${event.attendanceDate}`
+      : `${policyId}:${event.personId}:attendance.record.upserted:${event.attendanceDate}:${event.status}`;
   return recipientIndex === 0 ? base : `${base}:r${String(phone ?? '').replace(/\D/g, '').slice(-6)}`;
 }
 
 async function enqueue(
   policy: PolicyRow,
-  event: AttendanceRecordUpsertedEvent,
+  event: NotifiableEvent,
   recipient: RecipientResolution,
   body: string,
   decision: Decision,

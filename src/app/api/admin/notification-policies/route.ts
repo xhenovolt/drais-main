@@ -15,8 +15,17 @@
  * Schema
  * ------
  * See src/lib/notifications/migrations/notification-tables-schema.ts.
+ * event_type: 'attendance.record.upserted' (arrival/late/absent/half_day/early_leave — status_in
+ *   selects which) or 'attendance.departure.recorded' (a genuine final exit for the day; status_in
+ *   is not applicable — see src/lib/notifications/fanout.ts's fanoutDeparture).
  * Conditions JSON shape (all optional, ANDed):
- *   { status_in: string[], role_type: 'student'|'staff', status_changed: boolean }
+ *   {
+ *     status_in: string[],                          // attendance.record.upserted only
+ *     status_changed: boolean,                       // attendance.record.upserted only
+ *     role_type: 'student' | 'staff',                // "applies to" — omit for everyone
+ *     boarding_scope: 'all' | 'boarding' | 'day',     // students only; ignored for staff events
+ *     class_ids: number[],                            // students only; empty/omitted = every class
+ *   }
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
@@ -85,7 +94,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const validEvents = new Set(['attendance.record.upserted']);
+  const validEvents = new Set(['attendance.record.upserted', 'attendance.departure.recorded']);
   if (!validEvents.has(body.event_type)) {
     return NextResponse.json(
       { error: `Unsupported event_type: ${body.event_type}` },

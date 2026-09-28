@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-28T03:26:06.586Z",
-  "last_commit": "41f4129d76f0d829996990b36d3e442369067f42",
+  "generated_at": "2026-09-28T13:10:18.933Z",
+  "last_commit": "e5b08f3cc890f77cf1e4f59736ec765ad0c92d87",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8154,7 +8154,28 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.23.0",
+      "date": "2026-09-28",
+      "release_type": "minor",
+      "title": "Departure SMS, and \"applies to who\" targeting for every attendance SMS rule",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "A new, independently toggleable SMS rule: \"Departure / check-out\". Until now parents were only told when their child arrived (on time, late) or was absent — nobody was told when a child actually LEFT school, unless it happened to be an early departure. This fires on any genuine final exit for the day (on time, early or after closing), separate from the existing early-departure warning, so a school can enable a plain \"has left school\" message for every leaver. Configure it in Attendance -> Settings -> SMS notifications."
+        },
+        {
+          "category": "NEW",
+          "description": "Every attendance SMS rule now has an \"Applies to\" audience: Everyone, Students, or Staff, plus (for students) a boarding-scope filter (boarding / day scholars / everyone) and a specific set of classes. This is also what makes it possible to text admins whenever a staff member punches in: create a rule with \"Send to: Admin\", \"Applies to: Staff\", triggered on the arrival status you want."
+        },
+        {
+          "category": "IMPROVED",
+          "description": "The \"Trigger when status is\" list on an attendance-status rule now also offers \"early-leave\", which existed in the system already but was never selectable from this screen."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.22.4"
+  "app_version": "2.23.0"
 }

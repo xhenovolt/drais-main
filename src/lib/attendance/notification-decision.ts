@@ -21,7 +21,10 @@ import type { BoardingMode } from './boarding-policy';
 
 export type NotificationType =
   | 'ARRIVAL_ON_TIME' | 'LATE_ARRIVAL' | 'ABSENT' | 'HALF_DAY' | 'EARLY_LEAVE' | 'NON_SESSION_DAY'
-  | 'BOARDING_REPORTED';
+  | 'BOARDING_REPORTED'
+  /** A genuine final exit for the day (see src/lib/notifications/fanout.ts's fanoutDeparture) —
+   *  decoupled from EARLY_LEAVE, which only fires when the day's overall verdict was early. */
+  | 'DEPARTED';
 
 export type Residence = 'day' | 'boarding';
 
@@ -116,4 +119,5 @@ export const REASON_TEXT: Record<string, string> = {
   stale_attendance_date: 'The attendance date was too old to notify a parent about.',
   future_date: 'The attendance date is in the future.',
   no_punch_evidence: 'There was no real punch behind this result.',
+  departure_recorded: 'A genuine final exit for the day was recorded.',
 };

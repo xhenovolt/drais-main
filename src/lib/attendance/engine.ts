@@ -37,6 +37,7 @@ import { query } from '@/lib/db';
 import {
   evaluate,
   deriveEvents,
+  finalDepartureEvent,
   type AttendanceRule,
   type AttendanceVerdict,
   type RawPunch,
@@ -45,13 +46,13 @@ import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attend
 import { loadResolvedStaffShift } from './staff-shift';
 import { applyWeekdayOverride } from './day-overrides';
 import { shiftToAttendanceRule } from './shifts';
-import { publishEvent } from '@/lib/events/eventbus';
+import { publishEvent, type AttendanceDepartureRecordedEvent } from '@/lib/events/eventbus';
 // Phase 5 — registers the notification fanout subscriber the first
 // time the engine module loads. The subscriber listens for
 // attendance.record.upserted, matches policies, and enqueues
 // notification_outbox rows. NO synchronous external calls happen on
 // the engine's emit path — the drainer cron is what actually sends.
-import { installNotificationFanout, fanoutAttendanceRecord } from '@/lib/notifications/fanout';
+import { installNotificationFanout, fanoutAttendanceRecord, fanoutDeparture } from '@/lib/notifications/fanout';
 import { getProvisionalAttendanceMeta } from '@/lib/attendance/provisional';
 import { getResidencyStatus } from '@/lib/attendance/residency';
 import { onRawPunchForLessons } from '@/lib/attendance/lessons/service';
@@ -411,6 +412,37 @@ export async function evaluateDay(
         `UPDATE attendance_raw_events SET derived_event = ?, derived_detail = ? WHERE id = ?`,
         [ev.type, ev.detail.slice(0, 120), row.id],
       );
+    }
+
+    // 6c. "Departure" notification — fires on ANY genuine final exit for the day
+    // (CHECKED_OUT/EARLY_DEPARTURE/OVERTIME_EXIT — never a mid-day TEMP_EXIT that's
+    // later followed by a RETURNED), independent of the day's overall attendance
+    // STATUS. A normal, on-time checkout never reaches this via the
+    // attendance.record.upserted path (that only fires 'early_leave' when the exit
+    // was early), so without this, parents were never told their child left school
+    // at all unless it happened to be early. dedup_key (policy+person+date, no time
+    // component — see fanoutDeparture) makes this safe to call on every re-evaluation
+    // of the day: only the first genuine departure per day per policy sends.
+    const lastEvent = finalDepartureEvent(events);
+    if (lastEvent) {
+      const departureEvent: AttendanceDepartureRecordedEvent = {
+        schoolId, personId, roleType,
+        attendanceDate: formatDate(dayStart),
+        departureAt: lastEvent.punchAt.toISOString(),
+        departureType: lastEvent.type,
+        // For CHECKED_OUT/OVERTIME_EXIT: minutes on site since arrival. For EARLY_DEPARTURE: how many
+        // minutes before the departure window — the SAME field name means two different things
+        // depending on type, exactly mirroring DerivedEvent.minutes (rule-evaluator.ts) it comes from.
+        detailMinutes: lastEvent.minutes ?? 0,
+        deviceSn: lastEvent.deviceSn,
+        ruleId: rule.id ?? null,
+        residence: residenceForEvent,
+        studentId: studentIdForEvent,
+      };
+      publishEvent('attendance.departure.recorded', departureEvent);
+      try { await fanoutDeparture(departureEvent); } catch (err) {
+        console.warn('[attendance-engine] direct departure fanout failed', err);
+      }
     }
   } catch (err) {
     console.warn('[attendance-engine] derived-event stamp failed', err);

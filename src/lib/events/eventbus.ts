@@ -70,6 +70,33 @@ export interface AttendanceRecordUpsertedEvent {
 }
 
 /**
+ * Emitted when a person's FINAL exit for the day is recorded — i.e. the last
+ * non-duplicate punch of the day is a real departure (CHECKED_OUT,
+ * EARLY_DEPARTURE or OVERTIME_EXIT per src/lib/attendance/rule-evaluator.ts's
+ * deriveEvents), not a temporary mid-day exit that's later followed by a
+ * return. Separate from AttendanceRecordUpsertedEvent's day-level `status`
+ * (which only reads 'early_leave' when the departure was early AND the
+ * school configured a departure window) — this fires on ANY departure, so a
+ * school can notify a parent "your child has left school" independently of
+ * whether that departure counts as early for attendance-record purposes.
+ */
+export interface AttendanceDepartureRecordedEvent {
+  schoolId: number;
+  personId: number;
+  roleType: 'student' | 'staff';
+  attendanceDate: string;              // YYYY-MM-DD in local timezone
+  departureAt: string;                 // ISO-8601
+  departureType: 'CHECKED_OUT' | 'EARLY_DEPARTURE' | 'OVERTIME_EXIT';
+  /** CHECKED_OUT/OVERTIME_EXIT: minutes on site since arrival. EARLY_DEPARTURE: minutes before the
+   *  departure window. Same field, different meaning per type — mirrors DerivedEvent.minutes. */
+  detailMinutes: number;
+  deviceSn: string | null;
+  ruleId: number | null;
+  residence: 'day' | 'boarding' | null;
+  studentId: number | null;
+}
+
+/**
  * Phase 7 — emitted right after a raw punch is persisted to
  * zk_attendance_logs (and dual-written to attendance_raw_events). The
  * live-scan SSE subscribes to this for sub-second push delivery to
@@ -98,8 +125,9 @@ export interface AttendanceEventRecordedEvent {
 }
 
 export interface EventMap {
-  'attendance.record.upserted': AttendanceRecordUpsertedEvent;
-  'attendance.event.recorded':  AttendanceEventRecordedEvent;
+  'attendance.record.upserted':   AttendanceRecordUpsertedEvent;
+  'attendance.departure.recorded': AttendanceDepartureRecordedEvent;
+  'attendance.event.recorded':    AttendanceEventRecordedEvent;
 }
 
 // ── Bus interface ──────────────────────────────────────────────────────

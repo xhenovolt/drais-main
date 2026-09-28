@@ -340,6 +340,28 @@ export function deriveEvents(
   return out;
 }
 
+const DEPARTURE_TYPES = new Set<DerivedEventType>(['CHECKED_OUT', 'EARLY_DEPARTURE', 'OVERTIME_EXIT']);
+
+/**
+ * The event that represents "this person left school for the day" — or null if the day currently
+ * ends with them still on site (last event is ARRIVED/RETURNED), mid-exit-that-will-resolve-later,
+ * or there are no events at all. Only the FINAL non-duplicate event can ever qualify: deriveEvents
+ * only reclassifies the TRAILING exit as EARLY_DEPARTURE, never an interior one, so a mid-day
+ * TEMP_EXIT (a lunch break) followed by a RETURNED is correctly excluded here — the person is back.
+ * Used by the attendance engine to decide when to fire a "departure" notification, independent of
+ * the day's overall AttendanceStatus (present/late/early_leave/...).
+ */
+export type DepartureEventType = 'CHECKED_OUT' | 'EARLY_DEPARTURE' | 'OVERTIME_EXIT';
+
+export function finalDepartureEvent(events: DerivedEvent[]): (DerivedEvent & { type: DepartureEventType }) | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (events[i].type === 'DUPLICATE') continue;
+    const e = events[i];
+    return DEPARTURE_TYPES.has(e.type) ? (e as DerivedEvent & { type: DepartureEventType }) : null;
+  }
+  return null;
+}
+
 function fmtDur(min: number): string {
   if (min < 60) return `${min}m`;
   const h = Math.floor(min / 60), m = min % 60;
