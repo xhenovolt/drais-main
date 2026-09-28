@@ -52,9 +52,16 @@ export async function apiFetch<T = any>(
   }
 
   if (!res.ok || data.success === false) {
-    const msg = data?.error?.message || data?.message || data?.error || 'Operation failed';
-    showToast('error', typeof msg === 'string' ? msg : 'Operation failed');
-    const err = new Error(typeof msg === 'string' ? msg : 'Operation failed') as Error & { code?: string; status?: number };
+    let msg = data?.error?.message || data?.message || data?.error || 'Operation failed';
+    msg = typeof msg === 'string' ? msg : 'Operation failed';
+    // Some routes attach the real underlying cause as `details` alongside a generic `error`
+    // label (e.g. "Failed to load X" + details: the actual exception message) — without this,
+    // that cause never reaches the person hitting it or anyone looking at a screenshot of it.
+    if (typeof data?.details === 'string' && data.details && !msg.includes(data.details)) {
+      msg = `${msg}: ${data.details}`;
+    }
+    showToast('error', msg);
+    const err = new Error(msg) as Error & { code?: string; status?: number };
     err.code = data?.error?.code;
     err.status = res.status;
     throw err;
