@@ -103,6 +103,25 @@ for (const f of patchResult.patchedFiles) console.log(`    - ${f}`);
 // credentials — same as an unconfigured desktop install.
 const bundledEnv = path.join(root, 'build', '.env.production');
 if (existsSync(bundledEnv)) {
+  // Guard against the exact bug found 2026-09-28: build/.env.production is a hand-maintained,
+  // gitignored file (real secrets — never committed, so this check is the only thing standing
+  // between a stale copy and a shipped app). DRAIS_DB_MODE=local/local-mysql resolves (via
+  // src/lib/db/db-mode.ts) to a LOCAL MySQL connection — no such server exists on a phone, and
+  // none on a plain desktop install either — so EVERY database call in the packaged app failed
+  // with "Failed to load ..." before this was caught. DATABASE_MODE is legacy/unused; only
+  // DRAIS_DB_MODE controls the pool. DRAIS_ALLOW_LOCAL=true is fine and expected — it only
+  // PERMITS switching to local mode at runtime from Control Center -> Database Access, it does
+  // not select the default.
+  const envText = await fs.readFile(bundledEnv, 'utf8');
+  const modeMatch = envText.match(/^\s*DRAIS_DB_MODE\s*=\s*(\S+)/m);
+  const mode = modeMatch?.[1]?.trim();
+  if (mode === 'local' || mode === 'local-mysql' || mode === 'local-sqlite') {
+    console.error(`[build-mobile] build/.env.production has DRAIS_DB_MODE=${mode} — this would ship an app`);
+    console.error(`  that cannot reach the database at all (no local MySQL/SQLite exists on a phone).`);
+    console.error(`  Set DRAIS_DB_MODE=online (or remove the line) in build/.env.production and re-run.`);
+    process.exit(1);
+  }
+
   // Dotless destination name: android aaptOptions.ignoreAssetsPattern has
   // `.*` which strips every dotfile from APK assets.
   await fs.copyFile(bundledEnv, path.join(nodeProj, 'env.production'));

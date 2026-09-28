@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-28T03:06:14.155Z",
-  "last_commit": "3c68f9b1963800e4903c185dc1a7c57e469409b1",
+  "generated_at": "2026-09-28T03:26:06.586Z",
+  "last_commit": "41f4129d76f0d829996990b36d3e442369067f42",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8128,7 +8128,33 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.22.3",
+      "date": "2026-09-28",
+      "release_type": "patch",
+      "title": "Surface the real error `details` in the toast, not just the generic label",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Surface the real error `details` in the toast, not just the generic label"
+        }
+      ],
+      "commit": "41f4129d76"
+    },
+    {
+      "version": "2.22.4",
+      "date": "2026-09-28",
+      "release_type": "patch",
+      "title": "Fixed: the Android app could not reach the database at all",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "The Android app (and any Electron desktop build made the same way) shipped with a stale developer setting that made it try to connect to a MySQL server on the phone itself, which does not exist, instead of the real DRAIS cloud database. Every screen that reads or writes data — attendance history included — failed with \"Failed to load...\" as a result. The app now connects to the cloud database as intended."
+        }
+      ],
+      "commit": null
     }
   ],
-  "app_version": "2.22.3"
+  "app_version": "2.22.4"
 }
