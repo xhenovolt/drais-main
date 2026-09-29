@@ -9,6 +9,7 @@ import { canAny } from '@/lib/rbac/fallback';
 import { query } from '@/lib/db';
 import { DISPLAY_STATUS_SQL, STATUS_HELP, TYPE_LABEL, type DisplayStatus } from '@/lib/notifications/outbox-query';
 import { REASON_TEXT } from '@/lib/attendance/notification-decision';
+import { getSmsPricing } from '@/lib/control/sms-economics';
 
 export const runtime = 'nodejs';
 type Ctx = { params: Promise<{ id: string }> };
@@ -41,6 +42,21 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     `SELECT provider, provider_message_id, cost, success, error, delivered_at
        FROM notification_deliveries WHERE outbox_id = ? AND school_id = ? ORDER BY id`, [id, row.school_id],
   )) as any[];
+
+  // The stored `cost` is Africa's Talking's raw wholesale charge to the
+  // platform account (varies by message length/segments — the DEFAULT_
+  // INTERNAL_COST_UGX a school admin was seeing, e.g. "25"/"27"). Schools
+  // are billed the CONFIGURED RETAIL price (Control Center → SMS Pricing),
+  // not the wholesale cost — showing the wholesale figure here was both
+  // the wrong number for "what did this cost the school" and an
+  // unintended leak of the platform's internal cost/margin to school
+  // admins. Resolve the school's own override, falling back to the
+  // platform default, and show that instead.
+  const [schoolPriceRow, pricing] = await Promise.all([
+    (query(`SELECT price_ugx FROM sms_school_prices WHERE school_id = ? LIMIT 1`, [row.school_id]).catch(() => [])) as Promise<any[]>,
+    getSmsPricing(),
+  ]);
+  const retailPriceUgx = schoolPriceRow[0]?.price_ugx != null ? Number(schoolPriceRow[0].price_ugx) : pricing.retailPrice;
 
   let decision: any = null;
   if (row.decision_id) {
@@ -79,7 +95,14 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       createdAt: row.created_at, scheduledAt: row.scheduled_at,
     },
     lifecycle,
-    deliveries: deliveries.map((d) => ({ provider: d.provider, providerMessageId: d.provider_message_id, cost: d.cost, accepted: Number(d.success) === 1, error: d.error, at: d.delivered_at })),
+    deliveries: deliveries.map((d) => ({
+      provider: d.provider, providerMessageId: d.provider_message_id,
+      // School-facing: the configured retail price (UGX per SMS), not the
+      // provider's raw wholesale cost. Only shown for an accepted send —
+      // a rejected attempt was never billed.
+      cost: Number(d.success) === 1 ? `UGX ${retailPriceUgx.toFixed(4)}` : null,
+      accepted: Number(d.success) === 1, error: d.error, at: d.delivered_at,
+    })),
     decision,
     decisionNote: decision ? null : (row.notification_type ? 'No decision was stored for this message (it was created before decision diagnostics existed).' : null),
   });

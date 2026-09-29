@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-29T15:09:45.607Z",
-  "last_commit": "c3f438d2c31e550fc229e5ee6f48d56fa4ddee73",
+  "generated_at": "2026-09-29T15:10:25.466Z",
+  "last_commit": "b2bd0e3cdc029fd196545a7d99ea003ce5cb9934",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8240,7 +8240,20 @@
         }
       ],
       "commit": "c3f438d2c3"
+    },
+    {
+      "version": "2.27.0",
+      "date": "2026-09-29",
+      "release_type": "minor",
+      "title": "Live attendance popup leaked cross-school punches to every connected browser",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Live attendance popup leaked cross-school punches to every connected browser"
+        }
+      ],
+      "commit": "b2bd0e3cdc"
     }
   ],
-  "app_version": "2.27.0"
+  "app_version": "2.27.1"
 }
