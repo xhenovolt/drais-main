@@ -45,6 +45,7 @@ import {
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
 import { loadResolvedStaffShift } from './staff-shift';
 import { applyWeekdayOverride } from './day-overrides';
+import { resolveTimePolicy } from './device-clock';
 import { shiftToAttendanceRule } from './shifts';
 import { publishEvent, type AttendanceDepartureRecordedEvent } from '@/lib/events/eventbus';
 // Phase 5 — registers the notification fanout subscriber the first
@@ -59,6 +60,24 @@ import { onRawPunchForLessons } from '@/lib/attendance/lessons/service';
 import { getBoardingPolicy, modeForDate, getPeriodFor, recordBoardingReport, hasReported } from '@/lib/attendance/boarding-policy';
 import { getBoardingPresenceState, isWithinValidityWindow } from '@/lib/attendance/boarding-presence';
 installNotificationFanout();
+
+/**
+ * PURE. How far (ms) to shift a Date before handing it to rule-evaluator.ts
+ * so its runtime-local setHours/getHours math reads the school's real local
+ * wall-clock time instead of the server process's own OS timezone. See the
+ * TIMEZONE FIX note in evaluateDay() for the bug this closes — extracted
+ * here, as a pure function of two plain numbers, so it can be unit-tested
+ * without needing to fake the process's actual OS timezone.
+ *
+ * `schoolOffsetMin`: the school's configured UTC offset in minutes (e.g.
+ * 180 for UTC+3 Uganda), from resolveTimePolicy(). `runtimeOffsetMin`: the
+ * offset the CURRENT process's local Date methods are already using (e.g.
+ * 0 on a UTC server, 180 on a Kampala-timezone dev machine) — pass
+ * `-new Date().getTimezoneOffset()` for the real value.
+ */
+export function computeTzShiftMs(schoolOffsetMin: number, runtimeOffsetMin: number): number {
+  return (schoolOffsetMin - runtimeOffsetMin) * 60_000;
+}
 
 export type AttendanceSource = 'zkteco_push' | 'dahua_pull' | 'manual' | 'relay';
 
@@ -263,6 +282,39 @@ export async function evaluateDay(
 ): Promise<void> {
   await ensureAttendanceEngineSchema();
 
+  // TIMEZONE FIX (found 2026-09-29 investigating real wrong late-minutes at
+  // Nakifuma High School): rule-evaluator.ts's evaluate()/deriveEvents() are
+  // deliberately pure — no DB, no clock — and build rule-boundary instants
+  // (e.g. "arrival_end_time 07:20") using the JS Date object's *runtime*
+  // local timezone (setHours/getHours), per its own documented contract
+  // that the CALLER must hand it Dates in a mutually consistent frame. The
+  // caller (here) was handing it real UTC punch instants unmodified — so on
+  // any server whose runtime timezone isn't the school's (production runs
+  // UTC; every real school configured so far is UTC+3), "07:20" landed at
+  // 07:20 UTC (= 10:20 school-local) instead of 07:20 school-local (04:20
+  // UTC): every boundary lands `schoolOffset` too late. Confirmed against a
+  // live Nakifuma record: a punch at 08:33:14 UTC (11:33 Uganda-local) was
+  // scored "73 minutes late" (08:33:14 minus 07:20:00, both misread as UTC)
+  // instead of the correct ~253 minutes (11:33 minus the real 07:20
+  // Uganda-local cutoff); a punch at 05:04:17 UTC (08:04 Uganda-local, 44
+  // real minutes after the 07:20 cutoff) scored "on time" instead of late,
+  // because 05:04 UTC is still before 07:20 UTC.
+  //
+  // Fix: shift every Date handed to evaluate()/deriveEvents() (punches +
+  // the day boundary) by (schoolOffset − runtimeOffset) before the call,
+  // then shift verdict.firstInAt/lastOutAt and each derived event's
+  // punchAt back by the same amount before they're persisted or used —
+  // rule-evaluator.ts itself is untouched (its own pure-function tests are
+  // unaffected), and stored attendance_records/derived-event timestamps
+  // remain genuine, correct UTC instants. late/early/total minutes are
+  // differences of two shifted instants, so the shift cancels there and
+  // needs no correction.
+  const schoolOffsetMin = (await resolveTimePolicy(schoolId).catch(() => ({ offsetMinutes: 180 }))).offsetMinutes;
+  const runtimeOffsetMin = -new Date().getTimezoneOffset();
+  const tzShiftMs = computeTzShiftMs(schoolOffsetMin, runtimeOffsetMin);
+  const toEvalFrame = (d: Date): Date => new Date(d.getTime() + tzShiftMs);
+  const fromEvalFrame = <T extends Date | null>(d: T): T => (d ? (new Date(d.getTime() - tzShiftMs) as T) : d);
+
   // 0. Residency status (day/boarding) — the signal boarding_scope rules
   //    gate on. Student-only; staff always get null (see residency.ts).
   const boardingStatus = await getResidencyStatus(schoolId, personId, roleType);
@@ -295,8 +347,12 @@ export async function evaluateDay(
     [personId, dayStart, dayEnd],
   )) as Array<{ id: number; punch_at: Date | string; device_sn: string | null; io_mode: number | null }>;
 
+  // Shifted into the "evaluation frame" (see the TIMEZONE FIX note above) —
+  // real UTC instants, plus (schoolOffset − runtimeOffset), so that
+  // rule-evaluator.ts's runtime-local hour math lands on the school's real
+  // local wall-clock time instead of the runtime's.
   const rawPunches: RawPunch[] = punchRows.map(p => ({
-    punch_at: p.punch_at instanceof Date ? p.punch_at : new Date(p.punch_at),
+    punch_at: toEvalFrame(p.punch_at instanceof Date ? p.punch_at : new Date(p.punch_at)),
     device_sn: p.device_sn,
     io_mode: p.io_mode,
   }));
@@ -309,17 +365,24 @@ export async function evaluateDay(
   //    state transitions (e.g. condition status_changed=true).
   const previousStatus = await loadPreviousStatus(personId, dayStart);
 
-  // 5. Evaluate.
+  // 5. Evaluate — attendanceDate is shifted into the same evaluation frame
+  //    as rawPunches (see the TIMEZONE FIX note above); isWorkingDay()'s
+  //    getDay() then reads the school's real local weekday, not the
+  //    runtime's. Unshift the verdict's absolute timestamps immediately —
+  //    everything else that touches `verdict` from here on (persistVerdict,
+  //    the record event) must see genuine UTC instants.
   const verdict = evaluate(
     rule,
     rawPunches,
     {
-      attendanceDate: dayStart,
+      attendanceDate: toEvalFrame(dayStart),
       isHoliday,
       personRole: roleType,
       personIsBoarding: boardingStatus === null ? undefined : boardingStatus === 'boarding',
     },
   );
+  verdict.firstInAt = fromEvalFrame(verdict.firstInAt);
+  verdict.lastOutAt = fromEvalFrame(verdict.lastOutAt);
 
   // 5b. Phase 4 — boarding continuous-presence policy. Only ever consulted
   //     when there is NO biometric evidence for the day (rawPunches empty)
@@ -375,7 +438,9 @@ export async function evaluateDay(
         if (rawPunches.length > 0) {
           const rep = await recordBoardingReport({
             schoolId, studentId: studentIdForEvent, personId, period, attendanceDate: dateStr,
-            reportedAt: rawPunches[0].punch_at, firstPunchEventId: punchRows[0]?.id ?? null,
+            // rawPunches[0].punch_at is in the shifted evaluation frame — unshift
+            // back to a genuine UTC instant before it's persisted.
+            reportedAt: fromEvalFrame(rawPunches[0].punch_at), firstPunchEventId: punchRows[0]?.id ?? null,
           });
           boardingReport = { periodKey: period.key, periodLabel: period.label, isNew: rep.isNew };
         } else if (verdict.status === 'absent') {
@@ -401,8 +466,9 @@ export async function evaluateDay(
   //     IN/OUT field. Matched back to rows by punch time (stable within
   //     a day). Best-effort; never blocks the verdict.
   try {
+    // Same evaluation-frame shift as step 5 — rawPunches is already shifted.
     const events = deriveEvents(rule, rawPunches, {
-      attendanceDate: dayStart, isHoliday, personRole: roleType,
+      attendanceDate: toEvalFrame(dayStart), isHoliday, personRole: roleType,
       personIsBoarding: boardingStatus === null ? undefined : boardingStatus === 'boarding',
     });
     for (let i = 0; i < events.length && i < punchRows.length; i++) {
@@ -428,7 +494,9 @@ export async function evaluateDay(
       const departureEvent: AttendanceDepartureRecordedEvent = {
         schoolId, personId, roleType,
         attendanceDate: formatDate(dayStart),
-        departureAt: lastEvent.punchAt.toISOString(),
+        // lastEvent.punchAt is in the shifted evaluation frame — unshift
+        // back to a genuine UTC instant before it reaches a notification.
+        departureAt: fromEvalFrame(lastEvent.punchAt).toISOString(),
         departureType: lastEvent.type,
         // For CHECKED_OUT/OVERTIME_EXIT: minutes on site since arrival. For EARLY_DEPARTURE: how many
         // minutes before the departure window — the SAME field name means two different things
