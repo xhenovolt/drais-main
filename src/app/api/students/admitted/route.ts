@@ -35,17 +35,27 @@ export async function GET(req: NextRequest) {
     const conditions: string[] = ['s.school_id = ?', 's.deleted_at IS NULL'];
     const params: any[] = [schoolId];
 
-    // Exclude students who have an active enrollment in the current term.
+    // Exclude students who have ANY enrollment row in the current term —
+    // not just an 'active' one. /api/students/enrolled shows a student for
+    // a term as soon as an enrollment row exists for it, regardless of
+    // status (no default status filter there). Requiring status='active'
+    // here as well as the exclusion condition let the two lists disagree:
+    // a student whose current-term enrollment exists but isn't (yet, or no
+    // longer) literally 'active' — e.g. mid class-promotion, where a
+    // rollover can leave a term's enrollment row 'closed' or similarly
+    // non-active for a period — showed as both "admitted" (not excluded
+    // here) and "enrolled" (not filtered there). Confirmed live at
+    // Nakifuma High School. "Admitted but not enrolled this term" should
+    // mean no enrollment record for the term at all, not "no ACTIVE one."
     // The subquery avoids e.school_id and e.deleted_at because these columns
-    // may not exist before migration 020 has been applied.  Tenant isolation is
-    // already enforced by the outer s.school_id = ? condition; term isolation
-    // and status = 'active' are sufficient to identify enrolled students.
+    // may not exist before migration 020 has been applied. Tenant isolation
+    // is already enforced by the outer s.school_id = ? condition; term
+    // isolation is sufficient to identify enrolled students.
     if (currentTermId) {
       conditions.push(`NOT EXISTS (
         SELECT 1 FROM enrollments e
         WHERE e.student_id = s.id
           AND e.term_id    = ?
-          AND e.status     = 'active'
       )`);
       params.push(currentTermId);
     }

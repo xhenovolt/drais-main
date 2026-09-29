@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-29T14:43:13.753Z",
-  "last_commit": "ab1dd8ca92192924729950955d3e3d87c21a98d7",
+  "generated_at": "2026-09-29T14:43:33.776Z",
+  "last_commit": "cff7f1f644dc2e64f22179dcc5a4323d318bb03f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8214,7 +8214,20 @@
         }
       ],
       "commit": "ab1dd8ca92"
+    },
+    {
+      "version": "2.26.0",
+      "date": "2026-09-29",
+      "release_type": "minor",
+      "title": "Late/present verdicts were computed against the server's runtime timezone, not the school's",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Late/present verdicts were computed against the server's runtime timezone, not the school's"
+        }
+      ],
+      "commit": "cff7f1f644"
     }
   ],
-  "app_version": "2.26.0"
+  "app_version": "2.26.1"
 }
