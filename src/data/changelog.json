@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-29T03:37:19.322Z",
-  "last_commit": "9744b839a1c860eea8cd99c709049c607d796c4c",
+  "generated_at": "2026-09-29T13:28:26.528Z",
+  "last_commit": "bec7c535b66f2e30aebba79aaea0fd8f5c527304",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8175,7 +8175,20 @@
         }
       ],
       "commit": null
+    },
+    {
+      "version": "2.24.0",
+      "date": "2026-09-29",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 12 — second complete offline module: attendance",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 12 — second complete offline module: attendance"
+        }
+      ],
+      "commit": "bec7c535b6"
     }
   ],
-  "app_version": "2.24.0"
+  "app_version": "2.24.1"
 }
