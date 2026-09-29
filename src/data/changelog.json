@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-29T14:43:33.776Z",
-  "last_commit": "cff7f1f644dc2e64f22179dcc5a4323d318bb03f",
+  "generated_at": "2026-09-29T15:09:45.607Z",
+  "last_commit": "c3f438d2c31e550fc229e5ee6f48d56fa4ddee73",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8227,7 +8227,20 @@
         }
       ],
       "commit": "cff7f1f644"
+    },
+    {
+      "version": "2.26.1",
+      "date": "2026-09-29",
+      "release_type": "patch",
+      "title": "A learner could show up in both the Admitted and Enrolled lists",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "A learner could show up in both the Admitted and Enrolled lists"
+        }
+      ],
+      "commit": "c3f438d2c3"
     }
   ],
-  "app_version": "2.26.1"
+  "app_version": "2.27.0"
 }

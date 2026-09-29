@@ -102,8 +102,11 @@ export async function GET(req: NextRequest) {
       };
 
       // Start from latest ID so the listener doesn't replay history.
+      // School-scoped: an unscoped MAX(id) here is harmless on its own
+      // (just a starting cursor), but see the poll() query below for the
+      // real cross-tenant bug this file had.
       try {
-        const latest = await query('SELECT MAX(id) AS max_id FROM zk_attendance_logs');
+        const latest = await query('SELECT MAX(id) AS max_id FROM zk_attendance_logs WHERE school_id = ?', [session.schoolId]);
         lastId = Number((latest as any[])[0]?.max_id || 0);
       } catch {
         // Start from 0
@@ -139,6 +142,26 @@ export async function GET(req: NextRequest) {
       });
 
       // ── Poll fallback (2s safety net) ──────────────────────────
+      //
+      // SECURITY FIX (2026-09-29, cross-school popup leak): this query had
+      // NO school_id filter — it pulled the newest 5 rows from
+      // zk_attendance_logs across EVERY school in DRAIS and enriched +
+      // pushed them to whichever school's browser happened to be polling,
+      // on a fixed 2s interval regardless of whether the bus path already
+      // delivered the event (it is not merely a fallback for missed
+      // events, as the module docstring describes — it runs continuously).
+      // A Nakifuma session could therefore receive another school's punch,
+      // and enrichScanRow() would then try to resolve that row's identity
+      // using Nakifuma's schoolId — if the leaked row's device_user_id PIN
+      // happened to collide with a real Nakifuma person's PIN (small
+      // integers, independently assigned per school), the popup could show
+      // a real Nakifuma name/photo for a punch that never happened there.
+      // zk_attendance_logs.school_id is set authoritatively at ingest from
+      // devices.school_id (device serial → school, see zk-handler/route.ts)
+      // — the same value the bus path and /live-identity's poll already
+      // filter on. Scoping this query to it closes the leak at the source:
+      // a cross-school row can no longer reach enrichScanRow, let alone
+      // the browser.
       const poll = async () => {
         if (closed) return;
         try {
@@ -161,10 +184,10 @@ export async function GET(req: NextRequest) {
              FROM zk_attendance_logs al
              LEFT JOIN devices d ON al.device_sn = d.sn
              LEFT JOIN staff stf ON al.staff_id = stf.id
-             WHERE al.id > ?
+             WHERE al.id > ? AND al.school_id = ?
              ORDER BY al.id ASC
              LIMIT 5`,
-            [lastId],
+            [lastId, session.schoolId],
           );
 
           if (rows && (rows as any[]).length > 0) {
@@ -351,10 +374,16 @@ async function enrichScanRow(r: ScanRow, schoolId: number): Promise<Record<strin
         WHERE legacy_table = 'zk_attendance_logs' AND legacy_id = ? LIMIT 1`,
       [r.id],
     ).catch(() => [] as any[]),
+    // Defense-in-depth: by this point studentId/staffId only ever came from
+    // a zk_attendance_logs row already filtered to this school (see the
+    // SECURITY FIX note on poll() above), so this school_id clause can
+    // never legitimately exclude a real match — it just means a leaked
+    // cross-school id (were one ever to reach here again) resolves to
+    // nothing instead of another school's person_id.
     studentId
-      ? query('SELECT person_id FROM students WHERE id = ? AND deleted_at IS NULL LIMIT 1', [studentId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
+      ? query('SELECT person_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1', [studentId, schoolId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
       : staffId
-        ? query('SELECT person_id FROM staff WHERE id = ? LIMIT 1', [staffId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
+        ? query('SELECT person_id FROM staff WHERE id = ? AND school_id = ? LIMIT 1', [staffId, schoolId]).then((x: any) => x[0]?.person_id ?? null).catch(() => null)
         : Promise.resolve(null),
   ]);
 
