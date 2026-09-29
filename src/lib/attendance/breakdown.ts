@@ -130,8 +130,9 @@ export async function loadBreakdownRows(schoolId: number, date: string, periodKe
        LEFT JOIN boarding_reports br
               ON br.school_id = s.school_id AND br.student_id = s.id AND br.period_key = ?
       WHERE s.school_id = ? AND s.deleted_at IS NULL AND s.person_id IS NOT NULL
+        AND s.status = 'active'
         AND EXISTS (SELECT 1 FROM enrollments e
-                     WHERE e.student_id = s.id AND e.status = 'active' AND e.deleted_at IS NULL
+                     WHERE e.student_id = s.id AND e.deleted_at IS NULL
                      ${classId ? 'AND e.class_id = ?' : ''})
       GROUP BY residence, gender, bucket, reported`,
     classId ? [date, periodKey ?? '', schoolId, classId] : [date, periodKey ?? '', schoolId],

@@ -80,12 +80,22 @@ export async function finalizeDay(schoolId: number, dateStr?: string, opts: { mi
     try { await evaluateDay(schoolId, Number(s.person_id), 'staff', dateObj); staff++; } catch { /* per-person best-effort */ }
   }
 
-  // ── Expected learners (actively enrolled) without a verdict ──
+  // ── Expected learners (active roster) without a verdict ──
+  // Gating on enrollments.status='active' (rather than students.status)
+  // silently dropped anyone whose enrollment row was mid-rollover — at
+  // Nakifuma, a class-promotion in progress had already closed 521 of 527
+  // enrollment rows while the students themselves were still s.status=
+  // 'active', so this sweep would materialise absences for only 6 people
+  // and leave everyone else with NO row at all for the day (invisible,
+  // not "present" — the missing-population bug). Any (non-deleted)
+  // enrollment row is still required so a never-enrolled draft record is
+  // not swept in.
   const studentRows = (await query(
     `SELECT DISTINCT s.person_id
        FROM students s
-       JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
       WHERE s.school_id = ? AND s.deleted_at IS NULL AND s.person_id IS NOT NULL
+        AND s.status = 'active'
+        AND EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.deleted_at IS NULL)
         AND NOT EXISTS (
           SELECT 1 FROM attendance_records r
            WHERE r.school_id = s.school_id AND r.role_type = 'student'
