@@ -1,27 +1,22 @@
 /**
- * POST /api/id-cards/jobs/upload-ticket   { fileName, size }
- * Returns a signed, school+user-scoped ticket the browser uses to upload the
- * workbook DIRECTLY to private Cloudinary storage (no size limit from this server).
+ * RETIRED — /api/id-cards/jobs/upload-ticket (410 Gone).
+ *
+ * Signed a Cloudinary upload ticket so a spreadsheet workbook could be sent
+ * to private cloud storage for server-side parsing. Retired because the
+ * Excel → card-records path (src/components/idcards/IdCardGenerate.tsx) is
+ * now entirely client-side (src/lib/idcards/excel-client.ts, exceljs): the
+ * workbook, including any photos pasted directly into a column, is parsed
+ * in the browser and never uploaded anywhere. This also means a school's
+ * learner photos are never written to Cloudinary just to make a batch of
+ * ID cards.
  */
-import { NextRequest, NextResponse } from 'next/server';
-import { requireCardsAccess, isResponse } from '@/lib/idcards/access';
-import { extensionOf, signWorkbookUpload, MAX_WORKBOOK_BYTES } from '@/lib/idcards/storage';
+import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-export async function POST(req: NextRequest) {
-  const s = await requireCardsAccess(req);
-  if (isResponse(s)) return s;
-  const body = await req.json().catch(() => null) as any;
-  const ext = typeof body?.fileName === 'string' ? extensionOf(body.fileName) : null;
-  if (!ext) return NextResponse.json({ error: 'Upload an Excel file (.xlsx or .xls)' }, { status: 400 });
-  if (Number(body?.size) > MAX_WORKBOOK_BYTES) {
-    return NextResponse.json({ error: `File is too large (max ${MAX_WORKBOOK_BYTES / 1024 / 1024} MB)` }, { status: 413 });
-  }
-  try {
-    return NextResponse.json({ success: true, ticket: signWorkbookUpload(s.schoolId, s.userId, ext) });
-  } catch (e: any) {
-    console.error('[id-cards/upload-ticket]', e?.message);
-    return NextResponse.json({ error: 'File storage is not configured' }, { status: 503 });
-  }
+export function POST() {
+  return NextResponse.json(
+    { success: false, error: 'This endpoint has been retired. ID card Excel import now runs entirely in the browser — no upload is needed.' },
+    { status: 410 },
+  );
 }

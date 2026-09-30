@@ -1,9 +1,12 @@
 'use client';
 /**
- * Generate + print cards from (a) enrolled learners or (b) an uploaded Excel file.
- * The Excel path is fully isolated: the workbook sits in a private, expiring job;
- * records live only in this page's memory; nothing is written to student tables,
- * and no attendance or SMS behaviour is touched.
+ * Generate + print cards from (a) enrolled learners or (b) an Excel file.
+ * The Excel path is fully isolated AND fully client-side (src/lib/idcards/
+ * excel-client.ts, exceljs): the workbook — including any photos pasted
+ * directly into a column — is parsed in the browser's memory only. It is
+ * never uploaded, never stored, never sent to a server. Records live only
+ * in this page's memory; nothing is written to student tables, and no
+ * attendance or SMS behaviour is touched.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { IdCardSheets, PrintPortal } from './IdCardSheets';
@@ -12,11 +15,14 @@ import { CARD_FIELDS } from '@/lib/idcards/fields';
 import { SHEET_PRESETS, defaultPrintMode, type PrintMode, type SheetSpec } from '@/lib/idcards/layout';
 import type { CardRecord, IdCardSpec } from '@/lib/idcards/spec';
 
-interface SheetInfo { name: string; hidden: boolean; rowCount: number; headerRow: number; headers: string[]; sample: string[][]; }
+interface SheetInfo { name: string; hidden: boolean; rowCount: number; headerRow: number; headers: string[]; sample: string[][]; hasImages?: boolean; }
 interface Issue { row: number; field: string; severity: 'error' | 'warning'; message: string; }
 interface ExRow { row: number; record: CardRecord; status: 'ok' | 'warning' | 'error'; }
 
-/** Cloudinary's Free plan rejects files over 10 MB; stay safely under it. */
+/** A soft sanity cap on in-browser reading, not a storage-plan limit (there
+ *  is no storage plan any more — nothing leaves the browser). A workbook
+ *  with many embedded photos can get large; this just avoids the tab
+ *  hanging on something absurd. */
 const STORAGE_SAFE_BYTES = 9 * 1024 * 1024;
 
 interface Props {
@@ -83,8 +89,14 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
   const filtered = useMemo(() => learners.map((r, i) => ({ r, i })).filter(({ r }) =>
     !search.trim() || `${r.full_name} ${r.admission_no}`.toLowerCase().includes(search.toLowerCase())), [learners, search]);
 
-  // ── excel source ──
-  const [jobId, setJobId] = useState<string | null>(null);
+  // ── excel source — entirely client-side ──
+  // The workbook (including any pasted photos) never leaves the browser: no
+  // upload, no storage, no server round-trip for the file. It's parsed with
+  // exceljs (which, unlike the xlsx package used elsewhere in DRAIS, reads
+  // embedded/pasted images out of the .xlsx, not just cell text) directly
+  // in memory, and the ArrayBuffer is discarded on unmount / "Discard file".
+  // See src/lib/idcards/excel-client.ts for the parsing/extraction logic.
+  const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null);
   const [fileName, setFileName] = useState('');
   const [sheets, setSheets] = useState<SheetInfo[]>([]);
   const [suggested, setSuggested] = useState<Record<string, Record<string, string>>>({});
@@ -98,7 +110,6 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
   const [summary, setSummary] = useState<{ total: number; ok: number; warnings: number; errors: number } | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [includeErrors, setIncludeErrors] = useState(false);
-  const [expiresAt, setExpiresAt] = useState('');
 
   const currentSheet = sheets.find((s) => s.name === sheetName);
   useEffect(() => { if (currentSheet) onExcelHeaders?.(currentSheet.headers.map((h) => `col:${h}`)); }, [currentSheet, onExcelHeaders]);
@@ -111,85 +122,49 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
     setExRows([]); setIssues([]); setSummary(null);
   };
 
-  const [progress, setProgress] = useState<number | null>(null);
-  const [note, setNote] = useState('');
-
-  // Direct browser → private Cloudinary upload (no server body-size limit), then register the job.
-  const sendToStorage = (file: File, t: any): Promise<void> => new Promise((resolve, reject) => {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('api_key', t.apiKey);
-    fd.append('timestamp', String(t.timestamp));
-    fd.append('signature', t.signature);
-    fd.append('public_id', t.publicId);
-    fd.append('type', t.type);
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', t.uploadUrl);
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100)); };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) return resolve();
-      let msg = 'Upload to storage failed';
-      try { msg = JSON.parse(xhr.responseText)?.error?.message || msg; } catch { /* keep default */ }
-      reject(new Error(msg));
-    };
-    xhr.onerror = () => reject(new Error('Network error while uploading'));
-    xhr.send(fd);
-  });
-
-  const upload = async (file: File) => {
-    setBusy(true); setErr(''); setProgress(0);
+  const handleFile = async (file: File) => {
+    setBusy(true); setErr('');
     try {
-      const tk = await fetch('/api/id-cards/jobs/upload-ticket', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, size: file.size }),
-      });
-      const tj = await tk.json();
-      if (!tk.ok) { setErr(tj.error || 'Could not start the upload'); return; }
-      let toSend: File = file;
-      if (file.size > STORAGE_SAFE_BYTES) {
-        // Above the storage plan's per-file limit: keep only the text data a card job can use.
-        setNote('Large workbook — preparing a compact copy (images and formatting are dropped; all cell text is kept)…');
-        const { slimWorkbook } = await import('@/lib/idcards/excel');
-        const slim = slimWorkbook(await file.arrayBuffer());
-        if (slim.length > STORAGE_SAFE_BYTES) { setErr('Even the compact copy is too large. Remove unused columns/sheets and try again.'); return; }
-        toSend = new File([slim as BlobPart], file.name.replace(/\.xls$/i, '.xlsx'), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (file.size > STORAGE_SAFE_BYTES * 6) {
+        setErr('That file is quite large for in-browser reading. Remove unused columns/sheets, or reduce photo resolution, and try again.');
+        return;
       }
-      await sendToStorage(toSend, tj.ticket);
-      setProgress(100);
-      const res = await fetch('/api/id-cards/jobs', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicId: tj.ticket.publicId, fileName: file.name }),
-      });
-      const json = await res.json();
-      if (!res.ok) { setErr(json.error || 'Upload failed'); return; }
+      const buf = await file.arrayBuffer();
+      const { inspectWorkbookClient, suggestMapping } = await import('@/lib/idcards/excel-client');
+      const { sheets: sh } = await inspectWorkbookClient(buf);
+      if (!sh.length) { setErr('No worksheets found in this file'); return; }
       const sg: Record<string, Record<string, string>> = {};
-      (json.suggested as any[]).forEach((s) => { sg[s.sheet] = s.mapping; });
-      setJobId(json.jobId); setFileName(json.fileName); setSheets(json.sheets); setSuggested(sg); setExpiresAt(json.expiresAt);
-      const best = [...(json.sheets as SheetInfo[])].filter((s) => !s.hidden).sort((a, b) => b.rowCount - a.rowCount)[0] ?? json.sheets[0];
-      chooseSheet(best.name, json.sheets, sg);
-    } catch (e: any) { setErr(e?.message || 'Upload failed'); }
-    finally { setBusy(false); setProgress(null); setNote(''); }
+      sh.forEach((s) => { sg[s.name] = suggestMapping(s.headers); });
+      setFileBuffer(buf); setFileName(file.name); setSheets(sh); setSuggested(sg);
+      const best = [...sh].filter((s) => !s.hidden).sort((a, b) => b.rowCount - a.rowCount)[0] ?? sh[0];
+      chooseSheet(best.name, sh, sg);
+    } catch (e: any) {
+      setErr(e?.message || 'Could not read this file — is it a valid .xlsx/.xls workbook?');
+    } finally { setBusy(false); }
   };
 
   const applyMapping = async () => {
-    if (!jobId) return;
+    if (!fileBuffer) return;
     setBusy(true); setErr('');
     try {
-      const res = await fetch(`/api/id-cards/jobs/${jobId}/extract`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetName, headerRow, mapping }),
+      const { extractRowsClient } = await import('@/lib/idcards/excel-client');
+      const extraction = await extractRowsClient(fileBuffer, { sheetName, headerRow, mapping, schoolName });
+      setExRows(extraction.rows);
+      setIssues(extraction.issues);
+      setSummary({
+        total: extraction.rows.length,
+        ok: extraction.rows.filter((r) => r.status === 'ok').length,
+        warnings: extraction.rows.filter((r) => r.status === 'warning').length,
+        errors: extraction.rows.filter((r) => r.status === 'error').length,
       });
-      const json = await res.json();
-      if (!res.ok) { setErr(json.error || 'Could not read the sheet'); return; }
-      setExRows(json.rows); setIssues(json.issues); setSummary(json.summary); setTruncated(!!json.truncated);
-    } catch { setErr('Could not read the sheet'); }
-    finally { setBusy(false); }
+      setTruncated(extraction.truncated);
+    } catch (e: any) {
+      setErr(e?.message || 'Could not read the sheet');
+    } finally { setBusy(false); }
   };
 
-  const discardJob = async () => {
-    if (!jobId) return;
-    await fetch(`/api/id-cards/jobs/${jobId}`, { method: 'DELETE' }).catch(() => undefined);
-    setJobId(null); setSheets([]); setExRows([]); setIssues([]); setSummary(null); setFileName(''); setMapping({});
+  const discardFile = () => {
+    setFileBuffer(null); setSheets([]); setExRows([]); setIssues([]); setSummary(null); setFileName(''); setMapping({});
   };
 
   // ── records to render ──
@@ -247,25 +222,24 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
       {source === 'excel' && (
         <section style={card}>
           <div style={{ padding: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 12, marginBottom: 10, color: '#14532d' }}>
-            Cards made from a spreadsheet are for printing only. No learner records are created or changed, and no attendance or SMS activity is triggered. Your file is stored in private storage with no public link, readable only by you, and deleted automatically after 24 hours (or immediately when you discard it).
+            Cards made from a spreadsheet are for printing only. No learner records are created or changed, and no attendance or SMS activity is triggered. The file is read entirely in your browser — it is never uploaded or stored anywhere; closing this page or pressing "Discard file" clears it from memory.
           </div>
 
-          {!jobId && (
+          {!fileBuffer && (
             <>
-              <input type="file" accept=".xlsx,.xls" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
-              {note && <p style={{ fontSize: 12, color: '#b45309' }}>{note}</p>}
-              {progress !== null && <p style={{ fontSize: 12 }}>Uploading… {progress}%</p>}
-              <p style={{ fontSize: 12, color: '#64748b' }}>.xlsx or .xls, up to 60 MB, up to 2000 rows read. Workbooks over 9 MB are reduced in your browser to a compact text-only copy before upload. Photos can be supplied as https links in a column; images embedded inside the workbook are not read.</p>
+              <input type="file" accept=".xlsx,.xls" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
+              {busy && <p style={{ fontSize: 12 }}>Reading workbook…</p>}
+              <p style={{ fontSize: 12, color: '#64748b' }}>.xlsx or .xls, up to 2000 rows read. Photos pasted or dragged directly into a "Photo"/"Image" column are read automatically; an https:// link in that column also still works.</p>
             </>
           )}
           {err && <p style={{ color: '#b91c1c', fontSize: 13 }}>{err}</p>}
 
-          {jobId && (
+          {fileBuffer && (
             <>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
                 <strong style={{ fontSize: 13 }}>{fileName}</strong>
-                <span style={{ fontSize: 12, color: '#64748b' }}>expires {new Date(expiresAt).toLocaleString()}</span>
-                <button style={{ ...btn, color: '#b91c1c' }} onClick={discardJob}>Delete file now</button>
+                {currentSheet?.hasImages && <span style={{ fontSize: 12, color: '#15803d' }}>Pasted photos found on this sheet</span>}
+                <button style={{ ...btn, color: '#b91c1c' }} onClick={discardFile}>Discard file</button>
               </div>
 
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>

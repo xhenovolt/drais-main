@@ -9,13 +9,21 @@ import { readFileSync } from 'node:fs';
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 
 const ROUTES = [
+  'app/api/id-cards/designs/route.ts',
+  'app/api/id-cards/designs/[id]/route.ts',
+  'app/api/id-cards/assets/route.ts',
+];
+
+// Retired — the Excel -> card-records job pipeline (upload, inspect, extract)
+// moved entirely client-side (src/lib/idcards/excel-client.ts); these routes
+// now unconditionally return 410 Gone and touch no session, no DB, no
+// storage, so the "behind the access gate" check doesn't apply to them —
+// there is nothing left for a gate to protect. See upload-ticket/route.ts.
+const RETIRED_ROUTES = [
   'app/api/id-cards/jobs/route.ts',
   'app/api/id-cards/jobs/upload-ticket/route.ts',
   'app/api/id-cards/jobs/[id]/route.ts',
   'app/api/id-cards/jobs/[id]/extract/route.ts',
-  'app/api/id-cards/designs/route.ts',
-  'app/api/id-cards/designs/[id]/route.ts',
-  'app/api/id-cards/assets/route.ts',
 ];
 
 describe('id-cards routes', () => {
@@ -26,6 +34,16 @@ describe('id-cards routes', () => {
       assert.match(src, /isResponse\(s\)/);
       assert.doesNotMatch(src, /searchParams\.get\(['"]school/i, 'never take school id from the client');
       assert.doesNotMatch(src, /body\.schoolId|body\.school_id/, 'never take school id from the body');
+    });
+  }
+
+  for (const r of RETIRED_ROUTES) {
+    it(`${r} is retired: 410 Gone, no session/DB/storage access at all`, () => {
+      const src = read(r);
+      assert.match(src, /status:\s*410/);
+      // Checks for actual calls, not mentions in the explanatory doc comment
+      // (which legitimately says why Cloudinary/the old gate are gone).
+      assert.doesNotMatch(src, /requireCardsAccess\(|getSessionSchoolId\(|\bquery\(/);
     });
   }
 

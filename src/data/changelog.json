@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T12:45:06.850Z",
-  "last_commit": "512fc4ca3e3e0cc97c239fe37e788a34ebc53817",
+  "generated_at": "2026-09-30T13:24:10.641Z",
+  "last_commit": "6bb9c6e67574cad16722eab0ff8abbdfa642a529",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8318,7 +8318,20 @@
         }
       ],
       "commit": "512fc4ca3e"
+    },
+    {
+      "version": "2.30.1",
+      "date": "2026-09-30",
+      "release_type": "patch",
+      "title": "Turbopack production build failed on multi-line JSX className strings",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Turbopack production build failed on multi-line JSX className strings"
+        }
+      ],
+      "commit": "6bb9c6e675"
     }
   ],
-  "app_version": "2.30.1"
+  "app_version": "2.31.0"
 }
