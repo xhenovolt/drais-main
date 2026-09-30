@@ -29,7 +29,6 @@ export async function GET(req: NextRequest) {
     // Execute all queries in parallel for better performance
     const [
       totalClasses,
-      totalStudents,
       genderCounts,
       totalStaff,
       totalParents,
@@ -46,21 +45,21 @@ export async function GET(req: NextRequest) {
       // Total classes
       connection.execute('SELECT COUNT(*) AS total_classes FROM classes WHERE school_id = ?', [schoolId]),
 
-      // Total active students
-      connection.execute('SELECT COUNT(*) AS total_learners FROM students WHERE status = "active" AND school_id = ?', [schoolId]),
-
-      // Gender distribution
+      // Gender distribution. Was missing deleted_at IS NULL — a soft-deleted
+      // student can still have status='active', so this double-counted
+      // withdrawn/removed learners into boys/girls (same bug class as the
+      // "total students" query below, now unified onto the same source).
       connection.execute(`
-        SELECT 
+        SELECT
           SUM(CASE WHEN p.gender = 'M' THEN 1 ELSE 0 END) AS boys,
           SUM(CASE WHEN p.gender = 'F' THEN 1 ELSE 0 END) AS girls
         FROM students s
         JOIN people p ON s.person_id = p.id
-        WHERE s.status = "active" AND s.school_id = ?
+        WHERE s.status = "active" AND s.deleted_at IS NULL AND s.school_id = ?
       `, [schoolId]),
 
-      // Total staff
-      connection.execute('SELECT COUNT(*) AS total_staff FROM staff WHERE status = "active" AND school_id = ?', [schoolId]),
+      // Total staff — same missing-deleted_at bug as students.
+      connection.execute('SELECT COUNT(*) AS total_staff FROM staff WHERE status = "active" AND deleted_at IS NULL AND school_id = ?', [schoolId]),
 
       // Total parents/contacts
       connection.execute('SELECT COUNT(DISTINCT student_id) AS total_parents FROM student_contacts sc JOIN students s ON sc.student_id = s.id WHERE s.school_id = ?', [schoolId]),
@@ -182,7 +181,6 @@ export async function GET(req: NextRequest) {
 
     // Extract results from arrays
     const classCount = Array.isArray(totalClasses[0]) ? totalClasses[0][0] : totalClasses[0];
-    const studentCount = Array.isArray(totalStudents[0]) ? totalStudents[0][0] : totalStudents[0];
     const genderData = Array.isArray(genderCounts[0]) ? genderCounts[0][0] : genderCounts[0];
     const staffCount = Array.isArray(totalStaff[0]) ? totalStaff[0][0] : totalStaff[0];
     const parentCount = Array.isArray(totalParents[0]) ? totalParents[0][0] : totalParents[0];
@@ -199,6 +197,15 @@ export async function GET(req: NextRequest) {
     // Attendance present/late/absent — derived from raw punches + the
     // school attendance rule (the old student_attendance table is empty, so
     // it always read 0). Reliable regardless of canonical-engine state.
+    //
+    // Population: this is now the ONLY "how many students does this school
+    // have" query on this page. It used to also be computed separately
+    // above (`SELECT COUNT(*) FROM students WHERE status='active'`, missing
+    // deleted_at IS NULL) and shown as schoolStats.total_learners — the two
+    // numbers could disagree (514 vs 495 seen live at Nakifuma) because a
+    // soft-deleted student can still have status='active'. Removed the
+    // duplicate query; every "total students" figure on this page now comes
+    // from this single, deleted_at-aware source.
     const dashCounts = await getDashboardAttendanceCounts(schoolId);
     const totalStudentsToday = dashCounts.students.total || (attendanceData?.total_students || 0);
     const presentToday = dashCounts.students.present;
@@ -206,7 +213,7 @@ export async function GET(req: NextRequest) {
 
     const overview = {
       kpis: {
-        totalStudents: studentCount?.total_learners || 0,
+        totalStudents: dashCounts.students.total,
         presentToday: presentToday,
         absentToday: dashCounts.students.absent,
         lateToday: dashCounts.students.late,
@@ -224,7 +231,7 @@ export async function GET(req: NextRequest) {
       },
       schoolStats: {
         total_classes: classCount?.total_classes || 0,
-        total_learners: studentCount?.total_learners || 0,
+        total_learners: dashCounts.students.total,
         boys: genderData?.boys || 0,
         girls: genderData?.girls || 0,
         total_staff: staffCount?.total_staff || 0,

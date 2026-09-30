@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-29T15:10:25.466Z",
-  "last_commit": "b2bd0e3cdc029fd196545a7d99ea003ce5cb9934",
+  "generated_at": "2026-09-30T03:36:42.129Z",
+  "last_commit": "128c8251143d6d80e2a6bc7c481099c030bc4553",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8253,7 +8253,20 @@
         }
       ],
       "commit": "b2bd0e3cdc"
+    },
+    {
+      "version": "2.27.1",
+      "date": "2026-09-29",
+      "release_type": "patch",
+      "title": "Outbox showed Africa's Talking's wholesale cost, not the school's configured retail price",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Outbox showed Africa's Talking's wholesale cost, not the school's configured retail price"
+        }
+      ],
+      "commit": "128c825114"
     }
   ],
-  "app_version": "2.27.1"
+  "app_version": "2.27.2"
 }
