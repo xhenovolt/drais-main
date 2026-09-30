@@ -9,6 +9,7 @@
  * attendance or SMS behaviour is touched.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { Printer, Upload, Trash2, FileSpreadsheet, Users } from 'lucide-react';
 import { IdCardSheets, PrintPortal } from './IdCardSheets';
 import { IdCardFace } from './IdCardFace';
 import { CARD_FIELDS } from '@/lib/idcards/fields';
@@ -192,27 +193,29 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
   const excluded = source === 'excel' && summary ? (includeErrors ? 0 : summary.errors) : 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex flex-col gap-4">
       <PrintPortal trigger={printTick} spec={spec} records={records} logoUrl={logoUrl} sheet={sheet} mode={mode} cutMarks={cutMarks} />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button style={tab(source === 'learners')} onClick={() => setSource('learners')}>Enrolled learners</button>
-        <button style={tab(source === 'excel')} onClick={() => setSource('excel')}>Excel file</button>
+      <div className="flex gap-2">
+        <SourceTab on={source === 'learners'} onClick={() => setSource('learners')} icon={<Users className="w-3.5 h-3.5" />}>Enrolled learners</SourceTab>
+        <SourceTab on={source === 'excel'} onClick={() => setSource('excel')} icon={<FileSpreadsheet className="w-3.5 h-3.5" />}>Excel file</SourceTab>
       </div>
 
       {source === 'learners' && (
-        <section style={card}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-            <input placeholder="Search name or reg. no" value={search} onChange={(e) => setSearch(e.target.value)} style={{ ...input, width: 240 }} />
-            <button style={btn} onClick={() => setSelected(new Set(filtered.map(({ i }) => i)))}>Select all shown</button>
-            <button style={btn} onClick={() => setSelected(new Set())}>Clear</button>
-            <span style={{ color: '#64748b', fontSize: 12 }}>{selected.size ? `${selected.size} selected` : `nothing selected — all ${filtered.length} shown will print`}</span>
+        <section className={cardCls}>
+          <div className="flex gap-2 items-center flex-wrap mb-2">
+            <input placeholder="Search name or reg. no" value={search} onChange={(e) => setSearch(e.target.value)} className={`${inputCls} w-60`} />
+            <button className={btnCls} onClick={() => setSelected(new Set(filtered.map(({ i }) => i)))}>Select all shown</button>
+            <button className={btnCls} onClick={() => setSelected(new Set())}>Clear</button>
+            <span className="text-gray-500 dark:text-gray-400 text-xs">{selected.size ? `${selected.size} selected` : `nothing selected — all ${filtered.length} shown will print`}</span>
           </div>
-          {learnersLoading && <p>Loading learners…</p>}
-          <div style={{ maxHeight: 220, overflow: 'auto', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+          {learnersLoading && <p className="text-sm text-gray-600 dark:text-gray-300">Loading learners…</p>}
+          <div className="max-h-56 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
             {filtered.slice(0, 500).map(({ r, i }) => (
-              <label key={learnerIds[i] ?? i} style={{ display: 'flex', gap: 8, padding: '4px 8px', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+              <label key={learnerIds[i] ?? i} className="flex gap-2 px-2 py-1 border-b border-gray-100 dark:border-gray-800 last:border-0 text-sm items-center hover:bg-gray-50 dark:hover:bg-slate-800/60">
                 <input type="checkbox" checked={selected.has(i)} onChange={() => setSelected((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; })} />
-                <span style={{ flex: 1 }}>{r.full_name}</span><span style={{ color: '#64748b' }}>{r.admission_no}</span><span style={{ color: '#64748b' }}>{r.class}</span>
+                <span className="flex-1 text-gray-900 dark:text-gray-100">{r.full_name}</span>
+                <span className="text-gray-500 dark:text-gray-400">{r.admission_no}</span>
+                <span className="text-gray-500 dark:text-gray-400">{r.class}</span>
               </label>
             ))}
           </div>
@@ -220,86 +223,90 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
       )}
 
       {source === 'excel' && (
-        <section style={card}>
-          <div style={{ padding: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 12, marginBottom: 10, color: '#14532d' }}>
-            Cards made from a spreadsheet are for printing only. No learner records are created or changed, and no attendance or SMS activity is triggered. The file is read entirely in your browser — it is never uploaded or stored anywhere; closing this page or pressing "Discard file" clears it from memory.
+        <section className={cardCls}>
+          <div className="p-2 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-300 text-xs mb-2.5">
+            Cards made from a spreadsheet are for printing only. No learner records are created or changed, and no attendance or SMS activity is triggered.
+            The file is read entirely in your browser — it is never uploaded or stored anywhere; closing this page or pressing "Discard file" clears it from memory.
           </div>
 
           {!fileBuffer && (
             <>
-              <input type="file" accept=".xlsx,.xls" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
-              {busy && <p style={{ fontSize: 12 }}>Reading workbook…</p>}
-              <p style={{ fontSize: 12, color: '#64748b' }}>.xlsx or .xls, up to 2000 rows read. Photos pasted or dragged directly into a "Photo"/"Image" column are read automatically; an https:// link in that column also still works.</p>
+              <label className={`${btnCls} inline-flex items-center gap-1.5 cursor-pointer w-fit`}>
+                <Upload className="w-3.5 h-3.5" /> Choose Excel file
+                <input type="file" accept=".xlsx,.xls" disabled={busy} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
+              </label>
+              {busy && <p className="text-xs text-gray-600 dark:text-gray-300 mt-1.5">Reading workbook…</p>}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">.xlsx or .xls, up to 2000 rows read. Photos pasted or dragged directly into a "Photo"/"Image" column are read automatically; an https:// link in that column also still works.</p>
             </>
           )}
-          {err && <p style={{ color: '#b91c1c', fontSize: 13 }}>{err}</p>}
+          {err && <p className="text-red-600 dark:text-red-400 text-sm">{err}</p>}
 
           {fileBuffer && (
             <>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-                <strong style={{ fontSize: 13 }}>{fileName}</strong>
-                {currentSheet?.hasImages && <span style={{ fontSize: 12, color: '#15803d' }}>Pasted photos found on this sheet</span>}
-                <button style={{ ...btn, color: '#b91c1c' }} onClick={discardFile}>Discard file</button>
+              <div className="flex gap-2 items-center flex-wrap mb-2.5">
+                <strong className="text-sm text-gray-900 dark:text-gray-100">{fileName}</strong>
+                {currentSheet?.hasImages && <span className="text-xs text-green-600 dark:text-green-400">Pasted photos found on this sheet</span>}
+                <button className={`${btnCls} text-red-600 dark:text-red-400 inline-flex items-center gap-1`} onClick={discardFile}><Trash2 className="w-3.5 h-3.5" />Discard file</button>
               </div>
 
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
-                <label style={{ fontSize: 13 }}>Worksheet{' '}
-                  <select style={input} value={sheetName} onChange={(e) => chooseSheet(e.target.value)}>
+              <div className="flex gap-3 flex-wrap mb-2.5">
+                <label className="text-sm text-gray-700 dark:text-gray-300">Worksheet{' '}
+                  <select className={inputCls} value={sheetName} onChange={(e) => chooseSheet(e.target.value)}>
                     {sheets.map((s) => <option key={s.name} value={s.name}>{s.name} ({s.rowCount} rows){s.hidden ? ' — hidden' : ''}</option>)}
                   </select>
                 </label>
-                <label style={{ fontSize: 13 }}>Header row{' '}
-                  <input type="number" min={1} max={50} style={{ ...input, width: 60 }} value={headerRow} onChange={(e) => setHeaderRow(Math.max(1, Number(e.target.value) || 1))} />
+                <label className="text-sm text-gray-700 dark:text-gray-300">Header row{' '}
+                  <input type="number" min={1} max={50} className={`${inputCls} w-16`} value={headerRow} onChange={(e) => setHeaderRow(Math.max(1, Number(e.target.value) || 1))} />
                 </label>
               </div>
 
               {currentSheet && currentSheet.headers.length > 0 && (
-                <div style={{ overflowX: 'auto', marginBottom: 10 }}>
-                  <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
-                    <thead><tr>{currentSheet.headers.map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-                    <tbody>{currentSheet.sample.slice(0, 3).map((r, i) => <tr key={i}>{currentSheet.headers.map((_, c) => <td key={c} style={td}>{r[c]}</td>)}</tr>)}</tbody>
+                <div className="overflow-x-auto mb-2.5">
+                  <table className="border-collapse text-xs">
+                    <thead><tr>{currentSheet.headers.map((h) => <th key={h} className={thCls}>{h}</th>)}</tr></thead>
+                    <tbody>{currentSheet.sample.slice(0, 3).map((r, i) => <tr key={i}>{currentSheet.headers.map((_, c) => <td key={c} className={tdCls}>{r[c]}</td>)}</tr>)}</tbody>
                   </table>
-                  <p style={{ fontSize: 11, color: '#64748b' }}>Sample rows use the suggested header row; press "Read rows" after changing it.</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Sample rows use the suggested header row; press "Read rows" after changing it.</p>
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 8, marginBottom: 10 }}>
+              <div className="grid gap-2 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))' }}>
                 {CARD_FIELDS.map((f) => (
-                  <label key={f.key} style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {f.label}{f.key === 'full_name' && <span style={{ color: '#b91c1c' }}> (required, or map first + last)</span>}
-                    <select style={input} value={mapping[f.key] ?? ''} onChange={(e) => setMapping((m) => { const n = { ...m }; if (e.target.value) n[f.key] = e.target.value; else delete n[f.key]; return n; })}>
+                  <label key={f.key} className="text-xs flex flex-col gap-0.5 text-gray-700 dark:text-gray-300">
+                    {f.label}{f.key === 'full_name' && <span className="text-red-600 dark:text-red-400"> (required, or map first + last)</span>}
+                    <select className={inputCls} value={mapping[f.key] ?? ''} onChange={(e) => setMapping((m) => { const n = { ...m }; if (e.target.value) n[f.key] = e.target.value; else delete n[f.key]; return n; })}>
                       <option value="">— not mapped —</option>
                       {(currentSheet?.headers ?? []).map((h) => <option key={h} value={h}>{h}</option>)}
                     </select>
                   </label>
                 ))}
               </div>
-              <p style={{ fontSize: 11, color: '#64748b' }}>Any other column can be used in the design as {'{col:Column Name}'}.</p>
-              <button style={primary} disabled={busy} onClick={applyMapping}>{busy ? 'Reading…' : 'Read rows & validate'}</button>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">Any other column can be used in the design as {'{col:Column Name}'}.</p>
+              <button className={primaryCls} disabled={busy} onClick={applyMapping}>{busy ? 'Reading…' : 'Read rows & validate'}</button>
 
               {summary && (
-                <div style={{ marginTop: 12 }}>
-                  <p style={{ fontSize: 13 }}>
-                    <strong>{summary.total}</strong> rows read — <span style={{ color: '#15803d' }}>{summary.ok} ready</span>,{' '}
-                    <span style={{ color: '#b45309' }}>{summary.warnings} with warnings</span>,{' '}
-                    <span style={{ color: '#b91c1c' }}>{summary.errors} with errors</span>.
-                    {truncated && <span style={{ color: '#b91c1c' }}> The sheet has more than 2000 rows; only the first 2000 were read.</span>}
+                <div className="mt-3">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <strong className="text-gray-900 dark:text-gray-100">{summary.total}</strong> rows read — <span className="text-green-700 dark:text-green-400">{summary.ok} ready</span>,{' '}
+                    <span className="text-amber-700 dark:text-amber-400">{summary.warnings} with warnings</span>,{' '}
+                    <span className="text-red-700 dark:text-red-400">{summary.errors} with errors</span>.
+                    {truncated && <span className="text-red-700 dark:text-red-400"> The sheet has more than 2000 rows; only the first 2000 were read.</span>}
                   </p>
                   {summary.errors > 0 && (
-                    <label style={{ fontSize: 12 }}>
+                    <label className="text-xs flex items-center gap-1.5 text-gray-700 dark:text-gray-300 mt-1">
                       <input type="checkbox" checked={includeErrors} onChange={(e) => setIncludeErrors(e.target.checked)} /> Print rows with errors too ({excluded ? `${excluded} currently left out` : 'included'})
                     </label>
                   )}
                   {issues.length > 0 && (
-                    <div style={{ maxHeight: 180, overflow: 'auto', border: '1px solid #e2e8f0', borderRadius: 6, marginTop: 6 }}>
-                      <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
-                        <thead><tr><th style={th}>Row</th><th style={th}>Field</th><th style={th}>Level</th><th style={th}>Problem</th></tr></thead>
+                    <div className="max-h-44 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg mt-1.5">
+                      <table className="border-collapse text-xs w-full">
+                        <thead><tr><th className={thCls}>Row</th><th className={thCls}>Field</th><th className={thCls}>Level</th><th className={thCls}>Problem</th></tr></thead>
                         <tbody>{issues.slice(0, 300).map((i, k) => (
-                          <tr key={k}><td style={td}>{i.row}</td><td style={td}>{i.field}</td>
-                            <td style={{ ...td, color: i.severity === 'error' ? '#b91c1c' : '#b45309' }}>{i.severity}</td><td style={td}>{i.message}</td></tr>
+                          <tr key={k}><td className={tdCls}>{i.row}</td><td className={tdCls}>{i.field}</td>
+                            <td className={`${tdCls} ${i.severity === 'error' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>{i.severity}</td><td className={tdCls}>{i.message}</td></tr>
                         ))}</tbody>
                       </table>
-                      {issues.length > 300 && <p style={{ fontSize: 11, padding: 6 }}>Showing the first 300 of {issues.length} issues.</p>}
+                      {issues.length > 300 && <p className="text-[11px] p-1.5 text-gray-500 dark:text-gray-400">Showing the first 300 of {issues.length} issues.</p>}
                     </div>
                   )}
                 </div>
@@ -309,14 +316,14 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
         </section>
       )}
 
-      <section style={card}>
-        <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>Print layout</h3>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
-          <label>Sheet <select style={input} value={preset} onChange={(e) => setPreset(e.target.value)}>{Object.keys(SHEET_PRESETS).map((k) => <option key={k}>{k}</option>)}</select></label>
-          <label>Margin mm <input type="number" style={{ ...input, width: 60 }} min={0} max={30} value={margin} onChange={(e) => setMargin(Math.max(0, Number(e.target.value) || 0))} /></label>
-          <label>Gap mm <input type="number" style={{ ...input, width: 60 }} min={0} max={20} value={gap} onChange={(e) => setGap(Math.max(0, Number(e.target.value) || 0))} /></label>
+      <section className={cardCls}>
+        <h3 className="m-0 mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Print layout</h3>
+        <div className="flex gap-3 flex-wrap items-center text-sm text-gray-700 dark:text-gray-300">
+          <label>Sheet <select className={inputCls} value={preset} onChange={(e) => setPreset(e.target.value)}>{Object.keys(SHEET_PRESETS).map((k) => <option key={k}>{k}</option>)}</select></label>
+          <label>Margin mm <input type="number" className={`${inputCls} w-16`} min={0} max={30} value={margin} onChange={(e) => setMargin(Math.max(0, Number(e.target.value) || 0))} /></label>
+          <label>Gap mm <input type="number" className={`${inputCls} w-16`} min={0} max={20} value={gap} onChange={(e) => setGap(Math.max(0, Number(e.target.value) || 0))} /></label>
           <label>Mode{' '}
-            <select style={input} value={mode} disabled={!spec.back} onChange={(e) => setMode(e.target.value as PrintMode)}>
+            <select className={inputCls} value={mode} disabled={!spec.back} onChange={(e) => setMode(e.target.value as PrintMode)}>
               {!spec.back && <option value="front_only">Single-sided</option>}
               {spec.back && <option value="side_by_side">Front left, back right (side by side)</option>}
               {spec.back && <option value="duplex_long">Double-sided printer — flip on long edge</option>}
@@ -324,54 +331,65 @@ export function IdCardGenerate({ spec, schoolName, schoolInfo, logoUrl, onExcelH
               {spec.back && <option value="front_only">Fronts only</option>}
             </select>
           </label>
-          <label><input type="checkbox" checked={cutMarks} onChange={(e) => setCutMarks(e.target.checked)} /> Cut guides</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={cutMarks} onChange={(e) => setCutMarks(e.target.checked)} /> Cut guides</label>
         </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 13, marginTop: 8 }}>
-          <label>Date of issue <input style={{ ...input, width: 110 }} value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></label>
-          <label>Valid until <input style={{ ...input, width: 110 }} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></label>
-          <span style={{ fontSize: 12, color: '#64748b' }}>Printed where the design uses {'{issue_date}'} / {'{valid_until}'}; a spreadsheet column mapped to Valid until takes priority.</span>
+        <div className="flex gap-3 flex-wrap items-center text-sm text-gray-700 dark:text-gray-300 mt-2">
+          <label>Date of issue <input className={`${inputCls} w-28`} value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></label>
+          <label>Valid until <input className={`${inputCls} w-28`} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></label>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Printed where the design uses {'{issue_date}'} / {'{valid_until}'}; a spreadsheet column mapped to Valid until takes priority.</span>
         </div>
         {spec.back && mode === 'side_by_side' && (
-          <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             Each learner's front is printed on the left and the back on the right of the same row, so both faces are always together. Works on any printer — cut out and laminate.
           </p>
         )}
         {spec.back && mode.startsWith('duplex') && (
-          <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             For printers that print on both sides of the paper: all the fronts are on one page and all the backs on the next, so each back lands behind its own front once the paper is turned. Print double-sided with "flip on {mode === 'duplex_long' ? 'long' : 'short'} edge" — the back pages are already mirrored. Do a one-sheet test on plain paper first; printer feed offsets vary. If your printer cannot print on both sides, use "Front left, back right" instead.
           </p>
         )}
-        <div style={{ marginTop: 10, display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button style={primary} disabled={!records.length} onClick={() => setPrintTick((n) => n + 1)}>Print / Save as PDF ({records.length} card{records.length === 1 ? '' : 's'})</button>
-          {excluded > 0 && <span style={{ fontSize: 12, color: '#b45309' }}>{excluded} row(s) with errors are not included.</span>}
+        <div className="mt-2.5 flex gap-3 items-center">
+          <button className={`${primaryCls} inline-flex items-center gap-1.5`} disabled={!records.length} onClick={() => setPrintTick((n) => n + 1)}>
+            <Printer className="w-4 h-4" /> Print / Save as PDF ({records.length} card{records.length === 1 ? '' : 's'})
+          </button>
+          {excluded > 0 && <span className="text-xs text-amber-600 dark:text-amber-400">{excluded} row(s) with errors are not included.</span>}
         </div>
       </section>
 
       {records.length > 0 ? (
-        <section style={card}>
-          <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>Card preview</h3>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <section className={cardCls}>
+          <h3 className="m-0 mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Card preview</h3>
+          <div className="flex gap-3 flex-wrap mb-3">
             {records.slice(0, 3).map((r, i) => (
-              <div key={i} style={{ display: 'flex', gap: 6 }}>
+              <div key={i} className="flex gap-1.5">
                 <IdCardFace spec={spec} face="front" record={r} logoUrl={logoUrl} unit={3.4} />
                 {spec.back && <IdCardFace spec={spec} face="back" record={r} logoUrl={logoUrl} unit={3.4} />}
               </div>
             ))}
           </div>
-          <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>Sheet preview</h3>
+          <h3 className="m-0 mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Sheet preview</h3>
           <IdCardSheets spec={spec} records={records} logoUrl={logoUrl} sheet={sheet} mode={mode} cutMarks={cutMarks} previewScale={0.45} />
         </section>
       ) : (
-        <p style={{ color: '#64748b', fontSize: 13 }}>{source === 'excel' ? 'Upload a file, map the columns and press "Read rows" to preview cards.' : 'No learners to print yet.'}</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">{source === 'excel' ? 'Upload a file, map the columns and press "Read rows" to preview cards.' : 'No learners to print yet.'}</p>
       )}
     </div>
   );
 }
 
-const input: React.CSSProperties = { border: '1px solid #cbd5e1', borderRadius: 4, padding: '3px 6px', background: '#fff', color: '#111', fontSize: 13 };
-const btn: React.CSSProperties = { border: '1px solid #cbd5e1', borderRadius: 6, padding: '4px 10px', background: '#fff', color: '#0f172a', cursor: 'pointer', fontSize: 12 };
-const primary: React.CSSProperties = { ...btn, background: '#1d4ed8', color: '#fff', borderColor: '#1d4ed8', padding: '6px 14px', fontSize: 13 };
-const tab = (on: boolean): React.CSSProperties => ({ ...btn, background: on ? '#1d4ed8' : '#fff', color: on ? '#fff' : '#0f172a', borderColor: on ? '#1d4ed8' : '#cbd5e1' });
-const card: React.CSSProperties = { border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, background: '#fff', color: '#0f172a' };
-const th: React.CSSProperties = { border: '1px solid #e2e8f0', padding: '3px 8px', background: '#f8fafc', textAlign: 'left', whiteSpace: 'nowrap' };
-const td: React.CSSProperties = { border: '1px solid #e2e8f0', padding: '3px 8px', whiteSpace: 'nowrap', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' };
+function SourceTab({ on, onClick, icon, children }: { on: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+      on ? 'bg-gray-900 dark:bg-indigo-600 text-white border-gray-900 dark:border-indigo-600' : 'bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+    }`}>
+      {icon}{children}
+    </button>
+  );
+}
+
+const inputCls = 'border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-sm';
+const btnCls = 'border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer text-sm disabled:opacity-50';
+const primaryCls = `${btnCls} bg-indigo-600 dark:bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 px-4 py-2 text-sm font-medium`;
+const cardCls = 'border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100';
+const thCls = 'border border-gray-200 dark:border-gray-700 px-2 py-1 bg-gray-50 dark:bg-slate-800 text-left whitespace-nowrap text-gray-700 dark:text-gray-300';
+const tdCls = 'border border-gray-200 dark:border-gray-700 px-2 py-1 whitespace-nowrap max-w-[220px] overflow-hidden text-ellipsis text-gray-700 dark:text-gray-300';

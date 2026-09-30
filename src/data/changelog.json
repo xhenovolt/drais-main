@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T15:48:22.604Z",
-  "last_commit": "ca0ba415f1ad7d1bfc8165abee0d31ef3986f9b4",
+  "generated_at": "2026-09-30T16:39:47.482Z",
+  "last_commit": "fd44e8481d9113ccecc179ff4be6f7a800309ae6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8344,7 +8344,20 @@
         }
       ],
       "commit": "ca0ba415f1"
+    },
+    {
+      "version": "2.32.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "Control Center's provider choice was not authoritative for schools without an explicit route",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Control Center's provider choice was not authoritative for schools without an explicit route"
+        }
+      ],
+      "commit": "fd44e8481d"
     }
   ],
-  "app_version": "2.32.0"
+  "app_version": "2.33.0"
 }

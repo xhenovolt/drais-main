@@ -6,10 +6,12 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ArrowRight, Fingerprint, Save, Copy, FilePlus2, FileStack, Layers } from 'lucide-react';
 import { IdCardDesigner } from '@/components/idcards/IdCardDesigner';
 import { IdCardGenerate } from '@/components/idcards/IdCardGenerate';
 import { starterSpec, specFromLegacyConfig, isTwoSided, type IdCardSpec, type CardRecord, type SourceKind } from '@/lib/idcards/spec';
 import { ID_CARD_TEMPLATES, cloneSpec } from '@/lib/idcards/templates';
+import { PLACEHOLDER_PHOTO_DATA_URI } from '@/lib/idcards/placeholder';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { showToast } from '@/lib/toast';
 
@@ -32,7 +34,7 @@ export default function IdCardStudioPage() {
 
   const sample: CardRecord = {
     full_name: 'Namatovu Sarah B.', first_name: 'Namatovu', last_name: 'Sarah', admission_no: 'ADM/2026/0042',
-    class: 'Senior 4 Arts', gender: 'Female', dob: '15 Mar 2009', photo_url: '', school: schoolName || 'Your School Name',
+    class: 'Senior 4 Arts', gender: 'Female', dob: '15 Mar 2009', photo_url: PLACEHOLDER_PHOTO_DATA_URI, school: schoolName || 'Your School Name',
     academic_year: '2026', valid_until: '31/12/2026', issue_date: '11/04/2026', guardian_phone: '0700 000 000',
     school_address: school?.address || 'P.O. Box 123, Your Town', school_phone: school?.phone || '0700 000 000', school_email: school?.email || '',
   };
@@ -91,37 +93,48 @@ export default function IdCardStudioPage() {
   const change = (s: IdCardSpec) => { setSpec(s); setDirty(true); };
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: 16, color: '#0f172a' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>ID Card Studio</h1>
-        <span style={{ fontSize: 12, color: '#64748b' }}>{isTwoSided(spec) ? 'Two-sided design' : 'Single-sided design'}</span>
-        <span style={{ flex: 1 }} />
-        <Link href="/students/id-cards" style={{ fontSize: 13, color: '#1d4ed8' }}>Classic single-sided designer →</Link>
+    <div className="max-w-[1600px] mx-auto px-4 py-4 text-gray-900 dark:text-gray-100">
+      <div className="flex items-center gap-3 flex-wrap mb-3">
+        <Fingerprint className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+        <h1 className="text-lg font-bold m-0">ID Card Studio</h1>
+        <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-800">
+          {isTwoSided(spec) ? 'Two-sided design' : 'Single-sided design'}
+        </span>
+        <span className="flex-1" />
+        <Link href="/students/id-cards" className="inline-flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+          Classic single-sided designer <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        <button style={tabStyle(tab === 'design')} onClick={() => setTab('design')}>1. Design</button>
-        <button style={tabStyle(tab === 'generate')} onClick={() => setTab('generate')}>2. Generate & print</button>
+      <div className="flex gap-2 mb-4">
+        <TabButton on={tab === 'design'} onClick={() => setTab('design')}>1. Design</TabButton>
+        <TabButton on={tab === 'generate'} onClick={() => setTab('generate')}>2. Generate & print</TabButton>
       </div>
 
       {tab === 'design' && (
         <>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, padding: 10, border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff' }}>
-            <input value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} style={{ ...field, width: 220 }} placeholder="Design name" />
-            <button style={primary} disabled={saving} onClick={() => save(false, false)}>{designId ? 'Save' : 'Save design'}</button>
-            <button style={btn} disabled={saving} onClick={() => save(false, true)}>Save & make active</button>
-            {designId && <button style={btn} disabled={saving} onClick={() => save(true, false)}>Save as copy</button>}
-            {dirty && <span style={{ fontSize: 12, color: '#b45309' }}>Unsaved changes</span>}
-            <span style={{ flex: 1 }} />
-            <select style={field} value="" onChange={(e) => { if (e.target.value) open(Number(e.target.value)); }}>
+          <div className="flex gap-2 items-center flex-wrap mb-3.5 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900">
+            <input value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} className={`${fieldCls} w-56`} placeholder="Design name" />
+            <button className={primaryCls} disabled={saving} onClick={() => save(false, false)}>
+              <Save className="w-3.5 h-3.5 inline mr-1" />{designId ? 'Save' : 'Save design'}
+            </button>
+            <button className={btnCls} disabled={saving} onClick={() => save(false, true)}>Save & make active</button>
+            {designId && <button className={btnCls} disabled={saving} onClick={() => save(true, false)}><Copy className="w-3.5 h-3.5 inline mr-1" />Save as copy</button>}
+            {dirty && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Unsaved changes</span>}
+            <span className="flex-1" />
+            <select className={fieldCls} value="" onChange={(e) => { if (e.target.value) open(Number(e.target.value)); }}>
               <option value="">Open saved design…</option>
               {designs.map((d) => <option key={d.id} value={d.id}>{d.name}{d.is_active ? ' (active)' : ''}</option>)}
             </select>
-            <button style={btn} onClick={() => { if (!dirty || confirm('Discard unsaved changes?')) { setSpec(starterSpec(true)); setName('New two-sided design'); setDesignId(null); setSourceKind('designed'); setDirty(false); } }}>New two-sided</button>
-            <button style={btn} onClick={() => { if (!dirty || confirm('Discard unsaved changes?')) { setSpec(starterSpec(false)); setName('New single-sided design'); setDesignId(null); setSourceKind('designed'); setDirty(false); } }}>New single-sided</button>
-            <button style={btn} onClick={fromLegacy}>Start from classic design</button>
+            <button className={btnCls} onClick={() => { if (!dirty || confirm('Discard unsaved changes?')) { setSpec(starterSpec(true)); setName('New two-sided design'); setDesignId(null); setSourceKind('designed'); setDirty(false); } }}>
+              <FileStack className="w-3.5 h-3.5 inline mr-1" />New two-sided
+            </button>
+            <button className={btnCls} onClick={() => { if (!dirty || confirm('Discard unsaved changes?')) { setSpec(starterSpec(false)); setName('New single-sided design'); setDesignId(null); setSourceKind('designed'); setDirty(false); } }}>
+              <FilePlus2 className="w-3.5 h-3.5 inline mr-1" />New single-sided
+            </button>
+            <button className={btnCls} onClick={fromLegacy}><Layers className="w-3.5 h-3.5 inline mr-1" />Start from classic design</button>
             <select
-              style={field} value="" title="Ready-made designs with your school's name, logo and details filled in automatically"
+              className={fieldCls} value="" title="Ready-made designs with your school's name, logo and details filled in automatically"
               onChange={(e) => {
                 const t = ID_CARD_TEMPLATES.find((x) => x.id === e.target.value);
                 if (!t) return;
@@ -150,7 +163,21 @@ export default function IdCardStudioPage() {
   );
 }
 
-const field: React.CSSProperties = { border: '1px solid #cbd5e1', borderRadius: 6, padding: '5px 8px', background: '#fff', color: '#0f172a', fontSize: 13 };
-const btn: React.CSSProperties = { border: '1px solid #cbd5e1', borderRadius: 6, padding: '5px 12px', background: '#fff', color: '#0f172a', cursor: 'pointer', fontSize: 13 };
-const primary: React.CSSProperties = { ...btn, background: '#1d4ed8', color: '#fff', borderColor: '#1d4ed8' };
-const tabStyle = (on: boolean): React.CSSProperties => ({ ...btn, background: on ? '#0f172a' : '#fff', color: on ? '#fff' : '#0f172a', borderColor: on ? '#0f172a' : '#cbd5e1', fontWeight: 600 });
+function TabButton({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+        on
+          ? 'bg-gray-900 dark:bg-indigo-600 text-white border-gray-900 dark:border-indigo-600'
+          : 'bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+const fieldCls = 'border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-sm';
+const btnCls = 'border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer text-sm disabled:opacity-50';
+const primaryCls = `${btnCls} bg-indigo-600 dark:bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500`;

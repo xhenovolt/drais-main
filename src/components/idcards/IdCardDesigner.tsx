@@ -3,16 +3,35 @@
  * Two-sided ID card designer. Static artwork (colour / imported PNG-JPEG) is a
  * backdrop; name, photo, QR etc. are separate positioned elements, so importing
  * a designer's artwork never flattens the dynamic fields.
+ *
+ * Front and back render SIDE BY SIDE (when the design has a back) instead of
+ * behind a tab you had to click through — there's no reason to hide one face
+ * while editing the other, and seeing both at once is how you'd actually
+ * check they look right together.
  */
 import React, { useRef, useState } from 'react';
+import { Type, Image as ImageIcon, QrCode, Square, Trash2, Upload, Palette } from 'lucide-react';
 import { IdCardFace } from './IdCardFace';
 import {
   STANDARD_TOKENS, ID1_HEIGHT_MM, ID1_WIDTH_MM, newElementId, blankSpec,
   type IdCardElement, type IdCardSpec, type IdCardSide, type CardRecord,
 } from '@/lib/idcards/spec';
 
-const PX = 5; // editor pixels per mm
+const PX = 4.2; // editor pixels per mm — fits two ID-1 faces side by side comfortably
 const snap = (v: number) => Math.round(v * 2) / 2;
+
+/** Quick-start colour schemes — the same idea as the classic designer's preset
+ *  palettes (/students/id-cards), so a school doesn't have to pick six colours
+ *  by hand to get something that looks deliberate. Applied to backgrounds and
+ *  every text element's colour across both faces in one click. */
+const PALETTES: { label: string; bg: string; text: string; accent: string }[] = [
+  { label: 'Navy & Gold',    bg: '#1a3a6b', text: '#ffffff', accent: '#d4a017' },
+  { label: 'Forest & Cream', bg: '#1b4332', text: '#f1f1e6', accent: '#ffd60a' },
+  { label: 'Maroon & White', bg: '#6d0e21', text: '#ffffff', accent: '#ffffff' },
+  { label: 'Midnight Blue',  bg: '#0a0f2c', text: '#e8f0fe', accent: '#4a9eff' },
+  { label: 'Teal & Silver',  bg: '#066b6b', text: '#f0fafa', accent: '#c0c0c0' },
+  { label: 'Slate & Amber',  bg: '#334155', text: '#f8fafc', accent: '#f59e0b' },
+];
 
 interface Props {
   spec: IdCardSpec;
@@ -22,36 +41,55 @@ interface Props {
   extraTokens?: string[];   // e.g. col:<Header> tokens from an Excel job
 }
 
+type Face = 'front' | 'back';
+interface Selection { face: Face; id: string }
+
 export function IdCardDesigner({ spec, onChange, previewRecord, logoUrl, extraTokens = [] }: Props) {
-  const [face, setFace] = useState<'front' | 'back'>('front');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeFace, setActiveFace] = useState<Face>('front');
+  const [selected, setSelected] = useState<Selection | null>(null);
   const [uploadMsg, setUploadMsg] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const drag = useRef<{ id: string; mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number } | null>(null);
+  const drag = useRef<{ face: Face; id: string; mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number } | null>(null);
 
-  const side: IdCardSide = face === 'back' && spec.back ? spec.back : spec.front;
-  const currentFace: 'front' | 'back' = face === 'back' && spec.back ? 'back' : 'front';
-  const selected = side.elements.find((e) => e.id === selectedId) ?? null;
+  const hasBack = !!spec.back;
+  const faces: Face[] = hasBack ? ['front', 'back'] : ['front'];
+  const sideOf = (face: Face): IdCardSide => (face === 'back' && spec.back ? spec.back : spec.front);
+  const side = sideOf(activeFace);
+  const selectedEl = selected ? sideOf(selected.face).elements.find((e) => e.id === selected.id) ?? null : null;
 
-  const setSide = (patch: Partial<IdCardSide>) =>
-    onChange({ ...spec, [currentFace]: { ...side, ...patch } } as IdCardSpec);
-  const setElement = (id: string, patch: Partial<IdCardElement>) =>
-    setSide({ elements: side.elements.map((e) => (e.id === id ? ({ ...e, ...patch } as IdCardElement) : e)) });
+  const setSide = (face: Face, patch: Partial<IdCardSide>) =>
+    onChange({ ...spec, [face]: { ...sideOf(face), ...patch } } as IdCardSpec);
+  const setElement = (face: Face, id: string, patch: Partial<IdCardElement>) =>
+    setSide(face, { elements: sideOf(face).elements.map((e) => (e.id === id ? ({ ...e, ...patch } as IdCardElement) : e)) });
 
-  const add = (el: IdCardElement) => { setSide({ elements: [...side.elements, el] }); setSelectedId(el.id); };
+  const add = (el: IdCardElement) => { setSide(activeFace, { elements: [...side.elements, el] }); setSelected({ face: activeFace, id: el.id }); };
   const addText = () => add({ id: newElementId('t'), kind: 'text', x: 4, y: 4, w: 40, h: 6, text: '{full_name}', fontSizePt: 9, color: '#111111', align: 'left' });
   const addPhoto = () => add({ id: newElementId('p'), kind: 'image', source: 'photo', x: 4, y: 12, w: 20, h: 24, fit: 'cover', shape: 'rect' });
   const addLogo = () => add({ id: newElementId('l'), kind: 'image', source: 'logo', x: 4, y: 4, w: 10, h: 10, fit: 'contain', shape: 'rect' });
   const addQr = () => add({ id: newElementId('q'), kind: 'qr', x: 4, y: 4, w: 20, h: 20, value: '{admission_no}' });
   const addRect = () => add({ id: newElementId('r'), kind: 'rect', x: 0, y: 0, w: spec.size.widthMm, h: 6, fill: '#1a3a6b' });
-  const remove = () => { if (selected) { setSide({ elements: side.elements.filter((e) => e.id !== selected.id) }); setSelectedId(null); } };
+  const remove = () => { if (selected) { setSide(selected.face, { elements: sideOf(selected.face).elements.filter((e) => e.id !== selected.id) }); setSelected(null); } };
+
+  const applyPalette = (p: typeof PALETTES[number]) => {
+    // A background image means the school already imported real artwork —
+    // recolouring the card background under it would just be invisible, so
+    // leave it alone. Plain-colour backgrounds, all text, and shape fills
+    // (the accent bars/blocks a template typically has one or two of) do
+    // get recoloured; photo/logo/QR elements are untouched.
+    const recolor = (s: IdCardSide): IdCardSide => ({
+      ...s,
+      backgroundColor: s.backgroundImage ? s.backgroundColor : p.bg,
+      elements: s.elements.map((e) => (e.kind === 'text' ? { ...e, color: p.text } : e.kind === 'rect' ? { ...e, fill: p.accent } : e)),
+    });
+    onChange({ ...spec, front: recolor(spec.front), back: spec.back ? recolor(spec.back) : undefined });
+  };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current; if (!d) return;
     const dx = (e.clientX - d.sx) / PX; const dy = (e.clientY - d.sy) / PX;
-    if (d.mode === 'move') setElement(d.id, { x: snap(d.ox + dx), y: snap(d.oy + dy) });
-    else setElement(d.id, { w: Math.max(1, snap(d.ow + dx)), h: Math.max(1, snap(d.oh + dy)) });
+    if (d.mode === 'move') setElement(d.face, d.id, { x: snap(d.ox + dx), y: snap(d.oy + dy) });
+    else setElement(d.face, d.id, { w: Math.max(1, snap(d.ow + dx)), h: Math.max(1, snap(d.oh + dy)) });
   };
   const endDrag = () => { drag.current = null; };
 
@@ -62,7 +100,7 @@ export function IdCardDesigner({ spec, onChange, previewRecord, logoUrl, extraTo
       const res = await fetch('/api/id-cards/assets', { method: 'POST', body: fd });
       const json = await res.json();
       if (!res.ok || !json.success) { setUploadMsg({ kind: 'err', text: json.error || 'Upload failed' }); return; }
-      setSide({ backgroundImage: { url: json.url, fit: 'stretch' } });
+      setSide(activeFace, { backgroundImage: { url: json.url, fit: 'stretch' } });
       const dpi = Math.round(json.width / (spec.size.widthMm / 25.4));
       setUploadMsg(dpi < 200
         ? { kind: 'warn', text: `Imported. Effective resolution is about ${dpi} DPI at this card size — it may print soft. Export at 300 DPI (about ${Math.round(spec.size.widthMm / 25.4 * 300)} px wide).` }
@@ -77,54 +115,39 @@ export function IdCardDesigner({ spec, onChange, previewRecord, logoUrl, extraTo
 
   const tokenChoices = [...STANDARD_TOKENS.map((t) => t.token), ...extraTokens];
   const num = (v: number, set: (n: number) => void, step = 0.5) => (
-    <input type="number" step={step} value={Number.isFinite(v) ? v : 0} onChange={(e) => set(Number(e.target.value))} style={inputStyle} />
+    <input type="number" step={step} value={Number.isFinite(v) ? v : 0} onChange={(e) => set(Number(e.target.value))} className={numInputCls} />
   );
 
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', gap: 16, alignItems: 'start' }}>
-      <div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button style={tab(currentFace === 'front')} onClick={() => setFace('front')}>Front</button>
-          {spec.back
-            ? <button style={tab(currentFace === 'back')} onClick={() => setFace('back')}>Back</button>
-            : <button style={btn} onClick={() => { onChange({ ...spec, back: blankSpec().front }); setFace('back'); }}>+ Add back side</button>}
-          {spec.back && (
-            <button style={{ ...btn, color: '#b91c1c' }} onClick={() => { if (confirm('Remove the back side of this design?')) { const { back: _b, ...rest } = spec; onChange(rest as IdCardSpec); setFace('front'); setSelectedId(null); } }}>
-              Remove back
-            </button>
-          )}
-          <span style={{ flex: 1 }} />
-          <button style={btn} onClick={addText}>+ Text</button>
-          <button style={btn} onClick={addPhoto}>+ Photo</button>
-          <button style={btn} onClick={addLogo}>+ Logo</button>
-          <button style={btn} onClick={addQr}>+ QR</button>
-          <button style={btn} onClick={addRect}>+ Shape</button>
-        </div>
-
+  const renderFace = (face: Face) => {
+    const faceSide = sideOf(face);
+    return (
+      <div key={face} className="flex flex-col items-center gap-1.5">
+        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{face === 'front' ? 'Front' : 'Back'}</span>
         <div
-          style={{ display: 'inline-block', boxShadow: '0 4px 18px rgba(0,0,0,.25)', touchAction: 'none' }}
+          className={`inline-block shadow-lg rounded-sm ring-2 transition-shadow ${activeFace === face ? 'ring-indigo-500' : 'ring-transparent'}`}
+          style={{ touchAction: 'none' }}
           onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerLeave={endDrag}
-          onPointerDown={(e) => { if (e.target === e.currentTarget) setSelectedId(null); }}
+          onPointerDown={(e) => { setActiveFace(face); if (e.target === e.currentTarget) setSelected(null); }}
         >
           <IdCardFace
-            spec={spec} face={currentFace} record={previewRecord} logoUrl={logoUrl} unit={PX}
+            spec={spec} face={face} record={previewRecord} logoUrl={logoUrl} unit={PX}
             renderElementWrapper={(el, node, box) => (
               <div
-                style={{ ...box, cursor: 'move', outline: el.id === selectedId ? '2px solid #2563eb' : '1px dashed rgba(37,99,235,.35)' }}
+                style={{ ...box, cursor: 'move', outline: selected?.face === face && el.id === selected.id ? '2px solid #2563eb' : '1px dashed rgba(37,99,235,.35)' }}
                 onPointerDown={(e) => {
-                  e.stopPropagation(); setSelectedId(el.id);
+                  e.stopPropagation(); setActiveFace(face); setSelected({ face, id: el.id });
                   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-                  drag.current = { id: el.id, mode: 'move', sx: e.clientX, sy: e.clientY, ox: el.x, oy: el.y, ow: el.w, oh: el.h };
+                  drag.current = { face, id: el.id, mode: 'move', sx: e.clientX, sy: e.clientY, ox: el.x, oy: el.y, ow: el.w, oh: el.h };
                 }}
               >
                 <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>{node}</div>
-                {el.id === selectedId && (
+                {selected?.face === face && el.id === selected.id && (
                   <div
-                    style={{ position: 'absolute', right: -5, bottom: -5, width: 10, height: 10, background: '#2563eb', cursor: 'nwse-resize' }}
+                    className="absolute -right-[5px] -bottom-[5px] w-2.5 h-2.5 bg-indigo-600 cursor-nwse-resize rounded-[1px]"
                     onPointerDown={(e) => {
                       e.stopPropagation();
                       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-                      drag.current = { id: el.id, mode: 'resize', sx: e.clientX, sy: e.clientY, ox: el.x, oy: el.y, ow: el.w, oh: el.h };
+                      drag.current = { face, id: el.id, mode: 'resize', sx: e.clientX, sy: e.clientY, ox: el.x, oy: el.y, ow: el.w, oh: el.h };
                     }}
                   />
                 )}
@@ -132,118 +155,200 @@ export function IdCardDesigner({ spec, onChange, previewRecord, logoUrl, extraTo
             )}
           />
         </div>
-        <p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-          Drag to move, drag the corner to resize. Preview shows sample data; real learners fill the {'{fields}'} at print time.
+        {faceSide.elements.length === 0 && (
+          <span className="text-[11px] text-gray-400 dark:text-gray-500">Empty — use the buttons above to add fields</span>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+      <div className="min-w-0">
+        <div className="flex gap-2 mb-3 flex-wrap items-center">
+          <ToolButton icon={<Type className="w-3.5 h-3.5" />} label="Text" onClick={addText} />
+          <ToolButton icon={<ImageIcon className="w-3.5 h-3.5" />} label="Photo" onClick={addPhoto} />
+          <ToolButton icon={<ImageIcon className="w-3.5 h-3.5" />} label="Logo" onClick={addLogo} />
+          <ToolButton icon={<QrCode className="w-3.5 h-3.5" />} label="QR" onClick={addQr} />
+          <ToolButton icon={<Square className="w-3.5 h-3.5" />} label="Shape" onClick={addRect} />
+          <span className="flex-1" />
+          {hasBack ? (
+            <button
+              className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              onClick={() => { if (confirm('Remove the back side of this design?')) { const { back: _b, ...rest } = spec; onChange(rest as IdCardSpec); setActiveFace('front'); setSelected(null); } }}
+            >
+              Remove back side
+            </button>
+          ) : (
+            <button
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800"
+              onClick={() => { onChange({ ...spec, back: blankSpec().front }); setActiveFace('back'); }}
+            >
+              + Add back side
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-6 justify-center xl:justify-start p-4 rounded-xl bg-gray-100 dark:bg-slate-950/40 border border-gray-200 dark:border-slate-800 overflow-x-auto">
+          {faces.map(renderFace)}
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          Click a face to work on it, click an element to select it — drag to move, drag the corner handle to resize.
+          Preview shows sample data (including a placeholder photo, so photo fit is visible); real learners fill the {'{fields}'} at print time.
         </p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-        <fieldset style={box}>
-          <legend style={legend}>Card size (mm)</legend>
-          <div style={row}>
-            <label>W {num(spec.size.widthMm, (n) => onChange({ ...spec, size: { ...spec.size, widthMm: Math.min(210, Math.max(30, n)) } }))}</label>
-            <label>H {num(spec.size.heightMm, (n) => onChange({ ...spec, size: { ...spec.size, heightMm: Math.min(297, Math.max(30, n)) } }))}</label>
+      <div className="flex flex-col gap-3 text-sm min-w-0">
+        <Box legend="Quick colour scheme" icon={<Palette className="w-3.5 h-3.5" />}>
+          <div className="grid grid-cols-2 gap-1.5">
+            {PALETTES.map((p) => (
+              <button
+                key={p.label} onClick={() => applyPalette(p)}
+                title={p.label}
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 text-left"
+              >
+                <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 ring-1 ring-black/10" style={{ background: p.bg }} />
+                <span className="text-[11px] text-gray-600 dark:text-gray-300 truncate">{p.label}</span>
+              </button>
+            ))}
           </div>
-          <button style={btn} onClick={() => onChange({ ...spec, size: { widthMm: ID1_WIDTH_MM, heightMm: ID1_HEIGHT_MM } })}>Standard ID-1 (85.6×54)</button>
-        </fieldset>
+          <p className="text-[10px] text-gray-400 mt-1.5">Recolours backgrounds and text on both sides in one click — fine-tune anything below after.</p>
+        </Box>
 
-        <fieldset style={box}>
-          <legend style={legend}>{currentFace === 'back' ? 'Back' : 'Front'} background</legend>
-          <div style={row}>
-            <input type="color" value={toHex(side.backgroundColor)} onChange={(e) => setSide({ backgroundColor: e.target.value })} />
-            <button style={btn} disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? 'Uploading…' : 'Import artwork'}</button>
-            {side.backgroundImage && <button style={btn} onClick={() => setSide({ backgroundImage: undefined })}>Remove</button>}
+        <Box legend="Card size (mm)">
+          <div className={rowCls}>
+            <label className="flex items-center gap-1">W {num(spec.size.widthMm, (n) => onChange({ ...spec, size: { ...spec.size, widthMm: Math.min(210, Math.max(30, n)) } }))}</label>
+            <label className="flex items-center gap-1">H {num(spec.size.heightMm, (n) => onChange({ ...spec, size: { ...spec.size, heightMm: Math.min(297, Math.max(30, n)) } }))}</label>
+          </div>
+          <button className={btnCls} onClick={() => onChange({ ...spec, size: { widthMm: ID1_WIDTH_MM, heightMm: ID1_HEIGHT_MM } })}>Standard ID-1 (85.6×54)</button>
+        </Box>
+
+        <Box legend={`${activeFace === 'back' ? 'Back' : 'Front'} background`}>
+          <div className="flex gap-1.5 mb-1.5">
+            {faces.map((f) => (
+              <button key={f} onClick={() => setActiveFace(f)}
+                className={`text-[11px] px-2 py-1 rounded-md border ${activeFace === f ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}>
+                {f === 'front' ? 'Front' : 'Back'}
+              </button>
+            ))}
+          </div>
+          <div className={rowCls}>
+            <input type="color" value={toHex(side.backgroundColor)} onChange={(e) => setSide(activeFace, { backgroundColor: e.target.value })} className="w-8 h-8 rounded border border-gray-300 dark:border-gray-600 bg-transparent" />
+            <button className={btnCls} disabled={uploading} onClick={() => fileRef.current?.click()}>
+              <Upload className="w-3 h-3 inline mr-1" />{uploading ? 'Uploading…' : 'Import artwork'}
+            </button>
+            {side.backgroundImage && <button className={btnCls} onClick={() => setSide(activeFace, { backgroundImage: undefined })}>Remove</button>}
           </div>
           {side.backgroundImage && (
-            <label style={{ display: 'block', marginTop: 6 }}>
+            <label className="block mt-1.5 text-xs">
               Fit{' '}
-              <select value={side.backgroundImage.fit} style={inputStyle}
-                onChange={(e) => setSide({ backgroundImage: { url: side.backgroundImage!.url, fit: e.target.value as 'cover' | 'stretch' } })}>
+              <select value={side.backgroundImage.fit} className={numInputCls}
+                onChange={(e) => setSide(activeFace, { backgroundImage: { url: side.backgroundImage!.url, fit: e.target.value as 'cover' | 'stretch' } })}>
                 <option value="stretch">Stretch to card</option>
                 <option value="cover">Crop to fill</option>
               </select>
             </label>
           )}
-          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }}
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadArtwork(f); }} />
-          <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0' }}>
-            PNG, JPEG or WebP. From Photoshop, Publisher, Canva or a PDF, export each side as an image at 300 DPI, then import it here — names and photos are added on top as live fields. Publisher (.pub) files cannot be opened directly; use “Start from a template” or ask for the file to be converted.
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1.5 leading-snug">
+            PNG, JPEG or WebP. From Photoshop, Publisher, Canva or a PDF, export each side as an image at 300 DPI, then import it here —
+            names and photos are added on top as live fields. Publisher (.pub) files cannot be opened directly; use "Start from a template" or ask for the file to be converted.
           </p>
-          {uploadMsg && <p style={{ fontSize: 12, marginTop: 6, color: uploadMsg.kind === 'err' ? '#b91c1c' : uploadMsg.kind === 'warn' ? '#b45309' : '#15803d' }}>{uploadMsg.text}</p>}
-        </fieldset>
+          {uploadMsg && <p className={`text-xs mt-1.5 ${uploadMsg.kind === 'err' ? 'text-red-600 dark:text-red-400' : uploadMsg.kind === 'warn' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>{uploadMsg.text}</p>}
+        </Box>
 
-        <fieldset style={box}>
-          <legend style={legend}>{selected ? `Selected: ${selected.kind}` : 'Selection'}</legend>
-          {!selected && <p style={{ color: '#64748b', margin: 0 }}>Click an element on the card to edit it.</p>}
-          {selected && (
+        <Box legend={selectedEl ? `Selected: ${selectedEl.kind}` : 'Selection'}>
+          {!selectedEl && <p className="text-gray-500 dark:text-gray-400 m-0">Click an element on either card to edit it.</p>}
+          {selectedEl && selected && (
             <>
-              <div style={row}>
-                <label>X {num(selected.x, (n) => setElement(selected.id, { x: n }))}</label>
-                <label>Y {num(selected.y, (n) => setElement(selected.id, { y: n }))}</label>
+              <div className={rowCls}>
+                <label className="flex items-center gap-1">X {num(selectedEl.x, (n) => setElement(selected.face, selected.id, { x: n }))}</label>
+                <label className="flex items-center gap-1">Y {num(selectedEl.y, (n) => setElement(selected.face, selected.id, { y: n }))}</label>
               </div>
-              <div style={row}>
-                <label>W {num(selected.w, (n) => setElement(selected.id, { w: Math.max(1, n) }))}</label>
-                <label>H {num(selected.h, (n) => setElement(selected.id, { h: Math.max(1, n) }))}</label>
+              <div className={rowCls}>
+                <label className="flex items-center gap-1">W {num(selectedEl.w, (n) => setElement(selected.face, selected.id, { w: Math.max(1, n) }))}</label>
+                <label className="flex items-center gap-1">H {num(selectedEl.h, (n) => setElement(selected.face, selected.id, { h: Math.max(1, n) }))}</label>
               </div>
-              {selected.kind === 'text' && (
+              {selectedEl.kind === 'text' && (
                 <>
-                  <textarea value={selected.text} rows={2} style={{ ...inputStyle, width: '100%' }} onChange={(e) => setElement(selected.id, { text: e.target.value })} />
-                  <select style={inputStyle} value="" onChange={(e) => { if (e.target.value) setElement(selected.id, { text: `${selected.text}{${e.target.value}}` }); }}>
+                  <textarea value={selectedEl.text} rows={2} className={`${numInputCls} w-full`} onChange={(e) => setElement(selected.face, selected.id, { text: e.target.value })} />
+                  <select className={numInputCls} value="" onChange={(e) => { if (e.target.value) setElement(selected.face, selected.id, { text: `${selectedEl.text}{${e.target.value}}` }); }}>
                     <option value="">Insert field…</option>
                     {tokenChoices.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  <div style={row}>
-                    <label>Size pt {num(selected.fontSizePt, (n) => setElement(selected.id, { fontSizePt: n }), 0.5)}</label>
-                    <input type="color" value={toHex(selected.color)} onChange={(e) => setElement(selected.id, { color: e.target.value })} />
+                  <div className={rowCls}>
+                    <label className="flex items-center gap-1">Size pt {num(selectedEl.fontSizePt, (n) => setElement(selected.face, selected.id, { fontSizePt: n }), 0.5)}</label>
+                    <input type="color" value={toHex(selectedEl.color)} onChange={(e) => setElement(selected.face, selected.id, { color: e.target.value })} className="w-8 h-8 rounded border border-gray-300 dark:border-gray-600 bg-transparent" />
                   </div>
-                  <div style={row}>
-                    <label><input type="checkbox" checked={!!selected.bold} onChange={(e) => setElement(selected.id, { bold: e.target.checked })} /> Bold</label>
-                    <label><input type="checkbox" checked={!!selected.uppercase} onChange={(e) => setElement(selected.id, { uppercase: e.target.checked })} /> CAPS</label>
-                    <select style={inputStyle} value={selected.align ?? 'left'} onChange={(e) => setElement(selected.id, { align: e.target.value as 'left' | 'center' | 'right' })}>
+                  <div className={rowCls}>
+                    <label className="flex items-center gap-1"><input type="checkbox" checked={!!selectedEl.bold} onChange={(e) => setElement(selected.face, selected.id, { bold: e.target.checked })} /> Bold</label>
+                    <label className="flex items-center gap-1"><input type="checkbox" checked={!!selectedEl.uppercase} onChange={(e) => setElement(selected.face, selected.id, { uppercase: e.target.checked })} /> CAPS</label>
+                    <select className={numInputCls} value={selectedEl.align ?? 'left'} onChange={(e) => setElement(selected.face, selected.id, { align: e.target.value as 'left' | 'center' | 'right' })}>
                       <option value="left">Left</option><option value="center">Center</option><option value="right">Right</option>
                     </select>
                   </div>
-                  <div style={row}>
-                    <label title="Keeps a long name on one line by making it slightly smaller"><input type="checkbox" checked={!!selected.shrink} onChange={(e) => setElement(selected.id, { shrink: e.target.checked || undefined })} /> Shrink long text</label>
-                    <select style={inputStyle} value={selected.valign ?? 'top'} onChange={(e) => setElement(selected.id, { valign: e.target.value === 'top' ? undefined : (e.target.value as 'middle' | 'bottom') })}>
+                  <div className={rowCls}>
+                    <label className="flex items-center gap-1" title="Keeps a long name on one line by making it slightly smaller"><input type="checkbox" checked={!!selectedEl.shrink} onChange={(e) => setElement(selected.face, selected.id, { shrink: e.target.checked || undefined })} /> Shrink long text</label>
+                    <select className={numInputCls} value={selectedEl.valign ?? 'top'} onChange={(e) => setElement(selected.face, selected.id, { valign: e.target.value === 'top' ? undefined : (e.target.value as 'middle' | 'bottom') })}>
                       <option value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option>
                     </select>
                   </div>
                 </>
               )}
-              {selected.kind === 'image' && (
-                <div style={row}>
-                  <select style={inputStyle} value={selected.shape ?? 'rect'} onChange={(e) => setElement(selected.id, { shape: e.target.value as 'rect' | 'circle' })}>
-                    <option value="rect">Rectangle</option><option value="circle">Circle</option>
-                  </select>
-                  <select style={inputStyle} value={selected.fit ?? 'cover'} onChange={(e) => setElement(selected.id, { fit: e.target.value as 'cover' | 'contain' })}>
-                    <option value="cover">Fill</option><option value="contain">Fit</option>
-                  </select>
-                  <span style={{ color: '#64748b' }}>{selected.source === 'photo' ? 'Learner photo' : selected.source === 'logo' ? 'School logo' : 'Fixed image'}</span>
+              {selectedEl.kind === 'image' && (
+                <div className="flex flex-col gap-1.5">
+                  <div className={rowCls}>
+                    <select className={numInputCls} value={selectedEl.shape ?? 'rect'} onChange={(e) => setElement(selected.face, selected.id, { shape: e.target.value as 'rect' | 'circle' })}>
+                      <option value="rect">Rectangle</option><option value="circle">Circle</option>
+                    </select>
+                    <select className={numInputCls} value={selectedEl.fit ?? 'cover'} onChange={(e) => setElement(selected.face, selected.id, { fit: e.target.value as 'cover' | 'contain' })}>
+                      <option value="cover">Fill (crop to box)</option><option value="contain">Fit (show whole photo)</option>
+                    </select>
+                  </div>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs">
+                    {selectedEl.source === 'photo' ? "Learner photo — the preview above uses a placeholder so you can see what \"Fill\" vs \"Fit\" actually does." : selectedEl.source === 'logo' ? 'School logo' : 'Fixed image'}
+                  </span>
                 </div>
               )}
-              {selected.kind === 'qr' && (
-                <label>Encodes <input style={{ ...inputStyle, width: '100%' }} value={selected.value} onChange={(e) => setElement(selected.id, { value: e.target.value })} /></label>
+              {selectedEl.kind === 'qr' && (
+                <label className="block">Encodes <input className={`${numInputCls} w-full`} value={selectedEl.value} onChange={(e) => setElement(selected.face, selected.id, { value: e.target.value })} /></label>
               )}
-              {selected.kind === 'rect' && (
-                <div style={row}>
-                  <label>Fill <input type="color" value={toHex(selected.fill)} onChange={(e) => setElement(selected.id, { fill: e.target.value })} /></label>
-                  <label>Round {num(selected.radiusMm ?? 0, (n) => setElement(selected.id, { radiusMm: Math.max(0, n) }))}</label>
+              {selectedEl.kind === 'rect' && (
+                <div className={rowCls}>
+                  <label className="flex items-center gap-1">Fill <input type="color" value={toHex(selectedEl.fill)} onChange={(e) => setElement(selected.face, selected.id, { fill: e.target.value })} className="w-8 h-8 rounded border border-gray-300 dark:border-gray-600 bg-transparent" /></label>
+                  <label className="flex items-center gap-1">Round {num(selectedEl.radiusMm ?? 0, (n) => setElement(selected.face, selected.id, { radiusMm: Math.max(0, n) }))}</label>
                 </div>
               )}
-              <button style={{ ...btn, color: '#b91c1c' }} onClick={remove}>Delete element</button>
+              <button className="mt-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-1.5 w-fit" onClick={remove}>
+                <Trash2 className="w-3.5 h-3.5" /> Delete element
+              </button>
             </>
           )}
-        </fieldset>
+        </Box>
       </div>
     </div>
   );
 }
 
+function ToolButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500">
+      {icon} + {label}
+    </button>
+  );
+}
+
+function Box({ legend, icon, children }: { legend: string; icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <fieldset className="border border-gray-200 dark:border-gray-700 rounded-xl p-3 bg-white dark:bg-slate-900">
+      <legend className="font-semibold px-1 text-xs text-gray-700 dark:text-gray-200 flex items-center gap-1.5">{icon}{legend}</legend>
+      <div className="flex flex-col gap-2 mt-1">{children}</div>
+    </fieldset>
+  );
+}
+
 const toHex = (c?: string) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c : '#ffffff');
-const inputStyle: React.CSSProperties = { border: '1px solid #cbd5e1', borderRadius: 4, padding: '2px 6px', width: 70, background: '#fff', color: '#111' };
-const btn: React.CSSProperties = { border: '1px solid #cbd5e1', borderRadius: 6, padding: '4px 10px', background: '#fff', color: '#0f172a', cursor: 'pointer', fontSize: 12 };
-const tab = (on: boolean): React.CSSProperties => ({ ...btn, background: on ? '#1d4ed8' : '#fff', color: on ? '#fff' : '#0f172a', borderColor: on ? '#1d4ed8' : '#cbd5e1' });
-const box: React.CSSProperties = { border: '1px solid #e2e8f0', borderRadius: 8, padding: 10, background: '#fff', color: '#0f172a' };
-const legend: React.CSSProperties = { fontWeight: 600, padding: '0 4px', fontSize: 12 };
-const row: React.CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 };
+const numInputCls = 'border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-[72px] bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-xs';
+const btnCls = 'border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs disabled:opacity-50';
+const rowCls = 'flex gap-2 items-center flex-wrap';
