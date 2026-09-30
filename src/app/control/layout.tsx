@@ -5,45 +5,109 @@
  * Deliberately distinct from the school app (dark slate chrome) so an
  * operator always knows which security domain they are in. Session checks
  * hit /api/control-center/auth — never the school session.
+ *
+ * Navigation: a grouped sidebar on desktop (lg+), a 3-item bottom nav plus a
+ * "More" drawer on mobile — replaces the old horizontally-scrolling topbar,
+ * which stopped scaling once the link count grew.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck } from 'lucide-react';
+import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck, Menu, X } from 'lucide-react';
 
-const NAV = [
-  { href: '/control/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/control/schools', label: 'Schools', icon: School },
-  { href: '/control/devices', label: 'Devices', icon: HardDrive },
-  { href: '/control/plans', label: 'Plans', icon: CreditCard },
-  { href: '/control/sms', label: 'SMS', icon: MessageSquare },
-  { href: '/control/sms/providers', label: 'SMS Providers', icon: ShieldCheck },
-  { href: '/control/sms/routing', label: 'School SMS Routing', icon: Send },
-  { href: '/control/sms/pricing', label: 'SMS Pricing & Top-ups', icon: CreditCard },
-  { href: '/control/id-cards/watermark', label: 'ID Card Watermark', icon: BadgeCheck },
-  // Distinct from SMS (billing/quota economics): Comms is cross-channel
-  // message oversight (delivery/history), starting with WhatsApp.
-  { href: '/control/comm', label: 'Comms', icon: Send },
-  { href: '/control/bi', label: 'Business', icon: TrendingUp },
-  { href: '/control/system-health', label: 'System Health', icon: Activity },
-  // Distinct from System Health (current metrics): Sentinel is the
-  // incident-detection, self-monitoring, and SMS-alerting layer.
-  { href: '/control/sentinel', label: 'Sentinel', icon: ShieldCheck },
-  { href: '/control/operators', label: 'Operators', icon: Users },
-  { href: '/control/sessions', label: 'Sessions', icon: Monitor },
-  // Placed next to Operators, not under Schools: an operator looking for
-  // "someone cannot sign in" reaches for people, not for a school record.
-  { href: '/control/user-locks', label: 'Account Locks', icon: Lock },
-  { href: '/control/database-settings', label: 'Database Access', icon: KeyRound },
-  { href: '/control/audit', label: 'Audit Log', icon: ScrollText },
-  { href: '/control/docs', label: 'Docs', icon: BookOpen },
+const NAV_GROUPS = [
+  {
+    label: 'Overview',
+    items: [
+      { href: '/control/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: 'Schools',
+    items: [
+      { href: '/control/schools', label: 'Schools', icon: School },
+      { href: '/control/devices', label: 'Devices', icon: HardDrive },
+      { href: '/control/plans', label: 'Plans', icon: CreditCard },
+      { href: '/control/id-cards/watermark', label: 'ID Card Watermark', icon: BadgeCheck },
+    ],
+  },
+  {
+    label: 'Messaging',
+    items: [
+      { href: '/control/sms', label: 'SMS', icon: MessageSquare },
+      { href: '/control/sms/providers', label: 'SMS Providers', icon: ShieldCheck },
+      { href: '/control/sms/routing', label: 'School SMS Routing', icon: Send },
+      { href: '/control/sms/pricing', label: 'SMS Pricing & Top-ups', icon: CreditCard },
+      // Distinct from SMS (billing/quota economics): Comms is cross-channel
+      // message oversight (delivery/history), starting with WhatsApp.
+      { href: '/control/comm', label: 'Comms', icon: Send },
+    ],
+  },
+  {
+    label: 'Monitoring',
+    items: [
+      { href: '/control/bi', label: 'Business', icon: TrendingUp },
+      { href: '/control/system-health', label: 'System Health', icon: Activity },
+      // Distinct from System Health (current metrics): Sentinel is the
+      // incident-detection, self-monitoring, and SMS-alerting layer.
+      { href: '/control/sentinel', label: 'Sentinel', icon: ShieldCheck },
+    ],
+  },
+  {
+    label: 'Access & security',
+    items: [
+      { href: '/control/operators', label: 'Operators', icon: Users },
+      { href: '/control/sessions', label: 'Sessions', icon: Monitor },
+      // Placed next to Operators, not under Schools: an operator looking for
+      // "someone cannot sign in" reaches for people, not for a school record.
+      { href: '/control/user-locks', label: 'Account Locks', icon: Lock },
+      { href: '/control/database-settings', label: 'Database Access', icon: KeyRound },
+      { href: '/control/audit', label: 'Audit Log', icon: ScrollText },
+    ],
+  },
+  {
+    label: 'Help',
+    items: [
+      { href: '/control/docs', label: 'Docs', icon: BookOpen },
+    ],
+  },
 ];
+
+// Bottom nav (mobile) surfaces only the highest-traffic destinations;
+// everything else lives behind "More".
+const MOBILE_PRIMARY_HREFS = ['/control/dashboard', '/control/schools', '/control/sms'];
+
+function NavLinks({ onNavigate, pathname }: { onNavigate?: () => void; pathname: string }) {
+  return (
+    <nav className="p-3 space-y-5">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.label}>
+          <div className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{group.label}</div>
+          <div className="space-y-0.5">
+            {group.items.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href} href={href} onClick={onNavigate}
+                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm ${
+                  pathname.startsWith(href)
+                    ? 'bg-indigo-500/15 text-indigo-300'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}`}
+              >
+                <Icon className="w-4 h-4 shrink-0" /> <span className="truncate">{label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
 
 export default function ControlLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [state, setState] = useState<'loading' | 'anon' | 'authed'>('loading');
   const [user, setUser] = useState<any>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Control Center theme — no longer forced dark. Persisted per operator.
   const [theme, setTheme] = useState<'system' | 'light' | 'dark' | 'contrast'>('dark');
@@ -71,6 +135,8 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
     });
   }, []);
 
+  useEffect(() => { setDrawerOpen(false); }, [pathname]);
+
   const check = useCallback(async () => {
     try {
       const r = await fetch('/api/control-center/auth', { cache: 'no-store' });
@@ -97,6 +163,9 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-7 h-7 animate-spin text-indigo-400" /></div>;
   }
   if (state === 'anon') return null; // redirecting
+
+  const flatNav = NAV_GROUPS.flatMap((g) => g.items);
+  const mobilePrimary = MOBILE_PRIMARY_HREFS.map((href) => flatNav.find((i) => i.href === href)).filter(Boolean) as typeof flatNav;
 
   return (
     <div data-theme={resolved} className="ctl min-h-screen bg-slate-950 text-slate-100 control-print-area">
@@ -147,7 +216,8 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
           .control-print-area [class*="bg-slate"] { background: #fff !important; border-color: #d4d4d8 !important; box-shadow: none !important; }
         }
       `}</style>
-      {/* Top chrome */}
+      {/* Top chrome — branding, theme, sign out. Navigation lives in the
+          sidebar (desktop) / bottom nav (mobile) below, not here. */}
       <header className="no-print border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-40">
         <div className="w-full px-3 sm:px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
@@ -168,19 +238,47 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
             <button onClick={logout} title="Sign out" className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs"><LogOut className="w-3.5 h-3.5" /><span className="hidden sm:inline">Sign out</span></button>
           </div>
         </div>
-        <nav className="w-full px-4 flex gap-1 overflow-x-auto lg:flex-wrap lg:overflow-visible">
-          {NAV.map(({ href, label, icon: Icon }) => (
+      </header>
+
+      <div className="flex">
+        {/* Desktop sidebar — grouped, sticky under the header, its own scroll. */}
+        <aside className="no-print hidden lg:block w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <NavLinks pathname={pathname} />
+        </aside>
+
+        <main className="flex-1 min-w-0 max-w-6xl mx-auto px-4 py-6 pb-20 lg:pb-6">{children}</main>
+      </div>
+
+      {/* Mobile bottom nav — 3 highest-traffic links plus "More". */}
+      <nav className="no-print lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-800 bg-slate-900/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-4">
+          {mobilePrimary.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 whitespace-nowrap ${
-                pathname.startsWith(href)
-                  ? 'border-indigo-400 text-indigo-300'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
-              <Icon className="w-4 h-4" /> {label}
+              className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${
+                pathname.startsWith(href) ? 'text-indigo-300' : 'text-slate-400'}`}>
+              <Icon className="w-5 h-5" /> {label}
             </Link>
           ))}
-        </nav>
-      </header>
-      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+          <button onClick={() => setDrawerOpen(true)}
+            className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${drawerOpen ? 'text-indigo-300' : 'text-slate-400'}`}>
+            <Menu className="w-5 h-5" /> More
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile "More" drawer — the full grouped nav, off the bottom bar. */}
+      {drawerOpen && (
+        <div className="no-print lg:hidden fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setDrawerOpen(false)} />
+          <div className="relative w-72 max-w-[85vw] h-full bg-slate-900 border-l border-slate-800 overflow-y-auto">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-slate-800">
+              <span className="text-sm font-semibold">Menu</span>
+              <button onClick={() => setDrawerOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-800"><X className="w-4 h-4" /></button>
+            </div>
+            <NavLinks pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
