@@ -4,6 +4,8 @@ import { requirePermission } from '@/lib/rbac';
 import { getCommSettings, updateCommSettings } from '@/lib/comm';
 import { listProviders } from '@/lib/comm';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { planForSchool } from '@/lib/sms/school-routing';
+import { query } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -22,7 +24,29 @@ export async function GET(req: NextRequest) {
     whatsappProviderApiKey: settings.whatsappProviderApiKey ? '********' : null,
     hasWhatsappApiKey: !!settings.whatsappProviderApiKey,
   };
-  return NextResponse.json({ success: true, settings: masked, providers });
+
+  // What Control Center actually routes this school's SMS through right
+  // now (src/lib/sms/school-routing.ts) — the school's own "Default
+  // Provider"/credentials below only ever apply as a fallback (an
+  // EXPLICIT mode:'own' route, or no active platform provider at all).
+  // Surfaced so this page stops implying the school picks its own
+  // provider when, for attendance/bulk SMS, Control Center's choice wins.
+  let effectiveRoute: { kind: string; providerName: string | null } = { kind: 'legacy', providerName: null };
+  try {
+    const plan = await planForSchool(session.schoolId);
+    if (plan.kind === 'central') {
+      const p = ((await query(`SELECT display_name FROM sms_provider_configs WHERE id = ? LIMIT 1`, [plan.providerId]).catch(() => [])) as any[])[0];
+      effectiveRoute = { kind: 'central', providerName: p?.display_name ?? `Provider #${plan.providerId}` };
+    } else if (plan.kind === 'own') {
+      effectiveRoute = { kind: 'own', providerName: "Africa's Talking (this school's own account)" };
+    } else if (plan.kind === 'error') {
+      effectiveRoute = { kind: 'error', providerName: null };
+    } else {
+      effectiveRoute = { kind: 'legacy', providerName: null };
+    }
+  } catch { /* best-effort — settings still load without it */ }
+
+  return NextResponse.json({ success: true, settings: masked, providers, effectiveRoute });
 }
 
 export async function PUT(req: NextRequest) {

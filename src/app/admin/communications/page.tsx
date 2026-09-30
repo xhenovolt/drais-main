@@ -414,6 +414,18 @@ function SettingsPanel() {
             className={inputCls} placeholder="[ALBAYAN]" />
           <p className="text-[10px] text-slate-400 mt-1">Prepended to every outgoing SMS. Leave blank to disable.</p>
         </F>
+        {data?.effectiveRoute && (
+          <div className={`text-xs rounded-lg p-2.5 ${
+            data.effectiveRoute.kind === 'error'
+              ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+              : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
+          }`}>
+            {data.effectiveRoute.kind === 'central' && <>SMS from this school is currently routed by <strong>DRAIS Control Center</strong> to <strong>{data.effectiveRoute.providerName}</strong>. This is set centrally, not by the fields below.</>}
+            {data.effectiveRoute.kind === 'own' && <>Control Center has this school set to use <strong>its own account</strong> below — that's why the credentials section applies here.</>}
+            {data.effectiveRoute.kind === 'error' && <>Control Center's SMS routing for this school has a problem — contact support.</>}
+            {data.effectiveRoute.kind === 'legacy' && <>No central SMS provider is active in Control Center right now — the fields below are being used as a fallback.</>}
+          </div>
+        )}
         <F label="Default Provider">
           <select value={form.defaultProvider}
             onChange={e => setForm({ ...form, defaultProvider: e.target.value })} className={inputCls}>
@@ -421,10 +433,18 @@ function SettingsPanel() {
               <option key={p.name} value={p.name}>{p.name}</option>
             )}
           </select>
+          <p className="text-[10px] text-slate-400 mt-1">
+            Only used when Control Center has no active provider and this school has no central route — see the
+            banner above for what's actually in effect right now.
+          </p>
         </F>
 
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Provider Credentials (Africa&apos;s Talking)</h3>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Fallback Credentials (Africa&apos;s Talking)</h3>
+          <p className="text-[10px] text-slate-400 mb-2">
+            Used only as a last resort (see the banner above) — not while Control Center has this school routed
+            to a central provider.
+          </p>
           <F label="Username">
             <input value={form.providerUsername}
               onChange={e => setForm({ ...form, providerUsername: e.target.value })}

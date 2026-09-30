@@ -60,11 +60,29 @@ export function resolveRoutePlan(
       cur = row.sourceSchoolId;
       continue;
     }
-    // inherit
-    if (cur === schoolId) return { kind: 'legacy' };
-    // A school we were pointed at has no explicit route: use ITS account.
-    if (hasOwnCreds(cur)) return { kind: 'own', schoolId: cur, via };
+    // inherit — no EXPLICIT Control Center override for this school. Control
+    // Center's active central provider is the source of truth by default:
+    // a school keeps using its own legacy comm_settings credentials only
+    // when there is no active central provider at all (bootstrap/empty
+    // platform state), or when Control Center has EXPLICITLY set mode:
+    // 'own' for it (handled above, before this branch is ever reached).
+    // Previously this returned 'legacy' unconditionally for the school
+    // being resolved, which meant switching the platform's active provider
+    // silently did nothing for any school that already had its own
+    // comm_settings credentials sitting from before this routing system
+    // existed — confirmed live: Nakifuma kept sending via its own Africa's
+    // Talking account for days after the founder switched the platform
+    // provider to Yoola in Control Center, with no explicit 'own' route
+    // ever set for it.
+    if (cur === schoolId) {
+      if (activeCentralId) return { kind: 'central', providerId: activeCentralId, via };
+      return { kind: 'legacy' };
+    }
+    // A school we were pointed at (via same_as) has no explicit route:
+    // prefer the platform provider too, for the same reason; fall back to
+    // its own account only if the platform has none configured.
     if (activeCentralId) return { kind: 'central', providerId: activeCentralId, via };
+    if (hasOwnCreds(cur)) return { kind: 'own', schoolId: cur, via };
     return { kind: 'error', reason: `School ${cur} has no SMS account to share`, via };
   }
   return { kind: 'error', reason: 'Route chain is too long', via };
@@ -136,11 +154,12 @@ export async function planForSchool(schoolId: number): Promise<RoutePlan> {
   const c = cache.get(schoolId);
   if (c && c.exp > Date.now()) return c.plan;
   const routes = await loadRoutes();
-  const row = routes.get(schoolId);
-  // No explicit route for this school -> legacy, without loading any credentials.
-  const plan: RoutePlan = !row || row.mode === 'inherit'
-    ? { kind: 'legacy' }
-    : resolveRoutePlan(schoolId, routes, await hasCredsFn(), await getActiveCentralId());
+  // Always resolve through resolveRoutePlan, even with no explicit row —
+  // it correctly falls through to the platform's active central provider
+  // in that case now. A shortcut here used to jump straight to 'legacy'
+  // without even checking activeCentralId, which silently defeated that
+  // fallback for the (common) case of a school with no row at all.
+  const plan: RoutePlan = resolveRoutePlan(schoolId, routes, await hasCredsFn(), await getActiveCentralId());
   cache.set(schoolId, { exp: Date.now() + 30_000, plan });
   return plan;
 }

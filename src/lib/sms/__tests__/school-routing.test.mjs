@@ -10,13 +10,41 @@ const has = (ids) => (id) => ids.includes(id);
 const map = (o) => new Map(Object.entries(o).map(([k, v]) => [Number(k), { mode: 'inherit', centralProviderId: null, sourceSchoolId: null, ...v }]));
 
 describe('resolving a route', () => {
-  it('no explicit route = legacy behaviour (nothing changes for existing schools)', () => {
-    assert.deepEqual(resolveRoutePlan(NAKIFUMA, new Map(), has([NAKIFUMA]), 2).kind, 'legacy');
+  it('no explicit route + an active platform provider = Control Center is authoritative', () => {
+    // Regression for the real Nakifuma incident: the founder switched the
+    // platform's active provider (Africa's Talking -> Yoola) in Control
+    // Center, but Nakifuma had no EXPLICIT school_sms_routes row (the
+    // default state) and kept sending via its own leftover comm_settings
+    // Africa's Talking credentials for days. Control Center's choice must
+    // win for any school that hasn't been explicitly told to use its own
+    // account.
+    const centralNoRow = resolveRoutePlan(NAKIFUMA, new Map(), has([NAKIFUMA]), 2);
+    assert.deepEqual(centralNoRow, { kind: 'central', providerId: 2, via: [NAKIFUMA] });
+    const centralInherit = resolveRoutePlan(NAKIFUMA, map({ [NAKIFUMA]: { mode: 'inherit' } }), has([NAKIFUMA]), 2);
+    assert.deepEqual(centralInherit, { kind: 'central', providerId: 2, via: [NAKIFUMA] });
+  });
+  it('no explicit route and NO active platform provider at all = true bootstrap fallback to legacy', () => {
+    assert.deepEqual(resolveRoutePlan(NAKIFUMA, new Map(), has([NAKIFUMA]), null).kind, 'legacy');
     assert.deepEqual(resolveRoutePlan(NAKIFUMA, map({ [NAKIFUMA]: { mode: 'inherit' } }), has([]), null).kind, 'legacy');
   });
-  it('same_as: Nakifuma uses Albayan\'s account — resolved live, nothing copied', () => {
-    const p = resolveRoutePlan(NAKIFUMA, map({ [NAKIFUMA]: { mode: 'same_as', sourceSchoolId: ALBAYAN } }), has([ALBAYAN, NAKIFUMA]), 2);
+  it('an EXPLICIT mode: "own" is still honoured even with an active platform provider — Control Center chose that exception on purpose', () => {
+    assert.deepEqual(resolveRoutePlan(NAKIFUMA, map({ [NAKIFUMA]: { mode: 'own' } }), has([NAKIFUMA]), 2), { kind: 'own', schoolId: NAKIFUMA, via: [NAKIFUMA] });
+  });
+  it('same_as: Nakifuma follows Albayan\'s OWN EXPLICIT route — resolved live, nothing copied', () => {
+    // Albayan must have an explicit mode:'own' route of its own for this to
+    // resolve to 'own' — same_as means "resolve as if you asked Albayan",
+    // and asking Albayan directly (with no explicit route of its own) now
+    // resolves to the active central provider too, consistently.
+    const p = resolveRoutePlan(
+      NAKIFUMA,
+      map({ [NAKIFUMA]: { mode: 'same_as', sourceSchoolId: ALBAYAN }, [ALBAYAN]: { mode: 'own' } }),
+      has([ALBAYAN, NAKIFUMA]), 2,
+    );
     assert.deepEqual(p, { kind: 'own', schoolId: ALBAYAN, via: [NAKIFUMA, ALBAYAN] });
+  });
+  it('same_as to a school with NO explicit route of its own also follows the active central provider — consistent with resolving that school directly', () => {
+    const p = resolveRoutePlan(NAKIFUMA, map({ [NAKIFUMA]: { mode: 'same_as', sourceSchoolId: ALBAYAN } }), has([ALBAYAN, NAKIFUMA]), 2);
+    assert.deepEqual(p, { kind: 'central', providerId: 2, via: [NAKIFUMA, ALBAYAN] });
   });
   it('same_as follows the source school\'s own explicit route (chains)', () => {
     const routes = map({ [NAKIFUMA]: { mode: 'same_as', sourceSchoolId: OTHER }, [OTHER]: { mode: 'central', centralProviderId: 3 } });

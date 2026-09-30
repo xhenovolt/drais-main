@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T13:24:10.641Z",
-  "last_commit": "6bb9c6e67574cad16722eab0ff8abbdfa642a529",
+  "generated_at": "2026-09-30T15:48:22.604Z",
+  "last_commit": "ca0ba415f1ad7d1bfc8165abee0d31ef3986f9b4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8331,7 +8331,20 @@
         }
       ],
       "commit": "6bb9c6e675"
+    },
+    {
+      "version": "2.31.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "Read photos pasted directly into an Excel column, entirely client-side",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Read photos pasted directly into an Excel column, entirely client-side"
+        }
+      ],
+      "commit": "ca0ba415f1"
     }
   ],
-  "app_version": "2.31.0"
+  "app_version": "2.32.0"
 }
