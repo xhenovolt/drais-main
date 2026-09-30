@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T17:20:51.311Z",
-  "last_commit": "ef23847c5b776436067deb87c7339b6887f54925",
+  "generated_at": "2026-09-30T17:29:55.703Z",
+  "last_commit": "3e8a3bb7b521e550a26fd3282b112c64e9ee808d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8370,7 +8370,20 @@
         }
       ],
       "commit": "ef23847c5b"
+    },
+    {
+      "version": "2.34.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "Attendance Insights showed person-days as if they were people, with no day/boarding split",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Attendance Insights showed person-days as if they were people, with no day/boarding split"
+        }
+      ],
+      "commit": "3e8a3bb7b5"
     }
   ],
-  "app_version": "2.34.0"
+  "app_version": "2.35.0"
 }

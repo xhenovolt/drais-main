@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound } from 'lucide-react';
+import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck } from 'lucide-react';
 
 const NAV = [
   { href: '/control/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -20,6 +20,7 @@ const NAV = [
   { href: '/control/sms/providers', label: 'SMS Providers', icon: ShieldCheck },
   { href: '/control/sms/routing', label: 'School SMS Routing', icon: Send },
   { href: '/control/sms/pricing', label: 'SMS Pricing & Top-ups', icon: CreditCard },
+  { href: '/control/id-cards/watermark', label: 'ID Card Watermark', icon: BadgeCheck },
   // Distinct from SMS (billing/quota economics): Comms is cross-channel
   // message oversight (delivery/history), starting with WhatsApp.
   { href: '/control/comm', label: 'Comms', icon: Send },
