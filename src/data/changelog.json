@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T03:36:42.129Z",
-  "last_commit": "128c8251143d6d80e2a6bc7c481099c030bc4553",
+  "generated_at": "2026-09-30T03:37:13.829Z",
+  "last_commit": "00e479e22fa39e8d37832c7855006907bdb31eb9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8266,7 +8266,20 @@
         }
       ],
       "commit": "128c825114"
+    },
+    {
+      "version": "2.27.2",
+      "date": "2026-09-30",
+      "release_type": "patch",
+      "title": "Overview showed two different \"total students\" numbers on the same page",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Overview showed two different \"total students\" numbers on the same page"
+        }
+      ],
+      "commit": "00e479e22f"
     }
   ],
-  "app_version": "2.27.2"
+  "app_version": "2.28.0"
 }

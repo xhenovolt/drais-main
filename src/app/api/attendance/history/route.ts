@@ -301,13 +301,26 @@ export async function GET(req: NextRequest) {
          -- migration 027) and a person may get >1 notification the same day
          -- — pick one deterministic row for each rather than joining every
          -- match, or a single punch fans out into duplicate displayed rows.
+         --
+         -- e2.status = 'active' was dropped: enrollment rows go 'closed' the
+         -- instant a class-promotion / academic-year rollover writes the
+         -- replacement row, which can lag by days at a school mid-promotion
+         -- (confirmed live at Nakifuma: 521 of 527 recent enrollment rows
+         -- 'closed', only 6 'active') — requiring it made the Class column
+         -- blank for nearly every learner during a promotion, not merely
+         -- for genuinely unenrolled ones. Same root cause already fixed for
+         -- attendance population in dashboard-counts.ts/breakdown.ts/
+         -- finalize-day.ts; ORDER BY now prefers an active row when one
+         -- exists, else the most recent, so promoted-but-not-yet-'active'
+         -- students still show their real class instead of "Unknown".
          (SELECT c2.name
             FROM enrollments e2
             LEFT JOIN programs pr2 ON pr2.id = e2.program_id
             JOIN classes c2 ON c2.id = e2.class_id
-           WHERE e2.student_id = s.id AND e2.status = 'active'
-           ORDER BY pr2.is_default DESC, e2.id DESC
+           WHERE e2.student_id = s.id AND e2.deleted_at IS NULL
+           ORDER BY (e2.status = 'active') DESC, pr2.is_default DESC, e2.id DESC
            LIMIT 1) AS class_name,
+         COALESCE(NULLIF(s.residency_status, ''), NULL) AS residency_status,
          (SELECT ob2.status
             FROM notification_outbox ob2
            WHERE ob2.school_id = ar.school_id

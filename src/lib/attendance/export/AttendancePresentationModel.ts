@@ -11,6 +11,9 @@ export interface AttendanceHistoryBaseRow {
   derived_event: string | null;
   derived_detail: string | null;
   class_name: string | null;
+  /** students.residency_status ('day' | 'boarding'), null for staff/unmatched
+   *  or a student whose residency was never set. */
+  residency_status?: string | null;
   person_name: string | null;
   staff_position?: string | null;
   staff_department?: string | null;
@@ -25,6 +28,9 @@ export interface AttendancePresentationRow {
   department: string;
   category: string;
   className: string;
+  /** "Day" | "Boarding" | "Not set" — never blank, so a missing residency
+   *  reads as a real gap in the school's own data, not a UI omission. */
+  residence: string;
   deviceId: string;
   school: string;
   verificationMethod: string;
@@ -47,6 +53,7 @@ const EXPORT_COLUMNS: ReadonlyArray<AttendanceExportColumn> = [
   { key: 'department', header: 'Department' },
   { key: 'category', header: 'Category' },
   { key: 'className', header: 'Class' },
+  { key: 'residence', header: 'Section' },
   { key: 'deviceId', header: 'Device ID' },
   { key: 'school', header: 'School' },
   { key: 'verificationMethod', header: 'Verification Method' },
@@ -76,6 +83,10 @@ export class AttendancePresentationModel {
       department: formatter.formatNullable(row.staff_department ?? null),
       category: formatter.formatCategory(row.role_type || 'unmatched'),
       className: formatter.formatNullable(row.class_name),
+      residence: row.role_type !== 'student' ? formatter.emptyValue
+        : row.residency_status === 'boarding' ? 'Boarding'
+        : row.residency_status === 'day' ? 'Day'
+        : 'Not set',
       deviceId: formatter.formatNullable(row.device_user_id),
       school: formatter.formatNullable(formatter.schoolName),
       verificationMethod: formatter.formatVerificationMethod(row.verify_type),

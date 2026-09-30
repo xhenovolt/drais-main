@@ -660,6 +660,11 @@ export default function UnifiedAttendancePage() {
   const { data: devicesData } = useSWR<any>('/api/devices/list');
   const devices = devicesData?.data || [];
 
+  // Table row density (Settings → Attendance → Logs display) — school-wide,
+  // not per-browser, so every admin sees the layout the school configured.
+  const { data: displaySettings } = useSWR<any>('/api/attendance/settings/logs-display');
+  const logsDensity: 'compact' | 'comfortable' | 'spacious' = displaySettings?.density || 'comfortable';
+
   // Time Intelligence: proactive clock-drift warning — the anomaly finds the
   // operator, not the other way round. Cheap poll; renders only on anomaly.
   const { data: timeHealth } = useSWR<any>('/api/attendance/time-health?banner=1', {
@@ -1453,8 +1458,18 @@ export default function UnifiedAttendancePage() {
         </div>
 
         {/* ── Table (sm+) ────────────────────────────────────────────── */}
-        <div className="hidden sm:block bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700
-          rounded-xl overflow-hidden shadow-sm">
+        {/* Row density is school-configured (Settings → Attendance → Logs
+            display), not hardcoded — a scoped CSS override beats rewriting
+            every td/th's Tailwind classes, and its specificity (class+tag)
+            reliably beats the plain utility classes on the cells. */}
+        <style jsx>{`
+          .logs-density-compact :global(td),
+          .logs-density-compact :global(th) { padding-top: 0.25rem; padding-bottom: 0.25rem; font-size: 0.75rem; }
+          .logs-density-spacious :global(td),
+          .logs-density-spacious :global(th) { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+        `}</style>
+        <div className={`hidden sm:block bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700
+          rounded-xl overflow-hidden shadow-sm logs-density-${logsDensity}`}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-900/50">
@@ -1473,6 +1488,7 @@ export default function UnifiedAttendancePage() {
                     { key: 'name', label: 'Name', cls: '' },
                     { key: 'type', label: 'Category', cls: '' },
                     { key: null, label: 'Class', cls: ' hidden md:table-cell' },
+                    { key: null, label: 'Section', cls: ' hidden md:table-cell' },
                     { key: 'pin', label: 'Device ID', cls: ' hidden lg:table-cell' },
                     { key: null, label: 'Verification Method', cls: ' hidden lg:table-cell' },
                     { key: 'status', label: 'Attendance Status', cls: '' },
@@ -1505,7 +1521,7 @@ export default function UnifiedAttendancePage() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {isLoading && logs.length === 0 && (
                   <tr>
-                    <td colSpan={tab === 'unmatched' ? 10 : 9} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={tab === 'unmatched' ? 11 : 10} className="px-4 py-12 text-center text-gray-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                       Loading...
                     </td>
@@ -1513,7 +1529,7 @@ export default function UnifiedAttendancePage() {
                 )}
                 {!isLoading && logs.length === 0 && (
                   <tr>
-                    <td colSpan={tab === 'unmatched' ? 10 : 9} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={tab === 'unmatched' ? 11 : 10} className="px-4 py-12 text-center text-gray-400">
                       No records found for this filter.
                       Try to see this live view here <br></br>
                       {liveEvents.map((ev, i) => (
@@ -1614,6 +1630,21 @@ export default function UnifiedAttendancePage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
                       {presentation?.className || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm hidden md:table-cell">
+                      {log.person_type === 'student' ? (
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                          log.residency_status === 'boarding'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                            : log.residency_status === 'day'
+                              ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                        }`}>
+                          {presentation?.residence || 'Not set'}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-gray-500 hidden lg:table-cell">
                       {presentation?.deviceId || log.device_user_id}
