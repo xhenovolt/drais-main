@@ -26,9 +26,11 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 
   interface PersonAgg {
-    person_id: number; name: string; detail: string | null;
+    person_id: number; name: string; detail: string | null; residence: string | null;
     absents: number; lates: number; presents: number; days: number;
   }
+
+  const emptyDist = () => ({ present: 0, late: 0, absent: 0 });
 
   const perRole = async (role: 'staff' | 'student') => {
     // A student may hold 2+ simultaneous active enrollments (multi-program).
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
     // enrollment per row without joining anything.
     const detailJoin = role === 'staff'
       ? `LEFT JOIN staff st ON st.person_id = r.person_id AND st.school_id = r.school_id AND st.deleted_at IS NULL`
-      : '';
+      : `LEFT JOIN students s_res ON s_res.person_id = r.person_id AND s_res.school_id = r.school_id`;
     const detailCol = role === 'staff'
       ? 'MAX(st.position)'
       : `MAX((SELECT c3.name FROM students s3
@@ -49,10 +51,16 @@ export async function GET(req: NextRequest) {
                 JOIN classes c3 ON c3.id = e3.class_id
                WHERE s3.person_id = r.person_id AND s3.school_id = r.school_id
                ORDER BY pr3.is_default DESC, e3.id DESC LIMIT 1))`;
+    // Residence (day/boarding) — students only. Reported separately below so
+    // a school can see "is this absence total mostly boarders who simply
+    // hadn't reported yet this period, or day scholars actually missing
+    // school" instead of one undifferentiated number.
+    const residenceCol = role === 'student' ? `MAX(COALESCE(NULLIF(s_res.residency_status, ''), 'day'))` : `NULL`;
     const rows = (await query(
       `SELECT r.person_id,
               TRIM(CONCAT_WS(' ', p.first_name, p.last_name)) AS name,
               ${detailCol} AS detail,
+              ${residenceCol} AS residence,
               SUM(r.status = 'absent') AS absents,
               SUM(r.status = 'late') AS lates,
               SUM(r.status IN ('present', 'late')) AS presents,
@@ -69,13 +77,24 @@ export async function GET(req: NextRequest) {
     const num = (v: unknown) => Number(v || 0);
     const people = rows.map(r => ({
       personId: Number(r.person_id), name: r.name, detail: r.detail,
+      residence: r.residence === 'boarding' ? 'boarding' as const : r.residence === 'day' ? 'day' as const : null,
       absents: num(r.absents), lates: num(r.lates), presents: num(r.presents), days: num(r.days),
     }));
 
-    const distribution = people.reduce(
-      (a, p) => ({ present: a.present + p.presents - p.lates, late: a.late + p.lates, absent: a.absent + p.absents }),
-      { present: 0, late: 0, absent: 0 },
-    );
+    const addDist = (a: { present: number; late: number; absent: number }, p: typeof people[number]) =>
+      ({ present: a.present + p.presents - p.lates, late: a.late + p.lates, absent: a.absent + p.absents });
+    const distribution = people.reduce(addDist, emptyDist());
+    // Person-DAY totals over the window, split by residence — these are not
+    // headcounts (a chronically-absent boarder contributes many "absent"
+    // days, one person), which is exactly why the split matters: a school
+    // needs to tell "many boarders who simply hadn't reported yet this
+    // period" apart from "day scholars genuinely missing school".
+    const byResidence = role === 'student'
+      ? {
+          day: people.filter(p => p.residence === 'day').reduce(addDist, emptyDist()),
+          boarding: people.filter(p => p.residence === 'boarding').reduce(addDist, emptyDist()),
+        }
+      : undefined;
     const top = (key: 'absents' | 'lates', n = 5) =>
       [...people].filter(p => p[key] > 0).sort((a, b) => b[key] - a[key] || a.name.localeCompare(b.name)).slice(0, n);
     const best = [...people]
@@ -83,7 +102,7 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.presents - a.presents || a.lates - b.lates || a.name.localeCompare(b.name))
       .slice(0, 5);
 
-    return { distribution, mostAbsent: top('absents'), mostLate: top('lates'), bestPresent: best, people: people.length };
+    return { distribution, byResidence, mostAbsent: top('absents'), mostLate: top('lates'), bestPresent: best, people: people.length };
   };
 
   try {

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T16:39:47.482Z",
-  "last_commit": "fd44e8481d9113ccecc179ff4be6f7a800309ae6",
+  "generated_at": "2026-09-30T17:20:51.311Z",
+  "last_commit": "ef23847c5b776436067deb87c7339b6887f54925",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8357,7 +8357,20 @@
         }
       ],
       "commit": "fd44e8481d"
+    },
+    {
+      "version": "2.33.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "Studio redesign — dark mode, side-by-side front/back, visible photo fit, cramped layout",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Studio redesign — dark mode, side-by-side front/back, visible photo fit, cramped layout"
+        }
+      ],
+      "commit": "ef23847c5b"
     }
   ],
-  "app_version": "2.33.0"
+  "app_version": "2.34.0"
 }

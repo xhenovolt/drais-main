@@ -16,13 +16,21 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 const STATUS_HEX = { present: '#10b981', late: '#f59e0b', absent: '#ef4444' } as const;
 
 interface TopPerson { personId: number; name: string; detail: string | null; absents: number; lates: number; presents: number; days: number; }
+interface Dist { present: number; late: number; absent: number }
 interface RoleInsights {
-  distribution: { present: number; late: number; absent: number };
+  distribution: Dist;
+  byResidence?: { day: Dist; boarding: Dist };
   mostAbsent: TopPerson[]; mostLate: TopPerson[]; bestPresent: TopPerson[];
   people: number;
 }
 
-function DistributionDonut({ d, isAr }: { d: RoleInsights['distribution']; isAr: boolean }) {
+/** unitLabel names what's actually being counted — "learner-days" over the
+ *  window, NOT a headcount. A chronically-absent boarder who hasn't yet
+ *  reported this term contributes many "absent" days from one person; shown
+ *  as a bare number with no unit, that reads as if thousands of distinct
+ *  people were absent, which is exactly the "fragmented, deceptive dashboard"
+ *  complaint this fixes. */
+function DistributionDonut({ d, isAr, unitLabel }: { d: RoleInsights['distribution']; isAr: boolean; unitLabel: string }) {
   const data = [
     { name: isAr ? 'حاضر' : 'Present', value: d.present, color: STATUS_HEX.present },
     { name: isAr ? 'متأخر' : 'Late', value: d.late, color: STATUS_HEX.late },
@@ -41,7 +49,7 @@ function DistributionDonut({ d, isAr }: { d: RoleInsights['distribution']; isAr:
               {data.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
             </Pie>
             <Tooltip
-              formatter={(v: any, n: any) => [`${Number(v).toLocaleString()} ${isAr ? 'يوم' : 'days'}`, n]}
+              formatter={(v: any, n: any) => [`${Number(v).toLocaleString()} ${unitLabel}`, n]}
               contentStyle={{ fontSize: 12, borderRadius: 8 }}
             />
           </PieChart>
@@ -57,11 +65,39 @@ function DistributionDonut({ d, isAr }: { d: RoleInsights['distribution']; isAr:
             <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: x.color }} />
             <span className="text-slate-500 dark:text-slate-400">{x.label}</span>
             <span className="font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
-              {x.v.toLocaleString()} <span className="font-normal text-slate-400">{total > 0 ? `(${Math.round((x.v / total) * 100)}%)` : ''}</span>
+              {x.v.toLocaleString()} <span className="font-normal text-slate-400">{unitLabel} {total > 0 ? `(${Math.round((x.v / total) * 100)}%)` : ''}</span>
             </span>
           </div>
         ))}
       </div>
+      <p className="sr-only">{isAr ? 'هذه أرقام أيام-شخص ضمن الفترة المحددة، وليست عدد الأشخاص.' : `Person-days over the selected window, not a headcount.`}</p>
+    </div>
+  );
+}
+
+function ResidenceSplit({ byResidence, isAr }: { byResidence: NonNullable<RoleInsights['byResidence']>; isAr: boolean }) {
+  const row = (label: string, d: Dist) => {
+    const total = d.present + d.late + d.absent;
+    return (
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-slate-500 dark:text-slate-400">{label}</span>
+        {total === 0 ? (
+          <span className="text-slate-400">{isAr ? 'لا بيانات' : 'no data'}</span>
+        ) : (
+          <span className="tabular-nums">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{d.present}</span>{isAr ? ' حاضر · ' : ' present · '}
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">{d.late}</span>{isAr ? ' متأخر · ' : ' late · '}
+            <span className="text-red-600 dark:text-red-400 font-semibold">{d.absent}</span>{isAr ? ' غائب' : ' absent'}
+          </span>
+        )}
+      </div>
+    );
+  };
+  return (
+    <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+      <p className="text-[11px] text-slate-400">{isAr ? 'حسب السكن (أيام-شخص)' : 'By residence (person-days)'}</p>
+      {row(isAr ? 'نهاري' : 'Day scholars', byResidence.day)}
+      {row(isAr ? 'داخلي' : 'Boarders', byResidence.boarding)}
     </div>
   );
 }
@@ -101,7 +137,8 @@ function RolePanel({ title, data, isAr }: { title: string; data: RoleInsights; i
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-4">
       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</p>
-      <DistributionDonut d={data.distribution} isAr={isAr} />
+      <DistributionDonut d={data.distribution} isAr={isAr} unitLabel={isAr ? 'أيام-شخص' : 'person-days'} />
+      {data.byResidence && <ResidenceSplit byResidence={data.byResidence} isAr={isAr} />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 border-t border-slate-100 dark:border-slate-800">
         <TopList
           title={isAr ? 'الأكثر غياباً' : 'Most absent'}
