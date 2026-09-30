@@ -306,8 +306,7 @@ function QuickAssignModal({
             placeholder={`Search ${userType === 'student' ? 'learner' : 'staff'} by name...`}
             value={personSearch}
             onChange={(e) => { setPersonSearch(e.target.value); setSelectedId(null); }}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-              focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-sm"
+            className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-sm"
             autoFocus
           />
         </div>
@@ -341,16 +340,14 @@ function QuickAssignModal({
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg
-              text-sm hover:bg-gray-50 dark:hover:bg-slate-700"
+            className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-slate-700"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!selectedId || saving}
-            className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg text-sm font-medium
-              hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {saving ? 'Saving...' : <><UserPlus className="w-4 h-4" /> Assign</>}
           </button>
@@ -1595,8 +1592,7 @@ export default function UnifiedAttendancePage() {
                               className="w-8 h-8 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50
-                              flex items-center justify-center text-xs font-bold text-blue-600">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-xs font-bold text-blue-600">
                               {log.person_name.charAt(0)}
                             </div>
                           )}
@@ -1697,8 +1693,7 @@ export default function UnifiedAttendancePage() {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => setAssignTarget(log.device_user_id)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white
-                            rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                           Assign
@@ -1713,8 +1708,7 @@ export default function UnifiedAttendancePage() {
 
           {/* Pagination */}
           {pagination.total > 0 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t
-              border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-900/30">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-900/30">
               <p className="text-sm text-gray-500">
                 Showing {(pagination.page - 1) * (pagination.limit || logs.length) + 1}
                 {' – '}
@@ -1726,16 +1720,14 @@ export default function UnifiedAttendancePage() {
                 <button
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page <= 1}
-                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                    hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
                   disabled={page >= pagination.totalPages}
-                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                    hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1799,25 +1791,21 @@ export default function UnifiedAttendancePage() {
               onChange={(e) => setClearConfirmText(e.target.value)}
               placeholder="CLEAR"
               autoFocus
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                bg-white dark:bg-slate-900 text-sm mb-4 focus:ring-2 focus:ring-red-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900 text-sm mb-4 focus:ring-2 focus:ring-red-500"
             />
 
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowClearModal(false); setClearConfirmText(''); }}
                 disabled={clearing}
-                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg
-                  text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleClearLogs}
                 disabled={clearing || clearConfirmText.trim().toUpperCase() !== 'CLEAR'}
-                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium
-                  hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed
-                  flex items-center justify-center gap-2"
+                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {clearing ? (
                   <><RefreshCw className="w-4 h-4 animate-spin" /> Clearing…</>
@@ -1868,25 +1856,21 @@ export default function UnifiedAttendancePage() {
               onChange={(e) => setResetConfirmText(e.target.value)}
               placeholder="RESET"
               autoFocus
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                bg-white dark:bg-slate-900 text-sm mb-4 focus:ring-2 focus:ring-red-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900 text-sm mb-4 focus:ring-2 focus:ring-red-500"
             />
 
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowResetModal(false); setResetConfirmText(''); }}
                 disabled={resetting}
-                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg
-                  text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleResetBiometrics}
                 disabled={resetting || resetConfirmText.trim().toUpperCase() !== 'RESET'}
-                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium
-                  hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed
-                  flex items-center justify-center gap-2"
+                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {resetting ? (
                   <><RefreshCw className="w-4 h-4 animate-spin" /> Resetting…</>

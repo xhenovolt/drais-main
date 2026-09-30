@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T03:39:09.675Z",
-  "last_commit": "48885b6d08bbc8aac26631bc15e258535614631f",
+  "generated_at": "2026-09-30T12:45:06.850Z",
+  "last_commit": "512fc4ca3e3e0cc97c239fe37e788a34ebc53817",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8305,7 +8305,20 @@
         }
       ],
       "commit": "48885b6d08"
+    },
+    {
+      "version": "2.30.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "SMS quiet hours + configurable Logs table density",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "SMS quiet hours + configurable Logs table density"
+        }
+      ],
+      "commit": "512fc4ca3e"
     }
   ],
-  "app_version": "2.30.0"
+  "app_version": "2.30.1"
 }
