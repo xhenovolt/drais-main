@@ -102,7 +102,17 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.presents - a.presents || a.lates - b.lates || a.name.localeCompare(b.name))
       .slice(0, 5);
 
-    return { distribution, byResidence, mostAbsent: top('absents'), mostLate: top('lates'), bestPresent: best, people: people.length };
+    // Distinct school-days actually counted in the window — a school onboarded
+    // recently may only have a handful, and the dashboard says so explicitly
+    // rather than let a big cumulative total read as if it spans years.
+    const schoolDaysRows = (await query(
+      `SELECT COUNT(DISTINCT attendance_date) n FROM attendance_records
+        WHERE school_id = ? AND role_type = ? AND attendance_date >= ? AND status IN ('present', 'late', 'absent')`,
+      [schoolId, role, since],
+    )) as Array<{ n: number }>;
+    const schoolDaysCounted = num(schoolDaysRows[0]?.n);
+
+    return { distribution, byResidence, mostAbsent: top('absents'), mostLate: top('lates'), bestPresent: best, people: people.length, schoolDaysCounted };
   };
 
   try {

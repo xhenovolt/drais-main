@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T17:41:55.039Z",
-  "last_commit": "41209d326811a03995cf3bcec4e23cf46638f503",
+  "generated_at": "2026-09-30T18:03:33.980Z",
+  "last_commit": "93a3f2f609e5ed80bb56355c15b649ed32e8dda5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8396,7 +8396,20 @@
         }
       ],
       "commit": "41209d3268"
+    },
+    {
+      "version": "2.36.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "Grouped sidebar on desktop, bottom nav + drawer on mobile",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Grouped sidebar on desktop, bottom nav + drawer on mobile"
+        }
+      ],
+      "commit": "93a3f2f609"
     }
   ],
-  "app_version": "2.36.0"
+  "app_version": "2.36.1"
 }

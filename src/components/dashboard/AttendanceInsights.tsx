@@ -22,15 +22,16 @@ interface RoleInsights {
   byResidence?: { day: Dist; boarding: Dist };
   mostAbsent: TopPerson[]; mostLate: TopPerson[]; bestPresent: TopPerson[];
   people: number;
+  schoolDaysCounted: number;
 }
 
-/** unitLabel names what's actually being counted — "learner-days" over the
- *  window, NOT a headcount. A chronically-absent boarder who hasn't yet
- *  reported this term contributes many "absent" days from one person; shown
- *  as a bare number with no unit, that reads as if thousands of distinct
- *  people were absent, which is exactly the "fragmented, deceptive dashboard"
- *  complaint this fixes. */
-function DistributionDonut({ d, isAr, unitLabel }: { d: RoleInsights['distribution']; isAr: boolean; unitLabel: string }) {
+/** The rate (%) leads every number here — it's what's actually comparable
+ *  across a chronically-absent few vs. a large roster. The cumulative count
+ *  is shown small, underneath, scoped to "N school days" rather than left
+ *  bare: a bare count reads as a headcount, and for a recently-onboarded
+ *  school a big bare number reads as implausible. No invented unit noun
+ *  ("person-days" etc.) anywhere in this view. */
+function DistributionDonut({ d, isAr, schoolDays }: { d: RoleInsights['distribution']; isAr: boolean; schoolDays: number }) {
   const data = [
     { name: isAr ? 'حاضر' : 'Present', value: d.present, color: STATUS_HEX.present },
     { name: isAr ? 'متأخر' : 'Late', value: d.late, color: STATUS_HEX.late },
@@ -40,37 +41,44 @@ function DistributionDonut({ d, isAr, unitLabel }: { d: RoleInsights['distributi
   if (total === 0) {
     return <p className="text-xs text-slate-400 py-6 text-center">{isAr ? 'لا توجد بيانات بعد' : 'No verdicts in this window yet'}</p>;
   }
+  const pct = (v: number) => Math.round((v / total) * 100);
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-28 h-28 flex-shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={data} dataKey="value" innerRadius={30} outerRadius={50} paddingAngle={2} stroke="none">
-              {data.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-            </Pie>
-            <Tooltip
-              formatter={(v: any, n: any) => [`${Number(v).toLocaleString()} ${unitLabel}`, n]}
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="w-28 h-28 flex-shrink-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} dataKey="value" innerRadius={30} outerRadius={50} paddingAngle={2} stroke="none">
+                {data.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+              </Pie>
+              <Tooltip
+                formatter={(v: any, n: any) => [`${pct(Number(v))}% (${Number(v).toLocaleString()})`, n]}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="space-y-1 text-xs">
+          {[
+            { label: isAr ? 'حاضر' : 'Present', v: d.present, color: STATUS_HEX.present },
+            { label: isAr ? 'متأخر' : 'Late', v: d.late, color: STATUS_HEX.late },
+            { label: isAr ? 'غائب' : 'Absent', v: d.absent, color: STATUS_HEX.absent },
+          ].map(x => (
+            <div key={x.label} className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: x.color }} />
+              <span className="text-slate-500 dark:text-slate-400">{x.label}</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
+                {pct(x.v)}% <span className="font-normal text-slate-400">({x.v.toLocaleString()})</span>
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="space-y-1 text-xs">
-        {[
-          { label: isAr ? 'حاضر' : 'Present', v: d.present, color: STATUS_HEX.present },
-          { label: isAr ? 'متأخر' : 'Late', v: d.late, color: STATUS_HEX.late },
-          { label: isAr ? 'غائب' : 'Absent', v: d.absent, color: STATUS_HEX.absent },
-        ].map(x => (
-          <div key={x.label} className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: x.color }} />
-            <span className="text-slate-500 dark:text-slate-400">{x.label}</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
-              {x.v.toLocaleString()} <span className="font-normal text-slate-400">{unitLabel} {total > 0 ? `(${Math.round((x.v / total) * 100)}%)` : ''}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-      <p className="sr-only">{isAr ? 'هذه أرقام أيام-شخص ضمن الفترة المحددة، وليست عدد الأشخاص.' : `Person-days over the selected window, not a headcount.`}</p>
+      <p className="text-[11px] text-slate-400">
+        {isAr
+          ? `بناءً على ${schoolDays} يوم دراسي تم تسجيله`
+          : `Based on ${schoolDays} school day${schoolDays === 1 ? '' : 's'} tracked so far`}
+      </p>
     </div>
   );
 }
@@ -78,6 +86,7 @@ function DistributionDonut({ d, isAr, unitLabel }: { d: RoleInsights['distributi
 function ResidenceSplit({ byResidence, isAr }: { byResidence: NonNullable<RoleInsights['byResidence']>; isAr: boolean }) {
   const row = (label: string, d: Dist) => {
     const total = d.present + d.late + d.absent;
+    const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
     return (
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="text-slate-500 dark:text-slate-400">{label}</span>
@@ -85,9 +94,9 @@ function ResidenceSplit({ byResidence, isAr }: { byResidence: NonNullable<RoleIn
           <span className="text-slate-400">{isAr ? 'لا بيانات' : 'no data'}</span>
         ) : (
           <span className="tabular-nums">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{d.present}</span>{isAr ? ' حاضر · ' : ' present · '}
-            <span className="text-amber-600 dark:text-amber-400 font-semibold">{d.late}</span>{isAr ? ' متأخر · ' : ' late · '}
-            <span className="text-red-600 dark:text-red-400 font-semibold">{d.absent}</span>{isAr ? ' غائب' : ' absent'}
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{pct(d.present)}%</span>{isAr ? ' حاضر · ' : ' present · '}
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">{pct(d.late)}%</span>{isAr ? ' متأخر · ' : ' late · '}
+            <span className="text-red-600 dark:text-red-400 font-semibold">{pct(d.absent)}%</span>{isAr ? ' غائب' : ' absent'}
           </span>
         )}
       </div>
@@ -95,7 +104,7 @@ function ResidenceSplit({ byResidence, isAr }: { byResidence: NonNullable<RoleIn
   };
   return (
     <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
-      <p className="text-[11px] text-slate-400">{isAr ? 'حسب السكن (أيام-شخص)' : 'By residence (person-days)'}</p>
+      <p className="text-[11px] text-slate-400">{isAr ? 'حسب السكن' : 'By residence'}</p>
       {row(isAr ? 'نهاري' : 'Day scholars', byResidence.day)}
       {row(isAr ? 'داخلي' : 'Boarders', byResidence.boarding)}
     </div>
@@ -137,7 +146,7 @@ function RolePanel({ title, data, isAr }: { title: string; data: RoleInsights; i
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-4">
       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</p>
-      <DistributionDonut d={data.distribution} isAr={isAr} unitLabel={isAr ? 'أيام-شخص' : 'person-days'} />
+      <DistributionDonut d={data.distribution} isAr={isAr} schoolDays={data.schoolDaysCounted ?? 0} />
       {data.byResidence && <ResidenceSplit byResidence={data.byResidence} isAr={isAr} />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 border-t border-slate-100 dark:border-slate-800">
         <TopList
