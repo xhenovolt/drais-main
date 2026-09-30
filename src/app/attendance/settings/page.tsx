@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Clock, Save, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import LivePopupSettings from '@/components/attendance/LivePopupSettings';
 import AttendanceSmsPolicies from '@/components/attendance/AttendanceSmsPolicies';
+import SmsQuietHoursSettings from '@/components/attendance/SmsQuietHoursSettings';
 import LessonAttendanceSettings from '@/components/attendance/LessonAttendanceSettings';
 import DeviceTimePolicySettings from '@/components/attendance/DeviceTimePolicySettings';
 import BoardingPolicySettings from '@/components/attendance/BoardingPolicySettings';
+import LogsDisplaySettings from '@/components/attendance/LogsDisplaySettings';
 
 interface AttendanceRule {
   id: number;
@@ -142,13 +144,14 @@ function formFromRule(rule: AttendanceRule | null, scope: AppliesTo, boardingSco
 
 const ruleKey = (scope: AppliesTo, boardingScope: BoardingScope) => `${scope}:${boardingScope}`;
 
-type SettingsTab = 'schedule' | 'boarding' | 'sms' | 'devices' | 'lessons';
+type SettingsTab = 'schedule' | 'boarding' | 'sms' | 'devices' | 'lessons' | 'display';
 const SETTINGS_TABS: Array<{ key: SettingsTab; label: string }> = [
   { key: 'schedule', label: 'Schedules & late rules' },
   { key: 'boarding', label: 'Day & boarding' },
   { key: 'sms', label: 'SMS notifications' },
   { key: 'devices', label: 'Devices & clock' },
   { key: 'lessons', label: 'Lessons' },
+  { key: 'display', label: 'Logs display' },
 ];
 
 export default function AttendanceSettingsPage() {
@@ -719,6 +722,9 @@ export default function AttendanceSettingsPage() {
       <div hidden={tab !== 'sms'} role="tabpanel" id="panel-sms" aria-labelledby="tab-sms" className="space-y-6">
         {/* Attendance SMS / notification policies (own CRUD) */}
         <AttendanceSmsPolicies />
+
+        {/* Quiet hours — punches in this window never text a parent (own save) */}
+        <SmsQuietHoursSettings />
       </div>
 
       <div hidden={tab !== 'devices'} role="tabpanel" id="panel-devices" aria-labelledby="tab-devices" className="space-y-6">
@@ -732,6 +738,11 @@ export default function AttendanceSettingsPage() {
       <div hidden={tab !== 'lessons'} role="tabpanel" id="panel-lessons" aria-labelledby="tab-lessons" className="space-y-6">
         {/* Lesson (timetable) attendance policy + device scopes (own save) */}
         <LessonAttendanceSettings />
+      </div>
+
+      <div hidden={tab !== 'display'} role="tabpanel" id="panel-display" aria-labelledby="tab-display" className="space-y-6">
+        {/* Attendance Logs table row density (own save) */}
+        <LogsDisplaySettings />
       </div>
     </div>
   );

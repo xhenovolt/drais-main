@@ -48,6 +48,8 @@ import {
 } from '@/lib/notifications/attendance-sms-eligibility';
 import { decideAttendanceNotification, type Decision } from '@/lib/attendance/notification-decision';
 import { getBoardingPolicy } from '@/lib/attendance/boarding-policy';
+import { getSmsQuietHours, isWithinQuietHours, localHHMM } from '@/lib/attendance/sms-quiet-hours';
+import { resolveTimePolicy } from '@/lib/attendance/device-clock';
 
 /** Fields both attendance.record.upserted and attendance.departure.recorded events carry —
  *  enough for recipient resolution, targeting and outbox enqueueing. */
@@ -133,6 +135,22 @@ export async function fanoutAttendanceRecord(
   const residence = event.residence ?? null;
   const boardingMode = event.boardingMode ?? null;
   const bp = residence === 'boarding' ? await getBoardingPolicy(event.schoolId) : null;
+  // Quiet hours (school setting): a punch-backed verdict whose actual punch
+  // time falls in the configured window doesn't get an SMS — e.g. boarders
+  // triggering the device at 1am. Computed here (not inside the pure
+  // eligibility evaluator) because it needs the school's real UTC offset.
+  let isQuietHours = false;
+  if (event.firstInAt) {
+    try {
+      const [quiet, policy] = await Promise.all([
+        getSmsQuietHours(event.schoolId),
+        resolveTimePolicy(event.schoolId),
+      ]);
+      if (quiet.enabled) {
+        isQuietHours = isWithinQuietHours(localHHMM(new Date(event.firstInAt), policy.offsetMinutes), quiet);
+      }
+    } catch { /* fails open — never blocks a real SMS on a settings-lookup error */ }
+  }
   const eligibility = evaluateAttendanceSmsEligibility({
     status: event.status,
     attendanceDate: event.attendanceDate,
@@ -140,6 +158,7 @@ export async function fanoutAttendanceRecord(
     firstInAt: event.firstInAt,
     isPolicyDerived: event.isPolicyDerived,
     evidence: needsEvidence(event) && !event.isPolicyDerived ? await loadBiometricEvidence(event.schoolId, event.personId) : NO_EVIDENCE,
+    isQuietHours,
   });
   const decision = decideAttendanceNotification({
     status: event.status, attendanceDate: event.attendanceDate, firstInAt: event.firstInAt,

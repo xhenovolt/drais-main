@@ -119,5 +119,6 @@ export const REASON_TEXT: Record<string, string> = {
   stale_attendance_date: 'The attendance date was too old to notify a parent about.',
   future_date: 'The attendance date is in the future.',
   no_punch_evidence: 'There was no real punch behind this result.',
+  quiet_hours: 'The punch fell inside the school\'s configured SMS quiet hours.',
   departure_recorded: 'A genuine final exit for the day was recorded.',
 };

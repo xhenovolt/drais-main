@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T03:37:57.617Z",
-  "last_commit": "ba6f45d0f0aab9224e0f51dbf511a87801ba6859",
+  "generated_at": "2026-09-30T03:39:09.675Z",
+  "last_commit": "48885b6d08bbc8aac26631bc15e258535614631f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8292,7 +8292,20 @@
         }
       ],
       "commit": "ba6f45d0f0"
+    },
+    {
+      "version": "2.29.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "Give Communication its own top-level sidebar section",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Give Communication its own top-level sidebar section"
+        }
+      ],
+      "commit": "48885b6d08"
     }
   ],
-  "app_version": "2.29.0"
+  "app_version": "2.30.0"
 }

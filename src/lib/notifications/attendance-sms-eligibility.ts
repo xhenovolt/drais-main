@@ -40,6 +40,11 @@ export interface EligibilityInput {
   firstInAt: string | null;
   isPolicyDerived?: boolean;
   evidence: BiometricEvidence;
+  /** True when the punch that produced this verdict fell inside the
+   *  school's configured SMS quiet-hours window (src/lib/attendance/
+   *  sms-quiet-hours.ts) — computed by the caller from firstInAt + the
+   *  school's UTC offset, kept out of this pure module deliberately. */
+  isQuietHours?: boolean;
 }
 
 export type EligibilityVerdict =
@@ -71,9 +76,13 @@ export function evaluateAttendanceSmsEligibility(input: EligibilityInput): Eligi
   if (age > MAX_ATTENDANCE_SMS_AGE_DAYS) return { eligible: false, reason: 'stale_attendance_date' };
 
   if (PUNCH_BACKED.has(input.status)) {
-    return input.firstInAt
-      ? { eligible: true }
-      : { eligible: false, reason: 'no_punch_evidence' };
+    if (!input.firstInAt) return { eligible: false, reason: 'no_punch_evidence' };
+    // Quiet hours only mute the SMS for a punch-backed verdict (arrival/
+    // late/half-day/early-leave) — the thing a school actually asked to
+    // silence is "a punch at 1am shouldn't text a parent", not absence
+    // detection, which isn't punch-triggered at all.
+    if (input.isQuietHours) return { eligible: false, reason: 'quiet_hours' };
+    return { eligible: true };
   }
 
   const ev = input.evidence;
