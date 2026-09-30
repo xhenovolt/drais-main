@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T03:37:13.829Z",
-  "last_commit": "00e479e22fa39e8d37832c7855006907bdb31eb9",
+  "generated_at": "2026-09-30T03:37:57.617Z",
+  "last_commit": "ba6f45d0f0aab9224e0f51dbf511a87801ba6859",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8279,7 +8279,20 @@
         }
       ],
       "commit": "00e479e22f"
+    },
+    {
+      "version": "2.28.0",
+      "date": "2026-09-30",
+      "release_type": "minor",
+      "title": "Logs table silently hid a learner's class and boarding/day section",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Logs table silently hid a learner's class and boarding/day section"
+        }
+      ],
+      "commit": "ba6f45d0f0"
     }
   ],
-  "app_version": "2.28.0"
+  "app_version": "2.29.0"
 }

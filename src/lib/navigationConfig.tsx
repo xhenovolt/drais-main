@@ -184,6 +184,9 @@ const LABEL_AR: Record<string, string> = {
   'Promotions':                'الترقيات',
   'Attendance':                'الحضور',
 
+  // Communication group
+  'Communication':             'الاتصال',
+
   // Staff & Roles group
   'Staff & Roles':             'الموظفون والأدوار',
   'Staff':                     'الموظفون',
@@ -446,6 +449,25 @@ export function getNavigationItems(
       ],
     },
 
+    // ══ COMMUNICATION ═════════════════════════════════════════════════════════
+    // DRAIS's core loop is "a learner punches in → a message reaches the
+    // parent" — communication was previously buried inside Staff & Roles,
+    // which made it hard to find for something this central. Its own
+    // top-level section, right after Attendance (the thing that triggers
+    // most of it), matches how the product actually works.
+    {
+      key:   'communication',
+      label: 'Communication',
+      icon:  <MessageSquare className="w-5 h-5" />,
+      roles: ['admin', 'super_admin'],
+      children: [
+        { key: 'admin-comm',           label: 'Communications',        icon: <MessageSquare className="w-4 h-4" />, href: '/admin/communications',         roles: ['admin', 'super_admin'] },
+        { key: 'admin-notifications',  label: 'Notification Policies', icon: <Bell className="w-4 h-4" />,          href: '/admin/notifications/policies', roles: ['admin', 'super_admin'] },
+        { key: 'admin-notif-outbox',   label: 'SMS Outbox',            icon: <Inbox className="w-4 h-4" />,         href: '/admin/notifications/outbox',   roles: ['admin', 'super_admin'] },
+        { key: 'admin-sms-buy',        label: 'Buy SMS',                icon: <MessageSquare className="w-4 h-4" />, href: '/admin/sms/buy',                roles: ['admin', 'super_admin'] },
+      ],
+    },
+
     // ══ 3. STUDENTS ═══════════════════════════════════════════════════════════
     {
       key:   'students',
@@ -484,11 +506,9 @@ export function getNavigationItems(
         { key: 'admin-trash',       label: 'Trash',              icon: <Trash2 className="w-4 h-4" />,     href: '/admin/trash',         roles: ['admin', 'super_admin'] },
         { key: 'admin-positions',   label: 'Positions',          icon: <Briefcase className="w-4 h-4" />,  href: '/admin/positions',     roles: ['admin', 'super_admin'] },
         { key: 'admin-modules',     label: 'School Modules',     icon: <Boxes className="w-4 h-4" />,      href: '/admin/modules',         roles: ['super_admin'] },
-        { key: 'admin-comm',           label: 'Communications',     icon: <MessageSquare className="w-4 h-4" />, href: '/admin/communications', roles: ['admin', 'super_admin'] },
-        { key: 'admin-sms-buy',        label: 'Buy SMS',            icon: <MessageSquare className="w-4 h-4" />, href: '/admin/sms/buy',        roles: ['admin', 'super_admin'] },
+        // Communications / Buy SMS / Notification Policies / SMS Outbox moved
+        // to their own top-level "Communication" section (see above).
         { key: 'admin-parents',        label: 'Parents & Guardians', icon: <Users className="w-4 h-4" />,        href: '/admin/parents',        roles: ['admin', 'super_admin'] },
-        { key: 'admin-notifications',  label: 'Notification Policies', icon: <Bell className="w-4 h-4" />,        href: '/admin/notifications/policies', roles: ['admin', 'super_admin'] },
-        { key: 'admin-notif-outbox',   label: 'SMS Outbox',   icon: <Inbox className="w-4 h-4" />,       href: '/admin/notifications/outbox',   roles: ['admin', 'super_admin'] },
         { key: 'admin-admission-mode', label: 'Admission Mode',     icon: <Workflow className="w-4 h-4" />,      href: '/admin/admission-mode', roles: ['admin', 'super_admin'] },
       ],
     },
