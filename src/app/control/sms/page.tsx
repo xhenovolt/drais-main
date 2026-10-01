@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { MessageSquare, Loader2, Wallet, Save, TrendingUp, Send, CheckCircle2, XCircle, ArrowRight, Settings2 } from 'lucide-react';
+import { MessageSquare, Loader2, Wallet, Save, TrendingUp, Send, CheckCircle2, XCircle, ArrowRight, Settings2, BarChart3 } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 const nf = (n: any) => Number(n || 0).toLocaleString();
@@ -73,7 +73,10 @@ export default function ControlSms() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-sm text-slate-400">SMS economics — central provider wallet, per-school allocation & usage, and internal cost vs retail price profit.</p>
-        <Link href="/control/sms/providers" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"><Settings2 className="w-4 h-4" /> Manage providers <ArrowRight className="w-3.5 h-3.5" /></Link>
+        <div className="flex gap-2">
+          <Link href="/control/sms/accounting" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold"><BarChart3 className="w-4 h-4" /> Daily rate & contacts <ArrowRight className="w-3.5 h-3.5" /></Link>
+          <Link href="/control/sms/providers" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"><Settings2 className="w-4 h-4" /> Manage providers <ArrowRight className="w-3.5 h-3.5" /></Link>
+        </div>
       </div>
 
       <section className="bg-slate-900 border border-indigo-700/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">

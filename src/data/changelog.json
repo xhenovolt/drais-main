@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T18:03:33.980Z",
-  "last_commit": "93a3f2f609e5ed80bb56355c15b649ed32e8dda5",
+  "generated_at": "2026-10-01T08:59:49.735Z",
+  "last_commit": "f58dc79b6edc4b870d5a170b0d53b02f9415d7c6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8409,7 +8409,20 @@
         }
       ],
       "commit": "93a3f2f609"
+    },
+    {
+      "version": "2.36.1",
+      "date": "2026-09-30",
+      "release_type": "patch",
+      "title": "Attendance Insights led with a raw \"person-days\" total that read as absurd for a new school",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Attendance Insights led with a raw \"person-days\" total that read as absurd for a new school"
+        }
+      ],
+      "commit": "f58dc79b6e"
     }
   ],
-  "app_version": "2.36.1"
+  "app_version": "2.37.0"
 }

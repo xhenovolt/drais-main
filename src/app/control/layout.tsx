@@ -13,7 +13,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck, Menu, X } from 'lucide-react';
+import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck, Menu, X, BarChart3 } from 'lucide-react';
 
 const NAV_GROUPS = [
   {
@@ -35,6 +35,7 @@ const NAV_GROUPS = [
     label: 'Messaging',
     items: [
       { href: '/control/sms', label: 'SMS', icon: MessageSquare },
+      { href: '/control/sms/accounting', label: 'SMS Accounting', icon: BarChart3 },
       { href: '/control/sms/providers', label: 'SMS Providers', icon: ShieldCheck },
       { href: '/control/sms/routing', label: 'School SMS Routing', icon: Send },
       { href: '/control/sms/pricing', label: 'SMS Pricing & Top-ups', icon: CreditCard },
