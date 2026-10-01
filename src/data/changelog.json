@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-01T08:59:49.735Z",
-  "last_commit": "f58dc79b6edc4b870d5a170b0d53b02f9415d7c6",
+  "generated_at": "2026-10-01T18:30:12.969Z",
+  "last_commit": "39156bb0939b9be52c9721e385ef109c723045c7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8422,7 +8422,20 @@
         }
       ],
       "commit": "f58dc79b6e"
+    },
+    {
+      "version": "2.37.0",
+      "date": "2026-10-01",
+      "release_type": "minor",
+      "title": "SMS Accounting — daily rate, month projection, MTN/Airtel contact split",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "SMS Accounting — daily rate, month projection, MTN/Airtel contact split"
+        }
+      ],
+      "commit": "39156bb093"
     }
   ],
-  "app_version": "2.37.0"
+  "app_version": "2.37.1"
 }
