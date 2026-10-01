@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-01T18:30:12.969Z",
-  "last_commit": "39156bb0939b9be52c9721e385ef109c723045c7",
+  "generated_at": "2026-10-01T19:41:31.897Z",
+  "last_commit": "c8036883dc8aaa43af9e9f84f865ae96f201063c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8435,7 +8435,20 @@
         }
       ],
       "commit": "39156bb093"
+    },
+    {
+      "version": "2.37.1",
+      "date": "2026-10-01",
+      "release_type": "patch",
+      "title": "Propose Phase 7 completion plan — sub-efforts 13-22",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Propose Phase 7 completion plan — sub-efforts 13-22"
+        }
+      ],
+      "commit": "c8036883dc"
     }
   ],
-  "app_version": "2.37.1"
+  "app_version": "2.38.0"
 }
