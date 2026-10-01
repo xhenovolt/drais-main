@@ -574,6 +574,38 @@ CREATE TABLE IF NOT EXISTS enrollments (
 );
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id, status);
 CREATE INDEX IF NOT EXISTS idx_enrollments_class ON enrollments(class_id, status);
+
+-- Phase 7, sub-effort 20: report_snapshots — read-only in this repo layer.
+-- snapshot_json carries the ENTIRE frozen report-card payload (meta,
+-- branding, classes/students/subjects/scores) as a single blob, confirmed
+-- from the real online read path (src/lib/snapshots/storage.ts) without
+-- importing it. Deliberately excluded (real columns, not modeled here):
+-- data_hash, generation_ms, error_message, is_legacy_fallback, and the
+-- generated_by column (not needed to VIEW a snapshot, which is all this
+-- slice does). No FOREIGN KEY on term_id/year_id/result_type_id,
+-- matching enrollments' own class_id reasoning — a term/year row isn't
+-- guaranteed to exist locally for every historical snapshot.
+-- No backtick inside this comment block, checked deliberately: the exact
+-- same template-literal-breaking mistake recurred four times already
+-- (sub-effort 15's own note above) while this effort was being built.
+CREATE TABLE IF NOT EXISTS report_snapshots (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  snapshot_id       TEXT NOT NULL UNIQUE,
+  school_id         INTEGER NOT NULL,
+  type              TEXT NOT NULL,
+  term_id           INTEGER,
+  year_id           INTEGER,
+  result_type_id    INTEGER,
+  status            TEXT NOT NULL DEFAULT 'ready',
+  class_count       INTEGER NOT NULL DEFAULT 0,
+  student_count     INTEGER NOT NULL DEFAULT 0,
+  result_count      INTEGER NOT NULL DEFAULT 0,
+  generated_at      TEXT NOT NULL DEFAULT (${ISO_NOW}),
+  completed_at      TEXT,
+  snapshot_json     TEXT,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_report_snapshots_school ON report_snapshots(school_id, status);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();

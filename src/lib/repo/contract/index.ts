@@ -16,6 +16,7 @@ export type { UserRoleRepo } from './user-role-repo';
 export type { PermissionRepo } from './permission-repo';
 export type { RolePermissionRepo } from './role-permission-repo';
 export type { EnrollmentRepo } from './enrollment-repo';
+export type { ReportSnapshotRepo } from './report-snapshot-repo';
 
 import type { SchoolRepo } from './school-repo';
 import type { StudentRepo } from './student-repo';
@@ -34,6 +35,7 @@ import type { UserRoleRepo } from './user-role-repo';
 import type { PermissionRepo } from './permission-repo';
 import type { RolePermissionRepo } from './role-permission-repo';
 import type { EnrollmentRepo } from './enrollment-repo';
+import type { ReportSnapshotRepo } from './report-snapshot-repo';
 
 /** The registry every consumer of this layer actually depends on — never
  *  a concrete repo-mysql or repo-sqlite import directly (§8's boundary
@@ -57,4 +59,5 @@ export interface Repos {
   permissions: PermissionRepo;
   rolePermissions: RolePermissionRepo;
   enrollments: EnrollmentRepo;
+  reportSnapshots: ReportSnapshotRepo;
 }

@@ -21,7 +21,7 @@
  * re-provisioning the same school (refresh from cloud) is safe to re-run.
  */
 import type { SqliteConnection } from './connection';
-import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord } from '../contract/types';
+import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord, ReportSnapshotRecord } from '../contract/types';
 
 /**
  * subscription_* fields are carried through here deliberately (Phase 7,
@@ -161,5 +161,33 @@ export function seedEnrollment(db: SqliteConnection, r: EnrollmentRecord): void 
     academicYearId: r.academicYearId, termId: r.termId, status: r.status,
     enrollmentType: r.enrollmentType, enrollmentDate: r.enrollmentDate,
     createdAt: r.createdAt, deletedAt: r.deletedAt,
+  });
+}
+
+/** ReportSnapshotRepo is read-only (see contract/types.ts's
+ *  ReportSnapshotRecord header), same reasoning as seedEnrollment above —
+ *  provisioning still needs to WRITE these rows, kept here rather than on
+ *  the repo's own read-only contract. Expects the FULL record, payload
+ *  included (i.e. from source.reportSnapshots.findBySnapshotId, not
+ *  listReadyBySchool, which returns snapshotJson: null). */
+export function seedReportSnapshot(db: SqliteConnection, r: ReportSnapshotRecord): void {
+  db.prepare(`
+    INSERT INTO report_snapshots (id, snapshot_id, school_id, type, term_id, year_id, result_type_id,
+                                   status, class_count, student_count, result_count, generated_at,
+                                   completed_at, snapshot_json)
+    VALUES (@id, @snapshotId, @schoolId, @type, @termId, @yearId, @resultTypeId,
+            @status, @classCount, @studentCount, @resultCount, @generatedAt,
+            @completedAt, @snapshotJson)
+    ON CONFLICT(id) DO UPDATE SET
+      snapshot_id=excluded.snapshot_id, school_id=excluded.school_id, type=excluded.type,
+      term_id=excluded.term_id, year_id=excluded.year_id, result_type_id=excluded.result_type_id,
+      status=excluded.status, class_count=excluded.class_count, student_count=excluded.student_count,
+      result_count=excluded.result_count, generated_at=excluded.generated_at,
+      completed_at=excluded.completed_at, snapshot_json=excluded.snapshot_json
+  `).run({
+    id: r.id, snapshotId: r.snapshotId, schoolId: r.schoolId, type: r.type,
+    termId: r.termId, yearId: r.yearId, resultTypeId: r.resultTypeId, status: r.status,
+    classCount: r.classCount, studentCount: r.studentCount, resultCount: r.resultCount,
+    generatedAt: r.generatedAt, completedAt: r.completedAt, snapshotJson: r.snapshotJson,
   });
 }

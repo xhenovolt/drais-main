@@ -787,3 +787,51 @@ export interface EnrollmentRecord {
   createdAt: IsoDateTime | null;
   deletedAt: IsoDateTime | null;
 }
+
+// ── Phase 7, sub-effort 20: report_snapshots ───────────────────────────
+// The real table is the simplest "complex" table this layer has modeled:
+// one big `snapshot_json` LONGTEXT column holding the ENTIRE frozen
+// report-card payload (meta + branding + classes/students/subjects/
+// scores — confirmed from src/lib/snapshots/storage.ts, the existing
+// online read path, read but not imported from), plus a thin index of
+// columns for listing without loading every payload. The architecture
+// doc calls this subsystem "the poster child" for offline-readiness —
+// deterministic, pure-function render pipeline, no runtime DB lookup
+// once generated — and this record type is why: there is almost nothing
+// to model beyond "fetch the blob."
+//
+// READ-ONLY, same reasoning as attendance_rules (sub-effort 12) and
+// enrollments (sub-effort 15): snapshot GENERATION is a real workflow
+// (single-flight locking, a 5-minute-plus online query across live
+// classes/students/results, puppeteer-adjacent PDF export) this layer
+// has no business re-implementing offline. This repo can only ever
+// serve a snapshot that was generated online and carried into the local
+// file — never generate one itself.
+//
+// Deliberately excluded (real columns, not modeled here): data_hash,
+// generation_ms, error_message, is_legacy_fallback — none of them
+// matter for VIEWING an already-ready snapshot, which is all this slice
+// does. `snapshotJson` is null on an index-only read (listReadyBySchool)
+// and populated on a single-snapshot read (findBySnapshotId) — the same
+// "null means not loaded here, not absent" shape every other optional
+// field in this layer already uses.
+export type ReportSnapshotStatus = 'generating' | 'ready' | 'failed' | 'cancelled' | 'stale';
+
+export interface ReportSnapshotRecord {
+  id: number;
+  snapshotId: string;
+  schoolId: number;
+  type: string;
+  termId: number;
+  yearId: number;
+  resultTypeId: number | null;
+  status: ReportSnapshotStatus;
+  classCount: number;
+  studentCount: number;
+  resultCount: number;
+  generatedAt: IsoDateTime;
+  completedAt: IsoDateTime | null;
+  /** Raw JSON string (the real `snapshot_json` column, parsed by the
+   *  caller) — null when this record came from an index-only list read. */
+  snapshotJson: string | null;
+}
