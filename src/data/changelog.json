@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-01T19:41:31.897Z",
-  "last_commit": "c8036883dc8aaa43af9e9f84f865ae96f201063c",
+  "generated_at": "2026-10-01T19:42:25.766Z",
+  "last_commit": "06b94acd1122836e8a391e75b420d27362c33a22",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8448,7 +8448,20 @@
         }
       ],
       "commit": "c8036883dc"
+    },
+    {
+      "version": "2.38.0",
+      "date": "2026-10-01",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 14 - third complete offline module: staff",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 14 - third complete offline module: staff"
+        }
+      ],
+      "commit": "06b94acd11"
     }
   ],
-  "app_version": "2.38.0"
+  "app_version": "2.39.0"
 }

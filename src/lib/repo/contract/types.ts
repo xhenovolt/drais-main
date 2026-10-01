@@ -733,3 +733,57 @@ export interface RolePermissionGrant {
   permissionId: number;
   createdAt: IsoDateTime | null;
 }
+
+// ── Phase 7, sub-effort 15: enrollments ────────────────────────────────
+// The real `enrollments` table has 26 columns — confirmed live, and
+// genuinely more complex than any table this repo layer has modeled so
+// far (docs/architecture/DRAIS_V2_ARCHITECTURE_AUDIT.md's own notes
+// already flagged this, twice, as "a materially bigger sub-effort on its
+// own"). Real production data confirms exactly why this table matters:
+// of 4,916 real active students, only 1,145 (23%) have `students.class_id`
+// populated at all, while 3,765 (77%) — almost the exact complement —
+// have a real active `enrollments` row instead. For 127 students that
+// have BOTH, the two genuinely disagree. `enrollments` is therefore the
+// authoritative source for "what class is this student in," confirmed
+// from real data, not assumed; `students.class_id` is a legacy/sparse
+// field this repo layer does not read for that question.
+//
+// DELIBERATELY READ-ONLY, matching the exact reasoning offline-attendance
+// (sub-effort 12) already used for attendance_rules: writing an
+// enrollment (or a promotion) involves real business rules — which class
+// a student can move into, whether a mid-term class change needs a
+// reason, how `promoted_from_enrollment_id` chains across terms — this
+// layer has no authority to invent. A read path is enough to answer
+// "what class is this student in" (sub-effort 18) and "who is in this
+// class" (sub-effort 17) without pretending to own enrollment decisions.
+//
+// A student can hold multiple simultaneous active enrollments (confirmed
+// live: 5,773 active rows across 3,765 students, ~1.53 each — the same
+// multi-program fact the Attendance Insights dashboard work already
+// found this session). The real online app breaks the tie by
+// `programs.is_default DESC, id DESC`; `programs` has no repo in this
+// layer, so `findActiveByStudentId` ties by `id DESC` only (most
+// recently created active enrollment wins). This is a KNOWN, DELIBERATE
+// simplification, not a claim of parity with the online tie-break —
+// revisit if/when a ProgramRepo exists.
+//
+// Deliberately excluded (real columns, not modeled here): theology_
+// class_id, study_mode_id, curriculum_id, program_id, promoted_from_
+// enrollment_id, end_date/end_reason (no write path to set them from
+// here), enrolled_at/joined_at (redundant with created_at for a read-only
+// slice), and the deleted_by/delete_reason/restored_at/restored_by audit
+// trail (no delete/restore operation exists on this repo). Add them when
+// a write-capable EnrollmentRepo is built.
+export interface EnrollmentRecord {
+  id: number;
+  studentId: number;
+  classId: number | null;
+  streamId: number | null;
+  academicYearId: number | null;
+  termId: number | null;
+  status: string | null;
+  enrollmentType: string | null;
+  enrollmentDate: IsoDate | null;
+  createdAt: IsoDateTime | null;
+  deletedAt: IsoDateTime | null;
+}

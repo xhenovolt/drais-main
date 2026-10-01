@@ -21,7 +21,7 @@
  * re-provisioning the same school (refresh from cloud) is safe to re-run.
  */
 import type { SqliteConnection } from './connection';
-import type { SchoolRecord, StudentRecord, PersonRecord } from '../contract/types';
+import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord } from '../contract/types';
 
 /**
  * subscription_* fields are carried through here deliberately (Phase 7,
@@ -85,5 +85,81 @@ export function seedPerson(db: SqliteConnection, r: PersonRecord): void {
     id: r.id, schoolId: r.schoolId, firstName: r.firstName, lastName: r.lastName, otherName: r.otherName,
     gender: r.gender, dateOfBirth: r.dateOfBirth, phone: r.phone, email: r.email, address: r.address,
     photoUrl: r.photoUrl, createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
+  });
+}
+
+/** Phase 7, sub-effort 15 (provisioning gap closed as part of it): staff
+ *  identity fields only — no salary/bank fields exist on StaffRecord at
+ *  all (see staff-repo.ts's header), so there is nothing to carry or omit
+ *  here, unlike the other seed functions. */
+export function seedStaff(db: SqliteConnection, r: StaffRecord): void {
+  db.prepare(`
+    INSERT INTO staff (id, school_id, branch_id, person_id, staff_no, department_id, role_id, position,
+                        position_id, employment_type, qualification, experience_years, hire_date, status,
+                        manager_id, updated_at, deleted_at, deleted_by, delete_reason, restored_at, restored_by)
+    VALUES (@id, @schoolId, @branchId, @personId, @staffNo, @departmentId, @roleId, @position,
+            @positionId, @employmentType, @qualification, @experienceYears, @hireDate, @status,
+            @managerId, @updatedAt, @deletedAt, @deletedBy, @deleteReason, @restoredAt, @restoredBy)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, branch_id=excluded.branch_id, person_id=excluded.person_id,
+      staff_no=excluded.staff_no, department_id=excluded.department_id, role_id=excluded.role_id,
+      position=excluded.position, position_id=excluded.position_id, employment_type=excluded.employment_type,
+      qualification=excluded.qualification, experience_years=excluded.experience_years, hire_date=excluded.hire_date,
+      status=excluded.status, manager_id=excluded.manager_id, updated_at=excluded.updated_at,
+      deleted_at=excluded.deleted_at, deleted_by=excluded.deleted_by, delete_reason=excluded.delete_reason,
+      restored_at=excluded.restored_at, restored_by=excluded.restored_by
+  `).run({
+    id: r.id, schoolId: r.schoolId, branchId: r.branchId, personId: r.personId, staffNo: r.staffNo,
+    departmentId: r.departmentId, roleId: r.roleId, position: r.position, positionId: r.positionId,
+    employmentType: r.employmentType, qualification: r.qualification, experienceYears: r.experienceYears,
+    hireDate: r.hireDate, status: r.status, managerId: r.managerId, updatedAt: r.updatedAt,
+    deletedAt: r.deletedAt, deletedBy: r.deletedBy, deleteReason: r.deleteReason,
+    restoredAt: r.restoredAt, restoredBy: r.restoredBy,
+  });
+}
+
+export function seedClass(db: SqliteConnection, r: ClassRecord): void {
+  db.prepare(`
+    INSERT INTO classes (id, school_id, name, curriculum_id, program_id, class_level, head_teacher_id,
+                          capacity, code, level, name_ar, created_at, updated_at, deleted_at,
+                          deleted_by, delete_reason, restored_at, restored_by)
+    VALUES (@id, @schoolId, @name, @curriculumId, @programId, @classLevel, @headTeacherId,
+            @capacity, @code, @level, @nameAr, @createdAt, @updatedAt, @deletedAt,
+            @deletedBy, @deleteReason, @restoredAt, @restoredBy)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, name=excluded.name, curriculum_id=excluded.curriculum_id,
+      program_id=excluded.program_id, class_level=excluded.class_level, head_teacher_id=excluded.head_teacher_id,
+      capacity=excluded.capacity, code=excluded.code, level=excluded.level, name_ar=excluded.name_ar,
+      updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, deleted_by=excluded.deleted_by,
+      delete_reason=excluded.delete_reason, restored_at=excluded.restored_at, restored_by=excluded.restored_by
+  `).run({
+    id: r.id, schoolId: r.schoolId, name: r.name, curriculumId: r.curriculumId, programId: r.programId,
+    classLevel: r.classLevel, headTeacherId: r.headTeacherId, capacity: r.capacity, code: r.code,
+    level: r.level, nameAr: r.nameAr, createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
+    deletedBy: r.deletedBy, deleteReason: r.deleteReason, restoredAt: r.restoredAt, restoredBy: r.restoredBy,
+  });
+}
+
+/** EnrollmentRepo is read-only (see contract/types.ts's EnrollmentRecord
+ *  header), but provisioning still needs to WRITE these rows into the
+ *  local file somehow — this is that write, deliberately kept here
+ *  alongside the other seed functions rather than added to the repo's
+ *  own contract, which stays read-only on purpose. */
+export function seedEnrollment(db: SqliteConnection, r: EnrollmentRecord): void {
+  db.prepare(`
+    INSERT INTO enrollments (id, student_id, class_id, stream_id, academic_year_id, term_id,
+                              status, enrollment_type, enrollment_date, created_at, deleted_at)
+    VALUES (@id, @studentId, @classId, @streamId, @academicYearId, @termId,
+            @status, @enrollmentType, @enrollmentDate, @createdAt, @deletedAt)
+    ON CONFLICT(id) DO UPDATE SET
+      student_id=excluded.student_id, class_id=excluded.class_id, stream_id=excluded.stream_id,
+      academic_year_id=excluded.academic_year_id, term_id=excluded.term_id, status=excluded.status,
+      enrollment_type=excluded.enrollment_type, enrollment_date=excluded.enrollment_date,
+      deleted_at=excluded.deleted_at
+  `).run({
+    id: r.id, studentId: r.studentId, classId: r.classId, streamId: r.streamId,
+    academicYearId: r.academicYearId, termId: r.termId, status: r.status,
+    enrollmentType: r.enrollmentType, enrollmentDate: r.enrollmentDate,
+    createdAt: r.createdAt, deletedAt: r.deletedAt,
   });
 }

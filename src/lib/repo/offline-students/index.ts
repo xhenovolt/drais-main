@@ -23,6 +23,20 @@
  * here, a thin NextRequest/NextResponse adapter in route-bridge.ts, and
  * genuinely new route files that dynamically import that bridge — lands
  * inert until wired, same discipline as every prior sub-effort.
+ *
+ * Phase 7 sub-effort 18: real class placement. The original scope note
+ * above ("no class/enrollment") is now out of date on that one point —
+ * EnrollmentRepo (sub-effort 15) exists, so `currentClass` is added here
+ * as a READ-ONLY field. Confirmed from real data (sub-effort 15's own
+ * investigation): `students.class_id` is stale/sparse on 77% of real
+ * active students, so this never reads that column — it goes through
+ * `enrollments.findActiveByStudentId` (the "current" enrollment, tied to
+ * `classes` for the display name), exactly the way the real online app's
+ * more authoritative paths already treat enrollments as the source of
+ * truth. Still no WRITE path for class assignment — moving a student
+ * into a different class is a real workflow (promotion vs. transfer vs.
+ * correction) this layer doesn't yet have authority to invent, same
+ * reasoning as every other read-only slice in this effort.
  */
 import type { Repos } from '../contract';
 import type { StudentRecord, NewStudentInput, PersonRecord, NewPersonInput } from '../contract/types';
@@ -56,9 +70,14 @@ export interface OfflineStudentView {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Sub-effort 18. Null means "no active enrollment found" — a real,
+   *  displayable fact (not an error), since a real student can genuinely
+   *  have none (newly admitted, between terms, data not yet migrated to
+   *  enrollments). */
+  currentClass: { id: number; name: string } | null;
 }
 
-function toView(student: StudentRecord, person: PersonRecord): OfflineStudentView {
+function toView(student: StudentRecord, person: PersonRecord, currentClass: OfflineStudentView['currentClass'] = null): OfflineStudentView {
   return {
     id: student.id, schoolId: student.schoolId, personId: student.personId,
     admissionNo: student.admissionNo, admissionDate: student.admissionDate,
@@ -67,7 +86,20 @@ function toView(student: StudentRecord, person: PersonRecord): OfflineStudentVie
     gender: person.gender, dateOfBirth: person.dateOfBirth, phone: person.phone,
     email: person.email, address: person.address, photoUrl: person.photoUrl,
     deletedAt: student.deletedAt, createdAt: student.createdAt, updatedAt: student.updatedAt,
+    currentClass,
   };
+}
+
+/** Composes EnrollmentRepo + ClassRepo — the same "clean separate repo
+ *  calls over a raw join" discipline this module already uses for
+ *  student+person. Never throws on a missing class: an enrollment
+ *  pointing at a class row this local install doesn't have (yet) is a
+ *  real possible state, not a bug to crash on. */
+async function resolveCurrentClass(repos: Repos, schoolId: number, studentId: number): Promise<OfflineStudentView['currentClass']> {
+  const enrollment = await repos.enrollments.findActiveByStudentId(schoolId, studentId);
+  if (!enrollment?.classId) return null;
+  const cls = await repos.classes.findById(schoolId, enrollment.classId);
+  return cls ? { id: cls.id, name: cls.name } : null;
 }
 
 export interface ListOfflineStudentsOptions {
@@ -88,7 +120,8 @@ export async function listOfflineStudents(repos: Repos, schoolId: number, opts: 
   for (const s of students) {
     const person = await repos.people.findById(s.personId);
     if (!person) continue; // an orphaned student row (person deleted independently) — skip rather than crash the list
-    views.push(toView(s, person));
+    const currentClass = await resolveCurrentClass(repos, schoolId, s.id);
+    views.push(toView(s, person, currentClass));
   }
   if (!opts.search) return views;
   const q = opts.search.trim().toLowerCase();
@@ -103,7 +136,8 @@ export async function getOfflineStudent(repos: Repos, schoolId: number, id: numb
   if (!student) return null;
   const person = await repos.people.findById(student.personId);
   if (!person) return null;
-  return toView(student, person);
+  const currentClass = await resolveCurrentClass(repos, schoolId, student.id);
+  return toView(student, person, currentClass);
 }
 
 export interface NewOfflineStudentInput {
@@ -207,7 +241,8 @@ export async function updateOfflineStudent(repos: Repos, schoolId: number, id: n
     ? await repos.students.update(schoolId, id, studentPatch)
     : student;
 
-  return toView(updatedStudent, person);
+  const currentClass = await resolveCurrentClass(repos, schoolId, id);
+  return toView(updatedStudent, person, currentClass);
 }
 
 export async function deleteOfflineStudent(repos: Repos, schoolId: number, id: number, deletedBy: number | null, deleteReason?: string | null): Promise<void> {
@@ -218,5 +253,6 @@ export async function restoreOfflineStudent(repos: Repos, schoolId: number, id: 
   const student = await repos.students.restore(schoolId, id, restoredBy);
   const person = await repos.people.findById(student.personId);
   if (!person) throw new RepoError(`Person ${student.personId} vanished for restored student ${id}`, 'NOT_FOUND');
-  return toView(student, person);
+  const currentClass = await resolveCurrentClass(repos, schoolId, id);
+  return toView(student, person, currentClass);
 }

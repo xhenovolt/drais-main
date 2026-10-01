@@ -36,6 +36,7 @@ interface OfflineStudent {
   email: string | null;
   address: string | null;
   deletedAt: string | null;
+  currentClass: { id: number; name: string } | null;
 }
 
 type FormState = Partial<OfflineStudent> & { firstName: string; lastName: string };
@@ -147,8 +148,8 @@ export default function OfflineStudentsPage() {
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Core student records only — name, contact, admission number, status. Class assignment, fees,
-        fingerprints, and report cards are not part of this offline screen yet.
+        Core student records plus current class (read-only — moving a student to a different class isn't
+        done from this screen yet). Fees, fingerprints, and report cards are still not part of it.
       </p>
 
       {error && (
@@ -175,6 +176,7 @@ export default function OfflineStudentsPage() {
             <tr>
               <th className="px-3 py-2 text-left">Name</th>
               <th className="px-3 py-2 text-left">Admission No</th>
+              <th className="px-3 py-2 text-left">Class</th>
               <th className="px-3 py-2 text-left">Status</th>
               <th className="px-3 py-2 text-left">Phone</th>
               <th className="px-3 py-2 text-right">Actions</th>
@@ -182,10 +184,10 @@ export default function OfflineStudentsPage() {
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
             {loading && (
-              <tr><td colSpan={5} className="px-3 py-10 text-center text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline" /></td></tr>
+              <tr><td colSpan={6} className="px-3 py-10 text-center text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline" /></td></tr>
             )}
             {!loading && students.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-12 text-center text-gray-400">No students yet. Add the first one.</td></tr>
+              <tr><td colSpan={6} className="px-3 py-12 text-center text-gray-400">No students yet. Add the first one.</td></tr>
             )}
             {!loading && students.map((s) => (
               <tr key={s.id} className={s.deletedAt ? 'opacity-50' : ''}>
@@ -193,6 +195,7 @@ export default function OfflineStudentsPage() {
                   {s.firstName} {s.lastName}{s.otherName ? ` ${s.otherName}` : ''}
                 </td>
                 <td className="px-3 py-2 font-mono text-gray-500">{s.admissionNo || '—'}</td>
+                <td className="px-3 py-2 text-gray-500">{s.currentClass?.name || '—'}</td>
                 <td className="px-3 py-2 text-gray-500">{s.status}</td>
                 <td className="px-3 py-2 text-gray-500">{s.phone || '—'}</td>
                 <td className="px-3 py-2">

@@ -547,6 +547,33 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, is_active);
+
+-- Phase 7, sub-effort 15: enrollments — read-only in this repo layer (see
+-- contract/types.ts's EnrollmentRecord header for the full reasoning: a
+-- student's class comes from here, not students.class_id, confirmed from
+-- real production data). Deliberately NOT the full 26-column real table
+-- — theology_class_id/study_mode_id/curriculum_id/program_id/promoted_
+-- from_enrollment_id/end_date/end_reason/enrolled_at/joined_at and the
+-- soft-delete audit columns are all real but unmodeled here, same
+-- discipline as every prior sub-effort's exclusions. No FOREIGN KEY on
+-- class_id, matching classes itself (sub-effort 2) — a class row isn't
+-- guaranteed to exist locally for every historical enrollment.
+CREATE TABLE IF NOT EXISTS enrollments (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id        INTEGER NOT NULL,
+  class_id          INTEGER,
+  stream_id         INTEGER,
+  academic_year_id  INTEGER,
+  term_id           INTEGER,
+  status            TEXT DEFAULT 'active',
+  enrollment_type   TEXT DEFAULT 'standard',
+  enrollment_date   TEXT,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  FOREIGN KEY (student_id) REFERENCES students(id)
+);
+CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id, status);
+CREATE INDEX IF NOT EXISTS idx_enrollments_class ON enrollments(class_id, status);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();

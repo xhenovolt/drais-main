@@ -23,6 +23,7 @@ import { createMysqlRoleRepo } from './role-repo';
 import { createMysqlUserRoleRepo } from './user-role-repo';
 import { createMysqlPermissionRepo } from './permission-repo';
 import { createMysqlRolePermissionRepo } from './role-permission-repo';
+import { createMysqlEnrollmentRepo } from './enrollment-repo';
 
 export function createMysqlRepos(): Repos {
   return {
@@ -42,5 +43,6 @@ export function createMysqlRepos(): Repos {
     userRoles: createMysqlUserRoleRepo(),
     permissions: createMysqlPermissionRepo(),
     rolePermissions: createMysqlRolePermissionRepo(),
+    enrollments: createMysqlEnrollmentRepo(),
   };
 }

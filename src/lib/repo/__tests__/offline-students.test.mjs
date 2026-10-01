@@ -111,6 +111,36 @@ describe('offline-students', () => {
     );
   });
 
+  it('currentClass is null when the student has no active enrollment', async () => {
+    const created = await createOfflineStudent(repos, schoolId, { firstName: 'No', lastName: 'Class' });
+    assert.equal(created.currentClass, null);
+  });
+
+  it('currentClass resolves the real class name through EnrollmentRepo + ClassRepo (sub-effort 18)', async () => {
+    const created = await createOfflineStudent(repos, schoolId, { firstName: 'Has', lastName: 'Class' });
+    const cls = await repos.classes.create({ schoolId, name: 'Senior 2 Arts' });
+    db.prepare(
+      `INSERT INTO enrollments (student_id, class_id, status) VALUES (?, ?, 'active')`,
+    ).run(created.id, cls.id);
+
+    const found = await getOfflineStudent(repos, schoolId, created.id);
+    assert.deepEqual(found.currentClass, { id: cls.id, name: 'Senior 2 Arts' });
+
+    const listed = await listOfflineStudents(repos, schoolId);
+    const inList = listed.find((v) => v.id === created.id);
+    assert.deepEqual(inList.currentClass, { id: cls.id, name: 'Senior 2 Arts' });
+  });
+
+  it('currentClass is null, not a crash, when the enrollment points at a class row this install does not have', async () => {
+    const created = await createOfflineStudent(repos, schoolId, { firstName: 'Dangling', lastName: 'Class' });
+    db.prepare(
+      `INSERT INTO enrollments (student_id, class_id, status) VALUES (?, ?, 'active')`,
+    ).run(created.id, 999999);
+
+    const found = await getOfflineStudent(repos, schoolId, created.id);
+    assert.equal(found.currentClass, null);
+  });
+
   it('delete then restore round-trips correctly, including the audit trail', async () => {
     const created = await createOfflineStudent(repos, schoolId, { firstName: 'Del', lastName: 'Restore' });
     await deleteOfflineStudent(repos, schoolId, created.id, 42, 'left the school');

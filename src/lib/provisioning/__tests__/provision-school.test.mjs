@@ -34,7 +34,7 @@ function cleanupSqlite(p) {
 }
 
 describe('provisioning (Phase 4)', () => {
-  let sourceDb, source, schoolA, schoolB;
+  let sourceDb, source, schoolA, schoolB, classA;
 
   before(async () => {
     // The fake "online" source: two schools, so leak-detection tests have
@@ -43,21 +43,57 @@ describe('provisioning (Phase 4)', () => {
     source = createSqliteRepos(sourceDb);
     schoolA = await source.schools.create({ name: 'School A' });
     schoolB = await source.schools.create({ name: 'School B' });
-    await source.students.create({ schoolId: schoolA.id, personId: 1, admissionNo: 'A-001' });
-    await source.students.create({ schoolId: schoolA.id, personId: 2, admissionNo: 'A-002' });
-    await source.students.create({ schoolId: schoolB.id, personId: 1, admissionNo: 'B-001' });
+
+    // Real person rows — sub-effort 15 fixed a real bug where provisioning
+    // never copied people at all, which this fixture's original bare
+    // personId: 1/2 literals (no person ever created with that id) would
+    // have hidden rather than caught, since nothing here ever checked
+    // whether the referenced person actually existed.
+    const p1 = await source.people.create({ schoolId: schoolA.id, firstName: 'Amina', lastName: 'A-One' });
+    const p2 = await source.people.create({ schoolId: schoolA.id, firstName: 'Musa', lastName: 'A-Two' });
+    const pB = await source.people.create({ schoolId: schoolB.id, firstName: 'Zawadi', lastName: 'B-One' });
+    const studentA1 = await source.students.create({ schoolId: schoolA.id, personId: p1.id, admissionNo: 'A-001' });
+    await source.students.create({ schoolId: schoolA.id, personId: p2.id, admissionNo: 'A-002' });
+    await source.students.create({ schoolId: schoolB.id, personId: pB.id, admissionNo: 'B-001' });
+
+    const staffPerson = await source.people.create({ schoolId: schoolA.id, firstName: 'Grace', lastName: 'Teacher' });
+    await source.staff.create({ schoolId: schoolA.id, personId: staffPerson.id, staffNo: 'STF-A-001' });
+
+    classA = await source.classes.create({ schoolId: schoolA.id, name: 'Senior 1' });
+    // EnrollmentRepo is read-only (no create() on the contract) — inserted
+    // directly, same as every enrollment-repo test does for the same reason.
+    sourceDb.prepare(`INSERT INTO enrollments (student_id, class_id, status) VALUES (?, ?, 'active')`).run(studentA1.id, classA.id);
   });
 
   after(() => {
     closeSqliteDb(sourceDb);
   });
 
-  it('provisions exactly one school\'s students into a fresh local file', async () => {
+  it('provisions exactly one school\'s students, people, staff, classes and enrollments into a fresh local file', async () => {
     const sqlitePath = tmpSqlitePath('happy');
     try {
       const result = await provisionSchool({ schoolId: schoolA.id, sqlitePath, source });
       assert.equal(result.counts.schools, 1);
       assert.equal(result.counts.students, 2);
+      assert.equal(result.counts.people, 3, '2 student-linked people + 1 staff-linked person');
+      assert.equal(result.counts.staff, 1);
+      assert.equal(result.counts.classes, 1);
+      assert.equal(result.counts.enrollments, 1);
+
+      // The actual bug this sub-effort found: a provisioned student must
+      // be resolvable through its person, not just present as a row with
+      // a person_id nothing points at.
+      const localDb = openSqliteDb(sqlitePath);
+      try {
+        const local = createSqliteRepos(localDb);
+        const localStudents = await local.students.listBySchool(schoolA.id);
+        for (const s of localStudents) {
+          const person = await local.people.findById(s.personId);
+          assert.ok(person, `student ${s.id}'s person_id ${s.personId} must resolve to a real copied person row`);
+        }
+      } finally {
+        closeSqliteDb(localDb);
+      }
 
       const verify = await verifyProvisionedSchool({ schoolId: schoolA.id, sqlitePath, source });
       assert.equal(verify.ok, true);
@@ -65,6 +101,8 @@ describe('provisioning (Phase 4)', () => {
       assert.deepEqual(verify.leakedSchoolIds, []);
       assert.equal(verify.counts.students.matches, true);
       assert.equal(verify.counts.students.local, 2);
+      assert.equal(verify.counts.staff.matches, true);
+      assert.equal(verify.counts.staff.local, 1);
     } finally {
       cleanupSqlite(sqlitePath);
     }
@@ -120,7 +158,7 @@ describe('provisioning (Phase 4)', () => {
   it('provisionSchool itself refuses a source that returns a mismatched school_id (defense in depth)', async () => {
     const sqlitePath = tmpSqlitePath('defense');
     const poisonedSource = {
-      schools: source.schools,
+      ...source,
       students: {
         ...source.students,
         // A deliberately buggy/malicious source: asked for school A's
