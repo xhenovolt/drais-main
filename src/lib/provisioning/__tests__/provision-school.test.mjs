@@ -34,7 +34,7 @@ function cleanupSqlite(p) {
 }
 
 describe('provisioning (Phase 4)', () => {
-  let sourceDb, source, schoolA, schoolB, classA;
+  let sourceDb, source, schoolA, schoolB, classA, studentA1;
 
   before(async () => {
     // The fake "online" source: two schools, so leak-detection tests have
@@ -52,7 +52,7 @@ describe('provisioning (Phase 4)', () => {
     const p1 = await source.people.create({ schoolId: schoolA.id, firstName: 'Amina', lastName: 'A-One' });
     const p2 = await source.people.create({ schoolId: schoolA.id, firstName: 'Musa', lastName: 'A-Two' });
     const pB = await source.people.create({ schoolId: schoolB.id, firstName: 'Zawadi', lastName: 'B-One' });
-    const studentA1 = await source.students.create({ schoolId: schoolA.id, personId: p1.id, admissionNo: 'A-001' });
+    studentA1 = await source.students.create({ schoolId: schoolA.id, personId: p1.id, admissionNo: 'A-001' });
     await source.students.create({ schoolId: schoolA.id, personId: p2.id, admissionNo: 'A-002' });
     await source.students.create({ schoolId: schoolB.id, personId: pB.id, admissionNo: 'B-001' });
 
@@ -75,6 +75,15 @@ describe('provisioning (Phase 4)', () => {
     const subjectA = await source.subjects.create({ schoolId: schoolA.id, name: 'Mathematics' });
     const deptA = await source.departments.create({ schoolId: schoolA.id, name: 'Sciences' });
     sourceDb.prepare(`INSERT INTO class_subjects (class_id, subject_id, teacher_id, status) VALUES (?, ?, ?, 'active')`).run(classA.id, subjectA.id, staffA1.id);
+
+    // Sub-effort 19's provisioning extension: attendance_rules. Without
+    // it, a freshly-provisioned install can list students/staff but
+    // marking always fails (recordOfflinePunch throws INVALID_INPUT with
+    // no active rule, by design — it never invents one).
+    sourceDb.prepare(
+      `INSERT INTO attendance_rules (school_id, applies_to, boarding_scope, arrival_end_time, late_threshold_minutes, weekday_mask, is_active)
+       VALUES (?, 'students', 'all', '07:30:00', 15, 127, 1)`,
+    ).run(schoolA.id);
   });
 
   after(() => {
@@ -96,6 +105,7 @@ describe('provisioning (Phase 4)', () => {
       assert.equal(result.counts.academicYears, 1);
       assert.equal(result.counts.departments, 1);
       assert.equal(result.counts.classSubjects, 1);
+      assert.equal(result.counts.attendanceRules, 1);
 
       // The actual bug this sub-effort found: a provisioned student must
       // be resolvable through its person, not just present as a row with
@@ -115,6 +125,13 @@ describe('provisioning (Phase 4)', () => {
         assert.equal(allocations.length, 1);
         assert.ok(await local.subjects.findById(schoolA.id, allocations[0].subjectId), 'provisioned class_subjects.subject_id must resolve to a real copied subject');
         assert.ok(await local.staff.findById(schoolA.id, allocations[0].teacherId), 'provisioned class_subjects.teacher_id must resolve to a real copied staff row');
+
+        // Sub-effort 19's own gap, proven end-to-end rather than just by
+        // row count: a freshly-provisioned install must actually be able
+        // to MARK attendance, not just show the rule exists.
+        const { recordOfflinePunch } = await import('@/lib/repo/offline-attendance');
+        const marked = await recordOfflinePunch(local, schoolA.id, studentA1.personId, 'student', new Date(2026, 9, 5, 7, 0, 0));
+        assert.ok(['present', 'late'].includes(marked.status), 'a provisioned install must be able to evaluate a real punch, not just store the rule inertly');
       } finally {
         closeSqliteDb(localDb);
       }

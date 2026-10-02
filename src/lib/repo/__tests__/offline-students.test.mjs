@@ -6,6 +6,7 @@ import { openSqliteDb, closeSqliteDb, createSqliteRepos } from '@/lib/repo/sqlit
 import {
   listOfflineStudents, getOfflineStudent, createOfflineStudent,
   updateOfflineStudent, deleteOfflineStudent, restoreOfflineStudent,
+  assignStudentToClass, unassignStudentFromClass,
 } from '@/lib/repo/offline-students';
 import { RepoError } from '@/lib/repo/contract/types';
 
@@ -165,5 +166,47 @@ describe('offline-students', () => {
     assert.equal(restored.firstName, 'Del');
     const list = await listOfflineStudents(repos, schoolId);
     assert.ok(list.some((v) => v.id === created.id));
+  });
+
+  describe('class placement writes (sub-effort 19): assignStudentToClass / unassignStudentFromClass', () => {
+    it('assignStudentToClass places a student with no prior enrollment into a class', async () => {
+      const created = await createOfflineStudent(repos, schoolId, { firstName: 'Fresh', lastName: 'Placement' });
+      const cls = await repos.classes.create({ schoolId, name: 'Senior 3' });
+      const result = await assignStudentToClass(repos, schoolId, created.id, cls.id);
+      assert.deepEqual(result.currentClass, { id: cls.id, name: 'Senior 3' });
+    });
+
+    it('assignStudentToClass ends the PREVIOUS enrollment (a real transition in history, not an edit-in-place)', async () => {
+      const created = await createOfflineStudent(repos, schoolId, { firstName: 'Moving', lastName: 'Student' });
+      const classA = await repos.classes.create({ schoolId, name: 'Class A' });
+      const classB = await repos.classes.create({ schoolId, name: 'Class B' });
+      await assignStudentToClass(repos, schoolId, created.id, classA.id);
+      const afterMove = await assignStudentToClass(repos, schoolId, created.id, classB.id, 'promoted');
+      assert.deepEqual(afterMove.currentClass, { id: classB.id, name: 'Class B' });
+
+      const history = await repos.enrollments.listByStudentId(schoolId, created.id);
+      assert.equal(history.length, 2);
+      const ended = history.find((e) => e.classId === classA.id);
+      assert.equal(ended.status, 'ended');
+      assert.equal(ended.endReason, 'promoted');
+    });
+
+    it('unassignStudentFromClass ends the current enrollment with no replacement', async () => {
+      const created = await createOfflineStudent(repos, schoolId, { firstName: 'To', lastName: 'Unassign' });
+      const cls = await repos.classes.create({ schoolId, name: 'Temp Class' });
+      await assignStudentToClass(repos, schoolId, created.id, cls.id);
+      const result = await unassignStudentFromClass(repos, schoolId, created.id, 'left the school');
+      assert.equal(result.currentClass, null);
+
+      const history = await repos.enrollments.listByStudentId(schoolId, created.id);
+      assert.equal(history[0].status, 'ended');
+      assert.equal(history[0].endReason, 'left the school');
+    });
+
+    it('unassignStudentFromClass on a student with no enrollment at all is a safe no-op, not an error', async () => {
+      const created = await createOfflineStudent(repos, schoolId, { firstName: 'Never', lastName: 'Enrolled' });
+      const result = await unassignStudentFromClass(repos, schoolId, created.id);
+      assert.equal(result.currentClass, null);
+    });
   });
 });

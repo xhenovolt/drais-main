@@ -11,6 +11,7 @@ import { getSqliteDb, resetSqliteDb } from '@/lib/repo/sqlite/singleton';
 import { handleOfflineLogin } from '@/lib/repo/offline-auth/route-bridge';
 import {
   handleList, handleCreate, handleGet, handleUpdate, handleDelete, handleRestore,
+  handleAssignClass, handleUnassignClass,
 } from '@/lib/repo/offline-students/route-bridge';
 
 let prevEnv;
@@ -171,5 +172,58 @@ describe('offline-students route-bridge', () => {
     }));
     assert.equal(duplicate.status, 409);
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM people').get().count, before);
+  });
+
+  describe('class placement (sub-effort 19)', () => {
+    it('handleAssignClass places a student into a class through the real HTTP path', async () => {
+      const createRes = await handleCreate(reqWithSession('http://localhost/api/students/offline', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ firstName: 'Assign', lastName: 'Me' }),
+      }));
+      const created = (await createRes.json()).student;
+      const cls = await repos.classes.create({ schoolId, name: 'Route Bridge Class' });
+
+      const res = await handleAssignClass(reqWithSession(`http://localhost/api/students/offline/${created.id}/class`, {
+        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ classId: cls.id }),
+      }), created.id);
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.deepEqual(body.student.currentClass, { id: cls.id, name: 'Route Bridge Class' });
+    });
+
+    it('handleAssignClass requires a classId', async () => {
+      const res = await handleAssignClass(reqWithSession('http://localhost/api/students/offline/1/class', {
+        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}),
+      }), 1);
+      assert.equal(res.status, 400);
+    });
+
+    it('handleUnassignClass removes the current class assignment through the real HTTP path', async () => {
+      const createRes = await handleCreate(reqWithSession('http://localhost/api/students/offline', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ firstName: 'Unassign', lastName: 'Me' }),
+      }));
+      const created = (await createRes.json()).student;
+      const cls = await repos.classes.create({ schoolId, name: 'Temp Route Bridge Class' });
+      await handleAssignClass(reqWithSession(`http://localhost/api/students/offline/${created.id}/class`, {
+        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ classId: cls.id }),
+      }), created.id);
+
+      const res = await handleUnassignClass(reqWithSession(`http://localhost/api/students/offline/${created.id}/class`, {
+        method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}),
+      }), created.id);
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.equal(body.student.currentClass, null);
+    });
+
+    it('both are refused unauthenticated', async () => {
+      const assignRes = await handleAssignClass(new NextRequest('http://localhost/api/students/offline/1/class', {
+        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ classId: 1 }),
+      }), 1);
+      assert.equal(assignRes.status, 401);
+      const unassignRes = await handleUnassignClass(new NextRequest('http://localhost/api/students/offline/1/class', { method: 'DELETE' }), 1);
+      assert.equal(unassignRes.status, 401);
+    });
   });
 });

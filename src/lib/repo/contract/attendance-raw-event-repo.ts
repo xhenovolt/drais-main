@@ -24,4 +24,13 @@ export interface AttendanceRawEventRepo {
    *  (existing-or-new) row either way. */
   create(input: NewAttendanceRawEventInput): Promise<CreateRawEventResult>;
   listByPersonAndDateRange(schoolId: number, personId: number, fromDate: string, toDate: string): Promise<AttendanceRawEventRecord[]>;
+  /** Phase 7 sub-effort 19. The append-only invariant in this file's
+   *  header is about REAL device data, which a biometric terminal
+   *  reported and which stays immutable forever. A punch this layer
+   *  itself created (source='manual', via the offline marking screen)
+   *  is different — the one thing this layer can create, it can also
+   *  undo before it's treated as settled fact. Implementations MUST
+   *  refuse (RepoError) to delete any row whose source isn't 'manual',
+   *  so this can never become a backdoor to erase real device history. */
+  deleteManualEvent(schoolId: number, id: number): Promise<void>;
 }

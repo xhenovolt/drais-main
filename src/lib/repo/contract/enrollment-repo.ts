@@ -1,7 +1,9 @@
 /**
  * @drais/repo-contract — EnrollmentRepo interface.
- * See ./types.ts's header on EnrollmentRecord for why this is read-only
- * and deliberately smaller than the real 26-column `enrollments` table.
+ * See ./types.ts's header on EnrollmentRecord for the bounded write
+ * capability sub-effort 19 added (create/end — bookkeeping, not an
+ * admissions/promotion engine) and why it's still deliberately smaller
+ * than the real 26-column `enrollments` table.
  *
  * Every method takes schoolId explicitly and enforces it via the
  * student, never a direct `enrollments.school_id` check — that column is
@@ -11,7 +13,7 @@
  * same join-based scoping already established for `class_results`
  * (sub-effort 2's own notes).
  */
-import type { EnrollmentRecord, ListOptions } from './types';
+import type { EnrollmentRecord, NewEnrollmentInput, ListOptions } from './types';
 
 export interface EnrollmentRepo {
   /** The one enrollment to treat as "current" for this student — null if
@@ -27,4 +29,20 @@ export interface EnrollmentRepo {
    *  and bulk reads — not exposed by the two student/class-scoped methods
    *  above, which deliberately don't double as "list everything." */
   listBySchool(schoolId: number, opts?: ListOptions): Promise<EnrollmentRecord[]>;
+  /** CREATE — enroll a student into a class. Does NOT end any existing
+   *  active enrollment for the same student; the caller (offline-students'
+   *  assignStudentToClass) decides whether that's wanted, since "add a
+   *  second concurrent enrollment" is a real, legitimate case (confirmed
+   *  live multi-program students) this repo has no basis to forbid. */
+  create(schoolId: number, input: NewEnrollmentInput): Promise<EnrollmentRecord>;
+  /** UPDATE — correct an existing enrollment's class/stream/term/year
+   *  without ending it (e.g. fixing a data-entry mistake, not a real
+   *  mid-term class change — that's end() + create(), so the history
+   *  shows the real transition). */
+  update(schoolId: number, id: number, patch: Partial<NewEnrollmentInput>): Promise<EnrollmentRecord>;
+  /** DELETE, in the sense this entity actually supports: end an
+   *  enrollment (status='ended', end_date/end_reason set) rather than
+   *  erase it — enrollment history is a real fact that happened, not
+   *  something to make disappear. */
+  end(schoolId: number, id: number, endDate: string, endReason?: string | null): Promise<EnrollmentRecord>;
 }

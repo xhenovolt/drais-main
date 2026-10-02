@@ -568,6 +568,8 @@ CREATE TABLE IF NOT EXISTS enrollments (
   status            TEXT DEFAULT 'active',
   enrollment_type   TEXT DEFAULT 'standard',
   enrollment_date   TEXT,
+  end_date          TEXT,
+  end_reason        TEXT,
   created_at        TEXT DEFAULT (${ISO_NOW}),
   deleted_at        TEXT,
   FOREIGN KEY (student_id) REFERENCES students(id)
@@ -651,6 +653,37 @@ CREATE TABLE IF NOT EXISTS class_subjects (
   FOREIGN KEY (class_id) REFERENCES classes(id)
 );
 CREATE INDEX IF NOT EXISTS idx_class_subjects_class ON class_subjects(class_id, status);
+
+-- Phase 7, sub-effort 19: attendance_rules. Read-only in this repo
+-- layer (see contract/types.ts's AttendanceRuleRecord header) — rules
+-- are school-configured, admin workflow, never written from offline
+-- code. Columns mirror the real table (database/migrations/tidb/
+-- 001_canonical_core_tables.sql) one-for-one except rule_name/
+-- rule_description/auto_link_from_device_name/applies_to_classes/
+-- effective_date, which the pure evaluator never reads and this layer
+-- therefore never needed to carry.
+CREATE TABLE IF NOT EXISTS attendance_rules (
+  id                                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id                              INTEGER NOT NULL,
+  arrival_start_time                     TEXT,
+  arrival_end_time                       TEXT,
+  late_threshold_minutes                 INTEGER NOT NULL DEFAULT 15,
+  absence_cutoff_time                    TEXT,
+  closing_time                           TEXT,
+  departure_start_time                   TEXT,
+  departure_end_time                     TEXT,
+  early_leave_threshold_minutes          INTEGER NOT NULL DEFAULT 30,
+  half_day_threshold_minutes             INTEGER NOT NULL DEFAULT 240,
+  weekday_mask                           INTEGER NOT NULL DEFAULT 31,
+  applies_on_holidays                    INTEGER NOT NULL DEFAULT 0,
+  boarding_scope                         TEXT NOT NULL DEFAULT 'all' CHECK (boarding_scope IN ('all','boarding','day')),
+  applies_to                             TEXT NOT NULL DEFAULT 'students' CHECK (applies_to IN ('students','teachers','all')),
+  ignore_duplicate_scans_within_minutes  INTEGER NOT NULL DEFAULT 2,
+  is_active                              INTEGER NOT NULL DEFAULT 1,
+  priority                               INTEGER NOT NULL DEFAULT 100,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_attendance_rules_school ON attendance_rules(school_id, is_active, priority);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();

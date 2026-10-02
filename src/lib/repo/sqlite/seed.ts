@@ -21,7 +21,7 @@
  * re-provisioning the same school (refresh from cloud) is safe to re-run.
  */
 import type { SqliteConnection } from './connection';
-import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord, ReportSnapshotRecord, DepartmentRecord, ClassSubjectRecord, SubjectRecord, TermRecord, AcademicYearRecord } from '../contract/types';
+import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord, ReportSnapshotRecord, DepartmentRecord, ClassSubjectRecord, SubjectRecord, TermRecord, AcademicYearRecord, AttendanceRuleRecord } from '../contract/types';
 
 /**
  * subscription_* fields are carried through here deliberately (Phase 7,
@@ -148,19 +148,19 @@ export function seedClass(db: SqliteConnection, r: ClassRecord): void {
 export function seedEnrollment(db: SqliteConnection, r: EnrollmentRecord): void {
   db.prepare(`
     INSERT INTO enrollments (id, student_id, class_id, stream_id, academic_year_id, term_id,
-                              status, enrollment_type, enrollment_date, created_at, deleted_at)
+                              status, enrollment_type, enrollment_date, end_date, end_reason, created_at, deleted_at)
     VALUES (@id, @studentId, @classId, @streamId, @academicYearId, @termId,
-            @status, @enrollmentType, @enrollmentDate, @createdAt, @deletedAt)
+            @status, @enrollmentType, @enrollmentDate, @endDate, @endReason, @createdAt, @deletedAt)
     ON CONFLICT(id) DO UPDATE SET
       student_id=excluded.student_id, class_id=excluded.class_id, stream_id=excluded.stream_id,
       academic_year_id=excluded.academic_year_id, term_id=excluded.term_id, status=excluded.status,
       enrollment_type=excluded.enrollment_type, enrollment_date=excluded.enrollment_date,
-      deleted_at=excluded.deleted_at
+      end_date=excluded.end_date, end_reason=excluded.end_reason, deleted_at=excluded.deleted_at
   `).run({
     id: r.id, studentId: r.studentId, classId: r.classId, streamId: r.streamId,
     academicYearId: r.academicYearId, termId: r.termId, status: r.status,
     enrollmentType: r.enrollmentType, enrollmentDate: r.enrollmentDate,
-    createdAt: r.createdAt, deletedAt: r.deletedAt,
+    endDate: r.endDate, endReason: r.endReason, createdAt: r.createdAt, deletedAt: r.deletedAt,
   });
 }
 
@@ -301,5 +301,42 @@ export function seedAcademicYear(db: SqliteConnection, r: AcademicYearRecord): v
     id: r.id, schoolId: r.schoolId, name: r.name, startDate: r.startDate, endDate: r.endDate, status: r.status,
     deletedAt: r.deletedAt, deletedBy: r.deletedBy, deleteReason: r.deleteReason,
     restoredAt: r.restoredAt, restoredBy: r.restoredBy,
+  });
+}
+
+/** AttendanceRuleRepo is read-only; provisioning writes via this, same
+ *  reasoning as every other read-only repo's seed function above.
+ *  is_active/priority aren't on AttendanceRuleRecord (not modeled, see
+ *  types.ts's header) but are real schema columns this insert needs —
+ *  defaulted to active/default-priority since provisioning only ever
+ *  copies rules that were already active online (findActiveForRole's
+ *  own WHERE clause already filtered to is_active=1 before this runs). */
+export function seedAttendanceRule(db: SqliteConnection, r: AttendanceRuleRecord): void {
+  db.prepare(`
+    INSERT INTO attendance_rules (id, school_id, arrival_start_time, arrival_end_time, late_threshold_minutes,
+                                   absence_cutoff_time, closing_time, departure_start_time, departure_end_time,
+                                   early_leave_threshold_minutes, half_day_threshold_minutes, weekday_mask,
+                                   applies_on_holidays, boarding_scope, applies_to, ignore_duplicate_scans_within_minutes,
+                                   is_active, priority)
+    VALUES (@id, @schoolId, @arrivalStartTime, @arrivalEndTime, @lateThresholdMinutes,
+            @absenceCutoffTime, @closingTime, @departureStartTime, @departureEndTime,
+            @earlyLeaveThresholdMinutes, @halfDayThresholdMinutes, @weekdayMask,
+            @appliesOnHolidays, @boardingScope, @appliesTo, @ignoreDuplicateScansWithinMinutes,
+            1, 100)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, arrival_start_time=excluded.arrival_start_time, arrival_end_time=excluded.arrival_end_time,
+      late_threshold_minutes=excluded.late_threshold_minutes, absence_cutoff_time=excluded.absence_cutoff_time,
+      closing_time=excluded.closing_time, departure_start_time=excluded.departure_start_time,
+      departure_end_time=excluded.departure_end_time, early_leave_threshold_minutes=excluded.early_leave_threshold_minutes,
+      half_day_threshold_minutes=excluded.half_day_threshold_minutes, weekday_mask=excluded.weekday_mask,
+      applies_on_holidays=excluded.applies_on_holidays, boarding_scope=excluded.boarding_scope,
+      applies_to=excluded.applies_to, ignore_duplicate_scans_within_minutes=excluded.ignore_duplicate_scans_within_minutes
+  `).run({
+    id: r.id, schoolId: r.schoolId, arrivalStartTime: r.arrivalStartTime, arrivalEndTime: r.arrivalEndTime,
+    lateThresholdMinutes: r.lateThresholdMinutes, absenceCutoffTime: r.absenceCutoffTime, closingTime: r.closingTime,
+    departureStartTime: r.departureStartTime, departureEndTime: r.departureEndTime,
+    earlyLeaveThresholdMinutes: r.earlyLeaveThresholdMinutes, halfDayThresholdMinutes: r.halfDayThresholdMinutes,
+    weekdayMask: r.weekdayMask, appliesOnHolidays: r.appliesOnHolidays ? 1 : 0, boardingScope: r.boardingScope,
+    appliesTo: r.appliesTo, ignoreDuplicateScansWithinMinutes: r.ignoreDuplicateScansWithinMinutes,
   });
 }

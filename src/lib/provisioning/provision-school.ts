@@ -55,7 +55,7 @@ import { createMysqlRepos } from '../repo/mysql';
 import {
   openSqliteDb, closeSqliteDb, type SqliteConnection,
   seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment,
-  seedSubject, seedTerm, seedAcademicYear, seedDepartment, seedClassSubject,
+  seedSubject, seedTerm, seedAcademicYear, seedDepartment, seedClassSubject, seedAttendanceRule,
 } from '../repo/sqlite';
 import { discoverSchoolTables } from '../backup/discovery';
 
@@ -73,6 +73,7 @@ export interface ProvisionResult {
   counts: {
     schools: number; students: number; people: number; staff: number; classes: number; enrollments: number;
     subjects: number; terms: number; academicYears: number; departments: number; classSubjects: number;
+    attendanceRules: number;
   };
   coverage: {
     totalSchoolScopedTablesLive: number;
@@ -81,7 +82,7 @@ export interface ProvisionResult {
   };
 }
 
-const PROVISIONED_TABLES = ['people', 'students', 'staff', 'classes', 'enrollments', 'subjects', 'terms', 'academic_years', 'departments', 'class_subjects']; // 'schools' is the root table, handled separately below
+const PROVISIONED_TABLES = ['people', 'students', 'staff', 'classes', 'enrollments', 'subjects', 'terms', 'academic_years', 'departments', 'class_subjects', 'attendance_rules']; // 'schools' is the root table, handled separately below
 
 /** Every provisioned table is tenant-checked the same way: a source that
  *  hands back a row tagged with the wrong school_id is refused outright
@@ -185,6 +186,17 @@ export async function provisionSchool(opts: ProvisionOptions): Promise<Provision
     const classSubjects = await source.classSubjects.listBySchool(schoolId);
     for (const cs of classSubjects) seedClassSubject(db, cs);
 
+    // Without this, a freshly-provisioned install could list students/
+    // staff but never mark attendance — recordOfflinePunch (sub-effort
+    // 19) throws INVALID_INPUT with no active rule, by design, rather
+    // than invent one. Sub-effort 19's own writeup names this gap
+    // explicitly rather than leaving it to be found later.
+    const attendanceRules = await source.attendanceRules.listActiveBySchool(schoolId);
+    for (const ar of attendanceRules) {
+      assertOwnedBySchool(schoolId, ar.schoolId, 'attendance rule', ar.id);
+      seedAttendanceRule(db, ar);
+    }
+
     // Honesty check: report the gap between what this phase actually
     // copies and what the live schema considers school-scoped, rather than
     // silently implying this is a complete school export. Best-effort —
@@ -205,6 +217,7 @@ export async function provisionSchool(opts: ProvisionOptions): Promise<Provision
         staff: staff.length, classes: classes.length, enrollments: enrollments.length,
         subjects: subjects.length, terms: terms.length, academicYears: academicYears.length,
         departments: departments.length, classSubjects: classSubjects.length,
+        attendanceRules: attendanceRules.length,
       },
       coverage: {
         totalSchoolScopedTablesLive: liveScopedTables.length,

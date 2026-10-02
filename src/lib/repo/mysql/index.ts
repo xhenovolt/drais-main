@@ -27,6 +27,7 @@ import { createMysqlEnrollmentRepo } from './enrollment-repo';
 import { createMysqlReportSnapshotRepo } from './report-snapshot-repo';
 import { createMysqlDepartmentRepo } from './department-repo';
 import { createMysqlClassSubjectRepo } from './class-subject-repo';
+import { createMysqlAttendanceRuleRepo } from './attendance-rule-repo';
 
 export function createMysqlRepos(): Repos {
   return {
@@ -50,5 +51,6 @@ export function createMysqlRepos(): Repos {
     reportSnapshots: createMysqlReportSnapshotRepo(),
     departments: createMysqlDepartmentRepo(),
     classSubjects: createMysqlClassSubjectRepo(),
+    attendanceRules: createMysqlAttendanceRuleRepo(),
   };
 }

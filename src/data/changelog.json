@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-02T03:03:32.750Z",
-  "last_commit": "80b3a0fb641c03499348366fcfbd3324d0b2113a",
+  "generated_at": "2026-10-02T16:02:46.749Z",
+  "last_commit": "6e11069bac132d714d37e2e2130d83167c5f399a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8487,7 +8487,20 @@
         }
       ],
       "commit": "80b3a0fb64"
+    },
+    {
+      "version": "2.41.0",
+      "date": "2026-10-02",
+      "release_type": "minor",
+      "title": "Phase 7 sub-efforts 16+17 - DepartmentRepo/ClassSubjectRepo + offline-academics",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-efforts 16+17 - DepartmentRepo/ClassSubjectRepo + offline-academics"
+        }
+      ],
+      "commit": "6e11069bac"
     }
   ],
-  "app_version": "2.41.0"
+  "app_version": "2.42.0"
 }

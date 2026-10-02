@@ -1,8 +1,7 @@
-// Phase 7, sub-effort 15: enrollments. Read-only repo (see
-// contract/types.ts's EnrollmentRecord header for why) — no create() on
-// the contract, so fixtures are inserted directly against the real
-// SQLite connection, same as the rollback test in
-// offline-students-route-bridge.test.mjs already does for a similar reason.
+// Phase 7, sub-effort 15 (read) + sub-effort 19 (write, "full CRUD" per
+// explicit user instruction). The read-path tests below still insert
+// fixtures directly against the real SQLite connection in places where
+// that's simpler than going through create() — both are exercised.
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { openSqliteDb, closeSqliteDb, createSqliteRepos } from '@/lib/repo/sqlite';
@@ -134,5 +133,56 @@ describe('repo-sqlite: Phase 7 sub-effort 15 (enrollments)', () => {
 
     const withDeleted = await repos.enrollments.listBySchool(freshSchool, { includeDeleted: true });
     assert.deepEqual(withDeleted.map((e) => e.id).sort(), [active, ended, deleted].sort());
+  });
+
+  describe('writes (sub-effort 19): create / update / end', () => {
+    it('create() enrolls a student into a class as a new active row', async () => {
+      const created = await repos.enrollments.create(schoolId, { studentId, classId: 801 });
+      assert.equal(created.classId, 801);
+      assert.equal(created.status, 'active');
+      assert.ok(created.enrollmentDate, 'enrollmentDate defaults to today when not given');
+    });
+
+    it('create() refuses a student that does not belong to this school', async () => {
+      await assert.rejects(
+        () => repos.enrollments.create(otherSchoolId, { studentId, classId: 801 }),
+        (err) => err.code === 'NOT_FOUND',
+      );
+    });
+
+    it('update() corrects class/stream/term without ending the enrollment', async () => {
+      const created = await repos.enrollments.create(schoolId, { studentId, classId: 802 });
+      const updated = await repos.enrollments.update(schoolId, created.id, { classId: 803 });
+      assert.equal(updated.classId, 803);
+      assert.equal(updated.status, 'active', 'update() must not change status — that is end()\'s job');
+    });
+
+    it('update() on a nonexistent id throws NOT_FOUND', async () => {
+      await assert.rejects(() => repos.enrollments.update(schoolId, 999999, { classId: 1 }), (err) => err.code === 'NOT_FOUND');
+    });
+
+    it('end() sets status to ended with a date and reason, and the enrollment stops appearing as active', async () => {
+      const created = await repos.enrollments.create(schoolId, { studentId, classId: 804 });
+      const ended = await repos.enrollments.end(schoolId, created.id, '2026-12-01', 'transferred to another school');
+      assert.equal(ended.status, 'ended');
+      assert.equal(ended.endDate, '2026-12-01');
+      assert.equal(ended.endReason, 'transferred to another school');
+
+      const active = await repos.enrollments.listActiveByClassId(schoolId, 804);
+      assert.ok(!active.some((e) => e.id === created.id), 'an ended enrollment must not appear as active');
+    });
+
+    it('end() on a nonexistent id throws NOT_FOUND', async () => {
+      await assert.rejects(() => repos.enrollments.end(schoolId, 999999, '2026-12-01'), (err) => err.code === 'NOT_FOUND');
+    });
+
+    it('create() allows a second concurrent active enrollment — a real, legitimate case (multi-program students), not forbidden here', async () => {
+      const first = await repos.enrollments.create(schoolId, { studentId, classId: 805 });
+      const second = await repos.enrollments.create(schoolId, { studentId, classId: 806 });
+      assert.notEqual(first.id, second.id);
+      // findActiveByStudentId's documented tie-break: most recently created wins.
+      const active = await repos.enrollments.findActiveByStudentId(schoolId, studentId);
+      assert.equal(active.id, second.id);
+    });
   });
 });

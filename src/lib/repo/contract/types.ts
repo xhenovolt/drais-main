@@ -748,14 +748,20 @@ export interface RolePermissionGrant {
 // from real data, not assumed; `students.class_id` is a legacy/sparse
 // field this repo layer does not read for that question.
 //
-// DELIBERATELY READ-ONLY, matching the exact reasoning offline-attendance
-// (sub-effort 12) already used for attendance_rules: writing an
-// enrollment (or a promotion) involves real business rules — which class
-// a student can move into, whether a mid-term class change needs a
-// reason, how `promoted_from_enrollment_id` chains across terms — this
-// layer has no authority to invent. A read path is enough to answer
-// "what class is this student in" (sub-effort 18) and "who is in this
-// class" (sub-effort 17) without pretending to own enrollment decisions.
+// Sub-effort 15 made this READ-ONLY, matching the exact reasoning
+// offline-attendance (sub-effort 12) used for attendance_rules: writing
+// an enrollment involves real business rules this layer has no
+// authority to invent. Sub-effort 19 (user's explicit instruction: full
+// CRUD, not a viewer) added WRITES — create() (enroll into a class) and
+// end() (leave/reassign, preserving history rather than hard-deleting
+// it — the same "delete means end, not erase" treatment every other
+// entity in this layer already gives soft-deleted rows). The bounded
+// business rule actually implemented: ending an enrollment sets status
+// to 'ended' + end_date/end_reason; creating one inserts a fresh active
+// row. What's still NOT implemented is the real system's promotion
+// chain (`promoted_from_enrollment_id`) or any policy about WHICH class
+// a student may move into — this is enrollment bookkeeping, not an
+// admissions/promotion engine.
 //
 // A student can hold multiple simultaneous active enrollments (confirmed
 // live: 5,773 active rows across 3,765 students, ~1.53 each — the same
@@ -769,11 +775,10 @@ export interface RolePermissionGrant {
 //
 // Deliberately excluded (real columns, not modeled here): theology_
 // class_id, study_mode_id, curriculum_id, program_id, promoted_from_
-// enrollment_id, end_date/end_reason (no write path to set them from
-// here), enrolled_at/joined_at (redundant with created_at for a read-only
-// slice), and the deleted_by/delete_reason/restored_at/restored_by audit
-// trail (no delete/restore operation exists on this repo). Add them when
-// a write-capable EnrollmentRepo is built.
+// enrollment_id, enrolled_at/joined_at (redundant with created_at), and
+// the deleted_by/delete_reason/restored_at/restored_by audit trail (this
+// repo's "delete" is end(), a status change, not a soft-delete — there is
+// nothing to restore).
 export interface EnrollmentRecord {
   id: number;
   studentId: number;
@@ -784,8 +789,20 @@ export interface EnrollmentRecord {
   status: string | null;
   enrollmentType: string | null;
   enrollmentDate: IsoDate | null;
+  endDate: IsoDate | null;
+  endReason: string | null;
   createdAt: IsoDateTime | null;
   deletedAt: IsoDateTime | null;
+}
+
+export interface NewEnrollmentInput {
+  studentId: number;
+  classId?: number | null;
+  streamId?: number | null;
+  academicYearId?: number | null;
+  termId?: number | null;
+  enrollmentType?: string | null;
+  enrollmentDate?: IsoDate | null;
 }
 
 // ── Phase 7, sub-effort 20: report_snapshots ───────────────────────────
@@ -906,4 +923,45 @@ export interface ClassSubjectRecord {
   status: string;
   academicYearId: number | null;
   termId: number | null;
+}
+
+/** Sub-effort 19 (explicit user instruction: full CRUD). Bounded:
+ *  create() inserts a fresh active allocation; update() corrects one in
+ *  place (fix a wrong subject/teacher); end() sets status='inactive'
+ *  rather than using the real supersession chain (superseded_by) — a
+ *  documented simplification, not a claim of parity with how the real
+ *  system tracks a teacher handover mid-term. */
+export interface NewClassSubjectInput {
+  classId: number;
+  subjectId: number;
+  teacherId?: number | null;
+  allocationRole?: string;
+  academicYearId?: number | null;
+  termId?: number | null;
+}
+
+// ── Phase 7, sub-effort 19: attendance_rules (read) + marking (write) ──
+// AttendanceRuleRepo is READ-ONLY — rules are school-configured, admin
+// workflow (arrival/departure windows, thresholds, weekday mask), not
+// something this layer invents or edits offline. Shape mirrors
+// src/lib/attendance/rule-evaluator.ts's own `AttendanceRule` interface
+// field-for-field (snake_case there, camelCase here) so converting one
+// to the other at the call site is a pure rename, not a remapping.
+export interface AttendanceRuleRecord {
+  id: number;
+  schoolId: number;
+  arrivalStartTime: string | null;
+  arrivalEndTime: string | null;
+  lateThresholdMinutes: number;
+  absenceCutoffTime: string | null;
+  closingTime: string | null;
+  departureStartTime: string | null;
+  departureEndTime: string | null;
+  earlyLeaveThresholdMinutes: number;
+  halfDayThresholdMinutes: number;
+  weekdayMask: number;
+  appliesOnHolidays: boolean;
+  boardingScope: 'all' | 'boarding' | 'day';
+  appliesTo: 'students' | 'teachers' | 'all';
+  ignoreDuplicateScansWithinMinutes: number;
 }

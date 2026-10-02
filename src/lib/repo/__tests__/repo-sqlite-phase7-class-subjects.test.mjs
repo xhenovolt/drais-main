@@ -1,6 +1,6 @@
-// Phase 7, sub-effort 16: class_subjects. Read-only repo (no create() on
-// the contract), so fixtures are inserted directly, same pattern as the
-// enrollments test file for the same reason.
+// Phase 7, sub-effort 16 (read) + sub-effort 19 (write, "full CRUD" per
+// explicit user instruction). Read-path fixtures are still inserted
+// directly where that's simpler than going through create().
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { openSqliteDb, closeSqliteDb, createSqliteRepos } from '@/lib/repo/sqlite';
@@ -64,5 +64,53 @@ describe('repo-sqlite: Phase 7 sub-effort 16 (class_subjects)', () => {
     const found = (await repos.classSubjects.listActiveByClassId(schoolId, classA)).find((a) => a.id === id);
     assert.equal(found.allocationRole, 'co_teacher');
     assert.equal(found.displayOnReport, false);
+  });
+
+  describe('writes (sub-effort 19): create / update / end', () => {
+    it('create() allocates a new active row', async () => {
+      const created = await repos.classSubjects.create(schoolId, { classId: classA, subjectId: 10, teacherId: 55 });
+      assert.equal(created.status, 'active');
+      assert.equal(created.teacherId, 55);
+      assert.equal(created.allocationRole, 'primary_teacher');
+    });
+
+    it('create() refuses a class that does not belong to this school', async () => {
+      await assert.rejects(
+        () => repos.classSubjects.create(otherSchoolId, { classId: classA, subjectId: 10 }),
+        (err) => err.code === 'NOT_FOUND',
+      );
+    });
+
+    it('create() allows co-teaching — a second allocation for the same class+subject is not forbidden', async () => {
+      const first = await repos.classSubjects.create(schoolId, { classId: classA, subjectId: 11, teacherId: 1, allocationRole: 'primary_teacher' });
+      const second = await repos.classSubjects.create(schoolId, { classId: classA, subjectId: 11, teacherId: 2, allocationRole: 'co_teacher' });
+      assert.notEqual(first.id, second.id);
+      const active = await repos.classSubjects.listActiveByClassId(schoolId, classA);
+      assert.ok(active.some((a) => a.id === first.id) && active.some((a) => a.id === second.id));
+    });
+
+    it('update() corrects the teacher/role in place without ending the allocation', async () => {
+      const created = await repos.classSubjects.create(schoolId, { classId: classA, subjectId: 12, teacherId: 1 });
+      const updated = await repos.classSubjects.update(schoolId, created.id, { teacherId: 2, allocationRole: 'co_teacher' });
+      assert.equal(updated.teacherId, 2);
+      assert.equal(updated.allocationRole, 'co_teacher');
+      assert.equal(updated.status, 'active');
+    });
+
+    it('update() on a nonexistent id throws NOT_FOUND', async () => {
+      await assert.rejects(() => repos.classSubjects.update(schoolId, 999999, { teacherId: 1 }), (err) => err.code === 'NOT_FOUND');
+    });
+
+    it('end() marks the allocation inactive, and it stops appearing as active', async () => {
+      const created = await repos.classSubjects.create(schoolId, { classId: classA, subjectId: 13 });
+      const ended = await repos.classSubjects.end(schoolId, created.id);
+      assert.equal(ended.status, 'inactive');
+      const active = await repos.classSubjects.listActiveByClassId(schoolId, classA);
+      assert.ok(!active.some((a) => a.id === created.id));
+    });
+
+    it('end() on a nonexistent id throws NOT_FOUND', async () => {
+      await assert.rejects(() => repos.classSubjects.end(schoolId, 999999), (err) => err.code === 'NOT_FOUND');
+    });
   });
 });

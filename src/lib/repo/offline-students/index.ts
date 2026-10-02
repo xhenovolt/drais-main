@@ -33,10 +33,16 @@
  * `enrollments.findActiveByStudentId` (the "current" enrollment, tied to
  * `classes` for the display name), exactly the way the real online app's
  * more authoritative paths already treat enrollments as the source of
- * truth. Still no WRITE path for class assignment — moving a student
- * into a different class is a real workflow (promotion vs. transfer vs.
- * correction) this layer doesn't yet have authority to invent, same
- * reasoning as every other read-only slice in this effort.
+ * truth.
+ *
+ * Sub-effort 19 (explicit user instruction: full CRUD, not a viewer)
+ * added the write path: assignStudentToClass (ends any current active
+ * enrollment, then creates a new one — so history shows the real
+ * transition, not an edited-in-place row) and unassignStudentFromClass
+ * (ends the current enrollment with no replacement). This is bounded
+ * enrollment bookkeeping, not an admissions/promotion engine — there is
+ * still no policy here about WHICH class a student may move into, and
+ * no `promoted_from_enrollment_id` chain.
  */
 import type { Repos } from '../contract';
 import type { StudentRecord, NewStudentInput, PersonRecord, NewPersonInput } from '../contract/types';
@@ -255,4 +261,46 @@ export async function restoreOfflineStudent(repos: Repos, schoolId: number, id: 
   if (!person) throw new RepoError(`Person ${student.personId} vanished for restored student ${id}`, 'NOT_FOUND');
   const currentClass = await resolveCurrentClass(repos, schoolId, id);
   return toView(student, person, currentClass);
+}
+
+/** Sub-effort 19. Ends any current active enrollment (so the history
+ *  shows a real transition — end one, start another — not an
+ *  edited-in-place row that erases where the student was before) and
+ *  creates a new one for the target class. Not a promotion/transfer
+ *  distinction — both read as the same operation here, which is an
+ *  honest bookkeeping simplification, not a claim of parity with the
+ *  real system's richer workflow. */
+export async function assignStudentToClass(
+  repos: Repos, schoolId: number, studentId: number, classId: number, endReason: string | null = 'reassigned',
+): Promise<OfflineStudentView> {
+  const current = await repos.enrollments.findActiveByStudentId(schoolId, studentId);
+  if (current) {
+    await repos.enrollments.end(schoolId, current.id, new Date().toISOString().slice(0, 10), endReason);
+  }
+  await repos.enrollments.create(schoolId, { studentId, classId });
+
+  const student = await repos.students.findById(schoolId, studentId);
+  if (!student) throw new RepoError(`Student ${studentId} not found in school ${schoolId}`, 'NOT_FOUND');
+  const person = await repos.people.findById(student.personId);
+  if (!person) throw new RepoError(`Person ${student.personId} vanished for student ${studentId}`, 'NOT_FOUND');
+  const currentClass = await resolveCurrentClass(repos, schoolId, studentId);
+  return toView(student, person, currentClass);
+}
+
+/** Sub-effort 19. Ends the student's current active enrollment with no
+ *  replacement — "no longer in any class on record," a real, distinct
+ *  state from "in class X," not a no-op if there happens to be none. */
+export async function unassignStudentFromClass(
+  repos: Repos, schoolId: number, studentId: number, reason: string | null = 'unassigned',
+): Promise<OfflineStudentView> {
+  const current = await repos.enrollments.findActiveByStudentId(schoolId, studentId);
+  if (current) {
+    await repos.enrollments.end(schoolId, current.id, new Date().toISOString().slice(0, 10), reason);
+  }
+
+  const student = await repos.students.findById(schoolId, studentId);
+  if (!student) throw new RepoError(`Student ${studentId} not found in school ${schoolId}`, 'NOT_FOUND');
+  const person = await repos.people.findById(student.personId);
+  if (!person) throw new RepoError(`Person ${student.personId} vanished for student ${studentId}`, 'NOT_FOUND');
+  return toView(student, person, null);
 }

@@ -19,6 +19,7 @@ export type { EnrollmentRepo } from './enrollment-repo';
 export type { ReportSnapshotRepo } from './report-snapshot-repo';
 export type { DepartmentRepo } from './department-repo';
 export type { ClassSubjectRepo } from './class-subject-repo';
+export type { AttendanceRuleRepo } from './attendance-rule-repo';
 
 import type { SchoolRepo } from './school-repo';
 import type { StudentRepo } from './student-repo';
@@ -40,6 +41,7 @@ import type { EnrollmentRepo } from './enrollment-repo';
 import type { ReportSnapshotRepo } from './report-snapshot-repo';
 import type { DepartmentRepo } from './department-repo';
 import type { ClassSubjectRepo } from './class-subject-repo';
+import type { AttendanceRuleRepo } from './attendance-rule-repo';
 
 /** The registry every consumer of this layer actually depends on — never
  *  a concrete repo-mysql or repo-sqlite import directly (§8's boundary
@@ -66,4 +68,5 @@ export interface Repos {
   reportSnapshots: ReportSnapshotRepo;
   departments: DepartmentRepo;
   classSubjects: ClassSubjectRepo;
+  attendanceRules: AttendanceRuleRepo;
 }

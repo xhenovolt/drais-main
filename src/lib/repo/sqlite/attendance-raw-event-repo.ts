@@ -112,5 +112,14 @@ export function createSqliteAttendanceRawEventRepo(db: SqliteConnection): Attend
       ).all(schoolId, personId, fromDate, toDate) as RawEventRow[];
       return rows.map(toRecord);
     },
+
+    async deleteManualEvent(schoolId, id) {
+      const existing = await findById(schoolId, id);
+      if (!existing) throw new RepoError(`Raw event ${id} not found in school ${schoolId}`, 'NOT_FOUND');
+      if (existing.source !== 'manual') {
+        throw new RepoError(`Raw event ${id} has source '${existing.source}', not 'manual' — refusing to delete real device history`, 'INVALID_INPUT');
+      }
+      db.prepare(`DELETE FROM attendance_raw_events WHERE id = ? AND school_id = ? AND source = 'manual'`).run(id, schoolId);
+    },
   };
 }

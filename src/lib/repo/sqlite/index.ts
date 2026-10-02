@@ -29,9 +29,10 @@ import { createSqliteEnrollmentRepo } from './enrollment-repo';
 import { createSqliteReportSnapshotRepo } from './report-snapshot-repo';
 import { createSqliteDepartmentRepo } from './department-repo';
 import { createSqliteClassSubjectRepo } from './class-subject-repo';
+import { createSqliteAttendanceRuleRepo } from './attendance-rule-repo';
 
 export { openSqliteDb, closeSqliteDb, type SqliteConnection } from './connection';
-export { seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment, seedReportSnapshot, seedDepartment, seedClassSubject, seedSubject, seedTerm, seedAcademicYear } from './seed';
+export { seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment, seedReportSnapshot, seedDepartment, seedClassSubject, seedSubject, seedTerm, seedAcademicYear, seedAttendanceRule } from './seed';
 
 export function createSqliteRepos(db: SqliteConnection): Repos {
   return {
@@ -55,5 +56,6 @@ export function createSqliteRepos(db: SqliteConnection): Repos {
     reportSnapshots: createSqliteReportSnapshotRepo(db),
     departments: createSqliteDepartmentRepo(db),
     classSubjects: createSqliteClassSubjectRepo(db),
+    attendanceRules: createSqliteAttendanceRuleRepo(db),
   };
 }

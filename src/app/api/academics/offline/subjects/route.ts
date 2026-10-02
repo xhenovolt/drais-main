@@ -1,8 +1,6 @@
 /**
- * GET/POST /api/academics/offline — list/create classes for the
- * offline-academics slice (docs/architecture/DRAIS_V2_ARCHITECTURE_AUDIT.md
- * Phase 7 sub-effort 17, writes added sub-effort 19). Only meaningful in
- * local-sqlite mode; refuses cleanly otherwise.
+ * GET/POST /api/academics/offline/subjects — list/create subjects
+ * (Phase 7 sub-effort 19). See ../route.ts's header for the design context.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbMode } from '@/lib/db/db-mode';
@@ -16,12 +14,12 @@ function notOfflineResponse() {
 
 export async function GET(request: NextRequest) {
   if (getDbMode() !== 'local-sqlite') return notOfflineResponse();
-  const { handleList } = await import('@/lib/repo/offline-academics/route-bridge');
-  return handleList(request);
+  const { handleListSubjects } = await import('@/lib/repo/offline-academics/route-bridge');
+  return handleListSubjects(request);
 }
 
 export async function POST(request: NextRequest) {
   if (getDbMode() !== 'local-sqlite') return notOfflineResponse();
-  const { handleCreateClass } = await import('@/lib/repo/offline-academics/route-bridge');
-  return handleCreateClass(request);
+  const { handleCreateSubject } = await import('@/lib/repo/offline-academics/route-bridge');
+  return handleCreateSubject(request);
 }

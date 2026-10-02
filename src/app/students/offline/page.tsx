@@ -8,8 +8,9 @@
  * Deliberately NOT a port of /students/list — that page is ~3,200 lines,
  * driven by an enrollments/fees/classes join with no offline equivalent
  * yet. This is a genuinely smaller, separate screen: view/add/edit a
- * student's core identity only (name, DOB, gender, contact, admission
- * no, status, notes) — talking to /api/students/offline/*, which only
+ * student's core identity (name, DOB, gender, contact, admission no,
+ * status, notes) plus class placement (sub-effort 19: a real write path,
+ * not just a view) — talking to /api/students/offline/*, which only
  * ever serves local-sqlite mode and refuses cleanly otherwise.
  *
  * Only reachable today by direct navigation — the mode-switch UI still
@@ -39,6 +40,8 @@ interface OfflineStudent {
   currentClass: { id: number; name: string } | null;
 }
 
+interface ClassOption { id: number; name: string }
+
 type FormState = Partial<OfflineStudent> & { firstName: string; lastName: string };
 
 const EMPTY_FORM: FormState = { firstName: '', lastName: '' };
@@ -62,6 +65,8 @@ export default function OfflineStudentsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  const [assigningId, setAssigningId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +85,36 @@ export default function OfflineStudentsPage() {
   }, [search, showDeleted]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    api<{ classes: ClassOption[] }>('/api/academics/offline').then((res) => setClassOptions(res.classes)).catch(() => {});
+  }, []);
+
+  const assignClass = async (studentId: number, classId: number) => {
+    setAssigningId(studentId);
+    setError(null);
+    try {
+      await api(`/api/students/offline/${studentId}/class`, { method: 'PUT', body: JSON.stringify({ classId }) });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to assign class');
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
+  const unassignClass = async (studentId: number) => {
+    setAssigningId(studentId);
+    setError(null);
+    try {
+      await api(`/api/students/offline/${studentId}/class`, { method: 'DELETE', body: JSON.stringify({}) });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to unassign class');
+    } finally {
+      setAssigningId(null);
+    }
+  };
 
   const openCreate = () => { setEditingId(null); setForm(EMPTY_FORM); setFormOpen(true); };
   const openEdit = (s: OfflineStudent) => {
@@ -148,8 +183,9 @@ export default function OfflineStudentsPage() {
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Core student records plus current class (read-only — moving a student to a different class isn't
-        done from this screen yet). Fees, fingerprints, and report cards are still not part of it.
+        Core student records plus class placement — pick a class inline to assign or move a student;
+        "Unassign" ends the current placement with no replacement. Fees, fingerprints, and report cards
+        are still not part of this screen.
       </p>
 
       {error && (
@@ -195,7 +231,28 @@ export default function OfflineStudentsPage() {
                   {s.firstName} {s.lastName}{s.otherName ? ` ${s.otherName}` : ''}
                 </td>
                 <td className="px-3 py-2 font-mono text-gray-500">{s.admissionNo || '—'}</td>
-                <td className="px-3 py-2 text-gray-500">{s.currentClass?.name || '—'}</td>
+                <td className="px-3 py-2">
+                  {assigningId === s.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={s.currentClass?.id ?? ''} disabled={!!s.deletedAt}
+                        onChange={(e) => { if (e.target.value) assignClass(s.id, Number(e.target.value)); }}
+                        className="text-xs px-1.5 py-1 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+                      >
+                        <option value="">Unassigned</option>
+                        {classOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                      {s.currentClass && !s.deletedAt && (
+                        <button onClick={() => unassignClass(s.id)} title="Unassign from class"
+                          className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-gray-500">{s.status}</td>
                 <td className="px-3 py-2 text-gray-500">{s.phone || '—'}</td>
                 <td className="px-3 py-2">

@@ -7,7 +7,8 @@
  */
 import { query } from '@/lib/db';
 import type { EnrollmentRepo } from '../contract/enrollment-repo';
-import type { EnrollmentRecord, ListOptions } from '../contract/types';
+import type { EnrollmentRecord, NewEnrollmentInput, ListOptions } from '../contract/types';
+import { RepoError } from '../contract/types';
 import { toIso, toIsoDate, toNum, toNumOrNull } from './util';
 
 interface EnrollmentRow {
@@ -20,6 +21,8 @@ interface EnrollmentRow {
   status: string | null;
   enrollment_type: string | null;
   enrollment_date: string | Date | null;
+  end_date: string | Date | null;
+  end_reason: string | null;
   created_at: string | Date | null;
   deleted_at: string | Date | null;
 }
@@ -35,15 +38,28 @@ function toRecord(r: EnrollmentRow): EnrollmentRecord {
     status: r.status,
     enrollmentType: r.enrollment_type,
     enrollmentDate: toIsoDate(r.enrollment_date),
+    endDate: toIsoDate(r.end_date),
+    endReason: r.end_reason,
     createdAt: toIso(r.created_at),
     deletedAt: toIso(r.deleted_at),
   };
 }
 
 const BASE_SELECT = `SELECT e.id, e.student_id, e.class_id, e.stream_id, e.academic_year_id, e.term_id,
-                             e.status, e.enrollment_type, e.enrollment_date, e.created_at, e.deleted_at
+                             e.status, e.enrollment_type, e.enrollment_date, e.end_date, e.end_reason,
+                             e.created_at, e.deleted_at
                         FROM enrollments e
                         JOIN students s ON s.id = e.student_id`;
+
+/** Shared by update()/end() — both need "does this enrollment exist AND
+ *  belong to this school" before touching it, same join-based scoping
+ *  every read method here already uses. */
+async function findByIdScoped(schoolId: number, id: number): Promise<EnrollmentRecord | null> {
+  const rows = (await query(
+    `${BASE_SELECT} WHERE e.id = ? AND s.school_id = ? LIMIT 1`, [id, schoolId],
+  )) as EnrollmentRow[];
+  return rows.length ? toRecord(rows[0]) : null;
+}
 
 export function createMysqlEnrollmentRepo(): EnrollmentRepo {
   return {
@@ -87,6 +103,61 @@ export function createMysqlEnrollmentRepo(): EnrollmentRepo {
         [schoolId],
       )) as EnrollmentRow[];
       return rows.map(toRecord);
+    },
+
+    async create(schoolId, input: NewEnrollmentInput) {
+      // The student must genuinely belong to this school — a bare
+      // student_id with no school check would let a caller enroll a
+      // student into a class under a DIFFERENT school than the one the
+      // session is scoped to.
+      const owns = (await query(`SELECT 1 FROM students WHERE id = ? AND school_id = ? LIMIT 1`, [input.studentId, schoolId])) as any[];
+      if (!owns.length) throw new RepoError(`Student ${input.studentId} not found in school ${schoolId}`, 'NOT_FOUND');
+
+      const res = (await query(
+        `INSERT INTO enrollments (student_id, class_id, stream_id, academic_year_id, term_id, status, enrollment_type, enrollment_date)
+         VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+        [
+          input.studentId, input.classId ?? null, input.streamId ?? null, input.academicYearId ?? null, input.termId ?? null,
+          input.enrollmentType ?? 'standard', input.enrollmentDate ?? new Date().toISOString().slice(0, 10),
+        ],
+      )) as unknown as { insertId?: number };
+      if (!res?.insertId) throw new RepoError('Insert did not return an id', 'INVALID_INPUT');
+      const created = await findByIdScoped(schoolId, res.insertId);
+      if (!created) throw new RepoError('Enrollment vanished immediately after insert', 'NOT_FOUND');
+      return created;
+    },
+
+    async update(schoolId, id, patch) {
+      const existing = await findByIdScoped(schoolId, id);
+      if (!existing) throw new RepoError(`Enrollment ${id} not found in school ${schoolId}`, 'NOT_FOUND');
+      const merged = {
+        classId: patch.classId !== undefined ? patch.classId : existing.classId,
+        streamId: patch.streamId !== undefined ? patch.streamId : existing.streamId,
+        academicYearId: patch.academicYearId !== undefined ? patch.academicYearId : existing.academicYearId,
+        termId: patch.termId !== undefined ? patch.termId : existing.termId,
+        enrollmentType: patch.enrollmentType !== undefined ? patch.enrollmentType : existing.enrollmentType,
+        enrollmentDate: patch.enrollmentDate !== undefined ? patch.enrollmentDate : existing.enrollmentDate,
+      };
+      await query(
+        `UPDATE enrollments SET class_id=?, stream_id=?, academic_year_id=?, term_id=?, enrollment_type=?, enrollment_date=?
+          WHERE id = ?`,
+        [merged.classId, merged.streamId, merged.academicYearId, merged.termId, merged.enrollmentType, merged.enrollmentDate, id],
+      );
+      const updated = await findByIdScoped(schoolId, id);
+      if (!updated) throw new RepoError(`Enrollment ${id} vanished after update`, 'NOT_FOUND');
+      return updated;
+    },
+
+    async end(schoolId, id, endDate, endReason = null) {
+      const existing = await findByIdScoped(schoolId, id);
+      if (!existing) throw new RepoError(`Enrollment ${id} not found in school ${schoolId}`, 'NOT_FOUND');
+      await query(
+        `UPDATE enrollments SET status = 'ended', end_date = ?, end_reason = ? WHERE id = ?`,
+        [endDate, endReason, id],
+      );
+      const ended = await findByIdScoped(schoolId, id);
+      if (!ended) throw new RepoError(`Enrollment ${id} vanished after end`, 'NOT_FOUND');
+      return ended;
     },
   };
 }

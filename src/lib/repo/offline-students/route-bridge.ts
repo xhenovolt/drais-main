@@ -14,6 +14,7 @@ import { RepoError } from '../contract/types';
 import {
   listOfflineStudents, getOfflineStudent, createOfflineStudent,
   updateOfflineStudent, deleteOfflineStudent, restoreOfflineStudent,
+  assignStudentToClass, unassignStudentFromClass,
 } from './index';
 
 async function requireSession(request: NextRequest) {
@@ -119,6 +120,44 @@ export async function handleRestore(request: NextRequest, id: number): Promise<N
   const repos = createSqliteRepos(db);
   try {
     const student = await restoreOfflineStudent(repos, session.schoolId, id, session.userId);
+    return NextResponse.json({ success: true, student });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+export async function handleAssignClass(request: NextRequest, id: number): Promise<NextResponse> {
+  const session = await requireSession(request);
+  if (!session) return NextResponse.json({ success: false, error: { message: 'Not authenticated' } }, { status: 401 });
+
+  let body: any = {};
+  try { body = await request.json(); } catch { /* empty */ }
+  const classId = Number(body?.classId);
+  if (!Number.isFinite(classId)) {
+    return NextResponse.json({ success: false, error: { message: 'classId (number) is required', code: 'INVALID_INPUT' } }, { status: 400 });
+  }
+
+  const db = getSqliteDb();
+  const repos = createSqliteRepos(db);
+  try {
+    const student = await assignStudentToClass(repos, session.schoolId, id, classId, body?.reason ?? 'reassigned');
+    return NextResponse.json({ success: true, student });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+export async function handleUnassignClass(request: NextRequest, id: number): Promise<NextResponse> {
+  const session = await requireSession(request);
+  if (!session) return NextResponse.json({ success: false, error: { message: 'Not authenticated' } }, { status: 401 });
+
+  let body: any = {};
+  try { body = await request.json(); } catch { /* empty */ }
+
+  const db = getSqliteDb();
+  const repos = createSqliteRepos(db);
+  try {
+    const student = await unassignStudentFromClass(repos, session.schoolId, id, body?.reason ?? 'unassigned');
     return NextResponse.json({ success: true, student });
   } catch (err) {
     return errorResponse(err);

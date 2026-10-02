@@ -3,7 +3,21 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { openSqliteDb, closeSqliteDb, createSqliteRepos } from '@/lib/repo/sqlite';
-import { listOfflineAttendanceForDate, getOfflinePersonAttendance } from '@/lib/repo/offline-attendance';
+import {
+  listOfflineAttendanceForDate, getOfflinePersonAttendance,
+  recordOfflinePunch, overrideOfflineAttendanceStatus, deleteOfflineManualPunch,
+} from '@/lib/repo/offline-attendance';
+import { RepoError } from '@/lib/repo/contract/types';
+
+function insertRule(db, schoolId, overrides = {}) {
+  const defaults = { appliesTo: 'students', boardingScope: 'all', arrivalEndTime: '07:30:00', absenceCutoffTime: '09:00:00', lateThresholdMinutes: 15 };
+  const r = { ...defaults, ...overrides };
+  const res = db.prepare(
+    `INSERT INTO attendance_rules (school_id, applies_to, boarding_scope, arrival_end_time, absence_cutoff_time, late_threshold_minutes, weekday_mask, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, 127, 1)`, // weekday_mask 127 = every day, so test dates are never "weekend"
+  ).run(schoolId, r.appliesTo, r.boardingScope, r.arrivalEndTime, r.absenceCutoffTime, r.lateThresholdMinutes);
+  return Number(res.lastInsertRowid);
+}
 
 describe('offline-attendance', () => {
   let db, repos, schoolId, otherSchoolId, alice, bob;
@@ -108,5 +122,100 @@ describe('offline-attendance', () => {
     const history = await getOfflinePersonAttendance(repos, schoolId, alice.id, '2026-09-30', '2026-09-01');
     assert.ok(history);
     assert.deepEqual(history.days, []);
+  });
+
+  describe('marking (sub-effort 19): recordOfflinePunch / overrideOfflineAttendanceStatus / deleteOfflineManualPunch', () => {
+    it('recordOfflinePunch with no active rule throws INVALID_INPUT, never guesses a status', async () => {
+      const noRuleSchool = (await repos.schools.create({ name: 'No Rule School' })).id;
+      const person = await repos.people.create({ schoolId: noRuleSchool, firstName: 'No', lastName: 'Rule' });
+      await assert.rejects(
+        () => recordOfflinePunch(repos, noRuleSchool, person.id, 'student', new Date('2026-10-05T04:00:00.000Z')),
+        (err) => err instanceof RepoError && err.code === 'INVALID_INPUT',
+      );
+    });
+
+    it('recordOfflinePunch evaluates the real pure rule-evaluator — an on-time arrival is present', async () => {
+      const ruleSchool = (await repos.schools.create({ name: 'Marking School' })).id;
+      insertRule(db, ruleSchool);
+      const person = await repos.people.create({ schoolId: ruleSchool, firstName: 'OnTime', lastName: 'Student' });
+      // 2026-10-05 is a Monday — arrives 07:00, well inside arrival_end_time 07:30.
+      const row = await recordOfflinePunch(repos, ruleSchool, person.id, 'student', new Date(2026, 9, 5, 7, 0, 0));
+      assert.equal(row.status, 'present');
+      assert.equal(row.lateMinutes, 0);
+    });
+
+    it('recordOfflinePunch marks late correctly using the SAME evaluate() the online engine uses', async () => {
+      const ruleSchool = (await repos.schools.create({ name: 'Late Marking School' })).id;
+      insertRule(db, ruleSchool);
+      const person = await repos.people.create({ schoolId: ruleSchool, firstName: 'Late', lastName: 'Student' });
+      // Arrives 08:00 — 30 minutes past arrival_end_time 07:30.
+      const row = await recordOfflinePunch(repos, ruleSchool, person.id, 'student', new Date(2026, 9, 5, 8, 0, 0));
+      assert.equal(row.status, 'late');
+      assert.equal(row.lateMinutes, 30);
+    });
+
+    it('a second punch the same day re-evaluates as a full day, not two separate verdicts', async () => {
+      const ruleSchool = (await repos.schools.create({ name: 'Two Punch School' })).id;
+      insertRule(db, ruleSchool);
+      const person = await repos.people.create({ schoolId: ruleSchool, firstName: 'Two', lastName: 'Punch' });
+      await recordOfflinePunch(repos, ruleSchool, person.id, 'student', new Date(2026, 9, 5, 7, 0, 0));
+      const second = await recordOfflinePunch(repos, ruleSchool, person.id, 'student', new Date(2026, 9, 5, 13, 0, 0));
+      assert.equal(second.status, 'present');
+      assert.ok(second.firstInAt, 'the day verdict must still reflect the FIRST punch of the day, not just the latest');
+      const stillOneRecord = await repos.attendanceRecords.findByPersonAndDate(ruleSchool, person.id, '2026-10-05');
+      assert.equal(stillOneRecord.rawEventCount, 2);
+    });
+
+    it('overrideOfflineAttendanceStatus (UPDATE) sets the status directly and marks the row as not rule-derived', async () => {
+      const ruleSchool = (await repos.schools.create({ name: 'Override School' })).id;
+      insertRule(db, ruleSchool);
+      const person = await repos.people.create({ schoolId: ruleSchool, firstName: 'Override', lastName: 'Me' });
+      await recordOfflinePunch(repos, ruleSchool, person.id, 'student', new Date(2026, 9, 5, 8, 0, 0)); // would be 'late'
+      const overridden = await overrideOfflineAttendanceStatus(repos, ruleSchool, person.id, 'student', '2026-10-05', 'present');
+      assert.equal(overridden.status, 'present');
+      const record = await repos.attendanceRecords.findByPersonAndDate(ruleSchool, person.id, '2026-10-05');
+      assert.equal(record.ruleId, null, 'a manually-overridden row must be distinguishable from a rule-evaluated one');
+    });
+
+    it('overrideOfflineAttendanceStatus works even with no prior record for the day', async () => {
+      const ruleSchool = (await repos.schools.create({ name: 'Fresh Override School' })).id;
+      const person = await repos.people.create({ schoolId: ruleSchool, firstName: 'Fresh', lastName: 'Override' });
+      const row = await overrideOfflineAttendanceStatus(repos, ruleSchool, person.id, 'student', '2026-10-05', 'absent');
+      assert.equal(row.status, 'absent');
+    });
+
+    it('deleteOfflineManualPunch (DELETE) removes the punch and re-evaluates — absent again once the only punch is gone', async () => {
+      const ruleSchool = (await repos.schools.create({ name: 'Delete Punch School' })).id;
+      insertRule(db, ruleSchool);
+      const person = await repos.people.create({ schoolId: ruleSchool, firstName: 'Delete', lastName: 'Punch' });
+      await recordOfflinePunch(repos, ruleSchool, person.id, 'student', new Date(2026, 9, 5, 7, 0, 0));
+      const [rawEvent] = await repos.attendanceRawEvents.listByPersonAndDateRange(ruleSchool, person.id, '2026-10-05', '2026-10-05');
+      assert.ok(rawEvent);
+
+      const after = await deleteOfflineManualPunch(repos, ruleSchool, person.id, 'student', rawEvent.id);
+      assert.equal(after.status, 'absent', 'with the only punch gone, the day re-evaluates to absent');
+      const remaining = await repos.attendanceRawEvents.listByPersonAndDateRange(ruleSchool, person.id, '2026-10-05', '2026-10-05');
+      assert.equal(remaining.length, 0);
+    });
+
+    it('deleteOfflineManualPunch refuses to delete a real device punch (not source=manual)', async () => {
+      const ruleSchool = (await repos.schools.create({ name: 'Protect Device History School' })).id;
+      const person = await repos.people.create({ schoolId: ruleSchool, firstName: 'Device', lastName: 'Punch' });
+      const { record } = await repos.attendanceRawEvents.create({
+        schoolId: ruleSchool, deviceSn: 'REAL-DEVICE-1', deviceUserId: 1, personId: person.id, roleType: 'student',
+        punchAt: '2026-10-05T04:00:00.000Z', source: 'zkteco_push', matched: true,
+      });
+      await assert.rejects(
+        () => deleteOfflineManualPunch(repos, ruleSchool, person.id, 'student', record.id),
+        (err) => err instanceof RepoError && err.code === 'INVALID_INPUT',
+      );
+    });
+
+    it('deleteOfflineManualPunch on an unknown raw event id throws NOT_FOUND', async () => {
+      await assert.rejects(
+        () => deleteOfflineManualPunch(repos, schoolId, alice.id, 'student', 999999),
+        (err) => err instanceof RepoError && err.code === 'NOT_FOUND',
+      );
+    });
   });
 });

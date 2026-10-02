@@ -9,18 +9,18 @@
  * filters, sorting, pagination and live device/clock-health joins with no
  * offline equivalent. This is a smaller, separate screen: pick a date, see
  * who was present/late/absent/half-day/early-leave that day, and drill into
- * one person's recent daily statuses and raw punches. It shows attendance
- * already evaluated by the real online engine and carried into the local
- * file — it does not mark attendance (see index.ts's header for why: the
- * rule table this would need to compute a fresh status doesn't have a repo
- * yet, and guessing at "late after what time?" here would be exactly the
- * kind of rule this layer must never invent).
+ * one person's recent daily statuses and raw punches.
+ *
+ * Sub-effort 19 added real marking: Record (a punch, re-evaluated through
+ * the same rule-evaluator the online engine uses), Override (a direct
+ * status correction for a day — excused absence, known device outage) and
+ * Delete (undo a manually-recorded punch — never a real device punch).
  *
  * Only reachable today by direct navigation — same as /students/offline,
  * the mode-switch UI still doesn't expose local-sqlite as selectable.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, RefreshCw, WifiOff, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Loader2, RefreshCw, WifiOff, ChevronLeft, ChevronRight, X, UserPlus, Trash2 } from 'lucide-react';
 
 interface OfflineAttendanceRow {
   id: number;
@@ -51,6 +51,8 @@ interface OfflinePersonAttendanceHistory {
   rawEvents: Array<{ id: number; punchAt: string; deviceSn: string; source: string; matched: boolean }>;
 }
 
+const STATUS_OPTIONS: OfflineAttendanceRow['status'][] = ['present', 'late', 'absent', 'half_day', 'early_leave'];
+
 const STATUS_STYLE: Record<OfflineAttendanceRow['status'], string> = {
   present: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
   late: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
@@ -61,12 +63,14 @@ const STATUS_STYLE: Record<OfflineAttendanceRow['status'], string> = {
   weekend: 'bg-gray-100 dark:bg-slate-800 text-gray-500',
 };
 
-async function api<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { 'content-type': 'application/json' } });
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, { ...init, headers: { 'content-type': 'application/json', ...init?.headers } });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body?.success === false) throw new Error(body?.error?.message || `Request failed (${res.status})`);
   return body;
 }
+
+interface PersonOption { id: number; label: string; roleType: 'student' | 'staff' }
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -94,8 +98,14 @@ export default function OfflineAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openPersonId, setOpenPersonId] = useState<number | null>(null);
+  const [openRoleType, setOpenRoleType] = useState<'student' | 'staff'>('student');
   const [history, setHistory] = useState<OfflinePersonAttendanceHistory | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [personQuery, setPersonQuery] = useState('');
+  const [personOptions, setPersonOptions] = useState<PersonOption[]>([]);
+  const [recording, setRecording] = useState(false);
+  const [overridingDate, setOverridingDate] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,8 +125,9 @@ export default function OfflineAttendancePage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openHistory = async (personId: number) => {
+  const openHistory = async (personId: number, roleType: 'student' | 'staff' = 'student') => {
     setOpenPersonId(personId);
+    setOpenRoleType(roleType);
     setHistoryLoading(true);
     setHistory(null);
     try {
@@ -129,6 +140,77 @@ export default function OfflineAttendancePage() {
       setError(e instanceof Error ? e.message : 'Failed to load history');
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const q = personQuery.trim();
+    if (!q) { setPersonOptions([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [students, staff] = await Promise.all([
+          api<{ students: Array<{ id: number; firstName: string; lastName: string }> }>(`/api/students/offline?search=${encodeURIComponent(q)}`).catch(() => ({ students: [] })),
+          api<{ staff: Array<{ id: number; firstName: string; lastName: string }> }>(`/api/staff/offline?search=${encodeURIComponent(q)}`).catch(() => ({ staff: [] })),
+        ]);
+        if (cancelled) return;
+        setPersonOptions([
+          ...students.students.slice(0, 5).map((s) => ({ id: s.id, label: `${s.firstName} ${s.lastName}`, roleType: 'student' as const })),
+          ...staff.staff.slice(0, 5).map((s) => ({ id: s.id, label: `${s.firstName} ${s.lastName}`, roleType: 'staff' as const })),
+        ]);
+      } catch { /* search is best-effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, [personQuery]);
+
+  const recordPunchFor = async (option: PersonOption) => {
+    setRecording(true);
+    setError(null);
+    try {
+      // offline-students/offline-staff list ids are STUDENT/STAFF ids, not
+      // person ids — attendance is keyed by person_id, so resolve that
+      // first through the detail endpoint rather than guessing the mapping.
+      const detail = option.roleType === 'student'
+        ? await api<{ student: { personId: number } }>(`/api/students/offline/${option.id}`)
+        : await api<{ staff: { personId: number } }>(`/api/staff/offline/${option.id}`);
+      const personId = option.roleType === 'student' ? (detail as any).student.personId : (detail as any).staff.personId;
+      await api('/api/attendance/offline/punch', {
+        method: 'POST', body: JSON.stringify({ personId, roleType: option.roleType }),
+      });
+      setPersonQuery(''); setPersonOptions([]);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to record punch');
+    } finally {
+      setRecording(false);
+    }
+  };
+
+  const overrideStatus = async (dayDate: string, status: OfflineAttendanceRow['status']) => {
+    if (openPersonId == null) return;
+    setOverridingDate(dayDate);
+    try {
+      await api('/api/attendance/offline/status', {
+        method: 'PUT', body: JSON.stringify({ personId: openPersonId, roleType: openRoleType, date: dayDate, status }),
+      });
+      await openHistory(openPersonId, openRoleType);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to override status');
+    } finally {
+      setOverridingDate(null);
+    }
+  };
+
+  const deleteManualPunch = async (rawEventId: number) => {
+    if (openPersonId == null) return;
+    if (!confirm('Remove this punch? The day will be re-evaluated from whatever punches remain.')) return;
+    try {
+      await api(`/api/attendance/offline/punch/${rawEventId}?personId=${openPersonId}&roleType=${openRoleType}`, { method: 'DELETE' });
+      await openHistory(openPersonId, openRoleType);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete punch');
     }
   };
 
@@ -146,8 +228,9 @@ export default function OfflineAttendancePage() {
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Shows attendance already evaluated online and carried into this local copy — it does not mark attendance
-        yet. Filters, pagination and device details from the full online history page are not part of this screen.
+        Search below to record a punch — it's evaluated by the same rule logic the online system uses. Click a
+        row to see a person's recent history, override a day's status, or undo a manually-recorded punch.
+        Filters, pagination and device details from the full online history page are not part of this screen.
       </p>
 
       {error && (
@@ -166,6 +249,29 @@ export default function OfflineAttendancePage() {
           <ChevronRight className="w-4 h-4" />
         </button>
         <button onClick={() => setDate(todayIso())} className="text-xs text-indigo-600 dark:text-indigo-400 underline">Today</button>
+      </div>
+
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <UserPlus className="w-4 h-4 text-gray-400 shrink-0" />
+          <input
+            value={personQuery} onChange={(e) => setPersonQuery(e.target.value)}
+            placeholder="Record a punch — search a student or staff member by name…"
+            className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-gray-100"
+          />
+          {recording && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+        </div>
+        {personOptions.length > 0 && (
+          <div className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden">
+            {personOptions.map((o) => (
+              <button key={`${o.roleType}-${o.id}`} disabled={recording} onClick={() => recordPunchFor(o)}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50">
+                <span className="text-gray-900 dark:text-gray-100">{o.label}</span>
+                <span className="text-xs text-gray-400 capitalize">{o.roleType} · punch now</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {summary && (
@@ -198,7 +304,7 @@ export default function OfflineAttendancePage() {
               <tr><td colSpan={5} className="px-3 py-12 text-center text-gray-400">No attendance evaluated for this date yet.</td></tr>
             )}
             {!loading && rows.map((r) => (
-              <tr key={r.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/60" onClick={() => openHistory(r.personId)}>
+              <tr key={r.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/60" onClick={() => openHistory(r.personId, r.roleType)}>
                 <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
                   {r.firstName} {r.lastName}{r.otherName ? ` ${r.otherName}` : ''}
                 </td>
@@ -234,9 +340,23 @@ export default function OfflineAttendancePage() {
                 <div className="space-y-1">
                   {history.days.length === 0 && <p className="text-sm text-gray-400">No evaluated days in this range.</p>}
                   {history.days.map((d) => (
-                    <div key={d.attendanceDate} className="flex items-center justify-between text-sm py-1 border-b border-gray-100 dark:border-slate-800 last:border-0">
+                    <div key={d.attendanceDate} className="flex items-center justify-between gap-2 text-sm py-1 border-b border-gray-100 dark:border-slate-800 last:border-0">
                       <span className="text-gray-500">{d.attendanceDate}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLE[d.status]}`}>{d.status.replace('_', ' ')}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLE[d.status]}`}>{d.status.replace('_', ' ')}</span>
+                        {overridingDate === d.attendanceDate ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
+                        ) : (
+                          <select
+                            value="" title="Override this day's status"
+                            onChange={(e) => { if (e.target.value) overrideStatus(d.attendanceDate, e.target.value as OfflineAttendanceRow['status']); }}
+                            className="text-xs px-1 py-0.5 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-500"
+                          >
+                            <option value="">Override…</option>
+                            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                          </select>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -246,7 +366,14 @@ export default function OfflineAttendancePage() {
                   {history.rawEvents.map((e) => (
                     <div key={e.id} className="flex items-center justify-between text-xs py-1 text-gray-500">
                       <span>{new Date(e.punchAt).toLocaleString()}</span>
-                      <span className="font-mono">{e.deviceSn}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="font-mono">{e.deviceSn}</span>
+                        {e.source === 'manual' && (
+                          <button onClick={() => deleteManualPunch(e.id)} title="Undo this manual punch" className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </span>
                     </div>
                   ))}
                 </div>
