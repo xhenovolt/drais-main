@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-01T19:56:23.690Z",
-  "last_commit": "57dae810e095803d00f73a4cc99b9012a44527fd",
+  "generated_at": "2026-10-02T03:03:32.750Z",
+  "last_commit": "80b3a0fb641c03499348366fcfbd3324d0b2113a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8474,7 +8474,20 @@
         }
       ],
       "commit": "57dae810e0"
+    },
+    {
+      "version": "2.40.0",
+      "date": "2026-10-01",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 20 - ReportSnapshotRepo + raw-data offline report view",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 20 - ReportSnapshotRepo + raw-data offline report view"
+        }
+      ],
+      "commit": "80b3a0fb64"
     }
   ],
-  "app_version": "2.40.0"
+  "app_version": "2.41.0"
 }

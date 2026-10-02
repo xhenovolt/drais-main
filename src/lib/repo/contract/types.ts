@@ -835,3 +835,75 @@ export interface ReportSnapshotRecord {
    *  caller) — null when this record came from an index-only list read. */
   snapshotJson: string | null;
 }
+
+// ── Phase 7, sub-effort 16: departments + class_subjects ───────────────
+// `subject_groups` — real columns confirmed live (id, school_id, name,
+// code, description, sort_order, status) — has ZERO rows platform-wide,
+// confirmed via a real COUNT(*). Same situation as `boarding_presence`
+// earlier this session: a real table nothing has ever populated. Not
+// built here; `departments.subjectGroupId` stays an unresolved raw
+// integer (same precedent as `staff.departmentId` before this
+// sub-effort) until the table actually has data to model. Revisit if it
+// is ever populated, not assumed to need building just because the
+// column exists.
+//
+// `departments` has real data (53 rows, confirmed live) and is plain
+// reference data — no invented business logic in creating or renaming
+// one — so it gets the same full CRUD shape as classes/subjects/terms,
+// not the read-only treatment enrollments/attendance_rules/
+// report_snapshots needed.
+export interface DepartmentRecord {
+  id: number;
+  schoolId: number;
+  name: string;
+  nameAr: string | null;
+  headStaffId: number | null;
+  description: string | null;
+  subjectGroupId: number | null; // unresolved — see header above
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime | null;
+  deletedAt: IsoDateTime | null;
+  deletedBy: number | null;
+  deleteReason: string | null;
+  restoredAt: IsoDateTime | null;
+  restoredBy: number | null;
+}
+
+export interface NewDepartmentInput {
+  schoolId: number;
+  name: string;
+  nameAr?: string | null;
+  headStaffId?: number | null;
+  description?: string | null;
+  subjectGroupId?: number | null;
+}
+
+// `class_subjects` — "who teaches what to whom" — is the class↔subject↔
+// teacher allocation table, real data (250 rows, confirmed live), and
+// genuinely more complex than departments: a supersession chain
+// (`superseded_by`), time-bounded validity (`valid_from`/`valid_to`),
+// and per-term/year/stream scoping. READ-ONLY, same reasoning as
+// enrollments/attendance_rules/report_snapshots: creating or superseding
+// an allocation is a real workflow (who may teach what, how weight is
+// redistributed when a teacher changes mid-term) this layer has no
+// authority to invent.
+//
+// Deliberately excluded (real columns, not modeled here): custom_
+// initials, valid_from/valid_to (the date-range mechanism — "currently
+// active" is approximated instead by `status = 'active' AND
+// superseded_by IS NULL`, a documented simplification, not a claim of
+// exact parity with date-range evaluation), stream_id, superseded_by
+// itself (the chain — not needed to answer "who currently teaches this"
+// once the simplification above is applied), contribution_weight,
+// notes, created_by/updated_by.
+export interface ClassSubjectRecord {
+  id: number;
+  classId: number;
+  subjectId: number;
+  teacherId: number | null;
+  allocationRole: string;
+  displayOnReport: boolean;
+  status: string;
+  academicYearId: number | null;
+  termId: number | null;
+}

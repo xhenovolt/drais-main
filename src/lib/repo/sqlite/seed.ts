@@ -21,7 +21,7 @@
  * re-provisioning the same school (refresh from cloud) is safe to re-run.
  */
 import type { SqliteConnection } from './connection';
-import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord, ReportSnapshotRecord } from '../contract/types';
+import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord, ReportSnapshotRecord, DepartmentRecord, ClassSubjectRecord, SubjectRecord, TermRecord, AcademicYearRecord } from '../contract/types';
 
 /**
  * subscription_* fields are carried through here deliberately (Phase 7,
@@ -189,5 +189,117 @@ export function seedReportSnapshot(db: SqliteConnection, r: ReportSnapshotRecord
     termId: r.termId, yearId: r.yearId, resultTypeId: r.resultTypeId, status: r.status,
     classCount: r.classCount, studentCount: r.studentCount, resultCount: r.resultCount,
     generatedAt: r.generatedAt, completedAt: r.completedAt, snapshotJson: r.snapshotJson,
+  });
+}
+
+export function seedDepartment(db: SqliteConnection, r: DepartmentRecord): void {
+  db.prepare(`
+    INSERT INTO departments (id, school_id, name, name_ar, head_staff_id, description, subject_group_id,
+                              created_at, updated_at, deleted_at, deleted_by, delete_reason, restored_at, restored_by)
+    VALUES (@id, @schoolId, @name, @nameAr, @headStaffId, @description, @subjectGroupId,
+            @createdAt, @updatedAt, @deletedAt, @deletedBy, @deleteReason, @restoredAt, @restoredBy)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, name=excluded.name, name_ar=excluded.name_ar,
+      head_staff_id=excluded.head_staff_id, description=excluded.description,
+      subject_group_id=excluded.subject_group_id, updated_at=excluded.updated_at,
+      deleted_at=excluded.deleted_at, deleted_by=excluded.deleted_by, delete_reason=excluded.delete_reason,
+      restored_at=excluded.restored_at, restored_by=excluded.restored_by
+  `).run({
+    id: r.id, schoolId: r.schoolId, name: r.name, nameAr: r.nameAr, headStaffId: r.headStaffId,
+    description: r.description, subjectGroupId: r.subjectGroupId, createdAt: r.createdAt,
+    updatedAt: r.updatedAt, deletedAt: r.deletedAt, deletedBy: r.deletedBy, deleteReason: r.deleteReason,
+    restoredAt: r.restoredAt, restoredBy: r.restoredBy,
+  });
+}
+
+/** ClassSubjectRepo is read-only; provisioning writes via this, same
+ *  reasoning as seedEnrollment/seedReportSnapshot above. superseded_by
+ *  isn't on ClassSubjectRecord (not modeled, see types.ts's header) but
+ *  IS a real schema column this insert needs for listActiveByClassId's
+ *  own filter to mean anything — defaulted to NULL since a freshly
+ *  provisioned allocation is, by definition, not yet superseded by
+ *  anything this install knows about. */
+export function seedClassSubject(db: SqliteConnection, r: ClassSubjectRecord): void {
+  db.prepare(`
+    INSERT INTO class_subjects (id, class_id, subject_id, teacher_id, allocation_role,
+                                 display_on_report, status, academic_year_id, term_id, superseded_by)
+    VALUES (@id, @classId, @subjectId, @teacherId, @allocationRole,
+            @displayOnReport, @status, @academicYearId, @termId, NULL)
+    ON CONFLICT(id) DO UPDATE SET
+      class_id=excluded.class_id, subject_id=excluded.subject_id, teacher_id=excluded.teacher_id,
+      allocation_role=excluded.allocation_role, display_on_report=excluded.display_on_report,
+      status=excluded.status, academic_year_id=excluded.academic_year_id, term_id=excluded.term_id
+  `).run({
+    id: r.id, classId: r.classId, subjectId: r.subjectId, teacherId: r.teacherId,
+    allocationRole: r.allocationRole, displayOnReport: r.displayOnReport ? 1 : 0,
+    status: r.status, academicYearId: r.academicYearId, termId: r.termId,
+  });
+}
+
+/** Provisioning gap closed alongside sub-effort 17 (offline-academics):
+ *  without these three, every subject/term/year name offline-academics
+ *  and offline-reports resolve by composition would be null on any
+ *  freshly-provisioned real install — the exact same "repo exists,
+ *  provisioning doesn't use it" shape sub-effort 15 already fixed once
+ *  for people/staff/classes/enrollments. */
+export function seedSubject(db: SqliteConnection, r: SubjectRecord): void {
+  db.prepare(`
+    INSERT INTO subjects (id, school_id, name, name_ar, code, subject_type, academic_type, department_id,
+                           subject_group_id, created_at, updated_at, deleted_at, deleted_by, delete_reason,
+                           restored_at, restored_by)
+    VALUES (@id, @schoolId, @name, @nameAr, @code, @subjectType, @academicType, @departmentId,
+            @subjectGroupId, @createdAt, @updatedAt, @deletedAt, @deletedBy, @deleteReason,
+            @restoredAt, @restoredBy)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, name=excluded.name, name_ar=excluded.name_ar, code=excluded.code,
+      subject_type=excluded.subject_type, academic_type=excluded.academic_type, department_id=excluded.department_id,
+      subject_group_id=excluded.subject_group_id, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+      deleted_by=excluded.deleted_by, delete_reason=excluded.delete_reason, restored_at=excluded.restored_at,
+      restored_by=excluded.restored_by
+  `).run({
+    id: r.id, schoolId: r.schoolId, name: r.name, nameAr: r.nameAr, code: r.code,
+    subjectType: r.subjectType, academicType: r.academicType, departmentId: r.departmentId,
+    subjectGroupId: r.subjectGroupId, createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
+    deletedBy: r.deletedBy, deleteReason: r.deleteReason, restoredAt: r.restoredAt, restoredBy: r.restoredBy,
+  });
+}
+
+export function seedTerm(db: SqliteConnection, r: TermRecord): void {
+  db.prepare(`
+    INSERT INTO terms (id, school_id, name, name_ar, code, start_date, end_date, academic_year_id,
+                        is_active, term_number, status, notes, created_at, updated_at, deleted_at,
+                        deleted_by, delete_reason, restored_at, restored_by)
+    VALUES (@id, @schoolId, @name, @nameAr, @code, @startDate, @endDate, @academicYearId,
+            @isActive, @termNumber, @status, @notes, @createdAt, @updatedAt, @deletedAt,
+            @deletedBy, @deleteReason, @restoredAt, @restoredBy)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, name=excluded.name, name_ar=excluded.name_ar, code=excluded.code,
+      start_date=excluded.start_date, end_date=excluded.end_date, academic_year_id=excluded.academic_year_id,
+      is_active=excluded.is_active, term_number=excluded.term_number, status=excluded.status, notes=excluded.notes,
+      updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, deleted_by=excluded.deleted_by,
+      delete_reason=excluded.delete_reason, restored_at=excluded.restored_at, restored_by=excluded.restored_by
+  `).run({
+    id: r.id, schoolId: r.schoolId, name: r.name, nameAr: r.nameAr, code: r.code,
+    startDate: r.startDate, endDate: r.endDate, academicYearId: r.academicYearId,
+    isActive: r.isActive == null ? null : (r.isActive ? 1 : 0), termNumber: r.termNumber, status: r.status,
+    notes: r.notes, createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
+    deletedBy: r.deletedBy, deleteReason: r.deleteReason, restoredAt: r.restoredAt, restoredBy: r.restoredBy,
+  });
+}
+
+export function seedAcademicYear(db: SqliteConnection, r: AcademicYearRecord): void {
+  db.prepare(`
+    INSERT INTO academic_years (id, school_id, name, start_date, end_date, status, deleted_at,
+                                 deleted_by, delete_reason, restored_at, restored_by)
+    VALUES (@id, @schoolId, @name, @startDate, @endDate, @status, @deletedAt,
+            @deletedBy, @deleteReason, @restoredAt, @restoredBy)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, name=excluded.name, start_date=excluded.start_date, end_date=excluded.end_date,
+      status=excluded.status, deleted_at=excluded.deleted_at, deleted_by=excluded.deleted_by,
+      delete_reason=excluded.delete_reason, restored_at=excluded.restored_at, restored_by=excluded.restored_by
+  `).run({
+    id: r.id, schoolId: r.schoolId, name: r.name, startDate: r.startDate, endDate: r.endDate, status: r.status,
+    deletedAt: r.deletedAt, deletedBy: r.deletedBy, deleteReason: r.deleteReason,
+    restoredAt: r.restoredAt, restoredBy: r.restoredBy,
   });
 }

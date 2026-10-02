@@ -57,12 +57,24 @@ describe('provisioning (Phase 4)', () => {
     await source.students.create({ schoolId: schoolB.id, personId: pB.id, admissionNo: 'B-001' });
 
     const staffPerson = await source.people.create({ schoolId: schoolA.id, firstName: 'Grace', lastName: 'Teacher' });
-    await source.staff.create({ schoolId: schoolA.id, personId: staffPerson.id, staffNo: 'STF-A-001' });
+    const staffA1 = await source.staff.create({ schoolId: schoolA.id, personId: staffPerson.id, staffNo: 'STF-A-001' });
 
     classA = await source.classes.create({ schoolId: schoolA.id, name: 'Senior 1' });
-    // EnrollmentRepo is read-only (no create() on the contract) — inserted
-    // directly, same as every enrollment-repo test does for the same reason.
+    // EnrollmentRepo/ClassSubjectRepo are read-only (no create() on either
+    // contract) — inserted directly, same as every enrollment/class-subject
+    // repo test does for the same reason.
     sourceDb.prepare(`INSERT INTO enrollments (student_id, class_id, status) VALUES (?, ?, 'active')`).run(studentA1.id, classA.id);
+
+    // Sub-effort 17's provisioning extension: subjects/terms/academic_years/
+    // departments/class_subjects. Without these, offline-academics and
+    // offline-reports would resolve every name to null on a freshly
+    // provisioned install — the same shape of gap sub-effort 15 already
+    // fixed once for people.
+    const yearA = await source.academicYears.create({ schoolId: schoolA.id, name: '2026' });
+    const termA = await source.terms.create({ schoolId: schoolA.id, name: 'Term 1', academicYearId: yearA.id, startDate: '2026-01-01', endDate: '2026-04-01' });
+    const subjectA = await source.subjects.create({ schoolId: schoolA.id, name: 'Mathematics' });
+    const deptA = await source.departments.create({ schoolId: schoolA.id, name: 'Sciences' });
+    sourceDb.prepare(`INSERT INTO class_subjects (class_id, subject_id, teacher_id, status) VALUES (?, ?, ?, 'active')`).run(classA.id, subjectA.id, staffA1.id);
   });
 
   after(() => {
@@ -79,6 +91,11 @@ describe('provisioning (Phase 4)', () => {
       assert.equal(result.counts.staff, 1);
       assert.equal(result.counts.classes, 1);
       assert.equal(result.counts.enrollments, 1);
+      assert.equal(result.counts.subjects, 1);
+      assert.equal(result.counts.terms, 1);
+      assert.equal(result.counts.academicYears, 1);
+      assert.equal(result.counts.departments, 1);
+      assert.equal(result.counts.classSubjects, 1);
 
       // The actual bug this sub-effort found: a provisioned student must
       // be resolvable through its person, not just present as a row with
@@ -91,6 +108,13 @@ describe('provisioning (Phase 4)', () => {
           const person = await local.people.findById(s.personId);
           assert.ok(person, `student ${s.id}'s person_id ${s.personId} must resolve to a real copied person row`);
         }
+
+        // Sub-effort 17's own gap: a class_subjects row's subject/teacher
+        // must resolve locally too, not just exist as floating ids.
+        const allocations = await local.classSubjects.listActiveByClassId(schoolA.id, classA.id);
+        assert.equal(allocations.length, 1);
+        assert.ok(await local.subjects.findById(schoolA.id, allocations[0].subjectId), 'provisioned class_subjects.subject_id must resolve to a real copied subject');
+        assert.ok(await local.staff.findById(schoolA.id, allocations[0].teacherId), 'provisioned class_subjects.teacher_id must resolve to a real copied staff row');
       } finally {
         closeSqliteDb(localDb);
       }

@@ -25,6 +25,8 @@ import { createMysqlPermissionRepo } from './permission-repo';
 import { createMysqlRolePermissionRepo } from './role-permission-repo';
 import { createMysqlEnrollmentRepo } from './enrollment-repo';
 import { createMysqlReportSnapshotRepo } from './report-snapshot-repo';
+import { createMysqlDepartmentRepo } from './department-repo';
+import { createMysqlClassSubjectRepo } from './class-subject-repo';
 
 export function createMysqlRepos(): Repos {
   return {
@@ -46,5 +48,7 @@ export function createMysqlRepos(): Repos {
     rolePermissions: createMysqlRolePermissionRepo(),
     enrollments: createMysqlEnrollmentRepo(),
     reportSnapshots: createMysqlReportSnapshotRepo(),
+    departments: createMysqlDepartmentRepo(),
+    classSubjects: createMysqlClassSubjectRepo(),
   };
 }

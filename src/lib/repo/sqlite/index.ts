@@ -27,9 +27,11 @@ import { createSqlitePermissionRepo } from './permission-repo';
 import { createSqliteRolePermissionRepo } from './role-permission-repo';
 import { createSqliteEnrollmentRepo } from './enrollment-repo';
 import { createSqliteReportSnapshotRepo } from './report-snapshot-repo';
+import { createSqliteDepartmentRepo } from './department-repo';
+import { createSqliteClassSubjectRepo } from './class-subject-repo';
 
 export { openSqliteDb, closeSqliteDb, type SqliteConnection } from './connection';
-export { seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment, seedReportSnapshot } from './seed';
+export { seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment, seedReportSnapshot, seedDepartment, seedClassSubject, seedSubject, seedTerm, seedAcademicYear } from './seed';
 
 export function createSqliteRepos(db: SqliteConnection): Repos {
   return {
@@ -51,5 +53,7 @@ export function createSqliteRepos(db: SqliteConnection): Repos {
     rolePermissions: createSqliteRolePermissionRepo(db),
     enrollments: createSqliteEnrollmentRepo(db),
     reportSnapshots: createSqliteReportSnapshotRepo(db),
+    departments: createSqliteDepartmentRepo(db),
+    classSubjects: createSqliteClassSubjectRepo(db),
   };
 }

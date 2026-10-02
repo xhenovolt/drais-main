@@ -26,24 +26,36 @@
  * enrollments provisioning on top of it, not by a failing test (no
  * existing test created a real person first either — fixed there too).
  *
+ * Sub-effort 17 closed the SAME shape of gap again, this time for
+ * subjects/terms/academic_years/departments/class_subjects: offline-
+ * academics and offline-reports both resolve names by composing these
+ * repos (TermRepo.findById, SubjectRepo.findById, etc.), and none of them
+ * were provisioned either — every resolved name would have been null on
+ * a freshly-provisioned real install, the exact "the data this feature
+ * actually needs was never copied" mistake sub-effort 15 already made
+ * once. Fixed in the same pass that built the feature depending on it,
+ * not discovered later.
+ *
  * Scope note: copies what @drais/repo-sqlite currently implements that's
  * reasonable to provision today — schools, people, students, staff,
- * classes, enrollments. `coverage` in the result reports the gap honestly
+ * classes, enrollments, subjects, terms, academic_years, departments,
+ * class_subjects. `coverage` in the result reports the gap honestly
  * against the live schema's full school-scoped table list (via
  * src/lib/backup/discovery.ts, the same BFS Backup Center already uses)
  * rather than silently pretending this is a complete school export.
- * Still not provisioned: subjects/terms/academic_years/class_results
- * (repos exist, not yet wired here) and attendance_raw_events/
- * attendance_records (repos exist; attendance ingestion stays online-only
- * by design, so there's a real question of whether provisioning should
- * carry a historical snapshot at all — left for a dedicated sub-effort,
- * not assumed).
+ * Still not provisioned: class_results, report_snapshots (repos exist,
+ * not yet wired here) and attendance_raw_events/attendance_records
+ * (repos exist; attendance ingestion stays online-only by design, so
+ * there's a real question of whether provisioning should carry a
+ * historical snapshot at all — left for a dedicated sub-effort, not
+ * assumed).
  */
 import type { Repos } from '../repo/contract';
 import { createMysqlRepos } from '../repo/mysql';
 import {
   openSqliteDb, closeSqliteDb, type SqliteConnection,
   seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment,
+  seedSubject, seedTerm, seedAcademicYear, seedDepartment, seedClassSubject,
 } from '../repo/sqlite';
 import { discoverSchoolTables } from '../backup/discovery';
 
@@ -58,7 +70,10 @@ export interface ProvisionOptions {
 export interface ProvisionResult {
   schoolId: number;
   sqlitePath: string;
-  counts: { schools: number; students: number; people: number; staff: number; classes: number; enrollments: number };
+  counts: {
+    schools: number; students: number; people: number; staff: number; classes: number; enrollments: number;
+    subjects: number; terms: number; academicYears: number; departments: number; classSubjects: number;
+  };
   coverage: {
     totalSchoolScopedTablesLive: number;
     provisionedTables: string[];
@@ -66,7 +81,7 @@ export interface ProvisionResult {
   };
 }
 
-const PROVISIONED_TABLES = ['people', 'students', 'staff', 'classes', 'enrollments']; // 'schools' is the root table, handled separately below
+const PROVISIONED_TABLES = ['people', 'students', 'staff', 'classes', 'enrollments', 'subjects', 'terms', 'academic_years', 'departments', 'class_subjects']; // 'schools' is the root table, handled separately below
 
 /** Every provisioned table is tenant-checked the same way: a source that
  *  hands back a row tagged with the wrong school_id is refused outright
@@ -139,6 +154,37 @@ export async function provisionSchool(opts: ProvisionOptions): Promise<Provision
     const enrollments = await source.enrollments.listBySchool(schoolId, { limit: 100_000, includeDeleted: true });
     for (const e of enrollments) seedEnrollment(db, e);
 
+    const subjects = await source.subjects.listBySchool(schoolId, { limit: 100_000, includeDeleted: true });
+    for (const s of subjects) {
+      assertOwnedBySchool(schoolId, s.schoolId, 'subject', s.id);
+      seedSubject(db, s);
+    }
+
+    const terms = await source.terms.listBySchool(schoolId, { limit: 100_000, includeDeleted: true });
+    for (const t of terms) {
+      assertOwnedBySchool(schoolId, t.schoolId, 'term', t.id);
+      seedTerm(db, t);
+    }
+
+    const academicYears = await source.academicYears.listBySchool(schoolId, { limit: 100_000, includeDeleted: true });
+    for (const y of academicYears) {
+      assertOwnedBySchool(schoolId, y.schoolId, 'academic year', y.id);
+      seedAcademicYear(db, y);
+    }
+
+    const departments = await source.departments.listBySchool(schoolId, { limit: 100_000, includeDeleted: true });
+    for (const d of departments) {
+      assertOwnedBySchool(schoolId, d.schoolId, 'department', d.id);
+      seedDepartment(db, d);
+    }
+
+    // class_subjects has no school_id column at all (confirmed live,
+    // sub-effort 16) — ClassSubjectRepo's own listBySchool already scopes
+    // through the class join, so every row returned here is already
+    // guaranteed to belong to this school's own classes.
+    const classSubjects = await source.classSubjects.listBySchool(schoolId);
+    for (const cs of classSubjects) seedClassSubject(db, cs);
+
     // Honesty check: report the gap between what this phase actually
     // copies and what the live schema considers school-scoped, rather than
     // silently implying this is a complete school export. Best-effort —
@@ -157,6 +203,8 @@ export async function provisionSchool(opts: ProvisionOptions): Promise<Provision
       counts: {
         schools: 1, students: students.length, people: copiedPersonIds.size,
         staff: staff.length, classes: classes.length, enrollments: enrollments.length,
+        subjects: subjects.length, terms: terms.length, academicYears: academicYears.length,
+        departments: departments.length, classSubjects: classSubjects.length,
       },
       coverage: {
         totalSchoolScopedTablesLive: liveScopedTables.length,

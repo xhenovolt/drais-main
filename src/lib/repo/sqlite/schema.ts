@@ -606,6 +606,51 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_report_snapshots_school ON report_snapshots(school_id, status);
+
+-- Phase 7, sub-effort 16: departments + class_subjects.
+-- subject_groups has zero rows platform-wide (confirmed live) and is not
+-- modeled here; departments.subject_group_id stays an unresolved integer.
+-- departments gets full CRUD (plain reference data, same shape as
+-- classes/subjects/terms). class_subjects is read-only (real workflow
+-- this layer has no authority to invent) and deliberately smaller than
+-- the real 18-column table: no custom_initials, valid_from/valid_to,
+-- stream_id, superseded_by, contribution_weight, notes, created_by/
+-- updated_by. No FOREIGN KEY on class_subjects.class_id's target rows
+-- requirement beyond classes itself, matching the class_id precedent
+-- already set for enrollments.
+CREATE TABLE IF NOT EXISTS departments (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  name              TEXT NOT NULL,
+  name_ar           TEXT,
+  head_staff_id     INTEGER,
+  description       TEXT,
+  subject_group_id  INTEGER,
+  created_at        TEXT NOT NULL DEFAULT (${ISO_NOW}),
+  updated_at        TEXT,
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id)
+);
+CREATE INDEX IF NOT EXISTS idx_departments_school ON departments(school_id);
+
+CREATE TABLE IF NOT EXISTS class_subjects (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  class_id            INTEGER NOT NULL,
+  subject_id          INTEGER NOT NULL,
+  teacher_id          INTEGER,
+  allocation_role     TEXT NOT NULL DEFAULT 'primary_teacher',
+  display_on_report   INTEGER NOT NULL DEFAULT 1,
+  status              TEXT NOT NULL DEFAULT 'active',
+  academic_year_id    INTEGER,
+  term_id             INTEGER,
+  superseded_by       INTEGER,
+  FOREIGN KEY (class_id) REFERENCES classes(id)
+);
+CREATE INDEX IF NOT EXISTS idx_class_subjects_class ON class_subjects(class_id, status);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();
