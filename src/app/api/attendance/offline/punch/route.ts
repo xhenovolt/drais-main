@@ -4,12 +4,12 @@
  * otherwise.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getDbMode } from '@/lib/db/db-mode';
+import { isLocalAllowed } from '@/lib/db/db-mode';
 
 export async function POST(request: NextRequest) {
-  if (getDbMode() !== 'local-sqlite') {
+  if (!isLocalAllowed()) {
     return NextResponse.json(
-      { success: false, error: { message: 'This endpoint only serves local-sqlite mode.', code: 'NOT_OFFLINE_MODE' } },
+      { success: false, error: { message: 'This endpoint is only available when this deployment allows local/offline mode.', code: 'NOT_OFFLINE_MODE' } },
       { status: 400 },
     );
   }

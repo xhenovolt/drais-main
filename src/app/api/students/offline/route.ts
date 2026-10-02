@@ -13,23 +13,23 @@
  * actually invoked in local-sqlite mode.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getDbMode } from '@/lib/db/db-mode';
+import { isLocalAllowed } from '@/lib/db/db-mode';
 
 function notOfflineResponse() {
   return NextResponse.json(
-    { success: false, error: { message: 'This endpoint only serves local-sqlite mode.', code: 'NOT_OFFLINE_MODE' } },
+    { success: false, error: { message: 'This endpoint is only available when this deployment allows local/offline mode.', code: 'NOT_OFFLINE_MODE' } },
     { status: 400 },
   );
 }
 
 export async function GET(request: NextRequest) {
-  if (getDbMode() !== 'local-sqlite') return notOfflineResponse();
+  if (!isLocalAllowed()) return notOfflineResponse();
   const { handleList } = await import('@/lib/repo/offline-students/route-bridge');
   return handleList(request);
 }
 
 export async function POST(request: NextRequest) {
-  if (getDbMode() !== 'local-sqlite') return notOfflineResponse();
+  if (!isLocalAllowed()) return notOfflineResponse();
   const { handleCreate } = await import('@/lib/repo/offline-students/route-bridge');
   return handleCreate(request);
 }

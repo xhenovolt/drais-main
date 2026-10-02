@@ -92,6 +92,7 @@ import {
   Trash2,
   Upload,
   Database,
+  HardDrive,
 } from 'lucide-react';
 
 // Alias so callers don't have to worry about icon substitution
@@ -352,6 +353,9 @@ const LABEL_AR: Record<string, string> = {
   'Staff accounts & access':   'حسابات الموظفين والصلاحيات',
   'Recovering data':           'استعادة البيانات',
   'Fixing common problems':    'حل المشكلات الشائعة',
+
+  // Offline workspace group
+  'Offline Workspace (Beta)':  'مساحة العمل غير المتصلة (تجريبي)',
 };
 
 /**
@@ -665,6 +669,29 @@ export function getNavigationItems(
         { key: 'system-status',   label: 'System Status',  icon: <Activity className="w-4 h-4" />, href: '/settings/system' },
         { key: 'relay-setup',     label: 'Relay Setup',    icon: <Radio className="w-4 h-4" />,    href: '/settings/relay' },
         { key: 'about',           label: 'About DRAIS',    icon: <Info className="w-4 h-4" />,     href: '/about' },
+      ],
+    },
+
+    // ══ OFFLINE WORKSPACE (SQLITE) ════════════════════════════════════════════
+    // Phase 7 sub-effort 21 (docs/architecture/DRAIS_V2_ARCHITECTURE_AUDIT.md).
+    // A standalone area, not a mode for the rest of the app: these pages
+    // always read/write a local SQLite file via the @drais/repo-sqlite
+    // abstraction, independent of whatever Online/Local-MySQL mode the
+    // DbModeBadge in the Topbar is set to. Admin-only and clearly labelled
+    // because it's new and has not yet been exercised in a live browser —
+    // visible here so it's reachable for real testing instead of only by
+    // typing a URL, not because it's a finished, user-facing feature yet.
+    {
+      key:   'offline-workspace',
+      label: 'Offline Workspace (Beta)',
+      icon:  <HardDrive className="w-5 h-5" />,
+      roles: ['admin', 'super_admin'],
+      children: [
+        { key: 'offline-students',   label: 'Students',   icon: <Users className="w-4 h-4" />,        href: '/students/offline' },
+        { key: 'offline-staff',      label: 'Staff',      icon: <Briefcase className="w-4 h-4" />,     href: '/staff/offline' },
+        { key: 'offline-attendance', label: 'Attendance', icon: <UserCheck className="w-4 h-4" />,     href: '/attendance/offline' },
+        { key: 'offline-academics',  label: 'Academics',  icon: <GraduationCap className="w-4 h-4" />, href: '/academics/offline' },
+        { key: 'offline-reports',    label: 'Reports',    icon: <FileBarChart className="w-4 h-4" />,  href: '/reports/offline' },
       ],
     },
 
