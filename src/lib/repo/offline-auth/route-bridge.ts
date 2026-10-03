@@ -49,6 +49,88 @@ export async function getOfflineSessionInfo(request: NextRequest): Promise<Sessi
   return validateOfflineSession(db, repos, token);
 }
 
+/**
+ * /api/auth/me's offline branch. This is the piece that was still missing
+ * for the global mode switch (Phase 7 sub-effort 22): the login route and
+ * getSessionSchoolId() were already mode-aware, but the global AuthContext
+ * — mounted on every page, including inside the Offline Workspace, because
+ * it wraps the whole app at the root layout — calls /api/auth/me on every
+ * mount to resolve `user`. That route used to call src/lib/db.ts's query()
+ * unconditionally; in local-sqlite mode that throws immediately (pools.ts's
+ * assertMysqlMode), which AuthContext's own try/catch turns into "treat as
+ * logged out" — meaning a real, valid offline session got silently kicked
+ * back to /login on every single page. This closes that gap.
+ *
+ * Shape matches /api/auth/me's real response closely enough that
+ * AuthContext's `User`/`School` consumers (Topbar, Sidebar, ProfileDropdown)
+ * don't hit an undefined field they unconditionally read — `permissions`
+ * is the one deliberately simplified value (no offline PermissionRepo
+ * exists yet): super-admins get `['*']` (matches online's own shortcut for
+ * that role exactly), everyone else gets `[]` rather than a guess.
+ */
+export async function handleOfflineMe(request: NextRequest): Promise<NextResponse> {
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Not authenticated', code: 'NOT_AUTHENTICATED' } },
+      { status: 401 },
+    );
+  }
+
+  const db = getSqliteDb();
+  const repos = createSqliteRepos(db);
+  const session = await validateOfflineSession(db, repos, token);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Session expired or invalid', code: 'SESSION_EXPIRED' } },
+      { status: 401 },
+    );
+  }
+
+  const [user, school] = await Promise.all([
+    repos.users.findById(session.schoolId, session.userId),
+    repos.schools.findById(session.schoolId),
+  ]);
+  if (!user || !school) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Session expired or invalid', code: 'SESSION_EXPIRED' } },
+      { status: 401 },
+    );
+  }
+
+  const { roleNames, isSuperAdmin } = await resolveOfflineUserRoles(repos, session.schoolId, user.id);
+
+  return NextResponse.json({
+    success: true,
+    setupComplete: true,
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      displayName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+      phone: user.phone ?? undefined,
+      avatarUrl: user.avatarUrl ?? undefined,
+      schoolId: session.schoolId,
+      schoolName: school.name,
+      school: {
+        id: school.id,
+        name: school.name,
+        email: school.email ?? undefined,
+        phone: school.phone ?? undefined,
+        address: school.address ?? undefined,
+        logoUrl: school.logoUrl ?? undefined,
+        currency: school.currency,
+        setupComplete: true,
+      },
+      setupComplete: true,
+      roles: roleNames,
+      permissions: isSuperAdmin ? ['*'] : [],
+      isSuperAdmin,
+    },
+  });
+}
+
 const STATUS_FOR_CODE: Record<OfflineLoginFailureCode, number> = {
   INVALID_CREDENTIALS: 401,
   ACCOUNT_PENDING: 403,
@@ -106,13 +188,27 @@ export async function handleOfflineLogin(request: NextRequest): Promise<NextResp
 
   const { roleNames, isSuperAdmin } = await resolveOfflineUserRoles(repos, schoolId, result.user.id);
   const primaryRole = roleNames[0] ?? (isSuperAdmin ? 'Admin' : 'Staff');
+  // Same fields handleOfflineMe returns, composed here too — AuthContext's
+  // login() sets `user` directly from THIS response, not from a follow-up
+  // /api/auth/me call, so leaving these off here would mean the chrome only
+  // gets a complete user object after the next page's mount-time recheck.
+  const school = await repos.schools.findById(schoolId);
 
   const response = NextResponse.json({
     success: true,
+    setupComplete: true,
     user: {
       id: result.user.id, email: result.user.email, firstName: result.user.firstName, lastName: result.user.lastName,
       displayName: `${result.user.firstName} ${result.user.lastName}`.trim() || result.user.email,
-      schoolId, roles: roleNames, isSuperAdmin, mustChangePassword: result.user.mustChangePassword,
+      schoolId, schoolName: school?.name ?? null,
+      school: school ? {
+        id: school.id, name: school.name, email: school.email ?? undefined, phone: school.phone ?? undefined,
+        address: school.address ?? undefined, logoUrl: school.logoUrl ?? undefined, currency: school.currency,
+        setupComplete: true,
+      } : null,
+      setupComplete: true,
+      roles: roleNames, isSuperAdmin, mustChangePassword: result.user.mustChangePassword,
+      permissions: isSuperAdmin ? ['*'] : [],
     },
     mustChangePassword: result.user.mustChangePassword,
   });

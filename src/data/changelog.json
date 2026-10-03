@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-02T18:17:25.503Z",
-  "last_commit": "0358c849b461ae7484010dddf61289ed83f53da8",
+  "generated_at": "2026-10-03T07:05:44.891Z",
+  "last_commit": "67f51194713ea529b38622dcb842ca2f661c26cb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8513,7 +8513,20 @@
         }
       ],
       "commit": "0358c849b4"
+    },
+    {
+      "version": "2.43.0",
+      "date": "2026-10-02",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 21 - Offline Workspace reachable from real navigation",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 21 - Offline Workspace reachable from real navigation"
+        }
+      ],
+      "commit": "67f5119471"
     }
   ],
-  "app_version": "2.43.0"
+  "app_version": "2.44.0"
 }

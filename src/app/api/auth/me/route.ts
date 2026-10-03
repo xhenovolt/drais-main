@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSubscriptionInfo } from '@/lib/subscription';
+import { getDbMode } from '@/lib/db/db-mode';
 
 const SESSION_COOKIE_NAME = 'drais_session';
 
@@ -9,6 +10,21 @@ const SESSION_COOKIE_NAME = 'drais_session';
  * Returns the current authenticated user's information based on session cookie
  */
 export async function GET(request: NextRequest) {
+  // Offline branch — same pattern as /api/auth/login and getSessionSchoolId()
+  // (src/lib/auth.ts), additive per §25a. This route is called by the
+  // global AuthContext on EVERY page mount (it wraps the whole app, not
+  // just the Offline Workspace), so without this branch a real offline
+  // session got silently treated as logged-out the moment it hit this
+  // endpoint — query() below throws immediately in local-sqlite mode
+  // (pools.ts's assertMysqlMode), caught by this function's own try/catch,
+  // turning into a 500 that AuthContext reads as "not authenticated."
+  // Dynamic import — keeps better-sqlite3 out of this route's module graph
+  // on hosted/serverless builds where it may not even be installed.
+  if (getDbMode() === 'local-sqlite') {
+    const { handleOfflineMe } = await import('@/lib/repo/offline-auth/route-bridge');
+    return handleOfflineMe(request);
+  }
+
   try {
     // Get session token from cookie
     const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;

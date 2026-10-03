@@ -90,8 +90,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [setupComplete, setSetupComplete] = useState(true);
+  // Only local-sqlite installs have a working data layer limited to the
+  // Offline Workspace (Phase 7 sub-efforts 21/22) — everything else (online,
+  // local-mysql) has the full app, same as always. Checked once per mount;
+  // the mode only ever changes via a switch that already forces a reload.
+  const [postLoginDestination, setPostLoginDestination] = useState('/dashboard');
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/db-mode', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((info: { mode?: string } | null) => {
+        if (!cancelled && info?.mode === 'local-sqlite') setPostLoginDestination('/students/offline');
+      })
+      .catch(() => { /* default destination stays /dashboard */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // ========================================
   // CHECK AUTHENTICATION
@@ -176,10 +192,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // If user is authenticated and trying to access login/signup, redirect to dashboard
     if (user && (pathname === '/login' || pathname === '/auth/login' || pathname === '/signup' || pathname === '/auth/signup')) {
-      console.log('✅ Already authenticated: Redirecting to dashboard');
-      router.push('/dashboard');
+      console.log('✅ Already authenticated: Redirecting to', postLoginDestination);
+      router.push(postLoginDestination);
     }
-  }, [user, isLoading, pathname, router]);
+  }, [user, isLoading, pathname, router, postLoginDestination]);
 
   // ========================================
   // LOGIN
@@ -209,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!data.setupComplete) {
           router.push('/settings/school-setup');
         } else {
-          router.push('/dashboard');
+          router.push(postLoginDestination);
         }
         
         return { success: true, setupComplete: data.setupComplete };

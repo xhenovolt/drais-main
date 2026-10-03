@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
 import { createSqliteRepos } from '@/lib/repo/sqlite';
 import { getSqliteDb, resetSqliteDb } from '@/lib/repo/sqlite/singleton';
-import { getOfflineSessionInfo, handleOfflineLogin } from '@/lib/repo/offline-auth/route-bridge';
+import { getOfflineSessionInfo, handleOfflineLogin, handleOfflineMe } from '@/lib/repo/offline-auth/route-bridge';
 
 let prevPath;
 
@@ -138,5 +138,80 @@ describe('route-bridge: getOfflineSessionInfo', () => {
   it('a bogus token resolves null, never throws', async () => {
     const info = await getOfflineSessionInfo(requestWithSessionCookie('totally-bogus-token'));
     assert.equal(info, null);
+  });
+});
+
+describe('route-bridge: handleOfflineMe (sub-effort 22)', () => {
+  // This is the function that closes the real gap found while making the
+  // global DB-mode switch safe to offer: AuthContext calls /api/auth/me on
+  // EVERY page mount, and that route used to call src/lib/db.ts's query()
+  // unconditionally — which throws immediately in local-sqlite mode — so a
+  // genuinely valid offline session was being read as logged-out on every
+  // page. handleOfflineMe is /api/auth/me's offline branch; these tests
+  // exercise it the same way the route will actually call it.
+  it('no session cookie -> 401 NOT_AUTHENTICATED, matching the online shape', async () => {
+    const res = await handleOfflineMe(requestWithSessionCookie(undefined));
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.error.code, 'NOT_AUTHENTICATED');
+  });
+
+  it('a bogus token -> 401 SESSION_EXPIRED, not a crash', async () => {
+    const res = await handleOfflineMe(requestWithSessionCookie('totally-bogus-token'));
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.error.code, 'SESSION_EXPIRED');
+  });
+
+  it('a real logged-in session returns a complete user object the shared AuthContext can consume', async () => {
+    const bcrypt = (await import('bcryptjs')).default;
+    const db = getSqliteDb();
+    const repos = createSqliteRepos(db);
+    const school = await repos.schools.create({ name: 'Me Bridge School', subscriptionStatus: 'active' });
+    const role = await repos.roles.create({ schoolId: school.id, name: 'Admin', isActive: true, isSuperAdmin: true });
+    const user = await repos.users.create({
+      schoolId: school.id, firstName: 'Me', lastName: 'Bridge', email: 'me-bridge@example.com',
+      passwordHash: await bcrypt.hash('pw', 4), isActive: true,
+    });
+    await repos.userRoles.assign({ userId: user.id, roleId: role.id, schoolId: school.id });
+
+    const loginRes = await handleOfflineLogin(loginRequest({ email: 'me-bridge@example.com', password: 'pw' }));
+    const token = loginRes.cookies.get('drais_session')?.value;
+    assert.ok(token);
+
+    const res = await handleOfflineMe(requestWithSessionCookie(token));
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.equal(body.setupComplete, true);
+    assert.equal(body.user.email, 'me-bridge@example.com');
+    assert.equal(body.user.displayName, 'Me Bridge');
+    assert.equal(body.user.schoolId, school.id);
+    assert.equal(body.user.schoolName, 'Me Bridge School');
+    assert.equal(body.user.school.id, school.id);
+    assert.equal(body.user.isSuperAdmin, true);
+    assert.deepEqual(body.user.permissions, ['*']);
+    assert.ok(Array.isArray(body.user.roles));
+  });
+
+  it('a non-super-admin gets permissions: [], not a guess — the documented offline-permissions gap', async () => {
+    const bcrypt = (await import('bcryptjs')).default;
+    const db = getSqliteDb();
+    const repos = createSqliteRepos(db);
+    const school = await repos.schools.create({ name: 'Staff Me School', subscriptionStatus: 'active' });
+    const role = await repos.roles.create({ schoolId: school.id, name: 'Teacher', isActive: true });
+    const user = await repos.users.create({
+      schoolId: school.id, firstName: 'Teach', lastName: 'Er', email: 'teacher-me@example.com',
+      passwordHash: await bcrypt.hash('pw', 4), isActive: true,
+    });
+    await repos.userRoles.assign({ userId: user.id, roleId: role.id, schoolId: school.id });
+
+    const loginRes = await handleOfflineLogin(loginRequest({ email: 'teacher-me@example.com', password: 'pw' }));
+    const token = loginRes.cookies.get('drais_session')?.value;
+
+    const res = await handleOfflineMe(requestWithSessionCookie(token));
+    const body = await res.json();
+    assert.equal(body.user.isSuperAdmin, false);
+    assert.deepEqual(body.user.permissions, []);
   });
 });

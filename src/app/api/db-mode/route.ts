@@ -6,26 +6,32 @@
  * desktop app) to flip between Online Cloud and Local Server. Hosted/serverless
  * deployments hard-force online, so POST to 'local-mysql' is refused there.
  *
- * 'local-sqlite' (DbMode's third value, DRAIS V2) is DELIBERATELY still not
- * switchable through THIS endpoint, even though db-mode.ts/pools.ts already
- * know about it defensively and the standalone Offline Workspace (/students
- * /offline, /attendance/offline, /academics/offline, /staff/offline,
- * /reports/offline — Phase 7 sub-effort 21) is reachable from the nav now.
- * Flipping the GLOBAL mode returned by getDbMode() to local-sqlite would
- * silently break every one of src/lib/db.ts's ~435 query() call sites —
- * none of them read SQLite, and none have been migrated to the
- * @drais/repo-sqlite-backed Repos abstraction (src/lib/repo/resolve.ts) yet.
- * That migration is Phase 8+ work (docs/architecture/
- * DRAIS_V2_ARCHITECTURE_AUDIT.md §25); this endpoint gets a third option
- * only once there's a real page behind it for the WHOLE app, not before.
+ * 'local-sqlite' (DbMode's third value, DRAIS V2) IS now switchable through
+ * this endpoint (Phase 7 sub-effort 22) — with a real health check
+ * (sqlite-health.ts, not pools.ts's mysql2 one, which always fails for this
+ * mode by design) and the SAME reauthRequired contract local-mysql already
+ * uses. This does NOT mean the whole app now runs on SQLite: src/lib/db.ts's
+ * ~435 query() call sites still only read mysql2 (pools.ts's
+ * assertMysqlMode() still throws for 'local-sqlite', unchanged) — that
+ * migration is still real Phase 8+ work. What changed is narrower and
+ * verified concretely, not assumed: the AUTH boundary every page depends on
+ * (getSessionSchoolId(), the login route, and now /api/auth/me too) was
+ * already, or is now, mode-aware, so switching to local-sqlite and logging
+ * back in genuinely works — the client then lands in the Offline Workspace
+ * (/students/offline etc. — sub-effort 21), not the normal dashboard, since
+ * only those five pages' OWN data fetches are SQLite-aware. Any other page a
+ * user navigates to by hand while in this mode will still show broken data
+ * (its routes call query() same as always) — that's the one honest,
+ * documented boundary of what "switchable" means here.
  *
  * The Offline Workspace routes (src/app/api/{students,staff,attendance,
- * academics,reports}/offline/**) deliberately do NOT depend on this
- * endpoint or on getDbMode() at all — they gate on isLocalAllowed() and
+ * academics,reports}/offline/**) still do NOT depend on this endpoint or on
+ * getDbMode() for their OWN data access — they gate on isLocalAllowed() and
  * always read/write SQLite directly via createSqliteRepos(), regardless of
- * what this endpoint's global mode is set to. That decoupling is what
- * makes it safe to expose them in navigation today: visiting them can never
- * flip the rest of the app onto a connection that src/lib/db.ts can't use.
+ * what this endpoint's global mode is set to. That's why visiting them was
+ * already safe before this sub-effort; this sub-effort is what makes
+ * actually switching INTO this mode, and being recognized as logged in once
+ * there, work too.
  *
  * No DB credentials are ever returned — only the mode label, host, db name and
  * a boolean health. GET is public so the login screen can show health before
@@ -34,6 +40,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbMode, setDbMode, isLocalAllowed, describeMode, type DbMode } from '@/lib/db/db-mode';
 import { healthCheck, resetPool } from '@/lib/db/pools';
+import { healthCheckSqlite } from '@/lib/db/sqlite-health';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,9 +61,8 @@ export async function POST(req: NextRequest) {
   let body: { mode?: DbMode } = {};
   try { body = await req.json(); } catch { /* empty */ }
   const target = body.mode;
-  // 'local-sqlite' intentionally excluded — see this file's header.
-  if (target !== 'online' && target !== 'local-mysql') {
-    return NextResponse.json({ error: "mode must be 'online' or 'local-mysql'" }, { status: 400 });
+  if (target !== 'online' && target !== 'local-mysql' && target !== 'local-sqlite') {
+    return NextResponse.json({ error: "mode must be 'online', 'local-mysql' or 'local-sqlite'" }, { status: 400 });
   }
 
   // Hosted deployments are already forced online; selecting Online is a no-op.
@@ -71,9 +77,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Probe the target BEFORE committing the switch so we don't strand the app on
-  // an unreachable DB. resetPool first to force a fresh probe.
+  // an unreachable DB. resetPool first to force a fresh probe (no-op for
+  // local-sqlite — pools.ts's cache never holds that key).
   resetPool(target);
-  const health = await healthCheck(target);
+  const health = target === 'local-sqlite' ? await healthCheckSqlite() : await healthCheck(target);
   if (!health.ok) {
     return NextResponse.json(
       { error: `Cannot switch: ${describeMode(target).label} is not reachable.`, health },
