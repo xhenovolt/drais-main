@@ -56,6 +56,7 @@ import {
   openSqliteDb, closeSqliteDb, type SqliteConnection,
   seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment,
   seedSubject, seedTerm, seedAcademicYear, seedDepartment, seedClassSubject, seedAttendanceRule,
+  seedUser, seedRole, seedPermission, seedUserRole, seedRolePermission, seedReportSnapshot,
 } from '../repo/sqlite';
 import { discoverSchoolTables } from '../backup/discovery';
 
@@ -73,7 +74,8 @@ export interface ProvisionResult {
   counts: {
     schools: number; students: number; people: number; staff: number; classes: number; enrollments: number;
     subjects: number; terms: number; academicYears: number; departments: number; classSubjects: number;
-    attendanceRules: number;
+    attendanceRules: number; permissions: number; roles: number; rolePermissions: number; userRoles: number;
+    users: number; reportSnapshots: number;
   };
   coverage: {
     totalSchoolScopedTablesLive: number;
@@ -82,7 +84,13 @@ export interface ProvisionResult {
   };
 }
 
-const PROVISIONED_TABLES = ['people', 'students', 'staff', 'classes', 'enrollments', 'subjects', 'terms', 'academic_years', 'departments', 'class_subjects', 'attendance_rules']; // 'schools' is the root table, handled separately below
+const PROVISIONED_TABLES = [
+  'people', 'students', 'staff', 'classes', 'enrollments', 'subjects', 'terms', 'academic_years',
+  'departments', 'class_subjects', 'attendance_rules',
+  // Phase 7, sub-effort 23: auth tables — see seed.ts's header on the real
+  // gap this closes (no freshly-provisioned install could ever log in).
+  'permissions', 'roles', 'role_permissions', 'user_roles', 'users', 'report_snapshots',
+]; // 'schools' is the root table, handled separately below
 
 /** Every provisioned table is tenant-checked the same way: a source that
  *  hands back a row tagged with the wrong school_id is refused outright
@@ -197,6 +205,75 @@ export async function provisionSchool(opts: ProvisionOptions): Promise<Provision
       seedAttendanceRule(db, ar);
     }
 
+    // ── Phase 7, sub-effort 23: auth tables ──────────────────────────
+    // permissions is the global platform catalog (no school_id) — copied
+    // whole, same as any other global-reference table in this layer.
+    // De-duplicated by code (keep the lowest/oldest id): a real, confirmed
+    // live data-quality artifact — 6 codes each have exactly 2 rows under
+    // different ids (a migration that ran twice at some point) — not
+    // something to crash provisioning over. code is this catalog's real
+    // identity (PermissionRepo is keyed by findByCode, never findById),
+    // so collapsing to one row per code loses nothing a caller would
+    // actually use.
+    const permissionsRaw = await source.permissions.listAll();
+    const permissionsByCode = new Map();
+    for (const p of permissionsRaw) {
+      const existing = permissionsByCode.get(p.code);
+      if (!existing || p.id < existing.id) permissionsByCode.set(p.code, p);
+    }
+    const permissions = [...permissionsByCode.values()];
+    for (const p of permissions) seedPermission(db, p);
+
+    const roles = await source.roles.listBySchool(schoolId, { limit: 100_000, includeDeleted: true });
+    for (const r of roles) {
+      assertOwnedBySchool(schoolId, r.schoolId, 'role', r.id);
+      seedRole(db, r);
+    }
+
+    // role_permissions has no listBySchool/listByRoleIds bulk method (it's
+    // a pure join keyed by role_id+permission_id, see RolePermissionRepo's
+    // own header) — composed here from the roles just copied, same
+    // "compose existing repo calls" discipline this whole layer uses
+    // instead of inventing a new bulk method for one caller.
+    let rolePermissionCount = 0;
+    for (const r of roles) {
+      const codes = await source.rolePermissions.listCodesByRole(r.id);
+      for (const code of codes) {
+        const permission = permissions.find((p) => p.code === code);
+        if (!permission) continue; // a role granting a since-retired permission code — skip, don't invent one
+        seedRolePermission(db, { roleId: r.id, permissionId: permission.id, createdAt: null });
+        rolePermissionCount++;
+      }
+    }
+
+    const users = await source.users.listBySchool(schoolId, { limit: 100_000, includeDeleted: true });
+    for (const u of users) {
+      assertOwnedBySchool(schoolId, u.schoolId, 'user', u.id);
+      seedUser(db, u);
+    }
+
+    // user_roles has no listBySchool either (UserRoleRepo's own header:
+    // "the meaningful operations are assign/revoke/list [by user/role],
+    // not the usual CRUD shape") — composed from the users just copied.
+    let userRoleCount = 0;
+    for (const u of users) {
+      const assignments = await source.userRoles.listByUser(schoolId, u.id);
+      for (const a of assignments) { seedUserRole(db, a); userRoleCount++; }
+    }
+
+    // report_snapshots: listReadyBySchool returns index rows only
+    // (snapshotJson omitted, by design — see ReportSnapshotRepo's header);
+    // the payload a freshly-provisioned install actually needs to DISPLAY
+    // a report offline requires the real per-snapshot fetch.
+    const snapshotIndex = await source.reportSnapshots.listReadyBySchool(schoolId, { limit: 100_000 });
+    let reportSnapshotCount = 0;
+    for (const idx of snapshotIndex) {
+      const full = await source.reportSnapshots.findBySnapshotId(schoolId, idx.snapshotId);
+      if (!full) continue; // became unavailable between the index read and this fetch — skip, don't fail the whole provision
+      seedReportSnapshot(db, full);
+      reportSnapshotCount++;
+    }
+
     // Honesty check: report the gap between what this phase actually
     // copies and what the live schema considers school-scoped, rather than
     // silently implying this is a complete school export. Best-effort —
@@ -217,7 +294,9 @@ export async function provisionSchool(opts: ProvisionOptions): Promise<Provision
         staff: staff.length, classes: classes.length, enrollments: enrollments.length,
         subjects: subjects.length, terms: terms.length, academicYears: academicYears.length,
         departments: departments.length, classSubjects: classSubjects.length,
-        attendanceRules: attendanceRules.length,
+        attendanceRules: attendanceRules.length, permissions: permissions.length, roles: roles.length,
+        rolePermissions: rolePermissionCount, userRoles: userRoleCount, users: users.length,
+        reportSnapshots: reportSnapshotCount,
       },
       coverage: {
         totalSchoolScopedTablesLive: liveScopedTables.length,

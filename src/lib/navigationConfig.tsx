@@ -356,6 +356,7 @@ const LABEL_AR: Record<string, string> = {
 
   // Offline workspace group
   'Offline Workspace (Beta)':  'مساحة العمل غير المتصلة (تجريبي)',
+  'Offline Database':          'قاعدة البيانات غير المتصلة',
 };
 
 /**
@@ -658,6 +659,7 @@ export function getNavigationItems(
         { key: 'report-comments', label: 'Report Comments', icon: <MessageSquareText className="w-4 h-4" />, href: '/settings/report-comments' },
         { key: 'localization',    label: 'Localization',   icon: <Languages className="w-4 h-4" />, href: '/settings/localization' },
         { key: 'database-settings', label: 'Database',     icon: <Database className="w-4 h-4" />, href: '/settings/database', roles: ['super_admin'] },
+        { key: 'offline-export',    label: 'Offline Database', icon: <HardDrive className="w-4 h-4" />, href: '/settings/offline-export', roles: ['admin', 'super_admin'] },
         { key: 'school-hours',    label: 'School Hours',   icon: <Clock className="w-4 h-4" />,    href: '/settings/hours' },
         { key: 'appearance',      label: 'Appearance',     icon: <Palette className="w-4 h-4" />,  href: '/settings/appearance' },
         { key: 'profile',         label: 'My Profile',     icon: <UserCog className="w-4 h-4" />,  href: '/settings/profile' },

@@ -32,7 +32,7 @@ import { createSqliteClassSubjectRepo } from './class-subject-repo';
 import { createSqliteAttendanceRuleRepo } from './attendance-rule-repo';
 
 export { openSqliteDb, closeSqliteDb, type SqliteConnection } from './connection';
-export { seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment, seedReportSnapshot, seedDepartment, seedClassSubject, seedSubject, seedTerm, seedAcademicYear, seedAttendanceRule } from './seed';
+export { seedSchool, seedStudent, seedPerson, seedStaff, seedClass, seedEnrollment, seedReportSnapshot, seedDepartment, seedClassSubject, seedSubject, seedTerm, seedAcademicYear, seedAttendanceRule, seedUser, seedRole, seedPermission, seedUserRole, seedRolePermission } from './seed';
 
 export function createSqliteRepos(db: SqliteConnection): Repos {
   return {

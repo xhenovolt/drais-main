@@ -75,6 +75,7 @@ export const AuditAction = {
   EXPORTED_STAFF:           'EXPORTED_STAFF',
   EXPORTED_USERS:           'EXPORTED_USERS',
   EXPORTED_AUDIT_LOGS:      'EXPORTED_AUDIT_LOGS',
+  EXPORTED_OFFLINE_DATABASE: 'EXPORTED_OFFLINE_DATABASE',
   // Recorded here for convenience only. The authoritative record of a purge
   // lives in `audit_purges`, because THIS row is itself deletable by the very
   // operation it describes.

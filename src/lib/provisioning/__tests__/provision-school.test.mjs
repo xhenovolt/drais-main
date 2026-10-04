@@ -84,6 +84,25 @@ describe('provisioning (Phase 4)', () => {
       `INSERT INTO attendance_rules (school_id, applies_to, boarding_scope, arrival_end_time, late_threshold_minutes, weekday_mask, is_active)
        VALUES (?, 'students', 'all', '07:30:00', 15, 127, 1)`,
     ).run(schoolA.id);
+
+    // Sub-effort 23's provisioning extension: permissions/roles/
+    // role_permissions/user_roles/users. Without these, a freshly-
+    // provisioned install has students/staff/classes but LITERALLY NO ONE
+    // who can log in — the real gap found while building the lean .drs
+    // export, closed here rather than left for a future surprise.
+    const bcrypt = (await import('bcryptjs')).default;
+    // PermissionRepo has no create() (global catalog, read-only from the
+    // app's own perspective — see its contract header) — inserted
+    // directly, same as every other no-create() repo in this fixture.
+    sourceDb.prepare(`INSERT INTO permissions (code) VALUES ('students.view')`).run();
+    const permA = await source.permissions.findByCode('students.view');
+    const roleA = await source.roles.create({ schoolId: schoolA.id, name: 'Head Teacher', isActive: true });
+    await source.rolePermissions.grant(roleA.id, permA.id);
+    const userA = await source.users.create({
+      schoolId: schoolA.id, firstName: 'Fatuma', lastName: 'Admin', email: 'fatuma-admin@example.com',
+      passwordHash: await bcrypt.hash('real-online-password', 4), isActive: true,
+    });
+    await source.userRoles.assign({ userId: userA.id, roleId: roleA.id, schoolId: schoolA.id });
   });
 
   after(() => {
@@ -106,6 +125,11 @@ describe('provisioning (Phase 4)', () => {
       assert.equal(result.counts.departments, 1);
       assert.equal(result.counts.classSubjects, 1);
       assert.equal(result.counts.attendanceRules, 1);
+      assert.equal(result.counts.permissions, 1);
+      assert.equal(result.counts.roles, 1);
+      assert.equal(result.counts.rolePermissions, 1);
+      assert.equal(result.counts.userRoles, 1);
+      assert.equal(result.counts.users, 1);
 
       // The actual bug this sub-effort found: a provisioned student must
       // be resolvable through its person, not just present as a row with
@@ -132,6 +156,20 @@ describe('provisioning (Phase 4)', () => {
         const { recordOfflinePunch } = await import('@/lib/repo/offline-attendance');
         const marked = await recordOfflinePunch(local, schoolA.id, studentA1.personId, 'student', new Date(2026, 9, 5, 7, 0, 0));
         assert.ok(['present', 'late'].includes(marked.status), 'a provisioned install must be able to evaluate a real punch, not just store the rule inertly');
+
+        // Sub-effort 23's own gap, proven end-to-end: a freshly-provisioned
+        // install must be able to actually LOG IN with the real online
+        // password, not just have a users row sitting unresolvable.
+        const copiedUser = await local.users.findByEmail(schoolA.id, 'fatuma-admin@example.com');
+        assert.ok(copiedUser, 'the copied user must resolve by email locally, exactly as offline login looks it up');
+        const bcrypt = (await import('bcryptjs')).default;
+        assert.ok(await bcrypt.compare('real-online-password', copiedUser.passwordHash), 'the real bcrypt hash must be carried through unchanged, not regenerated');
+        const copiedRoles = await local.userRoles.listByUser(schoolA.id, copiedUser.id);
+        assert.equal(copiedRoles.length, 1);
+        const copiedRole = await local.roles.findById(schoolA.id, copiedRoles[0].roleId);
+        assert.equal(copiedRole?.name, 'Head Teacher');
+        const copiedCodes = await local.rolePermissions.listCodesByRole(copiedRole.id);
+        assert.deepEqual(copiedCodes, ['students.view']);
       } finally {
         closeSqliteDb(localDb);
       }

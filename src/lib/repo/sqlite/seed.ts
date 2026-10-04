@@ -21,7 +21,7 @@
  * re-provisioning the same school (refresh from cloud) is safe to re-run.
  */
 import type { SqliteConnection } from './connection';
-import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord, ReportSnapshotRecord, DepartmentRecord, ClassSubjectRecord, SubjectRecord, TermRecord, AcademicYearRecord, AttendanceRuleRecord } from '../contract/types';
+import type { SchoolRecord, StudentRecord, PersonRecord, StaffRecord, ClassRecord, EnrollmentRecord, ReportSnapshotRecord, DepartmentRecord, ClassSubjectRecord, SubjectRecord, TermRecord, AcademicYearRecord, AttendanceRuleRecord, UserRecord, RoleRecord, PermissionRecord, UserRoleRecord, RolePermissionGrant } from '../contract/types';
 
 /**
  * subscription_* fields are carried through here deliberately (Phase 7,
@@ -339,4 +339,104 @@ export function seedAttendanceRule(db: SqliteConnection, r: AttendanceRuleRecord
     weekdayMask: r.weekdayMask, appliesOnHolidays: r.appliesOnHolidays ? 1 : 0, boardingScope: r.boardingScope,
     appliesTo: r.appliesTo, ignoreDuplicateScansWithinMinutes: r.ignoreDuplicateScansWithinMinutes,
   });
+}
+
+// ── Phase 7, sub-effort 23: auth tables — closes a real gap this session
+// found while building the lean .drs export: provisionSchool() never
+// copied users/roles/permissions/role_permissions/user_roles at all, which
+// meant NO ONE could ever log into a freshly-provisioned install from real
+// data — every prior test manually created its own throwaway user instead
+// of exercising provisioning's own copy path for this. password_hash is
+// carried through UNCHANGED (the same bcrypt hash from the source) so a
+// real user logs into their offline copy with the exact password they
+// already use online — no separate offline password/reset flow needed. ──
+
+export function seedUser(db: SqliteConnection, r: UserRecord): void {
+  db.prepare(`
+    INSERT INTO users (id, school_id, first_name, last_name, email, phone, avatar_url, password_hash, role_id,
+                        is_active, is_verified, last_login_at, last_password_change, failed_login_attempts,
+                        locked_until, created_by, created_at, updated_at, deleted_at)
+    VALUES (@id, @schoolId, @firstName, @lastName, @email, @phone, @avatarUrl, @passwordHash, @roleId,
+            @isActive, @isVerified, @lastLoginAt, @lastPasswordChange, @failedLoginAttempts,
+            @lockedUntil, @createdBy, @createdAt, @updatedAt, @deletedAt)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, first_name=excluded.first_name, last_name=excluded.last_name, email=excluded.email,
+      phone=excluded.phone, avatar_url=excluded.avatar_url, password_hash=excluded.password_hash, role_id=excluded.role_id,
+      is_active=excluded.is_active, is_verified=excluded.is_verified, last_login_at=excluded.last_login_at,
+      last_password_change=excluded.last_password_change, failed_login_attempts=excluded.failed_login_attempts,
+      locked_until=excluded.locked_until, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
+  `).run({
+    id: r.id, schoolId: r.schoolId, firstName: r.firstName, lastName: r.lastName, email: r.email,
+    phone: r.phone, avatarUrl: r.avatarUrl, passwordHash: r.passwordHash, roleId: r.roleId,
+    isActive: r.isActive === null ? null : r.isActive ? 1 : 0, isVerified: r.isVerified === null ? null : r.isVerified ? 1 : 0,
+    lastLoginAt: r.lastLoginAt, lastPasswordChange: r.lastPasswordChange, failedLoginAttempts: r.failedLoginAttempts,
+    lockedUntil: r.lockedUntil, createdBy: r.createdBy, createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt,
+  });
+}
+
+export function seedRole(db: SqliteConnection, r: RoleRecord): void {
+  db.prepare(`
+    INSERT INTO roles (id, school_id, name, slug, description, is_super_admin, is_active, is_system_role,
+                        permissions, hierarchy_level, created_at, updated_at, deleted_at, deleted_by, delete_reason,
+                        restored_at, restored_by)
+    VALUES (@id, @schoolId, @name, @slug, @description, @isSuperAdmin, @isActive, @isSystemRole,
+            @permissions, @hierarchyLevel, @createdAt, @updatedAt, @deletedAt, @deletedBy, @deleteReason,
+            @restoredAt, @restoredBy)
+    ON CONFLICT(id) DO UPDATE SET
+      school_id=excluded.school_id, name=excluded.name, slug=excluded.slug, description=excluded.description,
+      is_super_admin=excluded.is_super_admin, is_active=excluded.is_active, is_system_role=excluded.is_system_role,
+      permissions=excluded.permissions, hierarchy_level=excluded.hierarchy_level, updated_at=excluded.updated_at,
+      deleted_at=excluded.deleted_at, deleted_by=excluded.deleted_by, delete_reason=excluded.delete_reason,
+      restored_at=excluded.restored_at, restored_by=excluded.restored_by
+  `).run({
+    id: r.id, schoolId: r.schoolId, name: r.name, slug: r.slug, description: r.description,
+    isSuperAdmin: r.isSuperAdmin === null ? null : r.isSuperAdmin ? 1 : 0,
+    isActive: r.isActive === null ? null : r.isActive ? 1 : 0,
+    isSystemRole: r.isSystemRole === null ? null : r.isSystemRole ? 1 : 0,
+    permissions: r.permissions == null ? null : JSON.stringify(r.permissions), hierarchyLevel: r.hierarchyLevel,
+    createdAt: r.createdAt, updatedAt: r.updatedAt, deletedAt: r.deletedAt, deletedBy: r.deletedBy,
+    deleteReason: r.deleteReason, restoredAt: r.restoredAt, restoredBy: r.restoredBy,
+  });
+}
+
+/** Global catalog, no school scoping — same reasoning as PermissionRepo
+ *  itself. Provisioning copies the WHOLE catalog once; re-provisioning
+ *  (an upsert) just refreshes it to whatever the source currently has. */
+export function seedPermission(db: SqliteConnection, r: PermissionRecord): void {
+  db.prepare(`
+    INSERT INTO permissions (id, code, module, resource, action, description, is_active, name, category, created_at, updated_at)
+    VALUES (@id, @code, @module, @resource, @action, @description, @isActive, @name, @category, @createdAt, @updatedAt)
+    ON CONFLICT(id) DO UPDATE SET
+      code=excluded.code, module=excluded.module, resource=excluded.resource, action=excluded.action,
+      description=excluded.description, is_active=excluded.is_active, name=excluded.name, category=excluded.category,
+      updated_at=excluded.updated_at
+  `).run({
+    id: r.id, code: r.code, module: r.module, resource: r.resource, action: r.action, description: r.description,
+    isActive: r.isActive === null ? null : r.isActive ? 1 : 0, name: r.name, category: r.category,
+    createdAt: r.createdAt, updatedAt: r.updatedAt,
+  });
+}
+
+export function seedUserRole(db: SqliteConnection, r: UserRoleRecord): void {
+  db.prepare(`
+    INSERT INTO user_roles (id, user_id, role_id, is_active, assigned_by, assigned_at, school_id)
+    VALUES (@id, @userId, @roleId, @isActive, @assignedBy, @assignedAt, @schoolId)
+    ON CONFLICT(id) DO UPDATE SET
+      user_id=excluded.user_id, role_id=excluded.role_id, is_active=excluded.is_active,
+      assigned_by=excluded.assigned_by, assigned_at=excluded.assigned_at, school_id=excluded.school_id
+  `).run({
+    id: r.id, userId: r.userId, roleId: r.roleId, isActive: r.isActive === null ? null : r.isActive ? 1 : 0,
+    assignedBy: r.assignedBy, assignedAt: r.assignedAt, schoolId: r.schoolId,
+  });
+}
+
+/** Pure join, no own id — grant is naturally idempotent via the real
+ *  UNIQUE(role_id, permission_id) constraint (schema.ts's own header on
+ *  why that constraint exists even though the live table lacks one). */
+export function seedRolePermission(db: SqliteConnection, r: RolePermissionGrant): void {
+  db.prepare(`
+    INSERT INTO role_permissions (role_id, permission_id, created_at)
+    VALUES (@roleId, @permissionId, @createdAt)
+    ON CONFLICT(role_id, permission_id) DO NOTHING
+  `).run({ roleId: r.roleId, permissionId: r.permissionId, createdAt: r.createdAt });
 }
