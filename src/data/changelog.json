@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-04T18:20:35.367Z",
-  "last_commit": "65bb464be6aada585e3ac119fde96bb61101d2c9",
+  "generated_at": "2026-10-04T18:48:58.518Z",
+  "last_commit": "360a8c6ee28d1b0ae1b6986d1e9509126457e3a8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8539,7 +8539,20 @@
         }
       ],
       "commit": "65bb464be6"
+    },
+    {
+      "version": "2.45.0",
+      "date": "2026-10-04",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 23 - lean, self-service, encrypted .drs export",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 23 - lean, self-service, encrypted .drs export"
+        }
+      ],
+      "commit": "360a8c6ee2"
     }
   ],
-  "app_version": "2.45.0"
+  "app_version": "2.46.0"
 }
