@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T18:19:37.119Z",
-  "last_commit": "576320f8a028df2fd8e8e9606ae1dba05f8a4310",
+  "generated_at": "2026-10-05T18:25:06.017Z",
+  "last_commit": "affc144eb4215de35821f202f0c56a1890efcf56",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8682,7 +8682,20 @@
         }
       ],
       "commit": "576320f8a0"
+    },
+    {
+      "version": "2.50.4",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 34 - Duplicates works offline, including live purge",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 34 - Duplicates works offline, including live purge"
+        }
+      ],
+      "commit": "affc144eb4"
     }
   ],
-  "app_version": "2.50.4"
+  "app_version": "2.50.5"
 }
