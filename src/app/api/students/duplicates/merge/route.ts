@@ -2,6 +2,118 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { withTenantTransaction } from '@/lib/dbTenant';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 34, same §25a pattern as the
+ * sibling GET /api/students/duplicates. This is the actual risk this page
+ * carries (live mutation of real student records), so the merge logic is
+ * translated statement-for-statement from the online handler below, not
+ * simplified — same transfer order (enrollments → attendance → ZK logs →
+ * results → fees → contacts → promotions), same duplicate-enrollment
+ * skip-and-close rule, same soft-delete-with-note on the secondary. SQL
+ * dialect differences only: NOW() -> datetime('now'), CONCAT(...) -> ||,
+ * affectedRows -> better-sqlite3's .changes. `learner_fees` doesn't exist
+ * in the local shell schema at all (confirmed by grep before writing this)
+ * — wrapped in the same try/catch the online route already uses for
+ * "table may not exist", so this isn't new defensive code, just the same
+ * existing allowance actually getting exercised locally.
+ */
+function offlineMergeGroup(db: any, schoolId: number, primaryId: number, secondaryIds: number[]) {
+  const actions: string[] = [];
+  const now = new Date().toISOString();
+
+  const primary = db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL').get(primaryId, schoolId);
+  if (!primary) throw new Error(`Primary student #${primaryId} not found`);
+
+  for (const secondaryId of secondaryIds) {
+    const secondary = db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL').get(secondaryId, schoolId);
+    if (!secondary) { actions.push(`Skipped #${secondaryId} — not found or already deleted`); continue; }
+
+    const existingEnrollments = db.prepare('SELECT class_id, academic_year_id FROM enrollments WHERE student_id = ?').all(primaryId) as any[];
+    const existingKeys = new Set(existingEnrollments.map((e) => `${e.class_id}-${e.academic_year_id}`));
+    const secondaryEnrollments = db.prepare('SELECT id, class_id, academic_year_id FROM enrollments WHERE student_id = ?').all(secondaryId) as any[];
+
+    let enrollTransferred = 0;
+    for (const enrollment of secondaryEnrollments) {
+      const key = `${enrollment.class_id}-${enrollment.academic_year_id}`;
+      if (existingKeys.has(key)) {
+        db.prepare("UPDATE enrollments SET status = 'closed', end_reason = 'merged_duplicate' WHERE id = ?").run(enrollment.id);
+      } else {
+        db.prepare('UPDATE enrollments SET student_id = ? WHERE id = ?').run(primaryId, enrollment.id);
+        enrollTransferred++;
+      }
+    }
+    if (enrollTransferred > 0) actions.push(`Transferred ${enrollTransferred} enrollments from #${secondaryId}`);
+
+    const attRes = db.prepare('UPDATE student_attendance SET student_id = ? WHERE student_id = ?').run(primaryId, secondaryId);
+    if (attRes.changes > 0) actions.push(`Transferred ${attRes.changes} attendance records from #${secondaryId}`);
+
+    try {
+      const zkRes = db.prepare('UPDATE zk_attendance_logs SET student_id = ? WHERE student_id = ?').run(primaryId, secondaryId);
+      if (zkRes.changes > 0) actions.push(`Transferred ${zkRes.changes} ZK attendance logs from #${secondaryId}`);
+    } catch { /* table may not exist */ }
+
+    const resRes = db.prepare('UPDATE results SET student_id = ? WHERE student_id = ?').run(primaryId, secondaryId);
+    if (resRes.changes > 0) actions.push(`Transferred ${resRes.changes} results from #${secondaryId}`);
+
+    try {
+      const feeRes = db.prepare('UPDATE learner_fees SET student_id = ? WHERE student_id = ?').run(primaryId, secondaryId);
+      if (feeRes.changes > 0) actions.push(`Transferred ${feeRes.changes} fee records from #${secondaryId}`);
+    } catch { /* table may not exist */ }
+
+    try {
+      const contRes = db.prepare('UPDATE student_contacts SET student_id = ? WHERE student_id = ? AND student_id != ?').run(primaryId, secondaryId, primaryId);
+      if (contRes.changes > 0) actions.push(`Transferred ${contRes.changes} contacts from #${secondaryId}`);
+    } catch { /* table may not exist */ }
+
+    try {
+      const promoRes = db.prepare('UPDATE promotions SET student_id = ? WHERE student_id = ?').run(primaryId, secondaryId);
+      if (promoRes.changes > 0) actions.push(`Transferred ${promoRes.changes} promotions from #${secondaryId}`);
+    } catch { /* table may not exist */ }
+
+    db.prepare(
+      "UPDATE students SET deleted_at = ?, notes = COALESCE(notes, '') || ? WHERE id = ?"
+    ).run(now, `\n[MERGED INTO #${primaryId} on ${now}]`, secondaryId);
+    actions.push(`Soft-deleted duplicate #${secondaryId}`);
+  }
+
+  return { primary_id: primaryId, actions };
+}
+
+async function offlineMergeDuplicates(req: NextRequest, session: { schoolId: number; userId: number }, schoolId: number, mergeGroups: Array<{ primary_id: number; secondary_ids: number[] }>) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+
+  const results: any[] = [];
+  let totalMerged = 0;
+  let totalFailed = 0;
+
+  for (const group of mergeGroups) {
+    try {
+      const txn = db.transaction(() => offlineMergeGroup(db, schoolId, group.primary_id, group.secondary_ids));
+      const mergeResult = txn();
+      totalMerged += group.secondary_ids.length - mergeResult.actions.filter((a: string) => a.startsWith('Skipped')).length;
+      results.push({ ...mergeResult, success: true });
+      logAudit({
+        schoolId, userId: session.userId, action: AuditAction.MERGED_STUDENTS, entityType: 'student',
+        entityId: group.primary_id, details: { secondary_ids: group.secondary_ids, actions: mergeResult.actions },
+        ip: req.headers.get('x-forwarded-for') || null, userAgent: req.headers.get('user-agent') || null,
+      }).catch(() => { /* non-critical */ });
+    } catch (err: any) {
+      totalFailed++;
+      results.push({ primary_id: group.primary_id, success: false, error: err.message });
+    }
+  }
+
+  return NextResponse.json({
+    success: totalFailed === 0,
+    message: `Merged ${totalMerged} duplicate(s)${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`,
+    total_merged: totalMerged,
+    total_failed: totalFailed,
+    results,
+  });
+}
 
 /**
  * POST /api/students/duplicates/merge
@@ -69,6 +181,10 @@ export async function POST(req: NextRequest) {
     if (g.secondary_ids.includes(g.primary_id)) {
       return NextResponse.json({ error: 'Cannot merge student with itself' }, { status: 400 });
     }
+  }
+
+  if (getDbMode() === 'local-sqlite') {
+    return offlineMergeDuplicates(req, session, schoolId, mergeGroups);
   }
 
   const results: any[] = [];

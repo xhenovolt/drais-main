@@ -1,6 +1,96 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 34, same §25a pattern. Detection
+ * only (GET) is read-only so it's safe to replicate directly; the risk this
+ * page actually carries is in merge/purge (see those two route files, both
+ * branched alongside this one). `results` is LARGE_EXCLUDED from the lean
+ * export (same fact /students/[id]/previous-enrollment's branch documents)
+ * so results_count is always 0 offline — not a bug, a real student with no
+ * exam data looks identical. The real route's GROUP BY + ANY_VALUE() picks
+ * an arbitrary active enrollment when more than one somehow exists; this
+ * uses an equivalent LIMIT-1-ORDER-BY-id-DESC subquery instead, since
+ * SQLite doesn't have ANY_VALUE — same "pick one, doesn't matter which"
+ * behavior, not a stricter or looser rule than online's.
+ */
+async function offlineGetDuplicates(schoolId: number, limit: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+
+  function fetchGroupMembers(whereClause: string, params: any[]) {
+    return db.prepare(`
+      SELECT
+        s.id, p.first_name, p.last_name, s.admission_no, s.status, s.created_at, s.admission_date,
+        (SELECT c.name FROM enrollments e JOIN classes c ON c.id = e.class_id
+           WHERE e.student_id = s.id AND e.status = 'active' ORDER BY e.id DESC LIMIT 1) AS class_name,
+        (SELECT e.class_id FROM enrollments e
+           WHERE e.student_id = s.id AND e.status = 'active' ORDER BY e.id DESC LIMIT 1) AS class_id,
+        (SELECT COUNT(*) FROM enrollments en WHERE en.student_id = s.id) AS enrollment_count,
+        (SELECT COUNT(*) FROM student_attendance sa WHERE sa.student_id = s.id) AS attendance_count,
+        (SELECT COUNT(*) FROM results r WHERE r.student_id = s.id) AS results_count
+      FROM students s
+      JOIN people p ON s.person_id = p.id
+      WHERE s.school_id = ? AND s.deleted_at IS NULL AND ${whereClause}
+      ORDER BY s.created_at ASC
+    `).all(schoolId, ...params);
+  }
+
+  const exactGroups = db.prepare(`
+    SELECT LOWER(TRIM(p.first_name)) AS fn, LOWER(TRIM(p.last_name)) AS ln, COUNT(*) AS cnt
+    FROM students s JOIN people p ON s.person_id = p.id
+    WHERE s.school_id = ? AND s.deleted_at IS NULL
+    GROUP BY fn, ln HAVING COUNT(*) > 1 ORDER BY cnt DESC LIMIT ?
+  `).all(schoolId, limit) as any[];
+
+  const groups: any[] = [];
+  let groupId = 0;
+
+  for (const grp of exactGroups) {
+    const students = fetchGroupMembers('LOWER(TRIM(p.first_name)) = ? AND LOWER(TRIM(p.last_name)) = ?', [grp.fn, grp.ln]) as any[];
+    if (students.length > 1) {
+      groupId++;
+      const sameAdmissionNo = students.some((s, i) => students.some((s2, j) => i !== j && s.admission_no && s2.admission_no && s.admission_no === s2.admission_no));
+      const sameClass = students.some((s, i) => students.some((s2, j) => i !== j && s.class_id && s2.class_id && s.class_id === s2.class_id));
+      let confidence: 'high' | 'medium' | 'low' = 'medium';
+      let matchReason = 'Exact name match';
+      if (sameAdmissionNo) { confidence = 'high'; matchReason = 'Same name + same admission number'; }
+      else if (sameClass) { confidence = 'high'; matchReason = 'Same name + same class'; }
+      groups.push({ group_id: groupId, match_reason: matchReason, confidence, students });
+    }
+  }
+
+  const admissionDups = db.prepare(`
+    SELECT admission_no, COUNT(*) AS cnt FROM students
+    WHERE school_id = ? AND deleted_at IS NULL AND admission_no IS NOT NULL AND admission_no != ''
+    GROUP BY admission_no HAVING COUNT(*) > 1 LIMIT ?
+  `).all(schoolId, limit) as any[];
+
+  for (const dup of admissionDups) {
+    const alreadyCaptured = groups.some((g) =>
+      g.students.filter((s: any) => s.admission_no === dup.admission_no).length > 1
+    );
+    if (alreadyCaptured) continue;
+    const students = fetchGroupMembers('s.admission_no = ?', [dup.admission_no]) as any[];
+    if (students.length > 1) {
+      groupId++;
+      groups.push({ group_id: groupId, match_reason: 'Same admission number', confidence: 'high' as const, students });
+    }
+  }
+
+  const totalDuplicates = groups.reduce((sum, g) => sum + g.students.length, 0);
+  const totalRow = db.prepare('SELECT COUNT(*) as cnt FROM students WHERE school_id = ? AND deleted_at IS NULL').get(schoolId) as any;
+
+  return NextResponse.json({
+    success: true,
+    total_students: totalRow.cnt,
+    groups,
+    total_groups: groups.length,
+    total_duplicates: totalDuplicates,
+  });
+}
 
 /**
  * GET /api/students/duplicates
@@ -30,6 +120,12 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  const schoolId0 = session.schoolId;
+  const limit0 = Math.min(500, parseInt(req.nextUrl.searchParams.get('limit') || '200'));
+  if (getDbMode() === 'local-sqlite') {
+    return offlineGetDuplicates(schoolId0, limit0);
   }
 
   const conn = await getConnection();

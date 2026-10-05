@@ -24,7 +24,7 @@ const OFFLINE_SAFE_PREFIXES = [
   '/students/offline', '/staff/offline', '/attendance/offline',
   '/academics/offline', '/reports/offline',
   '/students/list', '/students/admit', '/students/requirements', '/students/contacts',
-  '/students/enroll', '/students/documents',
+  '/students/enroll', '/students/documents', '/students/duplicates',
 ];
 
 function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {

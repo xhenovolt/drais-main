@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T18:07:34.274Z",
-  "last_commit": "8203bd11a6f65292a17e76ee90afa15814a70218",
+  "generated_at": "2026-10-05T18:19:37.119Z",
+  "last_commit": "576320f8a028df2fd8e8e9606ae1dba05f8a4310",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8669,7 +8669,20 @@
         }
       ],
       "commit": "8203bd11a6"
+    },
+    {
+      "version": "2.50.3",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 33 - Documents works offline, lean-export policy fix",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 33 - Documents works offline, lean-export policy fix"
+        }
+      ],
+      "commit": "576320f8a0"
     }
   ],
-  "app_version": "2.50.3"
+  "app_version": "2.50.4"
 }
