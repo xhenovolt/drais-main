@@ -4,9 +4,43 @@ import { NotificationMiddleware } from '@/lib/middleware/notificationMiddleware'
 import { logAudit, AuditAction } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkCapacity } from '@/lib/entitlements/limits';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 28, the §25a branching pattern
+ * (same as /api/auth/login, /api/auth/me) applied for the first time to a
+ * non-auth route. Everything below this function is completely unmodified
+ * online behavior. Dynamic import so better-sqlite3 never loads into this
+ * route's module graph in online/local-mysql mode.
+ */
+async function handleOfflineCreate(req: NextRequest, schoolId: number, userId: number, body: any) {
+  const { first_name, last_name, other_name, gender, date_of_birth, email, phone, class_id, academic_year_id, term_id, stream_id } = body;
+  if (!first_name || !last_name) {
+    return NextResponse.json({ success: false, message: 'Missing required fields: first_name, last_name' }, { status: 400 });
+  }
+  try {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const { createSqliteRepos } = await import('@/lib/repo/sqlite');
+    const { admitOfflineStudent } = await import('@/lib/repo/offline-students');
+    const repos = createSqliteRepos(getSqliteDb());
+    const result = await admitOfflineStudent(repos, schoolId, {
+      firstName: first_name, lastName: last_name, otherName: other_name ?? null,
+      gender: gender ?? null, dateOfBirth: date_of_birth ?? null, email: email ?? null, phone: phone ?? null,
+      classId: class_id ?? null,
+    });
+    return NextResponse.json({
+      success: true, student_id: result.studentId, person_id: result.personId,
+      enrollment_id: result.enrollmentCreated ? result.studentId : null, message: 'Student created successfully',
+    });
+  } catch (error: any) {
+    const status = error?.code === 'DUPLICATE' ? 409 : error?.code === 'INVALID_INPUT' ? 400 : 500;
+    return NextResponse.json({ success: false, message: error?.message || 'Failed to create student' }, { status });
+  }
+}
+
 export async function POST(req: NextRequest) {
   let connection;
-  
+
   try {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
@@ -15,12 +49,17 @@ export async function POST(req: NextRequest) {
     }
     const schoolId = session.schoolId;
 
+    const body = await req.json();
+
+    if (getDbMode() === 'local-sqlite') {
+      return handleOfflineCreate(req, schoolId, session.userId, body);
+    }
+
     // Plan capacity. Checked before any work so a school at its ceiling gets a
     // clear, actionable message rather than a half-created learner.
     const overCapacity = await checkCapacity(schoolId, 'learners');
     if (overCapacity) return overCapacity;
 
-    const body = await req.json();
     const { first_name,
       last_name,
       email,

@@ -220,6 +220,28 @@ export async function createOfflineStudent(
   return toView(student, person);
 }
 
+/**
+ * Phase 7 sub-effort 28. The offline branch of the REAL /api/students POST
+ * handler (src/app/api/students/route.ts) — not a new "/offline" route.
+ * §25a's branching pattern (same one /api/auth/login and /api/auth/me
+ * already use), applied for the first time to a non-auth route: the real
+ * page (/students/admit) calls the real route either way, and the route
+ * itself decides which engine to use. Composes createOfflineStudent +
+ * assignStudentToClass exactly like the online handler composes its own
+ * two INSERTs — class assignment only happens if a classId is given,
+ * matching the online route's `if (class_id)` branch.
+ */
+export async function admitOfflineStudent(
+  repos: Repos, schoolId: number,
+  input: NewOfflineStudentInput & { classId?: number | null },
+): Promise<{ studentId: number; personId: number; enrollmentCreated: boolean }> {
+  const created = await createOfflineStudent(repos, schoolId, input);
+  if (input.classId) {
+    await assignStudentToClass(repos, schoolId, created.id, input.classId);
+  }
+  return { studentId: created.id, personId: created.personId, enrollmentCreated: !!input.classId };
+}
+
 export async function updateOfflineStudent(repos: Repos, schoolId: number, id: number, patch: Partial<NewOfflineStudentInput>): Promise<OfflineStudentView> {
   const student = await repos.students.findById(schoolId, id);
   if (!student) throw new RepoError(`Student ${id} not found in school ${schoolId}`, 'NOT_FOUND');

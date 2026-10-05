@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T12:37:09.233Z",
-  "last_commit": "06c6e74d0ce4b127f7443832359689a374152bfc",
+  "generated_at": "2026-10-05T12:54:31.146Z",
+  "last_commit": "38bcacd4587e343ab927fa55f551c000006e69c3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8591,7 +8591,20 @@
         }
       ],
       "commit": "06c6e74d0c"
+    },
+    {
+      "version": "2.47.2",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 27 - same nav in every DB mode, broken pages say so",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Phase 7 sub-effort 27 - same nav in every DB mode, broken pages say so"
+        }
+      ],
+      "commit": "38bcacd458"
     }
   ],
-  "app_version": "2.47.2"
+  "app_version": "2.48.0"
 }

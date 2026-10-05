@@ -6,7 +6,7 @@ import { openSqliteDb, closeSqliteDb, createSqliteRepos } from '@/lib/repo/sqlit
 import {
   listOfflineStudents, getOfflineStudent, createOfflineStudent,
   updateOfflineStudent, deleteOfflineStudent, restoreOfflineStudent,
-  assignStudentToClass, unassignStudentFromClass,
+  assignStudentToClass, unassignStudentFromClass, admitOfflineStudent,
 } from '@/lib/repo/offline-students';
 import { RepoError } from '@/lib/repo/contract/types';
 
@@ -207,6 +207,36 @@ describe('offline-students', () => {
       const created = await createOfflineStudent(repos, schoolId, { firstName: 'Never', lastName: 'Enrolled' });
       const result = await unassignStudentFromClass(repos, schoolId, created.id);
       assert.equal(result.currentClass, null);
+    });
+  });
+
+  // Phase 7 sub-effort 28 — the offline branch of the REAL /api/students
+  // POST handler (src/app/api/students/route.ts), not a new offline-only
+  // route. Composes createOfflineStudent + assignStudentToClass the same
+  // way the online handler composes its two raw INSERTs.
+  describe('admitOfflineStudent (real /api/students route branch)', () => {
+    it('admits a student with no class — mirrors the online route\'s "no class_id" path', async () => {
+      const result = await admitOfflineStudent(repos, schoolId, { firstName: 'Khalid', lastName: 'Osman' });
+      assert.ok(result.studentId);
+      assert.ok(result.personId);
+      assert.equal(result.enrollmentCreated, false);
+      const view = await getOfflineStudent(repos, schoolId, result.studentId);
+      assert.equal(view.currentClass, null);
+    });
+
+    it('admits a student WITH a classId — mirrors the online route\'s "if (class_id)" enrollment branch', async () => {
+      const cls = await repos.classes.create({ schoolId, name: 'Admit-Test Class' });
+      const result = await admitOfflineStudent(repos, schoolId, { firstName: 'Zainab', lastName: 'Ali', classId: cls.id });
+      assert.equal(result.enrollmentCreated, true);
+      const view = await getOfflineStudent(repos, schoolId, result.studentId);
+      assert.equal(view.currentClass?.id, cls.id);
+    });
+
+    it('missing firstName/lastName still fails clearly, same as the bare create() path', async () => {
+      await assert.rejects(
+        () => admitOfflineStudent(repos, schoolId, { firstName: '', lastName: '' }),
+        /firstName and lastName are required/,
+      );
     });
   });
 });
