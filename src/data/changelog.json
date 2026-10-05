@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-04T18:48:58.518Z",
-  "last_commit": "360a8c6ee28d1b0ae1b6986d1e9509126457e3a8",
+  "generated_at": "2026-10-05T09:07:05.908Z",
+  "last_commit": "442fa1ef5a2f10f4e448ba25d89467cbbdb5d505",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8552,7 +8552,20 @@
         }
       ],
       "commit": "360a8c6ee2"
+    },
+    {
+      "version": "2.46.0",
+      "date": "2026-10-04",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 24 - .drs import + real end-to-end offline proof",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 24 - .drs import + real end-to-end offline proof"
+        }
+      ],
+      "commit": "442fa1ef5a"
     }
   ],
-  "app_version": "2.46.0"
+  "app_version": "2.47.0"
 }

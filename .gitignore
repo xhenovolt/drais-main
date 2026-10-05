@@ -111,6 +111,9 @@ exports/
 # DB schema exports (generated; may contain seed data)
 database/exports/
 
+# Downloaded offline student photos (real personal data — never commit)
+public/offline-photos/
+
 # Built relay binaries (regenerate via workers/relay-app/build.sh)
 workers/dist/drais-relay*
 workers/dist/*.zip
