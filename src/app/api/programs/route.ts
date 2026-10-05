@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { langFromRequest, pickName } from '@/lib/i18n/localize';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/** local-sqlite branch — Phase 7 sub-effort 30, same §25a pattern. */
+async function offlineGetPrograms(schoolId: number, includeArchived: boolean, req: NextRequest) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const rows = getSqliteDb().prepare(
+    `SELECT id, school_id, name, name_ar,
+            COALESCE(NULLIF(display_name, ''), name) AS display_name,
+            code, curriculum_body, eligibility, is_default, is_active, description, created_at
+       FROM programs
+      WHERE school_id = ? ${includeArchived ? '' : 'AND is_active = 1'}
+      ORDER BY is_default DESC, is_active DESC, display_name ASC`,
+  ).all(schoolId) as Record<string, unknown>[];
+  const lang = langFromRequest(req);
+  const data = rows.map((r) => ({ ...r, display_name: pickName(lang, r.display_name as string, r.name_ar as string | null) }));
+  return NextResponse.json({ success: true, data });
+}
 
 /**
  * Programs API — clear, school-configurable enrollment programs.
@@ -11,11 +28,17 @@ import { langFromRequest, pickName } from '@/lib/i18n/localize';
  * DELETE /api/programs?id=                   — archive (soft delete)
  */
 export async function GET(req: NextRequest) {
+  const session0 = await getSessionSchoolId(req);
+  if (!session0) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const includeArchived0 = req.nextUrl.searchParams.get('include_archived') === '1';
+  if (getDbMode() === 'local-sqlite') {
+    return offlineGetPrograms(session0.schoolId, includeArchived0, req);
+  }
+
   const conn = await getConnection();
   try {
-    const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    const includeArchived = req.nextUrl.searchParams.get('include_archived') === '1';
+    const session = session0;
+    const includeArchived = includeArchived0;
 
     const [rows]: any = await conn.execute(
       `SELECT id, school_id, name, name_ar,

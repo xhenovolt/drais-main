@@ -4,6 +4,45 @@ import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
 import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/** local-sqlite branch — Phase 7 sub-effort 30, same §25a pattern. The
+ *  shell schema always has classes.program_id (confirmed, unlike online's
+ *  migration-027 uncertainty), so no column-existence guard is needed. */
+async function offlineGetClasses(schoolId: number, searchParams: URLSearchParams, req: NextRequest) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const type = searchParams.get('type');
+  const programIdFilter = searchParams.get('program_id');
+
+  // Local staff has no denormalized first_name/last_name of its own — name
+  // only ever comes via person_id -> people (confirmed: schema.ts's staff
+  // table has no such columns at all), so no legacy-column fallback here.
+  let sql = `
+    SELECT c.id, c.name, c.name_ar, c.class_level, c.head_teacher_id, c.curriculum_id,
+      cu.name AS curriculum_name, cu.code AS curriculum_code,
+      NULLIF(TRIM(
+        COALESCE(NULLIF(p.first_name, ''), '') || ' ' || COALESCE(NULLIF(p.last_name, ''), '')
+      ), '') AS teacher_name,
+      d.name AS teacher_department,
+      c.program_id, pr.name AS program_name
+    FROM classes c
+    LEFT JOIN curriculums cu ON c.curriculum_id = cu.id
+    LEFT JOIN staff s ON c.head_teacher_id = s.id AND s.school_id = c.school_id
+    LEFT JOIN people p ON s.person_id = p.id
+    LEFT JOIN departments d ON s.department_id = d.id
+    LEFT JOIN programs pr ON c.program_id = pr.id AND pr.school_id = c.school_id
+    WHERE c.school_id = ? AND c.deleted_at IS NULL
+  `;
+  const params: any[] = [schoolId];
+  if (type === 'tahfiz') sql += ` AND (LOWER(c.name) LIKE '%tahfiz%' OR LOWER(c.name) = 'tahfiz')`;
+  if (programIdFilter) { sql += ` AND c.program_id = ?`; params.push(Number(programIdFilter)); }
+  sql += ` ORDER BY c.class_level, c.name`;
+
+  const classes = db.prepare(sql).all(...params) as Record<string, unknown>[];
+  const lang = langFromRequest(req);
+  return NextResponse.json({ success: true, data: classes.map((r) => withDisplayName(r, lang)) });
+}
 
 export async function GET(req: NextRequest) {
   let connection;
@@ -13,6 +52,9 @@ export async function GET(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetClasses(schoolId, searchParams, req);
+    }
     const type = searchParams.get('type');
     const programIdFilter = searchParams.get('program_id');
 

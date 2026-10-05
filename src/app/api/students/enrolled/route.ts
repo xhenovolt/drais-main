@@ -4,6 +4,119 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { getCurrentTerm } from '@/lib/terms';
 import { getBalancesForStudents } from '@/lib/services/FinanceLedger';
 import { langFromRequest, personDisplayName, pickName } from '@/lib/i18n/localize';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 30, the second (and larger) of
+ * /students/list's two primary data-fetch endpoints, same §25a pattern.
+ * Deliberately does NOT attach fee balances (getBalancesForStudents,
+ * Finance has zero offline support — out of scope here) — every row's
+ * balance/total_charged/total_paid stays unset, exactly matching what the
+ * ONLINE route itself already does when that same call throws (its own
+ * try/catch leaves them unset too — see the comment at that call site).
+ * Arabic name fields are NULL for the same reason admitted/route.ts's
+ * branch documents: never carried into the local `people` table.
+ */
+async function offlineGetEnrolled(schoolId: number, sp: URLSearchParams, req: NextRequest) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const { getCurrentTermOffline } = await import('@/lib/terms-offline');
+  const db = getSqliteDb();
+
+  const historical = sp.get('historical') === 'true';
+  const enrollmentStatus = sp.get('status');
+  const search = sp.get('search')?.trim();
+  const classId = sp.get('class_id');
+  const streamId = sp.get('stream_id');
+  const academicYearId = sp.get('academic_year_id');
+
+  let termId: number | null = null;
+  if (!historical) {
+    const rawTermId = sp.get('term_id');
+    if (rawTermId) termId = parseInt(rawTermId, 10);
+    else termId = getCurrentTermOffline(db, schoolId)?.id ?? null;
+  }
+
+  const conditions: string[] = ['s.school_id = ?', 's.deleted_at IS NULL'];
+  const params: any[] = [schoolId];
+  if (!historical && termId) { conditions.push('e.term_id = ?'); params.push(termId); }
+  if (enrollmentStatus && enrollmentStatus !== 'all') { conditions.push('e.status = ?'); params.push(enrollmentStatus); }
+  if (academicYearId) { conditions.push('e.academic_year_id = ?'); params.push(academicYearId); }
+  if (classId) { conditions.push('e.class_id = ?'); params.push(classId); }
+  if (streamId) { conditions.push('e.stream_id = ?'); params.push(streamId); }
+  if (search) {
+    conditions.push("(LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR s.admission_no LIKE ? OR LOWER(p.last_name || ' ' || p.first_name) LIKE ? OR LOWER(p.first_name || ' ' || p.last_name) LIKE ?)");
+    const like = `%${search.toLowerCase()}%`;
+    params.push(like, like, like, like, like);
+  }
+  const where = 'WHERE ' + conditions.join(' AND ');
+
+  // The local enrollments table only models a SUBSET of the real online
+  // table's 26 columns (confirmed by reading schema.ts) — study_mode_id,
+  // program_id, and joined_at don't exist locally at all. Not something to
+  // invent; these come back NULL, same honest-gap reasoning as the Arabic
+  // name fields above.
+  const rawRows = db.prepare(`
+    SELECT
+      e.id AS enrollment_id, e.student_id, e.class_id, e.stream_id, e.academic_year_id, e.term_id,
+      NULL AS study_mode_id, NULL AS program_id, e.status AS enrollment_status,
+      COALESCE(e.enrollment_type, 'new') AS enrollment_type,
+      e.created_at AS joined_at,
+      COALESCE(e.enrollment_date, s.admission_date) AS enrollment_date,
+      s.id AS id, s.person_id, s.admission_no, s.status AS student_status, s.admission_date, NULL AS residency_status,
+      p.first_name, p.last_name, p.other_name,
+      NULL AS first_name_ar, NULL AS last_name_ar, NULL AS other_name_ar, NULL AS full_name_ar,
+      p.gender, p.date_of_birth, p.photo_url, p.phone, p.email,
+      c.name AS class_name, c.name_ar AS class_name_ar, c.level AS class_level,
+      st.name AS stream_name, st.name_ar AS stream_name_ar,
+      ay.name AS academic_year_name,
+      t.name AS term_name, t.name_ar AS term_name_ar,
+      NULL AS study_mode_name,
+      NULL AS program_name, NULL AS program_name_ar
+    FROM enrollments e
+    JOIN students s ON e.student_id = s.id
+    LEFT JOIN people p ON s.person_id = p.id
+    LEFT JOIN classes c ON e.class_id = c.id
+    LEFT JOIN streams st ON e.stream_id = st.id
+    LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
+    LEFT JOIN terms t ON e.term_id = t.id
+    ${where}
+    ORDER BY p.first_name ASC, p.last_name ASC
+    LIMIT 10001
+  `).all(...params) as Record<string, any>[];
+  const truncated = rawRows.length > 10000;
+  const rows = truncated ? rawRows.slice(0, 10000) : rawRows;
+
+  if (rows.length > 0) {
+    const enrollmentIds = rows.map((r) => r.enrollment_id);
+    const placeholders = enrollmentIds.map(() => '?').join(',');
+    const programs = db.prepare(`
+      SELECT ep.enrollment_id, p.id, p.name FROM enrollment_programs ep
+      JOIN programs p ON ep.program_id = p.id
+      WHERE ep.enrollment_id IN (${placeholders})
+    `).all(...enrollmentIds) as Array<{ enrollment_id: number; id: number; name: string }>;
+    const programMap: Record<number, Array<{ id: number; name: string }>> = {};
+    for (const prog of programs) {
+      if (!programMap[prog.enrollment_id]) programMap[prog.enrollment_id] = [];
+      programMap[prog.enrollment_id].push({ id: prog.id, name: prog.name });
+    }
+    for (const row of rows) row.programs = programMap[row.enrollment_id] || [];
+  }
+
+  const lang = langFromRequest(req);
+  for (const row of rows) {
+    row.display_name = personDisplayName(lang, row);
+    row.class_name_display = pickName(lang, row.class_name, row.class_name_ar);
+    row.stream_name_display = pickName(lang, row.stream_name, row.stream_name_ar);
+    row.term_name_display = pickName(lang, row.term_name, row.term_name_ar);
+    row.program_name_display = pickName(lang, row.program_name, row.program_name_ar);
+    row.arabic_name_missing = true;
+  }
+
+  return NextResponse.json({
+    success: true, data: rows,
+    meta: { total: rows.length, truncated, term_id: termId, historical },
+  });
+}
 
 /**
  * GET /api/students/enrolled
@@ -30,8 +143,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   }
   const schoolId = session.schoolId;
-
   const sp = req.nextUrl.searchParams;
+
+  if (getDbMode() === 'local-sqlite') {
+    return offlineGetEnrolled(schoolId, sp, req);
+  }
+
   const historical = sp.get('historical') === 'true';
   // No default status filter — 'active' default hides completed/historical enrollments.
   // Pass status=active explicitly in the URL to restrict to active only.

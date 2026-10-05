@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 30, same §25a pattern.
+ * Known, named gap: the "system defaults" fallback (school_id IS NULL
+ * rows) is not guaranteed to be present in the local file — the lean
+ * .drs export's generic scope resolution (sub-effort 23) only copies
+ * rows matching `school_id = ?` for any table with that column, which
+ * structurally excludes NULL-school_id rows from ever being copied. If
+ * a school never created its own study modes online, this returns an
+ * empty list offline rather than the online route's system fallback.
+ */
+async function offlineGetStudyModes(schoolId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const schoolModes = db.prepare(
+    `SELECT id, school_id, name, is_default, is_active FROM study_modes WHERE school_id = ? AND is_active = 1 ORDER BY is_default DESC, name ASC`
+  ).all(schoolId);
+  if (schoolModes.length > 0) return NextResponse.json({ success: true, data: schoolModes });
+  const systemModes = db.prepare(
+    `SELECT id, school_id, name, is_default, is_active FROM study_modes WHERE school_id IS NULL AND is_active = 1 ORDER BY is_default DESC, name ASC`
+  ).all();
+  return NextResponse.json({ success: true, data: systemModes });
+}
 
 /**
  * Study Modes API
@@ -8,10 +32,13 @@ import { getSessionSchoolId } from '@/lib/auth';
  * POST /api/study-modes  — Create a new study mode for the school
  */
 export async function GET(req: NextRequest) {
+  const session1 = await getSessionSchoolId(req);
+  if (!session1) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (getDbMode() === 'local-sqlite') return offlineGetStudyModes(session1.schoolId);
+
   const conn = await getConnection();
   try {
-    const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const session = session1;
     const schoolId = session.schoolId;
 
     // Return school-specific modes; if none exist, return system defaults (school_id IS NULL)

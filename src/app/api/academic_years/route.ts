@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/** local-sqlite branch — Phase 7 sub-effort 30, same §25a pattern. */
+async function offlineGetAcademicYears(schoolId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const rows = getSqliteDb().prepare(
+    `SELECT id, school_id, name, start_date, end_date, status FROM academic_years WHERE school_id = ? AND deleted_at IS NULL ORDER BY start_date DESC, id DESC`
+  ).all(schoolId);
+  return NextResponse.json({ success: true, data: rows });
+}
 
 export async function GET(request: NextRequest) {
+  const session = await getSessionSchoolId(request);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (getDbMode() === 'local-sqlite') return offlineGetAcademicYears(session.schoolId);
+
   const conn = await getConnection();
   try {
-    const session = await getSessionSchoolId(request);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
 
     const [rows] = await conn.execute(

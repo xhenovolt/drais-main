@@ -4,6 +4,7 @@ import { getConnection, getActiveDatabase } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
 import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
+import { getDbMode } from '@/lib/db/db-mode';
 
 /**
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
@@ -61,6 +62,19 @@ async function insertWithExplicitId(conn: any, name: string, classId: number, sc
   );
 }
 
+/** local-sqlite branch — Phase 7 sub-effort 30, same §25a pattern. */
+async function offlineGetStreams(schoolId: number, searchParams: URLSearchParams, req: NextRequest) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const classId = searchParams.get('class_id');
+  let sql = 'SELECT id, name, name_ar, class_id FROM streams WHERE school_id = ?';
+  const params: any[] = [schoolId];
+  if (classId) { sql += ' AND class_id = ?'; params.push(classId); }
+  sql += ' ORDER BY name ASC';
+  const rows = getSqliteDb().prepare(sql).all(...params) as Record<string, unknown>[];
+  const lang = langFromRequest(req);
+  return NextResponse.json({ data: rows.map((r) => withDisplayName(r, lang)) });
+}
+
 export async function GET(req: NextRequest) {
   let connection;
   try {
@@ -71,6 +85,9 @@ export async function GET(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetStreams(schoolId, searchParams, req);
+    }
     const classId = searchParams.get('class_id');
 
     connection = await getConnection();

@@ -3,6 +3,31 @@ import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
 import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/** local-sqlite branch — Phase 7 sub-effort 30, same §25a pattern. */
+async function offlineGetTerms(schoolId: number, req: NextRequest) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const terms = getSqliteDb().prepare(`
+    SELECT t.id, t.name, t.name_ar,
+      COALESCE(t.term_number,
+        CASE
+          WHEN LOWER(TRIM(t.name)) IN ('term 1','t1','first term') THEN 1
+          WHEN LOWER(TRIM(t.name)) IN ('term 2','t2','second term') THEN 2
+          WHEN LOWER(TRIM(t.name)) IN ('term 3','t3','third term') THEN 3
+          ELSE 99
+        END
+      ) AS term_number,
+      t.start_date, t.end_date, t.status, t.academic_year_id, ay.name as academic_year
+    FROM terms t
+    LEFT JOIN academic_years ay ON t.academic_year_id = ay.id
+    WHERE t.school_id = ? AND t.deleted_at IS NULL
+    ORDER BY ay.start_date DESC, term_number ASC, t.id ASC
+  `).all(schoolId) as Record<string, unknown>[];
+  const lang = langFromRequest(req);
+  return NextResponse.json({ success: true, data: terms.map((r) => withDisplayName(r, lang)) });
+}
+
 export async function GET(req: NextRequest) {
   let connection;
 
@@ -13,6 +38,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetTerms(schoolId, req);
+    }
 
     const { searchParams } = new URL(req.url);
     // schoolId derived from session below

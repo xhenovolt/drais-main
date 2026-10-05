@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T13:03:04.332Z",
-  "last_commit": "1b0b6b5eab1235e270a2650199c44f1e6c1fcbda",
+  "generated_at": "2026-10-05T17:31:58.891Z",
+  "last_commit": "13014c514da79385b8cc74b9a1162cc281f1d25e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8617,7 +8617,20 @@
         }
       ],
       "commit": "1b0b6b5eab"
+    },
+    {
+      "version": "2.49.0",
+      "date": "2026-10-05",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 29 - Requirements and Contacts routes work offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 29 - Requirements and Contacts routes work offline"
+        }
+      ],
+      "commit": "13014c514d"
     }
   ],
-  "app_version": "2.49.0"
+  "app_version": "2.50.0"
 }
