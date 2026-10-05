@@ -49,6 +49,14 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   setupComplete: boolean;
+  /** True only in local-sqlite mode — the Offline Workspace's five
+   *  "offline"-suffixed pages are the only ones with working data; every other page (Dashboard,
+   *  Students List, Academics, Attendance, ...) loads its shell fine but its
+   *  data never arrives, since those routes are online-only. Consumers (the
+   *  Sidebar, MobileDrawer) use this to stop OFFERING links that silently
+   *  don't work, rather than relying on a user discovering that by clicking
+   *  into a blank page with no error. */
+  isOfflineMode: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; setupComplete?: boolean }>;
   logout: () => Promise<void>;
   signup: (data: SignupData) => Promise<{ success: boolean; error?: string; pendingApproval?: boolean; redirectTo?: string }>;
@@ -95,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // local-mysql) has the full app, same as always. Checked once per mount;
   // the mode only ever changes via a switch that already forces a reload.
   const [postLoginDestination, setPostLoginDestination] = useState('/dashboard');
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -103,9 +112,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetch('/api/db-mode', { cache: 'no-store' })
       .then((r) => r.ok ? r.json() : null)
       .then((info: { mode?: string } | null) => {
-        if (!cancelled && info?.mode === 'local-sqlite') setPostLoginDestination('/students/offline');
+        if (cancelled || info?.mode !== 'local-sqlite') return;
+        setPostLoginDestination('/students/offline');
+        setIsOfflineMode(true);
       })
-      .catch(() => { /* default destination stays /dashboard */ });
+      .catch(() => { /* default destination/mode stay as-is */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -370,6 +381,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isAuthenticated: !!user,
         setupComplete,
+        isOfflineMode,
         login,
         logout,
         signup,

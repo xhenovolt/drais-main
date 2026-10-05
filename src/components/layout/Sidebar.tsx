@@ -19,7 +19,7 @@ import { useEnabledModules } from '@/hooks/useEnabledModules';
 export const Sidebar = () => {
   const pathname = usePathname();
   const { t, lang } = useI18n();
-  const { user } = useAuth() || {};
+  const { user, isOfflineMode } = useAuth() || {};
   const { school } = useSchoolConfig();
   const { enabled: enabledModules } = useEnabledModules();
 
@@ -28,7 +28,14 @@ export const Sidebar = () => {
     // it on dictionary miss to prevent raw key paths leaking to the UI.
     const tWrapper = (key: string, fallback?: string) => t(key, fallback);
     const items    = getNavigationItems(tWrapper, lang);
-    if (!user) return items;
+    // local-sqlite mode: every OTHER page loads its shell fine but its data
+    // never arrives (its routes are online-only) — a user clicking into one
+    // just sees a blank/stuck screen with no error anywhere. Rather than let
+    // that be discovered by clicking, only offer the one section that
+    // actually works. Checked before the role/module filter below so a
+    // super-admin's "sees everything" doesn't undo this.
+    const scoped = isOfflineMode ? items.filter((i) => i.key === 'offline-workspace') : items;
+    if (!user) return scoped;
     const hasRole = (slug: string) => {
       if (!user.roles) return false;
       return typeof user.roles[0] === 'string'
@@ -36,8 +43,8 @@ export const Sidebar = () => {
         : (user.roles as any[]).some((r: any) => (r.slug || r.name || '').toLowerCase() === slug.toLowerCase());
     };
     // Pass enabled modules — super-admin sees everything regardless.
-    return filterMenuByRole(items, hasRole, !!user.isSuperAdmin, enabledModules);
-  }, [t, lang, user, enabledModules]);
+    return filterMenuByRole(scoped, hasRole, !!user.isSuperAdmin, enabledModules);
+  }, [t, lang, user, enabledModules, isOfflineMode]);
 
   // Determine which groups should start expanded (ones that contain the current path)
   const defaultExpanded = useMemo(() => {

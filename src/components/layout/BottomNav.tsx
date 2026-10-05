@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, CalendarCheck, Menu } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * BOTTOM NAVIGATION — One UI 8 Style — Mobile only (lg:hidden)
@@ -31,8 +32,20 @@ const NAV_ITEMS = [
   { key: 'attendance', label: 'Attendance', href: '/attendance', Icon: CalendarCheck },
 ] as const;
 
+// local-sqlite mode: the regular Dashboard/Students/Attendance pages load
+// their shell fine but their data never arrives (online-only routes) — the
+// exact "app shows nothing when I tap these" report that led to this fix.
+// Point the same 3 slots at the Offline Workspace pages that actually work.
+const OFFLINE_NAV_ITEMS = [
+  { key: 'students',   label: 'Students',   href: '/students/offline',   Icon: Users },
+  { key: 'attendance', label: 'Attendance', href: '/attendance/offline', Icon: CalendarCheck },
+  { key: 'academics',  label: 'Academics',  href: '/academics/offline',  Icon: LayoutDashboard },
+] as const;
+
 export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
   const pathname = usePathname();
+  const { isOfflineMode } = useAuth() || {};
+  const items = isOfflineMode ? OFFLINE_NAV_ITEMS : NAV_ITEMS;
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/');
@@ -47,7 +60,7 @@ export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
 
       <div className="relative flex items-center justify-around h-full px-2">
         {/* Static nav links */}
-        {NAV_ITEMS.map(({ key, label, href, Icon }) => {
+        {items.map(({ key, label, href, Icon }) => {
           const active = isActive(href);
           return (
             <Link

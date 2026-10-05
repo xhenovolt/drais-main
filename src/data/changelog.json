@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T09:07:05.908Z",
-  "last_commit": "442fa1ef5a2f10f4e448ba25d89467cbbdb5d505",
+  "generated_at": "2026-10-05T09:22:26.879Z",
+  "last_commit": "b27ee655264e6cd6e82e6d2da310e0f5348bb3df",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8565,7 +8565,20 @@
         }
       ],
       "commit": "442fa1ef5a"
+    },
+    {
+      "version": "2.47.0",
+      "date": "2026-10-05",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 25 - persistent local setup + real offline student photos",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 25 - persistent local setup + real offline student photos"
+        }
+      ],
+      "commit": "b27ee65526"
     }
   ],
-  "app_version": "2.47.0"
+  "app_version": "2.47.1"
 }
