@@ -13,12 +13,17 @@ import MobileStatusBarSync from '@/components/mobile/MobileStatusBarSync';
 import { OfflineUnavailableNotice } from '@/components/layout/OfflineUnavailableNotice';
 const AuthenticatedShell = dynamic(() => import('@/components/layout/AuthenticatedShell'), { ssr: false });
 
-// The only pages with real local-sqlite data (Phase 7 sub-efforts 11-19).
-// Everything else gets OfflineUnavailableNotice in its place — never a
-// hidden nav link (sub-effort 27 reverted that), never a silently-blank page.
+// Pages whose REAL backing routes have a local-sqlite branch — not the
+// nav structure, the actual data. Grows one entry at a time as each real
+// page's routes get branched (sub-effort 28 on). Easy to forget updating
+// this exact list when a route gets branched — happened once already
+// (/students/list shipped in sub-effort 30, this list wasn't touched
+// until the user caught it actually rendering the notice) — update THIS
+// list in the same commit as any new route branch from now on.
 const OFFLINE_SAFE_PREFIXES = [
   '/students/offline', '/staff/offline', '/attendance/offline',
   '/academics/offline', '/reports/offline',
+  '/students/list', '/students/admit', '/students/requirements', '/students/contacts',
 ];
 
 function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {

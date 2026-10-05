@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T17:31:58.891Z",
-  "last_commit": "13014c514da79385b8cc74b9a1162cc281f1d25e",
+  "generated_at": "2026-10-05T17:37:02.080Z",
+  "last_commit": "e54f7026fa0c512b85902e08fdc7c11c5b208f1a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8630,7 +8630,20 @@
         }
       ],
       "commit": "13014c514d"
+    },
+    {
+      "version": "2.50.0",
+      "date": "2026-10-05",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 30 - /students/list itself works offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 30 - /students/list itself works offline"
+        }
+      ],
+      "commit": "e54f7026fa"
     }
   ],
-  "app_version": "2.50.0"
+  "app_version": "2.50.1"
 }
