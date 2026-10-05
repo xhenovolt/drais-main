@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T18:25:06.017Z",
-  "last_commit": "affc144eb4215de35821f202f0c56a1890efcf56",
+  "generated_at": "2026-10-05T18:44:33.715Z",
+  "last_commit": "c284684067cb2789aa5c7bcd45ec919a9148fe71",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8695,7 +8695,20 @@
         }
       ],
       "commit": "affc144eb4"
+    },
+    {
+      "version": "2.50.5",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Remove dead student_history query that 500'd every history detail view",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Remove dead student_history query that 500'd every history detail view"
+        }
+      ],
+      "commit": "c284684067"
     }
   ],
-  "app_version": "2.50.5"
+  "app_version": "2.50.6"
 }

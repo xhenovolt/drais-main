@@ -12,7 +12,28 @@
  * (super_admin bypasses all permission gates).
  */
 import { query } from '@/lib/db';
+import { getDbMode } from '@/lib/db/db-mode';
 import { NextResponse } from 'next/server';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 36. `query()` (src/lib/db.ts)
+ * throws a loud, deliberate error in this mode (see pools.ts's
+ * assertMysqlMode) rather than silently talking to the wrong database —
+ * every function below that used to call `query()` directly would crash
+ * offline for any NON-super-admin user (a super-admin session already
+ * short-circuits before reaching these, via requirePermission/
+ * checkPermission's own `if (isSuperAdmin) return`, which is why this gap
+ * went unnoticed through every prior sub-effort's own superadmin@albayan
+ * verification account). Fixed once, centrally, here — not per-route —
+ * since every future route gated by requirePermission/checkPermission/
+ * checkAnyPermission depends on this same file. Same role→permission
+ * schema, same wildcard/super-admin semantics, translated to a direct
+ * local-sqlite query instead of going through query()/getConnection().
+ */
+async function offlineDb() {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  return getSqliteDb();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Permission check — single
@@ -27,6 +48,42 @@ export async function userCan(
   schoolId: number,
   code:     string,
 ): Promise<boolean> {
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineDb();
+    const superRow = db.prepare(
+      `SELECT 1
+         FROM user_roles ur
+         JOIN roles r ON ur.role_id = r.id
+        WHERE ur.user_id   = ?
+          AND (ur.school_id = ? OR ur.school_id IS NULL)
+          AND ur.is_active  = 1
+          AND r.is_active   = 1
+          AND (
+                r.is_super_admin = 1
+             OR LOWER(r.slug) = 'super_admin'
+             OR LOWER(TRIM(r.name)) IN ('super admin', 'superadmin')
+          )
+        LIMIT 1`
+    ).get(userId, schoolId);
+    if (superRow) return true;
+
+    const { expandPermissionChain } = await import('./rbac/catalog');
+    const chain = expandPermissionChain(code);
+    const row = db.prepare(
+      `SELECT 1
+       FROM user_roles ur
+       JOIN role_permissions rp ON ur.role_id = rp.role_id
+       JOIN permissions p       ON rp.permission_id = p.id
+       WHERE ur.user_id   = ?
+         AND (ur.school_id = ? OR ur.school_id IS NULL)
+         AND ur.is_active = 1
+         AND p.is_active  = 1
+         AND p.code IN (${chain.map(() => '?').join(',')})
+       LIMIT 1`
+    ).get(userId, schoolId, ...chain);
+    return !!row;
+  }
+
   // Defense in depth — if the user holds ANY role that is recognised as
   // super-admin (flag OR slug OR canonical name), they pass every
   // permission check without a permissions join. Mirrors the session
@@ -85,6 +142,23 @@ export async function userCanMany(
 ): Promise<Record<string, boolean>> {
   if (!codes.length) return {};
 
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineDb();
+    const rows = db.prepare(
+      `SELECT p.code
+       FROM user_roles ur
+       JOIN role_permissions rp ON ur.role_id = rp.role_id
+       JOIN permissions p       ON rp.permission_id = p.id
+       WHERE ur.user_id   = ?
+         AND ur.school_id = ?
+         AND ur.is_active = 1
+         AND p.code       IN (${codes.map(() => '?').join(',')})
+         AND p.is_active  = 1`
+    ).all(userId, schoolId, ...codes) as any[];
+    const granted = new Set(rows.map((r: any) => r.code));
+    return Object.fromEntries(codes.map(c => [c, granted.has(c)]));
+  }
+
   const rows = await query(
     `SELECT p.code
      FROM user_roles ur
@@ -110,6 +184,21 @@ export async function getUserPermissions(
   userId:   number,
   schoolId: number,
 ): Promise<string[]> {
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineDb();
+    const rows = db.prepare(
+      `SELECT DISTINCT p.code
+       FROM user_roles ur
+       JOIN role_permissions rp ON ur.role_id = rp.role_id
+       JOIN permissions p       ON rp.permission_id = p.id
+       WHERE ur.user_id   = ?
+         AND ur.school_id = ?
+         AND ur.is_active = 1
+         AND p.is_active  = 1`
+    ).all(userId, schoolId) as any[];
+    return rows.map((r: any) => r.code);
+  }
+
   const rows = await query(
     `SELECT DISTINCT p.code
      FROM user_roles ur
@@ -132,6 +221,19 @@ export async function getUserRoles(
   userId:   number,
   schoolId: number,
 ): Promise<Array<{ id: number; name: string; slug: string }>> {
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineDb();
+    return db.prepare(
+      `SELECT r.id, r.name, r.slug
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+       WHERE ur.user_id   = ?
+         AND ur.school_id = ?
+         AND ur.is_active = 1
+         AND r.is_active  = 1`
+    ).all(userId, schoolId) as any[];
+  }
+
   const rows = await query(
     `SELECT r.id, r.name, r.slug
      FROM user_roles ur
@@ -153,6 +255,22 @@ export async function userHasRole(
   schoolId: number,
   slug:     string,
 ): Promise<boolean> {
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineDb();
+    const row = db.prepare(
+      `SELECT 1
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+       WHERE ur.user_id   = ?
+         AND ur.school_id = ?
+         AND ur.is_active = 1
+         AND r.slug       = ?
+         AND r.is_active  = 1
+       LIMIT 1`
+    ).get(userId, schoolId, slug);
+    return !!row;
+  }
+
   const rows = await query(
     `SELECT 1
      FROM user_roles ur

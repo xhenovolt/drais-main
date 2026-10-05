@@ -109,6 +109,12 @@ CREATE TABLE IF NOT EXISTS students (
   -- both read it). See ensureStudentColumns() below for already-
   -- provisioned files.
   residency_status TEXT,
+  -- Added Phase 7 sub-effort 36: real online students.class_id (a
+  -- denormalized "current class" pointer, separate from enrollments' own
+  -- class_id) — genuinely missing before this, caught by
+  -- /api/admissions/[id]/convert's real INSERT failing against an
+  -- already-provisioned file. See ensureStudentColumns() below.
+  class_id       INTEGER,
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_students_school_status ON students(school_id, status);
@@ -726,10 +732,15 @@ function ensureEnrollmentColumns(db: SqliteConnection): void {
   addColumnIfMissing(db, 'enrollments', 'curriculum_id', 'INTEGER');
   addColumnIfMissing(db, 'enrollments', 'program_id', 'INTEGER');
   addColumnIfMissing(db, 'enrollments', 'joined_at', 'TEXT');
+  // Phase 7 sub-effort 36: real online enrollments.enrolled_at, caught by
+  // /api/admissions/[id]/convert's real INSERT failing against an
+  // already-provisioned file.
+  addColumnIfMissing(db, 'enrollments', 'enrolled_at', 'TEXT');
 }
 
 function ensureStudentColumns(db: SqliteConnection): void {
   addColumnIfMissing(db, 'students', 'residency_status', 'TEXT');
+  addColumnIfMissing(db, 'students', 'class_id', 'INTEGER');
 }
 
 /** Idempotent — safe to call on every connection open (mirrors the
