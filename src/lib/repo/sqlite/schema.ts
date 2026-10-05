@@ -104,6 +104,11 @@ CREATE TABLE IF NOT EXISTS students (
   delete_reason  TEXT,
   restored_at    TEXT,
   restored_by    INTEGER,
+  -- Added Phase 7 sub-effort 32: real online students.residency_status,
+  -- genuinely missing before this (/api/students/admitted and /enrolled
+  -- both read it). See ensureStudentColumns() below for already-
+  -- provisioned files.
+  residency_status TEXT,
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_students_school_status ON students(school_id, status);
@@ -572,6 +577,17 @@ CREATE TABLE IF NOT EXISTS enrollments (
   end_reason        TEXT,
   created_at        TEXT DEFAULT (${ISO_NOW}),
   deleted_at        TEXT,
+  -- Added Phase 7 sub-effort 32: the real online /api/enrollments POST
+  -- requires study_mode_id + curriculum_id + program_id on every write
+  -- (Enroll Student page). Genuinely missing before this — only ~13 of
+  -- the real table's 26 columns were ever modeled. joined_at added
+  -- alongside since sub-effort 30's /students/enrolled branch already
+  -- wanted it. An already-provisioned file gets these via
+  -- ensureEnrollmentColumns() below (idempotent ALTER), not just new ones.
+  study_mode_id     INTEGER,
+  curriculum_id     INTEGER,
+  program_id        INTEGER,
+  joined_at         TEXT,
   FOREIGN KEY (student_id) REFERENCES students(id)
 );
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id, status);
@@ -688,11 +704,41 @@ CREATE INDEX IF NOT EXISTS idx_attendance_rules_school ON attendance_rules(schoo
 
 let ensured = new WeakSet<SqliteConnection>();
 
+/**
+ * Phase 7 sub-effort 32. `CREATE TABLE IF NOT EXISTS` only ever helps a
+ * BRAND NEW file — an already-provisioned install (like the real Albayan
+ * one built in sub-effort 23) keeps whatever columns existed when it was
+ * created, forever, unless something explicitly adds more. This is that
+ * "something" — the same try/ALTER/catch-if-exists idiom already used
+ * online (src/lib/auth.ts's ensureImpersonationColumn,
+ * src/app/api/curriculums/route.ts's ensureCurriculumSchoolColumn), just
+ * applied here for the first time to this repo's own SQLite file instead
+ * of the online MySQL one. Safe to call on every connection open — SQLite
+ * throws "duplicate column name" on a column that's already there, caught
+ * and ignored, same as the online versions catch their own ER_DUP_FIELDNAME.
+ */
+function addColumnIfMissing(db: SqliteConnection, table: string, column: string, type: string): void {
+  try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`); } catch { /* already exists */ }
+}
+
+function ensureEnrollmentColumns(db: SqliteConnection): void {
+  addColumnIfMissing(db, 'enrollments', 'study_mode_id', 'INTEGER');
+  addColumnIfMissing(db, 'enrollments', 'curriculum_id', 'INTEGER');
+  addColumnIfMissing(db, 'enrollments', 'program_id', 'INTEGER');
+  addColumnIfMissing(db, 'enrollments', 'joined_at', 'TEXT');
+}
+
+function ensureStudentColumns(db: SqliteConnection): void {
+  addColumnIfMissing(db, 'students', 'residency_status', 'TEXT');
+}
+
 /** Idempotent — safe to call on every connection open (mirrors the
  *  runtime ensureXSchema() pattern already used elsewhere in this repo,
  *  e.g. src/lib/sentinel/schema.ts, src/lib/backup/schema.ts). */
 export function ensureSchema(db: SqliteConnection): void {
   if (ensured.has(db)) return;
   db.exec(SCHEMA_SQL);
+  ensureEnrollmentColumns(db);
+  ensureStudentColumns(db);
   ensured.add(db);
 }

@@ -5,6 +5,7 @@ import { getNextAdmissionNumber, formatAdmissionNumber } from '@/lib/admissionNu
 import { getSessionSchoolId } from '@/lib/auth';
 import { uploadStudentPhoto } from '@/lib/cloudinary';
 import { launchPdfBrowser } from '@/lib/pdf/browser';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export const config = {
   api: {
@@ -13,6 +14,54 @@ export const config = {
 };
 
 function safe(v:any) { return (v === undefined || v === '') ? null : v; }
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 32, GET only (search/typeahead).
+ * Deliberately a lean subset: the real query joins geography (village →
+ * parish → subcounty → county → district), device_user_mappings,
+ * student_contacts, and a 30-day attendance-percentage subquery against
+ * `student_attendance` (a table this branch does not attempt — out of
+ * scope, named not silently dropped). Every caller of this endpoint this
+ * sub-effort actually needed (the Enroll page's typeahead) only reads
+ * id/first_name/last_name/admission_no/photo_url — that's what's real
+ * here; the rest of those fields are simply absent from each row rather
+ * than faked.
+ */
+async function offlineSearchStudents(schoolId: number, searchParams: URLSearchParams) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const query = searchParams.get('q') || '';
+  const classId = searchParams.get('class_id');
+  const streamId = searchParams.get('stream_id');
+  const gender = searchParams.get('gender');
+  const status = searchParams.get('status');
+
+  let sql = `
+    SELECT DISTINCT s.id, s.person_id, s.admission_no, s.status, s.admission_date, s.notes,
+      p.first_name, p.last_name, p.other_name, p.gender, p.date_of_birth, p.phone, p.email, p.address, p.photo_url,
+      c.name AS class_name, c.id AS class_id, st.name AS stream_name, st.id AS stream_id
+    FROM students s
+    JOIN people p ON s.person_id = p.id
+    LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+    LEFT JOIN classes c ON e.class_id = c.id
+    LEFT JOIN streams st ON e.stream_id = st.id
+    WHERE s.deleted_at IS NULL AND s.school_id = ?
+  `;
+  const params: any[] = [schoolId];
+  if (query.trim()) {
+    const like = `%${query.trim().toLowerCase()}%`;
+    sql += ` AND (LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR LOWER(p.other_name) LIKE ? OR LOWER(s.admission_no) LIKE ? OR LOWER(p.first_name || ' ' || p.last_name) LIKE ?)`;
+    params.push(like, like, like, like, like);
+  }
+  if (classId) { sql += ' AND c.id = ?'; params.push(classId); }
+  if (streamId) { sql += ' AND st.id = ?'; params.push(streamId); }
+  if (gender) { sql += ' AND p.gender = ?'; params.push(gender); }
+  if (status) { sql += ' AND s.status = ?'; params.push(status); }
+  sql += ` ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC`;
+
+  const rows = db.prepare(sql).all(...params);
+  return NextResponse.json({ success: true, data: rows, total: rows.length });
+}
 
 export async function GET(req: NextRequest) {
   let connection;
@@ -25,6 +74,9 @@ export async function GET(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
+    if (getDbMode() === 'local-sqlite') {
+      return offlineSearchStudents(schoolId, searchParams);
+    }
     const query = searchParams.get('q') || '';
     const classId = searchParams.get('class_id');
     const streamId = searchParams.get('stream_id');

@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/** local-sqlite branch — Phase 7 sub-effort 32, same §25a pattern.
+ *  curriculums now has school_id (real, confirmed — see this file's own
+ *  header on the migration that added it) so this is genuinely school-
+ *  scoped, not a global-reference read. */
+async function offlineGetCurriculums(schoolId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const rows = getSqliteDb().prepare(
+    'SELECT id, code, name FROM curriculums WHERE school_id = ? AND deleted_at IS NULL ORDER BY name'
+  ).all(schoolId);
+  return NextResponse.json({ data: rows });
+}
 
 /**
  * Curriculums API — PER-SCHOOL from this commit.
@@ -41,6 +54,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (getDbMode() === 'local-sqlite') return offlineGetCurriculums(session.schoolId);
 
     await ensureCurriculumSchoolColumn();
     // Scoped: the legacy global row (school_id NULL) is deliberately excluded,

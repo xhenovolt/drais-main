@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T17:37:02.080Z",
-  "last_commit": "e54f7026fa0c512b85902e08fdc7c11c5b208f1a",
+  "generated_at": "2026-10-05T17:59:31.238Z",
+  "last_commit": "c47ea0b8c5131c54378753f0083f6d1c2786ab4b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8643,7 +8643,20 @@
         }
       ],
       "commit": "e54f7026fa"
+    },
+    {
+      "version": "2.50.1",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 31 - update the page-gate allowlist alongside route branches",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Phase 7 sub-effort 31 - update the page-gate allowlist alongside route branches"
+        }
+      ],
+      "commit": "c47ea0b8c5"
     }
   ],
-  "app_version": "2.50.1"
+  "app_version": "2.50.2"
 }
