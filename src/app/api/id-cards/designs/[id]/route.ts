@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireCardsAccess, isResponse } from '@/lib/idcards/access';
 import { sanitizeSpec } from '@/lib/idcards/spec';
 import { query } from '@/lib/db';
+import { getDbMode } from '@/lib/db/db-mode';
 import { logAudit } from '@/lib/audit';
 import { hydrateDesign as hydrate } from '@/lib/idcards/designs';
 
@@ -17,6 +18,13 @@ type Ctx = { params: Promise<{ id: string }> };
 async function load(id: string, schoolId: number) {
   const n = Number(id);
   if (!Number.isInteger(n) || n <= 0) return null;
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    return db.prepare(
+      `SELECT id, name, spec_json, source_kind FROM id_card_designs WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`
+    ).get(n, schoolId) ?? null;
+  }
   const rows = (await query(
     `SELECT id, name, spec_json, source_kind FROM id_card_designs WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
     [n, schoolId],
@@ -29,13 +37,13 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if (isResponse(s)) return s;
   const row = await load((await ctx.params).id, s.schoolId);
   if (!row) return NextResponse.json({ error: 'Design not found' }, { status: 404 });
-  return NextResponse.json({ success: true, design: hydrate(row) });
+  return NextResponse.json({ success: true, design: hydrate(row as any) });
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
   const s = await requireCardsAccess(req);
   if (isResponse(s)) return s;
-  const row = await load((await ctx.params).id, s.schoolId);
+  const row: any = await load((await ctx.params).id, s.schoolId);
   if (!row) return NextResponse.json({ error: 'Design not found' }, { status: 404 });
   const body = await req.json().catch(() => null) as any;
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
@@ -46,6 +54,22 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     try { params.push(JSON.stringify(sanitizeSpec(body.spec))); sets.push('spec_json = ?'); }
     catch (e: any) { return NextResponse.json({ error: e.message }, { status: 400 }); }
   }
+
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const now = new Date().toISOString();
+    if (body.setActive === true) {
+      db.prepare('UPDATE id_card_designs SET is_active = 0 WHERE school_id = ?').run(s.schoolId);
+      sets.push('is_active = 1');
+    }
+    if (!sets.length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+    sets.push('updated_by = ?', 'updated_at = ?'); params.push(s.userId, now);
+    db.prepare(`UPDATE id_card_designs SET ${sets.join(', ')} WHERE id = ? AND school_id = ?`).run(...params, row.id, s.schoolId);
+    logAudit({ schoolId: s.schoolId, userId: s.userId, action: 'ID_CARD_DESIGN_UPDATED', entityType: 'id_card_design', entityId: row.id }).catch(() => {});
+    return NextResponse.json({ success: true });
+  }
+
   if (body.setActive === true) {
     await query('UPDATE id_card_designs SET is_active = 0 WHERE school_id = ?', [s.schoolId]);
     sets.push('is_active = 1');
@@ -60,8 +84,18 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const s = await requireCardsAccess(req);
   if (isResponse(s)) return s;
-  const row = await load((await ctx.params).id, s.schoolId);
+  const row: any = await load((await ctx.params).id, s.schoolId);
   if (!row) return NextResponse.json({ error: 'Design not found' }, { status: 404 });
+
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const now = new Date().toISOString();
+    db.prepare(`UPDATE id_card_designs SET deleted_at = ?, is_active = 0 WHERE id = ? AND school_id = ?`).run(now, row.id, s.schoolId);
+    logAudit({ schoolId: s.schoolId, userId: s.userId, action: 'ID_CARD_DESIGN_DELETED', entityType: 'id_card_design', entityId: row.id }).catch(() => {});
+    return NextResponse.json({ success: true });
+  }
+
   await query(`UPDATE id_card_designs SET deleted_at = CURRENT_TIMESTAMP, is_active = 0 WHERE id = ? AND school_id = ?`, [row.id, s.schoolId]);
   await logAudit({ schoolId: s.schoolId, userId: s.userId, action: 'ID_CARD_DESIGN_DELETED', entityType: 'id_card_design', entityId: row.id });
   return NextResponse.json({ success: true });

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T18:44:33.715Z",
-  "last_commit": "c284684067cb2789aa5c7bcd45ec919a9148fe71",
+  "generated_at": "2026-10-05T18:55:04.026Z",
+  "last_commit": "f71a958da35417dc17cc7b3a00eb46403593a483",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8708,7 +8708,20 @@
         }
       ],
       "commit": "c284684067"
+    },
+    {
+      "version": "2.50.6",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 36 - Admissions Pipeline works offline, fix RBAC for all local-sqlite routes",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 36 - Admissions Pipeline works offline, fix RBAC for all local-sqlite routes"
+        }
+      ],
+      "commit": "f71a958da3"
     }
   ],
-  "app_version": "2.50.6"
+  "app_version": "2.50.7"
 }
