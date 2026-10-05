@@ -6,11 +6,20 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ProgressProvider } from '@/contexts/ProgressContext';
 import dynamic from 'next/dynamic';
 import MobileStatusBarSync from '@/components/mobile/MobileStatusBarSync';
+import { OfflineUnavailableNotice } from '@/components/layout/OfflineUnavailableNotice';
 const AuthenticatedShell = dynamic(() => import('@/components/layout/AuthenticatedShell'), { ssr: false });
+
+// The only pages with real local-sqlite data (Phase 7 sub-efforts 11-19).
+// Everything else gets OfflineUnavailableNotice in its place — never a
+// hidden nav link (sub-effort 27 reverted that), never a silently-blank page.
+const OFFLINE_SAFE_PREFIXES = [
+  '/students/offline', '/staff/offline', '/attendance/offline',
+  '/academics/offline', '/reports/offline',
+];
 
 function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -91,6 +100,8 @@ function OrientationLock() {
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { isOfflineMode } = useAuth() || {};
+  const isOfflineSafe = OFFLINE_SAFE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   // Routes where Sidebar and Navbar should be hidden
   // These are public/auth routes that don't need the main app shell
@@ -127,7 +138,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       ) : (
-        <AuthenticatedShell>{children}</AuthenticatedShell>
+        <AuthenticatedShell>
+          {isOfflineMode && !isOfflineSafe ? <OfflineUnavailableNotice pathname={pathname} /> : children}
+        </AuthenticatedShell>
       )}
     </div>
   );

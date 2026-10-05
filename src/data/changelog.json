@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T09:22:26.879Z",
-  "last_commit": "b27ee655264e6cd6e82e6d2da310e0f5348bb3df",
+  "generated_at": "2026-10-05T12:37:09.233Z",
+  "last_commit": "06c6e74d0ce4b127f7443832359689a374152bfc",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8578,7 +8578,20 @@
         }
       ],
       "commit": "b27ee65526"
+    },
+    {
+      "version": "2.47.1",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 26 - filter nav to working pages in local-sqlite mode",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Phase 7 sub-effort 26 - filter nav to working pages in local-sqlite mode"
+        }
+      ],
+      "commit": "06c6e74d0c"
     }
   ],
-  "app_version": "2.47.1"
+  "app_version": "2.47.2"
 }

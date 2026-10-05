@@ -29,7 +29,7 @@ const LANGUAGES = [
 export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const pathname = usePathname();
   const { t, lang, setLang }   = useI18n();
-  const { user, logout, isOfflineMode } = useAuth() || {};
+  const { user, logout }       = useAuth() || {};
   const theme                  = useTheme();
   const { school }             = useSchoolConfig();
   const [langOpen, setLangOpen] = useState(false);
@@ -37,18 +37,17 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const navigationItems = useMemo(() => {
     const tWrapper = (key: string, fallback?: string) => t(key, fallback);
     const items    = getNavigationItems(tWrapper, lang);
-    // See Sidebar.tsx's own comment: in local-sqlite mode, only the Offline
-    // Workspace section's pages actually have working data.
-    const scoped = isOfflineMode ? items.filter((i) => i.key === 'offline-workspace') : items;
-    if (!user) return scoped;
+    // Deliberately the SAME nav regardless of DB mode — see Sidebar.tsx's
+    // own comment (Phase 7 sub-effort 27).
+    if (!user) return items;
     const hasRole = (slug: string) => {
       if (!user.roles) return false;
       return typeof user.roles[0] === 'string'
         ? (user.roles as string[]).some(r => r.toLowerCase() === slug.toLowerCase())
         : (user.roles as any[]).some((r: any) => (r.slug || r.name || '').toLowerCase() === slug.toLowerCase());
     };
-    return filterMenuByRole(scoped, hasRole, !!user.isSuperAdmin);
-  }, [t, lang, user, isOfflineMode]);
+    return filterMenuByRole(items, hasRole, !!user.isSuperAdmin);
+  }, [t, lang, user]);
 
   const defaultExpanded = useMemo(() => {
     const s = new Set<string>();
