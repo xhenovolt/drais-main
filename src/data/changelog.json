@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T12:54:31.146Z",
-  "last_commit": "38bcacd4587e343ab927fa55f551c000006e69c3",
+  "generated_at": "2026-10-05T13:03:04.332Z",
+  "last_commit": "1b0b6b5eab1235e270a2650199c44f1e6c1fcbda",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8604,7 +8604,20 @@
         }
       ],
       "commit": "38bcacd458"
+    },
+    {
+      "version": "2.48.0",
+      "date": "2026-10-05",
+      "release_type": "minor",
+      "title": "Phase 7 sub-effort 28 - branch real routes instead of building more offline pages",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 28 - branch real routes instead of building more offline pages"
+        }
+      ],
+      "commit": "1b0b6b5eab"
     }
   ],
-  "app_version": "2.48.0"
+  "app_version": "2.49.0"
 }

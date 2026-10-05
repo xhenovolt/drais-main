@@ -13,6 +13,97 @@ import {
 } from '@/lib/contacts/import';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branches — Phase 7 sub-effort 29, same §25a pattern as
+ * /api/students and /api/students/requirements. Covers the core CRUD this
+ * page's list/quick-add actually use (GET list, POST quick-add-by-phone,
+ * and [id]/route.ts's PUT/DELETE below). Deliberately does NOT cover the
+ * Excel bulk-import path (handleExcelImport, further down this file) —
+ * that's a real, separate, larger piece (duplicate detection across a
+ * whole workbook, row-by-row resolution) left as a named, honest gap
+ * rather than attempted inline here. A multipart/form-data POST in
+ * local-sqlite mode falls through to the online import handler, which
+ * will fail loudly against a missing MySQL connection rather than silently
+ * doing nothing — acceptable for a path this sub-effort doesn't claim to
+ * support yet.
+ */
+async function offlineGetContacts(schoolId: number, searchParams: URLSearchParams) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const studentId = searchParams.get('student_id');
+  const search = searchParams.get('q');
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+  const offset = (page - 1) * limit;
+
+  const baseFrom = `
+    FROM student_contacts sc
+    JOIN contacts c ON sc.contact_id = c.id AND c.deleted_at IS NULL AND c.school_id = ?
+    JOIN people cp ON c.person_id = cp.id
+    JOIN students s ON sc.student_id = s.id AND s.deleted_at IS NULL
+    JOIN people sp ON s.person_id = sp.id
+    LEFT JOIN (
+      SELECT student_id, MAX(id) AS latest_enrollment_id FROM enrollments WHERE status = 'active' GROUP BY student_id
+    ) latest_e ON latest_e.student_id = s.id
+    LEFT JOIN enrollments e ON e.id = latest_e.latest_enrollment_id
+    LEFT JOIN classes cl ON cl.id = e.class_id
+    WHERE s.school_id = ?
+  `;
+  const params: any[] = [schoolId, schoolId];
+  let filters = '';
+  if (studentId) { filters += ' AND sc.student_id = ?'; params.push(parseInt(studentId, 10)); }
+  if (search) {
+    filters += ' AND (sp.first_name LIKE ? OR sp.last_name LIKE ? OR cp.first_name LIKE ? OR cp.last_name LIKE ? OR sc.relationship LIKE ?)';
+    const like = `%${search}%`;
+    params.push(like, like, like, like, like);
+  }
+
+  const total = db.prepare(`SELECT COUNT(DISTINCT (sc.student_id || ':' || sc.contact_id)) AS total ${baseFrom}${filters}`).get(...params).total as number;
+  const rows = db.prepare(`
+    SELECT DISTINCT sc.student_id, sc.contact_id, sc.relationship, sc.is_primary,
+           c.id, c.contact_type, c.occupation, c.alive_status,
+           cp.first_name as contact_first_name, cp.last_name as contact_last_name,
+           cp.phone as contact_phone, cp.email as contact_email, cp.address as contact_address,
+           sp.first_name as student_first_name, sp.last_name as student_last_name,
+           s.admission_no, cl.name as class_name
+    ${baseFrom}${filters}
+    ORDER BY COALESCE(sp.last_name, '') ASC, COALESCE(sp.first_name, '') ASC, sc.is_primary DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `).all(...params);
+
+  return NextResponse.json({ success: true, data: rows, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });
+}
+
+async function offlinePostContact(schoolId: number, body: any) {
+  const { student_id, first_name = '', last_name = '', phone, email = '', address = '', contact_type = 'guardian', occupation = '', relationship = '', is_primary = 0 } = body;
+  if (!student_id || !phone) {
+    return NextResponse.json({ success: false, error: 'Student ID and phone number are required' }, { status: 400 });
+  }
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const student = db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL').get(student_id, schoolId);
+  if (!student) {
+    return NextResponse.json({ success: false, error: 'Student not found or does not belong to your school' }, { status: 400 });
+  }
+  const now = new Date().toISOString();
+  const insert = db.transaction(() => {
+    const personId = db.prepare(`INSERT INTO people (school_id, first_name, last_name, phone, email, address) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(schoolId, first_name, last_name, phone, email, address).lastInsertRowid;
+    // contacts.created_at is NOT NULL with no DEFAULT in the shell schema
+    // (real, confirmed live constraint — the shell generator deliberately
+    // doesn't replicate DEFAULTs; see shell-schema.generated.ts's header).
+    const contactId = db.prepare(`INSERT INTO contacts (school_id, person_id, contact_type, occupation, alive_status, created_at, updated_at) VALUES (?, ?, ?, ?, 'alive', ?, ?)`)
+      .run(schoolId, personId, contact_type, occupation, now, now).lastInsertRowid;
+    db.prepare(`INSERT INTO student_contacts (student_id, contact_id, relationship, is_primary) VALUES (?, ?, ?, ?)`)
+      .run(student_id, contactId, relationship, is_primary ? 1 : 0);
+    return contactId;
+  });
+  const contactId = Number(insert());
+  return NextResponse.json({ success: true, message: 'Phone number saved successfully', data: { contact_id: contactId } });
+}
+
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -40,6 +131,11 @@ export async function GET(req: NextRequest) {
         },
       });
     }
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetContacts(schoolId, searchParams);
+    }
+
     // school_id derived from session below
     const studentId = searchParams.get('student_id');
     const search = searchParams.get('q');
@@ -143,6 +239,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlinePostContact(schoolId, body);
+    }
+
     const {
       student_id,
       first_name = '',
