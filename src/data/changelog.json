@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T17:59:31.238Z",
-  "last_commit": "c47ea0b8c5131c54378753f0083f6d1c2786ab4b",
+  "generated_at": "2026-10-05T18:07:34.274Z",
+  "last_commit": "8203bd11a6f65292a17e76ee90afa15814a70218",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8656,7 +8656,20 @@
         }
       ],
       "commit": "c47ea0b8c5"
+    },
+    {
+      "version": "2.50.2",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 32 - Enroll Student works offline, enrollments schema migration",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 32 - Enroll Student works offline, enrollments schema migration"
+        }
+      ],
+      "commit": "8203bd11a6"
     }
   ],
-  "app_version": "2.50.2"
+  "app_version": "2.50.3"
 }

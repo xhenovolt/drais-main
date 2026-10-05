@@ -71,7 +71,7 @@ const LEGACY_SCOPES: Record<string, string> = {
   student_custom_values: 'student_id IN (SELECT id FROM `students` WHERE school_id = ?)',
   student_additional_info: 'student_id IN (SELECT id FROM `students` WHERE school_id = ?)',
 };
-const GLOBAL_REFERENCE_TABLES = new Set(['permissions', 'curriculums']);
+const GLOBAL_REFERENCE_TABLES = new Set(['permissions', 'curriculums', 'document_types']);
 const GLOBAL_REFERENCE_SCOPES: Record<string, string> = {
   role_permissions: 'role_id IN (SELECT id FROM `roles` WHERE school_id = ?)',
 };
