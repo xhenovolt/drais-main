@@ -635,12 +635,16 @@ CREATE INDEX IF NOT EXISTS idx_report_snapshots_school ON report_snapshots(schoo
 -- subject_groups has zero rows platform-wide (confirmed live) and is not
 -- modeled here; departments.subject_group_id stays an unresolved integer.
 -- departments gets full CRUD (plain reference data, same shape as
--- classes/subjects/terms). class_subjects is read-only (real workflow
--- this layer has no authority to invent) and deliberately smaller than
--- the real 18-column table: no custom_initials, valid_from/valid_to,
--- stream_id, superseded_by, contribution_weight, notes, created_by/
--- updated_by. No FOREIGN KEY on class_subjects.class_id's target rows
--- requirement beyond classes itself, matching the class_id precedent
+-- classes/subjects/terms). class_subjects started read-only here but is
+-- now written by real Teacher Allocation offline branches (sub-efforts
+-- 40/42); custom_initials, valid_from/valid_to, stream_id and created_by
+-- were added later via ensureClassSubjectColumns() below — this base
+-- table definition is intentionally not kept in sync with those, since
+-- a brand-new file still needs the migration path exercised the same
+-- way an already-provisioned one does. Still smaller than the real
+-- 18-column table: no contribution_weight, notes, updated_by. No
+-- FOREIGN KEY on class_subjects.class_id's target rows requirement
+-- beyond classes itself, matching the class_id precedent
 -- already set for enrollments.
 CREATE TABLE IF NOT EXISTS departments (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -750,6 +754,16 @@ function ensureClassSubjectColumns(db: SqliteConnection): void {
   // src/lib/academic-allocation.ts's offline branch failing against an
   // already-provisioned file.
   addColumnIfMissing(db, 'class_subjects', 'custom_initials', 'TEXT');
+  // Phase 7 sub-effort 42 (Teacher Allocation): the real online table's
+  // Phase D history model (valid_from/valid_to, superseded by a fresh row
+  // on every write) plus the many-to-many teachers route's stream_id and
+  // created_by, both required for /api/academics/allocations and
+  // /api/academics/allocations/teachers to run the same queries offline
+  // without a "no such column" error.
+  addColumnIfMissing(db, 'class_subjects', 'valid_from', 'TEXT');
+  addColumnIfMissing(db, 'class_subjects', 'valid_to', 'TEXT');
+  addColumnIfMissing(db, 'class_subjects', 'stream_id', 'INTEGER');
+  addColumnIfMissing(db, 'class_subjects', 'created_by', 'INTEGER');
 }
 
 /** Idempotent — safe to call on every connection open (mirrors the

@@ -9,6 +9,8 @@ import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
 import { classifyWarnings, type AllocRow, type WarningItem } from '@/lib/academics/allocation-logic';
 import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
+import { offlineWarnings } from './offline';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +22,8 @@ export async function GET(req: NextRequest) {
   try { await requirePermission(session.userId, session.schoolId, 'academics.allocations.view', session.isSuperAdmin); }
   catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 403 }); }
   const S = session.schoolId;
+
+  if (getDbMode() === 'local-sqlite') return offlineWarnings(S);
 
   // Active allocations for this school, with class/subject names.
   const active = `SELECT cs.class_id, cs.subject_id, cs.allocation_role, cs.custom_initials, cs.teacher_id, cs.display_on_report,

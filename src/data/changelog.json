@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T17:29:05.518Z",
-  "last_commit": "1b3b6d8002d18758e1a9134599272c5272196dd6",
+  "generated_at": "2026-10-06T18:39:42.584Z",
+  "last_commit": "d1fbef4c7e19b55cf24dd463ae3cacbed81e8b5f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8799,7 +8799,20 @@
         }
       ],
       "commit": "1b3b6d8002"
+    },
+    {
+      "version": "2.50.13",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 42 - zero-click first boot for local-sqlite",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 42 - zero-click first boot for local-sqlite"
+        }
+      ],
+      "commit": "d1fbef4c7e"
     }
   ],
-  "app_version": "2.50.13"
+  "app_version": "2.50.14"
 }

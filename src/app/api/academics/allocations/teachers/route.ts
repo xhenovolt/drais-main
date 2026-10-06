@@ -14,6 +14,8 @@ import { requirePermission } from '@/lib/rbac';
 import { query } from '@/lib/db';
 import { resolveTeacherInitials } from '@/lib/reports/canonical-report-engine';
 import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
+import * as offline from './offline';
 
 export const runtime = 'nodejs';
 
@@ -44,6 +46,9 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const classId = Number(sp.get('class_id')); const subjectId = Number(sp.get('subject_id'));
   if (!classId || !subjectId) return NextResponse.json({ error: 'class_id and subject_id required' }, { status: 400 });
+
+  if (getDbMode() === 'local-sqlite') return offline.getTeachers(classId, subjectId);
+
   const rows = await query(
     `SELECT cs.id, cs.teacher_id, cs.allocation_role, cs.custom_initials, cs.display_on_report, cs.stream_id,
             TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) AS teacher_name,
@@ -78,6 +83,9 @@ export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => null);
   if (!b?.class_id || !b?.subject_id || !b?.teacher_id) return NextResponse.json({ error: 'class_id, subject_id, teacher_id required' }, { status: 400 });
   const role = ROLES.includes(b.allocation_role) ? b.allocation_role : 'assistant_teacher';
+
+  if (getDbMode() === 'local-sqlite') return offline.addTeacher(g.session.schoolId, g.session.userId, role, b);
+
   const res: any = await query(
     `INSERT INTO class_subjects (class_id, subject_id, teacher_id, custom_initials, allocation_role, display_on_report, stream_id, term_id, valid_from, status, created_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 'active', ?)`,
@@ -92,6 +100,9 @@ export async function PATCH(req: NextRequest) {
   const id = Number(req.nextUrl.searchParams.get('id'));
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const b = await req.json().catch(() => ({}));
+
+  if (getDbMode() === 'local-sqlite') return offline.patchTeacher(id, b);
+
   const sets: string[] = []; const params: any[] = [];
   if (b.allocation_role && ROLES.includes(b.allocation_role)) { sets.push('allocation_role=?'); params.push(b.allocation_role); }
   if (b.custom_initials !== undefined) { sets.push('custom_initials=?'); params.push(b.custom_initials || null); }
@@ -110,6 +121,9 @@ export async function DELETE(req: NextRequest) {
   const g = await guard(req, 'academics.allocations.manage'); if ('error' in g) return g.error;
   const id = Number(req.nextUrl.searchParams.get('id'));
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  if (getDbMode() === 'local-sqlite') return offline.removeTeacher(id);
+
   await query(`UPDATE class_subjects SET valid_to=CURDATE() WHERE id=? AND valid_to IS NULL`, [id]);
   return NextResponse.json({ success: true });
 }
