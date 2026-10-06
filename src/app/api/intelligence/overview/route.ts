@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export const runtime = 'nodejs';
 
@@ -14,11 +15,48 @@ function n(v: unknown): number {
   return Number(v) || 0;
 }
 
+/**
+ * local-sqlite branch — Phase 7 sub-effort 39, same §25a pattern. Every
+ * signal this route can compute is built on `class_results` (results) or
+ * `attendance_raw_events` (unmapped punches) — both LARGE_EXCLUDED from
+ * the lean export (sub-effort 23), same fact every results/raw-attendance
+ * reading page in this phase already lives with. There is no partial
+ * version of this feature available offline, so the honest answer is an
+ * empty signals array, not a fabricated one — current/previous term
+ * context is still real, read from the local `terms` table.
+ */
+async function offlineIntelligenceOverview(schoolId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const termRows = db.prepare(`
+    SELECT id, name FROM terms WHERE school_id = ? AND status IN ('active','completed') ORDER BY id DESC LIMIT 2
+  `).all(schoolId) as any[];
+  const currentTerm = termRows[0] ?? null;
+  const previousTerm = termRows[1] ?? null;
+
+  return NextResponse.json({
+    ok: true,
+    signals: [],
+    meta: {
+      currentTerm: currentTerm ? { id: currentTerm.id, name: currentTerm.name } : null,
+      previousTerm: previousTerm ? { id: previousTerm.id, name: previousTerm.name } : null,
+      totalStudents: n((db.prepare(`SELECT COUNT(*) AS cnt FROM students WHERE school_id = ? AND status = 'active' AND deleted_at IS NULL`).get(schoolId) as any)?.cnt),
+      currentTermAvg: 0,
+      previousTermAvg: null,
+    },
+  });
+}
+
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const moduleGuard = await checkModule(session.schoolId, 'intelligence'); if (moduleGuard) return moduleGuard;
   const { schoolId } = session;
+
+  if (getDbMode() === 'local-sqlite') {
+    return offlineIntelligenceOverview(schoolId);
+  }
+
   let connection;
 
   try {

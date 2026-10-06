@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T11:25:38.216Z",
-  "last_commit": "4519d2e0e619c621a6a6c59d4a5d526001074a14",
+  "generated_at": "2026-10-06T12:01:26.485Z",
+  "last_commit": "294d67fab99f650e0ad68739fa21acc721214e70",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8747,7 +8747,20 @@
         }
       ],
       "commit": "4519d2e0e6"
+    },
+    {
+      "version": "2.50.9",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Local-sqlite login lands on /dashboard like every other mode",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Local-sqlite login lands on /dashboard like every other mode"
+        }
+      ],
+      "commit": "294d67fab9"
     }
   ],
-  "app_version": "2.50.9"
+  "app_version": "2.50.10"
 }

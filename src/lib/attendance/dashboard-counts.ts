@@ -28,6 +28,7 @@
  */
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export interface RoleCounts { total: number; present: number; late: number; absent: number; }
 export interface DashboardAttendanceCounts {
@@ -42,10 +43,47 @@ function localTodayStr(offsetMin: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * local-sqlite branch — Phase 7 sub-effort 39. Without this, every caller
+ * of getDashboardAttendanceCounts (the dashboard, and anything else that
+ * reuses it) would silently get all-zero roster totals offline too — not
+ * from a deliberate policy decision, but because this function's OWN
+ * try/catch (below) already swallows query()'s local-sqlite rejection
+ * into "present: 0, late: 0" / "total: 0". That's a safe degrade but a
+ * wrong one for student/staff ROSTER counts, which are real local data,
+ * not an out-of-scope table. present/late/absent stay honestly 0 here
+ * too — `attendance_records` is LARGE_EXCLUDED from the lean export
+ * (same fact every attendance-reading page in this phase already lives
+ * with), so there is no local data to compute them from regardless.
+ */
+async function offlineRoleTotals(db: any, schoolId: number) {
+  const studentTotal = (db.prepare(`
+    SELECT COUNT(*) AS total FROM students s
+     WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
+       AND EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.deleted_at IS NULL)
+  `).get(schoolId) as any)?.total ?? 0;
+  const staffTotal = (db.prepare(`
+    SELECT COUNT(*) AS total FROM staff WHERE school_id = ? AND status = 'active' AND deleted_at IS NULL
+  `).get(schoolId) as any)?.total ?? 0;
+  return { studentTotal: Number(studentTotal), staffTotal: Number(staffTotal) };
+}
+
 export async function getDashboardAttendanceCounts(
   schoolId: number,
   dateStr?: string,
 ): Promise<DashboardAttendanceCounts> {
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const date = dateStr || new Date().toISOString().slice(0, 10);
+    const { studentTotal, staffTotal } = await offlineRoleTotals(db, schoolId);
+    return {
+      date,
+      students: { total: studentTotal, present: 0, late: 0, absent: studentTotal },
+      staff: { total: staffTotal, present: 0, late: 0, absent: staffTotal },
+    };
+  }
+
   const policy = await resolveTimePolicy(schoolId);
   const offsetMin = policy.offsetMinutes;
   const date = dateStr || localTodayStr(offsetMin);

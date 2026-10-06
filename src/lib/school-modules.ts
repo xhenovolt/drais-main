@@ -9,11 +9,26 @@
  * to MODULE_CODES below.
  */
 import { query } from '@/lib/db';
+import { getDbMode } from '@/lib/db/db-mode';
 
 // Pure code constants live in a client-safe module (no db import). Import for
 // internal use AND re-export so existing `@/lib/school-modules` imports work.
 import { MODULE_CODES, isModuleCode, type ModuleCode } from '@/lib/school-modules-codes';
 export { MODULE_CODES, isModuleCode, type ModuleCode };
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 39. Unlike rbac.ts's userCan,
+ * these functions have NO try/catch at all — query()'s local-sqlite
+ * rejection would throw straight up through every module-gated route
+ * (checkModule/requireModule, wired into tahfiz, payroll, examinations,
+ * fingerprint_auth, intelligence, and more per this file's own header).
+ * Same opt-out semantics as the online queries: a module is enabled
+ * unless an explicit is_enabled=0 row exists.
+ */
+async function offlineSqliteDb() {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  return getSqliteDb();
+}
 
 /**
  * Display metadata for each module. Used by the admin module-management
@@ -52,6 +67,12 @@ export async function getEnabledModules(schoolId: number): Promise<Set<ModuleCod
   // OPT-OUT policy: every module is enabled for a school UNLESS Control has
   // written an explicit disable (is_enabled = 0). So a school that has never
   // been configured keeps everything — restricting is a deliberate action.
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineSqliteDb();
+    const rows = db.prepare(`SELECT module_code FROM school_modules WHERE school_id = ? AND is_enabled = 0`).all(schoolId) as Array<{ module_code: ModuleCode }>;
+    const disabled = new Set(rows.map(r => r.module_code));
+    return new Set(MODULE_CODES.filter(c => !disabled.has(c)));
+  }
   const rows = (await query(
     `SELECT module_code FROM school_modules WHERE school_id = ? AND is_enabled = 0`,
     [schoolId],
@@ -70,6 +91,11 @@ export async function isModuleEnabled(
   code:     ModuleCode,
 ): Promise<boolean> {
   // OPT-OUT: enabled unless an explicit disable row exists for this module.
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineSqliteDb();
+    const row = db.prepare(`SELECT 1 FROM school_modules WHERE school_id = ? AND module_code = ? AND is_enabled = 0 LIMIT 1`).get(schoolId, code);
+    return !row;
+  }
   const rows = (await query(
     `SELECT 1 FROM school_modules
       WHERE school_id = ? AND module_code = ? AND is_enabled = 0 LIMIT 1`,
@@ -91,12 +117,14 @@ export interface SchoolModuleRow {
 }
 
 export async function getSchoolModuleStatus(schoolId: number): Promise<SchoolModuleRow[]> {
-  const rows = (await query(
-    `SELECT module_code, is_enabled, enabled_at, expires_at
-       FROM school_modules
-      WHERE school_id = ?`,
-    [schoolId],
-  )) as Array<{
+  const rows = (getDbMode() === 'local-sqlite'
+    ? (await offlineSqliteDb()).prepare(`SELECT module_code, is_enabled, enabled_at, expires_at FROM school_modules WHERE school_id = ?`).all(schoolId)
+    : await query(
+        `SELECT module_code, is_enabled, enabled_at, expires_at
+           FROM school_modules
+          WHERE school_id = ?`,
+        [schoolId],
+      )) as Array<{
     module_code: ModuleCode;
     is_enabled:  number;
     enabled_at:  string | Date | null;
@@ -142,6 +170,25 @@ export async function setSchoolModule(args: {
     throw new Error(`Invalid module code: ${args.moduleCode}`);
   }
   const expires = args.expiresAt ?? null;
+
+  if (getDbMode() === 'local-sqlite') {
+    const db = await offlineSqliteDb();
+    const now = new Date().toISOString();
+    const existing = db.prepare(`SELECT id FROM school_modules WHERE school_id = ? AND module_code = ? LIMIT 1`).get(args.schoolId, args.moduleCode) as { id: number } | undefined;
+    if (existing) {
+      db.prepare(`
+        UPDATE school_modules SET is_enabled = ?, enabled_at = CASE WHEN ? = 1 THEN ? ELSE enabled_at END, expires_at = ?, updated_at = ?
+        WHERE id = ?
+      `).run(args.isEnabled ? 1 : 0, args.isEnabled ? 1 : 0, now, expires, now, existing.id);
+    } else {
+      db.prepare(`
+        INSERT INTO school_modules (school_id, module_code, is_enabled, enabled_at, expires_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(args.schoolId, args.moduleCode, args.isEnabled ? 1 : 0, args.isEnabled ? now : null, expires, now, now);
+    }
+    return;
+  }
+
   await query(
     `INSERT INTO school_modules (school_id, module_code, is_enabled, enabled_at, expires_at)
      VALUES (?, ?, ?, ?, ?)

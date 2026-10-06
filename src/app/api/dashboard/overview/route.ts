@@ -2,8 +2,106 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getDashboardAttendanceCounts } from '@/lib/attendance/dashboard-counts';
+import { getDbMode } from '@/lib/db/db-mode';
 
 import { getSessionSchoolId } from '@/lib/auth';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 39, same §25a pattern. Real
+ * numbers where real local data exists (classes, gender, staff, parents,
+ * admissions timeline, term progress, student/staff roster totals via
+ * getDashboardAttendanceCounts' own offline branch). Honestly zero/empty
+ * where the underlying data is out of scope by established policy, not
+ * guessed at: `class_results` is LARGE_EXCLUDED (same fact every results-
+ * reading page in this phase already lives with) so performance/top/worst-
+ * performer stats are empty; `student_fee_items` exists locally but
+ * Finance has zero offline support by design (sub-effort 30's own note);
+ * `attendance_records`/`attendance_raw_events` are both LARGE_EXCLUDED so
+ * present/late/absent and today's biometric punches come back as 0 from
+ * getDashboardAttendanceCounts' own degrade, not fabricated here.
+ * `online_devices` is inherently a live-heartbeat concept ("seen in the
+ * last 2 minutes") that doesn't mean anything read from a static local
+ * snapshot — kept honestly 0 even though `total_devices` (how many
+ * devices are registered) is real.
+ */
+async function offlineDashboardOverview(schoolId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const today = schoolLocalToday();
+
+  const classCount = db.prepare('SELECT COUNT(*) AS total_classes FROM classes WHERE school_id = ?').get(schoolId) as any;
+  const genderData = db.prepare(`
+    SELECT
+      SUM(CASE WHEN p.gender = 'M' THEN 1 ELSE 0 END) AS boys,
+      SUM(CASE WHEN p.gender = 'F' THEN 1 ELSE 0 END) AS girls
+    FROM students s JOIN people p ON s.person_id = p.id
+    WHERE s.status = 'active' AND s.deleted_at IS NULL AND s.school_id = ?
+  `).get(schoolId) as any;
+  const staffCount = db.prepare(`SELECT COUNT(*) AS total_staff FROM staff WHERE status = 'active' AND deleted_at IS NULL AND school_id = ?`).get(schoolId) as any;
+  const parentCount = db.prepare(`
+    SELECT COUNT(DISTINCT sc.student_id) AS total_parents FROM student_contacts sc JOIN students s ON sc.student_id = s.id WHERE s.school_id = ?
+  `).get(schoolId) as any;
+  const admissionData = db.prepare(`
+    SELECT
+      SUM(CASE WHEN date(admission_date) = date('now') THEN 1 ELSE 0 END) AS today,
+      SUM(CASE WHEN date(admission_date) = date('now', '-1 day') THEN 1 ELSE 0 END) AS yesterday,
+      SUM(CASE WHEN date(admission_date) >= date('now', '-7 day') THEN 1 ELSE 0 END) AS last_week,
+      SUM(CASE WHEN date(admission_date) >= date('now', '-1 month') THEN 1 ELSE 0 END) AS last_month,
+      SUM(CASE WHEN date(admission_date) >= date('now', '-3 month') THEN 1 ELSE 0 END) AS last_3_months,
+      SUM(CASE WHEN strftime('%Y', admission_date) = strftime('%Y', 'now') THEN 1 ELSE 0 END) AS this_year,
+      SUM(CASE WHEN strftime('%Y', admission_date) = strftime('%Y', 'now', '-1 year') THEN 1 ELSE 0 END) AS last_year
+    FROM students WHERE school_id = ?
+  `).get(schoolId) as any;
+  const termData = db.prepare(`
+    SELECT t.name AS term_name,
+      CASE WHEN t.end_date IS NOT NULL THEN CAST(julianday(t.end_date) - julianday('now') AS INTEGER) ELSE 0 END AS remaining_days,
+      CASE WHEN t.start_date IS NOT NULL THEN CAST(julianday('now') - julianday(t.start_date) AS INTEGER) ELSE 0 END AS days_covered
+    FROM terms t WHERE t.status = 'active' AND t.school_id = ?
+    ORDER BY t.id DESC LIMIT 1
+  `).get(schoolId) as any;
+  const deviceData = db.prepare(`SELECT COUNT(*) AS total_devices FROM devices WHERE deleted_at IS NULL`).get() as any;
+
+  const dashCounts = await getDashboardAttendanceCounts(schoolId);
+  const presentToday = dashCounts.students.present;
+  const totalStudentsToday = dashCounts.students.total;
+  const attendancePercentage = totalStudentsToday > 0 ? Math.round((presentToday / totalStudentsToday) * 100) : 0;
+
+  const overview = {
+    kpis: {
+      totalStudents: dashCounts.students.total,
+      presentToday,
+      absentToday: dashCounts.students.absent,
+      lateToday: dashCounts.students.late,
+      attendancePercentage,
+      enrollmentGrowth: admissionData?.last_month || 0,
+      feesCollectedToday: 0,
+      defaultersCount: 0,
+    },
+    attendance: { date: dashCounts.date, learners: dashCounts.students, staff: dashCounts.staff },
+    schoolStats: {
+      total_classes: classCount?.total_classes || 0,
+      total_learners: dashCounts.students.total,
+      boys: genderData?.boys || 0,
+      girls: genderData?.girls || 0,
+      total_staff: staffCount?.total_staff || 0,
+      total_parents: parentCount?.total_parents || 0,
+      total_devices: Number(deviceData?.total_devices ?? 0),
+      online_devices: 0,
+    },
+    biometrics: { today_punches: 0, matched_punches: 0, total_devices: Number(deviceData?.total_devices ?? 0), online_devices: 0 },
+    admissions: admissionData || {},
+    paymentStats: { fully_paid: 0, partially_paid: 0, not_paid: 0, total_outstanding: 0 },
+    performance: { improving_learners: 0, declining_learners: 0, average_score: 0, students_with_results: 0 },
+    topPerformers: [],
+    worstPerformers: [],
+    fees: { totalExpected: 0, totalCollected: 0, collectionPercentage: 0, defaultersCount: 0 },
+    subjects: [],
+    termProgress: termData || { term_name: 'No Active Term', remaining_days: 0, days_covered: 0, weekends_covered: 0, public_days: 0 },
+  };
+
+  return NextResponse.json({ success: true, data: overview });
+}
+
 export async function GET(req: NextRequest) {
   let connection;
   
@@ -14,6 +112,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineDashboardOverview(schoolId);
+    }
 
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
