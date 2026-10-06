@@ -159,6 +159,33 @@ async function main() {
       console.log(`  ✓ Bundled "${label}".`);
     }
 
+    if (entries.length > 0) {
+      // The real gap this closes: for TiDB, credentials baked into
+      // build/.env.production at build time mean the exe works from the
+      // very FIRST launch with zero clicks. Without this, even a bundled
+      // school still needs the admin to pick "Local Server (SQLite)" and
+      // click one button on /setup/local-sqlite before data appears. At
+      // most one entry can auto-activate — a machine only boots into one
+      // school — so skip asking when only one was bundled and just use it;
+      // ask which one otherwise.
+      const autoAnswer = entries.length === 1
+        ? 'y'
+        : (await prompter.ask(
+            `\nShould this installer boot straight into one of these with zero clicks (like TiDB credentials baked in), instead of showing a setup screen? Enter a number, or blank for no: `
+          )).trim();
+
+      let autoIndex = -1;
+      if (entries.length === 1 && /^y(es)?$/i.test(autoAnswer)) autoIndex = 0;
+      else {
+        const n = parseInt(autoAnswer, 10);
+        if (Number.isInteger(n) && n >= 1 && n <= entries.length) autoIndex = n - 1;
+      }
+      if (autoIndex >= 0) {
+        entries[autoIndex].autoActivate = true;
+        console.log(`  → "${entries[autoIndex].schoolName}" will auto-activate on first boot — zero clicks.`);
+      }
+    }
+
     writeManifest(entries);
     console.log(`\n[drs-bundle] ${entries.length} school(s) bundled into this build.`);
   } finally {

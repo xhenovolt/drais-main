@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T15:59:42.340Z",
-  "last_commit": "5d3a6e2fea282d9660962bb5f5b259dd9e77f210",
+  "generated_at": "2026-10-06T17:29:05.518Z",
+  "last_commit": "1b3b6d8002d18758e1a9134599272c5272196dd6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8786,7 +8786,20 @@
         }
       ],
       "commit": "5d3a6e2fea"
+    },
+    {
+      "version": "2.50.12",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 41 - DRAIS can accept a real .drs file after installing the .exe",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 41 - DRAIS can accept a real .drs file after installing the .exe"
+        }
+      ],
+      "commit": "1b3b6d8002"
     }
   ],
-  "app_version": "2.50.12"
+  "app_version": "2.50.13"
 }

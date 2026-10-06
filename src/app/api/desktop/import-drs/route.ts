@@ -8,14 +8,21 @@
  * server, so it works identically whether Electron is running it or a
  * plain `npm run dev` is.
  *
- * Two ways to call it:
+ * Three ways to call it:
  *   1. { bundledSchoolId } — installs one of the schools `npm run
  *      dist:win` bundled into this build (scripts/build/
- *      prepare-drs-bundle.mjs), using its stored passphrase. The
- *      "Automatic" setup path.
- *   2. multipart/form-data: file=<.drs>, passphrase=<text> — installs an
- *      arbitrary .drs the admin picked. The "Customize" path, and also
- *      the general-purpose "Import a different .drs later" feature.
+ *      prepare-drs-bundle.mjs), using its stored passphrase. No rebuild
+ *      needed; this is the "Automatic" setup path.
+ *   2. { droppedFileName, passphrase } — installs a .drs someone copied
+ *      directly onto this machine's disk, in the drop folder next to
+ *      wherever the real local database lives (src/lib/desktop/
+ *      drs-bundle.ts's dropDir()) — no rebuild, no reinstall, just "put
+ *      the file there and refresh". No stored passphrase for these, so
+ *      one is required in the request.
+ *   3. multipart/form-data: file=<.drs>, passphrase=<text> — installs an
+ *      arbitrary .drs the admin picked via a file browser. The
+ *      "Customize" path, and also the general-purpose "Import a
+ *      different .drs later" feature.
  *
  * Deliberately unauthenticated, same reasoning as GET /api/desktop/
  * drs-bundle: this is what BOOTSTRAPS a local install, so it runs before
@@ -29,56 +36,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { isLocalAllowed } from '@/lib/db/db-mode';
-import { findBundledSchool } from '@/lib/desktop/drs-bundle';
+import { findBundledSchool, resolveDroppedFile } from '@/lib/desktop/drs-bundle';
+import { installDrsPayload, InstallTargetExistsError } from '@/lib/desktop/install';
 
 export const runtime = 'nodejs';
 
 async function installPayload(payload: Buffer, force: boolean) {
-  const { defaultSqlitePath, resetSqliteDb } = await import('@/lib/repo/sqlite/singleton');
-  const target = defaultSqlitePath();
-
-  if (fs.existsSync(target) && !force) {
-    return NextResponse.json({
-      error: 'A local database already exists on this machine. Pass force to replace it — this discards whatever is currently there.',
-      code: 'TARGET_EXISTS',
-    }, { status: 409 });
-  }
-
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  resetSqliteDb(); // release any open handle before overwriting the file
-  const tmp = `${target}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(tmp, payload);
-
-  // Windows-specific: closing a better-sqlite3 handle doesn't always
-  // release the OS-level file lock on the SAME tick a rename needs it —
-  // confirmed live, not assumed: the very first real install-flow test
-  // of a SECOND install over an already-open file hit a real EPERM here.
-  // WAL/SHM sidecars from the file being replaced can be in the same
-  // state, so they're cleared too, best-effort. A short retry absorbs
-  // the race; POSIX rename-over-open-file never hits this path at all.
-  for (const sidecar of [`${target}-wal`, `${target}-shm`]) {
-    try { fs.rmSync(sidecar, { force: true }); } catch { /* best-effort */ }
-  }
-  let lastErr: unknown;
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    try {
-      fs.renameSync(tmp, target);
-      lastErr = null;
-      break;
-    } catch (e) {
-      lastErr = e;
-      await new Promise((r) => setTimeout(r, 150 * attempt));
+  try {
+    const result = await installDrsPayload(payload, force);
+    return NextResponse.json({ success: true, ...result });
+  } catch (e) {
+    if (e instanceof InstallTargetExistsError) {
+      return NextResponse.json({
+        error: 'A local database already exists on this machine. Pass force to replace it — this discards whatever is currently there.',
+        code: 'TARGET_EXISTS',
+      }, { status: 409 });
     }
+    throw e;
   }
-  if (lastErr) {
-    try { fs.unlinkSync(tmp); } catch { /* best-effort cleanup */ }
-    throw lastErr;
-  }
-
-  const { applyConfig } = await import('@/lib/db/runtime-config');
-  await applyConfig({ DRAIS_ALLOW_LOCAL: 'true', DRAIS_DB_MODE: 'local-sqlite', DRAIS_SQLITE_PATH: target });
-
-  return NextResponse.json({ success: true, installedAt: target });
 }
 
 export async function POST(req: NextRequest) {
@@ -92,6 +67,26 @@ export async function POST(req: NextRequest) {
   try {
     if (contentType.includes('application/json')) {
       const body = await req.json().catch(() => ({}));
+
+      if (body.droppedFileName) {
+        const filePath = await resolveDroppedFile(String(body.droppedFileName));
+        if (!filePath) return NextResponse.json({ error: 'That file is no longer in the drop folder.' }, { status: 404 });
+        const passphrase = String(body.passphrase || '');
+        if (!passphrase) return NextResponse.json({ error: 'The .drs passphrase is required' }, { status: 400 });
+
+        const header = await readDrsHeader(filePath);
+        if (header.engine !== 'sqlite') {
+          return NextResponse.json({ error: `This .drs's engine is '${header.engine}', not 'sqlite'.` }, { status: 400 });
+        }
+        let payload: Buffer;
+        try {
+          ({ payload } = await openDrsFile(filePath, passphrase));
+        } catch {
+          return NextResponse.json({ error: 'Wrong passphrase, or the file is corrupted.' }, { status: 400 });
+        }
+        return installPayload(payload, body.force === true);
+      }
+
       const schoolId = Number(body.bundledSchoolId);
       if (!Number.isInteger(schoolId)) {
         return NextResponse.json({ error: 'bundledSchoolId is required' }, { status: 400 });
