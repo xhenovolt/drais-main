@@ -32,6 +32,11 @@ const PUBLIC_ROUTES = [
   '/api/auth/reset-password',
   // Public pre-login connection metadata; never exposes database credentials.
   '/api/db-mode',
+  // First-run local-sqlite setup (Phase 7 sub-effort 41) — reached from the
+  // login screen, before any session exists. /api/desktop/import-drs never
+  // returns bundled passphrases to the client; see that route's own header.
+  '/setup',
+  '/api/desktop',
   // Reads only the caller's own session cookie; safe public (returns
   // impersonating:false when there's no session). Drives the control banner.
   '/api/auth/impersonation-status',

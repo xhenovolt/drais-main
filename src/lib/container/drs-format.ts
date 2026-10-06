@@ -48,6 +48,12 @@ export class DrsFormatError extends Error {
 export interface DrsHeader {
   schoolId: number;
   schoolExternalId?: string | null;
+  /** Additive — older .drs files (before this field existed) simply omit
+   *  it; readers must treat it as optional, never assume it's present.
+   *  Exists purely for display (build-time bundling prompts, the desktop
+   *  first-run "which school is this?" picker) — never used for any
+   *  security or scoping decision, which stay keyed on schoolId alone. */
+  schoolName?: string | null;
   installationId?: string | null;
   drsFormatVersion: number;
   drAisAppVersionMin: string;

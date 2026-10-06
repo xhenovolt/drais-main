@@ -246,7 +246,7 @@ export async function exportSchoolToDrs(opts: ExportDrsOptions): Promise<ExportD
     const payload = fs.readFileSync(tmpSqlitePath);
     const drsResult = await writeDrsFile({
       payload, passphrase, outPath: tmpSqlitePath + '.drs',
-      meta: { schoolId, drAisAppVersionMin: process.env.npm_package_version || '0.0.0' },
+      meta: { schoolId, schoolName: school.name, drAisAppVersionMin: process.env.npm_package_version || '0.0.0' },
     });
     const drsBuffer = fs.readFileSync(tmpSqlitePath + '.drs');
     fs.unlinkSync(tmpSqlitePath);

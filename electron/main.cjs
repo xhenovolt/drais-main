@@ -74,6 +74,12 @@ function startNextServer() {
   process.env.PORT = String(PORT);
   process.env.HOSTNAME = '0.0.0.0';
   process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+  // Lets the in-process Next server find the optional .drs bundle
+  // (src/lib/desktop/drs-bundle.ts) regardless of packaged/dev state —
+  // packaged: electron-builder's extraResources land in resourcesPath;
+  // dev-under-Electron: the repo's own build/ dir, same place `npm run
+  // prepare:drs-bundle` writes to locally.
+  process.env.DRAIS_RESOURCES_PATH = app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', 'build');
   process.chdir(standaloneDir);
   try {
     startupMark('next-server-require');

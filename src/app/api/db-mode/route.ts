@@ -49,11 +49,27 @@ export async function GET() {
   const mode = getDbMode();
   const allowLocal = isLocalAllowed();
 
+  // Cheap existence check only — never opens/creates the file. Lets the
+  // login screen tell "switching to an already-set-up local install"
+  // (just switch) apart from "first time, nothing here yet" (offer the
+  // /setup/local-sqlite flow instead of silently creating an empty shell
+  // the user never chose). better-sqlite3 itself isn't touched here, so
+  // this is safe even where that optional dependency isn't installed.
+  let sqliteFileExists = false;
+  if (allowLocal) {
+    try {
+      const { existsSync } = await import('node:fs');
+      const { defaultSqlitePath } = await import('@/lib/repo/sqlite/singleton');
+      sqliteFileExists = existsSync(defaultSqlitePath());
+    } catch { /* treat as not-yet-set-up */ }
+  }
+
   return NextResponse.json({
     ...describeMode(mode),
     allowLocal,
     health: null,
     otherHealth: null,
+    sqliteFileExists,
   });
 }
 

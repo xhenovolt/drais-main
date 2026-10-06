@@ -19,6 +19,7 @@ import { assembleDrsBuffer, type DrsHeader } from './drs-format';
 export interface WriteDrsMeta {
   schoolId: number;
   schoolExternalId?: string | null;
+  schoolName?: string | null;
   installationId?: string | null;
   drAisAppVersionMin: string;
   schemaMigrationHead?: string | null;
@@ -56,6 +57,7 @@ export async function writeDrsFile(opts: WriteDrsOptions): Promise<WriteDrsResul
   const header: DrsHeader = {
     schoolId: opts.meta.schoolId,
     schoolExternalId: opts.meta.schoolExternalId ?? null,
+    schoolName: opts.meta.schoolName ?? null,
     installationId: opts.meta.installationId ?? null,
     drsFormatVersion: 1,
     drAisAppVersionMin: opts.meta.drAisAppVersionMin,

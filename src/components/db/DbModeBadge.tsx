@@ -13,17 +13,18 @@
  * boundary. After a successful switch the session may be DB-bound, so reload.
  *
  * The server's DbMode has a third value, 'local-sqlite' (DRAIS V2, Phase 7
- * sub-effort 22) — now modeled here as a real, switchable option, same
+ * sub-effort 22) — modeled here as a real, switchable option, same
  * contract as local-mysql: POST /api/db-mode, a real health probe
  * (sqlite-health.ts server-side), reauthRequired on success. Selecting it
- * takes the user into the standalone Offline Workspace (/students/offline
- * etc. — sub-effort 21), NOT the normal dashboard: only those five pages'
- * own data access is SQLite-aware, so AuthContext.tsx's post-login/already-
- * authenticated redirects check the active mode and send local-sqlite users
- * there instead of /dashboard. Navigating elsewhere by hand in this mode
- * will still show broken data on any page outside that workspace — src/lib
- * /db.ts's ~435 query() call sites are unchanged, still mysql2-only
- * (Phase 8+ work, not done here).
+ * lands on the SAME /dashboard and nav every other mode gets (sub-effort 27
+ * course-corrected away from a separate Offline Workspace redirect) — any
+ * page whose backing routes aren't branched for local-sqlite yet shows
+ * OfflineUnavailableNotice (src/app/layout.tsx) in place of its content
+ * instead of broken data, and that set has grown sub-effort by sub-effort
+ * (see docs/architecture/DRAIS_V2_ARCHITECTURE_AUDIT.md), not frozen at
+ * five pages. Choosing local-sqlite for the FIRST time on a machine (no
+ * real file on disk yet) routes to /setup/local-sqlite instead of
+ * switching immediately — see this file's `choose()` in the login variant.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Cloud, HardDrive, Database, Loader2 } from 'lucide-react';
@@ -48,6 +49,10 @@ interface ModeInfo {
   allowLocal: boolean;
   health: Health | null;
   otherHealth: Health | null;
+  /** From GET /api/db-mode — whether a real local-sqlite file already
+   *  exists on disk. Lets the login picker tell "switch to an
+   *  already-set-up install" apart from "nothing here yet". */
+  sqliteFileExists?: boolean;
 }
 
 function useDbMode(onSelected?: () => void) {
@@ -137,6 +142,15 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
   if (variant === 'login') {
     const choose = (m: DbMode) => {
       if (m !== 'online' && !info.allowLocal) return;
+      // First time choosing local-sqlite on this machine (no real file on
+      // disk yet) — send to the setup flow (bundled-school picker or a
+      // manual .drs import) instead of silently switching into a blank
+      // shell the admin never actually chose. A returning install with a
+      // real file already there just switches directly, same as today.
+      if (m === 'local-sqlite' && !info.sqliteFileExists) {
+        window.location.href = '/setup/local-sqlite';
+        return;
+      }
       switchTo(m);
     };
     return (

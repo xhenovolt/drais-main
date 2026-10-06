@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T15:56:34.153Z",
-  "last_commit": "0bcb4c407b3ae62cd9043683ad88cf3914627cf7",
+  "generated_at": "2026-10-06T15:59:42.340Z",
+  "last_commit": "5d3a6e2fea282d9660962bb5f5b259dd9e77f210",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8773,7 +8773,20 @@
         }
       ],
       "commit": "0bcb4c407b"
+    },
+    {
+      "version": "2.50.11",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 40 - Streams/Subjects work offline, fix a real duplicate-route bug",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 40 - Streams/Subjects work offline, fix a real duplicate-route bug"
+        }
+      ],
+      "commit": "5d3a6e2fea"
     }
   ],
-  "app_version": "2.50.11"
+  "app_version": "2.50.12"
 }
