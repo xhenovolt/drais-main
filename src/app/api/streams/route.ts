@@ -111,6 +111,21 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/** local-sqlite branch — Phase 7 sub-effort 40, same §25a pattern. The
+ *  AUTO_INCREMENT self-healing dance above is a MySQL/TiDB-specific
+ *  concern — SQLite's INTEGER PRIMARY KEY is always a real rowid alias,
+ *  so none of that applies here. */
+async function offlineCreateStream(schoolId: number, name: string, classId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const cls = db.prepare('SELECT id FROM classes WHERE id = ? AND school_id = ?').get(classId, schoolId);
+  if (!cls) return NextResponse.json({ error: 'Invalid class_id: class not found.' }, { status: 400 });
+  const dup = db.prepare('SELECT id FROM streams WHERE class_id = ? AND name = ? AND school_id = ?').get(classId, name, schoolId);
+  if (dup) return NextResponse.json({ error: 'A stream with this name already exists in this class.' }, { status: 409 });
+  const r = db.prepare('INSERT INTO streams (name, class_id, school_id) VALUES (?, ?, ?)').run(name, classId, schoolId);
+  return NextResponse.json({ success: true, id: Number(r.lastInsertRowid) }, { status: 201 });
+}
+
 export async function POST(req: NextRequest) {
   let connection;
   try {
@@ -126,6 +141,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineCreateStream(schoolId, body.name.trim(), body.class_id);
+    }
 
     connection = await getConnection();
 
@@ -196,6 +215,12 @@ export async function PUT(req: NextRequest) {
     }
     const schoolId = session.schoolId;
 
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      getSqliteDb().prepare('UPDATE streams SET name=?, class_id=? WHERE id=? AND school_id=?').run(body.name.trim(), body.class_id, id, schoolId);
+      return NextResponse.json({ success: true });
+    }
+
     connection = await getConnection();
     await connection.execute('UPDATE streams SET name=?, class_id=? WHERE id=? AND school_id=?', [body.name.trim(), body.class_id, id, schoolId]);
     return NextResponse.json({ success: true });
@@ -219,6 +244,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+
+    if (getDbMode() === 'local-sqlite') {
+      return NextResponse.json({ error: 'Archiving a stream is not available offline yet.' }, { status: 503 });
+    }
 
     await archiveEntity({
       entity:   'stream',

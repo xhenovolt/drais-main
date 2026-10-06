@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T12:01:26.485Z",
-  "last_commit": "294d67fab99f650e0ad68739fa21acc721214e70",
+  "generated_at": "2026-10-06T15:56:34.153Z",
+  "last_commit": "0bcb4c407b3ae62cd9043683ad88cf3914627cf7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8760,7 +8760,20 @@
         }
       ],
       "commit": "294d67fab9"
+    },
+    {
+      "version": "2.50.10",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 39 - the Dashboard works offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 39 - the Dashboard works offline"
+        }
+      ],
+      "commit": "0bcb4c407b"
     }
   ],
-  "app_version": "2.50.10"
+  "app_version": "2.50.11"
 }

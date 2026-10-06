@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "2.50.10",
+  "version": "2.50.11",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -45,12 +45,13 @@
     "vercel-api": "next start",
     "build:electron": "next build && node scripts/postbuild-electron.mjs",
     "electron:dev": "npm run build:electron && electron .",
-    "dist:win": "npm run build:electron && electron-builder --win --x64",
-    "dist:win:portable": "npm run build:electron && electron-builder --win portable --x64",
-    "dist:dir": "npm run build:electron && electron-builder --dir",
-    "dist:linux": "npm run build:electron && electron-builder --linux AppImage deb",
-    "dist:snap": "npm run build:electron && electron-builder --linux snap",
-    "dist:mac": "npm run build:electron && electron-builder --mac",
+    "prepare:drs-bundle": "tsx scripts/build/prepare-drs-bundle.mjs",
+    "dist:win": "npm run build:electron && npm run prepare:drs-bundle && electron-builder --win --x64",
+    "dist:win:portable": "npm run build:electron && npm run prepare:drs-bundle && electron-builder --win portable --x64",
+    "dist:dir": "npm run build:electron && npm run prepare:drs-bundle && electron-builder --dir",
+    "dist:linux": "npm run build:electron && npm run prepare:drs-bundle && electron-builder --linux AppImage deb",
+    "dist:snap": "npm run build:electron && npm run prepare:drs-bundle && electron-builder --linux snap",
+    "dist:mac": "npm run build:electron && npm run prepare:drs-bundle && electron-builder --mac",
     "mobile:build": "node scripts/build-mobile.mjs",
     "cap:add:android": "npx cap add android",
     "mobile:stage-node": "node scripts/stage-node-android.mjs",
@@ -159,6 +160,7 @@
     "nodejs-mobile-react-native": "^18.20.4",
     "regexpu-core": "^6.4.0",
     "tailwindcss": "^4.1.12",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "engines": {

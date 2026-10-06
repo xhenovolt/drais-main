@@ -672,6 +672,7 @@ CREATE TABLE IF NOT EXISTS class_subjects (
   academic_year_id    INTEGER,
   term_id             INTEGER,
   superseded_by       INTEGER,
+  custom_initials     TEXT,
   FOREIGN KEY (class_id) REFERENCES classes(id)
 );
 CREATE INDEX IF NOT EXISTS idx_class_subjects_class ON class_subjects(class_id, status);
@@ -743,6 +744,14 @@ function ensureStudentColumns(db: SqliteConnection): void {
   addColumnIfMissing(db, 'students', 'class_id', 'INTEGER');
 }
 
+function ensureClassSubjectColumns(db: SqliteConnection): void {
+  // Phase 7 sub-effort 40: real online class_subjects.custom_initials
+  // (a teacher's report-card initial override), caught by
+  // src/lib/academic-allocation.ts's offline branch failing against an
+  // already-provisioned file.
+  addColumnIfMissing(db, 'class_subjects', 'custom_initials', 'TEXT');
+}
+
 /** Idempotent — safe to call on every connection open (mirrors the
  *  runtime ensureXSchema() pattern already used elsewhere in this repo,
  *  e.g. src/lib/sentinel/schema.ts, src/lib/backup/schema.ts). */
@@ -751,5 +760,6 @@ export function ensureSchema(db: SqliteConnection): void {
   db.exec(SCHEMA_SQL);
   ensureEnrollmentColumns(db);
   ensureStudentColumns(db);
+  ensureClassSubjectColumns(db);
   ensured.add(db);
 }

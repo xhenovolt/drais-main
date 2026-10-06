@@ -26,13 +26,15 @@ const OFFLINE_SAFE_PREFIXES = [
   '/students/list', '/students/admit', '/students/requirements', '/students/contacts',
   '/students/enroll', '/students/documents', '/students/duplicates', '/students/history',
   '/admissions', '/admin/admission-mode', '/students/id-cards', '/dashboard',
+  '/academics/classes', '/academics/streams', '/academics/subjects',
 ];
 
 function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPreConnectionRoute = pathname === '/' || pathname === '/login' || pathname === '/signup' ||
     pathname.startsWith('/auth') || pathname === '/forgot-password' || pathname.startsWith('/reset-password') ||
-    pathname === '/unauthorized' || pathname === '/forbidden' || pathname === '/server-error';
+    pathname === '/unauthorized' || pathname === '/forbidden' || pathname === '/server-error' ||
+    pathname.startsWith('/setup');
   return <I18nProvider loadSchoolDefault={!isPreConnectionRoute}>{children}</I18nProvider>;
 }
 

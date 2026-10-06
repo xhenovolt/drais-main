@@ -5,6 +5,68 @@ import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
 import { getAllocationsBySubject } from '@/lib/academic-allocation';
 import { langFromRequest, pickName } from '@/lib/i18n/localize';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/** local-sqlite branch — Phase 7 sub-effort 40, same §25a pattern. Pagination
+ *  ignored offline the same way it is online when no page/limit is given —
+ *  a school's subject list is small enough this has never needed it in
+ *  practice. getAllocationsBySubject() is already dbMode-aware (same file). */
+async function offlineGetSubjects(schoolId: number, searchParams: URLSearchParams, req: NextRequest) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const typeFilter = searchParams.get('type');
+  const academicTypeFilter = searchParams.get('academic_type');
+  const searchFilter = searchParams.get('search') || '';
+
+  const subjectRows = db.prepare(
+    `SELECT id, name, name_ar, code, subject_type, academic_type FROM subjects WHERE school_id = ? AND deleted_at IS NULL ORDER BY name ASC`
+  ).all(schoolId) as any[];
+  const lang = langFromRequest(req);
+  const allocationSummaries = await getAllocationsBySubject(schoolId);
+  const allocationsBySubjectId = new Map(allocationSummaries.map((s) => [s.subjectId, s]));
+
+  const filtered = subjectRows.filter((subject) => {
+    if (typeFilter && subject.subject_type !== typeFilter) return false;
+    if (academicTypeFilter && ['secular', 'theology'].includes(academicTypeFilter) && subject.academic_type !== academicTypeFilter) return false;
+    if (searchFilter.trim() && !subject.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
+    return true;
+  });
+
+  const data = filtered.map((subject) => {
+    const summary = allocationsBySubjectId.get(subject.id);
+    return {
+      id: subject.id, name: subject.name, name_ar: subject.name_ar ?? null,
+      display_name: pickName(lang, subject.name, subject.name_ar),
+      code: subject.code, subject_type: subject.subject_type, academic_type: subject.academic_type,
+      allocated_classes: summary && summary.allocatedClasses.length > 0 ? summary.allocatedClasses.join(', ') : null,
+      allocation_count: summary?.allocationCount || 0,
+      allocated_teachers: summary && summary.allocatedTeachers.length > 0 ? summary.allocatedTeachers.join(', ') : null,
+    };
+  });
+
+  return NextResponse.json({ data, total: data.length, page: 1, limit: null, pages: 1 });
+}
+
+async function offlineCreateOrUpdateSubject(schoolId: number, body: any) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const id = body.id;
+  const name = (body.name || '').trim();
+  const code = (body.code || '').trim() || null;
+  const subject_type = body.subject_type || 'core';
+  const academic_type: string = body.academic_type || 'secular';
+
+  if (id) {
+    db.prepare('UPDATE subjects SET name=?, code=?, subject_type=?, academic_type=? WHERE id=? AND school_id=?').run(name, code, subject_type, academic_type, id, schoolId);
+    return NextResponse.json({ success: true, id });
+  }
+
+  const dup = db.prepare('SELECT id FROM subjects WHERE LOWER(name) = LOWER(?) AND school_id = ? AND deleted_at IS NULL').get(name, schoolId);
+  if (dup) return NextResponse.json({ error: `A subject with the name "${name}" already exists for this school.` }, { status: 409 });
+
+  const r = db.prepare('INSERT INTO subjects (school_id, name, code, subject_type, academic_type) VALUES (?, ?, ?, ?, ?)').run(schoolId, name, code, subject_type, academic_type);
+  return NextResponse.json({ success: true, id: Number(r.lastInsertRowid) }, { status: 201 });
+}
 
 /**
  * Self-heal: if id column lacks AUTO_INCREMENT, recreate the table.
@@ -81,6 +143,9 @@ export async function GET(req: NextRequest) {
     const schoolId = session.schoolId;
 
     const { searchParams } = new URL(req.url);
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetSubjects(schoolId, searchParams, req);
+    }
     const typeFilter = searchParams.get('type');
     const academicTypeFilter = searchParams.get('academic_type');
     const searchFilter = searchParams.get('search') || '';
@@ -194,6 +259,10 @@ export async function POST(req: NextRequest) {
     }
     const schoolId = session.schoolId;
 
+    if (getDbMode() === 'local-sqlite') {
+      return offlineCreateOrUpdateSubject(schoolId, { id, name, code, subject_type, academic_type });
+    }
+
     connection = await getConnection();
 
     if (id) {
@@ -262,6 +331,10 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
+    if (getDbMode() === 'local-sqlite') {
+      return NextResponse.json({ error: 'Archiving a subject is not available offline yet.' }, { status: 503 });
     }
 
     const { archiveEntity, TrashError } = await import('@/lib/trash/service');
