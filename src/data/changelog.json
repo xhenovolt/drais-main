@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T10:53:46.120Z",
-  "last_commit": "8d93531d077e9cd707fd8a03db392b277e7d880d",
+  "generated_at": "2026-10-06T11:25:38.216Z",
+  "last_commit": "4519d2e0e619c621a6a6c59d4a5d526001074a14",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8734,7 +8734,20 @@
         }
       ],
       "commit": "8d93531d07"
+    },
+    {
+      "version": "2.50.8",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Vercel build failure + widespread archiveEntity bug; feat: Phase 7 sub-effort 38",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Vercel build failure + widespread archiveEntity bug; feat: Phase 7 sub-effort 38"
+        }
+      ],
+      "commit": "4519d2e0e6"
     }
   ],
-  "app_version": "2.50.8"
+  "app_version": "2.50.9"
 }
