@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T19:05:12.804Z",
-  "last_commit": "e02409ec324dd919a6608ca3795ec1662ad14012",
+  "generated_at": "2026-10-06T23:29:35.814Z",
+  "last_commit": "ebcf16116c921e45c5cfa9d59b23a80dc37d1726",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8825,7 +8825,20 @@
         }
       ],
       "commit": "e02409ec32"
+    },
+    {
+      "version": "2.50.15",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 44 - Timetable offline + fix a live streams bug",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 44 - Timetable offline + fix a live streams bug"
+        }
+      ],
+      "commit": "ebcf16116c"
     }
   ],
-  "app_version": "2.50.15"
+  "app_version": "2.50.16"
 }
