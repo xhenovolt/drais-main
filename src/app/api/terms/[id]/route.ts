@@ -28,7 +28,7 @@ export async function DELETE(
 
   try {
     await archiveEntity({
-      code:     'term',
+      entity:   'term',
       id:       termId,
       schoolId: session.schoolId,
       userId:   session.userId,

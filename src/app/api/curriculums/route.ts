@@ -80,6 +80,20 @@ export async function POST(req: NextRequest) {
     const name = (body.name ?? '').toString().trim();
     if (!code || !name) return NextResponse.json({ error: 'code & name required' }, { status: 400 });
 
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      const db = getSqliteDb();
+      try {
+        db.prepare('INSERT INTO curriculums (code, name, school_id) VALUES (?, ?, ?)').run(code, name, session.schoolId);
+      } catch (e: any) {
+        if (String(e?.code).startsWith('SQLITE_CONSTRAINT')) {
+          return NextResponse.json({ error: 'Curriculum with that code already exists' }, { status: 409 });
+        }
+        throw e;
+      }
+      return NextResponse.json({ success: true }, { status: 201 });
+    }
+
     await ensureCurriculumSchoolColumn();
     await query('INSERT INTO curriculums (code, name, school_id) VALUES (?, ?, ?)',
       [code, name, session.schoolId]);
@@ -104,6 +118,12 @@ export async function PUT(req: NextRequest) {
     const name = (body.name ?? '').toString().trim();
     if (!id || !code || !name) return NextResponse.json({ error: 'id, code & name required' }, { status: 400 });
 
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      getSqliteDb().prepare('UPDATE curriculums SET code = ?, name = ? WHERE id = ?').run(code, name, id);
+      return NextResponse.json({ success: true });
+    }
+
     await query('UPDATE curriculums SET code = ?, name = ? WHERE id = ?', [code, name, id]);
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -120,6 +140,12 @@ export async function DELETE(req: NextRequest) {
     const body = await req.json();
     const id = Number(body.id);
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      getSqliteDb().prepare('DELETE FROM curriculums WHERE id = ? AND school_id = ?').run(id, session.schoolId);
+      return NextResponse.json({ success: true });
+    }
 
     await ensureCurriculumSchoolColumn();
     // Tenant-scoped: a school can only ever delete its own.

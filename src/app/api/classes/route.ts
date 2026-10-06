@@ -122,6 +122,32 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/** local-sqlite branch — Phase 7 sub-effort 38, same §25a pattern. The
+ *  local classes table always has program_id (schema.ts, no migration-027
+ *  uncertainty), so no column-existence guard is needed, unlike online. */
+async function offlineCreateClass(session: { userId: number; schoolId: number }, body: any) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const r = db.prepare(
+    'INSERT INTO classes (school_id,name,class_level,head_teacher_id,curriculum_id,program_id) VALUES (?,?,?,?,?,?)'
+  ).run(session.schoolId, body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null, body.program_id || null);
+  const newId = Number(r.lastInsertRowid);
+  logAudit({ schoolId: session.schoolId, userId: session.userId, action: 'CLASS_CREATED', entityType: 'class', entityId: newId, details: { name: body.name } }).catch(() => {});
+  return NextResponse.json({ success: true, message: 'Class created', id: newId }, { status: 201 });
+}
+
+function offlineUpdateClass(session: { userId: number; schoolId: number }, body: any) {
+  return (async () => {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    db.prepare(
+      'UPDATE classes SET name=?, class_level=?, head_teacher_id=?, curriculum_id=?, program_id=? WHERE id=? AND school_id=?'
+    ).run(body.name, body.class_level || null, body.head_teacher_id || null, body.curriculum_id || null, body.program_id || null, body.id, session.schoolId);
+    logAudit({ schoolId: session.schoolId, userId: session.userId, action: 'CLASS_UPDATED', entityType: 'class', entityId: body.id, details: { name: body.name } }).catch(() => {});
+    return NextResponse.json({ success: true, message: 'Class updated' });
+  })();
+}
+
 export async function POST(req: NextRequest) {
   let connection;
   try {
@@ -131,6 +157,10 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     if (!body.name) return NextResponse.json({ success: false, message: 'Class name is required' }, { status: 400 });
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineCreateClass(session, body);
+    }
 
     connection = await getConnection();
 
@@ -173,6 +203,10 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     if (!body.id || !body.name) return NextResponse.json({ success: false, message: 'Class ID and name are required' }, { status: 400 });
 
+    if (getDbMode() === 'local-sqlite') {
+      return offlineUpdateClass(session, body);
+    }
+
     connection = await getConnection();
 
     const [colCheck]: any = await connection.execute(
@@ -210,8 +244,15 @@ export async function DELETE(req: NextRequest) {
     const body = await req.json();
     if (!body.id) return NextResponse.json({ success: false, message: 'Class ID is required' }, { status: 400 });
 
+    if (getDbMode() === 'local-sqlite') {
+      return NextResponse.json({
+        success: false,
+        message: 'Archiving a class is not available offline yet.',
+      }, { status: 503 });
+    }
+
     await archiveEntity({
-      code:     'class',
+      entity:   'class',
       id:       Number(body.id),
       schoolId: session.schoolId,
       userId:   session.userId,

@@ -117,7 +117,7 @@ export const DELETE = withErrorHandling(async function DELETE(req: NextRequest, 
     });
 
     await archiveEntity({
-      code:     'role',
+      entity:   'role',
       id:       roleId,
       schoolId: session.schoolId,
       userId:   session.userId,

@@ -266,7 +266,7 @@ export async function DELETE(req: NextRequest) {
 
     const { archiveEntity, TrashError } = await import('@/lib/trash/service');
     await archiveEntity({
-      code:     'subject',
+      entity:   'subject',
       id:       Number(id),
       schoolId: session.schoolId,
       userId:   session.userId,

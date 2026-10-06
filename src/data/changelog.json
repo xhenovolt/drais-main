@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-05T18:55:04.026Z",
-  "last_commit": "f71a958da35417dc17cc7b3a00eb46403593a483",
+  "generated_at": "2026-10-06T10:53:46.120Z",
+  "last_commit": "8d93531d077e9cd707fd8a03db392b277e7d880d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8721,7 +8721,20 @@
         }
       ],
       "commit": "f71a958da3"
+    },
+    {
+      "version": "2.50.7",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 37 - ID Cards works offline, correcting an earlier wrong \"blocked\" call",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 37 - ID Cards works offline, correcting an earlier wrong \"blocked\" call"
+        }
+      ],
+      "commit": "8d93531d07"
     }
   ],
-  "app_version": "2.50.7"
+  "app_version": "2.50.8"
 }

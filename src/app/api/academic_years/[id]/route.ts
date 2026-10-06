@@ -78,7 +78,7 @@ export async function DELETE(
     const schoolId = session.schoolId;
 
     await archiveEntity({
-      code:     'academic_year',
+      entity:   'academic_year',
       id:       Number(id),
       schoolId,
       userId:   session.userId,

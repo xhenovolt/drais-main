@@ -221,7 +221,7 @@ export async function DELETE(req: NextRequest) {
     const schoolId = session.schoolId;
 
     await archiveEntity({
-      code:     'stream',
+      entity:   'stream',
       id:       Number(id),
       schoolId: session.schoolId,
       userId:   session.userId,

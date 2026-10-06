@@ -23,7 +23,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import mysql from 'mysql2/promise';
-import Database from 'better-sqlite3';
+// Type-only — erased at compile time, never a runtime module-resolution
+// concern. better-sqlite3 is an OPTIONAL dependency (package.json) so it
+// may genuinely not exist in node_modules on a deployment that never
+// needs local-sqlite mode (e.g. this app's own Vercel build). A plain
+// `import Database from 'better-sqlite3'` here broke every Vercel deploy
+// with "Module not found: Can't resolve 'better-sqlite3'" the moment this
+// file became reachable from a real route (/api/schools/offline-export) —
+// same root cause the header comment on src/lib/repo/sqlite/connection.ts
+// already documents, just not yet applied here. Fixed the same way: keep
+// the require() invisible to static bundler analysis via eval, exactly
+// mirroring connection.ts's own openSqliteDb().
+import type Database from 'better-sqlite3';
+function requireBetterSqlite3(): typeof Database {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, no-eval
+  return eval('require')('better-sqlite3');
+}
 import { createMysqlRepos } from '../repo/mysql';
 import { ensureSchema } from '../repo/sqlite/schema';
 import { SHELL_SCHEMA_SQL, SHELL_SCHEMA_INDEXES_SQL } from '../repo/sqlite/shell-schema.generated';
@@ -173,7 +188,8 @@ export async function exportSchoolToDrs(opts: ExportDrsOptions): Promise<ExportD
 
     progress('creating-schema');
     const tmpSqlitePath = path.join(os.tmpdir(), `drais-export-${schoolId}-${Date.now()}-${Math.random().toString(36).slice(2)}.sqlite`);
-    let sqliteDb = new Database(tmpSqlitePath);
+    const DatabaseCtor = requireBetterSqlite3();
+    let sqliteDb = new DatabaseCtor(tmpSqlitePath);
     sqliteDb.pragma('foreign_keys = OFF');
     ensureSchema(sqliteDb as any);
     sqliteDb.exec(SHELL_SCHEMA_SQL);
@@ -184,7 +200,7 @@ export async function exportSchoolToDrs(opts: ExportDrsOptions): Promise<ExportD
     const provisionResult = await provisionSchool({ schoolId, sqlitePath: tmpSqlitePath, source: createMysqlRepos() });
 
     progress('copying-remaining-tables');
-    sqliteDb = new Database(tmpSqlitePath);
+    sqliteDb = new DatabaseCtor(tmpSqlitePath);
     sqliteDb.pragma('foreign_keys = OFF');
     const tableReport: ExportDrsTableReport[] = [];
     let totalRawCopied = 0;

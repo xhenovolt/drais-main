@@ -71,7 +71,13 @@ FINAL_*
 
 # Database files
 database/*.sql
-mysql/
+# Anchored to the repo root — a bare `mysql/` (no leading slash) matches
+# ANY directory named mysql at any depth, which silently stripped the real
+# src/lib/repo/mysql/ repo-layer code from every Vercel deploy and broke
+# the build the moment anything imported it (Module not found: Can't
+# resolve '../repo/mysql'). No root-level mysql/ directory exists anymore
+# for this to even target.
+/mysql/
 
 # Test files
 test-*.sh
