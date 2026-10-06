@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
+import * as offline from './offline';
 
 interface SubjectReq {
   subject_id: number;
@@ -26,12 +29,17 @@ export async function POST(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const body = await req.json();
     const { class_id, stream_id, clear_existing } = body;
 
     if (!class_id) {
       return NextResponse.json({ error: 'class_id is required.' }, { status: 400 });
     }
+
+    if (getDbMode() === 'local-sqlite') return offline.generatePreview(session.schoolId, class_id, stream_id);
 
     connection = await getConnection();
 
@@ -198,12 +206,17 @@ export async function PUT(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const body = await req.json();
     const { entries, class_id, stream_id, clear_existing } = body;
 
     if (!entries?.length) {
       return NextResponse.json({ error: 'No entries to save.' }, { status: 400 });
     }
+
+    if (getDbMode() === 'local-sqlite') return offline.generateSave(session.schoolId, entries, class_id, stream_id, clear_existing);
 
     connection = await getConnection();
 

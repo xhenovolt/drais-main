@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T18:39:42.584Z",
-  "last_commit": "d1fbef4c7e19b55cf24dd463ae3cacbed81e8b5f",
+  "generated_at": "2026-10-06T19:05:12.804Z",
+  "last_commit": "e02409ec324dd919a6608ca3795ec1662ad14012",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8812,7 +8812,20 @@
         }
       ],
       "commit": "d1fbef4c7e"
+    },
+    {
+      "version": "2.50.14",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 43 - Teacher Allocation offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 43 - Teacher Allocation offline"
+        }
+      ],
+      "commit": "e02409ec32"
     }
   ],
-  "app_version": "2.50.14"
+  "app_version": "2.50.15"
 }

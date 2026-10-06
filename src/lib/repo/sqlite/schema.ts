@@ -256,6 +256,35 @@ CREATE TABLE IF NOT EXISTS classes (
 );
 CREATE INDEX IF NOT EXISTS idx_classes_school_id ON classes(school_id);
 
+-- Phase 7 sub-effort 44 (scoping Timetable): a real, currently-live bug —
+-- src/app/api/streams/route.ts has had §25a offline branches since
+-- sub-efforts 30/40 (offlineGetStreams, offlineCreateStream, PUT) that run
+-- raw getSqliteDb().prepare('... FROM streams ...') queries, but this
+-- table was never added here at all. Any local-sqlite request to
+-- /api/streams has been throwing "no such table: streams" since sub-effort
+-- 30 shipped — caught only now, while scoping Timetable (which also needs
+-- a working streams table for /api/timetable-metadata). Columns match the
+-- real online table after database/migrations/timetable_structured.sql's
+-- ALTER TABLE (created_at/updated_at) plus the soft-delete columns every
+-- other reference table here already carries.
+CREATE TABLE IF NOT EXISTS streams (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  class_id          INTEGER NOT NULL,
+  name              TEXT NOT NULL,
+  name_ar           TEXT,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (class_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_streams_school_class ON streams(school_id, class_id);
+
 CREATE TABLE IF NOT EXISTS class_results (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
   student_id        INTEGER NOT NULL,
@@ -711,6 +740,67 @@ CREATE TABLE IF NOT EXISTS attendance_rules (
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_attendance_rules_school ON attendance_rules(school_id, is_active, priority);
+
+-- Phase 7, sub-effort 44: timetable_periods, timetable_entries,
+-- subject_weekly_periods. Columns and real constraints mirror
+-- database/migrations/timetable_structured.sql one-for-one, including the
+-- UNIQUE keys the online schema actually has — timetable_entries' unique
+-- slot constraint in particular is load-bearing: /api/timetable-generate's
+-- PUT relies on it being a real UNIQUE index (ON DUPLICATE KEY UPDATE
+-- online, ON CONFLICT ... DO UPDATE here), not just a plain index the way
+-- it was first drafted. SQLite and MySQL agree that NULL never equals
+-- NULL even inside a UNIQUE constraint, so a class with no stream_id can
+-- still have more than one row for the same day/period exactly as it can
+-- online — not a gap, a deliberately preserved real quirk.
+CREATE TABLE IF NOT EXISTS timetable_periods (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id     INTEGER NOT NULL,
+  name          TEXT NOT NULL,
+  short_name    TEXT,
+  start_time    TEXT NOT NULL,
+  end_time      TEXT NOT NULL,
+  period_order  INTEGER NOT NULL DEFAULT 0,
+  is_break      INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT DEFAULT (${ISO_NOW}),
+  updated_at    TEXT DEFAULT (${ISO_NOW}),
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (school_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_timetable_periods_school_order ON timetable_periods(school_id, period_order);
+
+CREATE TABLE IF NOT EXISTS timetable_entries (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id     INTEGER NOT NULL,
+  day_of_week   INTEGER NOT NULL,
+  period_id     INTEGER NOT NULL,
+  class_id      INTEGER NOT NULL,
+  stream_id     INTEGER,
+  subject_id    INTEGER NOT NULL,
+  teacher_id    INTEGER,
+  room          TEXT,
+  created_at    TEXT DEFAULT (${ISO_NOW}),
+  updated_at    TEXT DEFAULT (${ISO_NOW}),
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (school_id, day_of_week, period_id, class_id, stream_id)
+);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_school ON timetable_entries(school_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_class_day ON timetable_entries(class_id, day_of_week);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_teacher_day ON timetable_entries(teacher_id, day_of_week, period_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_stream_day ON timetable_entries(stream_id, day_of_week, period_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_room_day ON timetable_entries(room, day_of_week, period_id);
+
+CREATE TABLE IF NOT EXISTS subject_weekly_periods (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  class_id          INTEGER NOT NULL,
+  subject_id        INTEGER NOT NULL,
+  periods_per_week  INTEGER NOT NULL DEFAULT 1,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (school_id, class_id, subject_id)
+);
+CREATE INDEX IF NOT EXISTS idx_subject_weekly_periods_class ON subject_weekly_periods(class_id);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();
