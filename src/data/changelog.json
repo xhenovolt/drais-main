@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-07T05:02:43.934Z",
-  "last_commit": "531a35730be43c031ed44acee82725506eaf0620",
+  "generated_at": "2026-10-07T10:02:38.769Z",
+  "last_commit": "3b739f48d6e431c2f17194df4af147ff1b0c7a0d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8851,7 +8851,20 @@
         }
       ],
       "commit": "531a35730b"
+    },
+    {
+      "version": "2.50.17",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 46 - Academic Years + Terms offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 46 - Academic Years + Terms offline"
+        }
+      ],
+      "commit": "3b739f48d6"
     }
   ],
-  "app_version": "2.50.17"
+  "app_version": "2.50.18"
 }
