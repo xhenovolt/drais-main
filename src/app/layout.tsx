@@ -28,6 +28,7 @@ const OFFLINE_SAFE_PREFIXES = [
   '/admissions', '/admin/admission-mode', '/students/id-cards', '/dashboard',
   '/academics/classes', '/academics/streams', '/academics/subjects',
   '/academics/allocations', '/academics/timetable',
+  '/academics/years', '/terms',
 ];
 
 function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {

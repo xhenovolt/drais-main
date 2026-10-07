@@ -3,6 +3,9 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
 import { query } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
+import { getDbMode } from '@/lib/db/db-mode';
+import { checkModule } from '@/lib/auth/requireModule';
+import { updateTerm } from './offline';
 
 /**
  * DELETE /api/terms/[id]
@@ -19,6 +22,8 @@ export async function DELETE(
 ) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const { id } = await ctx.params;
   const termId = Number(id);
@@ -51,6 +56,8 @@ export async function PATCH(
 ) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
 
   const { id } = await ctx.params;
   const termId = Number(id);
@@ -59,6 +66,7 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => ({}));
+  if (getDbMode() === 'local-sqlite') return updateTerm(session.schoolId, termId, body);
 
   // ── Manual active override (single-active enforcement + audit) ──────────
   // Setting a term active deactivates every other term in the same school so

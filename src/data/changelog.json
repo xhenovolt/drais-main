@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-06T23:29:35.814Z",
-  "last_commit": "ebcf16116c921e45c5cfa9d59b23a80dc37d1726",
+  "generated_at": "2026-10-07T05:02:43.934Z",
+  "last_commit": "531a35730be43c031ed44acee82725506eaf0620",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8838,7 +8838,20 @@
         }
       ],
       "commit": "ebcf16116c"
+    },
+    {
+      "version": "2.50.16",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Local-sqlite was never actually reachable from a real .exe",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Local-sqlite was never actually reachable from a real .exe"
+        }
+      ],
+      "commit": "531a35730b"
     }
   ],
-  "app_version": "2.50.16"
+  "app_version": "2.50.17"
 }

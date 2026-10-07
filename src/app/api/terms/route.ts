@@ -4,29 +4,8 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { langFromRequest, withDisplayName } from '@/lib/i18n/localize';
 import { getDbMode } from '@/lib/db/db-mode';
-
-/** local-sqlite branch — Phase 7 sub-effort 30, same §25a pattern. */
-async function offlineGetTerms(schoolId: number, req: NextRequest) {
-  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
-  const terms = getSqliteDb().prepare(`
-    SELECT t.id, t.name, t.name_ar,
-      COALESCE(t.term_number,
-        CASE
-          WHEN LOWER(TRIM(t.name)) IN ('term 1','t1','first term') THEN 1
-          WHEN LOWER(TRIM(t.name)) IN ('term 2','t2','second term') THEN 2
-          WHEN LOWER(TRIM(t.name)) IN ('term 3','t3','third term') THEN 3
-          ELSE 99
-        END
-      ) AS term_number,
-      t.start_date, t.end_date, t.status, t.academic_year_id, ay.name as academic_year
-    FROM terms t
-    LEFT JOIN academic_years ay ON t.academic_year_id = ay.id
-    WHERE t.school_id = ? AND t.deleted_at IS NULL
-    ORDER BY ay.start_date DESC, term_number ASC, t.id ASC
-  `).all(schoolId) as Record<string, unknown>[];
-  const lang = langFromRequest(req);
-  return NextResponse.json({ success: true, data: terms.map((r) => withDisplayName(r, lang)) });
-}
+import { checkModule } from '@/lib/auth/requireModule';
+import { getTerms, createTerm } from './offline';
 
 export async function GET(req: NextRequest) {
   let connection;
@@ -38,9 +17,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+    const modDenied = await checkModule(schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     if (getDbMode() === 'local-sqlite') {
-      return offlineGetTerms(schoolId, req);
+      return getTerms(schoolId, req);
     }
 
     const { searchParams } = new URL(req.url);
@@ -110,13 +91,19 @@ export async function POST(req: NextRequest) {
   if (!academic_year_id) {
     return NextResponse.json({ error: 'academic_year_id required' }, { status: 400 });
   }
+
+  // Enforce multi-tenant isolation: derive school_id from session
+  const session = await getSessionSchoolId(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
+
+  if (getDbMode() === 'local-sqlite') return createTerm(session.schoolId, body);
+
   const connection = await getConnection();
   try {
-    // Enforce multi-tenant isolation: derive school_id from session
-    const session = await getSessionSchoolId(req);
-    if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
     const schoolId = session.schoolId;
 
     const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
