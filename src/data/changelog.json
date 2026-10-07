@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-07T16:51:02.957Z",
-  "last_commit": "0a17001c54450298273b77faee2fcefa05d7909b",
+  "generated_at": "2026-10-07T17:03:07.916Z",
+  "last_commit": "73960bcbcb57e819b3c6664d526e8e49f8c63624",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8877,7 +8877,20 @@
         }
       ],
       "commit": "0a17001c54"
+    },
+    {
+      "version": "2.50.19",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Keep the outbox drain alive past the heartbeat response",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Keep the outbox drain alive past the heartbeat response"
+        }
+      ],
+      "commit": "73960bcbcb"
     }
   ],
-  "app_version": "2.50.19"
+  "app_version": "2.50.20"
 }

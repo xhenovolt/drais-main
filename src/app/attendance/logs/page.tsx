@@ -127,6 +127,40 @@ function SmsPill({ status, matched, isProvisional }: { status: string | null; ma
   return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SMS_CLASS[status] ?? 'bg-gray-100 text-gray-500'}`}>{SMS_LABEL[status] ?? `SMS ${status}`}</span>;
 }
 
+/** Per-row redundancy for the SMS Outbox's own bulk "Resend failed" button
+ *  (see src/app/admin/notifications/outbox/page.tsx) — lets an operator
+ *  fix one learner's failed/expired notification right here, without
+ *  leaving the logs page to find it in the outbox. Only ever shown for
+ *  'failed'/'expired' — a resend is meaningless for any other status, and
+ *  the backend itself refuses to touch anything else regardless. */
+function ResendSmsButton({ status, studentId, date }: { status: string | null; studentId?: number | null; date?: string | null }) {
+  const [busy, setBusy] = useState(false);
+  if (!studentId || !date || (status !== 'failed' && status !== 'expired')) return null;
+
+  const resend = async () => {
+    setBusy(true);
+    try {
+      await apiFetch<any>('/api/admin/notifications/outbox/resend', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, date_from: date, date_to: date }),
+        successMessage: 'Message re-queued for sending',
+      });
+    } catch { /* apiFetch surfaces the error toast */ }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <button
+      onClick={resend}
+      disabled={busy}
+      title="Resend this SMS"
+      className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50 font-medium"
+    >
+      {busy ? 'Resending…' : 'Resend'}
+    </button>
+  );
+}
+
 const fetcher2 = (url: string) => fetch(url).then(r => r.json());
 
 /** School-local quick date ranges (browser tz == school tz for on-site
@@ -1661,7 +1695,12 @@ export default function UnifiedAttendancePage() {
                             )}
                           </span>
                           {presentation.statusDetail !== '—' && <span className="text-[11px] text-gray-400">{presentation.statusDetail}</span>}
-                          <SmsPill status={log.sms_status} matched={log.matched} isProvisional={log.is_provisional} />
+                          <span className="flex items-center gap-1">
+                            <SmsPill status={log.sms_status} matched={log.matched} isProvisional={log.is_provisional} />
+                            {log.person_type === 'student' && (
+                              <ResendSmsButton status={log.sms_status} studentId={log.person_id} date={(log.check_time || '').slice(0, 10)} />
+                            )}
+                          </span>
                         </div>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500" title="Awaiting day evaluation">Scan</span>
