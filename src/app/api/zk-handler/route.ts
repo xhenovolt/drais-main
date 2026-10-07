@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { query } from '@/lib/db';
 import { logAudit, AuditAction } from '@/lib/audit';
 // (saveAttendancePunch + its notifyAdmsAttendance bridge were dead code
@@ -1147,8 +1147,22 @@ export async function GET(req: NextRequest) {
     // Phase 0 — heartbeat-driven outbox pump. The Vercel hobby plan
     // cannot schedule a drain cron, so device heartbeats (every
     // ~30-60s per device) act as the scheduler. Throttled per-process
-    // inside the helper; fire-and-forget; never blocks the response.
-    drainOutboxOpportunistically();
+    // inside the helper; fire-and-forget; never blocks the response —
+    // but "fire-and-forget" alone is not enough on Vercel: once this
+    // handler's response is sent, the platform is free to freeze/kill
+    // the function immediately, including any still-running promise
+    // that isn't explicitly kept alive. drainNotificationOutbox() claims
+    // a whole batch (up to 50 rows, flipped queued→sending) up front,
+    // then sends them ONE AT A TIME in a for-loop — so a freeze mid-loop
+    // leaves every row after that point stuck at 'sending' forever,
+    // which the drain's own 15-minute self-heal sweep later closes out
+    // as 'expired' / "Interrupted while sending; delivery unknown - not
+    // retried". Confirmed live at Nakifuma: a batch of DEPARTED SMS sent
+    // in the same run had several expire this way — not a provider
+    // (UgaText/Africa's Talking) problem, a function-lifetime one.
+    // after() is Next's own mechanism for exactly this: run code after
+    // the response is sent without it being eligible for an early kill.
+    after(() => drainOutboxOpportunistically());
 
     // Same pattern for the device-status sweep (offline-flip + alerts +
     // command timeouts) — found 2026-08-18 to have never run at all,
@@ -1157,8 +1171,9 @@ export async function GET(req: NextRequest) {
     // drain above was. Its own design calls for a 2-minute staleness
     // threshold, which only means something if it runs roughly that
     // often — the daily job-runner fan-out alone (device_status_sweep)
-    // is a floor, not the real mechanism.
-    runDeviceStatusSweepOpportunistically();
+    // is a floor, not the real mechanism. Same freeze risk as the outbox
+    // drain above, same fix.
+    after(() => runDeviceStatusSweepOpportunistically());
 
     // Phase 1A — make the ADMS devices shape reproducible (the audit
     // found the sn-keyed table existed only as runtime drift). Gated

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-07T10:02:38.769Z",
-  "last_commit": "3b739f48d6e431c2f17194df4af147ff1b0c7a0d",
+  "generated_at": "2026-10-07T16:51:02.957Z",
+  "last_commit": "0a17001c54450298273b77faee2fcefa05d7909b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8864,7 +8864,20 @@
         }
       ],
       "commit": "3b739f48d6"
+    },
+    {
+      "version": "2.50.18",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Credit reported-once boarders as present same-day",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Credit reported-once boarders as present same-day"
+        }
+      ],
+      "commit": "0a17001c54"
     }
   ],
-  "app_version": "2.50.18"
+  "app_version": "2.50.19"
 }
