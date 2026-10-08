@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T13:59:15.970Z",
-  "last_commit": "47b428af41973bdbe6967101ddcffe6011caff33",
+  "generated_at": "2026-10-08T14:25:42.989Z",
+  "last_commit": "fc2b98d781914cc5eef08eb4bdc80a05414470cd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8916,7 +8916,20 @@
         }
       ],
       "commit": "47b428af41"
+    },
+    {
+      "version": "2.50.22",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "Apply pending app and Control Center fixes",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Apply pending app and Control Center fixes"
+        }
+      ],
+      "commit": "fc2b98d781"
     }
   ],
-  "app_version": "2.50.22"
+  "app_version": "2.50.23"
 }

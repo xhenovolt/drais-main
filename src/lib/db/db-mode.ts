@@ -7,9 +7,7 @@
  *                    for the packaged desktop app / offline use — unchanged
  *                    by DRAIS V2, renamed from the original 'local' label
  *                    for this file's own history)
- *   - local-sqlite : a local SQLite file via @drais/repo-sqlite (DRAIS V2,
- *                    docs/architecture/DRAIS_V2_ARCHITECTURE_AUDIT.md §27
- *                    Decision 5 — "keep both, SQLite becomes the default")
+ *   - local-sqlite : a local SQLite file via @drais/repo-sqlite (DRAIS V2)
  *
  * The UI chooses the mode; the SERVER resolves which connection pool to use.
  * Frontend buttons can't mutate process.env after boot, so "mode" is a
@@ -48,21 +46,23 @@ export function isLocalAllowed(): boolean {
 // desktop server process. Null = fall back to the configured default.
 let runtimeMode: DbMode | null = null;
 
-/** The env-configured default mode (only honoured when local is allowed).
- *  'local' (the pre-V2 value) is accepted as a synonym for 'local-mysql' —
- *  an existing desktop install's already-persisted DRAIS_DB_MODE=local
- *  config file (src/lib/db/runtime-config.ts) must keep meaning exactly
- *  what it always meant, not silently change behavior on next boot. */
+/** New app processes always start online. Local databases remain available
+ *  through the explicit mode switch; a persisted local selection must not
+ *  silently send login/auth requests to a local database on startup. */
 function envDefaultMode(): DbMode {
-  const v = process.env.DRAIS_DB_MODE;
-  if (v === 'local' || v === 'local-mysql') return 'local-mysql';
-  if (v === 'local-sqlite') return 'local-sqlite';
   return 'online';
 }
 
 /** Resolve the active DB mode for this process right now. */
 export function getDbMode(): DbMode {
   if (!isLocalAllowed()) return 'online'; // hosted/prod: hard-forced online
+  // Next.js route bundles have separate module state. Read this explicit
+  // runtime-only marker so a user-selected mode reaches auth/data routes,
+  // while the persisted DRAIS_DB_MODE remains a startup setting we ignore.
+  const sharedRuntimeMode = process.env.DRAIS_RUNTIME_DB_MODE;
+  if (sharedRuntimeMode === 'local-mysql' || sharedRuntimeMode === 'local-sqlite' || sharedRuntimeMode === 'online') {
+    return runtimeMode ?? sharedRuntimeMode;
+  }
   return runtimeMode ?? envDefaultMode();
 }
 
@@ -81,6 +81,7 @@ export function setDbMode(mode: DbMode): DbMode {
   // the mode badge report the new mode while auth and data routes continue
   // using the startup DRAIS_DB_MODE value.
   process.env.DRAIS_DB_MODE = mode;
+  process.env.DRAIS_RUNTIME_DB_MODE = mode;
   return runtimeMode;
 }
 
