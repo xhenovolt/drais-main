@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T14:41:31.519Z",
-  "last_commit": "6b5861cc624eecd7c13c25d529768b779de4b7a4",
+  "generated_at": "2026-10-08T15:31:02.029Z",
+  "last_commit": "edbf07b024a72e02bd786e045b7fde5eef820e72",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8942,7 +8942,20 @@
         }
       ],
       "commit": "6b5861cc62"
+    },
+    {
+      "version": "2.50.24",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "Switch to online mode without waiting for TiDB",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Switch to online mode without waiting for TiDB"
+        }
+      ],
+      "commit": "edbf07b024"
     }
   ],
-  "app_version": "2.50.24"
+  "app_version": "2.50.25"
 }

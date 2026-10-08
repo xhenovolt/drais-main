@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { query } from '@/lib/db';
+import { getDbMode } from '@/lib/db/db-mode';
 import { logAudit, AuditAction } from '@/lib/audit';
 // (saveAttendancePunch + its notifyAdmsAttendance bridge were dead code
 // — never called — and were removed in the Phase 0/1 trust refactor.
@@ -584,11 +585,18 @@ async function getPendingCommand(
   sn: string,
 ): Promise<{ id: number; command: string; batchIds?: number[] } | null> {
   try {
-    const rows = await query(
+    const readCommands = async (sql: string, params: any[] = []) => {
+      if (getDbMode() === 'local-sqlite') {
+        const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+        return getSqliteDb().prepare(sql).all(...params) as any[];
+      }
+      return query(sql, params);
+    };
+    const rows = await readCommands(
       `SELECT id, command FROM zk_device_commands
        WHERE device_sn = ? AND status = 'pending'
          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-         AND retry_count < max_retries
+         AND COALESCE(retry_count, 0) < COALESCE(max_retries, 5)
        ORDER BY priority DESC, id ASC
        LIMIT 1`,
       [sn],
@@ -600,12 +608,12 @@ async function getPendingCommand(
     // If this is a USERINFO push, batch ALL pending USERINFO commands together
     if (first.command.startsWith('DATA UPDATE USERINFO PIN=')) {
       try {
-        const allRows = await query(
+        const allRows = await readCommands(
           `SELECT id, command FROM zk_device_commands
            WHERE device_sn = ? AND status = 'pending'
              AND command LIKE 'DATA UPDATE USERINFO PIN=%'
              AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-             AND retry_count < max_retries
+             AND COALESCE(retry_count, 0) < COALESCE(max_retries, 5)
            ORDER BY id ASC`,
           [sn],
         );
@@ -648,21 +656,29 @@ async function getPendingCommand(
 /** Mark command(s) as sent after delivery. Handles both single and batch. */
 async function markCommandSent(commandId: number, batchIds?: number[]): Promise<void> {
   try {
+    const updateCommands = async (sql: string, params: any[] = []) => {
+      if (getDbMode() === 'local-sqlite') {
+        const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+        getSqliteDb().prepare(sql).run(...params);
+        return;
+      }
+      await query(sql, params);
+    };
     if (batchIds && batchIds.length > 1) {
       // Batch: mark ALL commands as sent in one UPDATE
       const placeholders = batchIds.map(() => '?').join(',');
-      await query(
+      await updateCommands(
         `UPDATE zk_device_commands
-         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = retry_count + 1,
+         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = COALESCE(retry_count, 0) + 1,
              updated_at = CURRENT_TIMESTAMP
          WHERE id IN (${placeholders})`,
         batchIds,
       );
       zkLog('info', 'BATCH_MARKED_SENT', { primaryId: commandId, count: batchIds.length });
     } else {
-      await query(
+      await updateCommands(
         `UPDATE zk_device_commands
-         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = retry_count + 1,
+         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = COALESCE(retry_count, 0) + 1,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [commandId],
