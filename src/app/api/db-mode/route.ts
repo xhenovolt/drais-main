@@ -92,8 +92,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Probe the target BEFORE committing the switch so we don't strand the app on
-  // an unreachable DB. resetPool first to force a fresh probe (no-op for
+  // Selecting Online is a mode choice, not a requirement that TiDB be
+  // reachable at that exact moment. The regular health probe can take up to
+  // three 15-second connection attempts; keeping the previous local mode
+  // active until it succeeds makes the UI appear to switch back to SQLite.
+  // Commit Online immediately. Login/data requests will surface any actual
+  // connectivity problem through their normal database error handling.
+  if (target === 'online') {
+    resetPool('online');
+    const mode = setDbMode('online');
+    return NextResponse.json({
+      ...describeMode(mode),
+      allowLocal: true,
+      health: null,
+      reauthRequired: true,
+    });
+  }
+
+  // Local targets are probed before committing so a missing local database
+  // cannot strand the app. resetPool forces a fresh probe (no-op for
   // local-sqlite — pools.ts's cache never holds that key).
   resetPool(target);
   const health = target === 'local-sqlite' ? await healthCheckSqlite() : await healthCheck(target);

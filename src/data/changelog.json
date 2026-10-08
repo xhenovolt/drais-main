@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T14:25:42.989Z",
-  "last_commit": "fc2b98d781914cc5eef08eb4bdc80a05414470cd",
+  "generated_at": "2026-10-08T14:41:31.519Z",
+  "last_commit": "6b5861cc624eecd7c13c25d529768b779de4b7a4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8929,7 +8929,20 @@
         }
       ],
       "commit": "fc2b98d781"
+    },
+    {
+      "version": "2.50.23",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "Default desktop database mode to online",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Default desktop database mode to online"
+        }
+      ],
+      "commit": "6b5861cc62"
     }
   ],
-  "app_version": "2.50.23"
+  "app_version": "2.50.24"
 }
