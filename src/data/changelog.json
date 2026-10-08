@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T15:43:07.549Z",
-  "last_commit": "81fda1076f9fff1cf2335d0dcb562ec3de397f5b",
+  "generated_at": "2026-10-08T16:05:21.770Z",
+  "last_commit": "b3a11fd30dca03268e1f61c9f8780076b889a32a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8968,7 +8968,20 @@
         }
       ],
       "commit": "81fda1076f"
+    },
+    {
+      "version": "2.50.26",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "Keep ADMS traffic on online database",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Keep ADMS traffic on online database"
+        }
+      ],
+      "commit": "b3a11fd30d"
     }
   ],
-  "app_version": "2.50.26"
+  "app_version": "2.50.27"
 }
