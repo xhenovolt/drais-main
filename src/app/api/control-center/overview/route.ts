@@ -4,7 +4,7 @@
  * clock anomalies today, recent problems. Control-session gated + audited.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import changelog from '@/data/changelog.json';
 

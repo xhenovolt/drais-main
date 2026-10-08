@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T13:22:24.053Z",
-  "last_commit": "84fab46e76a6fea168e63a8f6dad9325761674f7",
+  "generated_at": "2026-10-08T13:59:15.970Z",
+  "last_commit": "47b428af41973bdbe6967101ddcffe6011caff33",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8903,7 +8903,20 @@
         }
       ],
       "commit": "84fab46e76"
+    },
+    {
+      "version": "2.50.21",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "fix stale database mode indicators",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "fix stale database mode indicators"
+        }
+      ],
+      "commit": "47b428af41"
     }
   ],
-  "app_version": "2.50.21"
+  "app_version": "2.50.22"
 }

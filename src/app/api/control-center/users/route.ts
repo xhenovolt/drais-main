@@ -5,7 +5,7 @@
  * All actions audited.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getControlSession, createControlUser, controlAudit, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
 

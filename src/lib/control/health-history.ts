@@ -7,7 +7,7 @@
  *
  * `healthScore` is PURE + unit-tested.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { controlAudit } from '@/lib/control/auth';
 import { getPlatformHealth, type HealthIssue } from '@/lib/control/platform-health';
 

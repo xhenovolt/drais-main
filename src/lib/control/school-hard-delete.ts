@@ -11,7 +11,7 @@
  *      can't be nuked by a fat-finger).
  * Everything is audited with a per-table row-count summary.
  */
-import { query, getConnection } from '@/lib/db';
+import { query, getConnection } from '@/lib/control/db';
 import { controlAudit } from '@/lib/control/auth';
 
 export interface SchoolFootprint { learners: number; staff: number; events: number; devices: number }

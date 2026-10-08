@@ -13,11 +13,23 @@
  * bundled .env.production — the installed app never needs a developer .env.
  * Database: TiDB cloud (internet required).
  */
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, crashReporter } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { loadConfig } = require('./config.cjs');
+
+// Started before anything else — a hard native-level crash (confirmed real:
+// switching to local-sqlite loads better-sqlite3's compiled .node addon,
+// the one thing that's different about that path versus the pure-JS
+// mysql2 one, and has been observed to kill the whole app with literally
+// nothing written to drais.log or Windows' own Application event log —
+// Chromium's Crashpad handler installs itself early enough to intercept a
+// fault before Windows' default crash reporting ever sees it) otherwise
+// leaves zero diagnostic trail. uploadToServer: false means dumps are
+// written locally only, under app.getPath('crashDumps') (userData/Crash
+// Reports by default), never sent anywhere.
+crashReporter.start({ uploadToServer: false, compress: true });
 
 app.setAppUserModelId('ug.drais.desktop');
 
@@ -239,6 +251,7 @@ else {
   app.on('second-instance', () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } });
   app.whenReady().then(() => {
     startupMark('electron-ready');
+    logToFile(`crash dumps path: ${app.getPath('crashDumps')}`);
     cfg = loadConfig({ userDataDir: app.getPath('userData'), resourcesPath: app.isPackaged ? process.resourcesPath : null, isPackaged: app.isPackaged });
     logToFile(`config source: ${cfg.source}; ${cfg.summary.join('; ')}`);
     if (!cfg.hasDbCreds) logToFile('WARN: no DB credentials resolved — diagnostic screen will show until configured.');

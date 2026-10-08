@@ -11,7 +11,7 @@
  * Session tokens: 48 random bytes (hex) in the cookie; only the SHA-256 of
  * the token is stored, so a database leak does not leak usable sessions.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { NextRequest } from 'next/server';

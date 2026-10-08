@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getSmsPricing, setSmsPricing } from '@/lib/control/sms-economics';
 import { marzConfigured, verifyCredentials } from '@/lib/payments/marzpay';
 import { syncTopup } from '@/lib/sms/topup';

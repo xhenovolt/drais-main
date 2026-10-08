@@ -11,7 +11,7 @@
  *
  * `resolveEnforcement` is PURE + unit-tested.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getPlanByCode, checkCanAdd, type LimitKey } from '@/lib/control/subscriptions';
 
 export type LimitedResource = 'learners' | 'staff' | 'devices';

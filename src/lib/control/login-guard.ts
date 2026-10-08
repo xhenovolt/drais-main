@@ -6,7 +6,7 @@
  * tenant can't be brute-forced. `throttleDecision` is PURE and unit-tested; the
  * DB helpers record/read attempts in a small `control_login_attempts` table.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export interface ThrottleOpts { threshold?: number; windowMin?: number; baseSec?: number; maxSec?: number }
 export interface ThrottleDecision { blocked: boolean; retryAfterSec: number; remaining: number }

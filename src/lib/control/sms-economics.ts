@@ -8,7 +8,7 @@
  * usage record — logSMSActivity is a console no-op). Remaining = quota − used,
  * so one school can't quietly burn another's credits.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
 import { getActiveSmsProvider } from '@/lib/sms/central';
 import { SMS_PROVIDER_ADAPTERS } from '@/lib/sms/providers';

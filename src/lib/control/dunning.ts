@@ -8,7 +8,7 @@
  * `dunningStage` is PURE + unit-tested. The sweep dedups one notice per stage
  * per school per day.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export type DunningStage = 'expired' | 'expiring_1' | 'expiring_7' | 'none';
 

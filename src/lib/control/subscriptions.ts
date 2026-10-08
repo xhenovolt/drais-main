@@ -10,7 +10,7 @@
  * limit maths (`usageAgainst`, `checkCanAdd`) so quotas can be surfaced now and
  * hard-enforced at each create path later without re-deriving the rules.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { controlAudit } from '@/lib/control/auth';
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
 import { getUsage } from '@/lib/entitlements/limits';

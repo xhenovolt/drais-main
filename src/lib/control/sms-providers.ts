@@ -1,4 +1,4 @@
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { ensureCentralSmsSchema } from '@/lib/sms/central';
 import { decryptProviderConfig, encryptProviderConfig, fingerprintProviderConfig, SMS_PROVIDER_ADAPTERS, type SmsProviderConfig, type SmsProviderType } from '@/lib/sms/providers';
 

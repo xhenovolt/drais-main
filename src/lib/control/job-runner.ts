@@ -9,7 +9,7 @@
  *
  * The scheduling maths (`computeBackoffSeconds`, `isDue`) are PURE + unit-tested.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { randomBytes } from 'node:crypto';
 
 export type JobStatus = 'pending' | 'running' | 'done' | 'failed';

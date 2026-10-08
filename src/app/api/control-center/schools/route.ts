@@ -8,7 +8,7 @@
  * cost stays flat as the tenant count grows.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { parsePageParams, totalPages } from '@/lib/control/pagination';
 import { LIMIT_WARN_PERCENT, LIMIT_CRITICAL_PERCENT } from '@/lib/entitlements/limits';

@@ -10,7 +10,7 @@ import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
 import { listPlans, upsertPlan, deletePlan } from '@/lib/control/subscriptions';
 import { MODULE_CATALOG } from '@/lib/school-modules';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export const runtime = 'nodejs';
 

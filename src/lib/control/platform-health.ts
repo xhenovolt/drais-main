@@ -10,7 +10,7 @@
  * per-school issue register. The scoring helpers (`severityRank`, `worstOf`,
  * `rollup`) are PURE and unit-tested.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export type Severity = 'critical' | 'warning' | 'info';
 export interface HealthIssue { type: string; severity: Severity; detail: string }

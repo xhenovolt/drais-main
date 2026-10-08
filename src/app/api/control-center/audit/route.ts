@@ -2,7 +2,7 @@
  *  Paginated + searchable (P21) so the FULL history is browsable, not just the
  *  most recent 200 entries. */
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getControlSession } from '@/lib/control/auth';
 import { parsePageParams, totalPages } from '@/lib/control/pagination';
 

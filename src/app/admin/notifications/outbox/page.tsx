@@ -12,8 +12,20 @@ import useSWR from 'swr';
 import { Inbox, Loader2, RefreshCw, Search, X, ChevronLeft, ChevronRight, Info, SendHorizontal } from 'lucide-react';
 import FilterAccordion, { FilterField, filterInputCls, type FilterChip } from '@/components/ui/FilterAccordion';
 import { showToast } from '@/lib/toast';
+import Swal from 'sweetalert2';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+async function readResponse<T = any>(response: Response): Promise<T> {
+  const text = await response.text();
+  let payload: any = {};
+  if (text.trim()) {
+    try { payload = JSON.parse(text); }
+    catch { payload = { error: text.trim().slice(0, 500) }; }
+  }
+  if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`);
+  return payload as T;
+}
+
+const fetcher = async (u: string) => readResponse(await fetch(u));
 
 type Status = 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'expired';
 const STATUSES: Status[] = ['queued', 'sending', 'sent', 'delivered', 'failed', 'expired'];
@@ -76,21 +88,70 @@ export default function SmsOutboxPage() {
 
   const [resending, setResending] = useState(false);
   const handleResendFailed = async () => {
-    if (resendableCount === 0) return;
-    const label = type ? (TYPE_LABEL[type] ?? type) : 'every type';
-    if (!window.confirm(`Resend ${resendableCount.toLocaleString()} failed/expired message(s) (${label}, ${range === 'custom' ? `${from || '…'} → ${to || '…'}` : `last ${Number(range) >= 24 ? `${Number(range) / 24}d` : `${range}h`}`})? This sends real SMS again.`)) return;
+    const escapeHtml = (value: string) => {
+      const escapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+      return value.replace(/[&<>"']/g, (c) => escapes[c]);
+    };
+    const resendTypes = [...(data?.types ?? [])];
+    if (type && !resendTypes.some((item) => item.type === type)) resendTypes.push({ type, n: 0 });
+    const typeOptions = resendTypes.map((item) => `<option value="${escapeHtml(item.type)}" ${type === item.type ? 'selected' : ''}>${escapeHtml(TYPE_LABEL[item.type] ?? item.type)}</option>`).join('');
+    const prompt = await Swal.fire({
+      title: 'Resend failed messages',
+      html: `<div style="text-align:left;display:grid;gap:12px">
+        <label>Message type<select id="resend-type" class="swal2-select" style="display:block;width:100%;margin:6px 0 0"><option value="">Any type</option>${typeOptions}</select></label>
+        <label>Channel<select id="resend-channel" class="swal2-select" style="display:block;width:100%;margin:6px 0 0">
+          <option value="" ${!channel ? 'selected' : ''}>Any channel</option><option value="sms" ${channel === 'sms' ? 'selected' : ''}>SMS</option><option value="email" ${channel === 'email' ? 'selected' : ''}>Email</option><option value="push" ${channel === 'push' ? 'selected' : ''}>Push</option>
+        </select></label>
+        <label>Created<select id="resend-range" class="swal2-select" style="display:block;width:100%;margin:6px 0 0">
+          <option value="1" ${range === '1' ? 'selected' : ''}>Last hour</option><option value="24" ${range === '24' ? 'selected' : ''}>Last 24 hours</option><option value="72" ${range === '72' ? 'selected' : ''}>Last 3 days</option><option value="168" ${range === '168' ? 'selected' : ''}>Last 7 days</option><option value="720" ${range === '720' ? 'selected' : ''}>Last 30 days</option><option value="custom" ${range === 'custom' ? 'selected' : ''}>Custom dates</option>
+        </select></label>
+        <div id="resend-custom-dates" style="${range === 'custom' ? '' : 'display:none;'}grid-template-columns:1fr 1fr;gap:8px">
+          <label>From<input id="resend-from" type="date" class="swal2-input" style="width:100%;margin:6px 0 0" value="${escapeHtml(from)}"></label>
+          <label>To<input id="resend-to" type="date" class="swal2-input" style="width:100%;margin:6px 0 0" value="${escapeHtml(to)}"></label>
+        </div>
+        <p style="font-size:12px;color:#666;margin:0">Only failed or expired messages matching these filters will be queued. Confirming may send messages again.</p>
+      </div>`,
+      showCancelButton: true,
+      confirmButtonText: 'Review and resend',
+      confirmButtonColor: '#dc2626',
+      focusConfirm: false,
+      didOpen: () => {
+        const rangeSelect = document.getElementById('resend-range') as HTMLSelectElement | null;
+        const dateFields = document.getElementById('resend-custom-dates');
+        rangeSelect?.addEventListener('change', () => { if (dateFields) dateFields.style.display = rangeSelect.value === 'custom' ? 'grid' : 'none'; });
+      },
+      preConfirm: () => {
+        const selectedRange = (document.getElementById('resend-range') as HTMLSelectElement).value;
+        const selectedFrom = (document.getElementById('resend-from') as HTMLInputElement).value;
+        const selectedTo = (document.getElementById('resend-to') as HTMLInputElement).value;
+        if (selectedRange === 'custom' && selectedFrom && selectedTo && selectedFrom > selectedTo) {
+          Swal.showValidationMessage('The start date must be on or before the end date.');
+          return false;
+        }
+        if (selectedRange === 'custom' && !selectedFrom && !selectedTo) {
+          Swal.showValidationMessage('Choose at least one custom date.');
+          return false;
+        }
+        return {
+          type: (document.getElementById('resend-type') as HTMLSelectElement).value,
+          channel: (document.getElementById('resend-channel') as HTMLSelectElement).value,
+          range: selectedRange, from: selectedFrom, to: selectedTo,
+        };
+      },
+    });
+    if (!prompt.isConfirmed || !prompt.value) return;
+    const filters = prompt.value as { type: string; channel: string; range: string; from: string; to: string };
     setResending(true);
     try {
       const body: Record<string, unknown> = {};
-      if (type) body.type = type;
-      if (channel) body.channel = channel;
-      if (range === 'custom') { if (from) body.date_from = from; if (to) body.date_to = to; }
-      else body.since_hours = range;
+      if (filters.type) body.type = filters.type;
+      if (filters.channel) body.channel = filters.channel;
+      if (filters.range === 'custom') { if (filters.from) body.date_from = filters.from; if (filters.to) body.date_to = filters.to; }
+      else body.since_hours = filters.range;
       const r = await fetch('/api/admin/notifications/outbox/resend', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
       });
-      const j = await r.json();
-      if (!r.ok) { showToast('error', j.error || 'Resend failed'); return; }
+      const j = await readResponse<{ requeued?: number }>(r);
       showToast('success', j.requeued > 0 ? `Re-queued ${j.requeued.toLocaleString()} message(s) for resending` : 'Nothing matched these filters');
       mutate();
     } catch (e) {
@@ -116,8 +177,8 @@ export default function SmsOutboxPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleResendFailed}
-            disabled={resending || resendableCount === 0}
-            title={resendableCount === 0 ? 'No failed or expired messages match the current filters' : `Resend ${resendableCount} failed/expired message(s) matching the current filters`}
+            disabled={resending}
+            title="Choose filters for failed or expired messages to resend"
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-100 dark:hover:bg-red-900/30"
           >
             {resending ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizontal className="w-4 h-4" />}

@@ -9,7 +9,7 @@
  * for allocation/remaining) — never recomputed from audit logs, which only
  * the single-message composer wrote.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { classifyUgandaCarrier, type UgandaCarrier } from '@/lib/sms/carrier';
 
 export interface SchoolSmsRate {

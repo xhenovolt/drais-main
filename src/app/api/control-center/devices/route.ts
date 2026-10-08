@@ -10,7 +10,7 @@ import { getControlSession, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
 import { listPlatformDevices, validateDeviceAction, runDeviceAction, type PlatformDeviceAction } from '@/lib/control/devices';
 import { parsePageParams, totalPages } from '@/lib/control/pagination';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export const runtime = 'nodejs';
 

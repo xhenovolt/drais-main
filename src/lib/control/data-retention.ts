@@ -19,7 +19,7 @@
  * never pruned regardless of age, since it may still need manual
  * identity resolution at /attendance/identity-matching.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
 
 const RETENTION_KEY = 'retention_attendance_raw_days';

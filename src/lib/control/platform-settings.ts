@@ -12,7 +12,7 @@
  * `isReadOnly` is PURE + unit-tested. `getMaintenance` is cached (30s) so it adds
  * no per-request DB cost on the hot path.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export type MaintenanceMode = 'off' | 'banner' | 'read_only';
 export const MAINTENANCE_MODES: MaintenanceMode[] = ['off', 'banner', 'read_only'];

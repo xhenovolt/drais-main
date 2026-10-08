@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { setWatermarkDisabled } from '@/lib/idcards/watermark';
 
 export const runtime = 'nodejs';

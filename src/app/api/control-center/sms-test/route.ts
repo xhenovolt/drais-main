@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendSMS, normalizePhoneNumber } from '@/lib/africastalking';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export const runtime = 'nodejs';
 

@@ -10,7 +10,7 @@
  * Pure money maths (`outstanding`, `deriveInvoiceStatus`, `computePeriod`) are
  * unit-tested. Every mutation is audited.
  */
-import { query, getConnection } from '@/lib/db';
+import { query, getConnection } from '@/lib/control/db';
 import { controlAudit } from '@/lib/control/auth';
 import { getPlanByCode, billingCycleDays, invoiceAmounts } from '@/lib/control/subscriptions';
 

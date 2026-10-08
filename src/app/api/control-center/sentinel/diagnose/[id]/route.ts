@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession } from '@/lib/control/auth';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { ensureSentinelSchema } from '@/lib/sentinel/schema';
 
 export const runtime = 'nodejs';

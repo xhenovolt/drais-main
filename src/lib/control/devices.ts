@@ -12,7 +12,7 @@
  * old school flow — just driven by a control operator (fromSuperAdmin) instead
  * of a school session. `validateDeviceAction` is PURE and unit-tested.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { controlAudit } from '@/lib/control/auth';
 import { releaseDevice, acquireDevice, decommissionDevice, type TransferActor } from '@/lib/devices/transfer-service';
 

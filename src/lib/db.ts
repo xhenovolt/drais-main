@@ -44,6 +44,15 @@ export function usesLimitPlaceholder(sql: string): boolean {
 }
 
 export async function query(sql: string, params: any[] = []): Promise<any[]> {
+  return queryWithMode(sql, params, getDbMode());
+}
+
+/** Query the hosted database regardless of the active school data mode. */
+export async function queryOnline(sql: string, params: any[] = []): Promise<any[]> {
+  return queryWithMode(sql, params, 'online');
+}
+
+async function queryWithMode(sql: string, params: any[], mode: 'online' | 'local-mysql' | 'local-sqlite'): Promise<any[]> {
   const MAX_RETRIES = 3;
   let lastError: unknown;
   const safeParams = sanitizeParams(params);
@@ -51,7 +60,7 @@ export async function query(sql: string, params: any[] = []): Promise<any[]> {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const p = await getPool();
+      const p = await getPoolForMode(mode);
       const [rows] = useTextProtocol
         ? await p.query(sql, safeParams)
         : await p.execute(sql, safeParams);
@@ -61,7 +70,7 @@ export async function query(sql: string, params: any[] = []): Promise<any[]> {
       const isRetryable = RETRYABLE_CODES.has(err?.code);
       if (!isRetryable || attempt === MAX_RETRIES) throw err;
       console.warn(`[Database] Retrying query (attempt ${attempt}/${MAX_RETRIES}), error: ${err.code}`);
-      resetPool(getDbMode());
+      resetPool(mode);
       await new Promise(r => setTimeout(r, 300 * attempt));
     }
   }
@@ -73,8 +82,17 @@ export async function query(sql: string, params: any[] = []): Promise<any[]> {
  * Callers MUST call conn.end() — it releases back to the pool.
  */
 export async function getConnection(): Promise<mysql.Connection> {
+  return getConnectionForMode(getDbMode());
+}
+
+/** Acquire a hosted database connection regardless of school data mode. */
+export async function getConnectionOnline(): Promise<mysql.Connection> {
+  return getConnectionForMode('online');
+}
+
+async function getConnectionForMode(mode: 'online' | 'local-mysql' | 'local-sqlite'): Promise<mysql.Connection> {
   try {
-    const p = await getPool();
+    const p = await getPoolForMode(mode);
     const conn = await p.getConnection();
     // Alias end() → release() so callers don't destroy the socket
     (conn as any).end = (): Promise<void> =>

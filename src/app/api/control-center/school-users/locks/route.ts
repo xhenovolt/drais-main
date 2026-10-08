@@ -27,7 +27,7 @@
  * target, the reason and the origin IP.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
 import { setAccountLock, ensureLockoutColumn, LOCKOUT_WINDOW_MIN } from '@/lib/auth/login-lockout';

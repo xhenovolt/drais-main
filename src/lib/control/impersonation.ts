@@ -14,7 +14,7 @@
  *   • 2-hour expiry; a clean Exit ends the session and returns to /control;
  *   • start/end are written to control_audit_logs.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { randomBytes } from 'node:crypto';
 import { controlAudit } from '@/lib/control/auth';
 

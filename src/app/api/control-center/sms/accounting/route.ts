@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { getSmsRateBySchool, getParentCarrierBreakdownBySchool } from '@/lib/control/sms-accounting';
 
 export const runtime = 'nodejs';

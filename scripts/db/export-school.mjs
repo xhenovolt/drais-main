@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Export one school's complete TiDB dataset (schema + scoped data).
- * Usage: node scripts/db/export-school.mjs --school-id=8002 --output=albayan-YYYY-MM-DD.sql
+ * Usage: node scripts/db/export-school.mjs --school-id=8002 --output=albayan-YYYY-MM-DD.sql [--target=mariadb]
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,6 +16,32 @@ const args = Object.fromEntries(process.argv.slice(2).map((a) => {
 const schoolId = Number(args['school-id'] || 8002);
 const outputName = args.output || `school-${schoolId}-${new Date().toISOString().slice(0, 10)}.sql`;
 if (!Number.isInteger(schoolId) || schoolId <= 0) throw new Error('school-id must be a positive integer');
+// --target=mariadb rewrites TiDB DDL so the dump imports into XAMPP (MariaDB 10.4).
+const target = args.target || 'tidb';
+if (!['tidb', 'mariadb'].includes(target)) throw new Error('target must be tidb or mariadb');
+
+const seenConstraints = new Set();
+function toMariaDb(ddl, table) {
+  return ddl
+    // InnoDB constraint names are database-wide; TiDB's are per table (users,
+    // sessions, ... all have `fk_1`). Prefix the table on collision.
+    .replace(/^(\s*CONSTRAINT )`(\w+)`/gm, (_m, pre, name) => {
+      const unique = seenConstraints.has(name) ? `${table}_${name}` : name;
+      seenConstraints.add(unique);
+      return `${pre}\`${unique}\``;
+    })
+    // TiDB-only annotations (clustered_index, auto_id_cache, ...)
+    .replace(/\s*\/\*T!\[\w+\][^*]*\*\//g, '')
+    // MySQL 8 functional key parts aren't supported; index the raw column instead
+    // (non-unique, since the uniqueness was over the derived value).
+    .replace(/^(\s*)UNIQUE KEY (`\w+`) \((.*\(cast\(.*)\)(,?)$/gm, (_m, sp, name, cols, comma) =>
+      `${sp}KEY ${name} (${cols.replace(/\(cast\((`\w+`) as \w+\)\)/g, '$1')})${comma}`)
+    // MariaDB 10.4 runs explicit_defaults_for_timestamp=OFF (read-only): a bare
+    // TIMESTAMP becomes NOT NULL (NULLs rewritten to now()) and the first one
+    // silently gains ON UPDATE CURRENT_TIMESTAMP. Spell out TiDB's semantics.
+    .replace(/^(\s*`\w+` timestamp(?:\(\d\))?)(?! NULL| NOT NULL)/gm, '$1 NULL')
+    .replace(/^(\s*`\w+` timestamp(?:\(\d\))? NOT NULL)(?! DEFAULT)/gm, '$1 DEFAULT CURRENT_TIMESTAMP');
+}
 
 function esc(value) {
   if (value == null) return 'NULL';
@@ -23,6 +49,8 @@ function esc(value) {
   if (typeof value === 'boolean') return value ? '1' : '0';
   if (value instanceof Date) return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
   if (Buffer.isBuffer(value)) return `0x${value.toString('hex') || '0'}`;
+  // mysql2 parses JSON columns into objects/arrays; String() would emit '[object Object]'.
+  if (typeof value === 'object') value = JSON.stringify(value);
   return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\x1a/g, '\\Z')}'`;
 }
 
@@ -33,11 +61,19 @@ async function main() {
 
   const [tableRows] = await conn.query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'");
   const tables = tableRows.map((r) => r.TABLE_NAME).filter((t) => /^[A-Za-z0-9_]+$/.test(t));
-  const [columnRows] = await conn.query('SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()');
+  const [columnRows] = await conn.query("SELECT TABLE_NAME, COLUMN_NAME, COLUMN_KEY, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME, ORDINAL_POSITION");
   const columns = new Map();
+  const insertable = new Map(); // generated columns can't be INSERTed into
+  const primaryKey = new Map();
   for (const row of columnRows) {
-    if (!columns.has(row.TABLE_NAME)) columns.set(row.TABLE_NAME, new Set());
+    if (!columns.has(row.TABLE_NAME)) {
+      columns.set(row.TABLE_NAME, new Set());
+      insertable.set(row.TABLE_NAME, []);
+      primaryKey.set(row.TABLE_NAME, []);
+    }
     columns.get(row.TABLE_NAME).add(row.COLUMN_NAME);
+    if (!/GENERATED/i.test(row.EXTRA || '')) insertable.get(row.TABLE_NAME).push(row.COLUMN_NAME);
+    if (row.COLUMN_KEY === 'PRI') primaryKey.get(row.TABLE_NAME).push(row.COLUMN_NAME);
   }
   const [fkRows] = await conn.query('SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL');
   const tableSet = new Set(tables);
@@ -108,18 +144,23 @@ async function main() {
     const where = clause || '1 = 1';
     const [createRows] = await conn.query(`SHOW CREATE TABLE \`${table}\``);
     const dataClass = clause ? (globalReferenceScopes[table] ? 'school-scoped-reference' : 'school-scoped') : globalReferenceTables.has(table) ? 'global-reference' : 'schema-only';
-    await write(`-- ---------- ${table} (${dataClass}) ----------\nDROP TABLE IF EXISTS \`${table}\`;\n${createRows[0]['Create Table']};\n`);
+    const ddl = target === 'mariadb' ? toMariaDb(createRows[0]['Create Table'], table) : createRows[0]['Create Table'];
+    await write(`-- ---------- ${table} (${dataClass}) ----------\nDROP TABLE IF EXISTS \`${table}\`;\n${ddl};\n`);
     if (!clause && !globalReferenceTables.has(table)) {
       console.log(`${table}: schema only (ambiguous ownership)`);
       continue;
     }
     const [[countRow]] = await conn.query(`SELECT COUNT(*) AS n FROM \`${table}\` WHERE ${where}`, params);
     const count = Number(countRow.n);
+    const names = insertable.get(table);
+    const selectList = names.map((n) => `\`${n}\``).join(', ');
+    // Without a stable order, TiDB may return overlapping/missing rows across pages.
+    const orderCols = primaryKey.get(table).length ? primaryKey.get(table) : names;
+    const orderBy = orderCols.map((n) => `\`${n}\``).join(', ');
     let offset = 0;
     while (offset < count) {
-      const [rows] = await conn.query(`SELECT * FROM \`${table}\` WHERE ${where} LIMIT 500 OFFSET ${offset}`, params);
+      const [rows] = await conn.query(`SELECT ${selectList} FROM \`${table}\` WHERE ${where} ORDER BY ${orderBy} LIMIT 500 OFFSET ${offset}`, params);
       if (!rows.length) break;
-      const names = Object.keys(rows[0]);
       const values = rows.map((row) => `(${names.map((name) => esc(row[name])).join(', ')})`).join(',\n');
       await write(`INSERT INTO \`${table}\` (${names.map((n) => `\`${n}\``).join(', ')}) VALUES\n${values};\n`);
       offset += rows.length;

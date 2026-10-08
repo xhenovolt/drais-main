@@ -12,7 +12,7 @@
  */
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
-import { getConnection, query } from '@/lib/db';
+import { getConnection, query } from '@/lib/control/db';
 import { controlAudit } from '@/lib/control/auth';
 import { assignPlanToSchool } from '@/lib/control/subscriptions';
 

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ug.drais.lite",
+      "sha256_cert_fingerprints": [
+        "91:2C:2E:F8:6F:74:FF:36:07:63:10:54:BC:83:31:83:3E:72:E0:59:B9:CD:8D:88:0F:56:44:FF:36:CA:AF:3A"
+      ]
+    }
+  }
+]

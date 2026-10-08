@@ -3,7 +3,7 @@ import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
 import { controlCan } from '@/lib/control/permissions';
 import { activateSmsProvider, deleteSmsProvider, getSmsProviderForTest, refreshSmsProviderBalance, setSmsProviderEnabled, updateSmsProvider } from '@/lib/control/sms-providers';
 import { sendWithAdapter } from '@/lib/sms/providers';
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 export const runtime = 'nodejs';
 

@@ -5,7 +5,7 @@
  * outstanding receivables, school status mix, plan mix, and simple churn — built
  * on the billing ledger + plan catalog. `monthlyEquivalent` is PURE + tested.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 import { billingCycleDays } from '@/lib/control/subscriptions';
 
 /** PURE: normalise any billing cycle's price to a monthly-equivalent figure. */

@@ -10,7 +10,7 @@
  * Super-admin only + audited at the route. Row counts are bounded per table so
  * one export can't exhaust memory.
  */
-import { query } from '@/lib/db';
+import { query } from '@/lib/control/db';
 
 const MAX_ROWS_PER_TABLE = 100_000;
 
