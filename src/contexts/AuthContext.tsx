@@ -115,14 +115,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/db-mode', { cache: 'no-store' })
-      .then((r) => r.ok ? r.json() : null)
-      .then((info: { mode?: string } | null) => {
-        if (cancelled || info?.mode !== 'local-sqlite') return;
-        setIsOfflineMode(true);
-      })
-      .catch(() => { /* default mode stays as-is */ });
-    return () => { cancelled = true; };
+    const refreshMode = async () => {
+      try {
+        const response = await fetch('/api/db-mode', { cache: 'no-store' });
+        const info: { mode?: string } | null = response.ok ? await response.json() : null;
+        if (!cancelled && info?.mode) setIsOfflineMode(info.mode === 'local-sqlite');
+      } catch { /* keep the last known mode while the server is unavailable */ }
+    };
+    void refreshMode();
+    const timer = window.setInterval(() => { if (!document.hidden) void refreshMode(); }, 30_000);
+    window.addEventListener('focus', refreshMode);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshMode);
+    };
   }, []);
 
   // ========================================

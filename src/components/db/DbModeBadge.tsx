@@ -70,16 +70,24 @@ function useDbMode(onSelected?: () => void) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/db-mode', { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((current: ModeInfo | null) => {
+    const refresh = async () => {
+      try {
+        const response = await fetch('/api/db-mode', { cache: 'no-store' });
+        const current: ModeInfo | null = response.ok ? await response.json() : null;
         if (!cancelled && current) {
           setInfo(current);
           setSelectedMode(current.mode);
         }
-      })
-      .catch(() => { /* mode display remains usable while the server starts */ });
-    return () => { cancelled = true; };
+      } catch { /* mode display remains usable while the server starts */ }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
   }, []);
 
   const switchTo = useCallback(async (mode: DbMode) => {

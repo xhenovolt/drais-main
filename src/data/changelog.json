@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-07T17:03:07.916Z",
-  "last_commit": "73960bcbcb57e819b3c6664d526e8e49f8c63624",
+  "generated_at": "2026-10-08T13:22:24.053Z",
+  "last_commit": "84fab46e76a6fea168e63a8f6dad9325761674f7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8890,7 +8890,20 @@
         }
       ],
       "commit": "73960bcbcb"
+    },
+    {
+      "version": "2.50.20",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Manual resend for failed/expired outbox messages",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Manual resend for failed/expired outbox messages"
+        }
+      ],
+      "commit": "84fab46e76"
     }
   ],
-  "app_version": "2.50.20"
+  "app_version": "2.50.21"
 }
