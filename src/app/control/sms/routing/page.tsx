@@ -26,8 +26,8 @@ interface School {
 interface Provider { id: number; type: string; name: string; enabled: boolean; active: boolean; status: string }
 
 const MODE_TEXT: Record<Mode, string> = {
-  inherit: 'Default (as before)',
-  central: 'A provider',
+  inherit: 'Inherit platform default',
+  central: 'A configured provider',
   own: "The school's own account",
   same_as: 'The same as another school',
 };
@@ -38,9 +38,10 @@ export default function SmsRoutingPage() {
   );
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [mode, setMode] = useState<Mode>('same_as');
+  const [mode, setMode] = useState<Mode>('central');
   const [providerId, setProviderId] = useState('');
   const [sourceId, setSourceId] = useState('');
+  const [routeDrafts, setRouteDrafts] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [checks, setChecks] = useState<Record<number, { busy?: boolean; ok?: boolean; message?: string }>>({});
@@ -52,23 +53,29 @@ export default function SmsRoutingPage() {
 
   const toggle = (id: number) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const apply = async (schoolIds: number[] | 'all') => {
+  const apply = async (
+    schoolIds: number[] | 'all',
+    routeMode: Mode = mode,
+    routeProviderId: string = providerId,
+    routeSourceId: string = sourceId,
+  ) => {
     const count = schoolIds === 'all' ? schools.length : schoolIds.length;
-    const what = mode === 'inherit' ? 'go back to the default'
-      : mode === 'central' ? `use ${providers.find((p) => String(p.id) === providerId)?.name ?? 'the chosen provider'}`
-      : mode === 'own' ? 'use their own accounts'
-      : `use the same provider as ${schools.find((s) => String(s.id) === sourceId)?.name ?? 'the chosen school'}`;
+    const what = routeMode === 'inherit' ? 'inherit the platform default'
+      : routeMode === 'central' ? `use ${providers.find((p) => String(p.id) === routeProviderId)?.name ?? 'the chosen provider'}`
+      : routeMode === 'own' ? 'use their own accounts'
+      : `use the same provider as ${schools.find((s) => String(s.id) === routeSourceId)?.name ?? 'the chosen school'}`;
     if (!confirm(`Make ${schoolIds === 'all' ? 'ALL ' + count : count} school${count === 1 ? '' : 's'} ${what}?\n\nNew messages follow this straight away. Nothing already sent is affected.`)) return;
     setBusy(true); setMsg(null);
     try {
       const r = await fetch('/api/control-center/sms/routing', {
         method: 'PUT', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ schoolIds, mode, centralProviderId: providerId ? Number(providerId) : undefined, sourceSchoolId: sourceId ? Number(sourceId) : undefined }),
+        body: JSON.stringify({ schoolIds, mode: routeMode, centralProviderId: routeProviderId ? Number(routeProviderId) : undefined, sourceSchoolId: routeSourceId ? Number(routeSourceId) : undefined }),
       });
       const b = await r.json();
       if (!r.ok) throw new Error(b.error || 'Could not save');
       setMsg({ ok: true, text: `Saved — ${b.updated} school${b.updated === 1 ? '' : 's'} updated.` });
       setSelected(new Set());
+      setRouteDrafts({});
       await mutate();
     } catch (e: any) { setMsg({ ok: false, text: e.message || 'Could not save' }); }
     finally { setBusy(false); }
@@ -83,15 +90,21 @@ export default function SmsRoutingPage() {
     } catch { setChecks((c) => ({ ...c, [id]: { ok: false, message: 'Check failed' } })); }
   };
 
+  const routeChoice = (school: School) => routeDrafts[school.id] ?? (
+    school.mode === 'inherit' ? 'inherit'
+      : school.mode === 'central' ? String(school.centralProviderId ?? '')
+      : 'keep'
+  );
+
   return (
     <div className="space-y-5 max-w-6xl">
       <div>
         <Link href="/control/sms" className="text-xs text-slate-400 hover:text-slate-200">← SMS</Link>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2 mt-1"><ShieldCheck className="w-6 h-6 text-indigo-400" /> School SMS routing</h1>
         <p className="text-sm text-slate-400 mt-1 max-w-3xl">
-          Choose which SMS provider or account each school sends through: one school, a selection, or all. A school can also use{' '}
+          Choose a configured provider for one school, a selection, or all schools. You can also use{' '}
           <b>the same provider as another school</b> — no password is copied; it simply follows that school&apos;s account. Schools left on
-          <b> Default</b> behave exactly as before.
+          <b> Inherit platform default</b> keeps following the platform routing behavior.
         </p>
       </div>
 
@@ -111,8 +124,8 @@ export default function SmsRoutingPage() {
               {mode === 'central' && (
                 <label className="text-xs text-slate-400">Provider
                   <select disabled={!canManage} value={providerId} onChange={(e) => setProviderId(e.target.value)} className={`${inputClass} block mt-1`}>
-                    <option value="">Choose…</option>
-                    {providers.map((p) => <option key={p.id} value={p.id}>{p.name}{p.active ? ' (platform default)' : ''}</option>)}
+                    <option value="">Choose a configured provider…</option>
+                    {providers.map((p) => <option key={p.id} value={p.id}>{p.name}{p.active ? ' (platform default)' : ''} · {p.type}</option>)}
                   </select>
                 </label>
               )}
@@ -152,6 +165,9 @@ export default function SmsRoutingPage() {
           <div className="md:hidden space-y-2">
             {shown.map((s) => {
               const c = checks[s.id];
+              const choice = routeChoice(s);
+              const currentChoice = s.mode === 'inherit' ? 'inherit' : s.mode === 'central' ? String(s.centralProviderId ?? '') : 'keep';
+              const changed = choice !== currentChoice;
               return (
                 <div key={s.id} className="rounded-xl border border-slate-700 bg-slate-900 p-3 space-y-2">
                   <label className="flex items-start gap-2">
@@ -161,6 +177,14 @@ export default function SmsRoutingPage() {
                   <div>
                     <div className={`text-sm font-medium ${s.effective.ok ? 'text-slate-100' : 'text-red-300'}`}>{s.mode === 'same_as' && s.sourceSchoolName ? `Same as ${s.sourceSchoolName}` : s.effective.label}</div>
                     <div className="text-xs text-slate-400">{s.mode === 'same_as' ? s.effective.label + ' · ' + s.effective.detail : s.effective.detail}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <select disabled={!canManage || busy} value={choice} onChange={(e) => setRouteDrafts((d) => ({ ...d, [s.id]: e.target.value }))} className={`${inputClass} min-w-0 flex-1`} aria-label={`Set SMS provider for ${s.name}`}>
+                      {choice === 'keep' && <option value="keep">Keep current route</option>}
+                      <option value="inherit">Inherit platform default</option>
+                      {providers.map((p) => <option key={p.id} value={String(p.id)}>{p.name}{p.active ? ' · platform default' : ''}</option>)}
+                    </select>
+                    <button disabled={!canManage || busy || !changed || (choice !== 'inherit' && choice !== 'keep' && !providers.some((p) => String(p.id) === choice)) || choice === 'keep'} onClick={() => apply([s.id], choice === 'inherit' ? 'inherit' : 'central', choice)} className="px-3 py-2 rounded-lg bg-indigo-600 text-xs text-white disabled:opacity-40">Save</button>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-400">{s.hasOwnCredentials ? 'Has own credentials' : 'No own account'}</span>
@@ -179,11 +203,13 @@ export default function SmsRoutingPage() {
           <div className="hidden md:block rounded-xl border border-slate-700 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-800 text-[11px] uppercase tracking-wider text-slate-400">
-                <tr><th className="px-3 py-2 w-8" /><th className="px-3 py-2 text-left">School</th><th className="px-3 py-2 text-left">Sends through</th><th className="px-3 py-2 text-left">Own account</th><th className="px-3 py-2 text-left">Check</th></tr>
+                <tr><th className="px-3 py-2 w-8" /><th className="px-3 py-2 text-left">School</th><th className="px-3 py-2 text-left">Sends through</th><th className="px-3 py-2 text-left">Set provider</th><th className="px-3 py-2 text-left">Own account</th><th className="px-3 py-2 text-left">Check</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {shown.map((s) => {
                   const c = checks[s.id];
+                  const choice = routeChoice(s);
+                  const changed = choice !== (s.mode === 'inherit' ? 'inherit' : s.mode === 'central' ? String(s.centralProviderId ?? '') : 'keep');
                   return (
                     <tr key={s.id} className="bg-slate-900 align-top">
                       <td className="px-3 py-2"><input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`Select ${s.name}`} disabled={!canManage} /></td>
@@ -191,6 +217,16 @@ export default function SmsRoutingPage() {
                       <td className="px-3 py-2">
                         <div className={`font-medium ${s.effective.ok ? 'text-slate-100' : 'text-red-300'}`}>{s.mode === 'same_as' && s.sourceSchoolName ? `Same as ${s.sourceSchoolName}` : s.effective.label}</div>
                         <div className="text-xs text-slate-400 max-w-md">{s.mode === 'same_as' ? s.effective.label + ' · ' + s.effective.detail : s.effective.detail}</div>
+                      </td>
+                      <td className="px-3 py-2 min-w-56">
+                        <div className="flex items-center gap-2">
+                          <select disabled={!canManage || busy} value={choice} onChange={(e) => setRouteDrafts((d) => ({ ...d, [s.id]: e.target.value }))} className={`${inputClass} min-w-0 flex-1`} aria-label={`Set SMS provider for ${s.name}`}>
+                            {choice === 'keep' && <option value="keep">Keep current route</option>}
+                            <option value="inherit">Inherit platform default</option>
+                            {providers.map((p) => <option key={p.id} value={String(p.id)}>{p.name}{p.active ? ' · platform default' : ''}</option>)}
+                          </select>
+                          <button disabled={!canManage || busy || !changed || (choice !== 'inherit' && choice !== 'keep' && !providers.some((p) => String(p.id) === choice)) || choice === 'keep'} onClick={() => apply([s.id], choice === 'inherit' ? 'inherit' : 'central', choice)} className="px-3 py-2 rounded-lg bg-indigo-600 text-xs text-white disabled:opacity-40">Save</button>
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-400">{s.hasOwnCredentials ? 'Has credentials' : '—'}</td>
                       <td className="px-3 py-2">
@@ -204,7 +240,7 @@ export default function SmsRoutingPage() {
                     </tr>
                   );
                 })}
-                {shown.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-500">No schools match.</td></tr>}
+                {shown.length === 0 && <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-500">No schools match.</td></tr>}
               </tbody>
             </table>
           </div>

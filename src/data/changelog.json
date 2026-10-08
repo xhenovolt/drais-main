@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T18:13:06.527Z",
-  "last_commit": "7931fbc7608a0426267298862ba587d209f70946",
+  "generated_at": "2026-10-08T19:04:29.218Z",
+  "last_commit": "39347cf535e1694e27e33cf0f1fda738477b3888",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8994,7 +8994,20 @@
         }
       ],
       "commit": "7931fbc760"
+    },
+    {
+      "version": "2.50.29",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "Keep attendance SMS drain alive after device requests",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Keep attendance SMS drain alive after device requests"
+        }
+      ],
+      "commit": "39347cf535"
     }
   ],
-  "app_version": "2.50.29"
+  "app_version": "2.50.30"
 }
