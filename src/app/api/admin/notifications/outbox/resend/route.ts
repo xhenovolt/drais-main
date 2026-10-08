@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (built.error) return NextResponse.json({ error: built.error }, { status: 400 });
 
   const result = (await query(
-    `UPDATE notification_outbox
+    `UPDATE notification_outbox AS o
         SET status = 'queued', attempts = 0, last_error = NULL, scheduled_at = CURRENT_TIMESTAMP
       WHERE ${built.where} AND status IN ('failed','expired')`,
     built.params,
