@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { query } from '@/lib/db';
-import { getDbMode } from '@/lib/db/db-mode';
+import { withRequestDbMode } from '@/lib/db/db-mode';
 import { logAudit, AuditAction } from '@/lib/audit';
 // (saveAttendancePunch + its notifyAdmsAttendance bridge were dead code
 // — never called — and were removed in the Phase 0/1 trust refactor.
@@ -585,14 +585,7 @@ async function getPendingCommand(
   sn: string,
 ): Promise<{ id: number; command: string; batchIds?: number[] } | null> {
   try {
-    const readCommands = async (sql: string, params: any[] = []) => {
-      if (getDbMode() === 'local-sqlite') {
-        const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
-        return getSqliteDb().prepare(sql).all(...params) as any[];
-      }
-      return query(sql, params);
-    };
-    const rows = await readCommands(
+    const rows = await query(
       `SELECT id, command FROM zk_device_commands
        WHERE device_sn = ? AND status = 'pending'
          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
@@ -608,7 +601,7 @@ async function getPendingCommand(
     // If this is a USERINFO push, batch ALL pending USERINFO commands together
     if (first.command.startsWith('DATA UPDATE USERINFO PIN=')) {
       try {
-        const allRows = await readCommands(
+        const allRows = await query(
           `SELECT id, command FROM zk_device_commands
            WHERE device_sn = ? AND status = 'pending'
              AND command LIKE 'DATA UPDATE USERINFO PIN=%'
@@ -656,18 +649,10 @@ async function getPendingCommand(
 /** Mark command(s) as sent after delivery. Handles both single and batch. */
 async function markCommandSent(commandId: number, batchIds?: number[]): Promise<void> {
   try {
-    const updateCommands = async (sql: string, params: any[] = []) => {
-      if (getDbMode() === 'local-sqlite') {
-        const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
-        getSqliteDb().prepare(sql).run(...params);
-        return;
-      }
-      await query(sql, params);
-    };
     if (batchIds && batchIds.length > 1) {
       // Batch: mark ALL commands as sent in one UPDATE
       const placeholders = batchIds.map(() => '?').join(',');
-      await updateCommands(
+      await query(
         `UPDATE zk_device_commands
          SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = COALESCE(retry_count, 0) + 1,
              updated_at = CURRENT_TIMESTAMP
@@ -676,7 +661,7 @@ async function markCommandSent(commandId: number, batchIds?: number[]): Promise<
       );
       zkLog('info', 'BATCH_MARKED_SENT', { primaryId: commandId, count: batchIds.length });
     } else {
-      await updateCommands(
+      await query(
         `UPDATE zk_device_commands
          SET status = 'sent', sent_at = CURRENT_TIMESTAMP, retry_count = COALESCE(retry_count, 0) + 1,
              updated_at = CURRENT_TIMESTAMP
@@ -1148,7 +1133,7 @@ async function processFingerprint(
  *   - "OK"        → no commands pending
  *   - "C:id:cmd"  → deliver one command
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const sn = getSerialNumber(req);
   const url = new URL(req.url);
   const qs = url.search;
@@ -1278,7 +1263,7 @@ export async function GET(req: NextRequest) {
  *   - OPERLOG  → operation log (stored raw, not processed as punches)
  *   - USERINFO → user list (response to DATA QUERY USERINFO command)
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const sn = getSerialNumber(req);
   const url = new URL(req.url);
   const qs = url.search;
@@ -1919,4 +1904,15 @@ export async function POST(req: NextRequest) {
 
     return textResponse('OK'); // NEVER break protocol
   }
+}
+
+// ADMS devices always use the online school database, regardless of the
+// desktop UI's selected mode. AsyncLocalStorage scopes that choice to this
+// request and its async work without mutating the user's process-wide mode.
+export function GET(req: NextRequest) {
+  return withRequestDbMode('online', () => handleGET(req));
+}
+
+export function POST(req: NextRequest) {
+  return withRequestDbMode('online', () => handlePOST(req));
 }

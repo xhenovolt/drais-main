@@ -29,6 +29,8 @@
  * Credentials never leave the server; only the mode label + health are exposed.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 export type DbMode = 'online' | 'local-mysql' | 'local-sqlite';
 
 /** Whether this deployment is allowed to use ANY local mode at all
@@ -45,6 +47,14 @@ export function isLocalAllowed(): boolean {
 // override in process.env too: it is shared by all route bundles in the same
 // desktop server process. Null = fall back to the configured default.
 let runtimeMode: DbMode | null = null;
+const requestMode = new AsyncLocalStorage<DbMode>();
+
+/** Run a server request against a specific source without changing the
+ * process-wide mode selected by the user. This is used by machine-facing
+ * integrations such as ADMS, which always persist to the online school DB. */
+export function withRequestDbMode<T>(mode: DbMode, work: () => T): T {
+  return requestMode.run(mode, work);
+}
 
 /** New app processes always start online. Local databases remain available
  *  through the explicit mode switch; a persisted local selection must not
@@ -56,6 +66,8 @@ function envDefaultMode(): DbMode {
 /** Resolve the active DB mode for this process right now. */
 export function getDbMode(): DbMode {
   if (!isLocalAllowed()) return 'online'; // hosted/prod: hard-forced online
+  const requestOverride = requestMode.getStore();
+  if (requestOverride) return requestOverride;
   // Next.js route bundles have separate module state. Read this explicit
   // runtime-only marker so a user-selected mode reaches auth/data routes,
   // while the persisted DRAIS_DB_MODE remains a startup setting we ignore.
@@ -96,3 +108,4 @@ export function describeMode(mode: DbMode): { mode: DbMode; label: string; short
       return { mode, label: 'Online Cloud', short: 'ONLINE' };
   }
 }
+
